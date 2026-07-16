@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-5-plugin.md -- VRRP config extraction + verification tests
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP config extraction + verification tests
 
 package vrrp
 
@@ -52,6 +52,73 @@ func vips(addrs ...string) []any {
 		out[i] = a
 	}
 	return out
+}
+
+// TestExtractGroupSpecsManyVIPs locks the headline capability: a group may carry
+// up to 16 virtual addresses (RFC 9568 Section 5.2.9; the leaf-list is
+// max-elements 16) and the engine MUST preserve their configuration order (the
+// first address is the advert source identity). Every other positive test used a
+// single virtual-address, which is exactly how the config-parser bracket
+// leaf-list regression (fix 0b3259949) hid: a leaf-list that collapsed to one
+// joined mirror still "worked" for one member, so only a multi-member group with
+// an order assertion catches a leaf-list that lost its members.
+//
+// VALIDATES: spec-vrrp-5 AC-1 -- multiple virtual-address members, in order.
+// PREVENTS: a leaf-list that silently collapses to one element, drops members,
+// or reorders them.
+func TestExtractGroupSpecsManyVIPs(t *testing.T) {
+	const n = 16 // the RFC / YANG maximum
+	want := make([]string, n)
+	addrs := make([]string, n)
+	for i := range n {
+		a := netip.AddrFrom4([4]byte{192, 0, 2, byte(i + 1)}).String()
+		want[i], addrs[i] = a, a
+	}
+	tree := oneGroup("ipv4", "10", map[string]any{
+		"vrid":            float64(10),
+		"virtual-address": vips(addrs...),
+	})
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if len(specs) != 1 {
+		t.Fatalf("want 1 spec, got %d", len(specs))
+	}
+	got := specs[0].VIPs
+	if len(got) != n {
+		t.Fatalf("want %d VIPs, got %d: %v", n, len(got), got)
+	}
+	for i := range n {
+		if got[i].String() != want[i] {
+			t.Errorf("VIP[%d] = %s, want %s (configuration order must be preserved)", i, got[i], want[i])
+		}
+	}
+}
+
+// TestExtractGroupSpecsRejectsJoinedVIP is the VRRP-side guard against the
+// bracket leaf-list parser regression (fix 0b3259949): if virtual-address ever
+// again arrives as ONE joined scalar ("192.0.2.1 192.0.2.2") instead of a slice,
+// VRRP must reject it loudly, never silently accept a malformed single address.
+// asSlice wraps a bare scalar into a one-element slice, so the joined string
+// reaches ParseAddr and fails -- which is the "not an IP address" failure that
+// originally surfaced the parser bug.
+//
+// VALIDATES: spec-vrrp-5 AC-4 -- a malformed virtual-address is rejected.
+// PREVENTS: a joined-string leaf-list being accepted as a single VIP, which is
+// how a collapsed multi-address group would slip through undetected.
+func TestExtractGroupSpecsRejectsJoinedVIP(t *testing.T) {
+	tree := oneGroup("ipv4", "10", map[string]any{
+		"vrid":            float64(10),
+		"virtual-address": "192.0.2.1 192.0.2.2", // bare scalar, not a slice: the bug's shape
+	})
+	_, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err == nil {
+		t.Fatal("a joined-string virtual-address must be rejected, not accepted as one VIP")
+	}
+	if !strings.Contains(err.Error(), "not an IP address") {
+		t.Errorf("want a 'not an IP address' rejection, got: %v", err)
+	}
 }
 
 func TestExtractGroupSpecs(t *testing.T) {

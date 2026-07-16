@@ -114,25 +114,6 @@ func UnregisterOwnedMacvlan(owner, name string) {
 	}
 }
 
-// UnregisterOwnedMacvlans removes every device owner previously registered.
-// A no-op (no reconcile trigger) if owner has no registrations. The next
-// reconcile pass deletes each released device by its alias marker.
-func UnregisterOwnedMacvlans(owner string) {
-	deviceOwnerMu.Lock()
-	_, existed := deviceOwners[owner]
-	delete(deviceOwners, owner)
-	trigger := deviceOwnerTrigger
-	deviceOwnerMu.Unlock()
-
-	if !existed {
-		return
-	}
-	updateOwnedDeviceGauge()
-	if trigger != nil {
-		trigger()
-	}
-}
-
 // ownedMacvlans returns a fresh snapshot merging every registered owner:
 // specs maps device name -> desired MacvlanSpec, owners maps device name ->
 // owner (for the "ze:owned:<owner>" alias). Consumed by the reconcile device

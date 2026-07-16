@@ -673,67 +673,135 @@ children 1/2/4.
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- Plugin registration (`register.go`): `registerVRRP` builds `registry.Registration{Name: "vrrp", ConfigRoots: ["interface"], Dependencies: ["interface"], RFCs: ["9568","3768"], YANG, RunEngine, InProcessConfigVerifier, ConfigureEngineLogger/ConfigureMetrics/ConfigureEventBus, CLIHandler}`; `runVRRPEngine` refuses to run external (`p.IsInternal()` guard, register.go:133) and drives the SDK verify/configure/apply/rollback/started/execute callbacks with an ospf-style pending/active swap.
+- Config YANG (`yang/ze-vrrp-conf.yang`): two groupings + 8 augments into the iface unit ipv4/ipv6 containers; `list group { key "name"; }` with a mandatory `vrid` leaf; every leaf range-constrained; `ze:backend "netlink"` on both vrrp containers (schema-level VPP gate).
+- Config resolution (`groups.go`): extract-only walk into `[]GroupSpec` (`extractGroupSpecs`); pure cross-leaf verifier (`validateGroups`/`validateGroup`) covering interval-vs-version, v3 10ms granularity, accept-mode-vs-version, ipv6 first-address link-local, duplicate-VIP and duplicate-VRID per unit+family, VPP-backend rejection (groups.go:455), and owner auto-detection (effective priority 255 / accept-mode true).
+- Engine + instances (`engine.go`, `instance.go`): instance manager keyed on the group NAME (`GroupSpec.Key`), per-instance worker hosting the child-2 FSM on an injected clock, readiness predicate (`parentReady`/`watchParent`, register.go), macvlan create/delete via `iface.RegisterOwnedMacvlan`/`Unregister`, VIP install/remove via the address-owner registry, transport wiring via `sharedTransport`.
+- Show/clear surface (`cmd_show.go`, `yang/ze-vrrp-cmd.yang`): `show vrrp`, `show vrrp interface name <n>`, `show vrrp statistics`, `clear vrrp statistics` as RPC proxies (`ForwardToPlugin`) + `OnExecuteCommand` snapshot handlers.
+- Telemetry + events (`telemetry.go`): `ze_vrrp_state` gauge + `ze_vrrp_transitions_total` counter (engine-owned state series), and the typed `StateChange` value-type event on the `vrrp` namespace; `emitStateChange` drives both on every transition.
+- Doctor (`doctor.go`, register.go): post-config `vrrp-config-sanity` check emitting `doctor-vrrp-config-invalid` / `doctor-vrrp-backend-unusable`, both explainable via `ze explain`.
+- Functional suite (`test/vrrp/*.ci`) + `ze-vrrp-test` target (`mk/test-functional.mk:191`); plugin self-containment guarded by `yang/self_containment_test.go` plus banned-token halves in the central show/clear guard tests.
 
 ### Bugs Found/Fixed
-- (fill during implementation)
+- **Transport metrics never reached Prometheus.** `ConfigureMetrics` installed the engine's state registry but did not forward the registry to the shared transport, so the five `ze_vrrp_*` transport series stayed on the no-op registry. Fixed: `ConfigureMetrics` now also calls `sharedTransport.SetMetrics(reg)` (register.go:69-76), closing spec-vrrp-4 AC-12's production-wiring half; `telemetry_test.go` proves the engine state series + event increment on the live `emitStateChange` path.
+- **accept-mode arrived as the string "true"** and was dropped by a `.(bool)` assertion, so a `version 2` + accept-mode config validated clean; fixed with an `asBool` that accepts both shapes and rejects anything else, locked by `TestLeafShapesFromTextConfig` and `vrrp-config-invalid.ci` seq8.
+- **Duplicate rx per instance.** Each instance opens its own parent-bound rx socket, so one advert is delivered once per instance; routing by VRID would have duplicated FSM events. Fixed by stamping `transport.RxItem.Key` and routing on it (recorded in spec-vrrp-4 Deviations too).
+- **Instance concurrency race** (`go test -race`): reconfigure wrote `in.spec` while the worker read it; fixed with a per-instance mutex serializing spec + FSM access (Mistake Log).
+- **`go test -update` snapshot shrink**: regenerating the plugin-name golden without the feature tags silently deleted 75 lines of other plugins' methods; regenerate with the Makefile's `GO_TEST_TAGS` (Mistake Log).
 
 ### Documentation Updates
-- (fill during implementation)
+- `docs/guide/vrrp.md` (new operator guide), `docs/features/rfc-status.md` (RFC 9568/3768/5798 rows), `docs/features.md`, `docs/features/interfaces.md` (generic macvlan note), `docs/functional-tests.md`, `docs/guide/command-catalogue.md`. NOTE: `docs/features/interfaces.md:113` "Gateway Redundancy | VRRP / keepalived | missing" status row is NOT flipped and still reads "missing" (residual doc gap, outside this bookkeeping pass's edit scope; also recorded in the umbrella).
 
 ### Deviations from Plan
-- (fill during implementation)
+- **Metric labels are `{device,group,vrid,family}`, not the spec's `{interface,vrid,family}`** (telemetry.go:56-59). A logical interface is not unique per virtual router: two units of one interface (eth0 and eth0.100) can each host vrid 10 in the same family and would collapse onto one series. `device` is the unit's OS device (unique); `group` names the router the way the operator configured it.
+- **The YANG list key is `key "name"`, not `key "vrid"`** (`yang/ze-vrrp-conf.yang:33,142`; `GroupSpec.Key` keys on the name, groups.go:156-163). Naming the group lets an operator renumber a vrid without the tree treating it as a new object (wireguard peer precedent). Cost: a new rule that two groups on one unit+family must not share a vrid, enforced by the verifier (`validateGroups` seenVRID, groups.go:472-477) and by `vrrp-config-invalid.ci` seq4 (dup-vrid).
+- **Doctor codes renamed**: the planned single `doctor-vrrp-config` became `doctor-vrrp-config-invalid` plus `doctor-vrrp-backend-unusable` for the VPP-backed case (doctor.go:21-22); `doctor-vrrp-raw-socket` (transport) and `doctor-iface-macvlan` (iface backend) stay per the umbrella proximity decision.
+- **Superseded functional tests**: `vrrp-metrics.ci` was replaced by the `telemetry_test.go` unit test (a capturing registry asserts the gauge/counter increment and the state-change event emit); `vrrp-vpp-reject.ci` was folded into `vrrp-config-invalid.ci` seq11 (`backend vpp` + group -> exit 1).
+- **File layout**: the plan's `config.go`/`server.go`/`cmd.go`/`events.go`/`metrics.go`/`codes.go` split landed as `groups.go` (extract + verify), `engine.go` + `instance.go` (engine + worker), `cmd_show.go` (proxies + handlers), `telemetry.go` (events + metrics), and `doctor.go` (check + codes). No behavior change.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Plugin registration (Registration, internal-only guard) | Done | `register.go:46` (registerVRRP), :133 (IsInternal guard) | RunEngine `runVRRPEngine` |
+| Config YANG (8 augments, name-keyed group) | Done | `yang/ze-vrrp-conf.yang` (:33,:142 `key "name"`) | ze:backend "netlink" on both containers |
+| Config resolution (extract + verify + callbacks) | Done | `groups.go` (extractGroupSpecs/validateGroups), `register.go` (OnConfigVerify/Configure/Apply/Rollback) | pending/active swap |
+| Engine + instances (manager, FSM host, VIP/macvlan) | Done | `engine.go`, `instance.go`, `register.go` (livePlatform/liveDeps) | keyed on group name |
+| Show/clear surface | Done | `cmd_show.go`, `yang/ze-vrrp-cmd.yang` | ForwardToPlugin proxies |
+| Telemetry (state gauge + transitions counter) | Done | `telemetry.go:56-81` | labels {device,group,vrid,family} (deviation) |
+| Events (typed vrrp namespace payload) | Done | `telemetry.go:32-46` (StateChange) | value types only |
+| Doctor (config-sanity) | Done | `doctor.go`, `register.go:227` | doctor-vrrp-config-invalid / -backend-unusable |
+| Functional tests + ze-vrrp-test | Done | `test/vrrp/*.ci`, `mk/test-functional.mk:191` | |
+| Docs | Done (partial) | `docs/guide/vrrp.md`, `docs/features/rfc-status.md`, etc. | interfaces.md:113 status row still "missing" |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 valid agreed shape | Done | `test/vrrp/vrrp-config.ci` (v3 ipv4 multi-VIP + v3 ipv6) + `TestExtractGroupSpecs` | exit 0 |
+| AC-2 v2 group; version absent under ipv6 | Done | `vrrp-config.ci` (v2 opt-in shape) | version leaf ipv4-only in schema |
+| AC-3 owner case | Done | `TestOwnerAutoDetection`, `TestInstanceSnapshotReportsEffectivePriority`; `vrrp-config.ci` owner case | eff priority 255 / accept forced |
+| AC-4 invalid inputs rejected | Done | `vrrp-config-invalid.ci` seq1-10 + `TestValidate*`, `TestBoundary*` | path-naming errors |
+| AC-5 vpp + group verify fails | Done | `vrrp-config-invalid.ci` seq11, `TestVerifyRejectsVPPBackend`, groups.go:455 | |
+| AC-6 zero groups idle | Done | `vrrp-idle.ci` (darwin: validate + doctor quiet), `vrrp-show.ci` (linux: empty show via dispatch), `vrrp-instance-up.ci` (no macvlan post-teardown), `TestEngineIdleWithoutGroups` | functional .ci |
+| AC-7 commit v3 ipv4 group (linux) | Done | `vrrp-instance-up.ci` (needs-linux): macvlan vMAC 00:00:5e:00:01:0a, FSM->Master, VIP installed | functional .ci |
+| AC-8 show vrrp / interface / statistics | Done | `vrrp-show.ci` (needs-linux, live dispatch path) + `cmd_show_test.go` (payload shapes) | functional .ci |
+| AC-9 clear vrrp statistics | Done | `vrrp-show.ci` (`cleared` count) + `TestClearStatisticsPreservesState` | functional .ci |
+| AC-10 doctor fires + explain | Done | `vrrp-doctor.ci` / `vrrp-doctor-fires.ci` / `vrrp-doctor-quiet.ci` + `TestDoctorReportsInvalidConfig`/`TestDoctorReportsVPPBackend`/`TestDoctorCodesAreExplainable` | |
+| AC-11 metrics incremented, no dead counters | Done (unit) | `telemetry_test.go`: `TestRecordTransitionDrivesStateAndCounter`, `TestEmitStateChangeRecordsMetricsAndEmitsEvent` | labels deviation; `vrrp-metrics.ci` superseded by this test |
+| AC-12 typed event on transition | Done (unit) | `telemetry_test.go`: `TestEmitStateChangeRecordsMetricsAndEmitsEvent` (live emitStateChange path) + namespace registered register.go:47 | |
+| AC-13 group removed -> instance deleted | Done | `vrrp-instance-up.ci` (SIGHUP teardown: macvlan + VIP gone) + `TestEngineDeletesRemovedInstance`, `TestInstanceShutdownAsMasterSendsPriorityZero` | |
+| AC-14 delete dir + generate -> surface vanishes | Done (guard) | `yang/self_containment_test.go` (`TestVRRPCmdSchemaOwnsShowVRRP` owner half + `TestVRRPConfSchemaGatesNetlinkBackend`) + central `TestShowSchemaHasNoMigratedOwnerCommands` / `TestClearOwnerRemovalLeavesNoResidue` banned-token halves | invariant guarded by tests |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Config extraction/validation (`TestExtractGroupSpecs*`, `TestValidate*`, `TestOwnerAutoDetection`, `TestVerifyRejectsVPPBackend`, `TestLeafShapesFromTextConfig`, `TestBoundary*`) | Done | `groups_test.go` | the plan's config_test.go names landed here |
+| Engine/instance (`TestEngineCreatesInstance`, `TestEngineDeletesRemovedInstance`, `TestInstanceReadinessGatesStartup`, `TestInstanceOwnerStartupGoesMaster`, `TestInstanceShutdownAsMasterSendsPriorityZero`, `TestInstanceTimerGenEcho`, `TestInstanceRx*`, `TestInstanceV2AddressListMismatchDrops`) | Done | `engine_test.go`, `instance_test.go` | the plan's server_test.go names landed here |
+| Show/clear (`TestCommandDeclsMatchDispatch`, `TestShowInterfaceRequiresSelector`, `TestShowInterfaceFiltersToOneParent`, `TestClearStatisticsPreservesState`, `TestSelectorValue`) | Done | `cmd_show_test.go` | |
+| Doctor (`TestDoctorReportsInvalidConfig`, `TestDoctorReportsVPPBackend`, `TestDoctorSilent*`, `TestDoctorCodesAreExplainable`) | Done | `doctor_test.go` | |
+| Telemetry + events (`TestRecordTransitionDrivesStateAndCounter`, `TestClearMetricsDropsStateSeries`, `TestEmitStateChangeRecordsMetricsAndEmitsEvent`) | Done | `telemetry_test.go` | AC-11 + AC-12 at unit level |
+| Registration fields + section delivery | Done | `plugins.snapshot` / `wire-methods.snapshot` / `yang-providers.snapshot` goldens (name, 4 wire methods, YANG provider); `vrrp-config-invalid.ci` (the cross-leaf rejections can only come from the in-process verifier, which runs only if the plugin is registered on the `interface` root and receives the section) | ConfigRoots + A-2 section delivery proven functionally; `Dependencies`/`RFCs` metadata not pinned by a dedicated test |
+| Self-containment guard (owner + banned-token halves) | Done | `yang/self_containment_test.go`, central show/clear guard tests | AC-14 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| register.go, vrrp.go | Done | registration + logger/atomic holders |
+| config -> `groups.go`; server/engine -> `engine.go` + `instance.go`; cmd -> `cmd_show.go`; events+metrics -> `telemetry.go`; codes -> `doctor.go` | Done | file split differs from plan (Deviations) |
+| yang/ze-vrrp-conf.yang, yang/ze-vrrp-cmd.yang, yang/embed.go, yang/register.go | Done | embed/register generated by `make generate` |
+| test/vrrp/*.ci | Done | `vrrp-metrics.ci` -> `telemetry_test.go`; `vrrp-vpp-reject.ci` -> `vrrp-config-invalid.ci` seq11 |
+| mk/test-functional.mk, internal/test/cli/register.go | Done | ze-vrrp-test suite registration |
+| central show/clear self_containment tokens | Done | banned `ze-show:vrrp` / `ze-clear:vrrp-statistics` |
+| docs/* | Done (partial) | interfaces.md:113 status row still "missing" |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 10 task requirements + 14 ACs + test suites + file set
+- **Done:** all requirements; AC-1..AC-14 (AC-11/AC-12 proven at unit level via `telemetry_test.go`; AC-14 guarded by the self-containment tests)
+- **Partial:** none (docs partial: the interfaces.md:113 status row still reads "missing")
+- **Skipped:** none
+- **Changed:** metric labels, YANG list key, doctor code names, superseded `vrrp-metrics.ci` / `vrrp-vpp-reject.ci`, and file layout (all documented in Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Operator can configure VRRP under interface units (agreed shape) | functional test | (fill: vrrp-config.ci pass output) |
-| Invalid configs rejected with actionable errors | functional test | (fill: vrrp-config-invalid.ci pass output) |
-| Instance lifecycle works end to end on linux | functional test | (fill: vrrp-instance-up.ci pass output) |
-| Operator workflow (show/clear/doctor/metrics/events) | functional tests | (fill: vrrp-show/doctor/metrics.ci pass output) |
-| VPP fail-closed (umbrella AC-5) | functional test | (fill: vrrp-vpp-reject.ci pass output) |
-| Idle with zero groups (umbrella AC-6) | functional test | (fill: vrrp-idle.ci pass output) |
-| Self-containment (removal test) | build evidence | (fill: AC-14 scratch-tree build output) |
+| Operator can configure VRRP under interface units (agreed shape) | functional test | `test/vrrp/vrrp-config.ci`: v3 ipv4 multi-VIP, v3 ipv6 (link-local first), v2 opt-in, owner case, same vrid in both families, and a VLAN unit all validate (exit 0, "configuration valid") |
+| Invalid configs rejected with actionable errors | functional test | `test/vrrp/vrrp-config-invalid.ci` seq1-11 (missing/zero/256 vrid, dup vrid, prio 255, v3 granularity, v2 fraction, accept+v2, ipv6 order, dup VIP, vpp backend) each exit 1 with a path-naming error; unit mirror `TestValidate*` |
+| Instance lifecycle works end to end on linux | functional test | `test/vrrp/vrrp-instance-up.ci` (option=needs-linux, QEMU): macvlan carries vMAC 00:00:5e:00:01:0a, VIP install on ->Master (kernel readback), SIGHUP teardown removes macvlan + VIP; asserts the "vrrp: state change" transition log |
+| Operator workflow (show/clear/doctor/metrics/events) | functional + unit | show/clear reach the live daemon dispatch path in `vrrp-show.ci` (needs-linux) with payload shapes pinned by `cmd_show_test.go`; doctor codes fire/stay-quiet/explain in `vrrp-doctor.ci` / `vrrp-doctor-fires.ci` / `vrrp-doctor-quiet.ci`; metrics increment + the typed state-change event are proven by `telemetry_test.go` (the umbrella-named `vrrp-metrics.ci` was superseded by this unit test) |
+| VPP fail-closed (umbrella AC-5) | functional test | `test/vrrp/vrrp-config-invalid.ci` seq11 (`backend vpp` + group -> exit 1; the umbrella-named `vrrp-vpp-reject.ci` was folded here); enforced at groups.go:455 |
+| Idle with zero groups (umbrella AC-6) | functional test | `test/vrrp/vrrp-idle.ci` (darwin, `make ze-vrrp-test`: validate accepts + doctor stays quiet on a group-less interface tree) + `vrrp-show.ci` (linux: `show vrrp` empty via the real dispatch path) + `vrrp-instance-up.ci` (no macvlan post-teardown) |
+| Self-containment (removal test) | guard tests | `yang/self_containment_test.go` (owner half `TestVRRPCmdSchemaOwnsShowVRRP` + netlink-gate `TestVRRPConfSchemaGatesNetlinkBackend`) + central `TestShowSchemaHasNoMigratedOwnerCommands` / `TestClearOwnerRemovalLeavesNoResidue` (banned `ze-show:vrrp` / `ze-clear:vrrp` tokens); the AC-14 removal invariant is guarded by these tests rather than a scratch-tree delete recorded here |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | Metrics increment untested | internal/plugins/vrrp telemetry | Add telemetry_test.go asserting metric increments via the live emitStateChange path |
+| 2 | BLOCKER | Event emission untested | internal/plugins/vrrp telemetry | Add telemetry_test.go asserting the state-change event via the live emitStateChange path |
+| 3 | BLOCKER | No functional show/clear test | test/vrrp | Add vrrp-show.ci (needs-linux) |
+| 4 | BLOCKER | No needs-linux instance-lifecycle test | test/vrrp | Add vrrp-instance-up.ci (needs-linux, QEMU-validated) |
+| 5 | ISSUE | No vrrp-idle.ci | test/vrrp | Add vrrp-idle.ci (darwin) |
+| 6 | ISSUE | Missing central self-containment guard | central show/clear | Add the central show/clear self-containment guard test |
+| 7 | ISSUE | Missing plugin self-containment guard | plugin owner-half | Add the plugin owner-half self-containment guard test |
+| 8 | ISSUE | Missing backend-gate test | netlink backend gate | Add the netlink-gate guard test |
+| 9 | ISSUE | Missing registration-field test | plugin registration | Add multi-VIP unit tests covering registration fields |
 
 ### Fixes applied
-- (fill during /ze-review)
+- Added telemetry_test.go covering metric increments and state-change event emission via the live emitStateChange path.
+- Added functional tests: test/vrrp/vrrp-idle.ci (darwin), and vrrp-show.ci + vrrp-instance-up.ci (needs-linux, QEMU-validated).
+- Added self-containment guard tests: plugin owner-half, central show/clear, and the netlink backend-gate.
+- Added multi-VIP unit tests (registration-field coverage).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Audit row cited a non-existent register_test.go coverage | this spec (Audit) | Correct the audit row (since fixed) |
+| 2 | NOTE | 3 NOTEs -- registration-field functional coverage judged sufficient (no additional unit test required) | -- | recorded |
 
 ### Final status
+**Run 2 CLEAN after fixes: 0 BLOCKER, 0 ISSUE.** Run 1 (4 BLOCKER, 5 ISSUE) and the Run 2 residual ISSUE (audit row citing a non-existent register_test.go) are all fixed. NOTEs: 3, all judging the registration-field functional coverage sufficient.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 

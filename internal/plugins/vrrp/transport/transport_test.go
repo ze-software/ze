@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-4-transport.md -- transport orchestrator tests (fake backend)
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- transport orchestrator tests (fake backend)
 
 package transport
 

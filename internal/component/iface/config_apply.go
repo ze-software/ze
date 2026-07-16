@@ -1091,8 +1091,9 @@ func reconcileOwnedDevices(b Backend, journal *sdk.Journal, currentInfos []Inter
 // spec, so the drift path is skipped. Compares the ownership alias, the MAC,
 // and -- when the parent is currently resolvable -- the parent index and MTU
 // (owned macvlans inherit the parent MTU, so a parent MTU change is drift,
-// eventually-consistently). Mode drift is intentionally not detected
-// (Known Limitations: InterfaceInfo carries no mode).
+// eventually-consistently). Mode drift IS detected when the backend reports the
+// live mode (MacvlanMode); an older binary that predates the mode field reports
+// empty, which is treated as "unknown" and does not force a re-create.
 func ownedMacvlanMatchesSpec(cur InterfaceInfo, desired MacvlanSpec, currentByName map[string]InterfaceInfo) bool {
 	if cur.Alias != desired.Alias {
 		return false
@@ -1101,9 +1102,10 @@ func ownedMacvlanMatchesSpec(cur InterfaceInfo, desired MacvlanSpec, currentByNa
 		return false
 	}
 	// A device created in the wrong delivery mode (e.g. by an older binary that
-	// only made bridge macvlans) is drift: VRRP needs private mode for the
-	// virtual MAC to answer ARP. Compare only when the backend reported the mode
-	// (empty means "unknown", so do not force a needless re-create).
+	// only made bridge macvlans) is drift: a consumer that picked private mode
+	// (so its own MAC answers ARP) must not silently keep a stale bridge device.
+	// Compare only when the backend reported the mode (empty means "unknown", so
+	// do not force a needless re-create).
 	if cur.MacvlanMode != "" && cur.MacvlanMode != desired.Mode.String() {
 		return false
 	}

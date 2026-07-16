@@ -595,6 +595,7 @@ a0 00 00 00         flags: R=1 S=0 O=1
 - **IPv4 header builder location**: `buildIPv4Header` lives in `transport.go` (orchestrator), not `backend_linux.go`. Rationale: the API is "SendAdvert(prepared bytes)", so the orchestrator prepares the full v4 datagram; keeping the builder platform-independent lets it be exercised on darwin. No behavior change.
 - **counters.go split**: `instanceCounters` moved out of `transport.go` into `counters.go` to keep `transport.go` under the 600-line soft cap. Its unit coverage stays in `metrics_test.go` (`TestCounterSnapshotAndReset`); the test-relocation was blocked by the test-weakening hook, so the test was left in place rather than moved.
 - **Parent address re-resolution without a third goroutine**: the goroutine-lifecycle rule mandates exactly two long-lived goroutines per instance (readLoop + announcer). A live `iface.Subscribe` reader would be a third, so address re-resolution is done synchronously in `UpdateAdvert` and via an explicit `RefreshParentAddresses(key)` method the engine (spec-vrrp-5, which already subscribes to iface events) calls on a parent address-change event. The `resolveIfaceAddresses` seam is retained and overridable (ospf model). See Mistake Log.
+- **`RxItem.Key` added to the published API shape.** The API-shape table (Files to Create) describes `InstanceHandle.Recv()` as "a channel of raw rx items" with no per-instance identity on the item. But every instance opens its OWN parent-bound rx socket, so one advert on the wire is delivered once PER instance on that parent, and the engine (spec-vrrp-5) needs a key to route each copy to its instance -- VRID routing would hand every copy to one instance (duplicate FSM events, N-times-inflated receive counter). `transport.RxItem` gained a `Key InstanceKey` field, stamped by the per-instance rx sink that already holds the key; the engine routes on it. Origin recorded in spec-vrrp-5's Mistake Log.
 
 ## Implementation Audit
 
@@ -626,7 +627,7 @@ a0 00 00 00         flags: R=1 S=0 O=1
 | AC-9 NA burst | Done | `TestBuildNAMessageGolden`, `TestNAHoloBugNegatives`, `TestIntegrationNAOnWire` | quadruple negative |
 | AC-10 v6 no-link-local skip | Done | `TestSendAdvertNoLinkLocalSkipsAndCounts` | retry succeeds |
 | AC-11 doctor warn/silent/explain | Done | `TestVRRPRawSocketDoctorWarn/Silent`, `TestVRRPRawSocketCodeRegistered` | |
-| AC-12 metrics registered + incremented | Done | `TestTransportMetricsRegistered`, `TestCounterSnapshotAndReset` | no dead counters |
+| AC-12 metrics registered + incremented | Done | `TestTransportMetricsRegistered`, `TestCounterSnapshotAndReset`; production wiring `internal/plugins/vrrp/register.go:69-76` | series registered + incremented in unit tests; the plugin's `ConfigureMetrics` now calls `sharedTransport.SetMetrics(reg)` so the five `ze_vrrp_*` transport series reach Prometheus in production (they sat on the no-op registry until that spec-5 wiring fix) |
 | AC-13 darwin build + stub | Done | `TestOpenInstanceUnsupportedPlatform` (`//go:build !linux`) | typed error |
 | AC-14 close, no goroutine leak | Done | `TestCloseStopsGoroutines` | -race |
 
@@ -660,22 +661,27 @@ a0 00 00 00         flags: R=1 S=0 O=1
 | Received adverts reach the engine with TTL/dst meta for GTSM validation | QEMU integration + unit test | `TestIntegrationRxDeliversFromPeer` (peer sends TTL 254; delivered unmodified with Family/Dst) + `TestReadLoopDeliversRxMeta` (rxSink delivers RxMeta{TTL 254, Src, Dst, Family, IfIndex} + payload) |
 | GARP and NA frames are byte-correct and burst-repeated | golden unit tests + QEMU capture | `TestBuildGARPFrameGolden`/`TestBuildNAMessageGolden` (exact bytes), `TestNAHoloBugNegatives` (dst/TLL/hop-limit/pseudo-header), `TestAnnounceBurstRepeatsAndSpacing` (3x100ms), `TestIntegrationGARPOnWire`/`TestIntegrationNAOnWire` (on-wire byte-equal + kernel checksum verifies) |
 | Readiness observable before start | doctor unit test | `TestVRRPRawSocketDoctorWarn` (warn when vrrp configured + probe false), `TestVRRPRawSocketDoctorSilent` (silent otherwise), `TestVRRPRawSocketCodeRegistered` (explainable); functional `vrrp-doctor.ci` owned by spec-vrrp-5 |
-| Transport observable in production | metrics tests | `TestTransportMetricsRegistered` (5 series, exact names/labels) + `TestCounterSnapshotAndReset` (per-instance read-back + Prometheus increments, monotonic across reset); functional `vrrp-metrics.ci` owned by spec-vrrp-5 |
+| Transport observable in production | metrics tests + plugin wiring | `TestTransportMetricsRegistered` (5 series, exact names/labels) + `TestCounterSnapshotAndReset` (per-instance read-back + Prometheus increments, monotonic across reset); the transport registry is injected in production by the plugin's `ConfigureMetrics` -> `sharedTransport.SetMetrics` (`internal/plugins/vrrp/register.go:69-76`), so the series reach Prometheus rather than the no-op registry; the umbrella-named `vrrp-metrics.ci` was superseded by the engine-side `telemetry_test.go` unit test (spec-vrrp-5) |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | Transport.SetMetrics had no production caller; the 5 ze_vrrp_* transport series were dead on the no-op registry | internal/plugins/vrrp transport, register.go | Wire register.go ConfigureMetrics to call sharedTransport.SetMetrics(reg) |
+| 2 | ISSUE | AC-3 wire test lacked an IPv4 header-checksum assertion | transport integration test | Add the IPv4 header-checksum assertion |
 
 ### Fixes applied
-- (fill during /ze-review)
+- register.go ConfigureMetrics now calls sharedTransport.SetMetrics(reg), so the 5 ze_vrrp_* transport series register against the live registry.
+- The integration test now verifies the IPv4 header checksum (QEMU-validated; 7/7 TestIntegration* pass).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| -- | none | Run 2 CLEAN -- no findings | -- | none |
 
 ### Final status
+**Run 2 CLEAN: 0 BLOCKER, 0 ISSUE.** SetMetrics is wired (register.go ConfigureMetrics) and the IPv4 header checksum is asserted (QEMU-validated, 7/7 TestIntegration* pass). NOTEs: none.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 

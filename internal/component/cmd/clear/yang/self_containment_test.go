@@ -14,6 +14,7 @@ func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 		`"ze-clear:isis-adjacency"`:     "IS-IS adjacency clear -> internal/plugins/isis/yang",
 		`"ze-clear:isis-counters"`:      "IS-IS counters clear -> internal/plugins/isis/yang",
 		`"ze-clear:ospf-`:               "OSPF clear -> internal/plugins/ospf/yang",
+		`"ze-clear:vrrp-statistics"`:    "VRRP statistics clear -> internal/plugins/vrrp/yang",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliClearCmdYANG, token) {

@@ -60,7 +60,7 @@ func allRPFilterPath() string { return ipv4Conf("all", "rp_filter") }
 // keepalived also sets disable_ipv6=1 on its vmac, but that is not part of what
 // makes the virtual MAC answer: the IPv4 recipe reaches the virtual MAC with it
 // removed (proven in QEMU, bridge topology, 5/5 after the cold-start resolution
-// -- plan/spec-vrrp-6), so ze does not touch IPv6 on the IPv4 vmac.
+// -- plan/learned/1122-vrrp-macvlan-vmac-dataplane.md), so ze does not touch IPv6 on the IPv4 vmac.
 func vmacSysctls(vmac string) []sysctlKV {
 	return []sysctlKV{
 		{ipv4Conf(vmac, "arp_ignore"), "1"},

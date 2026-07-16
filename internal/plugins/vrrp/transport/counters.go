@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-4-transport.md -- per-instance counter snapshot (Finding 7)
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- per-instance counter snapshot (Finding 7)
 //
 // instanceCounters mirrors every Prometheus increment into an atomic snapshot so
 // spec-vrrp-5 can serve `show vrrp statistics` / `clear vrrp statistics` per

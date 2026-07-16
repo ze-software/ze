@@ -359,7 +359,7 @@ func TestStripIPv4HeaderIHL(t *testing.T) {
 
 // VALIDATES: Reason() is total and injective over the receive-validation
 // taxonomy (ip-header intentionally shared by the two strip errors); the
-// accepted-outcome label checksum-rfc5798-compat and the engine-raised
+// accepted-outcome label checksum-rfc9568-message-only and the engine-raised
 // address-list label are present and collision-free; encode-side errors and nil
 // are deliberately NOT rx reasons (mapping closed over the taxonomy).
 func TestErrorReasonMapping(t *testing.T) {

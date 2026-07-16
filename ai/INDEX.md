@@ -31,6 +31,7 @@ and gated fresh, so they never lie about the current code.
 | Add route processing | `ai/rules/architecture-summary.md` | `docs/architecture/core-design.md` |
 | Detect and auto-mitigate a DDoS flood | `docs/guide/ddos-mitigation.md` | `ddos-detect` characterizes the attack (family + vector) from `traffic-usage`/`flow-export`; `ddos-local`/`ddos-flowspec` install surgical rules; `show flow recent` inspects the flow ring |
 | Detect behavioral security anomalies (exfil, C2, scanning) | learned `1046`/`1048`/`1049` | Neutral facts in `internal/component/trafficfeature` (fan-out, out/in ratio, entropy, beaconing) on `internal/core/stats`; `anomaly/detect` (report-only) scores per-entity deviation + cohort rarity into incidents (`show anomaly`); `anomaly/shape` responds shadow-first (per-source rate-limit, arm/auto-revert/kill-switch, `show anomaly-shape`). Separate security domain from `ddos`. |
+| Provide or extend first-hop gateway redundancy (VRRP) | `docs/guide/vrrp.md` | RFC 9568/3768 in `internal/plugins/vrrp/` (self-contained plugin) with the per-group virtual-MAC macvlan in `internal/component/iface/macvlan.go`; extend via `plan/spec-vrrp-0-umbrella.md` (indexes `spec-vrrp-1..7`) |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
@@ -352,6 +353,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | firewall, nftables, NAT, masquerade | `internal/component/firewall/` (component), `ze-firewall-conf.yang` |
 | PPPoE, pppoe-client, access concentrator | `internal/component/l2tp/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |
+| VRRP, first-hop redundancy, virtual router, keepalived, gateway redundancy, virtual MAC | `internal/plugins/vrrp/` (plugin), `internal/component/iface/macvlan.go` (per-group virtual-MAC macvlan), `ze-vrrp-conf.yang`, `docs/guide/vrrp.md`, `docs/features/rfc-status.md` (First-hop redundancy) |
 | static route, default route | `internal/plugins/static/` (plugin), `ze-static-conf.yang` |
 | conntrack, connection tracking | `internal/component/config/system/conntrack.go`, `ze-system-conf.yang` |
 | archive, config backup, revision | `internal/component/config/archive/`, `ze-system-conf.yang` |

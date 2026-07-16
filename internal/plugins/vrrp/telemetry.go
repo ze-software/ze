@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-5-plugin.md -- engine-owned telemetry and state events
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- engine-owned telemetry and state events
 //
 // The engine owns the STATE series (what the virtual router is doing); the
 // transport owns the WIRE series (what crossed the socket). Splitting them by

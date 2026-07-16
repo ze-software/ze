@@ -1,0 +1,70 @@
+# Test: the vrrp plugin auto-loads on a shared `interface` config that carries
+# ZERO vrrp groups, and stays idle (spec-vrrp-5 AC-6, umbrella AC-6 / A-4).
+#
+# VALIDATES: AC-6's darwin-observable half -- with interfaces configured but no
+# vrrp group, (1) `ze config validate` accepts the config, proving the vrrp
+# plugin is wired to the shared `interface` root (ConfigRoots ["interface"],
+# register.go) and its in-process verifier extracts ZERO GroupSpecs and returns
+# nil on the idle path (verifyVRRPConfigSections -> extractGroupSpecs -> [] ->
+# validateGroups([], "netlink") == nil); and (2) `ze doctor --json` emits NO
+# vrrp diagnostic, proving the loaded-but-idle plugin's config-sanity check
+# (checkVRRPConfigSanity -> diagnoseSections, doctor.go) returns early on
+# len(specs)==0 and never cries wolf on the vast majority of deployments that
+# share the `interface` root but never configure VRRP.
+# PREVENTS: a regression where the zero-group boundary is mishandled -- the vrrp
+# verifier or doctor check erroring / firing on an interface tree that has no
+# vrrp block at all (which would break `ze config validate` and `ze doctor` for
+# every ze deployment, since every interface config auto-loads this plugin).
+#
+# SCOPE: AC-6 also asserts the RUNNING daemon stays idle -- `show vrrp` reports
+# zero instances through the real CLI->proxy->engine path, and no macvlan
+# devices / raw sockets exist. Those clauses need a booted daemon, which needs
+# the netlink interface backend (macvlan + AF_PACKET/raw sockets). On darwin the
+# interface component that vrrp depends on cannot apply config at all ("interface
+# management not supported on darwin"), so the daemon cannot boot here. The
+# daemon-level idle clauses are therefore validated on Linux: the empty-list
+# `show vrrp` path in test/vrrp/vrrp-show.ci (empty selector result through the
+# real dispatch path) and the "zero groups -> no kernel macvlan" clause in
+# test/vrrp/vrrp-instance-up.ci (post-teardown kernel readback). This file is the
+# darwin-runnable, kernel-free portion, so `make ze-vrrp-test` covers AC-6 on the
+# dev box while the QEMU needs-linux target covers the live behavior.
+
+# --- Interfaces configured, ZERO vrrp groups: config validates. --------------
+# An ipv4 address on a unit with NO vrrp augment. If the vrrp plugin were not
+# wired to the `interface` root, a `vrrp { ... }` block would be an unknown field
+# (proven by the group-present cases in vrrp-config.ci); here the block is absent
+# and the plugin must accept the tree as a legitimate idle deployment.
+tmpfs=vrrp-idle.conf:terminator=EOF_IDLE
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+            }
+        }
+    }
+    ethernet eth1 {
+        unit 0 {
+            ipv6 {
+                address [ 2001:db8::2/64 ];
+            }
+        }
+    }
+}
+EOF_IDLE
+
+cmd=foreground:seq=1:exec=ze config validate vrrp-idle.conf:timeout=60s:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Same idle config through `ze doctor`: the vrrp check stays quiet. --------
+# A separate file-level command block would collide with the exit-code and
+# accumulated-stdout model (see vrrp-doctor.ci header); this file keeps validate
+# above and doctor here because both are exit-0 and neither prints a vrrp code on
+# the healthy idle path, so the reject patterns below are meaningful.
+cmd=foreground:seq=2:exec=ze doctor --json vrrp-idle.conf:timeout=60s:exit=0
+expect=exit:code=0
+reject=stdout:pattern=doctor-vrrp-config-invalid
+reject=stdout:pattern=doctor-vrrp-backend-unusable
+reject=stdout:pattern=doctor-vrrp-raw-socket

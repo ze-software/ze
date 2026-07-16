@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-4-transport.md -- announcer burst semantics tests
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- announcer burst semantics tests
 
 package transport
 

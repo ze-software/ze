@@ -165,7 +165,7 @@ below.
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- Same-process Go call from an internal plugin: `iface.RegisterOwnedMacvlan(owner, spec)` / `iface.UnregisterOwnedMacvlan(owner, name)` / `iface.UnregisterOwnedMacvlans(owner)` (new, `internal/component/iface/device_owner.go`); spec is a `MacvlanSpec` value struct
+- Same-process Go call from an internal plugin: `iface.RegisterOwnedMacvlan(owner, spec)` / `iface.UnregisterOwnedMacvlan(owner, name)` (new, `internal/component/iface/device_owner.go`); spec is a `MacvlanSpec` value struct. VRRP uses a per-instance owner that holds exactly one device, so per-name unregister is all it needs.
 - Secondary triggers of the same reconcile: config commit (applyConfig), vpp reconnect (reconcileOnVPPReady), daemon-start first reconcile, monitor LinkAppeared/LinkUp for a registered parent (new wiring)
 - `ze doctor`: doctor-iface-macvlan capability probe (netlink backend package)
 
@@ -232,7 +232,7 @@ below.
 | RegisterOwnedMacvlan call from a plugin | → | trigger -> reconcileOnRegistryChange -> device pass -> Backend.CreateMacvlanDevice | `TestReconcileCreatesOwnedMacvlanBeforeAddressAdd` (fakeBackend, call-order assert) + `TestIntegrationRegisterOwnedMacvlan_ReachesKernel` (QEMU) |
 | RegisterOwnedAddresses naming a macvlan device | → | desiredState merge (config_apply.go:119) -> AddAddress on the macvlan | `TestIntegrationOwnedMacvlan_VIPInstalledViaAddressRegistry` (QEMU) |
 | Daemon start / any reconcile with a stale aliased macvlan | → | orphan scan -> DeleteInterface | `TestIntegrationMacvlanOrphanCleanup_StaleDeviceDeleted` (QEMU) |
-| UnregisterOwnedMacvlans(owner) | → | trigger -> orphan scan deletes the released device | `TestIntegrationMacvlanDelete_OnOwnerUnregister` (QEMU) |
+| UnregisterOwnedMacvlan(owner, name) | → | trigger -> orphan scan deletes the released device | `TestIntegrationMacvlanDelete_OnOwnerUnregister` (QEMU) |
 | Parent appears after registration | → | monitor LinkAppeared -> registryReconcileCh -> create succeeds | `TestIntegrationMacvlanParentAppearsLater_DeviceCreated` (QEMU) |
 | `ze doctor` | → | doctor-iface-macvlan probe (netlink backend) | `TestDoctorIfaceMacvlanProbe` (unit) + `TestDoctorCoverageCodesRegistered` (existing gate, doctor-checks.md mechanical check) |
 | Config commit with a vrrp group (full consumer chain, owned by child 5) | → | vrrp plugin -> RegisterOwnedMacvlan + RegisterOwnedAddresses -> device + VIP live | `test/vrrp/vrrp-instance-up.ci` (created and owned by spec-vrrp-5; listed here for the cross-child chain) |
@@ -243,9 +243,9 @@ below.
 |-------|-------------------|-------------------|
 | AC-1 | RegisterOwnedMacvlan("o1", spec) with an existing parent | Kernel device exists: kind macvlan, bridge mode, spec MAC, alias "ze:owned:o1", admin-up, MTU == parent MTU |
 | AC-2 | RegisterOwnedAddresses on that device name (no YANG config for it) | Address present on the macvlan after the reconcile pass |
-| AC-3 | UnregisterOwnedMacvlans("o1") | Device deleted from the kernel on the next pass; RegistryReconcileStatus clean |
+| AC-3 | UnregisterOwnedMacvlan("o1", "zv4-42-11") | Device deleted from the kernel on the next pass; RegistryReconcileStatus clean |
 | AC-4 | Fresh reconcile with an aliased macvlan in the kernel and an empty registry (crash leftover) | Device deleted; a macvlan WITHOUT the alias prefix is untouched |
-| AC-5 | Parent set admin-down while device registered | Macvlan reports oper-state not "up"; device is NOT deleted; recovers when parent returns |
+| AC-5 | Parent set admin-down while device registered | Macvlan SURVIVES and keeps oper-state UP: the kernel only sets an M-DOWN flag and does NOT drive the macvlan's oper-state from the parent (measured 2026-07-15); device is NOT deleted; liveness is a PARENT-keyed readiness check (vrrp `parentReady`), never the macvlan's own oper-state; recovers when parent returns |
 | AC-6 | ComposeOwnedDeviceName input whose composed name exceeds 15 chars | Error naming the 15-char limit and the composed candidate; NO truncation (exact-or-reject) |
 | AC-7 | Second owner registers a spec with a device name already registered by another owner | Error naming the existing owner; original registration unchanged |
 | AC-8 | CreateMacvlanDevice on the VPP backend or the non-linux stub | Explicit error naming the backend and pointing at spec-vrrp-7 (VPP) / the OS (stub); no partial state |
@@ -277,7 +277,7 @@ the child-5 suite; 2-4 are proven here.
 | `TestMacvlanSpecValidate` | `internal/component/iface/macvlan_test.go` | Name via ValidateIfaceName; MAC must parse, be unicast, non-zero; Parent non-empty | |
 | `TestRegisterOwnedMacvlan_ConflictAcrossOwners` | `internal/component/iface/device_owner_test.go` | AC-7: second owner rejected naming first; original intact | |
 | `TestRegisterOwnedMacvlan_IdempotentReplace` | `internal/component/iface/device_owner_test.go` | AC-12: same owner re-register replaces; equal spec is a no-op for desired state | |
-| `TestUnregisterOwnedMacvlans_RemovesAll` | `internal/component/iface/device_owner_test.go` | Owner-wide release empties desired set; per-name variant removes one | |
+| `TestUnregisterOwnedMacvlanPerName` | `internal/component/iface/device_owner_test.go` | Owner-wide release empties desired set; per-name variant removes one | |
 | `TestReconcileCreatesOwnedMacvlanBeforeAddressAdd` | `internal/component/iface/config_apply_test.go` | Wiring + ordering: fakeBackend records CreateMacvlanDevice before AddAddress in one pass | |
 | `TestReconcileDeletesOrphanAliasedMacvlan` | `internal/component/iface/config_apply_test.go` | fakeBackend reports an aliased macvlan not in registry -> DeleteInterface called; unaliased macvlan untouched | |
 | `TestReconcileReassertsDriftedMacvlan` | `internal/component/iface/config_apply_test.go` | AC-10 against fakeBackend (MAC mismatch -> delete + create) | |
@@ -376,14 +376,14 @@ umbrella; the macvlan mechanism is exercised there indirectly.
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/features/interfaces.md` show-interface examples: verify against the new Alias field rendering |
 
 ## Files to Create
-- `internal/component/iface/macvlan.go` - MacvlanSpec value struct (Name, Parent [OS device name], MAC; mode fixed bridge -- documented, no field) + spec validation + `ComposeOwnedDeviceName(prefix string, parentIfindex, id int) (string, error)`
-- `internal/component/iface/device_owner.go` - owned-macvlan registry: RegisterOwnedMacvlan / UnregisterOwnedMacvlan / UnregisterOwnedMacvlans, deviceOwnerMu, ownedMacvlans() snapshot, setDeviceOwnerReconcileTrigger, alias prefix constant `ze:owned:`
+- `internal/component/iface/macvlan.go` - MacvlanSpec value struct (Name, Parent [OS device name], MAC, Mode) + the `MacvlanMode` enum (bridge zero value, private) + spec validation + `ComposeOwnedDeviceName(prefix string, parentIfindex, id int) (string, error)`
+- `internal/component/iface/device_owner.go` - owned-macvlan registry: RegisterOwnedMacvlan / UnregisterOwnedMacvlan, deviceOwnerMu, ownedMacvlans() snapshot, setDeviceOwnerReconcileTrigger, alias prefix constant `ze:owned:`
 - `internal/component/iface/macvlan_test.go` - naming + spec-validation boundary tests
 - `internal/component/iface/device_owner_test.go` - registry semantics unit tests + gauge test
 - `internal/component/iface/device_owner_integration_linux_test.go` - `//go:build integration && linux`; registry -> real kernel end-to-end (withNetNS model, registry_integration_linux_test.go sibling): TestIntegrationRegisterOwnedMacvlan_ReachesKernel, TestIntegrationOwnedMacvlan_VIPInstalledViaAddressRegistry, TestIntegrationMacvlanDelete_OnOwnerUnregister, TestIntegrationMacvlanParentAppearsLater_DeviceCreated
 - `internal/plugins/iface/netlink/macvlan_linux.go` - CreateMacvlanDevice: resolve parent (LinkByName), build netlink.Macvlan{Mode: MACVLAN_MODE_BRIDGE, LinkAttrs: name+parentIndex+HardwareAddr+Alias}, LinkAdd, LinkSetUp with rollback LinkDel (tunnel_linux.go:54-63 pattern); explicit MTU assert per A-3 outcome
 - `internal/plugins/iface/netlink/macvlan_linux_test.go` - pure builder tests (`//go:build linux`)
-- `internal/plugins/iface/netlink/macvlan_integration_linux_test.go` - `//go:build integration && linux`: TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU, TestIntegrationMacvlanParentDown_OperStateDown, TestIntegrationMacvlanOrphanCleanup_StaleDeviceDeleted, TestIntegrationMacvlanOrphanCleanup_UnmarkedDeviceUntouched
+- `internal/plugins/iface/netlink/macvlan_integration_linux_test.go` - `//go:build integration && linux`: TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU, TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp, TestIntegrationMacvlanOrphanCleanup_StaleDeviceDeleted, TestIntegrationMacvlanOrphanCleanup_UnmarkedDeviceUntouched
 - `internal/plugins/iface/netlink/doctor_linux.go` - doctor-iface-macvlan probe: create dummy parent `zedoc-mvl-p` + bridge macvlan `zedoc-mvl-m`, delete both (deferred best-effort cleanup); EPERM -> warning "requires CAP_NET_ADMIN"; unsupported kind -> failure naming CONFIG_MACVLAN; registered from init() (isis transport model, register.go:31)
 - `internal/plugins/iface/netlink/doctor_other.go` - non-linux stub (isis doctor_other.go model)
 - `internal/plugins/iface/netlink/doctor_linux_test.go` - probe unit test (graceful skip without privileges)
@@ -421,7 +421,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: macvlan.go, macvlan_test.go
    - Verify: boundary rows all pass; rejects carry the limit in the message
 3. **Phase: Registry semantics** -- conflict, idempotent replace, per-name and owner-wide unregister, gauge
-   - Tests: `TestRegisterOwnedMacvlan_ConflictAcrossOwners`, `TestRegisterOwnedMacvlan_IdempotentReplace`, `TestUnregisterOwnedMacvlans_RemovesAll`, `TestOwnedDeviceGaugeTracksRegistry`
+   - Tests: `TestRegisterOwnedMacvlan_ConflictAcrossOwners`, `TestRegisterOwnedMacvlan_IdempotentReplace`, `TestUnregisterOwnedMacvlanPerName`, `TestOwnedDeviceGaugeTracksRegistry`
    - Files: device_owner.go, device_owner_test.go, rate.go
 4. **Phase: Reconcile device pass** -- create-before-address ordering, orphan scan (alias + type), drift re-assert, journal steps, outcome recording, shared-trigger behavior
    - Tests: `TestReconcileDeletesOrphanAliasedMacvlan`, `TestReconcileReassertsDriftedMacvlan`, `TestSharedTriggerServesBothRegistries` + phase-1 wiring test goes green against fakeBackend
@@ -532,13 +532,13 @@ and ownership both from the kernel, no history.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | One Backend method (CreateMacvlanDevice); delete via existing DeleteInterface; listing via existing ListInterfaces + new Alias field | DeleteMacvlanDevice + ListMacvlanDevices methods; generic EnsureOwnedDevice(kind, any) | Interface segregation + minimal surface; DeleteInterface (manage_linux.go:190) already handles any link kind; the pass already holds a ListInterfaces snapshot (:869). EnsureOwnedDevice rejected: type-erased `any` loses compile-time checking and only one owned kind exists (abstract-at-2) |
-| MacvlanSpec value struct (Name, Parent, MAC), mode fixed to bridge, no Mode field | Mode enum field | Single use case (bridge, holo model, umbrella A-3 requires it); no speculative knobs (design-principles YAGNI); adding a field later is a compatible change |
+| MacvlanSpec value struct (Name, Parent, MAC, Mode); Mode is a `MacvlanMode` enum (macvlan.go:14-27) whose zero value is bridge, so callers that leave it unset keep bridge | bridge-only, no Mode field (the original design) | The virtual-MAC dataplane needs PRIVATE delivery: in bridge mode the parent wins the ARP-flux race for the VIP and answers with its real MAC, so vrrp (child 5) registers `Mode: iface.MacvlanModePrivate` (vrrp/register.go:339) to make the macvlan's own MAC answer ARP/ND (plan/learned/1122-vrrp-macvlan-vmac-dataplane.md). The private-mode work superseded the bridge-only design; the zero-value-bridge field is a compatible, non-speculative addition (a real second delivery mode, not YAGNI) |
 | Caller supplies the name; iface exports ComposeOwnedDeviceName(prefix, parentIfindex, id) helper enforcing the 15-char budget | iface computes names internally (needs family/vrid = vrrp knowledge); free-form caller names with no helper | Zero vrrp knowledge in iface, yet the budget math and reject-not-truncate rule live in ONE place with boundary tests; vrrp (child 5) passes prefix `zv4`/`zv6` |
 | Ifindex-based name `<prefix>-<ifindex>-<id>` (e.g. `zv4-42-10`) | holo's `mvlan4-vrrp-{vrid}` (collides across parents, 15+ chars); embedded parent name (15-char parents cannot fit; truncation banned); truncated-parent+hash (opaque, collision-prone); registry-allocated sequence (non-deterministic across restarts, needs persistence) | Deterministic, collision-free at any instant (ifindex unique), fits budget for ifindex <= 9,999,999 with 3-digit ids, reject beyond. Ifindex instability across reboots is harmless: owned devices are runtime state, recreated each boot; parent recreation changes ifindex -> old device is orphaned by alias scan and the new name is created in the same pass |
 | Separator `-` not `.` | dotted names | `parent.N` is the VLAN convention (config_apply.go:37); a dotted macvlan name would read as a VLAN of a phantom parent |
 | Ownership marker = IFLA_IFALIAS `ze:owned:<owner>`, set atomically at LinkAdd | recognizable name prefix as the deletion key; in-memory staleDevices set (address-registry model) | Name-shape deletion could destroy operator devices (R-2); staleDevices dies with the process so crash orphans leak; the alias survives crashes and daemon restarts and encodes the owner for free (A-7) |
 | Orphan scan every pass (delete aliased macvlans with no registration) | one-shot cleanup at daemon start only | Same scan covers owner release, crash leftovers, AND drift-deleted remains with one code path; the pass already lists links, so the scan is a filter, not a syscall |
-| Drift handling: delete + recreate on any spec mismatch (MAC/parent/MTU) | in-place SetMACAddress/SetMTU repair per field | One code path; drift is abnormal (out-of-band meddling); VIPs re-added by the same pass (R-5); mode drift undetectable via InterfaceInfo -- accepted (Known Limitations) |
+| Drift handling: delete + recreate on any spec mismatch (MAC/parent/MTU/mode) | in-place SetMACAddress/SetMTU repair per field | One code path; drift is abnormal (out-of-band meddling); VIPs re-added by the same pass (R-5); mode drift IS detected when the backend reports the live mode (an empty/unknown mode is treated as no-drift so an older backend never forces a needless re-create), so a device left in the wrong delivery mode is re-asserted (config_apply.go ownedMacvlanMatchesSpec) |
 | Shared trigger channel with the address registry (registryReconcileCh) | dedicated device channel + worker | The pass reconciles BOTH registries from snapshots anyway (desiredState reads the full live registry -- reconcileMu comment :831-834); a second worker adds interleaving without adding freshness (A-6) |
 | Doctor code `doctor-iface-macvlan` owned by the netlink backend package | umbrella's provisional `doctor-vrrp-*` naming for the capability probe | doctor-checks.md ownership rule: the dependency (kernel macvlan via netlink) belongs to the backend, which has no vrrp knowledge; child 5 keeps vrrp-config checks under doctor-vrrp-*. Recorded as a deliberate deviation from the umbrella's Required Reading note |
 | Doctor probe = real create+delete of a probe pair (dummy parent + macvlan) | /proc/modules or modules.builtin inspection | Only an actual RTM_NEWLINK proves the kind works (builtin modules are invisible in /proc/modules); precedent: raw-socket probes also exercise the privileged op (doctor-isis-raw-socket); probe devices are namespaced-by-name (`zedoc-mvl-*`) and removed in the same check |
@@ -546,7 +546,7 @@ and ownership both from the kernel, no history.
 | macvlan stays OUT of zeManageable | add "macvlan" to the Phase 4 prune list | Phase 4's deletion scope is YANG-managed names (previousManaged); macvlans are registry-owned and alias-guarded; mixing scopes risks deleting operator macvlans (R-2) |
 
 ## Known Limitations
-- Macvlan mode drift (operator flips bridge to private out of band) is not detected: InterfaceInfo does not carry the mode, and adding a mode readback for an abnormal case failed the YAGNI gate. MAC/parent/MTU drift IS re-asserted.
+- Macvlan mode drift IS detected: InterfaceInfo carries the live delivery mode (`MacvlanMode`, populated by show_linux.go), and `ownedMacvlanMatchesSpec` (config_apply.go) forces a delete+recreate when the reported mode differs from the desired Mode. An empty/unknown reported mode (a backend that predates the mode field) is treated as no-drift so it never triggers a needless re-create. MAC/parent/MTU drift is re-asserted the same way.
 - Two ze daemons sharing one kernel view (or a leaked test namespace) can fight over `ze:owned:` devices; single-daemon appliances are the deployment model (R-3).
 - Parent MTU changes propagate to owned macvlans only on the next reconcile pass (eventually consistent), not instantly.
 - A crash exactly between LinkAdd and the first successful pass leaves the device present but correct (alias set atomically at create), so it is either adopted (still registered) or deleted (registry empty) -- no leak; but a crash BEFORE LinkAdd completes leaves nothing, and the plugin must re-register on restart (vrrp does: registrations are rebuilt from config, child 5).
@@ -567,10 +567,11 @@ list it in this section.
 - `MacvlanSpec` value struct + `ComposeOwnedDeviceName` (ifindex-based, 15-char
   budget, exact-or-reject) + MAC/name/parent validation + `macEqual`
   (`internal/component/iface/macvlan.go`).
-- Owned-macvlan registry `RegisterOwnedMacvlan` / `UnregisterOwnedMacvlan` /
-  `UnregisterOwnedMacvlans`, `ownedMacvlans()` snapshot, alias prefix
-  `ze:owned:`, `isRegisteredMacvlanParent`, `ze_iface_owned_devices{owner}`
-  gauge (`internal/component/iface/device_owner.go`, gauge field in `rate.go`).
+- Owned-macvlan registry `RegisterOwnedMacvlan` / `UnregisterOwnedMacvlan`
+  (per-name; VRRP's per-instance owner holds one device), `ownedMacvlans()`
+  snapshot, alias prefix `ze:owned:`, `isRegisteredMacvlanParent`,
+  `ze_iface_owned_devices{owner}` gauge
+  (`internal/component/iface/device_owner.go`, gauge field in `rate.go`).
 - Reconcile device pass `reconcileOwnedDevices` inside
   `reconcileOnReadyWithJournal` BEFORE the address loops: create-if-absent,
   fail-closed on a foreign device holding the name, drift re-assert
@@ -603,12 +604,18 @@ list it in this section.
   (crash-window self-heal) while still failing closed on non-macvlan kinds.
   New unit tests: TestReconcileAdoptsUnmarkedRegisteredMacvlan,
   TestReconcileFailsClosedOnForeignKindHoldingRegisteredName.
-- **Parent-down test raced linkwatch (QEMU run 1).** Kernel lower-state
-  propagation to the macvlan is asynchronous; the test read oper-state
-  immediately after LinkSetDown and saw OperUp. Fixed: bounded 5s poll for the
-  eventually-guaranteed not-up state (A-4 confirmed with nuance). No production
-  code change needed: show/monitor already consume the async netlink
-  notification correctly.
+- **Parent-down assumption A-4 broke (measured 2026-07-15).** The macvlan does
+  NOT inherit its parent's down state: after `ip link set <parent> down` the
+  kernel adds an M-DOWN flag but leaves the macvlan's oper-state UP and LOWER_UP
+  set, immediately AND after seconds of linkwatch ticks (direct kernel probe in
+  the QEMU VM). The original "propagates synchronously" reading and the second
+  "propagates asynchronously via linkwatch" reading were both false. Fixed: the
+  QEMU test was inverted to pin the real contract -- the device survives
+  parent-down and keeps oper-state UP
+  (`TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp`) -- and
+  liveness moved to a PARENT-keyed readiness predicate in child 5 (vrrp
+  `parentReady`), never the macvlan's own oper-state. No production code change
+  in this child; the consequence lives in the consumer's readiness wiring.
 - No bugs found in pre-existing iface code; all pre-existing iface tests stay
   green with the Backend interface extended.
 
@@ -645,6 +652,20 @@ list it in this section.
 - **D6 (macvlan ParentIndex in show).** show_linux.go also populates
   ParentIndex for macvlan (spec only required Alias), enabling parent-drift
   detection and operator visibility (R-4). Minor in-scope extension.
+- **D7 (private delivery mode + Mode field + mode-drift detection).** The spec's
+  original design fixed the macvlan to bridge mode with no Mode field. The
+  private-mode dataplane work superseded that: `MacvlanSpec` gained a
+  `Mode MacvlanMode` field (macvlan.go:14-27, bridge zero value / private), and
+  vrrp (child 5) registers its macvlan in PRIVATE mode
+  (`iface.MacvlanModePrivate`, vrrp/register.go:339) so the virtual MAC -- not
+  the parent -- answers ARP/ND for the VIP; in bridge mode the parent wins the
+  ARP-flux race and replies with its real MAC, leaving the VIP unreachable at the
+  virtual MAC. The reconcile drift check gained mode detection accordingly:
+  `ownedMacvlanMatchesSpec` (config_apply.go) compares the live
+  `InterfaceInfo.MacvlanMode` (show_linux.go) against the desired Mode and
+  re-asserts on mismatch, treating an empty/unknown reported mode as no-drift.
+  Rationale and the full ARP-flux dataplane recipe:
+  `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md`.
 
 ## Implementation Audit
 
@@ -668,7 +689,7 @@ list it in this section.
 | AC-2 | Done | TestReconcileCreatesOwnedMacvlanBeforeAddressAdd (unit); TestIntegrationOwnedMacvlan_VIPInstalledViaAddressRegistry (QEMU) | |
 | AC-3 | Done | TestIntegrationMacvlanDelete_OnOwnerUnregister (QEMU) | |
 | AC-4 | Done | TestReconcileDeletesOrphanAliasedMacvlan (unit); TestIntegrationMacvlanOrphanCleanup_StaleDeviceDeleted/_UnmarkedDeviceUntouched (QEMU) | |
-| AC-5 | Done | TestIntegrationMacvlanParentDown_OperStateDown (QEMU) | |
+| AC-5 | Done | TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp (QEMU) | device survives parent-down, oper-state stays UP; liveness is parent-keyed (vrrp parentReady) |
 | AC-6 | Done | TestComposeOwnedDeviceName_Boundaries (unit) | message names limit + candidate, no truncation |
 | AC-7 | Done | TestRegisterOwnedMacvlan_ConflictAcrossOwners (unit) | |
 | AC-8 | Done | TestVPPCreateMacvlanRejects (unit); stub via unsupported() | |
@@ -684,7 +705,7 @@ list it in this section.
 | TestMacvlanSpecValidate | Pass | macvlan_test.go | |
 | TestRegisterOwnedMacvlan_ConflictAcrossOwners | Pass | device_owner_test.go | |
 | TestRegisterOwnedMacvlan_IdempotentReplace | Pass | device_owner_test.go | |
-| TestUnregisterOwnedMacvlans_RemovesAll | Pass | device_owner_test.go | |
+| TestUnregisterOwnedMacvlanPerName | Pass | device_owner_test.go | |
 | TestReconcileCreatesOwnedMacvlanBeforeAddressAdd | Pass | config_apply_test.go | |
 | TestReconcileDeletesOrphanAliasedMacvlan | Pass | config_apply_test.go | |
 | TestReconcileReassertsDriftedMacvlan | Pass | config_apply_test.go | |
@@ -722,7 +743,8 @@ list it in this section.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Plugin can obtain a bridge-mode macvlan with a chosen MAC on a parent | unit + QEMU | TestBuildMacvlanLink green (darwin); TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU written + linux-compile-clean (QEMU by orchestrator) |
+| Plugin can obtain a macvlan (bridge by default; vrrp selects private) with a chosen MAC on a parent | unit + QEMU | TestBuildMacvlanLink green (darwin); TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU + TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp in the QEMU integration suite (internal/plugins/iface/netlink/macvlan_integration_linux_test.go); private delivery selected via MacvlanSpec.Mode = MacvlanModePrivate (internal/plugins/vrrp/register.go:339) |
+| Virtual MAC (not the parent) answers ARP/ND for the VIP | QEMU interop lab + unit | Private-mode macvlan + the ARP-flux dataplane recipe, proven byte-identical to keepalived's use_vmac; the keepalived interop lab scripts/evidence/effective-vrrp-keepalived.py asserts a third-party L2 observer resolves the VIP to the virtual MAC 00:00:5e:00:01:{vrid} (v4) / 00:00:5e:00:02:{vrid} (v6); recipe + end-to-end evidence in plan/learned/1122-vrrp-macvlan-vmac-dataplane.md; dataplane sysctls unit-tested by TestDataplaneApplyIPv4SetsRecipe / TestDataplaneIPv6OnlyDisablesDAD / TestDataplaneRestoreOnLastGroup |
 | VIPs install on the plugin-created device via the address registry | unit + QEMU | TestReconcileCreatesOwnedMacvlanBeforeAddressAdd green (create-before-add order asserted); TestIntegrationOwnedMacvlan_VIPInstalledViaAddressRegistry written |
 | Devices deleted on release and after a crash | unit + QEMU | TestReconcileDeletesOrphanAliasedMacvlan green (alias+kind, operator device untouched); delete + orphan QEMU tests written |
 | VPP and non-linux fail closed | unit tests | TestVPPCreateMacvlanRejects green; stub returns unsupported() naming the OS |
@@ -733,15 +755,23 @@ list it in this section.
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | Dead exported UnregisterOwnedMacvlans (plural) -- no production caller | internal/plugins/vrrp macvlan registry | Remove the dead plural; migrate its tests to the singular UnregisterOwnedMacvlan |
+| 2 | ISSUE | vrrp named in iface package comments (self-containment) | internal/component/iface comments | Reword to drop the vrrp spelling |
+| 3 | ISSUE | Spec Mode / drift / AC-5 text stale vs shipped behavior | this spec (Mode / drift / AC-5) | Reconcile spec text to code |
 
 ### Fixes applied
-- (fill during /ze-review)
+- Removed the dead exported UnregisterOwnedMacvlans (plural); migrated its tests to the singular UnregisterOwnedMacvlan.
+- Reworded iface package comments to drop the vrrp spelling.
+- Reconciled the stale Mode / drift / AC-5 spec text to the shipped behavior.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | 5 spec references still named the removed plural UnregisterOwnedMacvlans | this spec | Renamed to the singular (since fixed) |
+| 2 | NOTE | A test was misnamed | macvlan test | Renamed (since fixed) |
 
 ### Final status
+**Run 2 CLEAN after fixes: 0 BLOCKER, 0 ISSUE.** Run 1 (1 BLOCKER, 2 ISSUE), the Run 2 residual ISSUE (5 stale plural references) and the misnamed-test NOTE are all fixed.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 

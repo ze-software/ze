@@ -114,7 +114,7 @@ func TestIntegrationMacvlanDelete_OnOwnerUnregister(t *testing.T) {
 			t.Fatal("device should exist after register + reconcile")
 		}
 
-		UnregisterOwnedMacvlans("test")
+		UnregisterOwnedMacvlan("test", itMacvlanName)
 		if errs, deferred := reconcileOnReady(&ifaceConfig{}, GetBackend()); len(errs) != 0 || deferred {
 			t.Fatalf("reconcile after unregister = (%v, %v), want (nil, false)", errs, deferred)
 		}

@@ -97,9 +97,10 @@ func TestEncodeGoldenV2(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-2 -- v3 IPv4 encode produces exact G2 bytes (reserved nibble 0,
-// 12-bit interval = 100 cs, message-only checksum 0x828A).
-// PREVENTS: reserve-nibble leak, cs/ms confusion, pseudo-header regression.
+// VALIDATES: AC-2 -- v3 IPv4 encode produces exact G2c bytes (reserved nibble 0,
+// 12-bit interval = 100 cs, RFC 5798 pseudo-header checksum 0xDEFB -- ze's tx
+// form for keepalived interop).
+// PREVENTS: reserve-nibble leak, cs/ms confusion, checksum-form regression.
 func TestEncodeGoldenV3IPv4(t *testing.T) {
 	adv := advV3v4(t)
 	buf := make([]byte, MaxLenV3v4)

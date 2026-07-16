@@ -217,6 +217,15 @@ most deployments want. If you are relying on `accept-mode false` to make the
 virtual IP unreachable except as a forwarding next hop, it will not do that
 today.
 
+**No priority tracking.** A group's `priority` is fixed at the value you
+configure. Ze does not decrement it in response to an uplink going down, a route
+disappearing, or a health check failing, so it will not on its own hand the
+gateway to a Backup when an upstream path fails while the VRRP interface itself
+stays up. The interface, route, and script tracking that Junos, Nokia, and VyOS
+use to drive that priority-decrement failover is not implemented in this
+release; failover is driven only by VRRP's own triggers: loss of the Active
+router's adverts, carrier loss on the VRRP interface, or a graceful stop.
+
 **Netlink backend only.** VRRP needs macvlan devices and raw sockets, which the
 VPP backend does not provide. A VPP-backed config carrying a VRRP group is
 rejected at validation rather than started in a degraded state.

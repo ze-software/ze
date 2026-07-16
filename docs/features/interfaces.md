@@ -110,8 +110,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Route table isolation | missing | high |
 | | Per-VRF address assignment | missing | high |
 | | VRF-aware DHCP | missing | medium |
-| **Gateway Redundancy** | VRRP / keepalived | missing | medium |
-| | Virtual MAC | missing | medium |
+| **Gateway Redundancy** | VRRP / keepalived | have | |
+| | Virtual MAC | have | |
 | | State monitoring/failover | missing | medium |
 | **Physical Layer** | Speed / duplex / autoneg | missing | medium |
 | | Hardware offload (GRO/GSO/TSO/LRO) | missing | medium |

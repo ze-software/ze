@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-4-transport.md -- raw-socket doctor check tests
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- raw-socket doctor check tests
 
 package transport
 

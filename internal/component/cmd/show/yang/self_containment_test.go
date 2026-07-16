@@ -93,6 +93,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:crashes"`:               "crash reports -> internal/plugins/crashes/yang",
 		`"ze-show:doctor"`:                "doctor checks -> internal/component/doctor/yang",
 		`"ze-show:capture"`:               "packet capture -> internal/plugins/diag/yang",
+		`"ze-show:vrrp`:                   "VRRP virtual-router state -> internal/plugins/vrrp/yang",
 		`"ze-show:capture-raw"`:           "raw capture -> internal/plugins/diag/yang",
 		`"ze-show:capture-interface"`:     "interface capture -> internal/plugins/diag/yang",
 		`"ze-show:tcp-check"`:             "TCP check -> internal/plugins/diag/yang",

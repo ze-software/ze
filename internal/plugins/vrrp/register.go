@@ -1,7 +1,7 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 (RFCs field, default version)
 // RFC: rfc/short/rfc3768.md -- VRRPv2 (RFCs field, opt-in version)
 //
-// Design: plan/spec-vrrp-5-plugin.md -- plugin registration and engine entry point
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- plugin registration and engine entry point
 //
 // Registration is the plugin's whole coupling to ze: an init() that hands the
 // registry a Registration, plus generated blank imports. Delete this directory,
@@ -68,6 +68,11 @@ func registerVRRP() {
 		},
 		ConfigureMetrics: func(reg metrics.Registry) {
 			setMetricsRegistry(reg)
+			// The transport owns its own metric series (adverts, packet errors,
+			// sockets); wire the same registry into it, mirroring the SetLogger
+			// pair above. Without this the ze_vrrp_* transport series stay on the
+			// no-op registry and never reach Prometheus (spec-vrrp-4 AC-12).
+			sharedTransport.SetMetrics(reg)
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBus(eb)
@@ -245,7 +250,7 @@ func macString(mac [6]byte) string {
 // masked to the parent subnet that contains it. A non-owner VIP MUST carry the
 // subnet's connected route, not a host route: the kernel only answers ARP/ND for
 // it from the virtual-MAC device when that device owns the subnet route (proven
-// in plan/spec-vrrp-6 -- a /32 leaves the parent as the sole subnet device and
+// in plan/learned/1122-vrrp-macvlan-vmac-dataplane.md -- a /32 leaves the parent as the sole subnet device and
 // it answers with its real MAC).
 func (s GroupSpec) vipCIDRs(vips []netip.Addr) []string {
 	out := make([]string, 0, len(vips))
@@ -328,7 +333,7 @@ func livePlatform() enginePlatform {
 				MAC:    macString(mac),
 				// Private, not bridge: in bridge mode the parent wins the ARP-flux
 				// race for the VIP and answers with its real MAC, so hosts never
-				// learn the virtual MAC (proven in plan/spec-vrrp-6 QEMU probes).
+				// learn the virtual MAC (proven in plan/learned/1122-vrrp-macvlan-vmac-dataplane.md QEMU probes).
 				// Private isolation, together with the dataplane sysctls applied
 				// below, makes the virtual-MAC device the sole ARP/ND responder.
 				Mode: iface.MacvlanModePrivate,

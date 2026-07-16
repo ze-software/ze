@@ -83,12 +83,15 @@ func TestRegisterOwnedMacvlan_IdempotentReplace(t *testing.T) {
 	}
 }
 
-// TestUnregisterOwnedMacvlans_RemovesAll verifies owner-wide and per-name
-// unregister semantics.
+// TestUnregisterOwnedMacvlanPerName verifies per-name unregister semantics:
+// each call removes exactly one device, and removing the last one empties the
+// owner's desired set (and drops the owner entry). VRRP uses a per-instance
+// owner that holds exactly one macvlan, so the singular per-name call is the
+// only unregister the plugin needs.
 //
-// VALIDATES: AC-3 lifecycle -- owner release empties the desired set; per-name
-// removes exactly one.
-func TestUnregisterOwnedMacvlans_RemovesAll(t *testing.T) {
+// VALIDATES: AC-3 lifecycle -- per-name removal takes exactly one; the last
+// removal empties the set.
+func TestUnregisterOwnedMacvlanPerName(t *testing.T) {
 	resetDeviceOwners(t)
 
 	if err := RegisterOwnedMacvlan("o1", macvlanSpec("zv4-42-10", "eth0", "00:00:5e:00:01:0a")); err != nil {
@@ -105,11 +108,11 @@ func TestUnregisterOwnedMacvlans_RemovesAll(t *testing.T) {
 		t.Fatalf("per-name unregister wrong result: %+v", specs)
 	}
 
-	// Owner-wide removal empties the set.
-	UnregisterOwnedMacvlans("o1")
+	// Removing the last device empties the set (and drops the owner entry).
+	UnregisterOwnedMacvlan("o1", "zv4-42-11")
 	specs, _ = ownedMacvlans()
 	if len(specs) != 0 {
-		t.Fatalf("owner-wide unregister left %d devices", len(specs))
+		t.Fatalf("unregister left %d devices", len(specs))
 	}
 }
 
@@ -139,7 +142,8 @@ func TestOwnedDeviceGaugeTracksRegistry(t *testing.T) {
 	if got := gauge.value("o1"); got != 2 {
 		t.Errorf("gauge o1 = %v, want 2", got)
 	}
-	UnregisterOwnedMacvlans("o1")
+	UnregisterOwnedMacvlan("o1", "zv4-42-10")
+	UnregisterOwnedMacvlan("o1", "zv4-42-11")
 	if _, present := gauge.gauges["o1"]; present {
 		t.Errorf("gauge o1 series should be deleted after owner release")
 	}

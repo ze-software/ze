@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-5-plugin.md -- per-instance worker (FSM executor) tests
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- per-instance worker (FSM executor) tests
 //
 // VALIDATES: the action-execution contract spec-vrrp-2 hands the engine -- every
 // action value is executed, in order, with the right side effect; timer Gen is

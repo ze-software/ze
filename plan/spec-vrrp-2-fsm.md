@@ -827,15 +827,18 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or `// RFC 3768 Section X
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| -- | none | Run 1 CLEAN -- all 17 ACs satisfied, verified against fsm.go / timers.go and the unit tests | internal/plugins/vrrp/fsm.go, timers.go | none |
 
 ### Fixes applied
-- (fill during /ze-review)
+- None required (Run 1 clean).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| -- | none | Run 2 CLEAN -- no findings | -- | none |
 
 ### Final status
+**Run 1 and Run 2 both CLEAN: 0 BLOCKER, 0 ISSUE.** All 17 ACs verified against fsm.go / timers.go and the tests. NOTEs: none.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 

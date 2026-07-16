@@ -19,10 +19,10 @@ const (
 	// MacvlanModeBridge lets siblings on one parent reach each other and floods
 	// broadcast/multicast between them. The default (zero value).
 	MacvlanModeBridge MacvlanMode = iota
-	// MacvlanModePrivate isolates siblings from each other. VRRP requires this
-	// so the kernel answers ARP/ND for the virtual IP from the virtual-MAC
-	// device rather than the parent (proven: the bridge mode lets the parent win
-	// the ARP-flux race and reply with its real MAC -- see plan/spec-vrrp-6).
+	// MacvlanModePrivate isolates siblings from each other. A consumer that wants
+	// the kernel to answer ARP/ND for an address from the macvlan's own MAC rather
+	// than the parent needs this mode: in bridge mode the parent can win the
+	// ARP-flux race and reply with its real MAC.
 	MacvlanModePrivate
 )
 

@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-vrrp-4-transport.md -- QEMU integration: raw proto-112 sockets,
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- QEMU integration: raw proto-112 sockets,
 // macvlan tx identity, GARP/NA on-wire, rx delivery (veth + netns).
 //
 // These tests build a veth pair and a bridge-mode macvlan (carrying the virtual
@@ -354,6 +354,19 @@ func TestIntegrationAdvertOnPeerVeth(t *testing.T) {
 	}
 	if dst := netip.AddrFrom4([4]byte(ip[16:20])); dst != packet.MulticastV4 {
 		t.Fatalf("dst IP = %v, want 224.0.0.18", dst)
+	}
+	// A-3: the IPv4 header checksum on the wire must be valid. ze builds the
+	// datagram with IP_HDRINCL and the kernel fills the header checksum; a valid
+	// checksum is the one's-complement sum of the header 16-bit words (the
+	// checksum field included) folding to 0xffff. Without this assertion the test
+	// proved every header field EXCEPT that a receiver would accept the header.
+	ihl := int(ip[0]&0x0f) * 4
+	var hsum uint32
+	for i := 0; i < ihl; i += 2 {
+		hsum += uint32(ip[i])<<8 | uint32(ip[i+1])
+	}
+	if foldSum(hsum) != 0xffff {
+		t.Fatalf("IPv4 header checksum invalid (fold=%#x over %d-byte header): % x", foldSum(hsum), ihl, ip[:ihl])
 	}
 }
 

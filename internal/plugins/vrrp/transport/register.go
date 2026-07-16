@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-4-transport.md -- doctor-check registration
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- doctor-check registration
 //
 // The transport registers its raw-socket readiness check via
 // diagnostic.RegisterDoctorCheck from init(). The transport is a

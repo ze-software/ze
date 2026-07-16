@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-5-plugin.md -- doctor config-sanity tests
+// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- doctor config-sanity tests
 //
 // VALIDATES: AC-10 -- `ze doctor` reports exactly what a commit would reject,
 // including the VPP-backend rejection, and stays silent on a healthy config.

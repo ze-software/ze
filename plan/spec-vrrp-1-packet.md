@@ -60,13 +60,13 @@ v2 whole seconds) happens ONLY inside encode/decode.
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc9568.md` - VRRPv3 (Wire Formats, Validation, Encoding/Decoding Rules, Constants, Errata)
   → Constraint: v3 header 8 bytes; Max Advertise Interval = 12-bit centiseconds 1..4095 (erratum 8301, zero MUST be discarded); Reserve nibble zero on tx / ignored on rx; count 0 MUST be ignored (erratum 8299); first IPv6 VIP MUST be link-local (erratum 8300); TTL/hop-limit MUST be 255 on rx; interval mismatch is NOT a discard (backup adopts, §6.4.2)
-  → Decision: RFC 9568 §5.2.8 computes the v3/IPv4 checksum WITHOUT a pseudo-header (rfc/full/rfc9568.txt:880-885, "only includes the VRRP message"; change note :194-196 records this as an explicit RFC 9568 clarification). ~~the umbrella constraint mandates pseudo-header for v4 AND v6 (interop reality: keepalived, and holo's missing-pseudo-header is listed as a bug). This spec follows the umbrella; see A-1 and Key Design Decisions~~ (superseded 2026-07-14: primary sources settled A-1 -- the umbrella annotation was wrong and has been corrected by the orchestrator; tx is message-only, rx dual-accepts the legacy RFC 5798 sum and counts it; see Key Design Decisions)
+  → Decision: RFC 9568 §5.2.8 computes the v3/IPv4 checksum WITHOUT a pseudo-header (rfc/full/rfc9568.txt:880-885, "only includes the VRRP message"; change note :194-196 records this as an explicit RFC 9568 clarification). ~~the umbrella constraint mandates pseudo-header for v4 AND v6 (interop reality: keepalived, and holo's missing-pseudo-header is listed as a bug). This spec follows the umbrella; see A-1 and Key Design Decisions~~ (superseded 2026-07-14: primary sources settled A-1 -- the umbrella annotation was wrong and has been corrected by the orchestrator; the interim design was tx message-only; reverted 2026-07-15 after a keepalived interop capture -- FINAL: tx is the RFC 5798 pseudo-header form (keepalived interop), rx dual-accepts (pseudo-header canonical/unflagged, RFC 9568 message-only accepted and flagged checksum-rfc9568-message-only); see Key Design Decisions)
 - [ ] `rfc/short/rfc3768.md` - VRRPv2 (Wire Formats, Validation, Constants)
   → Constraint: v2 header carries Auth Type (byte 4, only 0 accepted) + Adver Int (byte 5, whole seconds 1..255) and a MANDATORY 8-byte zero Authentication Data trailer counted in the completeness check (rfc3768 §7.1); checksum plain RFC 1071 over the entire VRRP message, NO pseudo-header; interval mismatch MUST discard (unlike v3)
 
 **Key insights:**
 - The two reference implementations get v3 details wrong in opposite directions; every verified bug in the digests becomes a negative test here (umbrella R-1).
-- The v3/IPv4 checksum computation is isolated in one function; that isolation is now load-bearing for the rx dual-accept (RFC 9568 message-only primary, legacy RFC 5798 pseudo-header fallback accepted + counted as checksum-rfc5798-compat).
+- The v3/IPv4 checksum computation is isolated in one function; that isolation is load-bearing for both the tx form and the rx dual-accept (RFC 5798 pseudo-header primary/canonical -- ze's tx form; RFC 9568 message-only fallback accepted + flagged checksum-rfc9568-message-only).
 - BFD's `packet` package is a proven in-repo template: value structs, typed errors, ordered ladder, per-target fuzz enumeration.
 
 ## Current Behavior (MANDATORY)
@@ -130,7 +130,7 @@ v2 whole seconds) happens ONLY inside encode/decode.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | ~~v3/IPv4 checksum MUST include the IPv4 pseudo-header for keepalived interop~~ Settled 2026-07-14: tx message-only per RFC 9568 §5.2.8; rx dual-accepts the legacy RFC 5798 pseudo-header sum (counted checksum-rfc5798-compat) | rfc/full/rfc9568.txt:880-885 ("only includes the VRRP message") + change note :194-196 (explicit 9568 clarification). Web-verified ecosystem: keepalived historically used the pseudo-header (RFC 5798 reading, v3_checksum_as_v2 knob) but is message-only since issue #2324; FRR removed the pseudo-header in 2022; Cisco always message-only; Arista 9568-compliant with an exclude knob. Pseudo-header = LEGACY behavior (uvrrpd); holo's message-only is CORRECT (digest bug-5 entry was wrong). Umbrella annotation was wrong; corrected by the orchestrator | Legacy peers would be silently rejected without the rx fallback -- dual-accept + counter covers them | spec-vrrp-6 capture: modern (Alpine) keepalived decodes on the canonical path, compat counter stays 0; G2c unit vector covers the legacy path | resolved 2026-07-14 (original assumption broken at design time, pre-approval; Mistake Log row added) |
+| A-1 | ~~v3/IPv4 checksum MUST include the IPv4 pseudo-header for keepalived interop~~ Re-settled 2026-07-15: the original assumption held on the wire -- tx uses the RFC 5798 IPv4 pseudo-header (keepalived 2.3.1 requires it; the interim message-only design of 2026-07-14 broke interop), rx dual-accepts (pseudo-header canonical, RFC 9568 message-only accepted and flagged checksum-rfc9568-message-only) | rfc/full/rfc9568.txt:880-885 ("only includes the VRRP message") + change note :194-196 (explicit 9568 clarification). Web-verified ecosystem: keepalived historically used the pseudo-header (RFC 5798 reading, v3_checksum_as_v2 knob) but is message-only since issue #2324; FRR removed the pseudo-header in 2022; Cisco always message-only; Arista 9568-compliant with an exclude knob. Pseudo-header = LEGACY behavior (uvrrpd); holo's message-only is CORRECT (digest bug-5 entry was wrong). Umbrella annotation was wrong; corrected by the orchestrator | Legacy peers would be silently rejected without the rx fallback -- dual-accept + counter covers them | spec-vrrp-6 capture: keepalived 2.3.1 sends the pseudo-header sum and decodes on ze's canonical path, the checksum-rfc9568-message-only counter stays 0; the G2 message-only unit vector covers a strict-RFC-9568 peer | resolved 2026-07-15 (the 2026-07-14 flip to message-only was itself reverted after the keepalived capture; two Mistake Log rows) |
 | A-2 | `netip.AddrFrom4` / `netip.AddrFrom16` / `As4` / `As16` are allocation-free value conversions, so lazy VIP access allocates nothing | Go stdlib netip design (value types, no pointers for bare addrs) | Fall back to documenting one small fixed allocation per packet as acceptable at 1 pkt/s (Key Design Decisions) | `TestDecodeZeroAlloc` via `testing.AllocsPerRun` == 0 | unvalidated |
 | A-3 | The rx buffer is reused per socket read (umbrella Architectural Verification), so an `Advertisement`'s lazy VIP view is only valid until the next read | Umbrella: "rx buffers reused per socket; encode into caller buffer" | ~~FSM must copy VIPs before persisting (constraint exported to spec-vrrp-2)~~ (corrected 2026-07-14 cross-review: spec-2's AdvertReceived carries only VIPCount, nothing in the FSM persists VIPs) The lifetime contract binds the ENGINE (spec-vrrp-5): it must AppendVIPs-copy anything it persists before the next socket read; if child 4 chooses per-packet buffers instead, the constraint relaxes harmlessly | Lifetime documented on the type; engine-side copy rule lands in spec-vrrp-5; race detector in child-4 QEMU tests | unvalidated |
 | A-4 | Config (spec-vrrp-5) guarantees v3 intervals are multiples of 10 ms in 10..40950 and v2 intervals multiples of 1000 ms in 1000..255000, so encode conversion ms→wire is exact | spec-vrrp-5's verifier enforces v3 interval %10==0 at verify time (its cross-leaf validation table, decision D-C) + umbrella boundary table + config-option pattern | Encode asserts and returns a typed `ErrIntervalRange` -- kept as defense-in-depth against engine bugs (D-C); boundary tests cover the assert independently of the verifier | `TestBoundaryInterval` here + child-5 verifier test | unvalidated |
@@ -143,7 +143,7 @@ v2 whole seconds) happens ONLY inside encode/decode.
 | R-2 | (umbrella R-2) s/cs/ms unit confusion, the single most common VRRP defect | Golden decode test expects 1000 ms and gets 100 or 100000 | One internal unit (ms); conversion exists ONLY in encode/decode; boundary tests pin both wire ranges; grep gate in Critical Review for stray unit arithmetic |
 | R-3 | Hand-computed golden checksums in this spec are wrong | Round-trip passes but golden byte assert fails, or spec-vrrp-6 capture disagrees | Checksums recomputed by an independent straight-line RFC 1071 reference inside the tests; final authority = live keepalived captures (cross-check rows below) |
 | R-4 | Lazy VIP view over a reused rx buffer causes use-after-reuse in a careless caller | Corrupt VIP values in engine (child-5) tests; race detector hits in child-4 QEMU runs | Lifetime contract documented on the type + `AppendVIPs` copy helper provided; ~~spec-vrrp-2 inherits the copy-before-persist constraint~~ (corrected 2026-07-14: the constraint binds the ENGINE, spec-vrrp-5 -- spec-2's AdvertReceived carries only VIPCount and persists no VIPs) |
-| R-5 | ~~A-1 resolves against the umbrella (keepalived actually follows published RFC 9568 for v3/IPv4)~~ Resolved 2026-07-14: it did -- settled by primary sources at design time; design is now tx message-only + rx dual-accept (the former fallback option became the design) | Residual signal: checksum-rfc5798-compat counter nonzero = a legacy RFC 5798 peer on the LAN | Nothing to fix -- the counter is the operator-visible answer; spec-vrrp-6 asserts it stays 0 with modern keepalived |
+| R-5 | ~~A-1 resolves against the umbrella (keepalived actually follows published RFC 9568 for v3/IPv4)~~ Resolved 2026-07-15: keepalived does NOT follow published RFC 9568 for v3/IPv4 -- it requires the RFC 5798 pseudo-header; design is tx pseudo-header + rx dual-accept (RFC 9568 message-only became the accepted+flagged fallback) | Residual signal: checksum-rfc9568-message-only counter nonzero = a strict-RFC-9568 (message-only) peer on the LAN | Nothing to fix -- the counter is the operator-visible answer; spec-vrrp-6 asserts it stays 0 with keepalived (which sends the pseudo-header form) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -159,7 +159,7 @@ v2 whole seconds) happens ONLY inside encode/decode.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Encode v2 advert (vrid 10, prio 200, 2 VIPs, 1000 ms) | Exact golden bytes: auth type 0, Adver Int byte = 1 (seconds), 8-byte zero auth trailer, checksum 0x92ED |
-| AC-2 | Encode v3 IPv4 and v3 IPv6 adverts (vectors below) | Exact golden bytes: reserved nibble 0, 12-bit interval = 100 cs, checksums ~~pseudo-header 0xDEFB~~ 0x828A message-only (superseded 2026-07-14, A-1 resolved) / 0x3F5D v6 pseudo-header |
+| AC-2 | Encode v3 IPv4 and v3 IPv6 adverts (vectors below) | Exact golden bytes: reserved nibble 0, 12-bit interval = 100 cs, checksums 0xDEFB v3/IPv4 (RFC 5798 pseudo-header -- ze's tx form for keepalived interop; ~~0x828A message-only~~ reverted 2026-07-15 after the keepalived capture; `TestEncodeGoldenV3IPv4` asserts 0xDEFB) / 0x3F5D v6 pseudo-header |
 | AC-3 | Decode each golden vector with matching RxMeta | Field-equal Advertisement; `AdverIntervalMS` == 1000 for all three (wire units converted at the boundary only) |
 | AC-4 | Each row of the ordered validation table violated in isolation | The row's typed error is returned, `Reason(err)` yields the row's reason label, earlier rows win when multiple violations coexist |
 | AC-5 | v3 advert whose interval differs from local config | NO error; Advertisement carries the received interval for FSM adoption. v2 advert with mismatched interval → `ErrV2IntervalMismatch` (discard) |
@@ -167,7 +167,7 @@ v2 whole seconds) happens ONLY inside encode/decode.
 | AC-7 | `make ze-fuzz-test` | FuzzDecode runs 10s, no panic, no accepted packet violating the ladder invariants |
 | AC-8 | Happy-path Decode of each golden vector | 0 heap allocations (`testing.AllocsPerRun`) |
 | AC-9 | Boundary table rows (vrid, priority, count, both interval ranges) | Every Last Valid accepted, every Invalid Below/Above rejected exactly as tabled |
-| AC-10 | G2c (v3/IPv4 with legacy RFC 5798 checksum 0xDEFB) and a payload failing BOTH sums | G2c ACCEPTED with LegacyChecksum set (reason checksum-rfc5798-compat); both-fail payload → ErrChecksum |
+| AC-10 | G2c (v3/IPv4 pseudo-header checksum 0xDEFB), G2 (v3/IPv4 message-only checksum 0x828A), and a payload failing BOTH sums | G2c (pseudo-header) ACCEPTED as canonical, MsgOnlyChecksum unset; G2 (message-only) ACCEPTED but flagged MsgOnlyChecksum (reason checksum-rfc9568-message-only); both-fail payload → ErrChecksum |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -191,7 +191,7 @@ v2 whole seconds) happens ONLY inside encode/decode.
 | AdverIntervalMS | uint32 | MILLISECONDS ALWAYS (umbrella R-2); v3 wire 10..40950, v2 wire 1000..255000 | group config / learned | converted from wire (v3 cs×10, v2 s×1000) |
 | VIPs | []netip.Addr | max 16 on encode | config-owned slice, allocated once per group | nil on decode (lazy view used instead) |
 | wireVIPs (unexported) | []byte | view into rx buffer | unused | sub-slice of payload; valid until next socket read (A-3) |
-| LegacyChecksum | bool | decode-only outcome flag | n/a -- encode never emits the RFC 5798 sum | true when rx matched only the legacy RFC 5798 pseudo-header fallback (counted as checksum-rfc5798-compat) |
+| MsgOnlyChecksum | bool | decode-only outcome flag | n/a -- encode always emits the RFC 5798 pseudo-header sum | true when rx matched ONLY the RFC 9568 message-only sum, not the pseudo-header form ze sends (counted as checksum-rfc9568-message-only; marks a strict-RFC-9568 peer) |
 
 Accessors (decode side, allocation-free): `VIPCount() int`, `VIPAt(i int) netip.Addr`
 (bounds-checked), `AppendVIPs(dst []netip.Addr) []netip.Addr` (explicit copy for
@@ -262,15 +262,18 @@ total         : 8 + Count*4 + 8   -- EXACT
 | Case | Coverage |
 |------|----------|
 | v2 (IPv4 only) | RFC 1071 one's complement over the ENTIRE VRRP message including the 8-byte auth trailer; checksum field zeroed; NO pseudo-header (RFC 3768 §5.3.7) |
-| v3 IPv4 (tx + primary rx) | ~~RFC 1071 over the VRRP message PLUS a prepended IPv4 pseudo-header (per umbrella decision, A-1)~~ (superseded 2026-07-14, A-1 resolved by rfc/full/rfc9568.txt:880-885) RFC 1071 over the VRRP message ONLY, starting with the Version field -- NO pseudo-header (RFC 9568 §5.2.8) |
-| v3 IPv4 (rx fallback, dual-accept) | If the message-only sum fails, recompute with the legacy RFC 5798 pseudo-header: src (4B), dst (4B), zero (1B), protocol 112 (1B), VRRP length (2B). Match → ACCEPT, set LegacyChecksum, count reason checksum-rfc5798-compat (legacy keepalived pre-issue-#2324, FRR pre-2022, uvrrpd). Both sums fail → ErrChecksum |
+| v3 IPv4 (tx + primary rx) | RFC 1071 over the VRRP message PLUS the RFC 5798 IPv4 pseudo-header: src (4B), dst (4B), zero (1B), protocol 112 (1B), VRRP length (2B). This is ze's tx form and the primary rx form (checksum.go `pseudoSumV4Legacy`). ~~message-only, no pseudo-header (RFC 9568 §5.2.8)~~ reverted 2026-07-15 -- a keepalived 2.3.1 wire capture proved keepalived computes and REQUIRES the pseudo-header and rejects message-only as "Invalid VRRPv3 checksum"; interoperating with the installed base outranks the RFC 9568 clarification (checksum.go:97-110) |
+| v3 IPv4 (rx fallback, dual-accept) | If the pseudo-header sum fails, recompute the RFC 9568 message-only sum (VRRP message only, no pseudo-header). Match → ACCEPT, set MsgOnlyChecksum, count reason checksum-rfc9568-message-only (a strict-RFC-9568 peer: keepalived post-#2324, FRR post-2022, Cisco). Both sums fail → ErrChecksum |
 | v3 IPv6 | RFC 1071 over the VRRP message PLUS the RFC 8200 §8.1 pseudo-header: src (16B), dst (16B), upper-layer length (4B), zero (3B), next header 112 (1B) |
 
 Rx verification recomputes with the ACTUAL packet src/dst from RxMeta (uvrrpd
-digest). The v3/IPv4 sum selection lives in ONE function; ~~so A-1/R-5
-resolution is a one-line change~~ (A-1 resolved 2026-07-14) that isolation now
-implements the dual-accept: primary RFC 9568 message-only, fallback legacy RFC
-5798 pseudo-header (accept + count), reject only when both sums fail.
+digest). The v3/IPv4 sum selection lives in ONE function; that isolation
+implements the dual-accept: primary RFC 5798 pseudo-header (ze's tx form and the
+deployed base's), fallback RFC 9568 message-only (accept + flag as
+checksum-rfc9568-message-only), reject only when both sums fail. The
+primary/fallback ordering was reversed here until the 2026-07-15 keepalived
+capture proved the pseudo-header form is the one on the wire in practice
+(checksum.go `verifyReceived`).
 
 ### Ordered receive-validation ladder (validate.go)
 
@@ -288,7 +291,7 @@ check with an actionable reason instead of a generic checksum error.
 | 3 | Type nibble | byte0 low nibble == 1 | ErrType | type | 9568 §5.2.2 / 3768 §5.3.2 |
 | 4 | VRID known | Lookup(vrid) ok | ErrUnknownVRID | vrid | 9568 §7.1 (erratum 8298 keeps owner-rx as log-only -- owner handling is FSM, child 2; applied to v2 as well, deviation noted in Known Limitations) |
 | 5 | Version matches group | wire version == Local.Version | ErrVersion | version | 9568 §7.1 ("verify version"), per-group v2 opt-in (umbrella) |
-| 6 | Checksum | v2 + v3/IPv6: verifies per table above, over full payload, src/dst from RxMeta. v3/IPv4: primary message-only sum; on mismatch retry the legacy RFC 5798 pseudo-header sum -- match ACCEPTS with LegacyChecksum set; both fail → error | ErrChecksum | checksum (reject); checksum-rfc5798-compat (accepted, counted) | 9568 §5.2.8 (rfc/full/rfc9568.txt:880-885) / 3768 §7.1 |
+| 6 | Checksum | v2 + v3/IPv6: verifies per table above, over full payload, src/dst from RxMeta. v3/IPv4: primary RFC 5798 pseudo-header sum (ze's tx form); on mismatch retry the RFC 9568 message-only sum -- match ACCEPTS with MsgOnlyChecksum set; both fail → error | ErrChecksum | checksum (reject); checksum-rfc9568-message-only (accepted, counted) | 9568 §5.2.8 / 3768 §7.1 |
 | 7 | TTL / hop-limit | RxMeta.TTL == 255 (GTSM) | ErrTTL | ttl | 9568 §5.1.1.3, §5.1.2.3 / 3768 §5.2.3 |
 | 8 | Count non-zero | byte3 >= 1 | ErrCountZero | count-zero | 9568 erratum 8299 / §5.2.5 |
 | 9 | Length exactness | v3: len == 8+count*addrsize; v2: len == 8+count*4+8 | ErrLength | length | 9568 §7.1 / 3768 §7.1 (catches v3+auth-trailer, trailing garbage, count/length lies) |
@@ -310,10 +313,10 @@ counters, holo bug 9). Reason labels are the third
 column of the ladder table plus, from the strip helper: ErrIPv4HeaderShort →
 `ip-header`, ErrIPv4BadIHL → `ip-header`. `TestErrorReasonMapping` asserts the
 mapping is total (every exported Err* has a reason) and injective where the
-table says so. `checksum-rfc5798-compat` is NOT an error: it labels an ACCEPTED
-packet (LegacyChecksum true); the transport counts it under the same metric so
-legacy RFC 5798 peers are operator-visible. `TestErrorReasonMapping` covers
-this label too. `address-list` is an additional ENGINE-raised label (v2-only
+table says so. `checksum-rfc9568-message-only` is NOT an error: it labels an
+ACCEPTED packet (MsgOnlyChecksum true); the transport counts it under the same
+metric so strict-RFC-9568 peers (which send the message-only sum ze does not)
+are operator-visible. `TestErrorReasonMapping` covers this label too. `address-list` is an additional ENGINE-raised label (v2-only
 post-Decode address-list comparison, owned by spec-vrrp-5 -- see Known
 Limitations), not a Decode ladder row; `TestErrorReasonMapping` includes it in
 the label inventory.
@@ -335,23 +338,25 @@ Vector G1 -- v2 IPv4: vrid 10, prio 200, VIPs 192.0.2.1 + 192.0.2.2, interval
 00 00 00 00 00 00 00 00                            (24 bytes)
 ```
 
-Vector G2 -- v3 IPv4 (canonical): vrid 10, prio 200, VIPs 192.0.2.1 +
-192.0.2.2, interval 1000 ms (wire: 0x064 cs). Checksum message-only per RFC
-9568 §5.2.8 = 0x828A (arithmetic re-verified 2026-07-14: folded message sum
-0x27D73 → 0x7D75 → complement 0x828A). ~~Pseudo-header checksum 0xDEFB was the
-canonical value; message-only 0x828A was negative test N1~~ (superseded
-2026-07-14: A-1 resolved -- roles swapped; the pseudo-header bytes moved to
-compat vector G2c below).
+Vector G2 -- v3 IPv4 message-only (rx-accept only, flagged): vrid 10, prio 200,
+VIPs 192.0.2.1 + 192.0.2.2, interval 1000 ms (wire: 0x064 cs). Checksum
+message-only per RFC 9568 §5.2.8 = 0x828A (folded message sum 0x27D73 → 0x7D75 →
+complement 0x828A). Decode ACCEPTS it but sets MsgOnlyChecksum (reason
+checksum-rfc9568-message-only) -- it is the strict-RFC-9568 form a peer such as
+post-#2324 keepalived sends, NOT the form ze transmits. Roles reversed
+2026-07-15: this vector was the canonical form under the interim design until the
+keepalived capture; the pseudo-header vector G2c below is now canonical.
 
 ```
 31 0A C8 02 00 64 82 8A  C0 00 02 01 C0 00 02 02   (16 bytes)
 ```
 
-Vector G2c -- v3 IPv4 legacy-compat (rx-accept only): identical fields with the
-legacy RFC 5798 pseudo-header checksum (src 192.0.2.251, dst 224.0.0.18, proto
-112, len 16; pseudo sum 0x1A38D + message sum 0x27D73 = 0x42100 → fold 0x2104 →
-complement 0xDEFB; arithmetic re-verified 2026-07-14). Decode MUST accept it
-with LegacyChecksum set; encode MUST NOT emit it.
+Vector G2c -- v3 IPv4 canonical (tx + primary rx): identical fields with the RFC
+5798 pseudo-header checksum (src 192.0.2.251, dst 224.0.0.18, proto 112, len 16;
+pseudo sum 0x1A38D + message sum 0x27D73 = 0x42100 → fold 0x2104 →
+complement 0xDEFB). This is the form ze TRANSMITS for v3/IPv4 (keepalived
+interop) and the primary rx form; Decode accepts it with MsgOnlyChecksum UNSET.
+`TestEncodeGoldenV3IPv4` asserts these exact bytes.
 
 ```
 31 0A C8 02 00 64 DE FB  C0 00 02 01 C0 00 02 02   (16 bytes)
@@ -367,28 +372,30 @@ Vector G3 -- v3 IPv6: vrid 10, prio 100, VIPs fe80::1 + 2001:db8::1, interval
 00 00 00 00 00 00 00 01                            (40 bytes)
 ```
 
-Cross-check row: vectors G1/G2/G3 are validated against live keepalived
-captures in spec-vrrp-6 (`vrrp-v2-keepalived`, `vrrp-v3-keepalived` scenarios);
-Alpine's current keepalived post-dates issue #2324, so its v3/IPv4 checksum is
-expected message-only (checksum-rfc5798-compat counter stays 0). G2c is a
-unit-test-only legacy-peer fixture. Any divergence reopens this spec's Mistake
-Log.
+Cross-check row: vectors G1/G2c/G3 are validated against live keepalived
+captures in spec-vrrp-6 (`vrrp-v2-keepalived`, `vrrp-v3-keepalived` scenarios).
+The 2026-07-15 keepalived 2.3.1 capture showed its v3/IPv4 advert carries the
+RFC 5798 pseudo-header checksum (its own advert checksum 0xa102 matches the
+pseudo-header sum, not the message-only sum 0x448e), so it decodes on ze's
+canonical (pseudo-header) rx path and the checksum-rfc9568-message-only counter
+stays 0. G2 (message-only) is a unit-test-only strict-RFC-9568-peer fixture. Any
+divergence reopens this spec's Mistake Log.
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEncodeGoldenV2` | `internal/plugins/vrrp/packet/packet_test.go` | WriteTo+FillChecksum == G1 exactly (trailer zeroed, seconds byte) | |
-| `TestEncodeGoldenV3IPv4` | `packet_test.go` | == G2 exactly (reserved nibble 0, 12-bit cs, pseudo-header checksum) | |
+| `TestEncodeGoldenV3IPv4` | `packet_test.go` | == G2c exactly (reserved nibble 0, 12-bit cs, RFC 5798 pseudo-header checksum 0xDEFB -- ze's tx form) | |
 | `TestEncodeGoldenV3IPv6` | `packet_test.go` | == G3 exactly (v6 pseudo-header) | |
 | `TestDecodeGoldenV2` / `TestDecodeGoldenV3IPv4` / `TestDecodeGoldenV3IPv6` | `packet_test.go` | Field-equal Advertisement; AdverIntervalMS == 1000 in all three | |
 | `TestRoundTrip` | `packet_test.go` | Encode→decode matrix: {v2, v3v4, v3v6} × counts {1, 3, 16} × priorities {0, 1, 100, 254, 255} | |
 | `TestWriteToOffset` | `packet_test.go` | Non-zero offset honored, earlier bytes untouched (bfd control_test.go:109 model) | |
 | `TestChecksumRFC1071` | `packet_test.go` | Sum/fold/complement against independent reference + odd-length input | |
 | `TestValidationOrder` | `packet_test.go` | Packet violating rows N and N+k returns row N's error, for every adjacent pair | |
-| `TestErrorReasonMapping` | `packet_test.go` | Reason() total over all Err* plus the accepted-outcome label checksum-rfc5798-compat; labels match the ladder table | |
+| `TestErrorReasonMapping` | `packet_test.go` | Reason() total over all Err* plus the accepted-outcome label checksum-rfc9568-message-only; labels match the ladder table | |
 | `TestDecodeV3IntervalMismatchNotError` | `packet_test.go` | v3 mismatched interval decodes cleanly, value surfaced (holo/uvrrpd adopt-bug prevented) | |
 | `TestDecodeV2IntervalMismatchDiscard` | `packet_test.go` | v2 mismatch → ErrV2IntervalMismatch | |
-| `TestDecodeV3IPv4LegacyChecksumCompat` | `packet_test.go` | G2c accepted with LegacyChecksum set; canonical G2 leaves it unset; both-sums-fail → ErrChecksum | |
+| `TestDecodeV3IPv4MsgOnlyChecksumCompat` | `packet_test.go` | G2c (pseudo-header) accepted as canonical with MsgOnlyChecksum unset; G2 (message-only) accepted with MsgOnlyChecksum set; both-sums-fail → ErrChecksum | |
 | `TestStripIPv4HeaderIHL` | `packet_test.go` | IHL 5/6/15 strip correct payload+RxMeta; IHL<5, header>datagram → typed errors | |
 | `TestNegativeReferenceBugs` | `packet_test.go` | Table below, one subtest per row | |
 | `TestBoundaryVRID` / `TestBoundaryPriority` / `TestBoundaryCount` / `TestBoundaryInterval` | `packet_test.go` | Boundary table rows | |
@@ -399,7 +406,7 @@ Log.
 ### Negative tests from verified reference-implementation bugs
 | # | Input | Must | Source bug |
 |---|-------|------|-----------|
-| N1 | ~~G2 bytes with checksum 0x828A (computed WITHOUT pseudo-header) must fail~~ (inverted 2026-07-14, A-1 resolved) G2c bytes: legacy RFC 5798 pseudo-header sum 0xDEFB | ACCEPT with LegacyChecksum + reason checksum-rfc5798-compat | legacy keepalived pre-#2324 / uvrrpd emit this; holo's message-only was CORRECT under 9568 (digest bug-5 entry was wrong) |
+| N1 | G2 bytes: RFC 9568 message-only sum 0x828A (no pseudo-header) | ACCEPT with MsgOnlyChecksum + reason checksum-rfc9568-message-only (a strict-RFC-9568 peer) | keepalived post-#2324 / FRR post-2022 / Cisco emit this; ze transmits the RFC 5798 pseudo-header form instead (2026-07-15 keepalived capture) |
 | N1b | G2 bytes with a checksum failing BOTH sums (e.g. 0x0000) | ErrChecksum | - |
 | N2 | v3 IPv4 packet with 8-byte v2 auth trailer appended | ErrLength (exactness), NOT checksum | uvrrpd v3/IPv4 spurious trailer |
 | N3 | IPv4 datagram with IHL=6 (options) | Strip yields correct payload; decode succeeds | holo bug 11 (fixed 20-byte strip) |
@@ -439,7 +446,7 @@ tests and `FuzzDecode`.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| v3 golden-vector + checksum cross-check | `test/interop/scenarios/vrrp-v3-keepalived/` (owned by spec-vrrp-6) | keepalived | Live captures decode cleanly on the canonical message-only path; checksum-rfc5798-compat counter stays 0 with modern keepalived (A-1 resolution held on the wire) | |
+| v3 golden-vector + checksum cross-check | `test/interop/scenarios/vrrp-v3-keepalived/` (owned by spec-vrrp-6) | keepalived | Live captures decode cleanly on the canonical pseudo-header path (keepalived 2.3.1 sends the RFC 5798 pseudo-header sum, capture 2026-07-15); checksum-rfc9568-message-only counter stays 0 with keepalived | |
 | v2 wire format | `test/interop/scenarios/vrrp-v2-keepalived/` (owned by spec-vrrp-6) | keepalived (default v2) | RFC 3768 layout incl. auth trailer interops | |
 
 ### Future (if deferring any tests)
@@ -587,7 +594,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 | Test fails wrong reason | Fix test assertion or setup |
 | Test fails behavior mismatch | Re-read the cited rfc/short section; if the spec table is wrong, fix table + Mistake Log |
 | Golden checksum disagreement | Recompute with the in-test reference; if spec hex wrong, correct spec (typo-fix exception) + Mistake Log |
-| ~~A-1 broken by keepalived capture~~ (A-1 resolved 2026-07-14) checksum-rfc5798-compat counter unexpectedly nonzero in spec-vrrp-6 | Verify Alpine keepalived version against issue #2324; capture the bytes into Mistake Log -- the dual-accept absorbs either outcome, no code flip needed |
+| checksum-rfc9568-message-only counter unexpectedly nonzero in spec-vrrp-6 | A strict-RFC-9568 (message-only) peer is on the segment; verify the keepalived version and capture the bytes into Mistake Log -- the dual-accept absorbs it, no code flip needed |
 | Lint failure | Fix inline; if architectural → DESIGN phase |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
@@ -596,7 +603,8 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| v3/IPv4 checksum needs the RFC 5798 pseudo-header (umbrella rfc9568 annotation + holo digest bug 5) | RFC 9568 explicitly clarified message-only for IPv4 (rfc/full/rfc9568.txt:880-885, change note :194-196); the pseudo-header is legacy RFC 5798 behavior; holo was correct | Coordinator primary-source verification during spec design (before approval/implementation) | Spec revised same day: tx message-only, rx dual-accept + checksum-rfc5798-compat counter; golden vector roles swapped (G2 canonical 0x828A, G2c compat 0xDEFB); umbrella annotation corrected by orchestrator |
+| v3/IPv4 checksum needs the RFC 5798 pseudo-header (umbrella rfc9568 annotation + holo digest bug 5) | RFC 9568's published text clarifies message-only for IPv4 (rfc/full/rfc9568.txt:880-885, change note :194-196); on paper the pseudo-header looked like legacy RFC 5798 behavior | Coordinator primary-source verification during spec design (before approval/implementation) | Spec revised same day (interim): tx message-only, rx dual-accept + a compat counter; golden vector roles swapped; umbrella annotation corrected by orchestrator. INTERIM ONLY -- the tx-message-only decision was itself reverted 2026-07-15 (see next row); the original pseudo-header assumption turned out correct on the wire |
+| tx message-only (RFC 9568 §5.2.8) interoperates with keepalived | keepalived 2.3.1 computes and REQUIRES the RFC 5798 IPv4 pseudo-header and rejects message-only as "Invalid VRRPv3 checksum" | keepalived interop lab wire capture 2026-07-15 (keepalived's own advert checksum 0xa102 = pseudo-header sum, not message-only 0x448e); scripts/evidence/effective-vrrp-keepalived.py | v3/IPv4 tx changed to the RFC 5798 pseudo-header form (checksum.go pseudoSumV4Legacy / FillChecksum:86); rx keeps dual-accept but pseudo-header is now canonical/unflagged and message-only is accepted+flagged (checksum-rfc9568-message-only, validate.go:71); golden roles re-swapped (G2c pseudo-header 0xDEFB = canonical tx, G2 message-only 0x828A = rx-only flagged); code, golden tests, engine and transport all consistent |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -609,18 +617,22 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 ## Design Insights
 <!-- LIVE -- write IMMEDIATELY when you learn something -->
 - The umbrella's rfc9568 annotation ("pseudo-header v4 AND v6") contradicts both `rfc/short/rfc9568.md:103` and the published RFC 9568 §5.2.8 text (verified 2026-07-14: IPv4 = message only; IPv6 = pseudo-header). Originally captured as A-1/R-5 with the flip pre-costed.
-- Resolution (same day, primary sources): rfc/full/rfc9568.txt:880-885 + change note :194-196 confirm message-only for IPv4 as a deliberate RFC 9568 clarification, and the ecosystem followed (keepalived issue #2324, FRR 2022, Cisco always, Arista compliant). The pseudo-header is LEGACY RFC 5798 behavior (uvrrpd); the holo digest's bug-5 entry was wrong -- holo is correct on this point. Design: tx message-only, rx dual-accept + checksum-rfc5798-compat counter. Umbrella annotation corrected by the orchestrator.
+- Resolution (same day, primary sources): rfc/full/rfc9568.txt:880-885 + change note :194-196 confirm message-only for IPv4 as a deliberate RFC 9568 clarification, and the ecosystem followed (keepalived issue #2324, FRR 2022, Cisco always, Arista compliant). On paper the pseudo-header looked like LEGACY RFC 5798 behavior. Interim design: tx message-only, rx dual-accept + a compat counter. Umbrella annotation corrected by the orchestrator. (This interim was reverted 2026-07-15 -- see the next bullet.)
+- Second flip (2026-07-15, keepalived interop capture): tx reverted to the RFC 5798 pseudo-header form. keepalived 2.3.1 computes and REQUIRES the IPv4 pseudo-header and rejects message-only as "Invalid VRRPv3 checksum"; its own advert on the wire carried checksum 0xa102 (pseudo-header), not 0x448e (message-only). For a first-hop-redundancy feature, interoperating with the installed base outranks the RFC 9568 clarification. The one-function isolation absorbed this second flip too: tx (`FillChecksum`) emits the pseudo-header form, rx (`verifyReceived`) takes the pseudo-header sum as primary/canonical and flags the message-only sum as checksum-rfc9568-message-only (checksum.go:97-110). Proven by scripts/evidence/effective-vrrp-keepalived.py.
 - Computing the rx checksum over the FULL received payload (not 8+count*size) makes the "v3 packet with v2 auth trailer" failure surface as an actionable length error instead of a mystery checksum error. Confirmed in code: N2 (zero auth trailer appended) passes checksum because zeros do not change the one's-complement sum, then fails row-9 length — exactly the intended actionable path.
 - The buffer-free rx verify trick (sum message+checksum, expect fold to 0xFFFF) only holds when the checksum field sits on a 16-bit word boundary. Real VRRP messages are always even-length with the checksum at byte 6, so this is always true on the wire; a unit test that appended the checksum after odd-length synthetic input exposed the alignment assumption (test padded to fix; implementation unaffected).
-- All four golden checksums (G1 0x92ED v2, G2 0x828A v3/IPv4 message-only, G2c 0xDEFB legacy RFC 5798, G3 0x3F5D v6 pseudo-header) reproduce exactly from the single isolated RFC 1071 core; the A-1 dual-accept is a two-line rx-only branch in `verifyReceived` as predicted by the Core Insight.
+- All four golden checksums (G1 0x92ED v2, G2 0x828A v3/IPv4 message-only rx-only, G2c 0xDEFB v3/IPv4 RFC 5798 pseudo-header = ze's tx form, G3 0x3F5D v6 pseudo-header) reproduce exactly from the single isolated RFC 1071 core; both the rx dual-accept and the tx-form choice live in `verifyReceived`/`FillChecksum` as predicted by the Core Insight.
 
 ## Core Insight
 
 Every studied implementation disagrees somewhere on v3/IPv4 checksum scope; the
 defense was isolating the computation in one function and pre-computing both
-golden sums. That paid off within a day: primary sources settled the question
-(RFC 9568 message-only, rfc/full/rfc9568.txt:880-885) and the isolated function
-absorbed the flip as an rx-only dual-accept branch instead of a redesign.
+golden sums. That paid off twice: primary sources first pointed to RFC 9568
+message-only (rfc/full/rfc9568.txt:880-885), then the 2026-07-15 keepalived
+capture proved the installed base still requires the RFC 5798 pseudo-header, so
+ze transmits the pseudo-header form and dual-accepts both on rx. Both flips were
+contained in the one isolated function (checksum.go `verifyReceived` /
+`FillChecksum`) instead of a redesign.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -630,8 +642,8 @@ absorbed the flip as an rx-only dual-accept branch instead of a redesign.
 | VRID lookup (row 4) before checksum (row 6) | RFC §7.1 listing order (TTL/version/length/checksum first) | §7.1 mandates that all checks pass, not their order; multicast delivers every group's traffic to everyone -- skipping checksum for unknown vrids is O(1) rejection of the common non-error case, and vrid-mismatch stays a separately-counted outcome |
 | Checksum over full payload; length exactness after | Checksum over computed 8+count*size span | Buggy-peer trailers (uvrrpd v3) then fail with reason `length` (actionable) rather than `checksum` (mystery) |
 | WriteTo writes checksum-zero + separate FillChecksum backfill | WriteTo computes inline | Skip-and-backfill per buffer-first.md; lets transport skip software checksum when offloading v6 tx via IPV6_CHECKSUM while the software path remains for v4/tests/rx |
-| ~~v3/IPv4 checksum WITH pseudo-header~~ | ~~Published RFC 9568 §5.2.8 (message only); verify-both-accept-either~~ | Superseded 2026-07-14 -- A-1 resolved by primary sources; replaced by the dual-accept row below |
-| v3/IPv4: tx message-only (RFC 9568 §5.2.8); rx dual-accept -- primary 9568 message-only sum, fallback legacy RFC 5798 pseudo-header sum ACCEPTED and counted as checksum-rfc5798-compat | strict-9568-only (silently breaks legacy peers: keepalived pre-#2324, uvrrpd, FRR pre-2022); YANG knob selecting the sum (needless config surface when dual-accept + counter gives correctness AND visibility) | rfc/full/rfc9568.txt:880-885 + change note :194-196 (explicit clarification); ecosystem converged on message-only (keepalived #2324, FRR 2022, Cisco always, Arista with exclude knob); the one-function isolation makes dual-accept a contained rx-only branch |
+| ~~v3/IPv4 tx message-only (RFC 9568 §5.2.8), interim design~~ | ~~strict-9568-only; verify-both-accept-either~~ | Superseded 2026-07-15 -- the message-only tx broke keepalived 2.3.1 interop; replaced by the pseudo-header tx row below (the original A-1 pseudo-header assumption was correct on the wire) |
+| v3/IPv4: tx RFC 5798 pseudo-header sum (keepalived interop); rx dual-accept -- primary pseudo-header sum (canonical, unflagged), fallback RFC 9568 message-only sum ACCEPTED and flagged checksum-rfc9568-message-only | tx message-only per RFC 9568 §5.2.8 (interim design 2026-07-14; broke keepalived 2.3.1, which requires the pseudo-header -- reverted 2026-07-15); strict-9568-only (silently breaks the installed base); YANG knob selecting the sum (needless config surface when dual-accept + counter gives correctness AND visibility) | keepalived 2.3.1 wire capture 2026-07-15 (its advert checksum 0xa102 = pseudo-header, rejects message-only as "Invalid VRRPv3 checksum"; checksum.go:97-110); the deployed base (older FRR, hardware VRRP, uvrrpd) does the same; the one-function isolation makes both the tx form and the rx dual-accept a contained change |
 | Typed Err* sentinels + exported Reason(err); counters registered elsewhere | Codec-owned prometheus counters | Plugin self-containment: pure codec stays import-free; children 4/5 own registration; taxonomy fixed here so no dead/ad-hoc reasons appear later |
 | Lookup as caller-supplied function returning Local{Version, AdverIntervalMS} | Decode without local knowledge + second validate pass | The ladder needs group version (row 5) and v2 local interval (row 12) to run in the specified order in one pass; a function value keeps the codec free of group-table types |
 | v2 zero interval rejected structurally (row 11) | Let row 12 mismatch-discard catch it | Same observable behavior (a legal local config is >= 1000 ms), more precise metrics reason; documented as stricter-than-RFC |
@@ -648,7 +660,7 @@ absorbed the flip as an rx-only dual-accept branch instead of a redesign.
 
 Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforcing code:
 - validate.go ladder: one citation per row exactly as tabled (incl. errata 8299/8300/8301 ids; row 12 quotes both the v2 MUST-discard and the v3 no-drop sentences)
-- checksum.go: RFC 9568 §5.2.8 quoted ("only includes the VRRP message" -- IPv4 message-only), plus a comment documenting the rx-only RFC 5798 legacy dual-accept and why (interop with pre-#2324 keepalived / uvrrpd); RFC 3768 §5.3.7; RFC 8200 §8.1 for the v6 pseudo-header
+- checksum.go: RFC 9568 §5.2.8 quoted ("only includes the VRRP message"), plus a comment documenting that tx emits the RFC 5798 pseudo-header form for keepalived interop and rx dual-accepts (pseudo-header primary, RFC 9568 message-only accepted+flagged), with the 2026-07-15 keepalived capture rationale; RFC 3768 §5.3.7; RFC 8200 §8.1 for the v6 pseudo-header
 - packet.go: §5.2.6 reserve-zero, §5.2.5 count, §5.2.7/§5.3.7 interval fields, RFC 3768 §5.3.10 auth-data-zero, §7.3 virtual MAC constants
 - StripIPv4Header: GTSM rationale RFC 9568 §9 / RFC 5082 reference on the TTL extraction
 
@@ -662,9 +674,10 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
   `Decode`, `StripIPv4Header`, lazy VIP accessors (`VIPCount`/`VIPAt`/`AppendVIPs`),
   `Validate`, `Reason`, `VirtualMAC`, constants (`ProtoNumber`, `MulticastV4/V6`, MAC
   prefixes, `MaxLenV2=80`/`MaxLenV3v4=72`/`MaxLenV3v6=264`, `V4`/`V6`).
-- RFC 1071 checksum with the v3/IPv4 dual-accept isolated in `verifyReceived`: RFC 9568
-  message-only primary, legacy RFC 5798 pseudo-header fallback (accept + `LegacyChecksum`
-  + `ReasonLegacyChecksum`); v3/IPv6 RFC 8200 pseudo-header; v2 message-only.
+- RFC 1071 checksum with the v3/IPv4 dual-accept isolated in `verifyReceived`: RFC 5798
+  pseudo-header primary (ze's tx form, keepalived interop), RFC 9568 message-only fallback
+  (accept + `MsgOnlyChecksum` + `ReasonMsgOnlyChecksum` = "checksum-rfc9568-message-only");
+  v3/IPv6 RFC 8200 pseudo-header; v2 message-only. tx (`FillChecksum`) emits the pseudo-header form.
 - 13-row ordered ladder with per-row RFC citations; ms is the only internal unit, wire
   conversion isolated in four helpers (`msToV3Centiseconds`/`v3CentisecondsToMS`/
   `msToV2Seconds`/`v2SecondsToMS`).
@@ -673,8 +686,9 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
   `# ... undefined: Advertisement / RxMeta / Lookup / checksum16 ... [build failed]`
   (tmp/vrrp-red.log). GREEN: `go test -race -count=1 ./internal/plugins/vrrp/packet/...`
   → `ok ... 1.349s`; verbose: 23 tests / 113 subtests PASS, 0 FAIL. All four golden
-  vectors byte-exact (G1 0x92ED, G2 0x828A, G2c 0xDEFB accept-with-LegacyChecksum,
-  G3 0x3F5D). Zero-alloc: `TestDecodeZeroAlloc` v2/v3v4/v3v6 = 0 allocs/run; N7 hostile
+  vectors byte-exact (G1 0x92ED v2, G2c 0xDEFB v3/IPv4 pseudo-header = tx form, G2 0x828A
+  message-only accept-with-MsgOnlyChecksum, G3 0x3F5D v6). Zero-alloc: `TestDecodeZeroAlloc`
+  v2/v3v4/v3v6 = 0 allocs/run; N7 hostile
   count=255 also 0 allocs. Fuzz: `FuzzDecode` 10s = 4.6M execs, 0 crashes (tmp/vrrp-fuzz.log).
   golangci-lint scoped to the package = 0 issues.
 
@@ -717,6 +731,18 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
    so `Validate()` works on non-addressable values (e.g. `mk(16).Validate()`) and keeps the
    receiver set consistent. Still zero-alloc (stack copy of scalars + two slice headers;
    `TestDecodeZeroAlloc` proves 0 allocs).
+4. **v3/IPv4 tx checksum: RFC 5798 pseudo-header, not RFC 9568 §5.2.8 message-only.** The plan
+   (interim, 2026-07-14) had ze transmit the RFC 9568 message-only sum. A keepalived 2.3.1 wire
+   capture on 2026-07-15 (`scripts/evidence/effective-vrrp-keepalived.py`) proved keepalived
+   computes and REQUIRES the RFC 5798 IPv4 pseudo-header and rejects message-only as "Invalid
+   VRRPv3 checksum" (its own advert checksum 0xa102 = pseudo-header sum, not message-only 0x448e).
+   ze therefore TRANSMITS the pseudo-header form (`checksum.go` FillChecksum / `pseudoSumV4Legacy`)
+   and rx dual-accepts (pseudo-header canonical; RFC 9568 message-only accepted and flagged
+   `MsgOnlyChecksum` / checksum-rfc9568-message-only). This is a deliberate divergence from strict
+   RFC 9568 §5.2.8 for first-hop-redundancy interop with the installed base; the message-only sum
+   stays accepted on rx so a strict-RFC-9568 peer still interoperates. No AC dropped: AC-2 golden
+   bytes and AC-10 dual-accept updated to match; golden vector roles re-swapped (G2c pseudo-header
+   = canonical tx, G2 message-only = rx-only flagged).
 
 ## Implementation Audit
 
@@ -734,14 +760,14 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
 | Zero-allocation happy-path decode | Done | `validate.go` Decode (lazy VIP view) | `TestDecodeZeroAlloc` = 0 allocs |
 | No sockets/build-tags/netlink/goroutines; stdlib+netip only | Done | package imports | `errors`, `net/netip` only |
 | ms internal unit; conversion only at wire boundary | Done | `packet.go` 4 conversion helpers | R-2 grep clean; N10 exact at 4095 cs |
-| v3/IPv4 tx message-only + rx dual-accept (A-1) | Done | `checksum.go` verifyReceived:113 | `TestDecodeV3IPv4LegacyChecksumCompat` |
+| v3/IPv4 tx RFC 5798 pseudo-header + rx dual-accept (A-1) | Done | `checksum.go` FillChecksum:86 / verifyReceived:130 | `TestDecodeV3IPv4MsgOnlyChecksumCompat` |
 | MaxLen constants exported for transport | Done | `packet.go:71-75` | 80/72/264, `TestConstants` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | Done | `TestEncodeGoldenV2` | G1 == 0x92ED, auth 0, seconds byte, zero trailer |
-| AC-2 | Done | `TestEncodeGoldenV3IPv4` / `V3IPv6` | G2 == 0x828A message-only, G3 == 0x3F5D v6 pseudo-header |
+| AC-2 | Done | `TestEncodeGoldenV3IPv4` / `V3IPv6` | G2c == 0xDEFB RFC 5798 pseudo-header (tx form), G3 == 0x3F5D v6 pseudo-header |
 | AC-3 | Done | `TestDecodeGoldenV2/V3IPv4/V3IPv6` | field-equal; AdverIntervalMS == 1000 all three |
 | AC-4 | Done | `TestValidationOrder` (13 subtests) | earliest violated row wins, every adjacent pair |
 | AC-5 | Done | `TestDecodeV3IntervalMismatchNotError`, `TestDecodeV2IntervalMismatchDiscard` | v3 surfaces value, v2 → ErrV2IntervalMismatch |
@@ -749,7 +775,7 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
 | AC-7 | Done | `FuzzDecode` 10s | no panic, no accepted packet violating ladder invariants |
 | AC-8 | Done | `TestDecodeZeroAlloc` + N7 | 0 allocs incl. VIPAt and hostile count=255 |
 | AC-9 | Done | `TestBoundaryVRID/Count/Interval/PriorityAndAppendVIPs` | every Last-Valid accepted, Invalid rejected |
-| AC-10 | Done | `TestDecodeV3IPv4LegacyChecksumCompat`, N1/N1b | G2c accept+LegacyChecksum; both-fail → ErrChecksum |
+| AC-10 | Done | `TestDecodeV3IPv4MsgOnlyChecksumCompat`, N1/N1b | G2c (pseudo-header) accepted unflagged; G2 (message-only) accept+MsgOnlyChecksum; both-fail → ErrChecksum |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -762,7 +788,7 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
 | TestValidationOrder | Done | `validate_test.go` | 13 subtests |
 | TestErrorReasonMapping | Done | `validate_test.go` | total+injective over RX taxonomy |
 | TestDecodeV3IntervalMismatchNotError / V2...Discard | Done | `validate_test.go` | v3/v2 split |
-| TestDecodeV3IPv4LegacyChecksumCompat | Done | `validate_test.go` | N1/N1b |
+| TestDecodeV3IPv4MsgOnlyChecksumCompat | Done | `validate_test.go` | N1/N1b |
 | TestStripIPv4HeaderIHL | Done | `validate_test.go` | AC-6 |
 | TestNegativeReferenceBugs | Done | `validate_test.go` | N1-N10 |
 | TestBoundaryVRID/Priority/Count/Interval | Done | `packet_test.go` + `validate_test.go` | Priority folded into TestBoundaryPriorityAndAppendVIPs |
@@ -793,27 +819,35 @@ Add `// RFC 9568 Section X.Y: "<quoted requirement>"` (or RFC 3768) above enforc
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Byte-exact v2/v3 encode per RFC wire formats | unit golden tests | (fill: TestEncodeGolden* pass output) |
-| Ordered receive validation with typed, countable failures | unit tests | (fill: TestValidationOrder + TestErrorReasonMapping output) |
-| Reference-implementation bugs provably not replicated | negative tests | (fill: TestNegativeReferenceBugs N1-N10 output) |
-| Robust under adversarial input | fuzz run | (fill: make ze-fuzz-test FuzzDecode line output) |
-| Zero-allocation happy-path decode | alloc test | (fill: TestDecodeZeroAlloc output) |
-| Wire-true against a real peer | interop capture (spec-vrrp-6) | (fill at umbrella close: capture decode evidence; checksum-rfc5798-compat counter == 0 with modern keepalived) |
+| Byte-exact v2/v3 encode per RFC wire formats | unit golden tests | TestEncodeGoldenV2/V3IPv4/V3IPv6 pass; bytes == G1 0x92ED / G2c 0xDEFB (RFC 5798 pseudo-header tx) / G3 0x3F5D (packet_test.go) |
+| Ordered receive validation with typed, countable failures | unit tests | TestValidationOrder (13 adjacent-pair subtests) + TestErrorReasonMapping (total+injective over the RX taxonomy incl. checksum-rfc9568-message-only) pass (validate_test.go) |
+| Reference-implementation bugs provably not replicated | negative tests | TestNegativeReferenceBugs N1-N10 pass (validate_test.go) |
+| Robust under adversarial input | fuzz run | FuzzDecode 10s = 4.6M execs, 0 crashes (make ze-fuzz-test; fuzz_test.go) |
+| Zero-allocation happy-path decode | alloc test | TestDecodeZeroAlloc v2/v3v4/v3v6 = 0 allocs/run incl. hostile count=255 (packet_test.go) |
+| Wire-true against a real peer | interop capture (spec-vrrp-6) | keepalived 2.3.1 accepts ze's v3/IPv4 pseudo-header adverts and ze decodes keepalived's on the canonical rx path (scripts/evidence/effective-vrrp-keepalived.py); checksum-rfc9568-message-only counter == 0 with keepalived |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | v3/IPv4 checksum spec text described the reverted message-only design while the code ships the RFC 5798 pseudo-header form; AC-2 / AC-10 unsatisfied-as-written | Key Design Decisions, AC-2, AC-10, checksum table | Reconcile spec text to the shipped pseudo-header design (code unchanged, interop-proven) |
+| 2 | BLOCKER | Mistake Log missing the second flip (the 2026-07-15 revert of the interim message-only design back to the pseudo-header form) | Mistake Log | Add the second-flip Mistake Log row |
+| 3 | ISSUE | Reason-label drift between the ladder table and the taxonomy prose | validate.go taxonomy section | Align spelling to checksum-rfc9568-message-only |
+| 4 | ISSUE | RFC 9568 5.2.8 tx deviation not called out as a deliberate deviation | Deviations / checksum.go | Record tx pseudo-header as a deliberate RFC 9568 5.2.8 deviation for keepalived interop |
 
 ### Fixes applied
-- (fill during /ze-review)
+- Spec text (Key Design Decisions, A-1, AC-2, AC-10, checksum table) reconciled to the shipped RFC 5798 pseudo-header tx form; code left unchanged (already interop-proven against keepalived 2.3.1).
+- Mistake Log gained the second-flip row (interim message-only reverted to the pseudo-header form after the 2026-07-15 keepalived capture).
+- Reason-label spelling aligned; RFC 9568 5.2.8 tx deviation recorded as deliberate.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | 3 stale test-comment NOTEs still referencing the interim message-only canonical form | packet_test.go comments | Reworded (since fixed) |
 
 ### Final status
+**Run 2 CLEAN: 0 BLOCKER, 0 ISSUE.** Run 1 (2 BLOCKER, 2 ISSUE) all fixed by reconciling the spec to the shipped, interop-proven design. NOTEs: 3 stale test-comment NOTEs from Run 2, since fixed.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 
