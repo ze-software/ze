@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 287 design docs, 2929 files
+Total: 290 design docs, 2987 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -40,6 +40,11 @@ Total: 287 design docs, 2929 files
 | `internal/component/authz/register.go` | AAA registry (VFS-like) |
 | `internal/component/tacacs/register.go` | AAA registry (VFS-like) |
 
+## `ai/rules/buffer-first.md`
+
+- `internal/plugins/vrrp/packet/packet.go` -- WriteTo(buf, off) int contract
+- `internal/plugins/vrrp/packet/validate.go` -- zero-allocation decode over a lazy VIP view
+
 ## `ai/rules/config-string-coercion.md`
 
 - `scripts/checks/config_string_coercion.go` -- config value-coercion guard
@@ -56,6 +61,9 @@ Total: 287 design docs, 2929 files
 | `internal/component/managed/doctor.go` | management hub reachability readiness check |
 | `internal/component/managed/register.go` | managed hub reachability check registration |
 | `internal/component/radius/doctor.go` | RADIUS admin reachability readiness check |
+| `internal/plugins/iface/netlink/doctor.go` | self-contained doctor checks owned by |
+| `internal/plugins/iface/netlink/doctor_linux.go` | kernel macvlan capability probe |
+| `internal/plugins/iface/netlink/doctor_other.go` | macvlan capability probe (non-Linux stub) |
 | `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
 
 ## `ai/rules/feature-gate-registration.md`
@@ -761,6 +769,7 @@ Total: 287 design docs, 2929 files
 | `cmd/ze/hub/audit.go` | audit log file management |
 | `cmd/ze/internal/helpfmt/helpfmt.go` | CLI help formatting |
 | `cmd/ze/internal/suggest/suggest.go` | CLI command suggestions |
+| `internal/component/aaa/login_profiles.go` | AAA login-resolved profiles |
 | `internal/component/authz/authz.go` | authorization component |
 | `internal/component/bgp/cli/childmode.go` | BGP CLI commands |
 | `internal/component/bgp/cli/decode.go` | BGP CLI commands |
@@ -1855,10 +1864,15 @@ Total: 287 design docs, 2929 files
 | `internal/component/iface/config_sysctl.go` | Sysctl and mirror application for interfaces |
 | `internal/component/iface/default_linux.go` | Per-OS backend default |
 | `internal/component/iface/default_other.go` | Per-OS backend default |
+| `internal/component/iface/device_owner.go` | plugin-owned devices (macvlan) |
+| `internal/component/iface/device_owner_integration_linux_test.go` | owned-macvlan registry, real-kernel proof |
+| `internal/component/iface/device_owner_test.go` | owned-macvlan registry semantics tests |
 | `internal/component/iface/discover.go` | OS interface discovery |
 | `internal/component/iface/dispatch.go` | Backend dispatch functions |
 | `internal/component/iface/emit.go` | interface config emission from discovery |
 | `internal/component/iface/iface.go` | Interface plugin shared types |
+| `internal/component/iface/macvlan.go` | plugin-owned devices (macvlan) |
+| `internal/component/iface/macvlan_test.go` | naming + spec-validation boundary tests |
 | `internal/component/iface/migrate.go` | Make-before-break interface migration |
 | `internal/component/iface/migrate_linux.go` | Make-before-break interface migration |
 | `internal/component/iface/migrate_other.go` | Make-before-break interface migration |
@@ -1881,8 +1895,12 @@ Total: 287 design docs, 2929 files
 | `internal/plugins/iface/netlink/backend_linux.go` | Netlink backend Linux implementation |
 | `internal/plugins/iface/netlink/backend_other.go` | Non-Linux interface backend stub |
 | `internal/plugins/iface/netlink/bridge_linux.go` | Bridge interface management |
+| `internal/plugins/iface/netlink/doctor_test.go` | doctor-iface-macvlan capability check tests |
 | `internal/plugins/iface/netlink/ifacenetlink.go` | Netlink interface backend |
 | `internal/plugins/iface/netlink/lcp_linux.go` | Linux Control Plane pairs (VPP-only) |
+| `internal/plugins/iface/netlink/macvlan_integration_linux_test.go` | real-kernel macvlan backend proof |
+| `internal/plugins/iface/netlink/macvlan_linux.go` | plugin-owned macvlan devices via netlink |
+| `internal/plugins/iface/netlink/macvlan_linux_test.go` | pure macvlan link-builder tests |
 | `internal/plugins/iface/netlink/manage_linux.go` | Interface management via netlink |
 | `internal/plugins/iface/netlink/mirror_linux.go` | Traffic mirroring via tc mirred |
 | `internal/plugins/iface/netlink/monitor_linux.go` | Netlink interface monitor |
@@ -2447,6 +2465,57 @@ Total: 287 design docs, 2929 files
 ## `plan/learned/1116-copp-firewall-shutdown-flush.md`
 
 - `internal/test/plugins/fakeddos/fakeddos.go` -- fakeddos synthetic
+
+## `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md`
+
+- `internal/plugins/vrrp/dataplane_linux.go` -- virtual-MAC dataplane (ARP/ND ownership)
+- `internal/plugins/vrrp/dataplane_other.go` -- virtual-MAC dataplane (ARP/ND ownership)
+
+## `plan/learned/1124-vrrp-first-hop-redundancy.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/vrrp/cmd_show.go` | show/clear command surface |
+| `internal/plugins/vrrp/cmd_show_test.go` | show/clear command tests |
+| `internal/plugins/vrrp/doctor.go` | doctor codes + config-sanity check |
+| `internal/plugins/vrrp/doctor_test.go` | doctor config-sanity tests |
+| `internal/plugins/vrrp/engine.go` | instance manager: config diff + lifecycle |
+| `internal/plugins/vrrp/engine_test.go` | instance manager (config diff + lifecycle) tests |
+| `internal/plugins/vrrp/fsm/actions.go` | VRRP FSM output actions (closed set) |
+| `internal/plugins/vrrp/fsm/doc.go` | VRRP instance state machine and timers |
+| `internal/plugins/vrrp/fsm/events.go` | VRRP FSM input events and instance config |
+| `internal/plugins/vrrp/fsm/fsm.go` | VRRP per-instance state machine |
+| `internal/plugins/vrrp/fsm/timers.go` | VRRP Skew_Time / Master_Down_Interval math |
+| `internal/plugins/vrrp/groups.go` | VRRP config extraction and verification |
+| `internal/plugins/vrrp/groups_test.go` | VRRP config extraction + verification tests |
+| `internal/plugins/vrrp/instance.go` | per-instance worker: FSM executor + rx decode |
+| `internal/plugins/vrrp/instance_test.go` | per-instance worker (FSM executor) tests |
+| `internal/plugins/vrrp/register.go` | plugin registration and engine entry point |
+| `internal/plugins/vrrp/register_test.go` | live platform wiring |
+| `internal/plugins/vrrp/telemetry.go` | engine-owned telemetry and state events |
+| `internal/plugins/vrrp/transport/announce.go` | per-instance announcer worker |
+| `internal/plugins/vrrp/transport/announce_test.go` | announcer burst semantics tests |
+| `internal/plugins/vrrp/transport/backend_linux.go` | Linux raw proto-112 backend (rx parent / tx macvlan) |
+| `internal/plugins/vrrp/transport/backend_other.go` | non-Linux backend stub (ospf backend_other.go model) |
+| `internal/plugins/vrrp/transport/backend_other_test.go` | non-Linux backend stub test |
+| `internal/plugins/vrrp/transport/counters.go` | per-instance counter snapshot (Finding 7) |
+| `internal/plugins/vrrp/transport/doctor.go` | raw-socket readiness doctor check |
+| `internal/plugins/vrrp/transport/doctor_linux.go` | Linux raw-socket probe for the doctor check |
+| `internal/plugins/vrrp/transport/doctor_other.go` | raw-socket probe (non-Linux stub) |
+| `internal/plugins/vrrp/transport/doctor_test.go` | raw-socket doctor check tests |
+| `internal/plugins/vrrp/transport/garp.go` | pure GARP frame builder (testable on darwin) |
+| `internal/plugins/vrrp/transport/garp_linux.go` | AF_PACKET gratuitous-ARP sender on the macvlan |
+| `internal/plugins/vrrp/transport/garp_test.go` | golden-byte GARP frame tests (darwin-safe) |
+| `internal/plugins/vrrp/transport/metrics.go` | transport-owned Prometheus metrics |
+| `internal/plugins/vrrp/transport/metrics_test.go` | transport metric series + per-instance snapshot tests |
+| `internal/plugins/vrrp/transport/na.go` | pure NA message builder (testable on darwin) |
+| `internal/plugins/vrrp/transport/na_linux.go` | raw ICMPv6 unsolicited-NA sender on the macvlan |
+| `internal/plugins/vrrp/transport/na_test.go` | golden-byte NA message tests (darwin-safe) |
+| `internal/plugins/vrrp/transport/register.go` | doctor-check registration |
+| `internal/plugins/vrrp/transport/transport.go` | VRRP raw-socket transport orchestrator |
+| `internal/plugins/vrrp/transport/transport_integration_linux_test.go` | QEMU integration: raw proto-112 sockets, |
+| `internal/plugins/vrrp/transport/transport_test.go` | transport orchestrator tests (fake backend) |
+| `internal/plugins/vrrp/vrrp.go` | vrrp plugin package doc, logger, show views |
 
 ## `plan/learned/415-prefix-data.md`
 

@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 604 packages, 603 described, 1 TODO
+Total: 609 packages, 606 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -685,6 +685,11 @@ Total: 604 packages, 603 described, 1 TODO
 | `internal/plugins/trafficusage/yang` | embeds and registers the traffic-usage plugin's YANG schema modules |  |
 | `internal/plugins/update-cmd/cmd` | handles the system update and firmware show/update RPC commands |  |
 | `internal/plugins/update-cmd/yang` | embeds and registers the update command plugin's YANG schema modules |  |
+| `internal/plugins/vrrp` | implements the Virtual Router Redundancy Protocol on ze interfaces: RFC 9568 (VRRPv3, the default for both address families) and RFC 3768 (VRRPv2, opt-in per IPv4 group for keepalived interop) | vrrp-config-sanity |
+| `internal/plugins/vrrp/fsm` | implements the per-group VRRP instance state machine and timer arithmetic for RFC 9568 (VRRPv3, default) and RFC 3768 (VRRPv2, opt-in) |  |
+| `internal/plugins/vrrp/packet` | implements the VRRP Advertisement codec for VRRPv3 (RFC 9568, IPv4 + IPv6) and VRRPv2 (RFC 3768, IPv4 only) |  |
+| `internal/plugins/vrrp/transport` | TODO | vrrp-raw-socket |
+| `internal/plugins/vrrp/yang` | TODO |  |
 
 ## `internal/test/`
 

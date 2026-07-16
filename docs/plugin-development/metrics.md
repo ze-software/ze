@@ -196,6 +196,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_fetch_total` | CounterVec | result | managed (hub server) |
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
+| `ze_iface_owned_devices` | GaugeVec | owner | iface (owned-device registry) |
+<!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
+<!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
 <!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
 <!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->

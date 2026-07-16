@@ -380,6 +380,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `traffic-usage` | eBPF TCX per-(port,protocol) and opt-in per-IP byte accounting (pure-Go programs) |
 | `ldp` | Label Distribution Protocol for MPLS label distribution (RFC 5036) |
 | `rsvp-te` | RSVP-TE signaling for MPLS traffic-engineered LSPs (RFC 3209) |
+| `vrrp` | Virtual Router Redundancy Protocol for first-hop gateway redundancy (RFC 9568 / RFC 3768) |
 | `isis` | Native IS-IS link-state IGP over Layer 2 (ISO/IEC 10589, RFC 1195/5305/5308) |
 | `ospf` | Native OSPFv2 config root, validators, event namespace, raw IPv4 transport, Interface State Machine, Neighbor State Machine, and LSDB flooding |
 | `ike` | IKEv2 engine for native IPsec VPN |
