@@ -687,6 +687,12 @@ func (r *RIBManager) status(famFilter string) any {
 	if famFilter != "" {
 		scopeFam, scoped = family.LookupFamily(famFilter)
 	}
+	// A peer with routes only in other families gets a {in:0,out:0} entry under
+	// a family filter. That is intentional, not spurious: a peer that appears in
+	// a family-filtered `show bgp summary <fam>` (it negotiated <fam>) but holds
+	// no <fam> routes should report 0, a real count, not an omitted key. Entries
+	// for peers absent from the summary are simply never merged. Bounded by peer
+	// count either way.
 	peerCounts := make(map[string]any, len(r.bgpPeers))
 	perPeer := func(addr netip.Addr) map[string]any {
 		key := addr.String()
