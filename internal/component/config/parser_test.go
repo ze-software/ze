@@ -500,6 +500,36 @@ func TestParserArray(t *testing.T) {
 	require.Equal(t, "foo bar baz", val) // stored space-separated
 }
 
+// TestParserArrayStoresSlice verifies a bracket leaf-list is stored as a SLICE,
+// not only as the joined scalar mirror.
+//
+// VALIDATES: every member of `name [ a b ]` is retrievable as its own value, so
+// consumers (and the JSON delivered to plugins via ToMap) see a list.
+//
+// PREVENTS: the multi-member regression this test was written for --
+// parseBracketLeafList used to call only tree.Set(joined), so GetSlice returned
+// nil and ToMap emitted "a b" as ONE string. Every consumer then parsed the
+// joined text as a single value: `interface ... ipv4 { address [ a b ]; }`
+// failed with `ParseAddr("10.0.0.1/24 10.0.0.2/24")`, i.e. ze could not put two
+// addresses on a unit at all. It stayed invisible because every config in the
+// tree used exactly one member. The sibling path (storeValueOrArray) always did
+// SetSlice + Set; this one just forgot the SetSlice.
+func TestParserArrayStoresSlice(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("items", BracketLeafList(TypeString))
+
+	p := NewParser(schema)
+	tree, err := p.Parse(`items [ foo bar baz ]`)
+	require.NoError(t, err)
+
+	require.Equal(t, []string{"foo", "bar", "baz"}, tree.GetSlice("items"))
+
+	// The scalar mirror stays joined: existing consumers read it via Get.
+	val, ok := tree.Get("items")
+	require.True(t, ok)
+	require.Equal(t, "foo bar baz", val)
+}
+
 // TestParserArraySingle verifies single-item array.
 //
 // VALIDATES: Single item arrays work.

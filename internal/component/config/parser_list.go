@@ -332,6 +332,13 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 		}
 	}
 
+	// Store the members AND the joined scalar mirror, exactly like the sibling
+	// leaf-list path (storeValueOrArray). Without SetSlice, GetSlice returns nil
+	// and ToMap emits the joined text as one string, so every consumer sees
+	// `[ a b ]` as the single value "a b" -- which is why a unit could not carry
+	// two addresses. Get() keeps returning the joined form for the consumers
+	// that read the mirror.
+	tree.SetSlice(name, items)
 	tree.Set(name, textbuf.Join(items, " "))
 	return nil
 }
