@@ -53,6 +53,12 @@ func seedZefs(t *testing.T, dir string) {
 // the deadline; after it, resolution declines the prompt, returns an error, and
 // writePeers falls back to "no completions".
 //
+// This test replaces os.Stdin, a process-wide global, so it must never call
+// t.Parallel: a concurrent test would observe the pty as its own stdin. The
+// t.Setenv calls below already enforce that (the testing package refuses
+// t.Parallel for any test using t.Setenv), but os.Stdin has no such guard of
+// its own.
+//
 // VALIDATES: AC-1 -- completion never issues a password prompt, even on a TTY.
 // PREVENTS: a hung shell on TAB for any operator with a username but no password.
 func TestWritePeersNeverPromptsOnTTY(t *testing.T) {

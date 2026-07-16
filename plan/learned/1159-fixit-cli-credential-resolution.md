@@ -82,11 +82,35 @@ defects in the same over-constrained resolver, and those became the spec.
 - `zefs` preserves the syscall error through `%w` at every hop (`mmap_unix.go:19-21` ->
   `store.go:330-331` -> `store.go:78`), so `errors.Is(err, fs.ErrPermission)` works
   through `zefs.Open`, while `decode` corruption errors correctly do not match.
+- **Making resolution succeed more often moved a command out of the offline fallback.**
+  `ze cli --user alice -c "show crashes"` with no store used to answer from local data:
+  not by design, but because credential resolution failed and
+  `internal/component/cli/client/main.go:282-292` routes a credential error to the
+  in-process fallback. With `--user` now working, the command reaches the daemon and
+  prompts instead. That is the better answer (the operator named a user; a daemon reply
+  beats a local guess), and the no-username case still errors, which is what keeps the
+  fallback reachable for a plain `ze cli -c "show crashes"`. Pinned by
+  `TestReadCredentialsNoStoreWithUserPrompts` so nobody "fixes" the prompt away.
+  General shape: when a function starts succeeding where it used to fail, audit what was
+  living off the failure.
+- **Test seams that are package-level vars need a stated no-parallel rule.** `isStdinTTY`
+  and `passwordPrompter` (and `os.Stdin` in the completion pty test) are swapped by tests;
+  two parallel tests would race on the assignment and silently observe each other's stub.
+  In practice `t.Setenv` already forbids it -- the testing package refuses `t.Parallel`
+  for any test using it (`$GOROOT/src/testing/testing.go:1752`, `parallelConflict`) -- but
+  that guard is incidental, so the constraint is written on the seams and on
+  `stubPromptPolicy`.
+- **`ze-validate` scopes to the working-tree diff, not the whole repo.** It reported
+  `TrimErrorPrefix` (exported, no cross-package caller, pre-existing) only while
+  `client.go` was uncommitted, and went quiet the moment it was committed -- the issue
+  was unchanged. Do not read its silence as absence; an unwired export can sit in HEAD
+  indefinitely. It was unexported to `trimErrorPrefix` here.
 
 ## Files
 
 - Modified: `internal/core/ssh/client/{client,client_test}.go` -- `allowPrompt` policy,
-  `readCredentials`, `openStoreIfReadable`, `storedUsername`, injectable seams
+  `readCredentials`, `openStoreIfReadable`, `storedUsername`, injectable seams,
+  `TrimErrorPrefix` -> `trimErrorPrefix`
 - Modified: `internal/plugins/completion/{peers,peers_test}.go` -- `LoadCredentialsNoPrompt`, pty test
 - Modified: `cmd/ze/internal/ssh/client/client.go` -- comment only (dead facade, no re-export)
 - Modified: `docs/guide/{authentication,command-reference}.md`

@@ -309,6 +309,44 @@ func TestReadCredentialsUnreadableStoreFlagAndEnv(t *testing.T) {
 	}
 }
 
+// VALIDATES: with no store but an explicit --user, resolution PROMPTS rather
+// than failing -- it does not silently fall back to "no credentials".
+//
+// This pins a deliberate consequence of making the store optional. Before that,
+// `ze cli --user alice` with no readable store died in zefs.Open, and
+// internal/component/cli/client/main.go routed the resulting credential error to
+// the in-process offline fallback, so `-c "show crashes"` answered from local
+// data. Now resolution gets as far as the password, so an operator on a terminal
+// is asked for one and the command reaches the daemon they explicitly named.
+// That is the intended trade: --user is a request to talk to the daemon, and a
+// daemon answer beats a local guess. The no-username case still errors
+// (TestReadCredentialsNoStoreNoUsername), which is what keeps the offline
+// fallback reachable for a plain `ze cli -c "show crashes"`.
+//
+// PREVENTS: a future "don't prompt without a store" "fix" silently reverting
+// --user to the pre-fix behavior of never reaching the daemon.
+func TestReadCredentialsNoStoreWithUserPrompts(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "database.zefs") // never created
+
+	t.Setenv("ze_ssh_password", "")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, true) // operator is on a terminal
+
+	creds, err := ReadCredentialsWithFlags(dbPath, "alice")
+	if err != nil {
+		t.Fatalf("ReadCredentialsWithFlags with no store and an explicit user: %v", err)
+	}
+	if !*prompted {
+		t.Error("no prompt issued: --user with no store must ask for a password, not give up")
+	}
+	if creds.Username != "alice" {
+		t.Errorf("Username: got %q, want %q", creds.Username, "alice")
+	}
+	if creds.Auth != "typed-password" {
+		t.Errorf("Auth: got %q, want the prompted value", creds.Auth)
+	}
+}
+
 // VALIDATES: AC-7 -- with no store and no username, resolution fails with an
 // error naming the way forward, and never attempts the super-admin path.
 //
@@ -411,6 +449,13 @@ func TestReadCredentialsStoreWithoutEntryForRemote(t *testing.T) {
 
 // stubPromptPolicy forces the tty answer and captures whether the password
 // prompt was reached, restoring both seams when the test ends.
+//
+// The caller MUST NOT be a parallel test: this swaps package-level vars
+// (isStdinTTY, passwordPrompter), so two tests doing it at once would race on
+// the assignment and silently observe each other's stub. The t.Setenv calls
+// these tests also make already make them non-parallel -- Go panics on
+// t.Setenv in a parallel test -- so this is belt and braces, but the vars are
+// the part with no runtime guard of their own.
 func stubPromptPolicy(t *testing.T, tty bool) *bool {
 	t.Helper()
 	prompted := false
@@ -535,7 +580,7 @@ func TestResolvePasswordSourcesBypassPromptPolicy(t *testing.T) {
 	})
 }
 
-// VALIDATES: TrimErrorPrefix strips the daemon's "error: " display prefix so a
+// VALIDATES: trimErrorPrefix strips the daemon's "error: " display prefix so a
 // caller that prints "error: %v" renders one prefix, not "error: error: ...".
 // PREVENTS: regression of the doubled prefix operators saw on every failed
 // command (e.g. "error: error: unknown command").
@@ -584,8 +629,8 @@ func TestTrimErrorPrefix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := TrimErrorPrefix(tt.in); got != tt.want {
-				t.Errorf("TrimErrorPrefix(%q) = %q, want %q", tt.in, got, tt.want)
+			if got := trimErrorPrefix(tt.in); got != tt.want {
+				t.Errorf("trimErrorPrefix(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
 	}

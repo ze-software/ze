@@ -95,7 +95,7 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	output, err := session.CombinedOutput(command)
 	if err != nil {
 		if len(output) > 0 {
-			return "", errors.New(TrimErrorPrefix(strings.TrimSpace(string(output))))
+			return "", errors.New(trimErrorPrefix(strings.TrimSpace(string(output))))
 		}
 		return "", err
 	}
@@ -107,11 +107,14 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 // session's stderr, so that `ssh <host> <command>` reads well on its own.
 const errorPrefix = "error: "
 
-// TrimErrorPrefix removes the daemon's display prefix from a remote failure.
+// trimErrorPrefix removes the daemon's display prefix from a remote failure.
 // The prefix is formatting for a human reading raw ssh output; once the text
 // becomes an error value it is data, and every caller that prints it adds its
 // own "error: ". Without this the CLI renders "error: error: <msg>".
-func TrimErrorPrefix(s string) string {
+//
+// Unexported: the only caller is ExecCommand above. It was exported without a
+// cross-package consumer, which ze-validate reports as an unwired export.
+func trimErrorPrefix(s string) string {
 	return strings.TrimPrefix(s, errorPrefix)
 }
 
@@ -415,14 +418,22 @@ func resolvePassword(store *zefs.BlobStore, username, host, port string, isSuper
 	return "", fmt.Errorf("no password source for user %q (set ze.ssh.password or run interactively)", username)
 }
 
-// isStdinTTY reports whether stdin is a terminal. A var so tests can drive the
+// isStdinTTY and passwordPrompter are the two seams that let tests drive the
 // prompt decision without a real terminal.
+//
+// They are package-level vars that only tests ever assign, so a test that
+// replaces one MUST NOT call t.Parallel: parallel tests in this package would
+// race on the assignment, and the race is silent (a stale func value, not a
+// crash). Use stubPromptPolicy in client_test.go, which swaps both and restores
+// them via t.Cleanup. Nothing in production writes to either.
+
+// isStdinTTY reports whether stdin is a terminal.
 var isStdinTTY = func() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 // passwordPrompter indirects promptPassword so tests can assert whether the
-// prompt path was taken, without driving a real terminal.
+// prompt path was taken.
 var passwordPrompter = promptPassword
 
 // promptPassword reads a password from the terminal without echo.
