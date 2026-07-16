@@ -219,9 +219,38 @@ never needed it (they passed at baseline with a peer that never bound). Fix:
   21. `show-rr-status.ci`
 
 **Class B1 -- F1 runtime, peer declares ONLY the ipv4/unicast EOR (33).** (b) the EOR
-is unreachable by construction: the `.run` plugin calls `request shutdown` at
-post-startup, so ze closes during the OPEN handshake. Fix per file: `--mode sink`,
-or reach Established before shutdown (stronger).
+never reaches the peer. ~~unreachable by construction: the `.run` plugin calls
+`request shutdown` at post-startup, so ze closes during the OPEN handshake. Fix per
+file: `--mode sink`, or reach Established before shutdown (stronger).~~
+
+-> Correction (2026-07-16): **the strikethrough above is WRONG, and all three fixing
+agents disproved it independently.** These sessions do NOT die in the OPEN handshake:
+all 33 reach Established (peer logs show `open recv`/`open sent`, observers print their
+OK line and find routes in the RIB). The real cause is a **teardown race**. ze holds the
+EOR behind the initial-sync barrier -- `peer_initial_sync.go:174-178` sleeps 500ms then
+`waitForAPISync(2 * time.Second)` when `apiSyncExpected > 0`, and the EOR is written at
+`:334` -- while the observer finishes in milliseconds and calls `request shutdown`,
+closing the session first. The peer then reports `connection closed before completion`.
+
+-> Constraint: **`state=established` is NOT a sufficient gate**, because the EOR is sent
+AFTER establishment. Gate on `eor-sent >= 1` read from `show bgp peer <sel> detail`
+(`peer.go:217`), which is the counter incremented at the EOR WRITE itself rather than at
+scheduling. `api.quiesce()` is the alternative barrier and is equally sufficient AFTER
+establishment (`peer_run.go:376` sets `sendingInitialRoutes` at Established; `:404` clears
+it only after the EOR; `peer.go:864-867` `PendingSync()` and `reactor_api.go:923`
+`DrainPeerSync` block on exactly that) -- but quiesce ALONE is not an establishment
+barrier, since `reactor_api.go:906-913` skips a down/idle peer with an empty queue. So:
+poll established, THEN quiesce; or gate on `eor-sent`.
+
+-> Constraint: the "rr-basic EOR-wait pattern" this spec named **does not exist**.
+`rr-basic.ci` carried only a peer-block comment plus an `expect=bgp` line acting as a
+TCP-hold so the peer would not close while the observer polled. It held the PEER, not ze,
+and contains no established-wait. Two agents were sent to reuse it and both found nothing
+to reuse.
+
+-> Decision: `--mode sink` was the honest answer for **zero** of the 33. Sink requires
+DELETING the EOR expectation, which is banned; the `eor-sent` gate deletes nothing and is
+free. Fixes are additions only.
    1. `adj-rib-in-query.ci`
    2. `adj-rib-in-replay-on-peerup.ci`
    3. `api-commit-lifecycle.ci`
@@ -271,6 +300,334 @@ for the first time. Do NOT edit the expectation to match observed behavior.
 peer received a WITHDRAW of 10.0.0.0/24. Its client log also shows a failing
 external IRR lookup (`irr: lookup failed ... read tcp`), so RULE OUT the network
 dependency before concluding a route-server fastpath bug.
+
+#### B2.2 `bgp-rs-fastpath-ebgp-shared.ci` -- INVESTIGATED 2026-07-16. Not a product bug.
+
+-> Decision: IRR is RULED OUT and the constraint above mis-attributes it. The `.ci`
+declares no IRR filter, contains zero occurrences of `irr`, and 5/5 reproductions
+produce zero `irr` lines in the client log. The `irr: lookup failed` line belongs to
+another test's log. No further IRR work is needed for THIS file, and no other Class B2
+file's diagnosis should assume the IRR confounder without re-checking its own log.
+
+-> Decision: ze's wire output is CORRECT for the sequence the harness actually creates.
+The test's expectation is NOT stale (its content is right, see below); the test's
+MECHANISM cannot create the precondition it asserts. Root cause is test design.
+
+Producer chain for the observed WITHDRAW (every step read, not inferred):
+1. `internal/test/peer/peer.go:265-284` -- a **check-mode** ze-peer accepts one
+   connection, waits for it to complete, and only then accepts the next
+   (`if p.config.Mode != ModeCheck { continue }`; sink/echo do accept concurrently).
+   `peer.go:255-256` closes each connection via `defer c.Close()` when its script ends.
+   So `option=tcp_connections:value=2` in check mode means SEQUENTIAL sessions:
+   conn 1 is CLOSED BEFORE conn 2 is accepted. The two RS clients are never
+   simultaneously established, so RS forwarding cannot occur regardless of ze.
+2. `internal/test/peer/checker.go:335-338` -- `conn=N` binds to the Nth **accepted**
+   connection (`connectionIDs[0]` popped in order). Nothing correlates `conn=N` to a
+   source IP. Observed: 127.0.0.2 (receiver-peer) is accepted FIRST in 5/5 runs, so
+   `action=send:conn=1` fires at the RECEIVER, not the intended source at 127.0.0.1.
+3. `rs/server_forward.go:109` -- `selectForwardTargets` skips peers with `!peer.Up`.
+   The other client is not up yet, so targets is empty.
+4. `rs/server_forward.go:148-151` -- empty targets -> `releaseCache`, no forward.
+   The announce is correctly dropped: an RS forwards to OTHER clients; there were none.
+5. `rs/server_withdrawal.go:81-87` -- the withdrawal map is updated regardless of
+   whether the forward happened, recording 10.0.0.0/24 against the source peer.
+6. conn 1 closes (step 1) -> `rs/server_handlers.go:65` `case "down"` ->
+   `handleStateDown` (`:80-93`) -> `sendBatchedWithdrawals` (`:100-139`) emits
+   `update text nlri ipv4/unicast del 10.0.0.0/24` to every peer except the source.
+7. conn 2 (127.0.0.1) then establishes and receives that withdraw, then EOR.
+
+-> Constraint: step 6 is a DEDUCTIVE proof, not ordering inference.
+`server_handlers.go:133` (`buf.WriteString(" del ")`) is the ONLY withdraw emitter in
+the whole rs plugin; `sendBatchedWithdrawals` has exactly ONE caller
+(`server_handlers.go:92`), and rs's `handleStateDown` has exactly ONE caller
+(`server_handlers.go:65`, `state == "down"`). The source never sent a withdraw.
+Therefore the received withdraw PROVES a peer-down was processed with the prefix in
+the withdrawal map. Withdrawing a downed peer's routes is required behavior, not a bug.
+
+-> Decision: the expectation's CONTENT (AS_PATH prepend to [65000]) is correct for this
+config and must NOT be "fixed". `rs/yang/ze-rs-conf.yang:38-48` defines `rs-client`
+(default **false**) as "transparent AS-path forwarding. RFC 7947 Section 2.2.2: the
+route server MUST NOT modify AS_PATH ... When true, the reactor SKIPS AS-path
+prepending". The `.ci` sets `rs-fast-path enable` but NOT `rs-client`, so prepend is
+the designed behavior here. RFC 7947 non-prepend does not apply. The expectation is
+right; it is simply unreachable.
+
+-> Constraint: do NOT close this by rewriting the hex to the observed withdraw. That
+would enshrine a scenario that exercises no forwarding at all. The banned move is
+exactly what the `contains=` sibling below already did by accident.
+
+**Adjacent false green found (NOT fixed, different file, reported only).**
+`test/plugin/bgp-rs-reactor-fastpath.ci:28` asserts
+`expect=bgp:conn=2:seq=1:contains=180A0000`. It is structurally IDENTICAL to this test
+(same single check-mode ze-peer, `tcp_connections:value=2`, `bind 0.0.0.0`, same two
+peers, same conn=1 send / conn=2 expect) and it PASSES -- but `checker.go:616-618`
+matches `contains:` with a plain `strings.Contains` on the hex stream, and the withdraw
+wire `...001B020004180A00000000` CONTAINS `180A0000`. So it is satisfied by the very
+same WITHDRAW that fails this test byte-for-byte. Its PASS is not evidence that RS
+forwarding works. `bgp-rs-fastpath-ebgp-shared` is only "red" because its
+byte-equality assertion is honest enough to notice.
+
+-> Decision: recommended fix is to make the harness create two CONCURRENT sessions,
+per the documented multi-peer pattern in `docs/architecture/testing/ci-format.md`
+("Example (Multi-Peer)"): two separate `cmd=background` ze-peer processes, one per
+loopback (`--bind 127.0.0.2`), each with its own `conn=1`, instead of one check-mode
+ze-peer multiplexing both via `tcp_connections:value=2`. That removes BOTH the
+accept-order race (step 2) and the sequential-close blocker (step 1), and makes the
+announce expectation reachable so it can be tested honestly. This is a test-infra
+change beyond a single expectation edit, so it is left for Thomas to schedule.
+`bgp-rs-reactor-fastpath.ci` needs the same restructure plus a tightened assertion.
+
+#### B2.1 `api-route-refresh.ci` + B2.5 `rib-pipe-filter.ci` -- INVESTIGATED 2026-07-16. SHARED root cause. Contains a REAL product bug.
+
+-> Decision: **B2.1 and B2.5 share a root cause with EACH OTHER; B2.6 does NOT.** The
+natural grouping ("the two pipe tests are the pair") is WRONG. `rib-pipe-filter` pairs
+with `api-route-refresh`, not with `test-pipe-first-last`. Both are red for one reason:
+**ze does not send its EOR until 2.5s after establishment, and both tests kill the
+daemon before then.** In both, every OTHER asserted byte is produced correctly.
+
+Wire evidence -- the asserted CONTENT is byte-correct in both; only the EOR is missing:
+- B2.1: peer received `FFFF..FF:0017:05:00010001` = the ROUTE-REFRESH, **byte-identical**
+  to the `:12` expectation. The EOR (`:10`) never arrived.
+- B2.5: peer received `FFFF..FF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801`
+  = the 192.168.1.0/24 UPDATE, **byte-identical** to `:22`. The EOR (`:24`) never arrived.
+- Expectation ORDER is not asserted and is a red herring: `checker.go:354-365` matches a
+  received message against ANY unmatched expectation in the same (conn,seq) group, and
+  both files put every expectation at `conn=1:seq=1`.
+
+Producer chain for the missing EOR (every step read, not inferred):
+1. `peer_run.go:361-367` -- on Established, `apiSyncExpected` = count of ProcessBindings
+   with `SendUpdate` (i.e. every `send [ update ]` process).
+2. `peer_initial_sync.go:171-178` -- if that count > 0: `clock.Sleep(500ms)` then
+   `waitForAPISync(2 * time.Second)`.
+3. `peer_initial_sync.go:329-337` -- the EOR for every negotiated family is sent ONLY
+   AFTER that wait (RFC 4724 S2, "including the case when there is no update to send").
+4. `peer.go:437-445` -- `waitForAPISync` returns on `<-ready` or the FULL timeout
+   (`:441-444`, "API sync timeout"). Nothing shortens it.
+5. `peer.go:409-419` -- `Peer.SignalAPIReady` (the only thing that closes `ready`) is
+   reachable ONLY from `api_sync.go:179-191` `SignalPeerAPIReady`, driven by the
+   `peer <addr> plugin session ready` command.
+6. That command has exactly TWO emitters: `rib_replay.go:252` and `:276`.
+   (`rib_commands.go:603` and `rib_replay.go:280` document that they deliberately do NOT.)
+
+Why neither test ever signals -- TWO different upstream reasons, one shared consequence:
+- **B2.1**: the bound `send [ update ]` process is `bgp-route-refresh`, which contains NO
+  signalling code at all (grep over `plugins/route_refresh/`: the only `SignalAPIReady` is
+  a no-op in `handler/mock_reactor_test.go:44`). And `config/peers.go:578-585` REQUIRES
+  route-refresh to be bound with `send [ update ]`, so `apiSyncExpected >= 1` is
+  UNAVOIDABLE for every route-refresh peer.
+- **B2.5**: the bound process is `bgp-rib`, which HAS the signal but cannot reach it when
+  the peer's Adj-RIB-Out is empty. `rib_replay.go:250-253` signals ready when
+  `len(groups)==0`, but `collectGroupedRibOutRoutesFiltered` returns **nil** on BOTH empty
+  paths (`:54-56` no ribOut map for the peer; `:98-100` no matching routes) and NEVER an
+  empty non-nil slice -- while both callers gate on `if replayGroups != nil`
+  (`rib.go:1066-1068` handleStructuredState, `rib.go:1115-1117` handleState).
+
+-> Decision (**PRODUCT BUG**, B2.5's chain): `rib_replay.go:251-253` is **dead code from
+the peer-up path**. It exists precisely to signal "nothing to replay, proceed", and the
+nil-vs-empty conflation at both call sites defeats it; the dead branch is the author's
+stated intent, unreachable. Net: `bgp-rib` signals ready ONLY when it has >= 1 route to
+replay, and a FRESH peer never does. Blast radius far beyond this test: **every fresh BGP
+session with `bgp-rib` bound `send [ update ]` and an empty Adj-RIB-Out delays its EOR by
+500ms + 2000ms = 2.5s.** Not a protocol violation (RFC 4724 S2 sets no EOR deadline), but
+a real operator-visible convergence delay on the normal startup path. Fix belongs at
+`rib.go:1066`/`:1115` (call replay whenever the peer came up and let `rib_replay.go:251`
+handle empty), or by returning an empty non-nil slice. NOT fixed here (characterise-only).
+
+-> Constraint: fixing that guard does NOT fix B2.1. `bgp-route-refresh` has no signaller
+at all, so a route-refresh peer WITHOUT `bgp-rib` still burns the full 2s. The deeper
+mismatch: `peer_run.go:363` counts plugins that MAY send updates, but only `bgp-rib` ever
+SIGNALS. The counter set and the signaller set disagree. Whether the remedy is "count only
+plugins that signal", "make every `send [ update ]` plugin signal", or "shorten the
+fallback" is a design call for Thomas, not a mechanical fix.
+
+Direct evidence (debug via `option=env:var=ze.log.bgp.routes:value=debug`, which MUST go
+ABOVE the `stdin=peer` header -- inside it the runner rejects it, per `plan/learned/545`):
+
+| # | Experiment | Result |
+|---|-----------|--------|
+| E1 | `api-route-refresh`, committed `time.sleep(1.0)` | FAIL. `sleeping for API routes duration=500ms` @14.187, `waiting for API sync expected=1` @14.688, route-refresh sent @14.690. NO `API sync complete`, NO `sent EOR`. |
+| E2 | same, sleep 4.0 / 3.0 / 2.0 | **PASS all three.** The EOR arrives and both expectations match. Proves the EOR is LATE, not absent. |
+| E3 | `rib-pipe-filter`, committed | FAIL. `route sent 192.168.1.0/24` @10.703, `sleeping for API routes` @10.703, `waiting for API sync expected=1` @11.203, no completion. |
+| E4 | same + `time.sleep(3.0)` before shutdown | **PASS.** Peer log now shows BOTH `...:0030:02:...18C0A801` AND `...:0017:02:00000000` (the EOR). |
+| E5 | `api-route-refresh` with `send [ update ]` removed from `process route-refresh` | INVALID as a probe: ze REJECTS the config (`peers.go:578-585`, "route-refresh requires process with send [ update ]"). Recorded because it looks like an obvious experiment and is not one. |
+
+-> Decision (verdict B2.1 `api-route-refresh`): **ze's ROUTE-REFRESH is CORRECT. The
+test's expectation CONTENT is correct. The test's TIMING is wrong.** RFC 2918 S3: the
+ROUTE-REFRESH message is 23 bytes, type 5, AFI(2) + Reserved(1) + SAFI(1); ze sent
+`0017 05 0001 00 01` = length 23, IPv4/unicast, Reserved 0. Correct. RFC 7313 **is**
+negotiated here (ze's OPEN carries `4600` = capability 70; `capability.go:76`
+"CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1"; the ze-peer mirrors it), and
+RFC 7313 S4 redefines that Reserved octet as Message Subtype -- but subtype 0 IS the
+normal refresh REQUEST; BoRR/EoRR (1/2) are the RESPONDER's duty. ze is the requester, so
+subtype 0 is correct under BOTH RFCs. The test fails only because its blind
+`time.sleep(1.0)` tears the daemon down at ~1s while ze's EOR is structurally due at ~2.5s.
+
+-> Decision (verdict B2.5 `rib-pipe-filter`): **BOTH are wrong.** The asserted wire content
+is correct and ze produced it byte-for-byte; the missing EOR is the REAL ze latency bug
+above; AND the test's timing is wrong. Fixing only the test would permanently hide the bug.
+
+-> Constraint: do NOT close either by bumping the sleep. That converts a 2.5s product
+delay into a permanently-hidden one and re-adds a blind sleep that
+spec-fixit-migrate-sleeps-infra is removing. The honest test fix is the E9 recipe (poll
+`show bgp peer <n> detail` for eor-sent) AND a separate decision on the EOR delay itself.
+
+**Secondary finding (B2.5, NOT the peer-check failure, NOT currently enforced).**
+`rib-pipe-filter`'s python asserts config-static routes appear in Adj-RIB-Out: `:147-148`
+(`show bgp rib sent` -> key `adj-rib-out`), `:166` (`count-total` exact=2), `:174`
+(`count-sent` exact=1), `:194-196` (`prefix-filter` exact=1). All four FAIL today
+(`missing key 'adj-rib-out' in data: []`, `count=1 != expected 2`, `count=0 != expected 1`,
+`count=0 != expected 1`) and all four contradict a DELIBERATE design:
+`peer_initial_sync.go:68-72` sets `sendingConfigStatic`, `reactor_notify.go:349` tags the
+sent event, and `rib_structured.go:322-329` skips ribOut storage for it ("Storing them in
+ribOut would cause duplicates (config re-send + RIB replay)");
+`plan/learned/1008-cp-survival-4-on-demand-origination-design.md:21` corroborates
+`config-static` as the established Meta consumer. The file's own header `:5` ("Config
+static route populates adj-rib-out via RIB plugin") is therefore a FALSE premise. These
+never failed the test because `sys.exit(1)` sets the PLUGIN's exit code while
+`expect=exit:code=0` checks ZE's. Whether Adj-RIB-Out SHOULD reflect config statics is a
+design question; the assertion is disproven from the design record, not from ze's output.
+
+#### B2.6 `test-pipe-first-last.ci` -- INVESTIGATED 2026-07-16. INDEPENDENT of B2.1/B2.5. Test is unmatchable by construction; feature never tested.
+
+-> Decision: shares NO root cause with B2.1/B2.5. Its EOR arrives NORMALLY (peer log shows
+`...:0017:02:00000000`) precisely because its `dispatch_until(..., attempts=40)` poll burns
+more wall-clock than the 2.5s the other two miss. Same class of red, unrelated cause.
+
+-> Constraint: `first`/`last` here are **CLI PIPE operators** bounding RIB query output
+(`show bgp rib received first 3`, `... last 2 count`), per the header `:1-3`. Nothing in
+this test concerns filter-chain ordering. Do not go looking for an ordering bug.
+
+Three independent, provable defects in the 5 UPDATE expectations (`:10,12,14,16,18`):
+1. They use `.{8}` (regex) for NEXT_HOP. **The matcher has no regex.** `checker.go:612-620`
+   `matchRule` supports only `prefix:`, `contains:`, and `strings.EqualFold`;
+   `internal/test/peer/` imports no `regexp` at all. These can NEVER match any byte string.
+   This is the ONLY file in `test/plugin` + `test/encoding` using `.{N}`.
+2. The declared BGP length is WRONG: the hex declares `002E` = 46 but the message is 48
+   bytes (19 header + 2 withdrawn-len + 2 attr-len + 21 attrs + 4 NLRI). Self-inconsistent:
+   no encoder produced this, it was hand-written.
+3. The NLRI is WRONG: `18 010100` = **1.1.0.0/24**, but the matching injection line `:9`
+   says **10.1.0.0/24**, which encodes `18 0A0100`. Off by the first octet, in all five.
+
+And the routes are never injected at all:
+4. `:9,11,13,15,17,19` are `cmd=api:...` lines INSIDE a `stdin=peer` block. ze-peer IGNORES
+   them: `expect.go:112-113` (`case "cmd": // Ignore - documentation only`) and `consumes()`
+   (`:32-44`) returns false for `cmd`. `cmd=api` is an ENCODE-suite directive
+   (`record_parse.go:690-700` sets `msg.Cmd` for the runner to drive ze's API); in a
+   plugin-suite peer block it is inert. Proven by the plugin's own log:
+   `FAIL: first 3 count returned 0, expected 3` -- the RIB is EMPTY.
+
+-> Decision (verdict): **the test's expectation is wrong, comprehensively; ze is NOT
+implicated.** Proven from the harness's own matcher and from encoder-independent
+arithmetic, NOT from ze's output. But the consequence is NOT merely "fix the test":
+**the `first`/`last` pipe operators have NEVER been exercised.** `first 3` returned 0 on an
+EMPTY RIB, which is correct-on-empty and proves nothing. The feature is **UNVERIFIED** --
+not proven good, not proven broken. Closing this file without first making the RIB
+non-empty would re-ship the same false green in a new costume.
+
+-> Constraint: the direction is also inverted. The header `:5` and the python
+(`show bgp rib received count == 5`, i.e. Adj-RIB-**In**) intend the PEER to SEND 5 routes
+to ze; but `expect=bgp` asserts what the peer **RECEIVES**. With an empty ze RIB the peer
+would receive only the EOR, so even a regex-capable matcher would never see those 5
+UPDATEs. An honest fix must make the peer SEND (e.g. `option=update:value=send-route:prefix=...`,
+`expect.go:179-227`), drop the 5 receive-side expectations, and only then assert first/last
+on a populated RIB.
+
+-> Constraint (scope, 2026-07-16): B2.1/B2.5/B2.6 were characterised only. No production
+file was modified; no expectation was edited; no `expect=exit:code=0` was re-added. The
+three `.ci` files are byte-identical to HEAD (experiments were reverted from
+`tmp/*.ci.orig` backups). B2.3/B2.4 (`remove-private-as-*`) were NOT investigated here.
+
+#### B2.3 `remove-private-as-export.ci` + B2.4 `remove-private-as-replace-peer.ci` -- INVESTIGATED 2026-07-16. SHARED root cause with EACH OTHER and with B2.2. Contains a REAL product bug (private ASN leak).
+
+Reproduced at HEAD via a pristine `git archive` tree (the working tree does not build:
+`internal/component/command/pipe.go:810 sessionFormat` undefined, another session's WIP).
+Runner `bin/ze-test bgp plugin <name>` (`make ze-plugin-test`).
+
+-> Decision: **NEITHER expectation was edited and both stay red.** The AS_PATH each test
+asserts is byte-exact CORRECT. Neither red is a remove-private-as bug.
+
+-> Decision: B2.3 and B2.4 share ONE root cause with each other, and it is **B2.2's**
+root cause, not a filter bug. Same shape: one check-mode `ze-peer`,
+`tcp_connections:value=2`, `bind 0.0.0.0`, two ze peers on 127.0.0.1/127.0.0.2. B2.2's
+producer chain (`peer.go:265-284` sequential accept, `server_handlers.go:65,92` ->
+`sendBatchedWithdrawals`) explains the observed WITHDRAW here verbatim; it is not
+re-derived. Corroborating measurement: 127.0.0.2 is accepted first in 8/10 runs, so
+`action=send:conn=1` injects into the RECEIVER, and the conn=2 expectation then sees the
+peer-down withdraw `...001B020004180A00000000`. **New evidence FOR B2.2's recommended
+restructure:** rebuilding both files as two concurrent `cmd=background` ze-peer processes
+(`--bind 127.0.0.2`, `tcp_connections:value=1` each) makes the WITHDRAW vanish in 26/26
+runs and produces real announces. B2.2's fix is confirmed to work.
+
+**The AS_PATH rewrite is CORRECT. Both tests. Byte-exact.** Once the sessions are
+concurrent, ze emits (`ze bgp decode --update`):
+
+| Test | Expected AS_PATH | ze actual | Verdict |
+|------|------------------|-----------|---------|
+| B2.3 STRIP | `[65000 64496 64497]` | `[65000 64496 64497]` | MATCH |
+| B2.4 REPLACE peer-as | `[65000 64496 65002 64497]` | `[65000 64496 65002 64497]` | MATCH |
+
+64512 is the only RFC 6996 private ASN in the fixture path (64496/64497 are RFC 5398
+documentation ASNs, correctly retained). Producer read, not inferred:
+`rewritePrivateASSegments` (`internal/component/bgp/reactor/filter_delta.go:645-669`)
+drops the ASN when `mode != peer-as` and substitutes `peerAS` when it is;
+`isRFC6996PrivateASN` (`:673`) implements 64512-65534 / 4200000000-4294967294 exactly.
+`filter_ordered.go:226` passes `destPeerAS` for export (65002 = the receiver's remote AS),
+which is why REPLACE yields 65002 and not the local 65000. Governing text: RFC 6996 S4
+(the MUST) + S5 (the ranges); the remove-vs-replace choice is vendor policy, unspecified
+by RFC, so `replace-with peer-as` is a design decision, not an RFC requirement.
+
+**Finding: the ONLY wire divergence is LOCAL_PREF, and the EXPECTATION is wrong.**
+Both tests expect `40 05 04 00000064` (LOCAL_PREF 100) to reach the receiver. ze instead
+emits `C0 FD 04 05010000` -- same 7 bytes, which is why total lengths still match.
+That is attr 253 `attrCodeAttrDiscard` (`message/attr_discard.go:22`,
+`draft-mangin-idr-attr-discard-00`), value = code 0x05 (LOCAL_PREF), reason 0x01
+(`DiscardReasonEBGPInvalid`). Producer chain, every step read:
+`validateLocalPrefAttr` (`internal/component/bgp/message/rfc7606.go:442-450`) returns
+`RFC7606ActionAttributeDiscard` + `DiscardReasonEBGPInvalid` when `!isIBGP` ->
+`reactor/session_validation.go:117` calls `message.ApplyAttrDiscard` -> `applyInPlace`
+(`message/attr_discard.go:96-115`) overwrites LOCAL_PREF in place.
+Proven from RFC, NOT from ze's output: the fixture sends LOCAL_PREF INTO an EBGP session
+(source-peer local 65000 / remote 65001), which **RFC 7606 S7.5** requires the receiver to
+discard; and the receiver is EBGP (65000/65002), to which **RFC 4271 S5.1.5** forbids
+sending LOCAL_PREF at all. The expectation is unsatisfiable under either RFC.
+-> Decision: NOT rewritten to the observed bytes. Correcting it means ruling on whether an
+EBGP-facing ATTR_DISCARD marker is intended egress output. `applyInPlace` computes
+`0x80 | (origFlags & 0x50)`, so LOCAL_PREF's 0x40 makes the marker **optional TRANSITIVE
+(0xC0)**, i.e. propagated onward by every conforming speaker. That is a design call for
+Thomas. RFC 7606's attribute-discard is a RECEIVE-side error action; whether the marker
+should survive to EBGP egress is exactly the open question.
+
+**Finding: PRODUCT BUG -- private ASN leak. The configured export filter is BYPASSED on a race.**
+With `filter { export [ remove-private-as:REPLACE ] }` configured, ze delivered to the
+EBGP receiver 127.0.0.2:
+`0037:02:0000001C4001010040020E02030000FBF00000FC000000FBF140030401010101180A0000`
+= `AS_PATH [64496 64512 64497]`: private **64512 NOT removed**, local **65000 NOT
+prepended**, filter not applied. **RFC 6996 S4 is a MUST** ("Private Use ASNs MUST be
+removed from AS path attributes ... before being advertised to the global Internet").
+Non-prepend is also wrong here, and B2.2 already proved why: `rs/yang/ze-rs-conf.yang:38-48`
+makes `rs-client` default **false**, so the reactor is supposed to prepend; RFC 7947 S2.2.2
+transparency does not apply to this config.
+Measured 3/18 concurrent-session runs, only when ze connected to the receiver BEFORE the
+UPDATE arrived on the source. **`rs-fast-path` is NOT the discriminator** (leak 1/10 with
+it DISABLED, 0/10 with it enabled), so this is not simply the documented fast path; that
+hypothesis was tested and killed.
+-> Constraint: mechanism is HYPOTHESIS, NOT VERIFIED. `forward_rs.go:107-114` already
+intends to skip peers with `exportFilters` and hand them to bgp-rs `ForwardCached`, so the
+leak implies that snapshot looked empty. `peerForwardFacts.exportFilters` is populated only
+by `refreshForwardFacts` (`reactor/peer_forward_facts.go:82,116`), which its own comment
+says runs at `setEncodingContexts` / `resolveDynamicPeerSettings`. A snapshot taken before
+config/registry attaches the filter refs, never refreshed, would produce exactly this. The
+LEAK IS MEASURED; that mechanism is not. Do not spec the mechanism before reading whether
+`refreshForwardFacts` is re-run after filter refs resolve.
+-> Constraint: both files' own headers already name this bug -- B2.3 `:4`
+"PREVENTS: export policy rewrite being lost by the EBGP wire cache". The assertion was
+written to catch it and never ran. Do NOT close either file until the leak is resolved:
+restructuring them per B2.2 makes them red ~17% of runs, and "fixing" the LOCAL_PREF
+expectation alone would leave a flaky test whose flake IS the leak.
+
+-> Constraint (scope, 2026-07-16): B2.3/B2.4 characterised only. No production file
+modified. Neither `.ci` edited; both byte-identical to HEAD. No `expect=exit:code=0`
+re-added. All experiments ran in a throwaway `tmp/` export, never the working tree.
 
 ### Proposed fix (F1-F3 now implemented, see above; F4 open)
 

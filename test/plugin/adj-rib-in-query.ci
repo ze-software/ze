@@ -42,6 +42,14 @@ def main():
         lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
     )
 
+    # The inbound route above proves the session reached Established. Quiesce so
+    # ze's End-of-RIB reaches the wire before `request shutdown` closes the
+    # session, making the peer's EOR expectation reachable instead of a race:
+    # PendingSync stays set from establishment (peer_run.go sendingInitialRoutes)
+    # until after the EOR is sent (peer_initial_sync.go), and the bgp-peer-sync
+    # quiescer blocks on exactly that, so this barrier cannot return early.
+    api.quiesce()
+
     try:
         # Query adj-rib-in for received routes
         result = dispatch(api, 'show bgp rib received')

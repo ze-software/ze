@@ -14,7 +14,7 @@ tmpfs=commit-workflow-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 import time
-from ze_api import API
+from ze_api import API, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -31,6 +31,25 @@ def main():
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
+
+    # Wait for the BGP session to establish, then quiesce so ze's End-of-RIB
+    # reaches the wire before `request shutdown` closes the session. Without this
+    # the peer's EOR expectation is unreachable by construction: the script can
+    # shut ze down during the OPEN handshake. PendingSync stays set from
+    # establishment (peer_run.go sendingInitialRoutes) until after the EOR is
+    # sent (peer_initial_sync.go), and the bgp-peer-sync quiescer blocks on
+    # exactly that, so this barrier cannot return early.
+    established = api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+        attempts=40,
+    )
+    if 'established' not in result_text_data(established).lower():
+        print('FAIL: peer1 never reached established state', file=sys.stderr)
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+    api.quiesce()
 
     try:
         # Start a named commit

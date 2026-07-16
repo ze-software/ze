@@ -15,9 +15,10 @@ option=timeout:value=15s
 # (ORIGIN=IGP, AS_PATH empty, NEXT_HOP=10.0.0.1, LOCAL_PREF=100).
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 
-# Wait for ze's End-of-RIB to confirm the session survived past UPDATE
-# processing; without this the peer may close TCP before ze's debug
-# logger writes the "forward-handle observed" line.
+# Assert ze's ipv4/unicast End-of-RIB (RFC 4724 S2: the empty UPDATE), which also
+# confirms the session survived past UPDATE processing. The observer gates
+# `request shutdown` on eor-sent >= 1 (see wait_eor_sent below) so ze is given the
+# chance to emit it, rather than being torn down mid initial-sync.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -27,7 +28,8 @@ EOF_PEER
 # ze has observably processed the UPDATE.
 tmpfs=shutdown.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-from ze_api import API, runtime_fail, result_text_data
+import json
+from ze_api import API, runtime_fail, result_text_data, result_json_data
 # // test-relax: removed unused 'import time'; blind sleeps are now dispatch_until polls
 
 def dispatch(api, command):
@@ -36,6 +38,36 @@ def dispatch(api, command):
     if resp is None:
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
+
+def eor_sent(result):
+    """True once ze has written its End-of-RIB to at least one peer.
+
+    `show bgp peer <sel> detail` returns {"peers": {"<ip>": {..., "eor-sent": N}}}
+    (peer.go:217, :341-345). The counter is incremented at the EOR write itself
+    (peer_initial_sync.go:334-335), so eor-sent >= 1 proves the marker is on the
+    wire rather than merely scheduled.
+    """
+    if result.get('status') != 'done':
+        return False
+    try:
+        peers = result_json_data(result, {}).get('peers', {})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    return any(p.get('eor-sent', 0) >= 1 for p in peers.values())
+
+def wait_eor_sent(api, selector):
+    """Block until ze has sent its EOR, so `request shutdown` cannot pre-empt it.
+
+    The peer block asserts ze's End-of-RIB on the wire. ze emits it only after the
+    initial-sync barrier: peer_initial_sync.go:174-178 sleeps 500ms and then waits
+    for the plugin ready signal before :332-337 builds and sends the EOR. The
+    session reaches `established` long before that, so a shutdown gated on
+    establishment (or on the RIB check) closes TCP first and the peer's expectation
+    can never fire. Gate on the EOR the test actually asserts.
+    """
+    if not eor_sent(api.dispatch_until(
+            f'show bgp peer {selector} detail', eor_sent, attempts=40)):
+        runtime_fail(f'ze never sent its End-of-RIB to {selector}')
 
 def main():
     api = API()
@@ -68,6 +100,8 @@ def main():
     )
     if '192.168.1.0/24' not in result_text_data(best):
         runtime_fail('192.168.1.0/24 never appeared in bgp rib show best')
+
+    wait_eor_sent(api, 'peer1')
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
@@ -139,3 +173,6 @@ expect=stderr:pattern=forward-handle observed.*prefix=192\.168\.1\.0/24.*kind=ad
 
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
+# runtime_fail emits this sentinel on the observer's stderr; without the reject the
+# observer's assertion failures would be invisible to the runner.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

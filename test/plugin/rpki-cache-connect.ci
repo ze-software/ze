@@ -15,7 +15,7 @@ tmpfs=rpki-cache-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-from ze_api import API, result_json_data
+from ze_api import API, result_json_data, result_text_data, runtime_fail
 # // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
@@ -25,6 +25,23 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
 
+def eor_on_wire(result):
+    """True once peer1's initial-sync End-of-RIB has been written."""
+    if result.get('status') != 'done':
+        return False
+    data = result_text_data(result, '{}')
+    try:
+        parsed = json.loads(data) if isinstance(data, str) else data
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    peers = parsed.get('peers', {})
+    if not isinstance(peers, dict):
+        return False
+    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
+               for row in peers.values())
+
 def main():
     api = API()
     api.declare_done()
@@ -32,6 +49,17 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
+
+    # Let peer1 finish its initial sync before shutting down. The old script
+    # queried RPKI and shut down inside the OPEN handshake, so ze closed the
+    # session before ever sending its End-of-RIB and the peer's expectation was
+    # unreachable by construction. peer1 binds no send [ update ] plugin, so
+    # apiSendCount is 0 and the EOR follows establishment immediately.
+    synced = api.dispatch_until(
+        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
+    )
+    if not eor_on_wire(synced):
+        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
 
     try:
         # Query rpki status to verify VRPs loaded.
@@ -42,20 +70,17 @@ def main():
             and result_json_data(r, {}).get('sessions', 0) >= 1,
         )
         if result.get('status') != 'done':
-            print(f'FAIL: rpki status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'rpki status={result.get("status")}, want done')
 
         data = result_json_data(result, {})
         vrp_count = data.get('vrp-count-ipv4', 0)
         sessions = data.get('sessions', 0)
 
         if vrp_count < 1:
-            print(f'FAIL: vrp-count-ipv4={vrp_count}, expected >= 1', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'vrp-count-ipv4={vrp_count}, expected >= 1')
 
         if sessions < 1:
-            print(f'FAIL: sessions={sessions}, expected >= 1', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'sessions={sessions}, expected >= 1')
 
         print(f'OK: rpki status vrp-count-ipv4={vrp_count} sessions={sessions}', file=sys.stderr)
     finally:
@@ -138,3 +163,7 @@ cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,650
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
+# Prove the observer reached its assertion. Without this the plugin could die
+# before querying RPKI at all and the file would still be green on exit=0.
+expect=stderr:pattern=OK: rpki status vrp-count-ipv4=[1-9]
+reject=stderr:pattern=ZE-OBSERVER-FAIL

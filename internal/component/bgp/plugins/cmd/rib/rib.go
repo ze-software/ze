@@ -79,7 +79,12 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 		command.PipeFilter{Name: "reason", Description: "Explain best-path selection"},
 	)
-	command.RegisterPipeFilters([]string{cmdRibStatus, cmdRibBestStatus})
+	// Scalar-result commands: an EMPTY filter set, not an absent one. Filter
+	// lookup is longest-prefix (command.commandMatchesPrefix), so without this
+	// they would inherit cmdRibShow's route filters via the "show bgp rib"
+	// prefix and offer `| peer`, `| prefix-summary`, `| graph` on output that
+	// has no routes to filter. Registering empty overrides that inheritance.
+	command.RegisterPipeFilters([]string{cmdRibStatus, cmdRibBestStatus, cmdRibRPF})
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

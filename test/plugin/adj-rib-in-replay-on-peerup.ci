@@ -49,6 +49,14 @@ def main():
         api.wait_for_shutdown()
         sys.exit(1)
 
+    # The stored route above proves the session reached Established. Quiesce so
+    # ze's End-of-RIB reaches the wire before `request shutdown` closes the
+    # session, making the peer's EOR expectation reachable instead of a race:
+    # PendingSync stays set from establishment (peer_run.go sendingInitialRoutes)
+    # until after the EOR is sent (peer_initial_sync.go), and the bgp-peer-sync
+    # quiescer blocks on exactly that, so this barrier cannot return early.
+    api.quiesce()
+
     # Replay to a fake peer (10.0.0.99) - proves replay mechanism works
     result = dispatch(api, 'request bgp adj-rib-in replay 10.0.0.99 0')
     if result.get('status') != 'done':

@@ -14,18 +14,38 @@ option=timeout:value=15s
 # Send IPv6 UPDATE with MP_REACH_NLRI
 # ORIGIN=IGP, AS_PATH=65001, LOCAL_PREF=200, MP_REACH: AFI=2 SAFI=1 NH=2001:db8::1 NLRI=2001:db8:1::/48
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004B02000000344001010040020602010000FDE9400504000000C8900E001C0002011020010DB8000000000000000000000001003020010DB80001
-# Wait for ze's End-of-RIB so the peer does not close TCP before the
-# observer can poll for peer state. Without this, ze transitions
-# Established -> Idle -> Connecting before the observer's first poll fires.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Assert ze's ipv6/unicast End-of-RIB.
+#
+# DO NOT "fix" this back to the ipv4 EOR (FFFF..00170200000000). It carried that
+# hex until 2026-07-16, copy-pasted from the ipv4 siblings (nexthop-self.ci,
+# rr-basic.ci) onto a session that negotiates ipv6/unicast ONLY (see the family
+# stanza below). The ipv4 EOR was therefore unreachable by construction and this
+# test had never asserted anything: the expectation was never evaluated, because a
+# harness defect let expect=exit:code=0 disable the peer's verdict entirely
+# (fixed in aaefef8ce).
+#
+# The hex below is DERIVED, not observed. RFC 4724 Section 2 specifies the
+# End-of-RIB marker as an empty UPDATE for ipv4/unicast, but for every other
+# AFI/SAFI as an UPDATE carrying only MP_UNREACH_NLRI. ze implements exactly that
+# in message/eor.go:79-101: flags FlagOptional|FlagExtLength (0x80|0x10 = 0x90),
+# code AttrMPUnreachNLRI (0x0F), extended 2-byte length 0x0003, value AFI=0x0002
+# SAFI=0x01. Hence: marker | len 0x001E | type 0x02 | withdrawn 0x0000 |
+# attrlen 0x0007 | 900F0003000201. ze was only afterwards confirmed to emit these
+# bytes byte-for-byte. ze is correct here; the old expectation was the bug.
+#
+# Cross-checked against exabgp, an independent implementation: its EOR_NLRI.PREFIX
+# (bgp/message/update/eor.py:33) is b'\x00\x00\x00\x07\x90\x0f\x00\x03' + AFI + SAFI,
+# and packing it for ipv6/unicast yields this exact hex. exabgp packs ipv4/unicast
+# as FFFF..00170200000000, which is precisely the marker that was wrongly used here.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 EOF_PEER
 
 tmpfs=rr-ipv6-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
-from ze_api import API, runtime_fail, result_text_data
+from ze_api import API, runtime_fail, result_text_data, result_json_data
+# // test-relax: dropped unused 'import time' (no sleep in this observer)
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -33,6 +53,36 @@ def dispatch(api, command):
     if resp is None:
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
+
+def eor_sent(result):
+    """True once ze has written its End-of-RIB to at least one peer.
+
+    `show bgp peer <sel> detail` returns {"peers": {"<ip>": {..., "eor-sent": N}}}
+    (peer.go:217, :341-345). The counter is incremented at the EOR write itself
+    (peer_initial_sync.go:334-335), so eor-sent >= 1 proves the marker is on the
+    wire rather than merely scheduled.
+    """
+    if result.get('status') != 'done':
+        return False
+    try:
+        peers = result_json_data(result, {}).get('peers', {})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    return any(p.get('eor-sent', 0) >= 1 for p in peers.values())
+
+def wait_eor_sent(api, selector):
+    """Block until ze has sent its EOR, so `request shutdown` cannot pre-empt it.
+
+    The peer block asserts ze's End-of-RIB on the wire. ze emits it only after the
+    initial-sync barrier: peer_initial_sync.go:174-178 sleeps 500ms and then waits
+    for the plugin ready signal before :332-337 builds and sends the EOR. The
+    session reaches `established` long before that, so a shutdown gated on
+    establishment alone closes TCP first and the peer's expectation can never fire.
+    Gate on the EOR the test actually asserts.
+    """
+    if not eor_sent(api.dispatch_until(
+            f'show bgp peer {selector} detail', eor_sent, attempts=40)):
+        runtime_fail(f'ze never sent its End-of-RIB to {selector}')
 
 def main():
     api = API()
@@ -62,6 +112,8 @@ def main():
         runtime_fail(f'missing route-reflector-client: {detail[:300]}')
 
     print('OK: IPv6 RR client config accepted, peer detail shows RR fields', file=sys.stderr)
+
+    wait_eor_sent(api, 'peer-src')
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

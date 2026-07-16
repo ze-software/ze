@@ -17,7 +17,7 @@ tmpfs=dispatch-decode-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-from ze_api import API
+from ze_api import API, result_text_data, runtime_fail
 # // test-relax: removed unused 'import time' after sleep->dispatch_until_done conversion
 
 def dispatch(api, command):
@@ -27,6 +27,23 @@ def dispatch(api, command):
         return None
     return resp.get('result', {})
 
+def eor_on_wire(result):
+    """True once peer1's initial-sync End-of-RIB has been written."""
+    if result.get('status') != 'done':
+        return False
+    data = result_text_data(result, '{}')
+    try:
+        parsed = json.loads(data) if isinstance(data, str) else data
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    peers = parsed.get('peers', {})
+    if not isinstance(peers, dict):
+        return False
+    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
+               for row in peers.values())
+
 def main():
     api = API()
     api.declare_done()
@@ -35,30 +52,37 @@ def main():
     api.wait_for_registry()
     api.ready()
 
+    # Let peer1 finish its initial sync before dispatching. The old script ran
+    # every dispatch and then shut down inside the OPEN handshake, so ze closed
+    # the session before sending its End-of-RIB and the peer's expectation was
+    # unreachable by construction. Waiting on eor-sent also means the dispatch
+    # assertions below run against a real established session rather than an
+    # empty pre-establishment RIB.
+    synced = api.dispatch_until(
+        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
+    )
+    if not eor_on_wire(synced):
+        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
+
     try:
         # AC-1: dispatch a command that returns structured data.
         # Poll session establishment deterministically instead of a blind sleep.
         result = api.dispatch_until_done('show bgp rib status')  # // test-relax: blind sleep(2.0) + single dispatch -> dispatch_until_done poll
         if result is None:
-            print('FAIL: dispatch returned None', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail('dispatch returned None')
         if result.get('status') != 'done':
-            print(f'FAIL: status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'dispatch status={result.get("status")}, want done')
 
         data = result.get('data')
         if data is None:
-            print('FAIL: data is None', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail('data is None')
 
         # The key assertion: data must be a dict (already decoded JSON),
         # NOT a string requiring a second json.loads call.
         if isinstance(data, str):
-            print(f'FAIL: data is a string (double-encoded): {data!r}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'data is a string (double-encoded): {data!r}')
         if not isinstance(data, dict):
-            print(f'FAIL: data is {type(data).__name__}, want dict', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'data is {type(data).__name__}, want dict')
 
         print(f'OK: data is dict with keys: {list(data.keys())}', file=sys.stderr)
 
@@ -141,3 +165,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# Prove the observer reached its final assertion. Without this the plugin could
+# die before dispatching anything and the file would still be green on exit=0.
+expect=stderr:contains=PASS: single-decode verified
+reject=stderr:pattern=ZE-OBSERVER-FAIL

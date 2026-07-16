@@ -7,42 +7,104 @@
 # PREVENTS: Sending raw 4-byte AS_PATH or 8-byte AGGREGATOR wire bytes
 # to a 2-byte-only RS-client peer, causing malformed UPDATE.
 #
-# Three-peer scenario: source (AS 4200000000, ASN4-capable) sends an UPDATE
-# with non-mappable ASN in AS_PATH and AGGREGATOR. Receiver (AS 65002) has
-# ASN4 disabled, forcing the RS to transcode. The receiver must see:
+# Two-peer scenario: source (AS 65001, ASN4-capable) sends an UPDATE carrying a
+# non-mappable ASN (4200000000) in AS_PATH and AGGREGATOR. Receiver (AS 65002)
+# has ASN4 disabled, forcing the RS to transcode. The receiver must see:
 #   - AS_PATH re-encoded to 2-byte with AS_TRANS (23456)
 #   - AS4_PATH with original 4-byte values
 #   - AGGREGATOR re-encoded to 6 bytes with AS_TRANS
 #   - AS4_AGGREGATOR with original 4-byte ASN + IP
+#
+# RS-CLIENT IS LOAD-BEARING: both peers set session/rs-client true. That leaf
+# (plugins/rs/yang/ze-rs-conf.yang:40) defaults to FALSE, and it is the ONLY
+# thing that selects the RFC 7947 non-prepending forwarding path: forward_rs.go:350
+# takes the `isEBGP && !rsClient` branch into getEBGPWire(), which PREPENDS the
+# local AS, while forward_rs.go:358-384 (`isEBGP && rsClient && srcASN4 &&
+# !sendASN4`) is the RFC 6793 RS transcode path this test is named for.
+# An earlier revision omitted the leaf, so ze correctly prepended 65000 and this
+# file never reached the transcode branch at all -- it silently duplicated the
+# plain-eBGP prepend coverage already held by bgp-rs-fastpath-ebgp-shared.ci.
+#
+# NO LOCAL_PREF: the source is an EBGP peer, and RFC 4271 Section 5.1.5 forbids
+# LOCAL_PREF in UPDATEs to external peers. An earlier revision put LOCAL_PREF=100
+# in the source frame; ze correctly applies RFC 7606 Section 7.5 (message/rfc7606.go:442-449)
+# and overwrites it in place with an ATTR_DISCARD marker (message/attr_discard.go:96-115),
+# so the receiver saw C0FD0405010000 where a clean frame was expected. That is
+# correct product behavior on invalid input -- the fix is a valid frame, not
+# blessing the marker. Same resolution as bgp-rs-fastpath-ebgp-shared.ci:15-26.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=15s
 option=bind:value=0.0.0.0
+# Map conn=N to a peer by remote IP instead of accept order. Both sessions
+# are handshaked concurrently and then sorted (127.0.0.1 -> conn=1 source,
+# 127.0.0.2 -> conn=2 receiver), so the RS has both clients established
+# before the source's UPDATE is sent.
+option=conn_map:value=remote-ip
 
 # Source peer (conn=1): send UPDATE with non-mappable ASN 4200000000 (0xFA56EA00).
 # ORIGIN=IGP, AS_PATH=[4200000000] (4-byte), NEXT_HOP=1.1.1.1,
-# LOCAL_PREF=100, AGGREGATOR=4200000000/10.0.0.1, NLRI=10.0.0.0/24.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00410200000026400101004002060201FA56EA004003040101010140050400000064C00708FA56EA000A000001180A0000
+# AGGREGATOR=4200000000/10.0.0.1 (8-byte), NLRI=10.0.0.0/24.
+# No LOCAL_PREF -- EBGP source, see header.
+#   0041->003A total, 0026->001F attr len (dropped the 7-byte LOCAL_PREF).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F400101004002060201FA56EA0040030401010101C00708FA56EA000A000001180A0000
 
-# Receiver peer (conn=2): verify transcoded UPDATE.
-# NLRI must be forwarded.
-expect=bgp:conn=2:seq=1:contains=180A0000
-# AGGREGATOR must be 6 bytes with AS_TRANS (5BA0) + IP 10.0.0.1.
-expect=bgp:conn=2:seq=1:contains=C007065BA00A000001
-# AS4_AGGREGATOR (code 18 = 0x12) must carry original ASN 4200000000 + IP 10.0.0.1.
-expect=bgp:conn=2:seq=1:contains=C01208FA56EA000A000001
-
-# Both peers receive EOR.
+# Both peers receive EOR FIRST, before any forwarded route.
+# ORDER IS LOAD-BEARING: the RS sends EOR at establishment (peer_initial_sync.go:334)
+# and conn_map completes BOTH handshakes before any conn's script runs
+# (peer_connmap.go:129), so the source's UPDATE above is not written until after the
+# receiver has been sent its EOR; routes arriving during initial sync are queued FIFO
+# behind it (peer_initial_sync.go:180-188). An EOR that does not match the current
+# rule is silently swallowed (checker.go:416) and never re-offered, so declaring the
+# forwarded UPDATE at conn=2:seq=1 made the EOR at conn=2:seq=2 unmatchable and the
+# peer always died with "connection closed before completion". Same ordering as
+# bgp-rs-reactor-fastpath.ci.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Receiver peer (conn=2): the transcoded UPDATE, asserted by FULL byte-equality.
+#
+# // test-relax: the three contains= rules at conn=2:seq=1 (NLRI 180A0000, AGGREGATOR
+# C007065BA00A000001, AS4_AGGREGATOR C01208FA56EA000A000001) are REPLACED, not dropped,
+# by the single hex= below, which contains all three byte strings verbatim plus AS_PATH,
+# AS4_PATH, ORIGIN and NEXT_HOP -- coverage strictly increases. They could not remain as
+# three rules: each rule in a conn+seq group is a separate expected MESSAGE (checker.go:64
+# groups them; checker.go:400-411 removes exactly one rule per received message and then
+# returns), so three rules demanded THREE messages while the RS correctly forwards ONE --
+# two were unreachable by construction and the peer always died with "connection closed
+# before completion". Byte-equality is usable here (unlike bgp-rs-reactor-fastpath.ci,
+# which deferred it) because the now-valid EBGP source frame leaves no ATTR_DISCARD
+# bytes to pin.
+#
+# Derived from RFC 6793 Section 4.2.2 for a NEW->OLD speaker with a non-mappable AS,
+# NOT from observed output:
+#   40010100               ORIGIN=IGP
+#   40020402015BA0         AS_PATH 2-byte AS_SEQUENCE[AS_TRANS(23456=0x5BA0)] -- the
+#                          non-mappable 4200000000 becomes AS_TRANS, and RFC 7947
+#                          Section 2.2.2 forbids prepending 65000 (rs-client true).
+#   40030401010101         NEXT_HOP 1.1.1.1 preserved (RS does not rewrite)
+#   C007065BA00A000001     AGGREGATOR re-encoded to 6 bytes: AS_TRANS + 10.0.0.1
+#   C011060201FA56EA00     AS4_PATH AS_SEQUENCE[4200000000] -- MUST be sent, the path
+#                          is not composed of mappable ASes only
+#   C01208FA56EA000A000001 AS4_AGGREGATOR: original 4200000000 + 10.0.0.1
+#   180A0000               NLRI 10.0.0.0/24
+# attr len = 4+7+7+9+9+11 = 47 = 0x2F; total = 19+2+2+47+4 = 74 = 0x4A.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A020000002F4001010040020402015BA040030401010101C007065BA00A000001C011060201FA56EA00C01208FA56EA000A000001180A0000
 EOF_PEER
 
 # Observer: shut down cleanly after forwarding completes.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
-from ze_api import API
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+def all_peers_eor_sent(api):
+    r = dispatch(api, 'show bgp summary').get('result', {})
+    peers = r.get('data', {}).get('summary', {}).get('peers', [])
+    return bool(peers) and all(p.get('eor-sent', 0) >= 1 for p in peers)
 
 def main():
     api = API()
@@ -51,10 +113,21 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    # Flush the forward pool so the RS-transcoded route has reached the receiver
-    # peer (conn=2) before shutdown, instead of sleeping a fixed interval.
-    api.wait_for_ack()
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    # Wait until BOTH RS clients are established and each has been sent its EOR.
+    # wait_for_ack() (a quiesce barrier) was not enough: it drains the forward
+    # pool but returns while receiver-peer is still in the accept backlog, so ze
+    # shut down before conn=2 ever established and every conn=2 expectation --
+    # the whole point of this test -- was unreachable by construction. The RS
+    # replays to each client as it establishes (rs AnnounceEOR needs established
+    # peers), so gating on every peer's eor-sent is what makes the transcoded
+    # UPDATE observable. Same pattern as bgp-rs-reactor-fastpath.ci.
+    for _ in range(100):
+        if all_peers_eor_sent(api):
+            break
+        api.wait_for_event(timeout=0.2)
+    if not all_peers_eor_sent(api):
+        runtime_fail('not every RS client reached established with an EOR sent')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':
@@ -88,6 +161,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -116,6 +190,7 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

@@ -2,21 +2,44 @@
 # VALIDATES: first/last pipe operators limit RIB query output server-side
 # PREVENTS: first/last not truncating results or failing on RIB commands
 
-# ze-peer: send 5 routes then EOR
+# ze-peer: send 5 routes into ze's adj-rib-in, then check ze's EOR.
+#
+# // test-relax: the 5 removed `expect=bgp` UPDATE hexes were unsatisfiable by
+# construction and are REPLACED, not dropped -- the routes they described are now
+# really injected (option=update:value=send-route below), which is what makes the
+# pipe assertions non-vacuous for the first time. Two reasons they could never
+# pass. (1) Nothing announced them: their paired `cmd=api:...text=peer * update
+# text ...` lines are inert in the plugin runner -- cmd=api text is parsed into
+# messageExpect.Cmd (internal/test/runner/record.go:85, set at
+# record_parse.go:700) which ONLY the reporter reads (report.go:149), and ze-peer
+# discards cmd= lines outright (internal/test/peer/expect.go:112 "Ignore -
+# documentation only"). ze was never told to announce anything. (2) The hexes are
+# malformed: 48 bytes on the wire but a Length field of 0x002E = 46, violating RFC
+# 4271 section 4.3 (Length counts the whole message including the 19-byte header),
+# and their NLRI `18 01 01 00` is 1.1.0.0/24, not the 10.1.0.0/24 the cmd= text
+# names (`18 0A 01 00`). No well-formed UPDATE could ever match them. Vacuously
+# green until aaefef8ce because the run script's `finally` requests shutdown, so
+# ze still exited 0 and only `expect=exit:code=0` was consulted.
+#
+# option=update:value=send-route is the ze-peer-consumed injection directive
+# (internal/test/peer/expect.go parseOptionConfig -> Config.SendRoutes ->
+# peer.go:371 runMessageLoop -> BuildRouteMsg, message.go:147).
+#
+# origin-as is deliberately omitted: this is an iBGP session (local asn 1 ==
+# remote asn 1), so the routes carry an empty AS_PATH, as an iBGP-originated
+# route must.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.1.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010100
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.2.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010200
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.3.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010300
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.4.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010400
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.5.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010500
-cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+# ze has nothing to announce back on this session, so the only message it owes the
+# peer is its own End-of-RIB for ipv4/unicast: an UPDATE with no withdrawn routes
+# and no path attributes (RFC 4724 section 2), length 23 = 19 + 2 + 2. This
+# expectation is the file's own, kept unchanged.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -35,6 +58,21 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
 
+
+def received_routes(data):
+    """Flatten the adj-rib-in route lists of a `show bgp rib received` payload.
+
+    The producer (internal/component/bgp/plugins/rib/rib_pipeline.go, jsonTerminal)
+    emits {"adj-rib-in": {<peer>: [route, ...]}}. There is no top-level "routes"
+    key, so the peer lists are concatenated here in peer order.
+    """
+    if not isinstance(data, dict):
+        return []
+    routes = []
+    for peer_routes in data.get('adj-rib-in', {}).values():
+        routes.extend(peer_routes)
+    return routes
+
 def main():
     api = API()
     api.declare_done()
@@ -46,11 +84,22 @@ def main():
     # Wait until all 5 injected routes are in the RIB before testing the pipe
     # operators. Deterministic replacement for a blind settle sleep.
     # // test-relax: blind sleep(3.0) -> dispatch_until(show bgp rib received count, count==5)
-    api.dispatch_until(
+    settled = api.dispatch_until(
         'show bgp rib received count',
         lambda r: r.get('status') == 'done' and result_json_data(r, {}).get('count') == 5,
         attempts=40,
     )
+    # dispatch_until returns the LAST result once attempts are exhausted, it does
+    # not raise. Checking it is what keeps the pipe assertions below honest: with
+    # an empty adj-rib-in, "first 3 | count == 0" is a correct answer, so an
+    # unchecked poll turns this whole test into a no-op.
+    if result_json_data(settled, {}).get('count') != 5:
+        print(
+            f'FAIL: adj-rib-in never reached 5 routes, last count='
+            f'{result_json_data(settled, {}).get("count")} status={settled.get("status")}',
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     try:
         # Test 1: | first 3 should return exactly 3 routes
@@ -59,11 +108,17 @@ def main():
             print(f'FAIL: first 3 status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
         data = result_json_data(result, {})
-        routes = data.get('routes', data) if isinstance(data, dict) else data
-        if isinstance(routes, list):
-            if len(routes) != 3:
-                print(f'FAIL: first 3 returned {len(routes)} routes, expected 3', file=sys.stderr)
-                sys.exit(1)
+        routes = received_routes(data)
+        if len(routes) != 3:
+            print(f'FAIL: first 3 returned {len(routes)} routes, expected 3, data={data!r}',
+                  file=sys.stderr)
+            sys.exit(1)
+        # first N must be the FIRST N in the RIB's own order, not any 3 routes.
+        prefixes = [r.get('prefix') for r in routes]
+        if prefixes != ['10.1.0.0/24', '10.2.0.0/24', '10.3.0.0/24']:
+            print(f'FAIL: first 3 returned {prefixes}, expected the first 3 prefixes',
+                  file=sys.stderr)
+            sys.exit(1)
         print(f'OK: first 3 returned correct count', file=sys.stderr)
 
         # Test 2: | first 3 | count should return 3
@@ -91,6 +146,30 @@ def main():
         print(f'OK: last 2 count = 2', file=sys.stderr)
 
         print('OK: all pipe first/last tests passed', file=sys.stderr)
+
+        # Do not tear ze down before it has sent its End-of-RIB to the peer, or
+        # the peer's expect=bgp EOR can never be met. ze gates EOR behind its
+        # initial-sync wait (a 500ms minimum for API plugins that send routes,
+        # then the apiSync channel -- reactor/peer_initial_sync.go:164-178), and
+        # `process bgp-rib { send [ update ] }` arms that wait. The pipe checks
+        # above finish in ~250ms, well inside it. Poll the eor-sent counter that
+        # peer_initial_sync.go:335 bumps immediately after the EOR write, so the
+        # bytes are on the socket before shutdown closes it. Deterministic: no
+        # sleep, no assumption about how long the sync takes.
+        eor = api.dispatch_until(
+            'show bgp summary',
+            lambda r: r.get('status') == 'done' and any(
+                p.get('eor-sent', 0) >= 1
+                for p in result_json_data(r, {}).get('summary', {}).get('peers', [])
+            ),
+            attempts=40,
+        )
+        peers = result_json_data(eor, {}).get('summary', {}).get('peers', [])
+        if not any(p.get('eor-sent', 0) >= 1 for p in peers):
+            print(f'FAIL: ze never sent EOR to the peer, summary peers={peers!r}',
+                  file=sys.stderr)
+            sys.exit(1)
+        print('OK: ze sent its EOR', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

@@ -7,19 +7,31 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
 
-# ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
-# RPF/multicast state; the BGP peer exists so ze has a session to configure.
+# peer1 negotiates ipv4/multicast ONLY (see the session family block below), so
+# ze's initial-sync End-of-RIB for this session is the ipv4/multicast EOR.
 #
-# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
-# CONSTRUCTION -- the run-script calls `request shutdown` at post-startup, so ze
-# closes during the OPEN handshake ("open recv / open sent / connection closed
-# before completion") and the EOR is never sent. It could not fail for a real
-# reason, only pass vacuously (pre-F1) or hang the verdict (post-F1). Coverage is
-# NOT reduced: this test never asserted BGP wire content -- its own assertions and
-# expect=exit:code=0 are what it proves. Per
-# plan/spec-fixit-redistribute-establishment-stall.md the honest fixes are
-# --mode sink (peer is scaffolding, as here) or reaching Established first, which
-# would test BGP rather than this test's subject.
+# Derived from RFC 4724 Section 2 + RFC 4760, BEFORE reading ze's encoder:
+#   "For any other address family, it [the End-of-RIB marker] is an UPDATE
+#    message that contains only the MP_UNREACH_NLRI attribute with no withdrawn
+#    routes for that <AFI, SAFI>."
+#   ipv4/multicast = AFI 1, SAFI 2. MP_UNREACH_NLRI = attr type 15 (0x0F),
+#   optional => flag bit 0x80; value = AFI(0001) + SAFI(02), no withdrawn routes.
+#   UPDATE body = Withdrawn Routes Length(0000) + Total Path Attr Length + attr.
+#
+# RFC 4271 Section 4.3 leaves the Extended Length bit (0x10) to the SENDER for
+# attributes shorter than 256 octets: it MUST be set when the value exceeds 255
+# octets, and is otherwise permitted but not mandated. So the derivation above
+# fixes the EOR's semantics but NOT this one bit. ze chooses the extended-length
+# encoding unconditionally here (message/eor.go BuildEOR passes
+# FlagOptional|FlagExtLength; attribute.WriteHeaderTo then writes a 4-byte
+# header), giving a 7-byte attribute 900F0003000102 and total path attr len 7:
+#   marker(16 x FF) 001E 02 0000 0007 900F0003000102   => length 19+11 = 30 = 0x1E
+# Both encodings are RFC-legal and semantically identical; the bytes below are
+# ze's choice, and every field except that bit is pinned by the derivation.
+#
+# The run-script gates `request shutdown` on eor-sent >= 1, so this EOR is
+# reachable: ze reaches Established and writes it before the session closes.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000102
 EOF_PEER
 
 # Python test plugin: injects multicast routes then queries RPF
@@ -31,10 +43,23 @@ from ze_api import API, result_json_data, result_text_data, runtime_fail
 # // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
+    """Dispatch a command and return its result envelope.
+
+    An RPC-level error means the command never reached the plugin at all -- it
+    is not declared in the plugin's sdk.Registration.Commands, so the engine's
+    registry cannot route it. That is a WIRING failure, distinct from a plugin
+    handler that ran and returned status=error (the non-CIDR case below), so
+    surface it through runtime_fail rather than letting it surface as a bare
+    traceback whose sentinel a later shutdown could race away.
+    """
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+    except RuntimeError as exc:
+        runtime_fail(f'dispatch {command!r} rejected by the engine: {exc}')
+        raise
     if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
+        runtime_fail(f'dispatch {command!r}: engine call returned None')
     return resp.get('result', {})
 
 def eor_on_wire(result):
@@ -63,70 +88,74 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    # Let peer1 finish its initial sync before shutting down. The old script
-    # dispatched and shut down inside the OPEN handshake, so ze closed the
-    # session before ever sending its End-of-RIB and the peer's expectation
-    # was unreachable by construction.
+    # Let peer1 finish its initial sync before shutting down. This gate is what
+    # makes the peer's EOR expectation reachable: `eor-sent` is incremented at
+    # the EOR write itself, so polling it (rather than trusting state=established,
+    # which is reached BEFORE the EOR is sent) guarantees the marker is on the
+    # wire before the run-script asks ze to shut down. Without it the script
+    # shut down inside the OPEN handshake and no EOR was ever written.
     synced = api.dispatch_until(
         'show bgp peer peer1 detail', eor_on_wire, attempts=60,
     )
     if not eor_on_wire(synced):
         runtime_fail('peer1 never sent its initial-sync End-of-RIB')
 
-    try:
-        # Inject multicast routes at two specificity levels
-        result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.0.0.0/4 nhop 10.0.0.1')
-        if result.get('status') != 'done':
-            print(f'FAIL: inject /4 status={result.get("status")} err={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
+    # Every check below reports through runtime_fail, never `print(...) +
+    # sys.exit(1)`: ze_api.runtime_fail's own docstring records that the old
+    # pattern is a silent no-op (ze exits 0, the observer's exit code never
+    # reaches the runner, the runner reports success). This test carried that
+    # pattern AND a `finally: request shutdown`, which additionally tore down
+    # the engine -- and with it the plugin stderr relay -- before an uncaught
+    # exception's ZE-OBSERVER-FAIL sentinel could ever be relayed. Both defects
+    # are why `# PREVENTS: RPF command not wired` never fired while the command
+    # was in fact unreachable. Shutdown is now on the success path only;
+    # runtime_fail performs its own clean shutdown on the failure path.
 
-        result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.1.0.0/16 nhop 10.0.0.2')
-        if result.get('status') != 'done':
-            print(f'FAIL: inject /16 status={result.get("status")} err={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
+    # Inject multicast routes at two specificity levels
+    result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.0.0.0/4 nhop 10.0.0.1')
+    if result.get('status') != 'done':
+        runtime_fail(f'inject /4 status={result.get("status")} err={result.get("data")}')
 
-        # Wait for best-path computation to propagate to Loc-RIB.
-        # // test-relax: blind sleep(0.5) -> dispatch_until poll until the /16 lands in multicast Loc-RIB
-        api.dispatch_until(
-            'show bgp rib rpf ipv4/multicast 224.1.2.5',
-            lambda r: result_json_data(r, {}).get('matched-prefix') == '224.1.0.0/16',
-        )
+    result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.1.0.0/16 nhop 10.0.0.2')
+    if result.get('status') != 'done':
+        runtime_fail(f'inject /16 status={result.get("status")} err={result.get("data")}')
 
-        # RPF query: should match the /16 (more specific)
-        result = dispatch(api, 'show bgp rib rpf ipv4/multicast 224.1.2.5')
-        if result.get('status') != 'done':
-            print(f'FAIL: rpf status={result.get("status")} err={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
+    # Wait for best-path computation to propagate to Loc-RIB.
+    # // test-relax: blind sleep(0.5) -> dispatch_until poll until the /16 lands in multicast Loc-RIB
+    api.dispatch_until(
+        'show bgp rib rpf ipv4/multicast 224.1.2.5',
+        lambda r: result_json_data(r, {}).get('matched-prefix') == '224.1.0.0/16',
+    )
 
-        data = result_json_data(result, {})
-        if not data.get('found'):
-            print(f'FAIL: rpf found=false, expected match: {data}', file=sys.stderr)
-            sys.exit(1)
-        if data.get('matched-prefix') != '224.1.0.0/16':
-            print(f'FAIL: rpf matched-prefix={data.get("matched-prefix")}, expected 224.1.0.0/16', file=sys.stderr)
-            sys.exit(1)
+    # RPF query: should match the /16 (more specific)
+    result = dispatch(api, 'show bgp rib rpf ipv4/multicast 224.1.2.5')
+    if result.get('status') != 'done':
+        runtime_fail(f'rpf status={result.get("status")} err={result.get("data")}')
 
-        # RPF query: no match
-        result = dispatch(api, 'show bgp rib rpf ipv4/multicast 192.168.1.1')
-        if result.get('status') != 'done':
-            print(f'FAIL: rpf no-match status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
+    data = result_json_data(result, {})
+    if not data.get('found'):
+        runtime_fail(f'rpf found=false, expected match: {data}')
+    if data.get('matched-prefix') != '224.1.0.0/16':
+        runtime_fail(f'rpf matched-prefix={data.get("matched-prefix")}, expected 224.1.0.0/16')
 
-        data = result_json_data(result, {})
-        if data.get('found') != False:
-            print(f'FAIL: rpf should be found=false for non-multicast addr: {data}', file=sys.stderr)
-            sys.exit(1)
+    # RPF query: no match
+    result = dispatch(api, 'show bgp rib rpf ipv4/multicast 192.168.1.1')
+    if result.get('status') != 'done':
+        runtime_fail(f'rpf no-match status={result.get("status")}')
 
-        # RPF query: non-CIDR family should error
-        result = dispatch(api, 'show bgp rib rpf l2vpn/evpn 10.0.0.1')
-        if result.get('status') != 'error':
-            print(f'FAIL: rpf non-CIDR should error, got status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
+    data = result_json_data(result, {})
+    if data.get('found') is not False:
+        runtime_fail(f'rpf should be found=false for non-multicast addr: {data}')
 
-        print('OK: rpf multicast verified', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
+    # RPF query: non-CIDR family should error. The handler RUNS and returns
+    # status=error, so this arrives as a result envelope, not an RPC error.
+    result = dispatch(api, 'show bgp rib rpf l2vpn/evpn 10.0.0.1')
+    if result.get('status') != 'error':
+        runtime_fail(f'rpf non-CIDR should error, got status={result.get("status")}')
+
+    print('OK: rpf multicast verified', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
 
 if __name__ == '__main__':
     main()
@@ -183,6 +212,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

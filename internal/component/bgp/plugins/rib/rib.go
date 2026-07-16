@@ -668,6 +668,8 @@ func runRIBPlugin(conn net.Conn) int {
 			// Best-path selection (RFC 4271 §9.1.2)
 			{Name: "show bgp rib best"},
 			{Name: "show bgp rib best status"},
+			// Reverse Path Forwarding query: longest-prefix-match in Loc-RIB
+			{Name: "show bgp rib rpf"},
 			// Route injection (manual RIB manipulation)
 			{Name: "request bgp rib inject"},
 			{Name: "request bgp rib withdraw"},
