@@ -2,13 +2,24 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | spec-fixit-qemu-artifact-cache (land that first: durable kernel cache) |
 | Phase | 0/N (research) |
 | Updated | 2026-07-16 |
 
-> **SKELETON.** Captured intent, not designed work. Every file, step and test named
-> below is a CANDIDATE. Research via `/ze-spec` before implementing.
+> **DESIGN, 2026-07-16.** Research done, in sequence after the cache spec. Two
+> findings reshape this spec:
+> 1. **R-5 is BROKEN.** The two targets do not "disagree about firewall". Neither runs
+>    it. `ze-qemu-needs-linux-test` skips all 23 firewall tests via a mechanism the
+>    skeleton did not know about. This ANSWERS the open question about why nobody has
+>    seen crashes there, and it ADDS scope: the firewall suite is marked with the wrong
+>    directive.
+> 2. **Half this spec's ACs belong to the cache spec** and are delivered there. See its
+>    "Handoff Contract". AC-6..AC-9 are dropped here.
+>
+> AC-1 (does 7.1.1 actually fix the nft crash) remains genuinely UNVALIDATED and
+> BLOCKING. It needs a real ~30-minute build plus a QEMU run; it cannot be settled by
+> reading code, and everything else is downstream of it.
 
 ## Task
 
@@ -77,9 +88,52 @@ need to find a way to run a 7.+ kernel."
 
 ## Current Behavior (MANDATORY)
 
-**Source files (cite file:line):**
+**Source files (cite file:line). Producers read, not inferred from callers.**
+
+**How the firewall suite is actually skipped (researched 2026-07-16):**
+- [ ] `internal/test/runner/record_parse.go` lines 227-228 - the producer of the
+      `ZE_QEMU_LINUX_ONLY` skip: `if r.SkipReason == "" && !r.NeedsLinux &&
+      os.Getenv("ZE_QEMU_LINUX_ONLY") == "1"` sets `SkipReason = "ZE_QEMU_LINUX_ONLY
+      (not option=needs-linux)"`. Every test NOT marked `needs-linux` is skipped in
+      that mode.
+- [ ] `internal/test/runner/record_parse.go` lines 383-397 - the `needs-linux` option
+      producer: sets `r.NeedsLinux = true`, and on a non-linux host sets a SkipReason.
+      Inside the VM (GOOS=linux) it is inert.
+- [ ] `internal/test/runner/record_parse.go` lines 375-381 - the `skip-os` producer:
+      skips only when `runtime.GOOS` matches the listed value. It does NOT set
+      `NeedsLinux`.
+- [ ] `test/firewall/*.ci` - measured 2026-07-16: **0 of 23** carry
+      `option=needs-linux`; **21 of 23** carry `option=skip-os:value=darwin` (e.g.
+      `test/firewall/flush-crash.ci:11`).
+      -> Decision: therefore `ze-qemu-needs-linux-test` (`ZE_QEMU_LINUX_ONLY=1`,
+      `mk/test-integration.mk:261`) skips EVERY firewall test, even though its
+      `ZE_QEMU_SKIP_SUITES="web"` does not skip the firewall SUITE. The suite is
+      entered and every test inside it reports SKIP. R-5's "the two targets disagree"
+      is FALSE: neither target has ever run a firewall test in the VM. That is why
+      nobody has seen the crash from that target.
+      -> Constraint: dropping `firewall` from the skip lists therefore changes
+      `ze-qemu-all-test` ONLY. Getting firewall into the needs-linux loop is a
+      SEPARATE change: 21 `.ci` files must move from `skip-os:value=darwin` to
+      `option=needs-linux`, which `ai/rules/qemu-testing.md:61-64` already mandates
+      ("Do NOT use `skip-os:value=darwin` as a substitute for `needs-linux`"). The
+      firewall suite violates that rule today.
+- [ ] `scripts/evidence/qemu-all-tests.sh` lines 89-97 - `fsuite()` is the producer of
+      the suite-level skip: a `case ",$SKIP_SUITES," in *",$name,"*` match prints
+      "SKIPPED (ZE_QEMU_SKIP_SUITES)" and returns 0. Suite granularity, not test
+      granularity.
+
+**The kernel and the arch:**
 - [ ] `internal/appliance/kernel.version` - contains `7.1.1`. The 7.x kernel the user
       asked for already exists in-tree.
+- [ ] `mk/gokrazy.mk` line 37 and line 177 - `GOKRAZY_ARCH ?= amd64`, `KERNEL_ARCH ?=
+      $(GOKRAZY_ARCH)`, while `mk/test-integration.mk` line 216 derives `QEMU_GOARCH`
+      from `uname -m` (arm64 on Apple Silicon).
+      -> Constraint: a bare `make ze-kernel` on Apple Silicon stages an **amd64**
+      vmlinuz to `tmp/kernel/vmlinuz` (`mk/gokrazy.mk:200`, arch-unkeyed), the `test
+      -f` guard accepts it (`mk/test-integration.mk:410`), and the VM fails to boot.
+      R-6 is a live bug, not a hypothetical. Any target this spec wires MUST derive
+      `KERNEL_ARCH` from `QEMU_GOARCH`, never rely on the operator passing
+      `GOKRAZY_ARCH=arm64` by hand as today's error messages instruct.
 - [ ] `gokrazy/kernel/kernel.config` lines 40, 55, 57 - `CONFIG_NF_TABLES=y`,
       `CONFIG_NF_TABLES_IPV4=y`, `CONFIG_NF_TABLES_IPV6=y`. The runtime kernel does
       support nftables. (`runtime.config` alone does not mention NF_TABLES; the base
@@ -198,8 +252,10 @@ the VM on the new kernel, which the table below asserts.
 | Test | File | Validates |
 |------|------|-----------|
 | `test_qemu_all_test_passes_kernel` (CANDIDATE) | new, alongside the make-target checks | AC-3: the target invokes `qemu-run.py` with `--kernel`, so a silent regression to stock is caught |
-| `test_firewall_not_in_default_skips` (CANDIDATE) | new | AC-2: `firewall` is gone from `ZE_QEMU_SKIP_SUITES` defaults in both `mk/test-integration.mk:220` and `qemu-all-tests.sh:40` |
+| `test_firewall_not_in_default_skips` (CANDIDATE) | new | AC-2: `firewall` is gone from `ZE_QEMU_SKIP_SUITES` defaults in BOTH `mk/test-integration.mk:220` and `qemu-all-tests.sh:40`. Two defaults, one assertion each: fixing only the make one leaves the script default `web,firewall` in force for any direct invocation |
+| `test_firewall_ci_are_needs_linux` (CANDIDATE) | new | AC-10: every `test/firewall/*.ci` carries `option=needs-linux`, none carries `skip-os:value=darwin` as its kernel guard. This is the test that would have caught today's silent gap, and it is cheap: a grep-level assertion over 23 files |
 | `test_missing_kernel_fails_loudly` (CANDIDATE) | new | AC-4: an absent `tmp/kernel/vmlinuz` produces the actionable error the labs already emit, never a silent stock-kernel fallback |
+| `test_kernel_arch_matches_vm_arch` (CANDIDATE) | new | AC-11: the staged kernel's arch matches `QEMU_GOARCH`. `test -f` cannot see this (R-6); the assertion needs the arch, e.g. from the cache key or a `file`-style probe |
 
 ### Functional Tests
 The existing suites ARE the functional test: the `firewall` `.ci` suite must run and
@@ -208,28 +264,54 @@ work; the change is the harness those `.ci` files run on.
 
 ## Files to Modify
 
-- [ ] `mk/test-integration.mk` - pass `--kernel`, drop `firewall` from the default
-      skip, add the kernel precondition (CANDIDATE)
+- [ ] `mk/test-integration.mk` - pass `--kernel` at the two targets (`:229-239`,
+      `:251-261`), drop `firewall` from `ZE_QEMU_SKIP_SUITES` (`:220`), add the kernel
+      precondition, derive `KERNEL_ARCH` from `QEMU_GOARCH` (`:216`) for AC-11
 - [ ] `scripts/evidence/qemu-all-tests.sh` - the script-side default skip at line 40
-      (CANDIDATE)
-- [ ] `mk/gokrazy.mk` - `ze-kernel` staging/caching if the cost story needs it
-      (CANDIDATE)
-- [ ] `ai/rules/qemu-testing.md` - it currently assumes the Alpine VM; update once the
-      VM runs ze's own kernel (CANDIDATE)
-- [ ] `plan/spec-fixit-firewall-concurrency-deadlock.md` - R-5/R-6 are resolved or
-      re-scoped by this work (CANDIDATE)
+      (`SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web,firewall}"`). Both defaults must move
+      together or the script's default silently re-adds the skip
+- [ ] `test/firewall/*.ci` - **NEW SCOPE from research**: 21 files move
+      `option=skip-os:value=darwin` -> `option=needs-linux` (AC-10). Per-file, not a
+      blind sed (R-7). Without this, `ze-qemu-needs-linux-test` keeps skipping all 23
+- [ ] `ai/rules/qemu-testing.md` - it assumes the Alpine VM (`:184-195`), documents the
+      stock-vs-custom kernel decision (`:176-181`) and names the ~30-minute build as
+      the reason to avoid `--kernel`. That calculus changes once the kernel is cached;
+      update it with the cache spec's outcome
+- [ ] ~~`mk/gokrazy.mk` - `ze-kernel` staging/caching if the cost story needs it~~
+      OWNED BY `spec-fixit-qemu-artifact-cache` (handoff contract row 2). Do not edit
+      it here: two specs editing `ze-kernel` is exactly the rework the dependency
+      exists to prevent
+- [ ] ~~`plan/spec-fixit-firewall-concurrency-deadlock.md` - R-5/R-6 are resolved or
+      re-scoped by this work~~ **DO NOT EDIT. A concurrent agent owns that spec**
+      (2026-07-16). The interaction is real but must be handled by agreement, not by
+      two agents writing the same file. See "Interaction with the firewall spec" below
 
 ## Implementation Steps
 
-1. CANDIDATE, BLOCKING: build the runtime kernel and run the firewall suite on it by
-   hand. Answer AC-1 before designing anything. If 7.1.1 does not fix the crash, the
-   whole premise changes and the rest of this spec is wrong.
-2. CANDIDATE: prove the full suite boots and passes on the runtime kernel, not just
-   the firewall suite. Watch the kernel/initramfs seam.
-3. CANDIDATE: decide the cost story (see Open Questions). This is the design work.
-4. CANDIDATE: wire `--kernel` into both targets with the existing `test -f` guard.
-5. CANDIDATE: remove `firewall` from both default skip lists.
-6. CANDIDATE: update `ai/rules/qemu-testing.md` and re-scope the firewall spec's R-5/R-6.
+0. BLOCKING PREREQUISITE: `spec-fixit-qemu-artifact-cache` lands. Its handoff contract
+   delivers rows 1-6 (durable arch- and config-keyed kernel, an ensure-kernel target,
+   the loud guard). Starting here first means building the cost story twice.
+1. BLOCKING: build the runtime kernel for the HOST's arch (`GOKRAZY_ARCH=arm64` on
+   Apple Silicon, per R-6) and run the firewall suite on it by hand. Answer AC-1 before
+   designing anything further. If 7.1.1 does not fix the crash, the premise collapses
+   and steps 3-6 are wrong. Capture the built `.config`'s nft set/timeout symbols while
+   here: that also closes A-3.
+   -> Constraint: this step cannot be short-cut by reading code. It is a real ~30-minute
+   build plus a VM boot. Every later step is downstream of its result.
+2. Prove the FULL suite boots and passes on the runtime kernel, not just firewall.
+   Watch the kernel/initramfs seam: `qemu_args` pairs a ze kernel with Alpine's
+   extracted initramfs (`qemu-run.py:199-210`), so a module mismatch shows up here.
+3. ~~Decide the cost story.~~ Consumed from the cache spec (contract row 2).
+4. Wire `--kernel` into both targets, with the guard from contract row 6 and
+   `KERNEL_ARCH` derived from `QEMU_GOARCH` (AC-11).
+5. Remove `firewall` from both default skip lists (`mk/test-integration.mk:220`,
+   `qemu-all-tests.sh:40`). This fixes `ze-qemu-all-test` only.
+6. NEW: re-mark the 21 firewall `.ci` from `skip-os:value=darwin` to
+   `option=needs-linux` (AC-10), per file, so `ze-qemu-needs-linux-test` stops
+   silently skipping the suite. Verify natively first: both directives skip on darwin
+   (`record_parse.go:375-397`), so `make ze-verify` must stay green.
+7. Update `ai/rules/qemu-testing.md`. Report the R-5/R-6 outcome to the firewall spec's
+   owner; do not edit that file.
 
 ## Acceptance Criteria
 
@@ -238,12 +320,15 @@ work; the change is the harness those `.ci` files run on.
 | AC-1 | The firewall `.ci` suite runs on the 7.1.1 runtime kernel under QEMU | No kernel crash on nft set-element-timeout operations |
 | AC-2 | `make ze-qemu-all-test` with no overrides | The firewall suite runs and passes; `firewall` is not in the default skips |
 | AC-3 | `make ze-qemu-all-test` / `ze-qemu-needs-linux-test` | Both boot the runtime kernel, not stock Alpine |
-| AC-4 | `tmp/kernel/vmlinuz` is absent | The target fails with an actionable message; it NEVER silently falls back to stock, which would restore the crash quietly |
+| AC-4 | `tmp/kernel/vmlinuz` is absent | The target fails with an actionable message; it NEVER silently falls back to stock, which would restore the crash quietly. Reuses the cache spec's guard (contract row 6) |
 | AC-5 | The suites that pass on stock today | Still pass on the runtime kernel; no suite regresses |
-| AC-6 | A developer runs the full QEMU target | The kernel cost is paid once and cached, not on every run. The cache survives a full `tmp/` wipe (user constraint: `tmp/` must stay deletable) |
-| AC-7 | `internal/appliance/kernel.version` is bumped, or a config fragment changes | The superseded kernel is reclaimed, not left behind. The cache does not grow by ~50MB per bump forever |
-| AC-8 | `ALPINE_VERSION` / `ALPINE_MINOR` is bumped (`qemu-run.py:29-30`) | The superseded ISO is reclaimed too. Same artifact class, same GC, since `ensure_iso` names the file per version (`:101`) and today never removes the old one |
-| AC-9 | A cached kernel exists but a config fragment changed since it was built | The cache MISSES and rebuilds. A stale hit is worse than no cache: it would test the old kernel while appearing to test the new config |
+| ~~AC-6~~ | ~~The kernel cost is paid once and cached; survives a `tmp/` wipe~~ | **MOVED to `spec-fixit-qemu-artifact-cache` AC-1** (handoff contract rows 2 and 5). Consumed here, not built here |
+| ~~AC-7~~ | ~~A kernel version/config bump reclaims the superseded kernel~~ | **MOVED to the cache spec, AC-4** (contract row 5) |
+| ~~AC-8~~ | ~~An Alpine version bump reclaims the superseded ISO~~ | **MOVED to the cache spec, AC-4** (contract row 5) |
+| ~~AC-9~~ | ~~A config-fragment change MISSES the kernel cache~~ | **MOVED to the cache spec, contract row 4.** Already implemented there: `kernelCacheVariantFor` (`internal/appliance/cache.go:110-120`) hashes every resolved fragment + manifest + builder script. The cache spec's job is to route the make path through it |
+| AC-10 | `make ze-qemu-needs-linux-test` after this work | The firewall tests actually RUN, not SKIP. Requires the 21 `.ci` to carry `option=needs-linux` (`record_parse.go:227-228`, `:383-397`), not `skip-os:value=darwin`. Without this, the target reports green while running zero firewall tests, which is the status quo and looks identical to success |
+| AC-11 | `make ze-kernel` with no `GOKRAZY_ARCH` on an arm64 host, then a QEMU target | Either the correct arm64 kernel is used, or the target fails loudly. NEVER an amd64 vmlinuz silently accepted by `test -f` and then failing at boot (R-6, `mk/gokrazy.mk:37,177,200`) |
+| AC-12 | `test/parse/cli-show-version.ci` after the change | Still passes. The QEMU ze build deliberately omits version ldflags (`mk/test-integration.mk:223-227`); the kernel swap must not tempt anyone to restore them |
 
 ## Risks & Assumptions
 
@@ -252,7 +337,9 @@ work; the change is the harness those `.ci` files run on.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | 7.1.1 fixes the nft set-element-timeout crash | The skip names the Alpine kernel as the crashing component (`mk/test-integration.mk:211-213`), and ze targets 7.1.1 | The premise collapses: the crash may be QEMU or Alpine userland, not the kernel version. Re-scope to diagnosing the crash itself | Step 1: run the firewall suite on the runtime kernel | unvalidated |
 | A-2 | The runtime kernel boots an Alpine live system well enough for the full suite | Three labs already boot it under QEMU with Alpine's initramfs | The kernel needs extra config (virtio, fs, modules) or a matching initramfs, which is a much bigger job | Step 2: run the full suite | unvalidated |
-| A-3 | The runtime kernel has the nftables surface the firewall suite needs | `kernel.config:40,55,57` enable NF_TABLES + IPV4 + IPV6 | Config fragments must be extended; note `runtime.config` alone lacks NF_TABLES, so fragment resolution matters (`build.py:91-92`) | Diff the built `.config` against what the firewall `.ci` files exercise | unvalidated |
+| A-3 | The runtime kernel has the nftables surface the firewall suite needs | `kernel.config:40,55,57` enable NF_TABLES + IPV4 + IPV6 | Config fragments must be extended; note `runtime.config` alone lacks NF_TABLES, so fragment resolution matters (`build.py:91-92`) | Diff the built `.config` against what the firewall `.ci` files exercise | **partially confirmed 2026-07-16**: re-read at the producer. `gokrazy/kernel/kernel.config:40,55,57` = `CONFIG_NF_TABLES=y`, `CONFIG_NF_TABLES_IPV4=y`, `CONFIG_NF_TABLES_IPV6=y`, and `kernel.config` IS included for the runtime profile (`resolve_profile_fragments`, `build.py:91-99`, requires `kernel.config` + `<profile>.config`). `runtime.config` itself carries only `CONFIG_IP_NF_NAT`/`CONFIG_IP_NF_TARGET_MASQUERADE` (`:88-89`). Still unvalidated: whether the SET/TIMEOUT surface the crash involves (`nft set element timeout`) is present. That needs the built `.config`, which needs the build. Fold into step 1 |
+| A-5 | The firewall suite currently runs somewhere under QEMU | The skeleton's R-5 assumed `ze-qemu-needs-linux-test` runs it (`:261` skips only `web`) | If it runs nowhere, "stop skipping firewall" is a bigger change than removing a word from two lists, and the suite's `.ci` markers are wrong | Grep the `.ci` for `option=needs-linux`; read the runner's skip producer | **BROKEN 2026-07-16**: 0 of 23 firewall `.ci` carry `needs-linux`; 21 carry `skip-os:value=darwin`. `record_parse.go:227-228` skips every non-`needs-linux` test under `ZE_QEMU_LINUX_ONLY=1`. The firewall suite runs in NEITHER QEMU target today. Adds AC-10 and the 21-file re-marking to scope |
+| A-6 | Removing `firewall` from the two default skip lists is sufficient to run it by default | The skeleton's AC-2/step 5 | Insufficient: it fixes `ze-qemu-all-test` only | Trace both targets to the producer | **broken 2026-07-16**, per A-5. Sufficient for `ze-qemu-all-test` (suite-level `fsuite`, `qemu-all-tests.sh:89-97`); a no-op for `ze-qemu-needs-linux-test`, which needs the `.ci` re-marking |
 | A-4 | The ~30-minute build can be amortised | CONFIRMED for a single checkout: `gokrazy/kernel/Makefile` already declares `$(OUT)/vmlinuz` with the config fragments, patches and builder scripts as prerequisites, so make skips an unchanged rebuild; `mk/test-integration.mk:421-422` relies on exactly that. The ~30 minutes is a first build, not a per-run cost | Only the SCOPE is unsolved: `.gitignore:12` ignores `tmp/*`, so a fresh clone and every `.claude/worktrees/` worktree rebuilds | Confirmed by reading the Makefile prerequisites; the remaining work is choosing a cache scope | confirmed (scope open) |
 
 ### Risks
@@ -262,8 +349,9 @@ work; the change is the harness those `.ci` files run on.
 | R-2 | The kernel build makes the full QEMU target so slow nobody runs it | The target grows a ~30-minute prelude | This is the reason stock was chosen (`:441`). Cache/prebuild the artifact; consider a checked-in or CI-published kernel; keep a documented stock-kernel escape hatch for suites that do not need 7.x |
 | R-3 | A silent fallback to stock when the kernel is missing | The suite passes suspiciously fast, or the crash returns | AC-4: hard-fail, mirroring the `test -f` guard the labs already use |
 | R-4 | The kernel/initramfs seam breaks obscurely (VM boots, subtle driver differences) | Unrelated suites fail only under QEMU | Bisect per suite; AC-5 requires no regressions |
-| R-5 | The two QEMU targets keep disagreeing about firewall | One skips it, the other runs it, on the same kernel | Resolve both together; the disagreement today (`:220` vs `:261`) is itself a bug |
-| R-6 | Kernel/ISO arch mismatch on the two host arches | Boot fails on one arch only | The labs pass `GOKRAZY_ARCH=arm64` by hand; the targets must derive it like `QEMU_GOARCH` (`mk/test-integration.mk:216`) |
+| R-5 | ~~The two QEMU targets keep disagreeing about firewall~~ **BROKEN 2026-07-16: they do not disagree, neither runs it** | ~~One skips it, the other runs it~~ | Superseded. `ze-qemu-needs-linux-test` sets `ZE_QEMU_LINUX_ONLY=1` (`:261`) and `record_parse.go:227-228` skips every non-`needs-linux` test; 0 of 23 firewall `.ci` are marked `needs-linux`. The real risk is the INVERSE: removing `firewall` from the skip lists looks like it fixes both targets but only fixes `ze-qemu-all-test`, leaving a silent gap that looks closed. Mitigation: AC-10 |
+| R-6 | Kernel/ISO arch mismatch on the two host arches | Boot fails on one arch only | **CONFIRMED live, not hypothetical**: `GOKRAZY_ARCH ?= amd64` (`mk/gokrazy.mk:37`) + arch-unkeyed staging (`:200`) + existence-only guard (`mk/test-integration.mk:410`) means a bare `make ze-kernel` on Apple Silicon stages an unbootable amd64 kernel and the guard passes. Derive `KERNEL_ARCH` from `QEMU_GOARCH` (`:216`); the cache spec's arch-keyed variant (`cache.go:110-120`) makes the mismatch a cache MISS instead of a boot failure |
+| R-7 | The 21 `.ci` re-marking (`skip-os` -> `needs-linux`) changes native behavior | Suites that were silent on darwin start reporting SKIP with a different reason, or a `.ci` that genuinely needs `skip-os` for a non-kernel reason gets mis-marked | Both directives skip on darwin, so native results should be unchanged in substance (`record_parse.go:375-397`); verify per file rather than sed-ing all 21. Any file whose darwin skip is NOT about the kernel keeps `skip-os` |
 
 ## Open Questions (research before design)
 
@@ -294,10 +382,28 @@ work; the change is the harness those `.ci` files run on.
   additions may warrant a separate profile rather than growing `runtime.config`.
 - Should the stock-kernel path be retired entirely, or kept for suites that do not
   need 7.x (the isis-frr/ldp-frr/vrrp labs deliberately use it for speed)?
-- Is `ze-qemu-needs-linux-test` running the firewall suite against the crashing stock
-  kernel today (`:261` skips only `web`) actually producing failures, and if so why
-  has nobody seen them? Either it crashes and is unreported, or the crash needs a
-  trigger only some tests hit.
+- ~~Is `ze-qemu-needs-linux-test` running the firewall suite against the crashing stock
+  kernel today, and if so why has nobody seen the failures?~~ **ANSWERED 2026-07-16:
+  it is not running them at all.** `ZE_QEMU_LINUX_ONLY=1` (`mk/test-integration.mk:261`)
+  makes `record_parse.go:227-228` skip every test without `option=needs-linux`, and 0
+  of 23 firewall `.ci` carry it (21 use `option=skip-os:value=darwin`). The suite is
+  entered; every test inside reports SKIP. Nobody saw failures because nothing ran.
+  Neither the third possibility ("crashes unreported") nor the second ("needs a trigger
+  only some tests hit") was the answer. Consequences: R-5 broken, A-5/A-6 broken,
+  AC-10 added, 21 `.ci` files added to scope.
+
+## Interaction with `plan/spec-fixit-firewall-concurrency-deadlock.md`
+
+**That spec is owned by a concurrent agent (2026-07-16). This spec does NOT edit it.**
+Recorded here so the two can be reconciled by their owners rather than by a race.
+
+| What | Detail |
+|------|--------|
+| The link | That spec's R-5/R-6 record WHY the firewall suite never runs under QEMU. This spec proposes to make it run |
+| What this research changes for it | Its premise, if it says the suite runs under `ze-qemu-needs-linux-test`, is wrong: `record_parse.go:227-228` + 0/23 `needs-linux` markers mean it runs in NEITHER target. Any conclusion drawn from "the needs-linux target exercises firewall" needs re-checking |
+| The ordering hazard | This spec re-marks 21 `test/firewall/*.ci` (AC-10). If the firewall spec also edits those files, the two collide. Whoever lands second rebases |
+| Who decides | Thomas, or the two owners by agreement. Not resolvable inside this spec |
+| Not blocking | This spec's AC-1 (the ~30-minute build + real run) is independent and can proceed regardless |
 
 ## Checklist
 
@@ -308,3 +414,10 @@ work; the change is the harness those `.ci` files run on.
 - [ ] AC-1 answered by a real run BEFORE any wiring is designed
 - [ ] No silent fallback to the stock kernel (AC-4)
 - [ ] `firewall` removed from BOTH default skip lists (`mk/test-integration.mk:220`, `qemu-all-tests.sh:40`)
+- [ ] `spec-fixit-qemu-artifact-cache` has landed; its handoff contract rows 1-6 are
+      consumed, not reimplemented here
+- [ ] The 21 firewall `.ci` carry `option=needs-linux`, so `ze-qemu-needs-linux-test`
+      actually runs them (AC-10). Verified by a real run reporting PASS, not SKIP
+- [ ] The kernel arch matches the VM arch without a hand-passed `GOKRAZY_ARCH` (AC-11)
+- [ ] The firewall spec's owner has been told what R-5/R-6 actually are; that file was
+      NOT edited by this spec

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress (REVISED -- paused for sign-off) |
+| Status | in-progress |
 | Depends | migrate-plugin-sleeps (committed edfe4c0e1), payload-predicate-waits (committed) |
-| Phase | 0 -- P0 establishment investigation pending user sign-off (see Revised Approach) |
-| Updated | 2026-07-14 |
+| Phase | 0 -- P0 establishment investigation (Revised Approach signed off 2026-07-16) |
+| Updated | 2026-07-16 |
 
 ## Post-Compaction Recovery
 
@@ -17,12 +17,25 @@
 
 ## Task
 
-> **PAUSED / REVISED 2026-07-14 (awaiting sign-off).** A first `/ze-implement` pass audited the
+> **REVISED 2026-07-14. SIGNED OFF 2026-07-16.** A first `/ze-implement` pass audited the
 > codebase and attempted the flagship redistribute conversion. It found the spec's "build infra,
-> conversion is mechanical" premise is wrong (see Core Insight + Mistake Log). Implementation is
-> **paused pending user sign-off on this revision.** The piece-by-piece framing (P1..P9) below is
-> superseded by the revised plan in "Revised Approach" and "Revised Implementation Phases"; the
-> original P1..P9 text is kept for history but is NOT the plan of record.
+> conversion is mechanical" premise is wrong (see Core Insight + Mistake Log). The piece-by-piece
+> framing (P1..P9) below is superseded by the revised plan in "Revised Approach" and "Revised
+> Implementation Phases"; the original P1..P9 text is kept for history but is NOT the plan of
+> record.
+>
+> -> Decision (user, 2026-07-16): Revised Approach approved as the plan of record. P0 is
+> additionally promoted to a **production-bug investigation in its own right**, not merely the
+> test-conversion blocker it was framed as. Rationale: if an external observer's engine RPCs
+> during establishment can stall a single-peer session, a monitoring plugin polling during
+> convergence can stall production peering. The test unblock is a side effect of that fix, not
+> its purpose. P0 outcome (a) is therefore the expected one and (b) needs positive evidence.
+>
+> -> Constraint (2026-07-16, UNVERIFIED hypothesis, must be checked not assumed): P0 may share a
+> root cause with the head-of-line blocking chain characterised in
+> `plan/spec-fixit-firewall-concurrency-deadlock.md` (a synchronous dispatch path contending with
+> a long-running operation that holds a lock). Nobody has read a producer linking them. Check it
+> during P0 before spending the investigation twice; do not record it as a finding until cited.
 
 The primitive-migration spec (`migrate-plugin-sleeps`, committed) converted 214 of the 305
 `test/plugin` sleeps with the existing Layer 1/2 wait primitives. **246 real `time.sleep()`

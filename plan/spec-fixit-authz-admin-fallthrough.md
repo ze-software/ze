@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-07-16 |
@@ -76,6 +76,100 @@ committed; this is the residue deliberately left alone.
 - [ ] `internal/component/aaa/login_profiles.go` - records profiles resolved at authentication; `authz.go:352-384` consumes them when there is no config assignment, filtered to names the store defines.
   → Decision: a TACACS user's profiles arrive here, so S-1..S-3 are now only reachable by users with *no* resolved profiles.
 
+### Design-phase findings (2026-07-16): read these before trusting the framing above
+
+The research changed the shape of this spec. Five facts, each read from the producing
+function, matter more than the three sites themselves.
+
+**F-1 (keystone). A non-nil `Store` in production ALWAYS has profiles, so `HasProfiles()`
+is a constant `true` at every production call of `Authorize`.** `extractAuthzConfig`
+returns nil when `system.authorization` is absent (`loader.go:291-294`), nil when it
+defines no profiles (`loader.go:296-299`), and nil again unless `store.HasProfiles()`
+(`loader.go:332-334`). The only non-test caller that builds a store is
+`extractAuthzConfig` (`loader.go:285`), reached via `ExtractAuthzStore` (`loader.go:279`).
+  → Constraint: "the operator configured no authorization" is carried by the store being
+    **nil**, not by any branch inside `Authorize`. `StoreAuthorizer.Authorize` returns
+    `true` for a nil store (`register.go:21-23`), and `Dispatcher.isAuthorized` returns
+    `true` for a nil authorizer (`command.go:514-516`).
+  → Decision: this dissolves O-1's premise. Keying S-1/S-2 on `HasProfiles()` is not a
+    subtler signal than `hasUsers`; in production it reduces exactly to "always Deny".
+    The honest statement of the fix is **the store's existence is the "RBAC is in use"
+    signal**, and `hasUsers` is a second, weaker copy of a question already answered one
+    layer up. The permissive branches are not a safety net for the no-RBAC box; that box
+    never reaches them.
+
+**F-2. The three tests do not assert what the Task section assumes.** `TestStoreAuthorizeNoAuth`
+(`authz_test.go:200-207`) and `TestStoreAuthorizeNoProfiles` (`authz_test.go:188-198`) both
+build a bare `NewStore()` with **no profiles**, so `HasProfiles()` is false in both. Only
+`TestStoreProfileNotFound` (`authz_test.go:324-333`) would fail under a store-existence rule,
+and it too uses an empty store plus a dangling assignment.
+  → Decision: R-3's blast radius is one test, not three. Two of the three keep passing
+    unchanged, because the shape they pin (an empty store) is exactly the shape that
+    cannot occur in production. This is much cheaper than the Task section feared.
+
+**F-3. Giving the bootstrap admin profiles does NOT flip `hasUsers`.** The Task section's
+central objection (and R-2, and A-3) assumes the only way to give the admin a profile is
+`store.AssignProfiles`. There is a second, entirely separate route:
+`usersFromZefsDB` → `BuildParams.LocalUsers` (`aaa/types.go:46`, wired at `infra_setup.go:39`)
+→ `LocalAuthenticator.Users` (`register.go:58`) → `AuthResult.Profiles` (`auth.go:58-62`)
+→ `profileRecordingAuthenticator.Authenticate` (`login_profiles.go:83-89`)
+→ `RecordLoginProfiles` (`login_profiles.go:45-53`) → `aaa.LoginProfiles`
+(`login_profiles.go:58-68`) → consumed at `authz.go:372`. `UserCredential` already carries a
+`Profiles []string` field (`aaa/types.go:37`); `usersFromZefsDB` simply never sets it
+(`main_servers.go:131`).
+  → Decision: **R-2 is avoidable and A-3 is broken as stated.** `s.assignments` is written
+    by exactly one non-test caller, `loader.go:323`, fed only from the config tree. A
+    recovery profile delivered through login-profiles never touches `assignments`, so
+    `hasUsers` stays false and S-1 is not disturbed. The S-1/S-2 coupling that made this
+    spec look dangerous is an artifact of assuming the wrong delivery route.
+  → Constraint: login-resolved names are filtered to profiles the store defines
+    (`authz.go:374-378`), so a recovery profile name must exist **in the store**. Config-built
+    stores contain only config profiles (`loader.go:303-316`); `BuiltinAdminProfile` is
+    registered into a store by no production caller (only `web/rbac_test.go:108` and
+    `web/handler_config_test.go:554`). A recovery route therefore needs the builtin
+    registered at load, and `BuiltinAdminProfile().Name` is `"admin"` (`authz.go:245-251`),
+    which can collide with an operator-defined `admin` profile.
+
+**F-4. A documented recovery path already exists and is already exercised by the guide.**
+`mergeAuthUsers` (`main_servers.go:81-93`) drops the zefs entry when a config user has the
+same name, letting config override the built-in password. `docs/guide/operator-access-rbac.md`
+does exactly this: `set system authentication user admin password ...` plus
+`set system authentication user admin profile admin`.
+  → Decision: on the documented setup the bootstrap admin is a *config* user with a real
+    assignment, so it never reaches S-2 and a strict default cannot lock it out. The lockout
+    risk is confined to boxes that have profiles but have **not** defined a config `admin`.
+
+**F-5 (new exposure, config-reachable). A TACACS priv-lvl mapped to an EMPTY profile list
+authenticates successfully with zero profiles and lands on S-2.** `handlePass` looks up
+`profiles, ok := a.privLvlMap[privLvl]` (`authenticator.go:88`); an **unmapped** level takes
+`!ok` and rejects the login (`authenticator.go:89-94`, the AC-18 behavior A-6 asserts). A level
+that is *present but empty* takes `ok == true` and returns
+`AuthResult{Authenticated: true, Profiles: nil}` (`authenticator.go:98-102`).
+`RecordLoginProfiles` then stores nothing (`login_profiles.go:46` returns early on
+`len(profiles) == 0`), `LoginProfiles` reports `false`, and `Authorize` falls to S-2. The
+YANG permits this shape: `leaf-list profile` under `tacacs-profile` has no `min-elements`
+(`ze-tacacs-conf.yang:89-92`), and `ValidateAuthzConfig` only iterates the names present
+(`loader.go:266-272`), so an empty list raises nothing.
+  → Decision: `set system authentication tacacs-profile 15` with no `profile` leaf is valid
+    config that grants **allow-all** to every priv-lvl-15 TACACS user on a TACACS-only box.
+    This is a live, config-reachable admin grant, not a theoretical one. It is the strongest
+    single argument for closing S-2, and it is independently fixable (reject or warn on an
+    empty mapping) whatever is decided about the fall-throughs.
+
+**F-6. Internal identities are inconsistent, and one of them may already be broken.**
+`wrapHandler` builds a context with **no** Username (`server.go:123-127`) and authorizes with
+it (`server.go:143`), registered for every RPC method at `server.go:233`; that is S-1, and it
+confirms A-4. But `dispatchCommandArgs` sets `Username` to `"plugin:<name>"`
+(`dispatch.go:434`) and authorizes it (`dispatch.go:437`). A `plugin:<name>` identity has no
+assignment and no login profiles, so on the **documented** RBAC box (`hasUsers` true) it
+already takes `authz.go:386-387` and is **denied today**.
+  → Constraint: two internal callers, two different identities, two different outcomes. Any
+    decision here must cover both, or fixing S-1 leaves the `plugin:` hole (or leaves an
+    existing denial unexplained).
+  → Decision: whether plugin-dispatched commands are *supposed* to be denied on an RBAC box
+    is unresolved and is a question for Thomas. It is flagged rather than assumed: this spec
+    does not claim it is a bug, only that the code produces a denial on that path.
+
 The three paths, as they stand:
 
 | Site | Condition | Result | Test asserting it | Reachable by |
@@ -83,6 +177,17 @@ The three paths, as they stand:
 | S-1 `authz.go:345-350` | `username == ""` and `!hasUsers` | `Allow` | `TestStoreAuthorizeNoAuth` ("empty username (no auth configured) allows all") | RPC handlers via `wrapHandler`, which pass no username |
 | S-2 `authz.go:385-391` | named user, no assignment, no login-resolved profiles, and `!hasUsers` | `BuiltinAdminProfile` = allow-all | `TestStoreAuthorizeNoProfiles` ("PREVENTS: users locked out when no profile assigned") | the `ze init` bootstrap admin on any box with no config users; any authenticated user on a TACACS-only box whose profiles did not resolve |
 | S-3 `authz.go:428-430` | assignment exists but no referenced profile resolves | `BuiltinAdminProfile` = allow-all | `TestStoreProfileNotFound` ("user assigned a non-existent profile gets admin default") | not reachable from config today: `ValidateAuthzConfig` rejects undefined references, and 701cbaaa3 filters login-resolved names to known ones. Reachable only through the direct `Store` API |
+
+Corrections to the table above, from the design-phase reads (the table's *conditions* are
+accurate; two of its *reachability* claims were understated):
+
+| Site | Correction | Evidence |
+|------|-----------|----------|
+| S-1 | Confirmed live, and narrower than "RPC handlers" suggests: the empty username comes from `wrapHandler` only (`server.go:123-127`), registered per RPC method at `server.go:233`. The other internal caller, `dispatchCommandArgs`, supplies `plugin:<name>` (`dispatch.go:434`) and so lands on S-2, not S-1 | F-6 |
+| S-2 | Reachable by a **third** shape the table omits: a TACACS user whose priv-lvl is mapped to an empty profile list. This is valid config today | F-5, `authenticator.go:88-102`, `ze-tacacs-conf.yang:89-92` |
+| S-2 | NOT reachable by the bootstrap admin on the **documented** setup: the guide defines a config `admin` user with `profile admin`, and `mergeAuthUsers` drops the zefs entry in favour of it | F-4, `main_servers.go:81-93`, `docs/guide/operator-access-rbac.md` |
+| S-3 | Confirmed unreachable from config. `AssignProfiles` has exactly one non-test caller (`loader.go:323`), gated by `ValidateAuthzConfig` (`loader.go:248-254`, `:266-272`) | A-5, grep of all callers |
+| all | The `!hasUsers` guard on S-1/S-2 is unreachable-as-permissive in production: any store that exists has profiles, but `hasUsers` counts assignments, so a profiles-with-no-assignments box has `hasUsers == false` and takes the permissive branch | F-1 |
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - The documented setup in `docs/guide/operator-access-rbac.md` keeps working: profiles plus config users with assignments, unassigned users denied.
@@ -132,22 +237,25 @@ The three paths, as they stand:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The bootstrap admin from `ze init` never carries profiles, so it always reaches S-2 | `cmd/ze/hub/main_servers.go:131` returns `UserConfig{Name, Hash}` only | If it can carry profiles, S-2 stops being the recovery path and may be removable outright | Read the producer; add a test asserting the zefs user's Profiles are empty | unvalidated |
-| A-2 | Denying at S-2 would lock the bootstrap admin out of a box that has profiles but no config users | Follows from A-1 plus `authz.go:385-391` | The lockout risk evaporates and the fix is a one-line flip | Functional test: profiles, no config users, authenticate as the zefs admin, run a command | unvalidated |
-| A-3 | Assigning the bootstrap admin a profile makes `hasUsers` true on every box | `hasUsers := len(s.assignments) > 0` (`authz.go:343`) counts any assignment | The S-1 coupling disappears and the sites can be fixed independently | Read `extractAuthzConfig`; add a store test | unvalidated |
-| A-4 | S-1 (empty username) is a live path, not dead code | `plugin/server/server.go:123-127` builds a context with no username; :139-140 says identity is injected by the transport | If dead, S-1 can be denied outright with no consequence | Instrument or test `wrapHandler` dispatch on an RBAC-configured box | unvalidated |
-| A-5 | S-3 is unreachable from config | `ValidateAuthzConfig` (`loader.go:215`) rejects undefined references for users and tacacs-profile; 701cbaaa3 filters login names | If reachable, a typo grants admin and this becomes urgent rather than defensive | Grep every `AssignProfiles`/`AddProfile` caller for a path that skips validation | unvalidated |
-| A-6 | An unmapped TACACS priv-lvl rejects the login, so TACACS users reaching authorization have resolved profiles | `docs/guide/tacacs.md` ("unmapped priv-lvl rejects the login (AC-18)") | TACACS users could reach S-2 and get admin, making this urgent | Read the tacacs authenticator's handlePass; add a test for an unmapped level | unvalidated |
-| A-7 | `admin-disabled` is the existing operator control for suppressing the recovery account | `cmd/ze/hub/main_servers.go:116-118` returns `errAdminDisabledInZefs` | O-3 needs a different hook for naming the recovery identity | Read the flag's consumers and docs | unvalidated |
+| A-1 | The bootstrap admin from `ze init` never carries profiles, so it always reaches S-2 | `cmd/ze/hub/main_servers.go:131` returns `UserConfig{Name, Hash}` only | If it can carry profiles, S-2 stops being the recovery path and may be removable outright | Read the producer; add a test asserting the zefs user's Profiles are empty | **confirmed (partly superseded)**. `usersFromZefsDB` returns `[]authz.UserConfig{{Name: name, Hash: string(hash)}}` (`main_servers.go:131`), leaving `Profiles` nil. But "always reaches S-2" is **false on the documented setup**: `mergeAuthUsers` (`main_servers.go:81-93`) drops the zefs entry when a config `admin` exists, and the guide defines one (F-4). The correct statement: the zefs admin reaches S-2 only when no config user shares its name |
+| A-2 | Denying at S-2 would lock the bootstrap admin out of a box that has profiles but no config users | Follows from A-1 plus `authz.go:385-391` | The lockout risk evaporates and the fix is a one-line flip | Functional test: profiles, no config users, authenticate as the zefs admin, run a command | **confirmed, and narrowed**. The chain holds for a box with profiles and no config `admin`. Scope is smaller than feared: the documented setup is immune (F-4). Still a real bricking risk for a box that staged profiles before users, which is precisely the exposed shape. A `.ci` test remains required before any flip |
+| A-3 | Assigning the bootstrap admin a profile makes `hasUsers` true on every box | `hasUsers := len(s.assignments) > 0` (`authz.go:343`) counts any assignment | The S-1 coupling disappears and the sites can be fixed independently | Read `extractAuthzConfig`; add a store test | **broken**. True only for the `store.AssignProfiles` route, whose sole non-test caller is `loader.go:323` (config tree only). The `UserCredential.Profiles` → `AuthResult.Profiles` (`auth.go:60`) → `RecordLoginProfiles` (`login_profiles.go:86`) → `LoginProfiles` → `authz.go:372` route delivers profiles **without touching `assignments`**, so `hasUsers` stays false. See F-3. Consequence: **R-2 does not fire** and S-1/S-2 are separable |
+| A-4 | S-1 (empty username) is a live path, not dead code | `plugin/server/server.go:123-127` builds a context with no username; :139-140 says identity is injected by the transport | If dead, S-1 can be denied outright with no consequence | Instrument or test `wrapHandler` dispatch on an RBAC-configured box | **confirmed**. `wrapHandler` builds `CommandContext{Server, RequestContext, Peer}` with no Username (`server.go:123-127`) and calls `isAuthorized` with it (`server.go:143`); registered for every RPC method at `server.go:233`. `isAuthorized` reads `ctx.Username` (`command.go:519`, empty) and forwards to the authorizer (`command.go:522`) |
+| A-5 | S-3 is unreachable from config | `ValidateAuthzConfig` (`loader.go:215`) rejects undefined references for users and tacacs-profile; 701cbaaa3 filters login names | If reachable, a typo grants admin and this becomes urgent rather than defensive | Grep every `AssignProfiles`/`AddProfile` caller for a path that skips validation | **confirmed**. Grep of `AssignProfiles` across `internal/`, `cmd/`, `pkg/` yields one non-test caller, `loader.go:323`, fed from the config tree and gated by `ValidateAuthzConfig` (`loader.go:248-254` for users, `:266-272` for tacacs-profile). Login-resolved names are filtered at `authz.go:374-378`. S-3 stays defensive-only |
+| A-6 | An unmapped TACACS priv-lvl rejects the login, so TACACS users reaching authorization have resolved profiles | `docs/guide/tacacs.md` ("unmapped priv-lvl rejects the login (AC-18)") | TACACS users could reach S-2 and get admin, making this urgent | Read the tacacs authenticator's handlePass; add a test for an unmapped level | **confirmed for "unmapped", BROKEN for "mapped-to-empty"**. `handlePass` rejects when `!ok` (`authenticator.go:88-94`), but a level present with an empty profile list takes `ok == true` and returns `Authenticated: true, Profiles: nil` (`authenticator.go:98-102`). YANG allows it (`ze-tacacs-conf.yang:89-92`, no `min-elements`). Such a user reaches S-2 and is granted admin. See F-5. **This makes the exposure urgent and config-reachable** |
+| A-7 | `admin-disabled` is the existing operator control for suppressing the recovery account | `cmd/ze/hub/main_servers.go:116-118` returns `errAdminDisabledInZefs` | O-3 needs a different hook for naming the recovery identity | Read the flag's consumers and docs | **confirmed**. `usersFromZefsDB` checks `zefs.KeyInstanceAdminDisabled` first and returns `errAdminDisabledInZefs` before reading credentials (`main_servers.go:116-118`), so the whole zefs-admin contribution vanishes. It is a suppression switch, not a naming hook, so O-3 still needs a place to name the recovery profile |
+| A-8 | `HasUserAssignments` has no production caller, so renaming or removing the `hasUsers` notion breaks nothing outside the store | new (design phase) | If a production caller exists, the predicate is load-bearing elsewhere | grep across `internal/`, `cmd/`, `pkg/` | **confirmed**. Callers are `authz_test.go:625-631` and `loader_authz_test.go:215` only. `HasProfiles` by contrast has a production caller at `loader.go:332`. `HasUserAssignments` is currently test-only, so it is free to repurpose or delete |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-0 | The three sites are load-bearing in ways a reader may not expect, so a future session "cleans them up" without reading this spec | A diff flips a fall-through to Deny with no spec reference | The Current Behavior table names who reaches each site; R-3 covers the tests |
 | R-1 | A stricter default locks an operator out of a live router; recovery needs console or physical access | A functional test authenticating the bootstrap admin against a profiles-only config starts failing | Keep an always-available recovery identity; make the deny path explicit and logged so the cause is visible in the daemon log |
-| R-2 | Making the bootstrap admin an explicit assignment flips `hasUsers` true everywhere, so S-1 starts denying internal RPC dispatch | RPC-driven features (plugin commands, web tools) fail with the access-control refusal on boxes that previously worked | Decide S-1 on its own terms (inject identity at the RPC boundary, or exempt it explicitly) before touching S-2 |
-| R-3 | The three tests asserting today's behavior get "fixed" to match new code without a decision, silently changing the security contract | A diff editing `TestStoreAuthorizeNoAuth`/`NoProfiles`/`ProfileNotFound` without a spec reference | Any change to those tests cites this spec and the approved decision in its commit body |
-| R-4 | Fixing only S-2 leaves S-1 as an equivalent hole via the RPC path | An RPC-dispatched command succeeds for an identity the SSH path would refuse | Treat S-1 and S-2 as one decision; do not ship a partial |
+| ~~R-2~~ | ~~Making the bootstrap admin an explicit assignment flips `hasUsers` true everywhere, so S-1 starts denying internal RPC dispatch~~ | ~~RPC-driven features fail with the access-control refusal on boxes that previously worked~~ | **Superseded: does not fire for the recommended route.** R-2 assumed the only delivery is `store.AssignProfiles`. Profiles delivered via `UserCredential.Profiles` → login-profiles (F-3) never touch `s.assignments`, so `hasUsers` is unchanged and S-1 is untouched. R-2 remains live *only* if an implementation chooses the `AssignProfiles` route, which this spec now recommends against |
+| R-3 | The three tests asserting today's behavior get "fixed" to match new code without a decision, silently changing the security contract | A diff editing `TestStoreAuthorizeNoAuth`/`NoProfiles`/`ProfileNotFound` without a spec reference | Any change to those tests cites this spec and the approved decision in its commit body. **Narrowed by F-2:** only `TestStoreProfileNotFound` must change under a store-existence rule; the other two use empty stores and keep passing. A diff that edits all three is a signal the author changed more than the decision authorised |
+| R-4 | Fixing only S-2 leaves S-1 as an equivalent hole via the RPC path | An RPC-dispatched command succeeds for an identity the SSH path would refuse | Treat S-1 and S-2 as one decision; do not ship a partial. **Widened by F-6:** there are two internal identities, not one (`""` from `wrapHandler`, `plugin:<name>` from `dispatchCommandArgs`). A decision covering only the empty username leaves the `plugin:` identity undecided |
+| R-7 | The empty tacacs-profile mapping (F-5) is a live admin grant that exists **today**, independent of every decision in this spec | A priv-lvl-15 TACACS user on a TACACS-only box runs any command and is allowed | Fixable on its own (reject an empty `profile` list at validation, or `min-elements 1` in YANG). Should not wait on the S-1/S-2 decision. Candidate for its own commit ahead of this spec |
+| R-8 | Registering a builtin `admin` profile into every store (needed for the F-3 recovery route) collides with an operator-defined profile named `admin` | A config `profile admin` silently changes meaning, or the builtin overwrites it via `AddProfile` (`authz.go:287-291` replaces by name) | Decide precedence explicitly. `TestStoreOverrideBuiltinProfile` (`authz_test.go:335`) suggests config-overrides-builtin is the existing intent; a reserved name outside the config namespace avoids the question entirely |
 | ~~R-5~~ | ~~The `bgp/config` authz tests do not run (they need the ssh build tag), so a regression here is invisible to that package's suite~~ | ~~`TestExtractAuthzConfig_*` and `TestValidateAuthzConfig_*` fail on "unknown field in authentication: user"~~ | **Superseded: this risk does not exist.** The tests run and pass under the real gate. The reds were phantoms from running bare `go test` without Ze's feature tags — see `ai/rules/bash-output.md` "Bare `go test` Lies". With `-tags "ze_core ... ze_ssh"` the package is `ok`, and `make ze-verify` never reported it. Recorded in the Mistake Log below. |
 | R-5b | Unit coverage for this area is *not* the weak spot, so the temptation is to trust it entirely; but `Store.Authorize` decides for surfaces (ssh, RPC, web) that unit tests do not exercise | A store-level test passes while an operator is still refused, or still admitted, on a real box | Keep the `.ci` rows: they cover the surface path, which is where 60e35c0d5 and 701cbaaa3 actually bit |
 | R-6 | The godoc at `authz.go:336-338` documents the current contract, so changing behavior without rewriting it leaves a lying comment | Reviewer reads the comment and believes the old rule | Update the godoc in the same commit as the behavior |
@@ -156,22 +264,26 @@ The three paths, as they stand:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| SSH command from the zefs bootstrap admin, config has profiles but no config users | → | `Store.Authorize` S-2 branch | (fill during design — a `test/plugin/*.ci` proving the decided behavior, allow or deny) |
-| SSH command from an authenticated user with no resolved profiles on a TACACS-only config | → | `Store.Authorize` S-2 branch | (fill during design) |
-| Internal RPC dispatch with no username on an RBAC-configured box | → | `Store.Authorize` S-1 branch | (fill during design — must prove the decided behavior does not break plugin RPC) |
+| SSH command from the zefs bootstrap admin, config has profiles but no config users | → | `Store.Authorize` S-2 branch (`authz.go:385-391`) | `test/plugin/authz-recovery-admin.ci` |
+| SSH command from an authenticated user with no resolved profiles on a TACACS-only config | → | `Store.Authorize` S-2 branch (`authz.go:385-391`) | `test/plugin/authz-no-applicable-profile.ci` |
+| Internal RPC dispatch with no username on an RBAC-configured box | → | `Store.Authorize` S-1 branch (`authz.go:345-350`), entered from `wrapHandler` (`server.go:123-127`) via `server.go:233` | `test/plugin/authz-rpc-identity.ci`. Must prove the decided behavior does not break plugin RPC |
+| TACACS login at a priv-lvl mapped to an empty profile list | → | `handlePass` (`authenticator.go:88-102`) → `RecordLoginProfiles` no-op (`login_profiles.go:46`) → `Store.Authorize` S-2 | `TestHandlePassEmptyProfileList` + `TestValidateAuthzConfigEmptyTacacsProfile` (F-5, AC-8/AC-9) |
 
 ## Acceptance Criteria
 
 <!-- Written against the problem, not a chosen solution. The DESIGN gate fixes the expected column. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Config defines `system.authorization` profiles and no config users; an authenticated user with no resolved profiles runs a command | (fill during design) A decided, documented outcome that is not "silently admin". |
-| AC-2 | Same config; the `ze init` bootstrap admin runs a command | The recovery account reaches the box by a documented path. |
-| AC-3 | Internal RPC dispatch (no username) on a box with profiles and config users | Behaves as today: plugin RPC keeps working, and the reason is explicit rather than incidental. |
-| AC-4 | A store whose assignment names only undefined profiles (direct API) | Fails closed rather than granting admin. |
-| AC-5 | The documented setup in `docs/guide/operator-access-rbac.md` | Unchanged: assigned users get their profile, unassigned users are denied. |
+| AC-1 | Config defines `system.authorization` profiles and no config users; an authenticated user with no resolved profiles runs a command | **Pending Q-2.** Recommended: `Deny`, with the reason logged (AC-6). Not "silently admin" under any answer. |
+| AC-2 | Same config; the `ze init` bootstrap admin runs a command | The recovery account reaches the box by a documented path. **Pending Q-3:** either an explicit recovery profile (O-3'), or the documented "define a config `admin` user" route that already works (F-4). |
+| AC-3 | Internal RPC dispatch (no username) on a box with profiles and config users | Behaves as today: plugin RPC keeps working, and the reason is explicit rather than incidental. **Pending Q-4.** Note: today this is already `Deny` when `hasUsers` is true (`authz.go:346-348`), so "as today" must be pinned by a test before it is assumed. |
+| AC-4 | A store whose assignment names only undefined profiles (direct API) | Fails closed rather than granting admin. **Safe to fix independently** (A-5 confirmed: unreachable from config). Changes `TestStoreProfileNotFound`. |
+| AC-5 | The documented setup in `docs/guide/operator-access-rbac.md` | Unchanged: assigned users get their profile, unassigned users are denied. **Immune to the change** per F-4. |
 | AC-6 | Whatever outcome AC-1 fixes | The daemon log states which rule decided, so an operator can tell "denied by profile" from "denied because no profile applied". |
 | AC-7 | The godoc on `Store.Authorize` and the two operator guides | Describe the rule the code actually implements after the change. |
+| AC-8 | A `tacacs-profile` level configured with an empty `profile` leaf-list | Rejected at validation (or warned), so it can no longer authenticate a user with zero profiles into the S-2 admin default. **New, from F-5. Independent of Q-1..Q-4.** |
+| AC-9 | A TACACS user at a priv-lvl mapped to an empty profile list, on a TACACS-only box, runs a command | Not granted admin. This is the concrete exposure F-5 proves is reachable today. |
+| AC-10 | A `plugin:<name>` identity dispatches a command on a box with profiles and config user assignments | A decided, tested outcome. **Pending Q-4.** Today the code produces `Deny` (`dispatch.go:434` + `authz.go:386-387`); whether that is intended is unresolved. |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -186,11 +298,15 @@ The three paths, as they stand:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestStoreAuthorizeNoAuth` | `internal/component/authz/authz_test.go` | existing S-1 contract; changes only if S-1 changes | |
-| `TestStoreAuthorizeNoProfiles` | `internal/component/authz/authz_test.go` | existing S-2 contract; changes only if S-2 changes | |
-| `TestStoreProfileNotFound` | `internal/component/authz/authz_test.go` | existing S-3 contract; changes only if S-3 changes | |
-| (fill during design) | `internal/component/authz/authz_test.go` | the decided behavior for each of S-1..S-3 | |
-| (fill during design) | `cmd/ze/hub/main_servers_test.go` | the bootstrap admin's profile shape (A-1) | |
+| `TestStoreAuthorizeNoAuth` | `internal/component/authz/authz_test.go:200` | existing S-1 contract. **Uses an empty store, so it survives a store-existence rule unchanged** (F-2) | keep as-is |
+| `TestStoreAuthorizeNoProfiles` | `internal/component/authz/authz_test.go:188` | existing S-2 contract. **Uses an empty store, so it survives unchanged** (F-2) | keep as-is |
+| `TestStoreProfileNotFound` | `internal/component/authz/authz_test.go:324` | existing S-3 contract. **The one test that must change** under AC-4 | changes |
+| `TestStoreAuthorizeProfilesNoAssignments` (new) | `internal/component/authz/authz_test.go` | the gap itself: store with profiles, no assignments, named user, no login profiles. Pins AC-1. This shape has **no test today**, which is why the hole survived | new |
+| `TestStoreAuthorizeEmptyUsernameWithProfiles` (new) | `internal/component/authz/authz_test.go` | S-1 on a store that has profiles but no assignments. Pins AC-3 | new |
+| `TestUsersFromZefsDBProfiles` (new) | `cmd/ze/hub/zefs_users_test.go` | the bootstrap admin's profile shape (A-1). Note the file is `zefs_users_test.go`, not `main_servers_test.go` | new |
+| `TestMergeAuthUsersConfigOverridesZefs` | `cmd/ze/hub/zefs_users_test.go` | F-4: a config user of the same name replaces the zefs admin. Check whether this already exists before writing it | verify first |
+| `TestHandlePassEmptyProfileList` (new) | `internal/component/tacacs/authenticator_test.go` | F-5: a priv-lvl mapped to an empty list currently authenticates with zero profiles. Pins AC-9 at the producer | new |
+| `TestValidateAuthzConfigEmptyTacacsProfile` (new) | `internal/component/bgp/config/loader_authz_test.go` | AC-8: an empty `profile` leaf-list under `tacacs-profile` is rejected | new |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -200,8 +316,9 @@ The three paths, as they stand:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| (fill during design) | `test/plugin/*.ci` | profiles configured, no config users, bootstrap admin runs a command | |
-| (fill during design) | `test/plugin/*.ci` | profiles configured, no config users, authenticated user with no resolved profiles | |
+| `authz-recovery-admin` | `test/plugin/authz-recovery-admin.ci` | profiles configured, no config users, bootstrap admin runs a command. Proves AC-2: the recovery path works whatever Q-3 decides | new |
+| `authz-no-applicable-profile` | `test/plugin/authz-no-applicable-profile.ci` | profiles configured, no config users, authenticated user with no resolved profiles. Proves AC-1: the decided outcome, and that it is not silently admin | new |
+| `authz-rpc-identity` | `test/plugin/authz-rpc-identity.ci` | a plugin RPC dispatches on an RBAC-configured box. Proves AC-3/AC-10 and guards R-4: the S-1 decision does not break plugin dispatch | new |
 | `rbac-ssh-only-enforced` | `test/plugin/rbac-ssh-only-enforced.ci` | existing: profiles apply on an ssh-only daemon (must keep passing) | |
 | `tacacs-readonly`, `tacacs-author` | `test/plugin/` | existing: priv-lvl mapping governs commands (must keep passing) | |
 | `authz-deny`, `authz-allow`, `authz-default` | `test/plugin/` | existing: profile allow/deny contract (must keep passing) | |
@@ -215,12 +332,15 @@ The three paths, as they stand:
 - None planned. `.ci` coverage is mandatory here because `Store.Authorize` decides for surfaces the unit tests do not exercise (R-5b), not because the unit tests are broken — they are not (see the superseded R-5).
 
 ## Files to Modify
-- `internal/component/authz/authz.go` - the three fall-throughs in `Store.Authorize`, and its godoc (R-6)
-- `internal/component/authz/authz_test.go` - the three tests asserting today's behavior
-- `cmd/ze/hub/main_servers.go` - only if the decision gives the bootstrap admin an explicit profile
-- `internal/component/plugin/server/server.go` - only if the decision injects an identity on the RPC path
-- `docs/guide/operator-access-rbac.md` - the operator-facing rule for a user with no applicable profile
-- `docs/guide/tacacs.md` - if the TACACS-only shape's outcome changes
+- `internal/component/authz/authz.go` - the three fall-throughs in `Store.Authorize` (`:339-431`), the `hasUsers` signal (`:343`), and the godoc (`:336-338`, R-6). Possibly a named recovery profile beside `BuiltinAdminProfile` (`:245`)
+- `internal/component/authz/authz_test.go` - `TestStoreProfileNotFound` (`:324`) changes; the other two (`:188`, `:200`) do not (F-2). New tests per the TDD plan
+- `cmd/ze/hub/main_servers.go` - `usersFromZefsDB` (`:131`), only if Q-3 gives the bootstrap admin an explicit profile (O-3')
+- `internal/component/plugin/server/server.go` - `wrapHandler` (`:121-127`), only if Q-4 injects an identity on the RPC path (O-4)
+- `internal/component/plugin/server/dispatch.go` - `dispatchCommandArgs` (`:434`) / `dispatchCommand` (`:469`), only if Q-4 regularises the `plugin:<name>` identity (F-6)
+- `internal/component/tacacs/yang/ze-tacacs-conf.yang` - `leaf-list profile` (`:89-92`), if AC-8 is enforced by `min-elements 1`
+- `internal/component/bgp/config/loader.go` - `ValidateAuthzConfig` (`:266-272`), if AC-8 is enforced in validation rather than YANG
+- `docs/guide/operator-access-rbac.md` - the operator-facing rule for a user with no applicable profile; the recovery contract
+- `docs/guide/tacacs.md` - the empty-mapping rule (AC-8) and, if it changes, the TACACS-only shape's outcome
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -279,13 +399,36 @@ The three paths, as they stand:
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Validate the assumptions before designing** — A-1..A-7 are cheap to settle by reading plus one probe each, and A-2/A-4 decide whether there is a lockout risk at all.
-   - Tests: probes only
-   - Files: none
-   - Verify: every A-N row is `confirmed` or `broken`
-2. **Phase: Decide** — present the options in Key Design Decisions with the validated assumptions; get approval. STOP here without it.
-3. **Phase: Wiring (MANDATORY FIRST once approved)** — (fill during design) register the entry points from the Wiring Test table and write failing wiring tests
-4. **Phase: (fill during design)** — the decided behavior, TDD per site
+1. ~~**Phase: Validate the assumptions before designing**~~. **DONE (2026-07-16, design phase).** A-1..A-7 settled by reading the producers; A-3 and A-6 came back **broken**, A-8 added. Findings F-1..F-6 recorded in Current Behavior. No `unvalidated` rows remain.
+2. ~~**Phase: Decide**~~. **Q-2 ANSWERED (user, 2026-07-16).**
+
+   -> Decision (user, 2026-07-16), answering **Q-2**: a user who authenticates but has no
+   applicable profile is **DENIED, always** -- regardless of whether any config user exists.
+   The invariant is uniform and absolute: *authenticated implies at least one profile*. This
+   is option O-1'. The three `hasUsers` fall-throughs in `Store.Authorize` (`authz.go:343`,
+   `:345-350`, `:385-390`) go away rather than being narrowed: under this answer `hasUsers`
+   stops being a decision input at all, since "no profile" now means Deny on both sides of it.
+   Note F-1: a no-RBAC box never reaches `Authorize` (nil store is permissive one layer up,
+   `register.go:21-23`), so removing the fall-throughs does not brick an unconfigured box; that
+   permissiveness lives in the loader returning nil (`loader.go:291-299`), which is untouched.
+
+   -> Constraint: Q-1, Q-3 and Q-4 are NOT answered. Q-4 (are internal identities subjects of
+   authorization?) is load-bearing and must be settled BEFORE S-2 lands: `wrapHandler` sends `""`
+   (`server.go:123-127`) and `dispatchCommandArgs` sends `plugin:<name>` (`dispatch.go:434`).
+   Under "denied always", BOTH become Deny unconditionally, where today they are Deny only when
+   `hasUsers` is true. That is a behaviour change on the internal RPC path, and per S-1 it must
+   precede or accompany S-2. Do not read Q-2's answer as licence to skip it.
+
+3. ~~**Phase: O-5 / AC-8**~~. **DONE 2026-07-16, landed separately at the user's direction.**
+   The F-5 empty-`tacacs-profile` admin grant is closed in
+   `plan/spec-fixit-tacacs-empty-profile-mapping.md` (`authenticator.go:104`, `!ok || len(profiles) == 0`).
+   The sibling RADIUS escalation, which this spec never identified, is closed in
+   `plan/spec-fixit-radius-empty-profile-mapping.md`. Both enforce Q-2's invariant locally at the
+   authenticator; this spec still owes it globally at `Authorize`.
+4. **Phase: Wiring (MANDATORY FIRST once approved)**. Register the entry points from the Wiring Test table and write the three failing `.ci` tests before touching `Authorize`
+5. **Phase: S-1 / Q-4 (must precede or accompany S-2)**. The internal-identity decision. Covers both `wrapHandler` (`server.go:123-127`) and `plugin:<name>` (`dispatch.go:434`), per R-4 as widened by F-6
+6. **Phase: S-2 + S-3 + recovery**. The decided behavior, TDD per site. S-3 (AC-4) is safe to flip alone (A-5). Recovery via the login-profiles route (F-3), never via `AssignProfiles` (which would resurrect R-2)
+7. **Phase: godoc + guides**. `authz.go:336-338` (R-6), `operator-access-rbac.md`, `tacacs.md`
 5. **Functional tests** → the `.ci` rows above; unit coverage alone is insufficient here because the decision serves surfaces the store tests never drive (R-5b)
 6. **Full verification** → `make ze-verify`
 7. **Complete spec** → learned summary + two-commit closure
@@ -334,6 +477,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | The three fall-throughs were fail-open bugs to fix | Each is deliberate, documented, and asserted by a test; S-2 is the break-glass path for the `ze init` admin, which carries no profiles | Read `usersFromZefsDB` (`main_servers.go:131`) and the three tests' stated intent before changing anything | The reported "fix these" scope collapsed to one real gap (tacacs-profile validation, fixed in 0544b274d); the rest became this spec |
+| A-3: giving the bootstrap admin a profile flips `hasUsers` true everywhere, coupling S-2 to S-1 and making the fix dangerous (R-2). This framing drove the whole Task section and the "not a patch, a design decision with bricking risk" premise | True only for `store.AssignProfiles`. A second delivery route already exists and bypasses `assignments` entirely: `UserCredential.Profiles` (`aaa/types.go:37`) → `AuthResult.Profiles` (`auth.go:60`) → `RecordLoginProfiles` (`login_profiles.go:86`) → `LoginProfiles` → `authz.go:372`. `hasUsers` is untouched | Grepped every `.Profiles` reader and every `AssignProfiles` caller during design, instead of reasoning from `hasUsers`'s definition alone | R-2 superseded, O-3 re-scored from "most principled but blocked on S-1" to "cheap and independent". The spec's central objection to the obvious fix was an artifact of assuming one delivery route |
+| A-6: an unmapped TACACS priv-lvl rejects the login, so a TACACS user reaching authorization always has resolved profiles (making S-2 hard to reach) | True for *unmapped*. But a level **mapped to an empty profile list** takes `ok == true` (`authenticator.go:88`) and authenticates with zero profiles (`:98-102`), reaching S-2 and receiving allow-all. The YANG permits it (`ze-tacacs-conf.yang:89-92`, no `min-elements`) | Read `handlePass` rather than trusting the doc sentence in `docs/guide/tacacs.md`, then checked whether the YANG could produce the third state | Turned the exposure from "supported-but-undocumented shape" into a **config-reachable admin grant that exists today**. Added AC-8/AC-9 and O-5, recommended as an independent fix ahead of the policy decision |
+| F-1 was not assumed by anyone, but it inverts the spec's framing: the permissive fall-throughs protect the no-RBAC box | The no-RBAC box has a **nil store** (`loader.go:291-299`, `:332-334`) and is allowed at `register.go:21-23`, never reaching `Authorize`. The fall-throughs protect nothing | Read `extractAuthzConfig`'s nil returns and `StoreAuthorizer`'s nil check, rather than accepting "a box with no authorization config stays fully permissive" as evidence that the fall-throughs cause it | "Behavior to preserve" listed the permissive no-config box as something the fall-throughs deliver. They do not. Removing them cannot affect it |
 | `bgp/config` had 10 broken tests that "never run" (needing the ssh build tag), and `plugin/all` had 3 failing golden snapshots — both reported as pre-existing, and R-5 written into this spec on that basis | Neither is broken. Both pass under Ze's feature tags: `go test -tags "ze_core ... ze_ssh"` returns `ok`. `make ze-verify` never reported either package — the reds existed only in bare `go test` runs, where `all_ze_ssh.go` (`//go:build ze_ssh`) never registers the ssh YANG module, so `system.authentication.user` becomes an unknown field | Re-ran with the tags after noticing commit fd72df184, "rules: bare go test drops feature tags and fakes reds", which landed mid-session and describes this exact trap | R-5 superseded. The claim also reached the user repeatedly ("the blind spot that let the authz bugs hide") and the body of commit 0544b274d, which calls them "10 pre-existing failures". That commit's conclusion still holds — the failure set was identical before and after, so the change added none — but its premise is a phantom |
 
 **Why the baseline "confirmed" it.** The `git archive f9dc6132b` check ran bare `go test`
@@ -354,20 +500,62 @@ there reproduces your own mistake and 'confirms' a red that does not exist."*
 
 ## Design Insights
 - `hasUsers` conflates two different questions: "did the operator configure RBAC?" (profiles exist) and "did the operator assign anyone?" (assignments exist). All three paths key off the second while meaning the first. Naming those apart is probably the whole fix, and both predicates already exist (`HasProfiles` :301, `HasUserAssignments` :330) — they are simply not used here.
+  → **Refined by F-1:** the sharper statement is that `Authorize` should not be asking this question at all. The store's *existence* already answers it, because `extractAuthzConfig` returns nil unless profiles exist (`loader.go:296-299`, `:332-334`) and a nil store is permissive one layer up (`register.go:21-23`). `hasUsers` is a redundant, weaker copy of a decision already made correctly elsewhere. `HasProfiles()` inside `Authorize` would be a tautology, not a fix.
 - The bootstrap admin is an *implicit* super-user: it is admin because nothing matched, not because anything says so. Making it explicit is what would let the defaults become strict.
+  → **F-3 makes this cheap.** `UserCredential.Profiles` already exists (`aaa/types.go:37`) and already flows to authorization through login-profiles (`auth.go:60` → `login_profiles.go:86` → `authz.go:372`) **without touching `s.assignments`**. The objection that killed this idea (it flips `hasUsers`) applies only to the `AssignProfiles` route.
 - `admin-disabled` (`main_servers.go:116-118`) shows the recovery account is already a first-class concept at the zefs layer; authorization simply never learned about it.
+  → **F-4 adds a second half:** `mergeAuthUsers` (`main_servers.go:81-93`) already lets a config user of the same name replace the zefs admin, and the guide relies on it. So a documented recovery path exists *today* and is immune to a strict default. The question is whether to also keep an always-present one for boxes that never defined a config `admin`.
+- **New: the gap has no test, and that is why it survived.** Every existing store test builds `NewStore()` and adds profiles or assignments in the shape the test needs. No test builds the production shape (profiles present, assignments empty), which is exactly the shape `extractAuthzConfig` produces on the exposed box. The three "asserting" tests do not defend the behavior in question (F-2); they defend an empty store that production never constructs.
+- **New: two internal identities, two answers** (F-6). `wrapHandler` says "no username"; `dispatchCommandArgs` says `plugin:<name>`. The first reaches S-1, the second reaches S-2 and is already denied wherever `hasUsers` is true. Whatever is decided, these two should stop disagreeing.
 
 ## Core Insight
-A permissive default that exists to prevent lockout is not the same thing as a bug — but it becomes one the moment a second, unrelated shape (a TACACS-only box) reaches the same branch. The fix is not to flip the default; it is to give the recovery case a name, so the default no longer has to carry it.
+~~A permissive default that exists to prevent lockout is not the same thing as a bug — but it becomes one the moment a second, unrelated shape (a TACACS-only box) reaches the same branch. The fix is not to flip the default; it is to give the recovery case a name, so the default no longer has to carry it.~~
+
+**Revised after research.** The permissive default was never carrying the lockout case, because the box it was supposedly protecting (no authorization configured) never reaches it: that box has a **nil store** and is allowed one layer up (`register.go:21-23`). The fall-throughs are a second, weaker answer to a question the loader already answered by returning nil (F-1). They therefore protect nothing and only fire for shapes nobody designed for: a TACACS-only box, profiles staged before users, and an empty priv-lvl mapping (F-5) that grants allow-all through valid config today.
+
+So the choice is smaller and less dangerous than it looked. `hasUsers` is not a safety net to be carefully replaced; it is a redundant guard to be deleted, once the recovery identity is explicit (F-3 shows that is cheap and does not disturb S-1) and the internal identities are named (F-6). The one real sequencing constraint is S-1: an empty username is live (A-4), so it needs an identity before it can be denied.
 
 ## Key Design Decisions
 <!-- None approved. These are the options to present at the DESIGN gate. -->
-| Decision | Alternatives Considered | Rationale |
-|----------|------------------------|-----------|
-| (undecided) | **O-1** Split the signal: keep the fall-throughs but key them on `HasProfiles()` instead of `hasUsers`, so a box with profiles never silently grants admin | Smallest change, and both predicates already exist; denies the bootstrap admin on a profiles-only box unless O-3 lands first |
-| (undecided) | **O-2** Leave S-1/S-2 as they are; document the shape and add a doctor check plus startup warning when profiles exist with no assignments | Zero lockout risk; leaves the exposure in place and relies on the operator noticing |
-| (undecided) | **O-3** Give the bootstrap admin an explicit reserved profile at load (hooking where `admin-disabled` already lives), then make the defaults strict | Most principled; flips `hasUsers` true everywhere, so S-1 must be settled first (R-2) |
-| (undecided) | **O-4** Inject an explicit internal identity at the RPC boundary so S-1 stops needing an empty-username rule | Removes the S-1/S-2 coupling; touches the plugin server contract |
+
+**Nothing below is approved.** The policy question is Thomas's: what is a user with no
+applicable profile entitled to, and does the bootstrap admin get an explicit profile.
+The research settles the *mechanics*, not the *policy*.
+
+### The four questions that need a ruling
+
+| Q | Question | Why it cannot be answered by reading code |
+|---|----------|-------------------------------------------|
+| Q-1 | Is "profiles configured, no config users" (the TACACS-only box, or profiles staged before users) a **supported** shape? | The config permits it and nothing documents it either way. If unsupported, validation should reject it and the code question mostly evaporates |
+| Q-2 | What is an authenticated user with **no applicable profile** entitled to? | This is a security posture, not a fact. Recommendation below, but it is a product call |
+| Q-3 | Should the bootstrap admin carry an **explicit** recovery profile, or does F-4 (define a config `admin`) already discharge the recovery duty? | Trade-off between an always-present recovery identity and a smaller privileged surface |
+| Q-4 | Are internal identities (`""` from `wrapHandler`, `plugin:<name>` from `dispatchCommandArgs`) **subjects** of authorization at all, or should they bypass it as trusted in-process callers? | F-6 shows the code currently answers this two different ways. Note `plugin:<name>` is already denied on the documented RBAC box, so this may be an existing bug |
+
+### Options, re-scored against the findings
+
+| Option | What it does | Trade-off, corrected by research |
+|--------|-------------|----------------------------------|
+| ~~**O-1** as written~~ | ~~Key the fall-throughs on `HasProfiles()` instead of `hasUsers`~~ | **Premise dissolved by F-1.** A production store always has profiles, so this is not a subtler signal: it is "always Deny when a store exists", stated obscurely. If that is the intent, say it directly (O-1') rather than dressing it as a predicate swap |
+| **O-1'** (replaces O-1) | State the real rule: **a store that exists means RBAC is in use, so S-1/S-2/S-3 all Deny.** The no-RBAC box is already served by the nil-store path (`register.go:21-23`, `command.go:514-516`) | Smallest honest change. Removes a redundant, weaker copy of a signal that already lives one layer up. Costs: needs O-3' for recovery (Q-3) and a Q-4 ruling for S-1. Breaks exactly one test (F-2) |
+| **O-2** | Leave S-1/S-2; document the shape, add a doctor check plus startup warning when profiles exist with no assignments | Zero lockout risk. But F-5 makes this weaker than it looked: an empty tacacs-profile mapping grants admin through **valid config**, and a warning does not close it. Defensible only if Q-1 answers "unsupported" and validation rejects the shape |
+| **O-3'** (revised) | Give the bootstrap admin an explicit recovery profile by setting `Profiles` in `usersFromZefsDB` (`main_servers.go:131`), delivered via login-profiles | **Now cheap: F-3 shows this does NOT flip `hasUsers`,** so R-2 does not fire and S-1 is untouched. Requires registering a recovery profile into the store (F-3 constraint) and settling the `admin` name collision (R-8) |
+| **O-4** | Inject an explicit internal identity at the RPC boundary so S-1 stops needing an empty-username rule | Still the principled answer to Q-4, and F-6 strengthens it: it would also regularise `plugin:<name>`. Touches the plugin server contract |
+| **O-5** (new) | Reject or warn on a `tacacs-profile` level with an empty `profile` list (F-5), via `min-elements 1` in YANG or a check in `ValidateAuthzConfig` | Independent of every other option and closes a real config-reachable admin grant. **Recommend doing this regardless**, ahead of the rest |
+
+### Recommendation (for Thomas to accept, modify, or reject)
+
+| # | Recommendation | Reasoning |
+|---|---------------|-----------|
+| 1 | **Take O-5 now, on its own commit.** | F-5 is a live admin grant through valid config. It does not depend on the policy question and should not wait for it |
+| 2 | **Answer Q-2 as "nothing": a user with no applicable profile is denied.** | A box whose operator configured authorization has stated an intent. "No profile applied" meaning allow-all inverts that intent, and F-1 shows the permissive branch is not protecting the no-RBAC box, which never reaches it |
+| 3 | **Then O-1' plus O-3' together.** | O-1' makes the default strict; O-3' keeps a recovery identity. F-3 makes them independent of S-1, so this is a much smaller change than the Task section feared: one test changes, `hasUsers` is untouched |
+| 4 | **Settle Q-4 with O-4 before, or with, O-1'.** | S-1 is live (A-4). Denying an empty username without injecting an identity breaks every RPC method (`server.go:233`). This is the one genuine sequencing constraint left |
+| 5 | **Prefer a reserved recovery profile name outside the config namespace over reusing `admin`.** | Avoids R-8 entirely. `BuiltinAdminProfile().Name == "admin"` (`authz.go:247`) collides with the guide's own `profile admin` |
+
+→ Constraint: recommendations 2 and 3 change a documented security contract and the
+  `Store.Authorize` godoc (`authz.go:336-338`). They do not proceed without an explicit ruling.
+→ Decision: this spec stays in `design` until Q-1..Q-4 are answered. It does not advance to
+  `ready` on the strength of the research alone.
 
 ## Known Limitations
 - This spec deliberately does not decide. It records what is true, what breaks if changed naively, and what must be settled first.

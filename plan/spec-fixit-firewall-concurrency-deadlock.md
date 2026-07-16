@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-15 |
+| Updated | 2026-07-16 |
 
 ## Task
 
@@ -63,16 +63,58 @@ than the on-host drop.
       event-bus handlers, both take `r.mu`; fire repeatedly under a sustained flood.
 - [ ] `internal/plugins/firewall/nft/backend_linux.go` (:40 Apply) - the kernel reconcile.
       Need its cost and blocking behavior under load.
-- [ ] `internal/component/plugin/server/dispatch_registry.go` (:256 opDispatchCommand) -
+- [ ] `internal/component/plugin/server/dispatch_registry.go` (:258 opDispatchCommand) -
       shared handler for `dispatch-command`. Establish whether dispatch and event
       delivery share a goroutine or a lock.
+  -> Decision: they share NEITHER. `Dispatcher` (`command.go:258-267`) carries no mutex,
+     and engine event handlers are invoked OUTSIDE the subscriber lock
+     (`engine_event.go:107-111`). Dispatch and event delivery share only whatever lock a
+     handler itself takes. For ddos-local that lock is `r.mu`, which IS shared (below).
+
+### Added during research (2026-07-16)
+- [ ] `internal/plugins/ddos/local/show.go` (:14-19, :23-37) - ddos-local DOES publish a
+      command handler: `RegisterRPCs{WireMethod: "ze-show:ddos-local"}`, handler
+      `handleShowDdosLocal`, which calls `r.status()` (:31) and therefore takes `r.mu`
+      (`responder.go:199`).
+  -> Constraint: `r.mu` IS on the `dispatch-command` path. The skeleton's contrary
+     claim was a false negative (it grepped for `OnCommand`, the wrong symbol).
+- [ ] `internal/plugins/ddos/local/cmd/yang/ze-ddos-local-cmd.yang` (:18) -
+      `ze:command "ze-show:ddos-local"` is what maps the wire method to a CLI path.
+- [ ] `internal/component/plugin/server/command.go` (:63-76 LoadBuiltins, :82-108
+      LoadBuiltinsWithAliases) - every `RegisterRPCs` entry with a YANG path is registered
+      into the dispatcher (:69, :100), which is what `dispatch-command` resolves against.
+  -> Constraint: `RegisterRPCs` + a `ze:command` YANG node IS a dispatch-command handler.
+     Grepping only for `OnCommand` misses every show surface in the tree.
+- [ ] `internal/component/plugin/server/engine_event.go` (:14-23) - `EngineEventHandler`
+      doc: handlers "are called synchronously from deliverEvent; they MUST NOT block on
+      external I/O".
+  -> Constraint: ddos-local's `onDetected` violates this documented contract: it performs
+     a full netlink reconcile inside the handler.
+- [ ] `internal/plugins/firewall/nft/backend_linux.go` (:24-35) - the backend struct holds
+      `conn` + `applied` and has NO mutex; `newBackend` calls `nftables.New()` (:31) with
+      no `AsLasting()` and no `SockOptions`.
+- [ ] `github.com/google/nftables@v0.3.0/conn.go` (:36-46 Conn, :242-283 Flush,
+      :299-322 dialNetlink) - the per-Conn command batch and its flush semantics.
+  -> Decision: this is the producer of both the concurrent-apply hazard and the
+     unbounded-blocking hazard. See Problem / Evidence.
 
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - named by `internal/component/firewall/registry.go:1`
       as the design home for the firewall table registry
-  -> Constraint: (fill during research) what the registry promises about concurrent apply
+  -> Constraint: it promises NOTHING about concurrent apply. No concurrency contract for
+     `ApplyAll` or `Backend.Apply` is stated anywhere: not in the doc, not on the
+     `Backend` interface (`backend.go:34-47`), not on `ApplyAll` (`registry.go:74-79`).
+     The absence IS the bug: six callers were written against an unstated contract.
 
-**Key insights:** (fill during research)
+**Key insights:**
+1. There is NO lock cycle. `tableRegistry.mu` and `backendsMu` are never held at the
+   same time (`registry.go:94` unlocks before `:97` locks), `Backend.Apply` runs under
+   no firewall lock (`registry.go:123`), and no path takes a firewall lock and then
+   `r.mu`. The skeleton's "deadlock" framing is not supported by the code.
+2. What exists instead is (a) an unsynchronized concurrent `Apply` producing lost
+   updates, and (b) an UNBOUNDED blocking chain from a wedged netlink round trip
+   through `r.mu` to `show ddos local`. (b) is the dispatch-stall mechanism.
+3. `Backend.Apply` can block forever: the netlink receive has no deadline anywhere.
 
 ## Current Behavior (MANDATORY)
 
@@ -104,10 +146,51 @@ than the on-host drop.
   `TestApplyAllNoBackendNoTablesIsNoOp`, `TestApplyAllNoDefaultKeepsNotLoadedError`
   (`internal/component/firewall/registry_test.go:12,65,89`).
 
+**Source files read (2026-07-16, design session) -- the lock inventory:**
+
+Every mutex reachable from a firewall reconcile, its guarded state, and its producer:
+
+| # | Mutex | Declared | Guards | Held across a kernel call? |
+|---|-------|----------|--------|----------------------------|
+| L1 | `tableRegistry.mu` | `registry.go:56` | `tableRegistry.owners` (owner -> []Table) | No: unlocked at `registry.go:94`, before `:97` |
+| L2 | `backendsMu` | `backend.go:63` | `backends`, `verifiers`, `activeBackend` | Yes, but only over `factory()` (`backend.go:150`) and `prev.Close()` (`:158`) inside `loadBackendLocked` |
+| L3 | `r.mu` (ddos-local) | `responder.go:40` | `cfg`, `active`, `target` | **Yes: held across the whole `applyAll`** (`responder.go:64` -> `:136`) |
+| L4 | `r.mu` (anomaly-shape) | `internal/plugins/anomaly/shape/responder.go` (struct) | `armed`, `armedCount`, `killed`, `cfg` | **Yes: `revertAll` is documented "Caller holds mu" (`:190`) and calls `applyAll` (`:200`)** |
+| L5 | `nftables.Conn.mu` | `google/nftables@v0.3.0/conn.go:42` | `messages` (the shared command batch), `err`, `nlconn` | **Yes: `Flush` holds it across dial + SendMessages + the ack-receive loop (`conn.go:244-283`)** |
+| L6 | `engineEventSubscribers.mu` | `engine_event.go:29` | handler map | No: handlers copied under RLock, invoked after `RUnlock` (`engine_event.go:103-111`) |
+| - | `Dispatcher` | `command.go:258-267` | (struct has NO mutex) | n/a |
+| - | `lastApplied`, `activeBackendName` | `accessor.go:16`, `:148` | applied snapshot, backend name | n/a: `atomic.Pointer` / `atomic.Value`, no lock |
+
+**Lock ORDER actually taken, per path (producer-verified):**
+
+| Path | Order | Cite |
+|------|-------|------|
+| `ApplyAll` | L1 (acquire, release) -> L2 (acquire, release) -> L5 (inside `Apply`) | `registry.go:80,94,97,111,123` |
+| `ApplyAll` autoload | L2 held over `loadBackendLocked` -> `factory()` -> `nftables.New()` (takes no lock; `conn.go:63-76`) | `registry.go:104-109`, `backend.go:140-164` |
+| ddos-local event | L3 -> L1 -> L2 -> L5 | `responder.go:64,136`; `registry.go:80,97,123` |
+| ddos-local show | L3 only | `show.go:31`, `responder.go:199` |
+| anomaly-shape event | L4 -> L1 -> L2 -> L5 | `shape/responder.go:184,200` |
+| anomaly-shape show | L4 only | `shape/show.go:30`, `shape/responder.go:235` |
+| firewall engine configure/apply | L2 (`LoadBackend`) -> release -> L1 -> release -> L2 -> release -> L5 | `engine.go:316,321,322`; `engine.go:373,382,383` |
+| `FlushAllTables` | L1 (acquire, release at `:43`) then `ApplyAll` | `registry.go:40-45` |
+
+-> Decision: **there is no cycle.** The order is strictly L3/L4 -> L1 -> L2 -> L5 on
+every path, and nothing acquires them in the reverse direction. A lock-ordering
+deadlock does not exist in this code. The skeleton's central hypothesis is BROKEN.
+
 **Behavior to change:**
-- None yet, research first. The fix location depends on whether the hang is lock
-  contention inside `internal/component/firewall`, a slow or blocking nft `Apply`, or a
-  stalled plugin-engine dispatch goroutine.
+1. `ApplyAll` (`registry.go:79-124`) must serialise the snapshot-plus-apply so two owners
+   cannot be inside `Backend.Apply` at once. Today nothing prevents it (`:123` holds no
+   lock), and the nft backend cannot survive it (see Problem / Evidence).
+2. `Backend.Apply` must be bounded. Today it can block forever: `conn.Flush` waits on
+   `nlconn.Receive()` (`conn.go:148-197 receiveAckAware`) with no deadline, and the ze
+   backend sets none (`backend_linux.go:31` passes no `SockOptions`).
+3. ddos-local must not hold `r.mu` across `applyAll` (`responder.go:64,136`), because
+   `show ddos local` takes the same lock on the `dispatch-command` path (`show.go:31`).
+4. anomaly-shape has the identical defect (`shape/responder.go:190,200` vs `:235`) and is
+   fixed in the same change: it is one bug class in two plugins, not two bugs.
+5. The concurrency contract must be written down where the callers can see it
+   (`ApplyAll` doc, `Backend` interface doc, `docs/architecture/core-design.md`).
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -130,14 +213,24 @@ than the on-host drop.
 5. Both call `b.Apply(all)` (registry.go:123) with no firewall lock held -> nft reconcile
 6. Meanwhile an operator command enters `opDispatchCommand` and does not return (~255s)
 
+**Step 5-6 refined by research (2026-07-16).** The two `Apply` calls do not merely
+"reconcile in parallel": they stage into ONE shared `nftables.Conn` batch, so one
+`Flush` drains both and the other returns nil having sent nothing
+(`conn.go:242-283`, Finding 1). And step 6 is not a mystery: the operator's command is
+`show ddos local`, whose handler takes the same `r.mu` the responder holds across its
+reconcile (`show.go:31` -> `responder.go:199` vs `:64,136`, Finding 3). The reconcile
+does not return because the netlink ack never arrives and no deadline is set
+(`conn.go:148-197`, `backend_linux.go:31`, Finding 2).
+
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| config -> firewall engine | plugin SDK OnConfigure / OnConfigApply | [ ] |
-| event bus -> ddos-local responder | `ddosevent.Detected` / `Characterized` subscribe | [ ] |
-| plugin -> shared firewall registry | `RegisterTables` + `ApplyAll` (two owners) | [ ] |
-| firewall registry -> kernel | nft backend `Apply` (netlink / shell-out) | [ ] |
-| operator -> plugin engine | `ze-plugin-engine:dispatch-command` RPC | [ ] |
+| config -> firewall engine | plugin SDK OnConfigure / OnConfigApply | [ ] read `engine.go:294,348`: `LoadBackend` -> `RegisterTables` -> `ApplyAll` at `:316-324`, journalled at `:379-401` |
+| event bus -> ddos-local responder | `ddosevent.Detected` / `Characterized` subscribe | [ ] read `register.go:89-91` (subscribe), `dispatch.go:243` -> `engine_event.go:109-111` (synchronous fan-out, outside the subscriber lock) |
+| plugin -> shared firewall registry | `RegisterTables` + `ApplyAll` (two owners) | [ ] read: 8 call sites, 6 owners. Only `registry.go:123` calls `Backend.Apply` (Finding 5) |
+| firewall registry -> kernel | nft backend `Apply` (netlink / shell-out) | [ ] read `backend_linux.go:40-79`: netlink via `google/nftables`, NOT shell-out. Batch staged then `Flush` (`:74`); no mutex, no deadline |
+| operator -> plugin engine | `ze-plugin-engine:dispatch-command` RPC | [ ] read `dispatch_registry.go:258` -> `dispatch.go:464` -> `command.go:548` `Dispatch`. No dispatcher mutex; blocking is per-handler only |
+| dispatch-command -> ddos-local state | `RegisterRPCs` + `ze:command` YANG -> dispatcher -> `handleShowDdosLocal` -> `r.status()` | [ ] read `show.go:15-18,23,31`, `cmd/yang/ze-ddos-local-cmd.yang:18`, `command.go:82-108`. **This boundary was missing from the skeleton and is the one that matters** |
 
 ### Integration Points
 - `internal/component/firewall/` registry, backend, engine (the shared, owning layer)
@@ -166,9 +259,89 @@ than the on-host drop.
   potentially slow kernel reconcile.
 - `onDetected` and `onCharacterized` contend on `r.mu` (responder.go:64,74), so a
   sustained flood serialises repeated handlers behind each nft reconcile.
-- ddos-local registers no command handler of its own (no `OnCommand` under
+- ~~ddos-local registers no command handler of its own (no `OnCommand` under
   `internal/plugins/ddos/local/`), so `r.mu` is not directly on the `dispatch-command`
-  path. The link between `r.mu` and the observed dispatch hang is NOT established.
+  path. The link between `r.mu` and the observed dispatch hang is NOT established.~~
+  **SUPERSEDED 2026-07-16: false.** ddos-local publishes a handler via
+  `RegisterRPCs{WireMethod: "ze-show:ddos-local"}` (`show.go:15-18`), not `OnCommand`.
+  `LoadBuiltinsWithAliases` (`command.go:82-108`) registers it into the dispatcher under
+  the YANG path from `cmd/yang/ze-ddos-local-cmd.yang:18`, and `dispatch-command`
+  resolves against that dispatcher (`dispatch_registry.go:264` -> `dispatch.go:472`).
+  The handler calls `r.status()` (`show.go:31`) which takes `r.mu` (`responder.go:199`).
+  `r.mu` IS on the dispatch-command path. See the Mistake Log.
+
+**CONFIRMED by reading the producer (2026-07-16, design session):**
+
+*Finding 1 -- concurrent `Backend.Apply` corrupts the reconcile (AC-4).* The nft backend
+holds a single `*nftables.Conn` (`backend_linux.go:24-27`, no mutex). `Conn` buffers
+every staged command in one shared slice `cc.messages` guarded by `cc.mu`
+(`conn.go:36-46`). `Apply` stages deletes (`backend_linux.go:60-64`) and adds (`:67-71`)
+into that shared batch, then calls `b.conn.Flush()` (`:74`). `Flush`
+(`conn.go:242-283`) sends **the whole batch, whoever staged it**, and clears it
+(`cc.messages = nil`, `:246`). So with two owners inside `Apply`:
+  - Owner A's `Flush` sends owner B's half-staged commands to the kernel.
+  - Owner B's `Flush` then hits `if len(cc.messages) == 0 { return nil }`
+    (`conn.go:249-251`) and **returns success having sent nothing**.
+  - `b.applied` is written at `backend_linux.go:77` and read at `:88` with no
+    synchronization: a genuine data race, and a Go `fatal error: concurrent map read and
+    map write` is reachable.
+This is not benign. It is silent lost-update plus a process-killing race.
+
+*Finding 2 -- `Backend.Apply` can block forever (the stall mechanism).*
+`Flush` holds `cc.mu` (`conn.go:244`) across dial, `SendMessages` (`:261`) and an
+ack-receive loop (`:266-274`). The receive is `nlconn.Receive()` inside
+`receiveAckAware` (`conn.go:148-197`) with **no deadline**: ze constructs the Conn as
+`nftables.New()` (`backend_linux.go:31`) passing no `AsLasting()` and no `SockOptions`,
+so no socket deadline is ever set. If the kernel never acks (a crashed nft subsystem is
+documented for this exact environment, `mk/test-integration.mk:211-212`), `Apply` never
+returns.
+
+*Finding 3 -- the blocking chain to `dispatch-command` (the observed symptom).* Fully
+cited, every hop read:
+
+| # | Hop | Cite |
+|---|-----|------|
+| 1 | detector goroutine emits `AttackDetected` | `dispatch.go:199` deliverEvent |
+| 2 | engine fans out synchronously, outside the subscriber lock | `dispatch.go:243`, `engine_event.go:109-111` |
+| 3 | `onDetected` takes `r.mu` | `responder.go:64` |
+| 4 | `applyMitigation` -> `applyAll()` **still under `r.mu`** | `responder.go:136` |
+| 5 | `firewall.ApplyAll` -> `b.Apply(all)` | `registry.go:123` |
+| 6 | nft `Apply` -> `conn.Flush` -> `Receive` with no deadline | `backend_linux.go:74`, `conn.go:266-274` |
+| 7 | operator `show ddos local` -> dispatch-command -> `handleShowDdosLocal` | `dispatch_registry.go:264`, `show.go:23` |
+| 8 | -> `r.status()` -> `r.mu.Lock()` **blocks for as long as hop 6 blocks** | `show.go:31`, `responder.go:199` |
+
+-> Decision: this is **head-of-line blocking on `r.mu`, not a deadlock**. Nothing is
+waiting on a cycle; one goroutine is parked in an unbounded kernel read while holding a
+lock the management plane needs. A goroutine dump would show hop 3-6 in `Receive` and
+hop 8 in `sync.Mutex.Lock`, not two goroutines waiting on each other.
+
+-> Decision: this also explains the ~255s. Go's mutex starvation mode hands `r.mu` to a
+waiter after 1ms, so repeated flood events CANNOT starve `show` for 255s: the only way
+to block that long is a single reconcile that does not return. 255s is consistent with a
+harness timeout on top of an indefinite netlink wait, not with contention. That makes
+A-3 (slow apply) too weak a framing: apply is not slow, it is **unbounded**.
+
+*Finding 4 -- blast radius (AC-8).* Of the six other `ApplyAll` callers, the
+"lock held across the reconcile" defect exists in exactly one more:
+
+| Caller | Holds a lock across `ApplyAll`? | Cite |
+|--------|-------------------------------|------|
+| `internal/plugins/anomaly/shape/responder.go` | **Yes** (`revertAll`, "Caller holds mu") and `statusSnapshot` is a show handler taking the same lock | `:190,200`; `show.go:30`, `responder.go:235` |
+| `internal/plugins/copp/register.go` | No: `mu.Lock` comes AFTER `ApplyAll` | `:185,197` vs `:203` |
+| `internal/plugins/policyroute/register.go` | No: `mu.Lock` comes AFTER `ApplyAll` | `:200` vs `:211` |
+| `internal/component/firewall/plugins/irr/irr.go` | No: `RUnlock` at `:190` precedes `ApplyAll` at `:203` | `:181-208` |
+| `internal/plugins/flowspec-firewall/engine.go` | No lock involved | `:180` |
+| `internal/component/firewall/engine.go` | No lock involved | `:322,383` |
+
+All six DO share Finding 1 (concurrent apply), which is why that fix belongs in the
+registry, not in any plugin.
+
+*Finding 5 -- `Backend.Apply` has exactly one caller.* `registry.go:123` is the only
+`b.Apply(...)` in the tree; every `firewall.GetBackend()` consumer
+(`audit.go:30`, `nft/cmd_show.go:36`, `web/page_firewall.go:246`, `firewall/cli/main.go:43`)
+uses read-only paths, and those read paths use their own transient netlink conn
+(`nftables/table.go:145-...` via `cc.netlinkConn()`, `conn.go:131-136`) and never stage
+into `cc.messages`. So serialising inside `ApplyAll` is sufficient; there is no bypass.
 
 **OBSERVED (QEMU run, 2026-07-12, not reproduced since):**
 - `ze-plugin-engine:dispatch-command` stopped responding for roughly 255 seconds with a
@@ -187,11 +360,15 @@ than the on-host drop.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The hang reproduces under QEMU with the same config shape | observed once during spec-ddos-direction-allowlist QEMU work (deferrals.md:55) | no reproduction: the spec degrades to a lock-discipline audit with a weaker outcome | re-run flood + `firewall { backend nft }` under QEMU | unvalidated |
-| A-2 | The contention lives in shared firewall infra, not the ddos plugin | deferrals.md:55 calls it "potential real concurrency bug in shared firewall infra"; `ApplyAll` is the only shared mutable path both actors touch | fix belongs in ddos-local or the plugin engine; AC-5 must change | goroutine dump showing blocked stacks | unvalidated |
-| A-3 | nft `Apply` can be slow enough under flood to matter | inference from the ~255s stall; the nft backend reaches the kernel (backend_linux.go:40) | the stall is a genuine lock cycle, not slow-call-under-lock; fix is lock ordering | time `backend.Apply` under load | unvalidated |
-| A-4 | `dispatch-command` shares a goroutine or lock with the blocked path | symptom is a dispatch hang while firewall work is in flight | the dispatch hang has an unrelated cause and this spec is scoped wrong | read dispatch_registry.go:256 and the engine dispatch model | unvalidated |
-| A-5 | Concurrent `b.Apply` from two owners is a real hazard, not benign | registry.go:123 holds no lock across the call | the unlocked call is fine and only the dispatch path matters | nft backend concurrency review + concurrent-apply test | unvalidated |
+| A-1 | The hang reproduces under QEMU with the same config shape | observed once during spec-ddos-direction-allowlist QEMU work (deferrals.md:55) | no reproduction: the spec degrades to a lock-discipline audit with a weaker outcome | re-run flood + `firewall { backend nft }` under QEMU | unvalidated (needs a trustworthy kernel: see R-5/R-6) |
+| A-2 | The contention lives in shared firewall infra, not the ddos plugin | deferrals.md:55 calls it "potential real concurrency bug in shared firewall infra"; `ApplyAll` is the only shared mutable path both actors touch | fix belongs in ddos-local or the plugin engine; AC-5 must change | goroutine dump showing blocked stacks | **broken (partially), 2026-07-16**: BOTH are true. The concurrent-apply corruption is shared infra (`registry.go:123` + `backend_linux.go:24-27`, Finding 1); the dispatch-stall mechanism is ddos-local's own lock discipline (`responder.go:64,136` + `show.go:31`, Finding 3). AC-5 stands for the registry fix but must not be read as forbidding the plugin-side fix |
+| A-3 | nft `Apply` can be slow enough under flood to matter | inference from the ~255s stall; the nft backend reaches the kernel (backend_linux.go:40) | the stall is a genuine lock cycle, not slow-call-under-lock; fix is lock ordering | time `backend.Apply` under load | **broken (too weak), 2026-07-16**: `Apply` is not merely slow, it is UNBOUNDED. `receiveAckAware` -> `nlconn.Receive()` (`conn.go:148-197`) has no deadline and `backend_linux.go:31` sets no `SockOptions`. Timing it under load would have measured the wrong property |
+| A-4 | `dispatch-command` shares a goroutine or lock with the blocked path | symptom is a dispatch hang while firewall work is in flight | the dispatch hang has an unrelated cause and this spec is scoped wrong | read dispatch_registry.go:256 and the engine dispatch model | **broken as stated / confirmed when refined, 2026-07-16**: no shared goroutine and no dispatcher lock (`command.go:258-267` has no mutex; handlers run outside `engineEventSubscribers.mu`, `engine_event.go:107-111`). But it DOES share `r.mu` via `handleShowDdosLocal` (`show.go:31`). Consequence: only ddos-local's own commands stall, not all dispatch |
+| A-5 | Concurrent `b.Apply` from two owners is a real hazard, not benign | registry.go:123 holds no lock across the call | the unlocked call is fine and only the dispatch path matters | nft backend concurrency review + concurrent-apply test | **confirmed, 2026-07-16**: `Conn.Flush` sends the shared batch and clears it (`conn.go:242-283`); the loser's `Flush` returns nil having sent nothing (`:249-251`); `b.applied` map is raced (`backend_linux.go:77` vs `:88`) |
+| A-6 | The command observed to stall was one that takes `r.mu` (`show ddos local`) | Finding 3 is the only chain from a flood to a blocked dispatch handler that the code supports | the observed stall has a different producer and Finding 3, though a real bug, is not THE bug; root cause stays open | the 2026-07-12 run's test log / `.ci` file: which command did it dispatch? Then a goroutine dump on the repro | unvalidated -- **the one keystone fact still missing** |
+| A-7 | A per-operation netlink deadline is achievable without changing the `Backend` interface | `dialNetlink` applies `cc.sockOptions` on EVERY dial (`conn.go:314-318`), and ze's Conn is non-lasting (`backend_linux.go:31` omits `AsLasting()`), so each `Flush`/list dials fresh and a `WithSockOptions` closure can compute `SetDeadline(time.Now().Add(N))` per operation | fall back to a watchdog goroutine or a lasting conn with an explicit deadline per op; the interface stays unchanged either way | confirmed by reading `dialNetlink`; prove with a test that a stalled socket returns an error | **confirmed, 2026-07-16** |
+| A-8 | No caller holds `tableRegistry.mu` or `backendsMu` when calling `ApplyAll` (prerequisite for making a new reconcile lock the OUTERMOST firewall lock) | all 8 call sites read: `engine.go:322,383,395`; `registry.go:44` (`FlushAllTables` unlocks at `:43` first); `copp:185,197,199`; `policyroute:200,207,222`; `flowspec-firewall:180`; `irr:203`; `ddos/local:136,142,189`; `anomaly/shape:200` | the proposed `reconcileMu` would self-deadlock or invert the order; serialisation must move elsewhere | re-grep at implement time; the lock-order comment on `ApplyAll` documents it thereafter | **confirmed, 2026-07-16** |
+| A-9 | ddos-local's mitigation ordering does not require `r.mu` to span the reconcile | `applyMitigation` only needs the lock to (a) read `cfg`, (b) serialise concurrent mitigations, (c) publish `active`/`target`. Only (b) needs to span the reconcile; `status()` reads only (c) | splitting the lock reorders concurrent mitigations; keep one lock and instead make `status()` read an atomic snapshot | design review + `TestResponderStatusDuringSlowApply` | unvalidated (settled by design D-3, proven by the test) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -201,22 +378,30 @@ than the on-host drop.
 | R-3 | Fix regresses the autoload or withdraw-no-op paths | the three registry_test.go contract tests fail | keep them green throughout; they encode the contract |
 | R-4 | Fix serialises mitigation behind config reloads, delaying a drop under attack | mitigation install latency rises under flood | measure install latency under load; consider a non-blocking mitigation path |
 | R-5 | The repro never runs: `make ze-qemu-all-test` SKIPS the `firewall` suite by default (`mk/test-integration.mk:220` `ZE_QEMU_SKIP_SUITES ?= web,firewall`, passed through at `:239`; the script default agrees at `scripts/evidence/qemu-all-tests.sh:40`). A session reproducing under QEMU with the default target exercises no firewall `.ci` at all and may read the silence as "cannot reproduce" | QEMU run reports the firewall suite skipped, or finishes suspiciously fast | override it (`make ze-qemu-all-test ZE_QEMU_SKIP_SUITES=web`), or use `ze-qemu-needs-linux-test`, which hardcodes `ZE_QEMU_SKIP_SUITES="web"` (`:261`) and so DOES run firewall (`:248-250` names firewall explicitly). Verified by reading the targets, 2026-07-16 |
-| R-6 | **The observed "deadlock" may be entangled with a known kernel crash, not only a Go lock hazard.** `mk/test-integration.mk:211-213` states the firewall suite is skipped by default because "firewall crashes the Alpine QEMU kernel on nft set-element-timeout operations". The deferral's symptom (dispatch unresponsive ~255s under a sustained flood with `firewall { backend nft }`) was observed in exactly that environment, so an unresponsive daemon there is not automatically a Go-level deadlock | the stall reproduces only under Alpine QEMU and never on real Linux or with a non-nft backend | before concluding anything about `ApplyAll` locking, establish WHERE the repro runs: real Linux vs Alpine QEMU, nft vs another backend. Note the two QEMU targets disagree about whether firewall is safe to run, which is itself unresolved. `plan/spec-fixit-qemu-runtime-kernel.md` owns moving the QEMU targets onto ze's own 7.1.1 kernel and un-skipping firewall; if it lands first this spec inherits a trustworthy repro environment and R-5/R-6 both fall away. Prefer waiting for it over debugging `ApplyAll` on a kernel ze itself declares unsupported (`tools/kernel-builder/build.py:38` refuses < 7.0) | 
-| R-5 | Fix covers ddos only and leaves the other five `ApplyAll` callers exposed | review finds copp / policyroute / flowspec unchanged | fix at the registry layer so every owner benefits |
+| R-6 | **The observed "deadlock" may be entangled with a known kernel crash, not only a Go lock hazard.** `mk/test-integration.mk:211-213` states the firewall suite is skipped by default because "firewall crashes the Alpine QEMU kernel on nft set-element-timeout operations". The deferral's symptom (dispatch unresponsive ~255s under a sustained flood with `firewall { backend nft }`) was observed in exactly that environment, so an unresponsive daemon there is not automatically a Go-level deadlock | the stall reproduces only under Alpine QEMU and never on real Linux or with a non-nft backend | before concluding anything about `ApplyAll` locking, establish WHERE the repro runs: real Linux vs Alpine QEMU, nft vs another backend. Note the two QEMU targets disagree about whether firewall is safe to run, which is itself unresolved. `plan/spec-fixit-qemu-runtime-kernel.md` owns moving the QEMU targets onto ze's own 7.1.1 kernel and un-skipping firewall; if it lands first this spec inherits a trustworthy repro environment and R-5/R-6 both fall away. Prefer waiting for it over debugging `ApplyAll` on a kernel ze itself declares unsupported (`tools/kernel-builder/build.py:38` refuses < 7.0). **Re-verified 2026-07-16** (line numbers hold: comment at `mk/test-integration.mk:211-212`, default at `:220`, pass-through at `:239`, `ze-qemu-needs-linux-test` pins `ZE_QEMU_SKIP_SUITES="web"` at `:261`). **Design-session update:** R-6 is now MORE than a caveat, it is corroborating evidence. Finding 2 shows a wedged nft subsystem makes `Apply` block forever (no netlink deadline), and `mk/test-integration.mk:211-212` documents that this exact kernel crashes on nft ops. That is a coherent joint story: the Alpine kernel crash wedges the netlink ack, `Apply` never returns, `r.mu` is held forever, `show ddos local` hangs until the harness gives up at ~255s. If so the Go-side bugs (Findings 1-3) are REAL and worth fixing, but the observation was triggered by the kernel, and the same test on 7.1.1 may simply pass. Both fixes are still correct: a crashed kernel must not wedge ze's management plane | 
+| R-7 | Fix covers ddos only and leaves the other five `ApplyAll` callers exposed (renumbered from a duplicate `R-5`, 2026-07-16) | review finds copp / policyroute / flowspec unchanged | fix at the registry layer so every owner benefits. Finding 4 settles the split: the CONCURRENT-APPLY fix must be in `ApplyAll` (all six callers); the LOCK-ACROSS-RECONCILE fix is needed in exactly two plugins (ddos-local, anomaly-shape) |
+| R-8 | **The deadline fix converts a hang into a failed mitigation.** Bounding `Apply` (D-2) means a wedged kernel now returns an error instead of blocking. ddos-local's failure path then rolls back and calls `applyAll` a SECOND time (`responder.go:141-142`), which will also time out: an attack goes unmitigated in the time it takes to fail twice | mitigation install latency under a wedged kernel equals 2x the deadline | choose the deadline so 2x is still well inside the detector's re-fire interval; do not retry the rollback on a timeout (the registry state is already correct); log + metric so the operator sees the kernel is wedged rather than a silent no-drop |
+| R-9 | **Root cause is not established and this design may fix the wrong thing.** Findings 1-3 are read from the producing code and are real bugs on their own merits, but the LINK to the observed 255s stall rests on A-6 (unvalidated): nobody knows which command was dispatched | the repro stalls in a path Finding 3 does not cover | do not claim the observed hang is fixed until a goroutine dump matches Finding 3. AC-1 permits the honest alternative: fix the evidenced hazards, state that the 2026-07-12 observation remains unreproduced, and keep the deferral row open |
+| R-10 | The `nftables` library is the real owner of the batch semantics (Finding 1). A future `go get -u` could change `Flush` behavior under us | `conn.go` Flush semantics change on upgrade | the registry-level serialisation (D-1) does not depend on library internals: it holds regardless of whether `Conn` is batch-shared. Do NOT build the fix on "Conn is safe if we only stage under a lock" |
 
 ## Wiring Test (MANDATORY - NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `firewall { backend nft }` configured while ddos-local mitigates under flood | -> | shared firewall apply path stays responsive | `test/plugin/ddos-firewall-concurrency.ci` |
-| Two owners call `ApplyAll` concurrently | -> | `internal/component/firewall/registry.go` ApplyAll serialisation | `TestApplyAllConcurrentOwnersConverge` |
+| `firewall { backend nft }` configured while ddos-local mitigates under flood | -> | shared firewall apply path stays responsive | `test/plugin/ddos-firewall-concurrency.ci` (conditional on a repro: see Known Limitations) |
+| Two owners call `ApplyAll` concurrently | -> | `internal/component/firewall/registry.go` ApplyAll serialisation (D-1) | `TestApplyAllConcurrentOwnersConverge`, `TestApplyAllSerialisesBackendApply` |
 | Operator command during an active nft reconcile | -> | `ze-plugin-engine:dispatch-command` bounded latency | `test/plugin/ddos-firewall-concurrency.ci` |
+| `show ddos local` while the responder is mid-reconcile | -> | `show.go:31` -> `responder.go:status()` no longer waits on the reconcile (D-3) | `TestResponderStatusDuringSlowApply` (the in-process proof; does not need QEMU) |
+| `show anomaly-shape` while the shape responder is mid-reconcile | -> | `shape/show.go:30` -> `statusSnapshot()` (D-4) | `TestShapeStatusDuringSlowApply` |
+| Kernel never acks a netlink batch | -> | `backend_linux.go` newBackend deadline (D-2) | `TestNftApplyDeadlineSurfacesError` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Research phase complete | Root cause identified and evidenced (goroutine dump or lock trace showing blocked stacks), or an evidenced statement that it cannot be reproduced |
+| AC-1 | Research phase complete | Root cause identified and evidenced (goroutine dump or lock trace showing blocked stacks), or an evidenced statement that it cannot be reproduced. -> Constraint: "no cycle exists" is now evidenced (Current Behavior lock-order table); what remains unevidenced is which command stalled (A-6). Do not close AC-1 by pointing at Findings 1-4: they are code-read evidence of hazards, not evidence about the 2026-07-12 event |
+| AC-9 | The lock-order contract | Documented at the owning layer: `reconcileMu` -> `tableRegistry.mu` -> `backendsMu` -> backend-internal, with the rule that no owner may hold a lock across `ApplyAll` that a command handler also takes (D-5) |
+| AC-10 | A wedged kernel (netlink never acks) | `Backend.Apply` returns a timeout error within the deadline; the daemon's management plane stays responsive; the failure is logged and counted (D-2, AC-6's observable-failure requirement) |
 | AC-2 | A reproduction exists | A deterministic test (Go or `.ci`) reproduces the stall before the fix and passes after it |
 | AC-3 | `firewall { backend nft }` configured while ddos-local mitigates under a sustained flood | `ze-plugin-engine:dispatch-command` keeps responding within a bounded time; no multi-second stall |
 | AC-4 | Concurrent `ApplyAll` from two owners (firewall engine + a plugin) | The kernel converges to the merged desired state; no lost update, no interleaved partial apply |
@@ -237,15 +422,33 @@ than the on-host drop.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestApplyAllConcurrentOwnersConverge` | `internal/component/firewall/registry_test.go` | AC-4 concurrent owners converge, no lost update | |
-| `TestApplyAllSerialisesBackendApply` | `internal/component/firewall/registry_test.go` | AC-4 no two `Apply` calls overlap (if serialisation is the chosen fix) | |
-| `TestResponderDoesNotHoldLockAcrossApply` | `internal/plugins/ddos/local/responder_test.go` | evidenced hazard: `r.mu` not held across the kernel reconcile (if that is the chosen fix) | |
+| `TestApplyAllSerialisesBackendApply` | `internal/component/firewall/registry_test.go` | AC-4 / D-1: a fake backend whose `Apply` asserts a non-overlap counter (enter/exit) never sees 2. RED before D-1 | |
+| `TestApplyAllConcurrentOwnersConverge` | `internal/component/firewall/registry_test.go` | AC-4 / D-1: N goroutines register different owners and `ApplyAll`; the LAST `Apply` the fake backend receives contains every owner's tables (no stale snapshot wins) | |
+| `TestApplyAllStaleSnapshotNotApplied` | `internal/component/firewall/registry_test.go` | D-1 rationale: proves the "lock only around `b.Apply`" alternative is insufficient. Register A, start apply, register B mid-flight; assert the kernel never ends on the A-only set | |
+| `TestApplyAllContractTestsStayGreen` (existing three) | `internal/component/firewall/registry_test.go:12,65,89` | R-3: autoload, no-backend no-op, not-loaded error unchanged under `reconcileMu` | |
+| `TestResponderStatusDuringSlowApply` | `internal/plugins/ddos/local/responder_test.go` | AC-3 / D-3: with `applyAll` stubbed to block on a channel, `status()` returns promptly. RED today (blocks on `r.mu`) | |
+| `TestShapeStatusDuringSlowApply` | `internal/plugins/anomaly/shape/responder_test.go` | D-4: same assertion for anomaly-shape | |
+| `TestResponderRollbackDoesNotRetryOnTimeout` | `internal/plugins/ddos/local/responder_test.go` | R-8: a timed-out apply does not trigger a second blocking `applyAll` | |
+| `TestNftApplyDeadlineSurfacesError` | `internal/plugins/firewall/nft/*_linux_test.go` (integration) | AC-6 / D-2: a socket that never acks yields a timeout error, not a block | |
+
+-> Constraint: the fake-backend tests must drive `firewall.ApplyAll` through the real
+registry (`RegisterBackend` + `defaultBackendForAutoload`, the seam `registry_test.go`
+already uses). A test that calls `b.Apply` directly proves nothing: `registry.go:123` is
+the only production caller (Finding 5), so bypassing it tests nothing that ships.
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| dispatch response bound (seconds) | define during design | - | - | - |
-| nft apply timeout (if introduced) | define during design | - | - | - |
+| nft netlink deadline (D-2), seconds | 1..60, default 10 | 60 | 0 (means "no deadline": reject, that is today's bug) | 61 |
+| `show ddos local` response bound under a wedged kernel (AC-3) | must be independent of the deadline: D-3 removes the coupling entirely | - | - | - |
+
+-> Decision: the deadline default (10s) must satisfy R-8: 2x deadline (apply + rollback)
+must stay inside the detector's re-fire interval. Verify that interval at implement time
+against `internal/plugins/ddos/detect/` before fixing the number. If it is under 20s,
+either lower the default or drop the rollback retry (R-8's preferred mitigation).
+-> Constraint: the deadline is a constant, not a config leaf. It is a safety backstop,
+not a tuning knob, and `ai/rules/config-surface.md` reserves YANG for operator intent.
+Revisit only if a real deployment needs it.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -258,11 +461,22 @@ than the on-host drop.
 | Race detector on the concurrent-apply tests | `go test -race ./internal/component/firewall/ ./internal/plugins/ddos/local/` | |
 
 ## Files to Modify
-- `internal/component/firewall/registry.go` - `ApplyAll` reconcile serialisation / lock discipline (exact change per research)
-- `internal/component/firewall/backend.go` - `backendsMu` scope and `loadBackendLocked` interaction, if lock ordering changes
-- `internal/plugins/ddos/local/responder.go` - only if research shows the responder must not hold `r.mu` across `applyAll`
-- `internal/plugins/firewall/nft/backend_linux.go` - only if the backend must guarantee its own `Apply` safety
-- `internal/component/plugin/server/dispatch_registry.go` - only if the dispatch path itself is the blocking layer
+
+Settled by research (2026-07-16). Every "only if" from the skeleton is now resolved:
+
+| File | Change | Why (decision) |
+|------|--------|----------------|
+| `internal/component/firewall/registry.go` | add `reconcileMu`, acquire at the top of `ApplyAll` (`:79`) and hold to return; document the lock order L0 -> L1 -> L2 | D-1. Fixes Finding 1 for all six callers |
+| `internal/component/firewall/backend.go` | doc only: state the single-writer + must-not-block-indefinitely contract on `Backend.Apply` (`:34-47`); record that `backendsMu` sits UNDER `reconcileMu` (`:63`) | D-5. No lock-ordering change is needed: A-8 confirms nothing holds L1/L2 into `ApplyAll` |
+| `internal/plugins/firewall/nft/backend_linux.go` | `newBackend` (`:29-35`): pass `nftables.WithSockOptions` setting a per-dial deadline; surface a timeout as a typed error | D-2. Fixes Finding 2 |
+| `internal/plugins/ddos/local/responder.go` | publish `active`/`target` via an atomic snapshot; `status()` (`:198-202`) stops taking `r.mu`; do not re-`applyAll` on a timed-out rollback (`:141-142`) | D-3, R-8. Fixes Finding 3 |
+| `internal/plugins/anomaly/shape/responder.go` | same shape as D-3 for `statusSnapshot` (`:235`) vs `revertAll` (`:200`) | D-4. Fixes Finding 4's second instance |
+| `docs/architecture/core-design.md` | document the firewall reconcile concurrency contract (single reconcile at a time; `Apply` is bounded; owners must not hold a lock a command handler needs across `ApplyAll`) | D-5, AC-6 |
+| ~~`internal/component/plugin/server/dispatch_registry.go`~~ | **NOT modified.** The dispatch path is not the blocking layer: no dispatcher mutex (`command.go:258-267`), handlers invoked outside the subscriber lock (`engine_event.go:107-111`) | A-4 broken as stated |
+
+Metric/observability surface (AC-6), to settle at implement time: an apply-latency
+histogram plus a reconcile-timeout counter in the firewall component. Prefer the
+existing `internal/core/metrics` registry over a new mechanism (`ai/rules/design-context.md`).
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -298,17 +512,35 @@ than the on-host drop.
 | 14. Present + close | Executive Summary; two-commit closure |
 
 ### Implementation Phases
-1. **Phase: Reproduce + capture** - drive the flood + `firewall { backend nft }` case under
-   QEMU; capture a goroutine dump (SIGQUIT / pprof) during the stall. Confirm or break
-   A-1..A-4. No fix until the stacks are in hand.
-2. **Phase: Root-cause** - identify the exact blocked path and lock order. Record it in
-   Design Insights with `file:line`.
-3. **Phase: Fix at the owning layer** - implement per research; keep the registry contract
-   tests green.
-4. **Phase: Prove** - failing-then-passing reproduction; race detector; the other
-   `ApplyAll` callers reviewed (AC-8).
-5. **Phase: If irreducible (AC-6)** - document the constraint and make the failure
-   observable; re-scope with the user before taking this branch.
+
+Revised 2026-07-16 after research. The skeleton's "no fix until the stacks are in hand"
+gate is kept for the OBSERVED stall (phase 1) but must not block phases 2-4: Findings
+1-4 are read from the producing code and stand on their own merits, which the Scope
+section already admits as IN.
+
+1. **Phase: Reproduce + capture (A-6, the one open keystone fact)** - find the 2026-07-12
+   run's dispatched command first (cheap: read the `.ci` from `spec-ddos-direction-allowlist`
+   and its log). Then drive flood + `firewall { backend nft }` under QEMU and capture a
+   goroutine dump (SIGQUIT / pprof) during the stall. Expect hop 3-6 of Finding 3 parked
+   in `Receive` and hop 8 in `sync.Mutex.Lock`. **Read R-5/R-6 before running anything**:
+   with the default target the firewall suite does not run at all, and the stock Alpine
+   kernel is itself a suspect. Prefer waiting for `plan/spec-fixit-qemu-runtime-kernel.md`.
+   -> Decision: if the dump matches Finding 3, root cause is established (AC-1). If it
+   does not, STOP and report: the design below fixes real bugs but not the observed one
+   (R-9), and AC-1's "evidenced statement that it cannot be reproduced" is the honest exit.
+2. **Phase: Registry serialisation (D-1)** - RED `TestApplyAllSerialisesBackendApply` +
+   `TestApplyAllConcurrentOwnersConverge`, then add `reconcileMu`. The three existing
+   contract tests (`registry_test.go:12,65,89`) stay green throughout (R-3).
+3. **Phase: Bound the kernel call (D-2)** - deadline in `newBackend`; typed timeout error;
+   integration test. This is the AC-6 observability branch, not a fallback: a wedged
+   kernel becomes a logged, counted error instead of a silent hang.
+4. **Phase: Unblock the management plane (D-3, D-4)** - atomic status snapshot in
+   ddos-local and anomaly-shape; RED `TestResponderStatusDuringSlowApply` first.
+5. **Phase: Contract + docs (D-5)** - lock-order comment, `Backend.Apply` doc,
+   `core-design.md`. Report the `EngineEventHandler` "MUST NOT block" gap under
+   `ai/rules/friction-reporting.md`.
+6. **Phase: Prove** - `.ci` reproduction red-before / green-after if phase 1 produced one;
+   race detector on both packages; AC-8 re-grep of all six callers.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
@@ -342,6 +574,9 @@ than the on-host drop.
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | `internal/plugins/firewall/engine.go:274` was the config-driven apply site (deferrals.md:55) | No such file: `internal/plugins/firewall/` holds only `nft/` and `vpp/` backends. The engine is `internal/component/firewall/engine.go`, with the LoadBackend + RegisterTables + ApplyAll sequence at :316-324 and :372-395 | Spec authoring, 2026-07-15: grepped for the symbols after the path failed to resolve | Citation corrected here; the deferral row's path is wrong |
+| "ddos-local registers no command handler (no `OnCommand`), so `r.mu` is not on the dispatch-command path" -- recorded as CONFIRMED in the skeleton's Problem / Evidence | ddos-local DOES publish a dispatch-command handler, via `RegisterRPCs{WireMethod: "ze-show:ddos-local"}` + a `ze:command` YANG node (`show.go:15-18`, `cmd/yang/ze-ddos-local-cmd.yang:18`), registered into the dispatcher at `command.go:100`. Its handler takes `r.mu` (`show.go:31` -> `responder.go:199`). `r.mu` is squarely on the dispatch-command path and is the most probable stall mechanism (Finding 3) | Design session, 2026-07-16: grepped `ze-show:ddos-local` across the tree while tracing the dispatch model, after noticing `status()`'s doc comment says "for the show handler" (`responder.go:196-197`) | **Severe.** A false CONFIRMED pointed the whole spec away from the one chain the code actually supports. It also inverted the fix location: the skeleton concluded the ddos-side lock was NOT the dispatch problem, so a session implementing from the skeleton alone would have serialised the registry, seen the stall persist, and had no lead left |
+| Grepping `OnCommand` establishes whether a plugin has command handlers | `OnCommand` is the SDK-side (out-of-process plugin) callback. In-process plugins publish commands via `pluginserver.RegisterRPCs` + a `ze:command` YANG node. Both reach the same dispatcher (`command.go:63-108`) | Same trace, 2026-07-16 | Generalised into a Required Reading `-> Constraint:` so the next session does not repeat it. Candidate for `ai/rules/project-knowledge.md` at closure: "to find a plugin's command surface, grep its `yang/*-cmd.yang` for `ze:command`, not `OnCommand`" |
+| A dispatch stall under a flood implies contention/starvation on the flood path | Go's `sync.Mutex` enters starvation mode after 1ms and hands the lock to the longest waiter, so repeated flood events cannot starve a `status()` waiter for 255 seconds. A multi-second stall on a mutex implies the HOLDER is blocked, not that waiters are being out-raced. That reframes the search from "too much contention" to "what does the holder block on", which is what led to the missing netlink deadline (Finding 2) | Design session, 2026-07-16, reasoning about A-3's plausibility before accepting it | A-3 was framed as "slow apply". Timing `Apply` under load (its stated validation method) would have measured latency and found it acceptable, confirming a false negative |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -352,14 +587,58 @@ than the on-host drop.
 - `ApplyAll` deliberately drops both locks before `b.Apply` (registry.go:94,111,123). That
   keeps the registry lock off the kernel path but permits two owners inside `Apply` at
   once. Whichever way the deadlock resolves, this is the design tension to settle.
+- **The tension is settled by reading the backend: dropping the lock was wrong.** The
+  comment logic ("do not hold a registry lock across a kernel call") is sound, but the
+  conclusion "so hold NO lock" does not follow. The correct shape is a DEDICATED
+  reconcile lock that is not the registry lock. `registry.go:94,111` may still release
+  L1/L2 early; what is missing is L0 above them. (2026-07-16)
+- The `ze_*` sweep makes concurrent apply worse than a plain lost update.
+  `shouldDeleteTable` (`backend_linux.go:81-90`) deletes any `ze_*` table in
+  `b.applied`, so an interleaved apply can DELETE the other owner's live table and never
+  re-add it, because the re-add was staged into a batch that a foreign `Flush` already
+  drained (`conn.go:246`). Two owners is not "both writes land, one wins": it is "the
+  drop rule silently disappears from the kernel while the registry says it is there".
+- The `Backend` interface doc (`backend.go:34-47`) is precise about ownership ("Non-ze_*
+  tables MUST NOT be touched") and silent about concurrency. Every implementer therefore
+  reasonably assumed single-threaded. The nft backend IS correct code against an
+  unstated single-writer contract. The bug is that the contract was never stated or
+  enforced. (2026-07-16)
+- `EngineEventHandler` already documents "MUST NOT block on external I/O"
+  (`engine_event.go:17-18`). ddos-local's `onDetected` does a netlink round trip inside
+  the handler. The rule exists; nothing enforces it. Worth reporting under
+  `ai/rules/friction-reporting.md`: a documented contract with no mechanical gate was
+  violated by two of two plugins that had the opportunity (ddos-local, anomaly-shape).
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| **D-1: serialise the ENTIRE `ApplyAll` body under a new package-level `reconcileMu` in `registry.go`, acquired before L1** | (a) lock only around `b.Apply(all)`; (b) put a mutex in each backend; (c) a single reconcile goroutine + queue | (a) is insufficient: the snapshot is taken at `:80-94` and applied at `:123`, so two callers can apply STALE snapshots out of order and converge to a superseded state. Snapshot and apply must be atomic together. (b) makes every backend reimplement it, and fixes the race but not the stale-snapshot lost update, which lives in the registry, not the backend. (c) is the better long-term shape (it decouples the caller from the kernel latency entirely) but it changes `ApplyAll` from sync to async, so callers lose the error return: `engine.go:322` and the journal rollback at `:395` depend on it. Rejected as too large for a fixit. A-8 confirms `reconcileMu` can be the outermost firewall lock without inverting any existing order |
+| **D-2: bound the kernel call in the nft backend with a per-operation netlink deadline** via `nftables.New(nftables.WithSockOptions(...))` setting `SetDeadline(time.Now().Add(N))` | (a) add `context.Context` to `Backend.Apply`; (b) watchdog goroutine that closes the conn; (c) leave it unbounded and rely on D-1 + D-3 | (a) is the ze-idiomatic answer (`ai/rules/go-standards.md` Context) and `traffic`'s backend already takes a ctx (`traffic/register.go:251`), but `google/nftables` has no ctx-aware API, so the ctx would only be checked between calls and could not interrupt the blocked `Receive`. It would look like a fix and not be one. (b) reinvents what `SetDeadline` does. (c) leaves a crashed kernel able to wedge every firewall owner forever, which is exactly AC-6's "silent hang". A-7 confirms (D-2) works per-operation because ze's Conn is non-lasting and `dialNetlink` re-applies sockOptions on every dial |
+| **D-3: in ddos-local, keep ONE mutex serialising mitigations but move the `status()` snapshot off it** (publish `active`/`target` via an atomic snapshot pointer, as `register.go:21` already does for the responder itself) | (a) compute the table under `r.mu`, release, reconcile outside; (b) split into `reconcileMu` + `stateMu`; (c) leave it (D-1 + D-2 bound the wait anyway) | (a) breaks mitigation ordering: two concurrent narrows could reconcile out of order and install the older term (A-9). (b) is (a) with extra steps: two locks, and `status()` still needs the newer of the two. (c) still makes `show ddos local` latency equal to a full kernel reconcile even in the healthy case, and up to the D-2 deadline in the sick case: the management plane must not be coupled to kernel latency at all. The atomic-snapshot shape is already the house pattern here (`accessor.go:16`, `register.go:21`) |
+| **D-4: apply D-3 to anomaly-shape in the same change** (`shape/responder.go:190,200` + `:235`) | fix ddos-local only; file a follow-up for shape | Same bug, same shape, found by the same read (Finding 4). A follow-up row for a two-line change is deferral theatre (`ai/rules/deferral-tracking.md`), and AC-8 already requires the other callers not to regress |
+| **D-5: state the concurrency contract in code, not only in docs** -- a lock-order comment on `reconcileMu`, a "single-writer, never called concurrently, must not block indefinitely" clause on `Backend.Apply` (`backend.go:34-47`), and a `docs/architecture/core-design.md` note | doc-only; comment-only | The interface doc is where the next backend author looks (vpp is already a second implementation). Docs alone did not prevent this: `EngineEventHandler` documented "MUST NOT block on external I/O" and both responders block anyway |
 
 ## Known Limitations
 - The root cause is an observed symptom only. Until a goroutine dump exists, every causal
   story in this spec is a hypothesis.
+- **Refined 2026-07-16.** Two distinct claims must not be conflated:
+  - **Findings 1-4 are findings, not hypotheses.** Each is read from the producing
+    function and cited (`conn.go:242-283`, `backend_linux.go:31,77,88`,
+    `responder.go:64,136,199`, `show.go:31`). They are real defects that ship today and
+    are fixable on their own merits, which Scope already admits as IN.
+  - **The link from Finding 3 to the 2026-07-12 observation is a hypothesis** (A-6, R-9).
+    It is the only chain the code supports, and it is consistent with the 255s (mutex
+    starvation mode rules out contention; an unbounded `Receive` explains an indefinite
+    hold). Consistency is not verification. Do not write "the deadlock is fixed" in the
+    learned summary. It is not a deadlock, and it may not be what was observed.
+- The title of this spec is now wrong: there is no deadlock. Renaming mid-flight would
+  break the deferral row's reference (`plan/deferrals.md:55`), so the name stays and the
+  learned summary at closure carries the correction. -> Decision, 2026-07-16.
+- The `.ci` reproduction (`test/plugin/ddos-firewall-concurrency.ci`) is conditional on
+  phase 1 producing a repro. If the stall is kernel-triggered (R-6), a `.ci` that only
+  passes on a crashing kernel is worse than none: it would encode the kernel bug as the
+  expected environment. The unit tests (D-1, D-3) do not have this problem and are the
+  primary proof.
 
 ## Implementation Summary
 ### What Was Implemented
@@ -458,21 +737,32 @@ than the on-host drop.
 
 ## Open Questions (research before design)
 
-- What were the actual blocked goroutine stacks? Capture a dump during the stall. Without
-  this, root cause stays unverified.
-- Is `internal/plugins/firewall/nft` `Apply` safe to call concurrently? `ApplyAll` holds no
-  lock across it (registry.go:123), so today two owners can enter it at once.
-- Should `ApplyAll` serialise reconciles (single reconcile actor / queue) rather than
-  letting concurrent callers race into `backend.Apply`? What does that cost mitigation?
-- Is holding `r.mu` across `applyAll` (responder.go:88,136) load-bearing, or can the
-  responder compute the desired table under the lock and reconcile outside it?
-- Does the plugin engine deliver events and `dispatch-command` on the same goroutine? If
-  so, any blocking event handler stalls dispatch and the fix may belong there.
-- Is there a lock-order cycle between `tableRegistry.mu`, `backendsMu`, `r.mu`, and any
-  plugin-engine lock? Enumerate the order each path takes.
-- Was the 255s bounded by a timeout, a watchdog, or genuine recovery?
-- Do the other `ApplyAll` callers (copp, policyroute, flowspec-firewall, anomaly/shape,
-  irr) share the hazard? A fix must cover them, not just ddos.
+**Answered during the 2026-07-16 design session:**
+
+| Question | Answer | Cite |
+|----------|--------|------|
+| Is nft `Apply` safe to call concurrently? | **No.** The `Conn` command batch is shared; the loser's `Flush` silently returns nil, and `b.applied` is a raced map | `conn.go:242-283`, `backend_linux.go:77,88` (Finding 1) |
+| Should `ApplyAll` serialise reconciles? | **Yes, over the whole body (snapshot + apply), not just `Apply`** | D-1 |
+| Is holding `r.mu` across `applyAll` load-bearing? | **Partly.** It serialises mitigations (keep) AND blocks `status()` (fix by publishing the snapshot atomically) | D-3, A-9 |
+| Does the engine deliver events and dispatch-command on the same goroutine? | **No.** Separate goroutines, no dispatcher mutex, handlers invoked outside the subscriber lock | `command.go:258-267`, `engine_event.go:107-111` |
+| Is there a lock-order cycle? | **No.** Strictly L3/L4 -> L1 -> L2 -> L5 on every path, no reverse edge | Current Behavior lock-order table |
+| Do the other `ApplyAll` callers share the hazard? | All six share Finding 1; only anomaly-shape shares Finding 3 | Finding 4 |
+
+**Still open (carry into implementation):**
+
+- **What were the actual blocked goroutine stacks?** Unanswered, and it remains the one
+  keystone fact (A-6, R-9). Finding 3 predicts them; prediction is not observation.
+- **Which command did the 2026-07-12 run dispatch?** Cheapest next step, no QEMU needed:
+  read the `spec-ddos-direction-allowlist` `.ci` and its run log. If it never dispatched a
+  ddos-local command, Finding 3 is not the observed stall and R-9 fires.
+- **Was the 255s bounded by a timeout, a watchdog, or genuine recovery?** Still unknown.
+  Finding 2 makes "genuine recovery" unlikely: with no netlink deadline there is nothing
+  to recover it. A harness timeout is the leading hypothesis, unverified.
+- **Does the vpp firewall backend share Finding 1?** `internal/plugins/firewall/vpp/` was
+  not read this session. D-1 protects it regardless, but D-5's interface contract should
+  be checked against it before claiming AC-8.
+- **What is the detector's re-fire interval?** Needed to fix the D-2 deadline default
+  (R-8). Read `internal/plugins/ddos/detect/` at implement time.
 
 ## Notes
 - Authored 2026-07-15 as a skeleton from `plan/deferrals.md:55`. Every `file:line` here was

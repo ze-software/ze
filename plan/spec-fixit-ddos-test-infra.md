@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-15 |
+| Updated | 2026-07-16 |
 
 ## Task
 
@@ -83,13 +83,27 @@ ddos test-infrastructure follow-ups from the same parent spec.
 
 ### Architecture Docs
 - [ ] `docs/architecture/testing/ci-format.md` - `.ci` directives, options, handshakes
-  -> Constraint: (fill during research) what the format supports for multi-interface setup
+  -> Constraint: the format has NO veth/multi-interface directive and needs none. A veth
+     topology is built by a `tmpfs=setup.py` script run as `cmd=foreground:seq=1`, which the
+     runner awaits to completion before the daemon starts (`runner_exec.go:797-808`). Precedent:
+     `test/vrrp/vrrp-instance-up.ci:34-51,212`. A-4 CONFIRMED; no harness change.
+  -> Constraint: `option=netns:veth=...` (used by `test/pppoe/*.ci`) is NOT a real directive.
+     `parseOption` (`internal/test/runner/record_parse.go:287-430`) has no `netns` case and
+     returns `unknown option type` for anything unrecognized (`:428-430`). Do NOT copy that
+     syntax. See Design Insights (orphaned-suite finding, out of scope here).
 - [ ] `ai/rules/qemu-testing.md` - QEMU integration tests are mandatory for linux-only code
   -> Constraint: both problems here are QEMU-only by nature
 - [ ] `plan/learned/1110-ddos-direction-allowlist.md` - parent spec's learned summary
-  -> Decision: (fill during research) why AC-10 was left to a functional follow-up
+  -> Decision: AC-10 was left to a functional follow-up because a loopback victim is always
+     RTN_LOCAL, so the harness of record could only ever exercise local -> INPUT. That reason
+     still holds; a transit topology is genuinely required.
 
-**Key insights:** (fill during research)
+**Key insights:**
+- Both premises of the two deferral rows were TRUE on 2026-07-12 and were made FALSE by two
+  commits landed on 2026-07-13, one day later. The rows are stale, not wrong.
+- The nft ruleset read is MANDATORY for this spec's assertions: no dispatch-command surface
+  exposes the netfilter hook (`show ddos local` returns enabled/active/target only,
+  `show.go:32-35`). This single fact drives the whole design and contradicts current AC-2.
 
 ## Current Behavior (MANDATORY)
 
@@ -109,6 +123,26 @@ ddos test-infrastructure follow-ups from the same parent spec.
       unit test whose comment states it validates AC-9/AC-10/AC-11: INPUT for local,
       FORWARD for remote when forward-mitigation is on, no drop for remote when off
 
+**Source files read (2026-07-16, DESIGN phase -- producers, not callers):**
+
+| # | Finding | Producing code (read) |
+|---|---------|----------------------|
+| F1 | The readiness handshake is ALIVE end to end. `zeReadyFileEnabled` returns true for a `ze` daemon in foreground OR background with a TmpfsTempDir; the runner arms `ZE_READY_FILE=<tmpfs>/daemon.ready`, waits for that file (when no ze-peer supplies BGP-level sync), then writes `daemon.pid`. | `runner_exec_util.go:125-130`; `runner_exec.go:702-705`, `:777-791` |
+| F2 | The daemon really writes it. `ze -` creates the ready file after `WaitForStartupComplete` succeeds. A second producer covers the `hub` path, written after `dropPrivileges`. | `cmd/ze/hub/main.go:945` then `:957-961`; `:1111` then `:1121-1125` |
+| F3 | The env key matches. `env.Get("ze.ready.file")` normalizes to `ze_ready_file`; `normalize` lowercases and maps `.`->`_`, so the runner's literal `ZE_READY_FILE` resolves to the same cache entry. The chain has no gap. | `internal/core/env/env.go:41-43`, `:71-99` |
+| F4 | **The handshake support postdates the deferral by one day.** The deferral rows are dated 2026-07-12; background-ze readiness landed 2026-07-13. Its message states background ze "got neither ZE_READY_FILE nor a daemon.pid write ... so driver.py-style suites that poll daemon.pid/daemon.ready timed out by construction". | commit `dc082c288` (2026-07-13) |
+| F5 | **A live, green test polls exactly this handshake today.** It waits on `daemon.pid` + `daemon.ready` via `ze_api.wait_until`, then asserts kernel state with `ip -j` readback. Its spec closed in `1b8e44053`..`fbc99f1d4` (VRRP vrrp-0..5). This is the pattern of record for kernel-state assertions, and it is NOT the in-daemon probe. | `test/vrrp/vrrp-instance-up.ci:123`, `:59-67`, `:79-171` |
+| F6 | **nft is programmed WITHOUT a `firewall {}` block.** `ApplyAll` autoloads the OS-default backend on demand when no backend is active and there are tables to apply, precisely so plugin-owned tables (copp, policy-routes, ddos-local) reach the kernel with no operator firewall block. The default is `"nft"` on Linux. | `firewall/registry.go:79-111` (autoload at `:104-109`), `:53`; `default_linux.go:11` |
+| F7 | Without a `firewall {}` section the firewall COMPONENT stays idle and loads no backend, so under autoload the ddos-local responder is the ONLY nft driver. The two-concurrent-driver combination behind the R-1 deadlock requires an explicit `firewall {}` block. | `firewall/engine.go:299-303` (idle branch) vs `:316-324` (LoadBackend + RegisterTables + ApplyAll) |
+| F8 | **The autoload also postdates the deferral by one day** (2026-07-13), so the `test-relax` note in `ddos-policy.ci:174-180` ("no firewall {} backend block here ... adding one deadlocked dispatch") was written against a tree where a block was the only way to get a backend. | commit `c5273da42` (2026-07-13) |
+| F9 | **No dispatch-command surface exposes the netfilter hook.** `show ddos local` returns `enabled`/`active`/`target` only. Hook selection (INPUT vs FORWARD) is therefore UNPROVABLE through the probe's command surface. | `internal/plugins/ddos/local/show.go:23-37` |
+| F10 | The responder's success log DOES carry the hook name (`hook=ingress` or `hook=forward`); the not-ok path logs the flowspec deferral. These are assertable via `expect=stderr:contains=`, but prove responder INTENT, not kernel state. | `responder.go:152-153`, `:111-118`; `hookChainName` `:170-175` |
+| F11 | **In the QEMU plugin suite the ze daemon runs as ROOT.** `ZE_TEST_NETNS` is never set by the needs-linux QEMU path, so `netnsModeActive()` is false, the `SysProcAttr.Credential` UID drop is skipped, and `dropPrivileges` is a no-op when `ze.user` is unset. Only the curated firewall subset sets netns. | `runner_exec_util.go:33-35`; `runner_exec.go:745-749`; `cmd/ze/hub/main_system.go:45-53`; `scripts/evidence/qemu-all-tests.sh:125`; `scripts/evidence/netns_qemu.py:107` |
+| F12 | The runner's DESIGN INTENT reserves the foreground driver for kernel reads: "ze-peer / driver.py stay privileged (root under sudo) so they can read nft state and signal the daemon", while the ze daemon is the one dropped. | `runner_exec.go:740-744` |
+| F13 | A veth topology needs no new directive: a foreground non-ze command that is not the last command is awaited to completion (`proc.Wait()`) before the next starts. The `cmdIdx < len(cmds)-1` guard is load-bearing: a setup script placed last would NOT be awaited. | `runner_exec.go:797-808` |
+| F14 | No in-daemon `ze_api` probe test reads the nft ruleset. All three "working" ddos tests assert through dispatch-command only; their `nft` mentions are prose in comments. `ddos-policy.ci` proves the no-drop case via `show ddos local` `active`. | `ddos-policy.ci:69-73,174-180`; `ddos-direction.ci:56-65`; `ddos-bps-amplification.ci:209-256` |
+| F15 | The `.ci` sleep ratchet is a COUNT baseline enforced by a make gate, so replacing hand-rolled `time.sleep` polls with `ze_api.wait_until` lowers the count and passes. `wait_until`'s internal sleep is ratchet-exempt. | `scripts/dev/verify_wiring_docs.py:192` (`test/.ci-sleep-baseline`); `test/scripts/ze_api.py:983-997`, `:1405-1414` |
+
 **Non-Go files read (same session):**
 - `test/plugin/ddos-detect-mitigate.ci` (119 lines): header `:11-22`; driver polls
   `daemon.pid` + `daemon.ready` for up to 400 iterations then exits 1 (`:39-47`); reads the
@@ -126,8 +160,11 @@ ddos test-infrastructure follow-ups from the same parent spec.
   detector fills the victim DstPrefix and emits a populated AttackDetected) and AC-2
   (ddos-local in enforce mode installs an nft drop for the attacked destination), per its
   header `:3-9`. The rework must keep proving both, not weaken to a log-grep.
-- The `ze_api` observer-probe pattern and its 5-stage handshake exactly as the three
-  working tests use it; do not fork a variant.
+- ~~The `ze_api` observer-probe pattern and its 5-stage handshake exactly as the three
+  working tests use it; do not fork a variant.~~ **REVISED (D-1):** the rule survives, the
+  target changes. Reuse `ze_api` as-is and fork no variant, but the piece this test needs is
+  `ze_api.wait_until` (`ze_api.py:983-997`) in a root driver.py, not the 5-stage in-daemon
+  handshake. Pattern of record for kernel-state assertions: `vrrp-instance-up.ci:123`.
 - Victim-address separation across tests so parallel runs do not collide
   (`ddos-direction.ci:44` notes 127.0.0.3 vs `ddos-policy.ci`'s 127.0.0.2).
 - `TestLocalHookByDirection` stays the exhaustive hook-selection unit test; the new `.ci`
@@ -145,29 +182,34 @@ ddos test-infrastructure follow-ups from the same parent spec.
 ### Entry Point
 - Test harness: `bin/ze-test plugin --pattern ddos-detect-mitigate` (and the new transit
   test) under QEMU (`option=needs-linux`)
-- In-daemon probe: `plugin { external <name> { run ./<name>.run } }` in the `.ci` config
-- Flood traffic: the probe's UDP socket toward the victim address
+- ~~In-daemon probe: `plugin { external <name> { run ./<name>.run } }`~~ superseded by D-1
+- Topology setup: `tmpfs=setup.py` at `cmd=foreground:seq=1` (veth pair + forwarding), awaited
+  before the daemon starts (F13)
+- Flood traffic: `driver.py`'s UDP socket toward the victim address
 
-### Transformation Path
-1. Runner starts `ze -` with the `.ci` config; the external probe plugin is spawned
-2. Probe runs the `ze_api` 5-stage handshake (declare_done, wait_for_config,
-   capability_done, wait_for_registry, ready, wait_for_post_startup)
-3. Probe floods the victim; the iface rate collector reports pps to ddos-detect
+### Transformation Path (per D-1, pending approval)
+1. Runner awaits `setup.py` (seq=1), which builds the veth topology; then starts `ze -` as
+   `cmd=background:seq=2` with the `.ci` config, arming `ZE_READY_FILE` (F1)
+2. The daemon reaches startup-complete and creates `daemon.ready` (F2); the runner sees it and
+   publishes `daemon.pid` (F1). `driver.py` (seq=3, root) waits on both via `ze_api.wait_until`
+3. driver.py floods the victim; the iface rate collector reports pps to ddos-detect
 4. trafficusage (track-ip) resolves the dominant destination; the detector opens an
    incident and emits AttackDetected with a direction
 5. ddos-local `hookForDirection` picks INPUT (local victim) or FORWARD (remote victim with
-   forward-mitigation on) and registers the drop table
-6. Probe dispatches `show ddos incidents` (and, for the drop proof, inspects the ruleset)
-   through `ze-plugin-engine:dispatch-command` and asserts
+   forward-mitigation on) and registers the drop table; `ApplyAll` autoloads the nft backend on
+   demand (F6) since no `firewall {}` block is declared, and programs the kernel
+6. driver.py polls `nft list ruleset` via `wait_until` and asserts the table, victim and hook;
+   the runner asserts the responder's `hook=` log through `expect=stderr:contains=` (D-4)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| runner -> daemon | `cmd=foreground:exec=ze -` with `.ci` stdin config | [ ] |
-| probe -> daemon | external plugin over the `ze_api` handshake + dispatch-command | [ ] |
-| probe -> kernel | UDP flood to the victim; veth topology for the transit case | [ ] |
+| runner -> daemon | `cmd=background:seq=2:exec=ze -` with `.ci` stdin config | [ ] confirmed at DESIGN: `runner_exec.go:702-705`, `:759-791` |
+| runner <-> daemon readiness | `ZE_READY_FILE` -> `daemon.ready` -> `daemon.pid` | [ ] confirmed at DESIGN (F1/F2/F3); proven live by `vrrp-instance-up.ci:123` |
+| driver.py -> daemon | `daemon.pid` for SIGTERM; `ze_api.wait_until` for pacing | [ ] |
+| driver.py -> kernel | UDP flood to the victim; `nft list ruleset` readback (root, F11/F12) | [ ] |
 | detector -> responder | `ddosevent.Detected` / `Characterized` on the event bus | [ ] |
-| responder -> kernel | firewall RegisterTables + ApplyAll -> nft backend | [ ] |
+| responder -> kernel | firewall RegisterTables + ApplyAll -> nft backend **autoloaded on demand** | [ ] confirmed at DESIGN: `registry.go:104-109` |
 
 ### Integration Points
 - `test/plugin/` the `.ci` suite and its QEMU runner
@@ -201,27 +243,43 @@ ddos test-infrastructure follow-ups from the same parent spec.
   `driver.py` (`:113-114`); `ddos-direction.ci` inverts this: probe in-daemon, `ze -` as
   `cmd=foreground:seq=2` (`:199`).
 
-**CONTRADICTED / needs re-verification (the reason this is research-first):**
-- The deferral row (`plan/deferrals.md:54`) states the handshake "is never satisfied". Current
-  runner code appears to satisfy it: `zeReadyFileEnabled` (`runner_exec_util.go:125-130`)
-  returns true for `ze` in **background** mode with a TmpfsTempDir, `runner_exec.go:702-705`
-  arms `ZE_READY_FILE`, and `:786-789` writes `daemon.pid` after the ready file appears.
-  The comment at `runner_exec.go:699-701` explicitly says arming covers "background ze
-  (driver.py-style suites poll daemon.pid/daemon.ready)". `runner_exec.go:740-743` records a
-  prior fix ("Fix B") to make that handshake work under privilege drop.
-- Therefore: either the handshake support postdates the 2026-07-12 deferral, or the row's
-  diagnosis was wrong and the test fails for a different reason (the header's three
-  unconfirmed runtime behaviors are the obvious suspects: `lo` RxPackets reaching the
-  detector, trafficusage TCX on `lo`, sustaining >1000 pps across two collect ticks).
-  **Establish which before choosing the rework shape.** The right fix might be smaller
-  (run it and fix what actually breaks) or different (the trigger does not fire on
-  loopback, as the header itself anticipates at `:21-22`).
+**RESOLVED 2026-07-16 (DESIGN): the deferral's premise is BROKEN, and the Open Question
+"was the arming added after 2026-07-12?" is answered YES.**
 
-**UNVERIFIED:**
-- Whether the test passes today if simply run under QEMU. Nobody has reported running it.
-- The exact `:111-116` line range in the deferral row: at those lines the file has the
-  config terminator and the `cmd=` / `expect=` block, not a "has NOT been run" statement.
-  The "has not been run" wording is at `:11-14`, and it is scoped to the darwin dev host.
+The deferral row (`plan/deferrals.md:54`) states the handshake "is never satisfied". That was
+TRUE when written (2026-07-12) and became FALSE one day later:
+
+| Date | Event | Evidence |
+|------|-------|----------|
+| 2026-07-12 | Deferral rows authored. Background ze got neither `ZE_READY_FILE` nor a `daemon.pid` write, so the poll at `ddos-detect-mitigate.ci:39-47` timed out **by construction**. The row was ACCURATE. | commit message of `dc082c288` |
+| 2026-07-13 | `dc082c288` "fix(test): runner emits daemon readiness for background ze" adds `zeReadyFileEnabled` and the `!hasPeer -> waitReady -> publish daemon.pid` path. Handshake ALIVE. | F1, F4 |
+| 2026-07-13 | `c5273da42` makes `ApplyAll` autoload the nft backend for plugin-owned tables. ddos-local now programs the kernel with no `firewall {}` block. | F6, F8 |
+| 2026-07-15 | `test/vrrp/vrrp-instance-up.ci` ships and closes green while polling `daemon.pid`+`daemon.ready`. Handshake PROVEN in production. | F5 |
+
+-> Decision: the row is **stale, not wrong**. Nothing about it was a diagnostic error; the
+tree moved underneath it. Record this in the Mistake Log as a stale-deferral class, not as a
+bad diagnosis, and do NOT rewrite the test to escape a handshake that works.
+
+-> Decision: **A-1 is BROKEN.** Both of its consequences follow: (a) the rework premise
+collapses, and (b) the residual reason the test has never been green is NOT the handshake. The
+remaining suspects are the header's three unconfirmed runtime behaviors (`:14-22`) plus one the
+header did not know about: before `c5273da42` the test's `nft list ruleset` grep could not have
+matched, because the config declares no `firewall {}` block and nothing else would have loaded a
+backend (F6/F7). **The test was doubly dead on 2026-07-12 and is now, on the static evidence,
+doubly unblocked.**
+
+**STILL UNVERIFIED (needs the QEMU run; AC-1 keeps it BLOCKING):**
+- Whether the test passes today when simply run. The three runtime behaviors at `:14-22` (`lo`
+  RxPackets reaching the detector, trafficusage TCX attach on `lo`, sustaining >1000 pps across
+  >=2 collect ticks) are unchanged and unproven. F5 proves the HARNESS works, not that the
+  loopback flood trips the detector from a driver.py.
+  Mitigating evidence: `ddos-direction.ci` and `ddos-policy.ci` DO trip the detector on a
+  loopback flood under QEMU, so the trigger itself is sound; only the flooder's location
+  (external driver vs in-daemon probe) differs.
+
+**Correction retained:** the deferral's `:111-116` line range does not carry a "has NOT been
+run" statement; at those lines the file has the config terminator and the `cmd=`/`expect=`
+block. The wording is at `:11-14` and is scoped to the darwin dev host.
 
 ### Problem B: AC-10 transit -> FORWARD drop unproven
 
@@ -235,30 +293,60 @@ ddos test-infrastructure follow-ups from the same parent spec.
   `test-relax` note (`:11-16`) saying the on-host drop assertion was dropped because
   loading the nft backend under flood deadlocked command dispatch.
 
-**UNVERIFIED:**
-- Whether a veth transit topology can be built inside the current `.ci` format without new
-  harness directives.
-- Whether the FORWARD proof is blocked by the firewall concurrency deadlock (it needs the
-  same nft backend + flood combination that hung dispatch). This is the key sequencing
-  question: see R-1.
+**RESOLVED 2026-07-16 (DESIGN):**
+- **A-4 CONFIRMED: a veth transit topology needs NO new harness directive.** `.ci` builds it
+  with a `tmpfs=setup.py` run as `cmd=foreground:seq=1`, which the runner awaits to completion
+  before the daemon starts (F13). Working precedent: `test/vrrp/vrrp-instance-up.ci:34-51,212`
+  creates a veth pair with `ip link add ... type veth`, addresses it and brings both ends up.
+  -> Constraint: the setup script must NOT be the last command, or `runner_exec.go:797` does not
+     match and it is not awaited (F13). Order: setup.py seq=1, `ze` seq=2, driver.py seq=3.
+  -> Constraint: do NOT use `option=netns:veth=...`. It is invented syntax that `parseOption`
+     rejects with `unknown option type` (`record_parse.go:287-430`); it survives only in the
+     orphaned `test/pppoe/` suite, which nothing executes.
+- **A-2 RESOLVED, and it inverts the spec's chosen pattern.** The FORWARD proof CANNOT be made
+  through the probe's dispatch-command surface: `show ddos local` exposes `enabled`/`active`/
+  `target` and no hook (F9). `active=true` proves *a* drop exists, never *which hook* it is on,
+  so it cannot distinguish AC-4 from the local-victim case. **Reading the nft ruleset is
+  mandatory.** The only non-nft signal is the responder's log, which does carry `hook=forward`
+  (F10) but proves intent, not kernel state.
+
+**R-1 DOWNGRADED (not eliminated) -- key sequencing answer:**
+- The deadlock as recorded needs TWO concurrent nft drivers: the firewall component (driven by a
+  `firewall {}` block) and the ddos-local responder. Without that block the firewall component
+  is idle and loads no backend (F7), while `ApplyAll` autoloads nft for the responder alone (F6).
+- -> Decision: **neither test needs a `firewall {}` block.** Both get a real nft backend via
+  autoload, with ddos-local as the sole driver, so neither reproduces the two-driver combination
+  that was observed to hang. On this evidence Problem B is **not blocked** and can proceed
+  without waiting for `spec-fixit-firewall-concurrency-deadlock`.
+- Honesty bound: the deadlock's ROOT CAUSE is recorded as UNVERIFIED (observed symptom only), so
+  this reasoning rests on the *recorded* trigger, not a proven mechanism. R-1 stays on the risk
+  table: if either test hangs, STOP and report (do not add a sleep, do not relax).
+- Corollary worth flagging: since 2026-07-13 autoload means **any** ddos-local enforce test that
+  actually installs a drop now loads nft implicitly. `ddos-direction.ci` runs `response-level
+  enforce` on an unexempted local victim, so it now programs nft where it previously could not.
+  That is a behavior change to an existing green test, and it is the concurrency spec's territory.
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The `daemon.pid`/`daemon.ready` handshake is genuinely dead for this test | `plan/deferrals.md:54` | Contradicted by `runner_exec_util.go:125-130` + `runner_exec.go:702-705,786-789`: the rework premise collapses and the real failure is elsewhere (likely the header's unconfirmed runtime behaviors) | run the test under QEMU and observe the actual failure | **likely broken, verify first** |
-| A-2 | The `ze_api` observer-probe pattern can express what this test asserts (an nft ruleset check, not just an incident field) | `ddos-direction.ci` dispatches commands but greps no ruleset; `ddos-detect-mitigate.ci:69` shells out to `nft list ruleset` | the probe needs a ruleset-inspection path, or the assertion moves to a dispatch-command surface | prototype the probe; check what the probe process may exec under QEMU | unvalidated |
-| A-3 | A loopback flood can drive the detector at all | `ddos-direction.ci` does exactly this and is the harness of record | Problem A's rework must switch to a dedicated veth, as the header anticipates (`:21-22`) | the three working tests already pass under QEMU | likely true |
-| A-4 | A veth transit topology is expressible in the current `.ci` format | none: not checked | new harness directives are needed; scope grows and the user must approve | read `docs/architecture/testing/ci-format.md` + existing multi-interface tests | unvalidated |
-| A-5 | The FORWARD proof needs the real nft backend loaded | an nft FORWARD-hook drop is the assertion | if the assertion can be made on registered-table state instead, the deadlock does not block it (but the proof is weaker and may not satisfy AC-10) | design review against the parent AC-10 wording | unvalidated |
-| A-6 | Problem A and Problem B belong in one spec | both are ddos test-infra from the same parent (`deferrals.md:54,57`) | split them; B may be blocked on the deadlock fix while A is not | first design review | unvalidated |
+| A-1 | The `daemon.pid`/`daemon.ready` handshake is genuinely dead for this test | `plan/deferrals.md:54` | The rework premise collapses; the real failure is elsewhere | run the test under QEMU and observe the actual failure | **BROKEN (2026-07-16)**. Handshake is armed (`runner_exec_util.go:125-130`, `runner_exec.go:702-705,777-791`), the daemon writes the file (`cmd/ze/hub/main.go:957-961`), the env key resolves (`env.go:41-43`), it landed in `dc082c288` **one day after** the deferral, and a green test polls it today (`test/vrrp/vrrp-instance-up.ci:123`). Mistake Log + Deviations recorded |
+| A-2 | The `ze_api` observer-probe pattern can express what this test asserts (an nft ruleset check, not just an incident field) | `ddos-direction.ci` dispatches commands but greps no ruleset; `ddos-detect-mitigate.ci:69` shells out to `nft list ruleset` | the probe needs a ruleset-inspection path, or the assertion moves to a dispatch-command surface | prototype the probe; check what the probe process may exec under QEMU | **BROKEN as stated (2026-07-16)**. No dispatch surface carries the hook (`show.go:23-37`), so a ruleset read is mandatory and the "assertion moves to dispatch-command" escape does not exist. The probe *could* exec `nft` today only because the QEMU plugin suite leaves ze as root (F11) -- an accident of suite config, not a property of the pattern, and false under netns mode. Drives D-1 |
+| A-3 | A loopback flood can drive the detector at all | `ddos-direction.ci` does exactly this and is the harness of record | Problem A's rework must switch to a dedicated veth, as the header anticipates (`:21-22`) | the three working tests already pass under QEMU | **CONFIRMED for an in-daemon flooder** (`ddos-direction.ci:96-106`, `ddos-policy.ci:96-111` both trip the detector on a `lo` flood under QEMU). NOT yet confirmed for an external driver.py flooder -- same kernel path, different process; AC-1's run settles it |
+| A-4 | A veth transit topology is expressible in the current `.ci` format | none: not checked | new harness directives are needed; scope grows and the user must approve | read `docs/architecture/testing/ci-format.md` + existing multi-interface tests | **CONFIRMED (2026-07-16)**. `test/vrrp/vrrp-instance-up.ci:34-51,212` builds a veth pair from a `tmpfs=setup.py` at `cmd=foreground:seq=1`, awaited by `runner_exec.go:797-808`. No directive, no runner change. Constraint: setup must not be the last command |
+| A-5 | The FORWARD proof needs the real nft backend loaded | an nft FORWARD-hook drop is the assertion | if the assertion can be made on registered-table state instead, the deadlock does not block it (but the proof is weaker and may not satisfy AC-10) | design review against the parent AC-10 wording | **CONFIRMED, and it is FREE**. `ApplyAll` autoloads nft on demand for plugin-owned tables (`registry.go:104-109`, `:53`, `default_linux.go:11`), so the backend loads with no `firewall {}` block and ddos-local is its only driver (`engine.go:299-303`). The registered-table fallback is rejected: it would not prove the kernel hook |
+| A-6 | Problem A and Problem B belong in one spec | both are ddos test-infra from the same parent (`deferrals.md:54,57`) | split them; B may be blocked on the deadlock fix while A is not | first design review | **CONFIRMED (2026-07-16)**. The split rationale was "B is blocked, A is not"; R-1 is downgraded (neither test needs a `firewall {}` block, F6/F7) so both are unblocked. They also now share one harness (setup.py + driver.py + nft readback), making a split actively wasteful |
+| A-7 | The in-daemon probe can exec `nft list ruleset` under QEMU | new at DESIGN | if false, the probe pattern cannot satisfy AC-3/AC-4 at all | read the QEMU suite's privilege wiring | **CONFIRMED-BUT-FRAGILE (2026-07-16)**. True only because `ZE_TEST_NETNS` is unset in the needs-linux QEMU path, so `netnsModeActive()` is false, the UID drop is skipped, and `dropPrivileges` no-ops without `ze.user` (F11). Under netns mode (already used by the firewall subset, `netns_qemu.py:107`) the daemon is dropped and its child probe loses nft. Drives D-1 |
+| A-8 | The runner's design intends the foreground driver, not the daemon's child, to read kernel state | new at DESIGN | D-1's rationale weakens to preference | read the runner's privilege-drop comment | **CONFIRMED**. `runner_exec.go:740-744`: "driver.py stay privileged (root under sudo) so they can read nft state and signal the daemon", while ze is the process dropped |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Problem B is blocked by the firewall concurrency deadlock: the FORWARD proof needs nft + flood, the exact combination that hung dispatch (`ddos-direction.ci:11-16`) | the new transit test hangs like the original observation | sequence B after `spec-fixit-firewall-concurrency-deadlock`; if B is attempted first and hangs, STOP and report: do not add a sleep or relax the assertion |
-| R-2 | Rework proceeds on the wrong premise (A-1) and rewrites a test that only needed running | the reworked test fails the same way the original would have | run the original under QEMU FIRST; capture the real failure before rewriting |
+| R-1 | Problem B is blocked by the firewall concurrency deadlock: the FORWARD proof needs nft + flood, the exact combination that hung dispatch (`ddos-direction.ci:11-16`) | the new transit test hangs like the original observation | **DOWNGRADED 2026-07-16, still live.** The recorded trigger needs two concurrent nft drivers (firewall component + responder); neither test declares a `firewall {}` block, so the component stays idle (`engine.go:299-303`) and autoload gives the responder a backend as sole driver (`registry.go:104-109`). B need not wait on the deadlock spec. But the deadlock's root cause is UNVERIFIED, so this rests on the recorded trigger: if either test hangs, STOP and report. Do not add a sleep, do not relax the assertion |
+| R-2 | Rework proceeds on the wrong premise (A-1) and rewrites a test that only needed running | the reworked test fails the same way the original would have | **MATERIALIZED at DESIGN, caught before code.** A-1 is broken and A-2 is broken as stated; the skeleton's AC-2 (mandating the in-daemon probe) is built on both. Phase 1 stands: run the original under QEMU FIRST. D-1 must be settled by the user before any rewrite |
+| R-7 | Autoload (`c5273da42`, 2026-07-13) silently changed EXISTING ddos tests: any `response-level enforce` test that installs a drop now programs nft where before 2026-07-13 nothing loaded a backend. `ddos-direction.ci` is in that set | an existing green ddos test starts hanging or flaking under the concurrency spec's work | Out of scope here (concurrency spec's territory) but flagged: do not assume the three "working" ddos tests are still green on the same mechanism they passed on. Confirm the baseline with a QEMU run at Phase 1 before attributing any failure to this spec's changes |
+| R-8 | The two `.ci` files drift apart: Problem A's local-victim test and Problem B's transit test share a harness (setup.py + driver.py + nft readback) but are separate files | duplicated setup logic diverges | Build A first, then derive B from it. Keep the nft-readback helper shape identical; if a third copy appears, hoist to `test/scripts/` rather than fork |
 | R-3 | The transit test is flaky (timing, veth setup, forwarding sysctls) | intermittent red in CI | build on the working pattern's pacing (`api.read_line` poll, no blind sleeps); every `.ci` sleep needs a comment per the repo gate |
 | R-4 | Fixing the test tempts a product change to make it pass | a diff touching `internal/plugins/ddos/` appears | test-infra only; a product-side seam is a scope change requiring user approval |
 | R-5 | Two problems in one spec: one lands, one stalls, spec closes "partially" | B blocked at review time | Not allowed to close partially (`ai/rules/no-partial-completion.md`). If B is blocked, keep the spec open or split with user approval |
@@ -276,8 +364,9 @@ ddos test-infrastructure follow-ups from the same parent spec.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Research on Problem A complete | The real reason `ddos-detect-mitigate.ci` does not pass is established by running it under QEMU and observing the failure, not inferred. A-1 resolved either way |
-| AC-2 | `test/plugin/ddos-detect-mitigate.ci` after rework | Runs green under QEMU and uses the in-daemon `ze_api` observer-probe pattern; no `daemon.pid` / `daemon.ready` polling remains |
+| AC-1 | Research on Problem A complete | The real reason `ddos-detect-mitigate.ci` does not pass is established by running it under QEMU and observing the failure, not inferred. A-1 resolved either way. **Partially met at DESIGN:** A-1 is BROKEN on static evidence (F1-F5) and a second dead cause was found (no nft backend before `c5273da42`, F6/F8). The QEMU run stays BLOCKING because the header's three runtime behaviors (`:14-22`) are still unproven for an external flooder (A-3) |
+| ~~AC-2~~ | ~~`test/plugin/ddos-detect-mitigate.ci` after rework~~ | ~~Runs green under QEMU and uses the in-daemon `ze_api` observer-probe pattern; no `daemon.pid` / `daemon.ready` polling remains~~ **SUPERSEDED 2026-07-16 pending user approval of D-1.** Reason: the AC mandates a pattern chosen to escape a handshake that is not dead (A-1 BROKEN), and the in-daemon probe cannot assert the hook through any dispatch surface (A-2 BROKEN, F9) while root-execing `nft` from a daemon child works only by suite accident (A-7). Replaced by AC-2a. Struck rather than deleted per `ai/rules/planning.md` (append-only) |
+| AC-2a | `test/plugin/ddos-detect-mitigate.ci` after rework (pending D-1 approval) | Runs green under QEMU. Keeps the `daemon.pid`/`daemon.ready` handshake, and every hand-rolled `time.sleep` poll loop (`:39-47`, `:74-75`) is replaced by `ze_api.wait_until`, matching `test/vrrp/vrrp-instance-up.ci:123`. Net `.ci` sleep count decreases (F15) |
 | AC-3 | The reworked test's assertions | Still prove the original intent (header `:3-9`): the detector emits a populated victim DstPrefix AND ddos-local installs an nft drop for it. Not weakened to a log-grep or an incident-field check alone |
 | AC-4 | A 2-interface transit topology (veth + forwarding) under QEMU, victim reachable through the box, `ddos { local { forward-mitigation } }` on | An nft drop for the victim is installed on the FORWARD hook (parent AC-10 proven end to end) |
 | AC-5 | Same topology, `forward-mitigation` off | No on-host drop is installed; the responder logs deferral to flowspec (`responder.go:115-117`) |
@@ -314,8 +403,9 @@ approves it before any product code moves.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ddos-detect-mitigate.ci` | `test/plugin/` | reworked onto the `ze_api` probe; local victim flood -> INPUT drop installed (needs-linux) | rework |
+| `ddos-detect-mitigate.ci` | `test/plugin/` | ~~reworked onto the `ze_api` probe~~ (D-1) driver.py + `wait_until`; local victim flood -> INPUT drop installed, asserted by nft readback + `hook=ingress` log (needs-linux) | rework |
 | `ddos-transit-forward-drop.ci` | `test/plugin/` | veth transit topology; remote victim flood + forward-mitigation on -> FORWARD drop; off -> no drop (needs-linux) | new |
+| Baseline re-run (R-7) | `test/plugin/` | `ddos-direction.ci` / `ddos-policy.ci` / `ddos-bps-amplification.ci` still green now that autoload programs nft under enforce mode | verify at Phase 1 |
 
 ### QEMU Evidence
 | Check | Command | Status |
@@ -323,11 +413,19 @@ approves it before any product code moves.
 | Both tests green on the QEMU Alpine VM | `bin/ze-test plugin --pattern ddos` | |
 
 ## Files to Modify
-- `test/plugin/ddos-detect-mitigate.ci` - rework onto the in-daemon `ze_api` probe pattern
-- `plan/deferrals.md` - resolve rows `:54` and `:57` at closure
-- `internal/test/runner/runner_exec.go` - ONLY if research proves a harness gap blocks the
-  transit topology (veth setup / forwarding); user approval first (R-4)
-- `docs/architecture/testing/ci-format.md` - only if a new harness directive is added
+- `test/plugin/ddos-detect-mitigate.ci` - ~~rework onto the in-daemon `ze_api` probe pattern~~
+  **superseded by D-1:** keep the handshake, migrate the poll loops to `ze_api.wait_until`, add
+  the veth flood device if AC-1's run shows the loopback trigger does not fire from an external
+  driver (the header anticipates this at `:21-22`)
+- `plan/deferrals.md` - resolve rows `:54` and `:57` at closure. **Record BOTH as stale-on-
+  arrival, not as wrong diagnoses:** each was accurate on 2026-07-12 and was invalidated by a
+  2026-07-13 commit (`dc082c288`, `c5273da42`). NOTE: a concurrent spec is reworking how this
+  file works; coordinate on format before editing
+- ~~`internal/test/runner/runner_exec.go`~~ - **DROPPED (D-3).** Research proves NO harness gap:
+  the handshake is armed (F1), the daemon writes the file (F2), a foreground setup script is
+  awaited (F13), and veth needs no directive (A-4 CONFIRMED). The spec's "only if research
+  proves a gap" condition is not met, so the runner is NOT touched
+- ~~`docs/architecture/testing/ci-format.md`~~ - **DROPPED:** no new directive is added (D-3)
 
 ## Files to Create
 - `test/plugin/ddos-transit-forward-drop.ci` - the AC-10 transit proof
@@ -363,17 +461,37 @@ approves it before any product code moves.
 | 14. Present + close | Executive Summary; two-commit closure |
 
 ### Implementation Phases
-1. **Phase: Resolve A-1 (BLOCKING, do this first)** - run `ddos-detect-mitigate.ci` as-is
-   under QEMU. Capture the actual failure. This decides whether Problem A is a rework, a
-   small fix, or a different problem entirely. Do not rewrite the test before this.
-2. **Phase: Rework Problem A** - port to the in-daemon `ze_api` probe following
-   `ddos-direction.ci`; keep both original assertions (AC-3); green under QEMU.
-3. **Phase: Transit topology** - build the veth + forwarding harness; prove remote victim
-   classification reaches the responder.
-4. **Phase: Problem B proof** - FORWARD drop with forward-mitigation on; no drop with it
-   off. If this hangs on the firewall deadlock, STOP: R-1 applies, report to the user, do
-   not work around it.
-5. **Phase: Close** - resolve `plan/deferrals.md:54,57`; both tests in the QEMU gate.
+
+-> Constraint: Phase 0 gates everything. D-1 contradicts AC-2 as written, and implementing
+either shape before the user rules would burn the work.
+
+0. **Phase: User decision on D-1 (BLOCKING).** Present the A-1/A-2 evidence and the
+   driver.py-vs-probe choice. Until it is settled, write no test code. Phase 1 may run in
+   parallel: it is read-only observation and its result informs D-1.
+1. **Phase: Resolve A-1 empirically (BLOCKING, do this first)** - run `ddos-detect-mitigate.ci`
+   as-is under QEMU (`bin/ze-test plugin --pattern ddos-detect-mitigate`). Capture the actual
+   failure. Static evidence says both historical blockers are gone (F1-F8), so the live
+   outcomes are: (a) it passes -> Problem A collapses to the `wait_until` migration (AC-2a) and
+   the header's STATUS block; (b) it fails on the loopback trigger -> switch the flood to the
+   veth from Phase 3, as the header anticipates (`:21-22`); (c) it hangs -> R-1/R-7 apply, STOP
+   and report. Also capture a baseline run of the three "working" ddos tests (R-7): confirm they
+   are still green now that autoload programs nft under them.
+   Do not rewrite the test before this.
+2. **Phase: Problem A (shape decided by Phase 0 + Phase 1)** - migrate the poll loops to
+   `ze_api.wait_until`; keep both original assertions (AC-3): populated victim DstPrefix AND a
+   real nft drop. Refresh the header's STATUS block, which currently claims the runtime path is
+   unconfirmed. Green under QEMU.
+3. **Phase: Transit topology** - `setup.py` at `cmd=foreground:seq=1` builds the veth pair and
+   enables forwarding (pattern: `vrrp-instance-up.ci:34-51`); the victim must resolve as
+   RTN_UNICAST via the box, not RTN_LOCAL, or the direction classifies local and the test proves
+   nothing. Prove remote-victim classification reaches the responder (`show ddos incidents`
+   direction=remote) BEFORE asserting any hook.
+4. **Phase: Problem B proof** - `forward-mitigation` on: nft drop for the victim on the FORWARD
+   hook (chain name `forward`, `responder.go:170-175`), corroborated by the `hook=forward` log
+   (D-4). Off: no on-host drop; assert the flowspec-deferral log (`responder.go:115-117`). If
+   this hangs, STOP: R-1 applies, report to the user, do not work around it.
+5. **Phase: Close** - resolve `plan/deferrals.md:54,57` as stale-on-arrival; both tests in the
+   QEMU gate (AC-6).
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
@@ -410,6 +528,18 @@ approves it before any product code moves.
 |------------------|---------------|----------------|--------|
 | The `daemon.pid`/`daemon.ready` handshake "is never satisfied" (`plan/deferrals.md:54`) | Current runner code arms it for background `ze`: `zeReadyFileEnabled` accepts `modeBackground` (`runner_exec_util.go:125-130`), `runner_exec.go:702-705` sets ZE_READY_FILE, `:786-789` writes daemon.pid | Spec authoring, 2026-07-15: read the runner while verifying the deferral's claim | Recorded as A-1; premise must be re-verified before any rework |
 | The header says the test "has NOT been run" under QEMU | The header (`:11-14`) says it is not executable on the darwin dev host and "has not been run there" (darwin), and lists runtime behavior to confirm under QEMU. The stronger claim is not what the file says | Read `ddos-detect-mitigate.ci:11-22` | Wording corrected here; the conclusion (never proven green) still holds |
+| A-1: the `daemon.pid`/`daemon.ready` handshake is dead, so the test must be reworked onto the in-daemon probe | The handshake is fully alive: armed (`runner_exec_util.go:125-130`, `runner_exec.go:702-705,777-791`), written by the daemon (`cmd/ze/hub/main.go:957-961`), env key resolves (`env.go:41-43`). It landed in `dc082c288` on 2026-07-13, ONE DAY after the 2026-07-12 deferral, and `test/vrrp/vrrp-instance-up.ci:123` polls it green today | DESIGN 2026-07-16: traced the producer chain end to end, then `git log -S zeReadyFileEnabled` dated the fix against the deferral | The rework premise collapses. AC-2 struck, AC-2a proposed (D-1), pending user approval |
+| The test's `nft list ruleset` grep only needed the daemon to start | It ALSO needed an nft backend, and the config declares no `firewall {}` block. Before `c5273da42` (2026-07-13) nothing would have loaded one, so the grep could never have matched. `ApplyAll` now autoloads the OS default for plugin-owned tables (`registry.go:104-109`) | DESIGN 2026-07-16: read `engine.go:299-303` (idle without a section) then `ApplyAll` | The test was dead for TWO independent reasons, both fixed on 2026-07-13. Neither the deferral nor the skeleton knew about the second |
+| The `ze_api` probe pattern is the harness of record for these assertions | It is the harness of record for DISPATCH-COMMAND assertions. No probe test reads nft (F14), no dispatch surface carries the hook (F9), and the runner's design reserves the privileged foreground driver for kernel reads (F12). The pattern of record for kernel-state assertions is `vrrp-instance-up.ci`: setup.py + background ze + driver.py + `wait_until` | DESIGN 2026-07-16: read all three "working" ddos tests, `show.go`, and the runner's privilege comment | Drives D-1. "The pattern the other tests use" was true but load-bearingly incomplete: those tests never assert kernel state |
+
+### Class: stale deferrals
+
+Both rows in this spec's Origin were ACCURATE when written and falsified one day later by
+unrelated commits. Neither was a diagnostic error. The generalizable lesson: **a deferral row
+records the tree as it was on its date; re-verify its premise against the current tree before
+acting on it, and date the evidence.** This spec's skeleton caught the first (A-1) by reading
+the runner; it missed the second (the nft backend) because it never asked why a test with no
+`firewall {}` block expected an nft rule. Worth a `RECURRING-PATTERNS.md` entry at closure.
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -426,14 +556,57 @@ approves it before any product code moves.
   and its own comments reference the `daemon.pid` / `daemon.ready` directory convention. It
   may offer a deterministic way to drive the transit case without a real flood: worth
   evaluating in Phase 3 before building a veth flood.
+  -> Decision (DESIGN): fallback only. A synthetic event bypasses detection and classification,
+     leaving only `hookForDirection` under test, which `TestLocalHookByDirection` already covers
+     exhaustively. Parent AC-10 asks for an end-to-end functional proof. If the real flood
+     proves undrivable, raise the substitution with the user; do not swap silently.
+- **The inversion the skeleton found is real but points the other way.** The skeleton read the
+  process topology (probe in-daemon + foreground `ze` vs background `ze` + foreground driver.py)
+  as "the substance of the rework". The privilege topology is what actually decides it: the
+  runner DROPS the daemon and KEEPS the foreground driver privileged, precisely so the driver
+  can read nft state (`runner_exec.go:740-744`). A test whose assertion is a kernel read
+  therefore belongs in the driver, not in a daemon child. The in-daemon probe suits tests whose
+  assertions come back over the engine socket, which is exactly what the three working ddos
+  tests assert and why they never touch nft (F14).
+- **`show ddos local` is one leaf short of making the probe viable.** If it reported the chain
+  hook alongside `active`, the whole nft/root problem would dissolve and AC-4/AC-5 would be
+  pure dispatch assertions. That is a genuinely attractive product change (it is also operator-
+  useful: "which hook is my drop on?"), but it is a product change to make a test pass (R-4) and
+  must stand on its own merits with user approval. Recorded as the rejected alternative in D-1.
+- **`test/pppoe/` is orphaned dead code** (found while validating A-4, out of scope here). Its
+  three `.ci` files use `option=netns:veth=...`, which `parseOption` rejects with `unknown option
+  type` (`record_parse.go:287-430`), so they cannot even parse. Nothing runs them: `registerCIRoot`
+  (`internal/test/cli/register.go:17-36`) lists 20 suites and pppoe is not among them, and
+  `scripts/evidence/qemu-all-tests.sh:124-155` enumerates suites explicitly without it. The
+  invalid syntax has never been caught because no gate reaches the files. Worth its own fixit
+  spec (delete them, or wire the suite and fix the directive); flagged, not fixed here.
 
 ## Key Design Decisions
+
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| **D-1 (BLOCKED ON USER): keep the `driver.py` + `daemon.ready` pattern; do NOT port to the in-daemon `ze_api` probe.** Modernize instead: replace the two hand-rolled `time.sleep` poll loops (`ddos-detect-mitigate.ci:39-47,74-75`) with `ze_api.wait_until`, exactly as `test/vrrp/vrrp-instance-up.ci:123` does. | (a) Port to the in-daemon probe, as the deferral row and current AC-2 direct. (b) Keep driver.py unchanged. (c) Add a `hook` field to `show ddos local` so the probe can assert it. | The deferral chose the probe to escape a handshake it believed dead. It is not dead (A-1 BROKEN, F1-F5), so the reason is gone. Positively: the assertion REQUIRES reading the nft ruleset (F9 -- no dispatch surface carries the hook), root is needed to read it, and the runner's design reserves the privileged foreground driver for exactly that while dropping the daemon (F12/A-8). The probe can exec `nft` today only because the plugin suite happens to leave ze root (A-7), which is false under netns mode. So (a) buys nothing and couples the test to a suite accident. (b) leaves the ad-hoc poll loops and misses the deferral's legitimate intent. (c) is a product change to make a test pass (R-4) and needs approval on its own merits. **This contradicts AC-2 as written; the user must approve before Phase 2.** |
+| **D-2: no `firewall {}` block in either test.** Let `ApplyAll` autoload nft. | Declare `firewall { backend nft }` like the original observation did. | Autoload (F6) gives a real kernel backend with the responder as sole nft driver, avoiding the two-driver combination behind R-1 (F7). A block would add nothing and re-create the hang. |
+| **D-3: no runner change.** | Add a veth/topology directive to the `.ci` format. | A-4 CONFIRMED: `setup.py` at `cmd=foreground:seq=1` is awaited (F13) and already builds veths in `vrrp-instance-up.ci`. The spec's conditional runner row is therefore dropped from Files to Modify. |
+| **D-4: assert kernel state AND the responder log, not either alone.** nft readback for `ddos-local` + victim + the chain's hook; plus `expect=stderr:contains=ddos-local: drop rule installed` (which carries `hook=forward` / `hook=ingress`, F10). | nft only; log only. | AC-3 forbids weakening to a log-grep, so nft is primary. The log is a cheap corroborator that pins WHICH hook the responder chose, and localizes failures (intent vs kernel). |
+| **D-5: keep both problems in one spec** (A-6 CONFIRMED). | Split A and B. | The split rationale was "B is blocked, A is not". R-1 is downgraded, so both are unblocked, and they now share one harness. Splitting would duplicate setup.py/driver.py scaffolding. |
 
 ## Known Limitations
-- Problem B may be gated on `plan/spec-fixit-firewall-concurrency-deadlock.md` (R-1). If so,
-  this spec cannot close until that one does, or the two problems split.
+- ~~Problem B may be gated on `plan/spec-fixit-firewall-concurrency-deadlock.md` (R-1). If so,
+  this spec cannot close until that one does, or the two problems split.~~
+  **REVISED 2026-07-16:** on the recorded trigger (two concurrent nft drivers), neither test is
+  gated: neither declares a `firewall {}` block, so the firewall component idles
+  (`engine.go:299-303`) and autoload gives the responder a backend as sole driver
+  (`registry.go:104-109`). The deadlock's root cause is UNVERIFIED, so this is a downgrade, not
+  a clearance. R-1 stays live: if either test hangs, STOP and report.
+- The FORWARD proof asserts the chain's HOOK, not that forwarded packets are actually dropped in
+  flight. Proving the latter needs a receiver on the far veth end counting arrivals. Out of scope
+  unless the user asks; the parent AC-10 wording asks for the drop to be *installed* on the
+  FORWARD hook.
+- The nft readback couples these two tests to the QEMU plugin suite running ze as root (F11). If
+  that suite ever adopts netns mode (as the firewall subset has, `netns_qemu.py:107`), driver.py
+  keeps working by design (F12) but the daemon-side assertions would need review. This is an
+  argument for D-1, not a defect.
 
 ## Implementation Summary
 ### What Was Implemented
@@ -512,7 +685,8 @@ approves it before any product code moves.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] D-1 approved by the user before any test code is written (AC-2 is struck pending it)
+- [ ] AC-1, AC-2a, AC-3..AC-9 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
@@ -532,22 +706,33 @@ approves it before any product code moves.
 
 ## Open Questions (research before design)
 
-- **Does `ddos-detect-mitigate.ci` actually fail today, and how?** Run it under QEMU before
-  touching it. The deferral's stated cause looks wrong (A-1). Everything else about
-  Problem A depends on this answer.
-- Was the runner's background-mode readiness arming (`runner_exec.go:699-705`) added after
-  2026-07-12? If yes, the deferral was accurate when written and is simply stale.
-- Can the `ze_api` probe inspect the nft ruleset (exec `nft list ruleset`) under QEMU, or
-  must the drop assertion go through a dispatch-command surface (A-2)?
-- Does the `.ci` format support creating a veth pair and enabling forwarding before the
-  daemon starts, or is a new harness directive needed (A-4)?
-- Can `internal/test/plugins/fakeddos/` drive a synthetic remote-victim AttackDetected,
-  making the FORWARD proof deterministic without a real transit flood? Would that still
-  satisfy the parent AC-10, which asks for a functional proof?
-- Is Problem B blocked on the firewall concurrency deadlock (R-1)? Decide the sequencing
-  with the user before starting Phase 4.
-- Should the two problems stay in one spec, or split now that B looks blocked and A does
-  not (A-6)?
+**Answered during DESIGN (2026-07-16):**
+
+| Question | Answer |
+|----------|--------|
+| Was the runner's background-mode readiness arming added after 2026-07-12? | **YES.** `dc082c288`, 2026-07-13, one day after the deferral. Its message states background ze "timed out by construction" before it. The deferral was accurate when written and is now stale (F4). |
+| Can the `ze_api` probe inspect the nft ruleset under QEMU, or must the assertion go through a dispatch-command surface (A-2)? | **Neither escape works as the skeleton hoped.** There is NO dispatch surface for the hook (`show ddos local` = enabled/active/target, F9), so a ruleset read is mandatory. The probe *can* exec `nft` today, but only because the QEMU plugin suite leaves ze root (F11/A-7) -- untrue under netns mode. Drives D-1. |
+| Does the `.ci` format support creating a veth pair before the daemon starts (A-4)? | **YES, with no new directive.** `tmpfs=setup.py` + `cmd=foreground:seq=1`, awaited by `runner_exec.go:797-808`; precedent `vrrp-instance-up.ci:34-51,212`. Do NOT use `option=netns:veth=` (invalid syntax, `record_parse.go:428-430`). |
+| Is Problem B blocked on the firewall concurrency deadlock (R-1)? | **No, on the recorded trigger.** It needs two concurrent nft drivers; neither test declares a `firewall {}` block, so the component idles (`engine.go:299-303`) and autoload gives the responder a backend as sole driver (`registry.go:104-109`). Root cause is UNVERIFIED, so R-1 stays live as a stop-and-report risk. |
+| Should the two problems stay in one spec (A-6)? | **One spec.** The split rationale ("B blocked, A not") is void, and both now share one harness. |
+
+**Still open (need the QEMU run or the user):**
+
+- **[USER, BLOCKING] D-1: driver.py or in-daemon probe?** The evidence says keep driver.py and
+  migrate its poll loops to `ze_api.wait_until`. This contradicts AC-2 as written, which is why
+  AC-2 is struck and AC-2a is proposed. Only the user can approve the scope change.
+- **Does `ddos-detect-mitigate.ci` actually fail today, and how?** Static evidence says both
+  historical blockers are gone. Nobody has run it. AC-1 keeps this BLOCKING before any rewrite.
+- Can `internal/test/plugins/fakeddos/` drive a synthetic remote-victim AttackDetected, making
+  the FORWARD proof deterministic without a real transit flood? Would that still satisfy the
+  parent AC-10, which asks for a functional proof? **Design lean: no.** A synthetic event would
+  bypass detection/classification and prove only `hookForDirection`, which
+  `TestLocalHookByDirection` already covers exhaustively. AC-10 asks for the end-to-end proof.
+  Keep fakeddos as a Phase 3 fallback only if the real transit flood proves undrivable, and
+  raise it with the user rather than silently substituting a weaker proof.
+- **[COORDINATION] R-7:** autoload now programs nft under existing enforce-mode ddos tests
+  (`ddos-direction.ci`). Whether that destabilizes them belongs to
+  `plan/spec-fixit-firewall-concurrency-deadlock.md`. Flagged, not resolved here.
 
 ## Notes
 - Authored 2026-07-15 as a skeleton from `plan/deferrals.md:54` and `:57`. Every `file:line`
