@@ -50,3 +50,33 @@ Losing a failure line to `| head` means re-running the whole thing.
 summary) by default. Override with `ZE_VERIFY_LOG=tmp/ze-verify-$$.log`
 to avoid collisions between concurrent sessions. Read logs with the
 Read tool, with `offset`/`limit` for paging.
+
+## The Bash Hook Matches Your Command Text, Including Search Patterns
+
+`.claude/hooks/pretool-bash.py` blocks the banned git verbs by matching the
+command STRING. It cannot tell a verb you are running from a verb you are
+searching for, so a read-only grep is rejected when its own pattern spells
+one:
+
+```
+grep -l "git add -A\|git commit -a" tmp/commit-*.sh   # blocked: "git commit"
+```
+
+This is a false positive, not a rule you are violating, and it bites exactly
+when auditing commit scripts (see
+`plan/spec-fixit-shared-plan-file-contention.md`, whose research does this).
+Do not rephrase the ban away or work around the hook's intent. Scan with
+Python instead, which keeps the verb out of the command line:
+
+```
+python3 - <<'PY'
+import glob, re
+broad = re.compile(r"add\s+(-A|--all|\.)|commit\s+-a")
+for s in glob.glob("tmp/commit-*.sh"):
+    if broad.search(open(s, errors="replace").read()):
+        print("BROAD-STAGE", s)
+PY
+```
+
+Same class as the pipe ban above: the hook is coarse on purpose. The cost of
+one extra round-trip is lower than the cost of a real bare `git commit`.
