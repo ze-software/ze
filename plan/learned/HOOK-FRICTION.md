@@ -178,19 +178,42 @@ reject it as a 3-line deletion.
 
 ---
 
-## `block-temp-debug.sh`
+## `block-temp-debug.sh` (now `c_temp_debug` in `pretool-writeedit.py`)
 
-**Trigger.** `fmt.Fprintf(os.Stderr, ...)` or `fmt.Println(...)` in a
-`.go` file whose base name is not `register.go`.
+**Trigger.** A debug-MARKER print (`DEBUG`/`TRACE`/`>>>`/`<<<`/`***`/`XXX`/
+`FIXME`), a bare `println(...)`, or a short bare `fmt.Println("...")`, in a
+`.go` file that is not `_test.go`, not under `cmd/` or `/scripts/`, and not
+`register.go`.
 
 **Blocks.** Diagnostic prints in production files.
 
-**Workaround (verified in 3 specs).** One of:
-1. Use `slogutil.Logger("<subsystem>").Warn(...)`.
-2. Move the print into `register.go` (hook allows it there because
-   registration failures are expected to emit to stderr).
+**Does NOT block (changed 2026-07-16).** Plain writes to `os.Stderr`. The check
+used to carry a blanket `fmt\.Fprint.*os\.Stderr` rule; it was measured against
+the tree and removed. It flagged **1118 committed stderr writes across 123
+files**, of which **1117 were legitimate** (usage text, interactive password
+prompts, `error:` messages) and the single marker hit was itself a false
+positive: a diff header, `fmt.Fprintf(os.Stderr, "--- %s (original)\n", path)`
+in `internal/component/config/cli/cmd_fmt.go`, matched only because `---` was in
+the marker list (`---` was dropped too). Precision was zero. Writing to stderr is
+what a CLI *does*; it is not evidence of a debug statement.
 
-**Evidence.** 282, 622, 633.
+**The old workarounds were WRONG for CLI code -- do not apply them.** This entry
+previously advised (1) use `slogutil.Logger(...).Warn(...)`, or (2) move the
+print into `register.go`. Both damage a CLI: a logger sends operator-facing
+usage and error text to the logs instead of the terminal, and usage strings do
+not belong in a registration file. They remain reasonable for a genuine
+diagnostic print inside a library. If you are writing operator-facing output
+from a CLI package, just write to `os.Stderr` -- that is now allowed, and it is
+what the ~200 prints in `internal/component/*/cli/` already do.
+
+**Related trap.** `errcheck` exempts `fmt.Fprint*` only when the writer is a
+literal `os.Stdout`/`os.Stderr`. Route the same call through `fs.Output()` (or
+any `io.Writer`) and errcheck demands the error be handled, while `_, _ =`
+trips `c_ignored_errors`. Before this change those three rules left CLI packages
+outside `cmd/` with no legal way to print at all.
+
+**Evidence.** 282, 622, 633; measurement + removal 2026-07-16 (l2tp `--user`
+session; `make ze-hook-test` 131/131 golden + 33/33 fixtures still green after).
 
 ---
 
