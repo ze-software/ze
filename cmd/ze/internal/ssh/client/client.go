@@ -54,6 +54,9 @@ func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (C
 func ResolveDBPath() string { return core.ResolveDBPath() }
 
 // LoadCredentials loads credentials from the default blob-store path.
+// May block on an interactive password prompt. Callers that must not block
+// (shell tab completion) want core.LoadCredentialsNoPrompt; no re-export exists
+// here because this facade has no importers to serve.
 func LoadCredentials() (Credentials, error) { return core.LoadCredentials() }
 
 // LoadCredentialsWithFlags loads credentials with a user override.

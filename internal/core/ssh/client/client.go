@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -272,12 +273,37 @@ func ReadCredentialsWithFlags(dbPath, cliUser string) (Credentials, error) {
 
 // ReadCredentialsForRemote reads SSH credentials for a specific host:port.
 // When remoteHost/remotePort are empty, the default pointer is followed.
+//
+// This variant MAY BLOCK on an interactive password prompt (see readCredentials).
+// Callers that cannot accept a prompt -- anything running unattended, and shell
+// tab completion in particular -- must use a NoPrompt variant instead.
 func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (Credentials, error) {
-	store, err := zefs.Open(dbPath)
-	if err != nil {
-		return Credentials{}, fmt.Errorf("open database: %w", err)
+	return readCredentials(dbPath, cliUser, remoteHost, remotePort, true)
+}
+
+// readCredentials resolves SSH credentials from the zefs store, CLI flags, env,
+// and built-in defaults.
+//
+// allowPrompt decides whether resolution may block on an interactive terminal
+// prompt for a password. It is a CALLER policy and is deliberately not inferred
+// from the tty state alone: tab completion runs with stdin on the operator's
+// terminal, so a tty check would say "prompting is fine" and hang the shell.
+// When allowPrompt is false and no non-interactive password source exists,
+// resolution fails with an error the caller can degrade on.
+//
+// The store is one source among several, not a precondition. It is a single
+// shared 0600 file under a binary-derived config dir (/usr/local/bin/ze ->
+// /etc/ze), so every user who did not install ze is unable to read it. Treating
+// it as mandatory refused those users before their credentials were even
+// considered, even when the flag, env, and defaults supplied everything needed.
+func readCredentials(dbPath, cliUser, remoteHost, remotePort string, allowPrompt bool) (Credentials, error) {
+	store, err := openStoreIfReadable(dbPath)
+	if err != nil && !errors.Is(err, errStoreUnavailable) {
+		return Credentials{}, err
 	}
-	defer store.Close() //nolint:errcheck // read-only access
+	if store != nil {
+		defer store.Close() //nolint:errcheck // read-only access
+	}
 
 	host, port := remoteHost, remotePort
 	if host == "" || port == "" {
@@ -290,16 +316,23 @@ func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (C
 		}
 	}
 
-	usernameKey := zefs.KeySSHUsername.Key(host, port)
-	zefsUser, err := readKey(store, usernameKey)
-	if err != nil {
-		return Credentials{}, fmt.Errorf("no credentials for %s:%s", host, port)
-	}
+	// Empty when there is no store, or the store holds no entry for this
+	// host/port. Either way the flag and env may still name the user.
+	zefsUser := storedUsername(store, host, port)
 
 	username := resolveUsername(cliUser, zefsUser)
-	isSuperAdmin := username == zefsUser
+	if username == "" {
+		return Credentials{}, fmt.Errorf(
+			"no credentials for %s:%s: no stored username and none supplied "+
+				"(pass --user <name> with ze.ssh.password set, or run ze init)", host, port)
+	}
 
-	password, err := resolvePassword(store, username, host, port, isSuperAdmin)
+	// Only a stored username can be the super-admin. Without this guard an empty
+	// username would compare equal to an empty zefsUser and send resolvePassword
+	// down the hash-as-token path with no store to read.
+	isSuperAdmin := zefsUser != "" && username == zefsUser
+
+	password, err := resolvePassword(store, username, host, port, isSuperAdmin, allowPrompt)
 	if err != nil {
 		return Credentials{}, err
 	}
@@ -310,6 +343,42 @@ func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (C
 		Username: username,
 		Auth:     password,
 	}, nil
+}
+
+// errStoreUnavailable reports that the credential store is simply not available
+// to this user -- absent, or owned by someone else. Resolution continues without
+// it; it is not a failure on its own.
+var errStoreUnavailable = errors.New("credential store unavailable")
+
+// openStoreIfReadable opens the credential store, returning errStoreUnavailable
+// when the file is missing or unreadable by this user.
+//
+// Any other failure is returned as-is. A corrupt or truncated store is a real
+// problem and must surface as one -- silently downgrading it to "no credentials"
+// would turn a loud bug into a confusing authentication failure.
+func openStoreIfReadable(dbPath string) (*zefs.BlobStore, error) {
+	store, err := zefs.Open(dbPath)
+	switch {
+	case err == nil:
+		return store, nil
+	case errors.Is(err, fs.ErrNotExist), errors.Is(err, fs.ErrPermission):
+		return nil, fmt.Errorf("%w: %s", errStoreUnavailable, dbPath)
+	default:
+		return nil, fmt.Errorf("open database: %w", err)
+	}
+}
+
+// storedUsername returns the super-admin username recorded for host:port, or ""
+// when there is no store or no entry for that target.
+func storedUsername(store *zefs.BlobStore, host, port string) string {
+	if store == nil {
+		return ""
+	}
+	user, err := readKey(store, zefs.KeySSHUsername.Key(host, port))
+	if err != nil {
+		return ""
+	}
+	return user
 }
 
 // resolveUsername picks a username from the CLI flag, env, or zefs in order.
@@ -329,23 +398,32 @@ func resolveUsername(cliUser, zefsUser string) string {
 // resolvePassword returns the SSH credential to send. Super-admin can fall
 // back to the zefs hash-as-token; other users must supply a real password
 // (env or interactive prompt) because only their bcrypt hash lives in YANG.
-func resolvePassword(store *zefs.BlobStore, username, host, port string, isSuperAdmin bool) (string, error) {
+//
+// allowPrompt is the caller's policy on blocking for input; see readCredentials.
+// A false value turns the prompt into an error, which is what lets unattended
+// callers degrade instead of hanging.
+func resolvePassword(store *zefs.BlobStore, username, host, port string, isSuperAdmin, allowPrompt bool) (string, error) {
 	if v := env.Get("ze.ssh.password"); v != "" {
 		return v, nil
 	}
 	if isSuperAdmin {
 		return readKey(store, zefs.KeySSHPassword.Key(host, port))
 	}
-	if isStdinTTY() {
-		return promptPassword(username)
+	if allowPrompt && isStdinTTY() {
+		return passwordPrompter(username)
 	}
 	return "", fmt.Errorf("no password source for user %q (set ze.ssh.password or run interactively)", username)
 }
 
-// isStdinTTY reports whether stdin is a terminal.
-func isStdinTTY() bool {
+// isStdinTTY reports whether stdin is a terminal. A var so tests can drive the
+// prompt decision without a real terminal.
+var isStdinTTY = func() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }
+
+// passwordPrompter indirects promptPassword so tests can assert whether the
+// prompt path was taken, without driving a real terminal.
+var passwordPrompter = promptPassword
 
 // promptPassword reads a password from the terminal without echo.
 func promptPassword(username string) (string, error) {
@@ -374,10 +452,15 @@ func resolveHostPort(store *zefs.BlobStore) (string, string) {
 		return envHost, envPort
 	}
 
-	if dflt, err := readKey(store, zefs.KeySSHDefault.Pattern); err == nil {
-		parts := strings.SplitN(dflt, "/", 2)
-		if len(parts) == 2 {
-			return parts[0], parts[1]
+	// The default pointer lives in the store, so a user who cannot read the store
+	// cannot learn it and falls back to the built-in target. A non-default daemon
+	// address must then come from ze.ssh.host / ze.ssh.port or --remote.
+	if store != nil {
+		if dflt, err := readKey(store, zefs.KeySSHDefault.Pattern); err == nil {
+			parts := strings.SplitN(dflt, "/", 2)
+			if len(parts) == 2 {
+				return parts[0], parts[1]
+			}
 		}
 	}
 	return defaultHost, defaultPort
@@ -419,8 +502,26 @@ func ResolveDBPath() string {
 // using the zefs super-admin username (no CLI flag override).
 //
 // Preserved for callers that have not yet adopted --user.
+//
+// MAY BLOCK on an interactive password prompt. Unattended callers want
+// LoadCredentialsNoPrompt instead.
 func LoadCredentials() (Credentials, error) {
 	return LoadCredentialsWithFlags("")
+}
+
+// LoadCredentialsNoPrompt is LoadCredentials for callers that must never block
+// on input, however interactive the terminal happens to look.
+//
+// Shell tab completion is the motivating case: it runs with stdin attached to
+// the operator's terminal, so the tty check in resolvePassword would happily
+// prompt and freeze the shell mid-completion. Resolution here fails with
+// "no password source" instead, letting the caller degrade quietly.
+func LoadCredentialsNoPrompt() (Credentials, error) {
+	dbPath := ResolveDBPath()
+	if dbPath == "" {
+		return Credentials{}, errCannotDetermineDatabaseLocation
+	}
+	return readCredentials(dbPath, "", "", "", false)
 }
 
 // LoadCredentialsWithFlags reads SSH credentials from the default zefs

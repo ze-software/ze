@@ -108,13 +108,23 @@ The same flag works on `ze bgp plugin cli`, `ze signal`, `ze config set`,
 ### Tab completion (`ze completion`)
 
 Tab completion runs silently in the shell and does not accept flags. To
-have completions resolve as a non-super-admin user, set the env var in
+have completions resolve as a non-super-admin user, set the env vars in
 your shell profile:
 
 ```
 export ZE_SSH_USERNAME=alice
-export ZE_SSH_PASSWORD=...   # or use a key-locked secret store
+export ZE_SSH_PASSWORD=...
 ```
+
+Set **both**, or neither. Completion never prompts for a password: it runs while
+you are typing, so a prompt would block the shell instead of asking a question
+you could answer. With a username but no password there is no usable credential,
+so completion stays silent and you simply get no peer completions. Everything
+else keeps working; only dynamic peer names are missing.
+
+If you would rather not keep a password in the environment, leave both unset and
+completion resolves as the zefs super-admin, which needs no password.
+<!-- source: internal/core/ssh/client/client.go -- LoadCredentialsNoPrompt -->
 
 ## SSH public key authentication
 

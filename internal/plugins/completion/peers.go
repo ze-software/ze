@@ -27,9 +27,12 @@ func peers() int {
 // writePeers queries the daemon and writes peer selector completions to w.
 // Separated from peers() for testability.
 func writePeers(w io.Writer) int {
-	creds, err := sshclient.LoadCredentials()
+	// NoPrompt, not LoadCredentials: completion runs with stdin on the operator's
+	// terminal, so the prompting variant would ask for a password and block the
+	// shell mid-completion. Missing completions are recoverable; a hung shell is not.
+	creds, err := sshclient.LoadCredentialsNoPrompt()
 	if err != nil {
-		return 0 // Graceful fallback: daemon not available
+		return 0 // Graceful fallback: no usable credentials
 	}
 
 	output, err := sshclient.ExecCommand(creds, "peer * list")

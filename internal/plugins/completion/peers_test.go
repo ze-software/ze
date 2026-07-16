@@ -1,11 +1,115 @@
 package completion
 
 import (
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/creack/pty"
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
+
+// seedZefs writes a store with a super-admin entry so credential resolution gets
+// past the store and reaches the password step, which is what this test targets.
+func seedZefs(t *testing.T, dir string) {
+	t.Helper()
+	store, err := zefs.Create(filepath.Join(dir, "database.zefs"))
+	if err != nil {
+		t.Fatalf("zefs.Create: %v", err)
+	}
+	for k, v := range map[string]string{
+		"meta/ssh/10.0.0.1/2222/username": "admin",
+		"meta/ssh/10.0.0.1/2222/password": "adminhash",
+		"meta/ssh/default":                "10.0.0.1/2222",
+	} {
+		if err := store.WriteFile(k, []byte(v), 0); err != nil {
+			t.Fatalf("WriteFile(%s): %v", k, err)
+		}
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close: %v", err)
+	}
+}
+
+// TestWritePeersNeverPromptsOnTTY is the wiring test for the completion hang.
+//
+// Tab completion runs with stdin attached to the operator's terminal. Credential
+// resolution prompts for a password for any non-super-admin user with no
+// ze.ssh.password (internal/core/ssh/client/client.go resolvePassword). An
+// operator who follows the documented completion setup in
+// docs/guide/authentication.md ("export ZE_SSH_USERNAME=alice", password left to a
+// secret store) therefore blocks their own shell on TAB: the prompt reads stdin
+// and never returns. peers.go guards resolution *errors*, but a prompt is not an
+// error, it is a block.
+//
+// The test replaces stdin with a real pty so isStdinTTY() reports true, then
+// requires writePeers to return. Before the fix it blocks and this test fails on
+// the deadline; after it, resolution declines the prompt, returns an error, and
+// writePeers falls back to "no completions".
+//
+// VALIDATES: AC-1 -- completion never issues a password prompt, even on a TTY.
+// PREVENTS: a hung shell on TAB for any operator with a username but no password.
+func TestWritePeersNeverPromptsOnTTY(t *testing.T) {
+	dir := t.TempDir()
+	seedZefs(t, dir)
+
+	t.Setenv("ze_config_dir", dir)
+	t.Setenv("ze_ssh_username", "alice") // not the super-admin -> needs a real password
+	t.Setenv("ze_ssh_password", "")      // no password source -> prompt path on a TTY
+	env.ResetCache()
+	defer env.ResetCache()
+
+	ptmx, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("pty.Open: %v", err)
+	}
+	defer func() {
+		if err := ptmx.Close(); err != nil {
+			t.Logf("ptmx.Close: %v", err)
+		}
+	}()
+	defer func() {
+		if err := tty.Close(); err != nil {
+			t.Logf("tty.Close: %v", err)
+		}
+	}()
+
+	// Drain the master so a prompt written to the tty cannot block on a full pipe:
+	// the failure to observe is the blocking READ, not a blocked write.
+	go func() {
+		if _, err := io.Copy(io.Discard, ptmx); err != nil {
+			return // master closed at test end; nothing to report
+		}
+	}()
+
+	origStdin := os.Stdin
+	os.Stdin = tty
+	defer func() { os.Stdin = origStdin }()
+
+	done := make(chan int, 1)
+	go func() {
+		var buf strings.Builder
+		done <- writePeers(&buf)
+	}()
+
+	select {
+	case code := <-done:
+		assert.Equal(t, 0, code, "writePeers must degrade to no completions, not fail")
+	case <-time.After(5 * time.Second):
+		// Unblock the prompt so the leaked goroutine can finish and the test
+		// binary can exit cleanly.
+		if _, err := ptmx.WriteString("\n"); err != nil {
+			t.Logf("unblocking pty write: %v", err)
+		}
+		t.Fatal("writePeers blocked on a password prompt: tab completion would hang the operator's shell")
+	}
+}
 
 // TestCompletionPeersOutput verifies the formatting of peer selector completions.
 //

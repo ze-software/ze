@@ -290,6 +290,7 @@ Metrics, telemetry, Prometheus exporters, third-party format compatibility.
 Authentication, authorization, appliance bootstrap, and credential boundaries.
 
 - [831](plan/learned/831-appliance-auth-hardening.md) -- Appliance auth hardening: local admin uses `meta/auth/local/*`, config-file users share web/API/SSH auth loading, mutation paths enforce RBAC across web CLI, REST, and gRPC
+- [1159](plan/learned/1159-fixit-cli-credential-resolution.md) -- CLI credential resolution: the client is NOT an identity authority (`ze cli --user` is only SSH; the daemon authenticates every username at `ssh.go:433-453`), so client-side identity restriction buys nothing `ssh alice@host` cannot bypass -- a proposed root-gate on `--user` was dropped for that reason, and because role accounts (`thomas` -> `noc`) require a free choice of login name. Two structural rules came out of it: prompting is a CALLER policy (`allowPrompt`), never inferred from tty state, because tab completion runs on a tty and a tty check hangs the shell; and the zefs store is one credential SOURCE among flag/env/defaults, not a precondition (it is one shared `0600` file under a binary-derived `/etc/ze`, so every non-installing user was locked out). Store-open failures are classified: missing/unreadable continues, corruption still surfaces
 
 ## Agent Workflow
 

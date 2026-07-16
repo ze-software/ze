@@ -1474,6 +1474,16 @@ The password for a non-super-admin user must come from `ze.ssh.password`
 (env) or an interactive prompt. There is intentionally no `--password`
 flag (passwords in argv leak into shell history and `ps`).
 
+The zefs store is one source among these, not a prerequisite. It is created
+`0600` and owned by whoever installed ze, so an operator who cannot read it can
+still log in by naming themselves with `--user` and supplying `ze.ssh.password`:
+resolution falls back to the built-in `127.0.0.1:2222` target. Set `ze.ssh.host`
+and `ze.ssh.port` (or pass `--remote`) if the daemon listens elsewhere, because
+the `meta/ssh/default` pointer lives in the store and cannot be read either.
+With no username from flag or env and no readable store, the CLI fails and names
+`--user` and `ze.ssh.password` rather than guessing an identity.
+<!-- source: internal/core/ssh/client/client.go -- readCredentials, openStoreIfReadable -->
+
 See [authentication.md](authentication.md) for the full multi-user workflow.
 <!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->

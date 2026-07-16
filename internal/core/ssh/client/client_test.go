@@ -1,6 +1,7 @@
 package client
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -237,6 +238,301 @@ func TestReadCredentialsNonInteractiveNoPassword(t *testing.T) {
 	if !strings.Contains(got, "alice") || !strings.Contains(got, "ze.ssh.password") {
 		t.Errorf("error %q must name user and ze.ssh.password env var", got)
 	}
+}
+
+// VALIDATES: AC-6 -- a YANG user supplies a username and password and logs in
+// when no credential store is available to them.
+//
+// PREVENTS: the production lockout. The store is a shared 0600 file under
+// /etc/ze, so every user who did not install ze failed with "open database:
+// permission denied" -- before their credentials were ever considered, and even
+// though the flag, env and defaults supplied everything needed.
+func TestReadCredentialsNoStoreFlagAndEnv(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "database.zefs") // never created
+
+	t.Setenv("ze_ssh_password", "alicepw")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, true)
+
+	creds, err := ReadCredentialsWithFlags(dbPath, "alice")
+	if err != nil {
+		t.Fatalf("ReadCredentialsWithFlags with no store: %v", err)
+	}
+	if creds.Username != "alice" {
+		t.Errorf("Username: got %q, want %q (flag)", creds.Username, "alice")
+	}
+	if creds.Auth != "alicepw" {
+		t.Errorf("Auth: got %q, want %q (env)", creds.Auth, "alicepw")
+	}
+	if creds.Host != defaultHost || creds.Port != defaultPort {
+		t.Errorf("Host:Port got %s:%s, want %s:%s (built-in defaults, no pointer to read)",
+			creds.Host, creds.Port, defaultHost, defaultPort)
+	}
+	if *prompted {
+		t.Error("prompted despite an env password being available")
+	}
+}
+
+// VALIDATES: AC-6 for the real production condition -- the store EXISTS but is
+// owned by someone else, which is what a non-installing user actually hits.
+// PREVENTS: classifying permission-denied as fatal rather than "no store for me".
+func TestReadCredentialsUnreadableStoreFlagAndEnv(t *testing.T) {
+	// test-relax: chmod cannot deny access to root, so this permission-denied
+	// condition is unobservable when the suite runs as root. The identical
+	// resolution path is covered unconditionally by TestReadCredentialsNoStoreFlagAndEnv
+	// (not-exist branch); only the errors.Is(fs.ErrPermission) classification is
+	// skipped here.
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: chmod 000 does not deny access")
+	}
+
+	dbPath := seedSuperAdminZefs(t, t.TempDir())
+	if err := os.Chmod(dbPath, 0o000); err != nil {
+		t.Fatalf("Chmod: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(dbPath, 0o600); err != nil {
+			t.Logf("restoring store mode: %v", err)
+		}
+	})
+
+	t.Setenv("ze_ssh_password", "alicepw")
+	env.ResetCache()
+	stubPromptPolicy(t, true)
+
+	creds, err := ReadCredentialsWithFlags(dbPath, "alice")
+	if err != nil {
+		t.Fatalf("ReadCredentialsWithFlags with an unreadable store: %v", err)
+	}
+	if creds.Username != "alice" || creds.Auth != "alicepw" {
+		t.Errorf("got %s/%s, want alice/alicepw", creds.Username, creds.Auth)
+	}
+}
+
+// VALIDATES: AC-7 -- with no store and no username, resolution fails with an
+// error naming the way forward, and never attempts the super-admin path.
+//
+// PREVENTS: an empty username comparing equal to an empty stored username and
+// sending resolvePassword down hash-as-token with no store to read (a nil
+// dereference), and preserves the credential error that routes `ze cli` to its
+// offline fallback.
+func TestReadCredentialsNoStoreNoUsername(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "database.zefs") // never created
+
+	t.Setenv("ze_ssh_password", "")
+	t.Setenv("ze_ssh_username", "")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, false)
+
+	_, err := ReadCredentialsWithFlags(dbPath, "")
+	if err == nil {
+		t.Fatal("expected an error when no store and no username are available")
+	}
+	got := err.Error()
+	if !strings.Contains(got, "--user") || !strings.Contains(got, "ze.ssh.password") {
+		t.Errorf("error %q must name --user and ze.ssh.password as the way forward", got)
+	}
+	if *prompted {
+		t.Error("prompted with no username resolved")
+	}
+}
+
+// VALIDATES: AC-8 -- a corrupt store is reported, not silently treated as "no
+// credentials".
+// PREVENTS: masking a real store bug as a confusing authentication failure.
+func TestReadCredentialsCorruptStoreReportsError(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "database.zefs")
+	if err := os.WriteFile(dbPath, []byte("this is not a zefs store"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	t.Setenv("ze_ssh_password", "alicepw")
+	env.ResetCache()
+	stubPromptPolicy(t, false)
+
+	_, err := ReadCredentialsWithFlags(dbPath, "alice")
+	if err == nil {
+		t.Fatal("expected an error for a corrupt store, got a successful resolution")
+	}
+	if !strings.Contains(err.Error(), "open database") {
+		t.Errorf("error %q must report the store failure, not hide it", err.Error())
+	}
+}
+
+// VALIDATES: AC-9 -- a readable store with no flag or env still resolves to the
+// super-admin via hash-as-token, exactly as before.
+// PREVENTS: the store-optional change regressing the default local admin path.
+func TestReadCredentialsSuperAdminStillResolves(t *testing.T) {
+	dbPath := seedSuperAdminZefs(t, t.TempDir())
+	t.Setenv("ze_ssh_password", "")
+	t.Setenv("ze_ssh_username", "")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, true)
+
+	creds, err := ReadCredentialsWithFlags(dbPath, "")
+	if err != nil {
+		t.Fatalf("ReadCredentialsWithFlags: %v", err)
+	}
+	if creds.Username != "admin" {
+		t.Errorf("Username: got %q, want %q (zefs super-admin)", creds.Username, "admin")
+	}
+	if creds.Auth != "adminhash" {
+		t.Errorf("Auth: got %q, want %q (hash-as-token)", creds.Auth, "adminhash")
+	}
+	if *prompted {
+		t.Error("prompted on the super-admin path")
+	}
+}
+
+// VALIDATES: a readable store with no entry for the requested host:port still
+// resolves when the flag and env supply everything.
+//
+// PREVENTS: `ze cli --remote 192.0.2.10:2222 --user noc` failing with "no
+// credentials for ..." despite a username and password being supplied -- the
+// documented remote flow in docs/guide/ubuntu-build-install.md.
+func TestReadCredentialsStoreWithoutEntryForRemote(t *testing.T) {
+	dbPath := seedSuperAdminZefs(t, t.TempDir()) // holds 10.0.0.1/2222 only
+
+	t.Setenv("ze_ssh_password", "nocpw")
+	env.ResetCache()
+	stubPromptPolicy(t, false)
+
+	creds, err := ReadCredentialsForRemote(dbPath, "noc", "192.0.2.10", "2222")
+	if err != nil {
+		t.Fatalf("ReadCredentialsForRemote for an unknown remote: %v", err)
+	}
+	if creds.Username != "noc" || creds.Auth != "nocpw" {
+		t.Errorf("got %s/%s, want noc/nocpw", creds.Username, creds.Auth)
+	}
+	if creds.Host != "192.0.2.10" {
+		t.Errorf("Host: got %q, want %q", creds.Host, "192.0.2.10")
+	}
+}
+
+// stubPromptPolicy forces the tty answer and captures whether the password
+// prompt was reached, restoring both seams when the test ends.
+func stubPromptPolicy(t *testing.T, tty bool) *bool {
+	t.Helper()
+	prompted := false
+
+	origTTY := isStdinTTY
+	isStdinTTY = func() bool { return tty }
+	t.Cleanup(func() { isStdinTTY = origTTY })
+
+	origPrompter := passwordPrompter
+	passwordPrompter = func(string) (string, error) {
+		prompted = true
+		return "typed-password", nil
+	}
+	t.Cleanup(func() { passwordPrompter = origPrompter })
+
+	return &prompted
+}
+
+// VALIDATES: AC-1 -- with prompting declined, resolution errors instead of
+// blocking, EVEN when stdin is a terminal.
+//
+// PREVENTS: the tab-completion hang. Completion runs with stdin on the
+// operator's terminal, so a tty check alone would prompt and freeze the shell
+// mid-completion. The caller's policy, not the tty state, must decide.
+func TestResolvePasswordNoPromptWhenDeclined(t *testing.T) {
+	t.Setenv("ze_ssh_password", "")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, true) // a terminal IS present
+
+	_, err := resolvePassword(nil, "alice", "10.0.0.1", "2222", false, false)
+	if err == nil {
+		t.Fatal("expected an error when prompting is declined and no password source exists")
+	}
+	if *prompted {
+		t.Error("passwordPrompter was called despite allowPrompt=false: completion would hang")
+	}
+	if got := err.Error(); !strings.Contains(got, "alice") || !strings.Contains(got, "ze.ssh.password") {
+		t.Errorf("error %q must name the user and ze.ssh.password", got)
+	}
+}
+
+// VALIDATES: AC-4 -- interactive callers still get their password prompt.
+// PREVENTS: the no-prompt policy silently removing interactive login for
+// `ze cli -u alice`, which docs/guide/authentication.md documents as supported.
+func TestResolvePasswordPromptsWhenAllowed(t *testing.T) {
+	t.Setenv("ze_ssh_password", "")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, true)
+
+	pw, err := resolvePassword(nil, "alice", "10.0.0.1", "2222", false, true)
+	if err != nil {
+		t.Fatalf("resolvePassword: %v", err)
+	}
+	if !*prompted {
+		t.Error("passwordPrompter was NOT called: interactive login is broken")
+	}
+	if pw != "typed-password" {
+		t.Errorf("password: got %q, want the prompted value", pw)
+	}
+}
+
+// VALIDATES: AC-5 -- a non-tty caller errors rather than prompting, even when
+// prompting is allowed. This is the scripted `ze cli -u alice -c ...` path.
+// PREVENTS: a script blocking forever on a prompt it can never answer.
+func TestResolvePasswordNoTTYNeverPrompts(t *testing.T) {
+	t.Setenv("ze_ssh_password", "")
+	env.ResetCache()
+	prompted := stubPromptPolicy(t, false) // no terminal
+
+	if _, err := resolvePassword(nil, "alice", "10.0.0.1", "2222", false, true); err == nil {
+		t.Fatal("expected an error when no tty and no password source")
+	}
+	if *prompted {
+		t.Error("passwordPrompter was called with no tty")
+	}
+}
+
+// VALIDATES: AC-2/AC-3 -- the env password and super-admin hash-as-token paths
+// return before any prompt decision, so declining prompts cannot break them.
+// PREVENTS: the no-prompt policy regressing super-admin completion, which must
+// keep resolving via the zefs hash.
+func TestResolvePasswordSourcesBypassPromptPolicy(t *testing.T) {
+	dbPath := seedSuperAdminZefs(t, t.TempDir())
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("zefs.Open: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // read-only test access
+
+	t.Run("env password wins even with prompting declined", func(t *testing.T) {
+		t.Setenv("ze_ssh_password", "frompw")
+		env.ResetCache()
+		prompted := stubPromptPolicy(t, true)
+
+		pw, err := resolvePassword(store, "alice", "10.0.0.1", "2222", false, false)
+		if err != nil {
+			t.Fatalf("resolvePassword: %v", err)
+		}
+		if pw != "frompw" {
+			t.Errorf("password: got %q, want %q (env)", pw, "frompw")
+		}
+		if *prompted {
+			t.Error("prompted despite an env password being available")
+		}
+	})
+
+	t.Run("super-admin hash-as-token works with prompting declined", func(t *testing.T) {
+		t.Setenv("ze_ssh_password", "")
+		env.ResetCache()
+		prompted := stubPromptPolicy(t, true)
+
+		pw, err := resolvePassword(store, "admin", "10.0.0.1", "2222", true, false)
+		if err != nil {
+			t.Fatalf("resolvePassword: %v", err)
+		}
+		if pw != "adminhash" {
+			t.Errorf("password: got %q, want %q (zefs hash-as-token)", pw, "adminhash")
+		}
+		if *prompted {
+			t.Error("prompted despite the super-admin hash being available")
+		}
+	})
 }
 
 // VALIDATES: TrimErrorPrefix strips the daemon's "error: " display prefix so a
