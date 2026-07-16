@@ -384,7 +384,36 @@ which is safe -- it locks.
 Verified: the two affected tests 5/5 under `-race`, and the whole
 `./internal/component/l2tp/...` tree green under `-race`.
 
-### `internal/component/l2tp` `TestReactorKernelDisabledReturnsNil` -- stale assertion vs. deliberate design change
+### ~~`internal/component/l2tp` `TestReactorKernelDisabledReturnsNil`~~ -- FIXED 2026-07-16: stale assertion retired, verified on real Linux
+
+The diagnosis logged here was exactly right, and the fix is the one it prescribed.
+Recorded because the evidence is now direct rather than inferred: this is a
+`_linux_test.go`, so it does not build on the macOS dev host (`go test` reports
+"no tests to run"), which is why it sat open. Run in a `golang:1.26` container --
+the test is pure logic (no netlink, no privileges), so a container suffices:
+
+| Tree | Result on linux/amd64 |
+|---|---|
+| committed HEAD (`require.Nil(t, teardowns)`) | **FAIL** `reactor_kernel_linux_test.go:159: Expected nil, but got: []l2tp.kernelTeardownEvent{{localTID:0x66, localSID:0x9}}` |
+| with the fix | **PASS**; full `./internal/component/l2tp/...` tree green |
+
+`0x66`/`0x9` are exactly the event the test seeds, confirming the producer:
+`collectKernelEventsLocked` drains `pendingKernelTeardowns` BEFORE the worker
+check and returns them (`reactor_kernel.go:23-27`), deliberately, so the route
+observer learns of torn sessions with no kernel worker present. That is the
+mechanism `TestPeerTeardownWithdrawsSubscriberRoute` depends on -- the same
+teardown-withdraw path whose `-race` bug was fixed today in `9af30c440`.
+
+Fixed by retiring the teardowns-nil assertion and asserting the drained event
+instead (a stricter `require.Equal` on the exact event, plus a drained-list
+check: 4 assertions where there were 3). Renamed to
+`TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns`, because
+"ReturnsNil" now describes only the setups. The surviving assertions (setups nil,
+`kernelSetupNeeded` not cleared) were correct and are kept.
+
+Note this was a DETERMINISTIC red, so like the chaos entry above it never
+belonged in a file scoped to non-deterministic failures. Two of this file's
+entries turned out that way today.
 
 Confirmed pre-existing (git-blame) 2026-07-10: the test asserts
 `require.Nil(t, teardowns)` from `collectKernelEventsLocked` when no kernel
