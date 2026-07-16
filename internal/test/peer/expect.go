@@ -16,6 +16,49 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 )
 
+// Consumes reports whether ze-peer consumes the directive `action=lineType`,
+// i.e. whether LoadExpectFile forwards such a line into Config.Expect.
+//
+// This is the single definition of the ze-peer-consumed directive set. It is
+// deliberately exported through ConsumesLine so the test runner can reject, at
+// parse time, a check-mode peer block that declares nothing ze-peer can act on.
+// Such a block leaves Config.Expect empty, which makes ze-peer print
+// "no test data available to test against" and exit 1 BEFORE it ever binds a
+// listening socket (internal/test/cli/cmd_peer.go). Every ze dial then gets
+// connection refused and the test can only ever pass vacuously.
+//
+// Keep this function and LoadExpectFile's switch in lockstep: they are the same
+// decision, and a divergence reintroduces the silent-vacuous-test defect.
+func consumes(action, lineType string) bool {
+	switch action {
+	case "expect":
+		// json/stderr/syslog are handled by the test runner, not ze-peer.
+		return lineType == "bgp"
+	case "action":
+		switch lineType {
+		case "notification", "send", "rewrite", actionClose, actionSighup, actionSigterm:
+			return true
+		}
+	}
+	return false
+}
+
+// ConsumesLine reports whether ze-peer consumes the given .ci line. Blank lines,
+// comments, and runner-only directives (expect=json, option=env, cmd=, reject=)
+// return false. See consumes for why this is exported.
+func ConsumesLine(line string) bool {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return false
+	}
+	head, _, _ := strings.Cut(line, ":")
+	action, lineType, ok := strings.Cut(head, "=")
+	if !ok {
+		return false
+	}
+	return consumes(action, lineType)
+}
+
 // LoadExpectFile loads expected messages from a file.
 // Uses format: action:type:key=value:key=value:...
 func LoadExpectFile(path string) ([]string, *Config, error) {
@@ -57,36 +100,12 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 		case "option":
 			parseOptionConfig(config, lineType, kv)
 
-		case "expect":
-			if lineType == "bgp" {
-				// Pass through new format: expect=bgp:conn=N:seq=N:hex=...
-				expect = append(expect, line)
-			}
-			// Ignore json, stderr, syslog - handled by test runner
-
-		case "action":
-			if lineType == "notification" {
-				// Pass through new format: action=notification:conn=N:seq=N:text=...
-				expect = append(expect, line)
-			}
-			if lineType == "send" {
-				// Pass through new format: action=send:conn=N:seq=N:hex=...
-				expect = append(expect, line)
-			}
-			if lineType == "rewrite" {
-				// Pass through: action=rewrite:conn=N:seq=N:source=FILE:dest=FILE
-				expect = append(expect, line)
-			}
-			if lineType == actionClose {
-				// Pass through: action=close:conn=N:seq=N
-				expect = append(expect, line)
-			}
-			if lineType == actionSighup {
-				// Pass through: action=sighup:conn=N:seq=N
-				expect = append(expect, line)
-			}
-			if lineType == actionSigterm {
-				// Pass through: action=sigterm:conn=N:seq=N
+		case "expect", "action":
+			// Pass through the ze-peer-consumed directives only:
+			//   expect=bgp:conn=N:seq=N:hex=...
+			//   action=notification|send|rewrite|close|sighup|sigterm:conn=N:seq=N:...
+			// expect=json/stderr/syslog are handled by the test runner.
+			if consumes(action, lineType) {
 				expect = append(expect, line)
 			}
 

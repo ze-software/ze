@@ -38,6 +38,13 @@ const (
 	FailTypeLoggingMismatch  = "logging_mismatch"
 	FailTypeConnectionRefuse = "connection_refused"
 	FailTypeStdoutMismatch   = "stdout_mismatch"
+
+	// FailTypePeerNeverBound marks a ze-peer that exited (or hung) before it
+	// printed its "listening on" readiness token. ze then dials a dead port and
+	// backs off, which looks like a BGP establishment stall but is a harness
+	// fault. Its own failure type keeps it from being grouped with a real
+	// connection_refused against a live peer.
+	FailTypePeerNeverBound = "peer_never_bound"
 )
 
 const (

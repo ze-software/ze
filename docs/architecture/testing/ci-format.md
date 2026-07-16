@@ -814,10 +814,54 @@ Different components consume different line types:
 | `expect=bgp:` | ze-peer |
 | `action=notification:`, `action=send:` | ze-peer |
 | `action=rewrite:`, `action=sighup:`, `action=sigterm:` | ze-peer (reload/signal tests) |
-<!-- source: internal/test/peer/expect.go -- ze-peer expectation handling -->
+<!-- source: internal/test/peer/expect.go -- ConsumesLine, the ze-peer-consumed set -->
 <!-- source: internal/test/runner/record.go -- Record, State -->
 
 Lines not recognized by a consumer are ignored.
+
+### A check-mode peer block MUST declare a ze-peer-consumed expectation
+
+**The consumer split above is load-bearing, not trivia.** Only the four
+ze-peer rows reach ze-peer. Everything else -- including `expect=json` --
+is validated by the test runner from its own copy of the messages.
+
+A check-mode `ze-peer` with no consumed directive has nothing to check, so it
+prints `no test data available to test against` and exits 1 **before binding a
+listening socket**. ze then dials a dead port, gets connection refused, and backs
+off 5->10->20->40s. That looks exactly like a BGP establishment stall and cost a
+multi-day investigation before the cause was found in the harness.
+
+So a peer block whose only expectation is `expect=json` runs no BGP at all. The
+parser now rejects that at discovery time, naming the file and the remedy:
+
+```
+stdin=peer block: check-mode ze-peer (cmd seq=1) declares no ze-peer-consumed
+expectation, so it exits with "no test data available to test against" before
+binding a listening socket and the test can only pass vacuously.
+```
+
+| Want | Do |
+|------|----|
+| Assert the wire exchange | Add `expect=bgp:conn=N:seq=N:hex=...` (or an `action=send/notification/rewrite/close/sighup/sigterm`) to the peer block |
+| A peer that is only a dial target for ze (routes injected via API, assertions made by a `.run` plugin or `http=`) | Run it as `ze-peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
+
+`expect=json` still works, but only **in addition to** a consumed directive: it
+cannot make the peer listen.
+<!-- source: internal/test/runner/peer_contract.go -- validatePeerBlocks, the parse-time guard -->
+<!-- test: internal/test/runner/peer_contract_test.go TestParseAndAdd_CheckPeerWithOnlyJSONExpectRejected -->
+
+### A ze-peer always governs its test's result
+
+A test with a **check-mode** ze-peer is never self-validated: the peer must print
+`successful` and its `expect=json` expectations must match, whatever else the file
+asserts. An `expect=exit:code=0` is additive and does NOT disable the BGP checks.
+
+Until 2026-07-16 it did, which is how a test could pass on ze's exit code while its
+peer never listened and its JSON assertion never ran. sink/echo/inject peers do not
+govern (they never report completion), so a test whose only peers are scaffolding
+is still governed by its own exit/output/file assertions.
+<!-- source: internal/test/runner/peer_contract.go -- isSelfValidated, hasCheckPeer -->
+<!-- test: internal/test/runner/peer_contract_test.go TestIsSelfValidated, TestHasCheckPeer -->
 
 ## Migration from Old Format
 

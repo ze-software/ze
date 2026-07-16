@@ -761,15 +761,27 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			switch {
 			case strings.Contains(execStr, "ze-peer"):
 				// Wait for ze-peer to be ready (listening) instead of a fixed
-				// sleep. Skip waiting for the peer on an exit-code test (the peer
-				// may not start).
-				if rec.ExpectExitCode == nil {
+				// sleep. A peer that never binds is a FAILURE, never a skip: ze
+				// would dial a dead port, get connection refused, and back off,
+				// which reads as an establishment stall.
+				//
+				// This barrier used to be skipped when rec.ExpectExitCode != nil
+				// ("the peer may not start"). That turned the one condition that
+				// detects a non-binding peer into a silent no-op for exactly the
+				// tests that could not otherwise notice. See
+				// plan/spec-fixit-redistribute-establishment-stall.md (D1) and
+				// ai/rules/fail-closed-guards.md.
+				//
+				// --dial peers take the active role and never listen, so they have
+				// no bind barrier to wait on (no .ci uses --dial today).
+				if !strings.Contains(execStr, "--dial") {
 					po := &peerOutputs[len(peerOutputs)-1]
 					po.proc = proc
 					waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
 					if !po.stdout.WaitFor(waitCtx) {
 						waitCancel()
-						rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", po.stderr.String(), po.stdout.String())
+						rec.Error = peerBindFailure(po.stderr.String(), po.stdout.String())
+						rec.FailureType = FailTypePeerNeverBound
 						return false
 					}
 					waitCancel()
@@ -1096,26 +1108,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		recStep("stdout-reject-regex", true, "")
 	}
 
-	// Decide what governs this test's success:
-	//   * exit-code tests and peer-less foreground commands are self-validated by
-	//     the exit/output/file/logging assertions evaluated here;
-	//   * everything else (a ze-peer is present) is governed by BGP-level peer
-	//     synchronization and must see "successful" in the peer output.
-	// The !hasPeer guard matters: a peer test may also declare file checks, and
-	// it must still fail when the BGP exchange mismatches rather than passing on
-	// the file checks alone.
-	hasOutputAssertion := len(rec.ExpectStderrMatch) > 0 ||
-		len(rec.ExpectStdoutMatch) > 0 ||
-		len(rec.ExpectStdoutNotMatch) > 0 ||
-		len(rec.ExpectStdoutRegex) > 0 ||
-		len(rec.RejectStdoutRegex) > 0 ||
-		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
-		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
-		len(rec.FileChecks) > 0 ||
-		len(rec.HTTPChecks) > 0
-	selfValidated := rec.ExpectExitCode != nil || (!hasPeer && hasOutputAssertion)
-
-	if !selfValidated {
+	// Decide what governs this test's success: a test with a check-mode ze-peer is
+	// always governed by the BGP exchange (the peer must print "successful" and
+	// the JSON expectations must match); any other test is governed by the
+	// exit/output/file/logging assertions evaluated here. See isSelfValidated in
+	// peer_contract.go for why an exit-code assertion must not disable the peer
+	// path, and hasCheckPeer for why a sink/echo peer cannot govern.
+	if !isSelfValidated(rec, hasCheckPeer(cmds)) {
 		// BGP peer path: the peer process validates its own messages and prints
 		// "successful" on a clean exchange.
 		if err != nil || !strings.Contains(rec.PeerOutput, "successful") {

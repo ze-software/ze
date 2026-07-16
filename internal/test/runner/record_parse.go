@@ -195,6 +195,14 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 		}
 	}
 
+	// Reject a check-mode ze-peer that has nothing to check: it exits before
+	// binding, so ze dials a dead port for the whole test and nothing about BGP
+	// is ever proven. Runs after the cmd= lines are parsed because the guard
+	// needs each peer's mode and stdin block. See peer_contract.go.
+	if err := validatePeerBlocks(r); err != nil {
+		return r, err
+	}
+
 	// Verify config exists (for non-Tmpfs configs)
 	if configPath, ok := r.Conf["config"].(string); ok {
 		// Check if it's a Tmpfs file first
