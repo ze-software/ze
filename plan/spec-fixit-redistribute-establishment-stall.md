@@ -37,7 +37,7 @@ recorded here so the next session does not repeat them.
   `SetReconnectDelay` overrides, so unaffected. Verified: converted `announce` 25/25 (was
   ~80% flaky pre-fix); reactor package unit tests green.
 
-### Regression caused by that fix (OPEN, 2026-07-16)
+### Regression caused by that fix (RESOLVED 2026-07-16 -- fixed in `runner.go`, see end of section)
 44ad25d23 widened `internal/chaos/inprocess` `TestInProcessChaosReconnect`, already logged
 flaky-under-`-race` in `plan/known-failures.md` since 2026-07-08, into a failure that also
 reproduces WITHOUT `-race` when the test runs in isolation.
@@ -55,18 +55,40 @@ Order-dependent: a full-package `-race` run of `./internal/chaos/inprocess/` PAS
 `make ze-chaos-unit-test` (`mk/test-chaos.mk:27`, `go test -race ./internal/chaos/...`) may
 still be green. The isolation failure is the reliable reproducer.
 
-Mechanism, partly pinned: the 92.00s is the test's own 90s context deadline
-(`runner_test.go:658`); `Run()` never reaches the 60s virtual duration (`runner_test.go:664`).
-`runner.go:427-430` sets `step = 1s` virtual and `stepDelay = 10ms` real, so 60 iterations
-should cost well under a second. With the 120s floor the peer never dialed inside the window,
-so that cost never appeared; with the intended 5s floor it dials every 5s virtual and the loop
-burns 90s real. WHERE that real time goes inside `vc.Advance` is UNVERIFIED and is the open
-question. `MockDialer.DialContext` fails fast (`mocknet.go:118-120`) and the virtual timer
-channel is buffered (`virtualclock.go:81`), so neither is the stall.
-
 This is chaos-harness work, NOT a BGP defect: the harness itself documents the intended 5s
 backoff (`runner_test.go:246`, `runner.go:518-522` "DefaultReconnectMin = 5s virtual"). The
 test was green only because the 120s bug parked the retry loop outside the window.
+
+**RESOLVED 2026-07-16. The open question ("where does the real time go inside `vc.Advance`")
+rested on a false premise: none of it is spent there, and the advance loop is not slow.**
+
+A goroutine dump taken 30s into the freeze answered it in one run:
+
+| Goroutine | Where |
+|---|---|
+| runner | `simWg.Wait()` (`runner.go:594`) -- the advance loop had ALREADY finished |
+| ze session | `VirtualClock.Sleep` (`virtualclock.go:49`) from `session.go:767` |
+
+The advance loop costs exactly what `runner.go:427-430` implies (~0.6s real for 60s virtual)
+and then EXITS -- after which nothing advances the clock. `session.Run()` polls for its
+connection with `s.clock.Sleep(10ms)` (`session.go:762-768`) and `VirtualClock.Sleep` is a
+bare `<-ch` (`virtualclock.go:47-50`). `clock.Clock.Sleep` takes no ctx, so `simCancel()`
+cannot reach a goroutine parked there -- only `Advance` can. ze's session was stranded
+mid-sleep, never completed the handshake, the simulator blocked forever on the reply that
+never came (`executeReconnectStorm` -> `readMsg`, `simulator_actions.go:233`), and
+`simWg.Wait()` hung until the 90s context tore the sockets down. That is the 92.00s, and
+`established==1` because the peer was asleep -- not because reconnect was broken.
+
+44ad25d23 is exonerated as a cause and stays: it only changed WHEN ze lands in that sleep.
+Because the advance loop finishes in ~0.6s real, a chaos action firing late in the virtual
+window is still mid-handshake when time stops; the 120s floor parked the retry outside the
+window and hid a defect that predates it.
+
+Fix (`runner.go`, Run's teardown): keep advancing the virtual clock until both the simulators
+and the reactor are down. Real time does not stop while a system shuts down, and neither may
+virtual time. Verified 3/3 PASS in 3.70s, matching the 3.69s measured at `8f5f2ff4b`
+(pre-regression) vs 92.00s broken; `./internal/chaos/...` green; target test 2/2 green under
+`-race`; `make ze-lint-changed` 0 issues. `plan/known-failures.md` entry closed.
 
 Do NOT "fix" this by reverting 44ad25d23: the 120s floor exceeded the 60s ceiling and
 contradicts `peer_run.go:19-25`, which documents this loop as deliberately replacing the RFC
