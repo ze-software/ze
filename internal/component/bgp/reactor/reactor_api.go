@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"maps"
 	"net/netip"
+	"reflect"
 	"slices"
 	"time"
 
@@ -777,51 +778,51 @@ func ipv4ToUint32(addr netip.Addr) uint32 {
 
 // peerSettingsEqual compares two PeerSettings for reload diffing.
 // Returns true if the settings are functionally equivalent.
+//
+// FAIL-CLOSED BY CONSTRUCTION (ai/rules/fail-closed-guards.md): every field of
+// PeerSettings participates via reflect.DeepEqual unless it is explicitly
+// neutralized below with a stated reason. A field added to PeerSettings is
+// therefore compared automatically and cannot be silently ignored on reload.
+//
+// This replaces a hand-maintained field list that compared ~15 fields and ignored
+// ~35, including ImportFilters/ExportFilters (import/export policy), MD5Key (RFC
+// 2385 TCP-MD5), RouteReflectorClient/ClusterID (RFC 4456), the prefix-limit maps,
+// and the loop-detection fields. Because reconcilePeersJournaled only reconciles a
+// peer this predicate reports as changed, and Peer.settings is assigned once in
+// NewPeer (peer.go:318) with no setter, every omission meant the operator's edit
+// was silently discarded until the daemon restarted. Regression coverage:
+// peer_settings_reload_test.go.
+//
+// Cost: reflection on a ~50-field struct, once per peer per reload. Reload is rare
+// (the pre-existing capability comparison already accepted this trade-off).
 func peerSettingsEqual(a, b *PeerSettings) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
 
-	// Compare identity fields.
-	if a.Address != b.Address ||
-		a.LocalAS != b.LocalAS ||
-		a.PeerAS != b.PeerAS ||
-		a.RouterID != b.RouterID {
-		return false
-	}
-
-	// Compare connectivity fields.
-	if a.LocalAddress != b.LocalAddress ||
-		a.Port != b.Port ||
-		a.Connection != b.Connection ||
-		a.OutTTL != b.OutTTL ||
-		a.MinTTL != b.MinTTL {
-		return false
-	}
-
-	// Compare behavior fields.
-	if a.ReceiveHoldTime != b.ReceiveHoldTime ||
-		a.SendHoldTime != b.SendHoldTime ||
-		a.KeepaliveTime != b.KeepaliveTime ||
-		a.ConnectRetry != b.ConnectRetry ||
-		a.GroupUpdates != b.GroupUpdates ||
-		a.IgnoreFamilyMismatch != b.IgnoreFamilyMismatch ||
-		a.DisableASN4 != b.DisableASN4 {
-		return false
-	}
-
-	// Compare static routes count (deep comparison would be expensive).
-	if len(a.StaticRoutes) != len(b.StaticRoutes) {
-		return false
-	}
-
-	// Compare capabilities by wire encoding.
+	// Capabilities compare SEMANTICALLY by wire encoding, not structurally: two
+	// capability values may differ in Go representation yet encode identically.
 	// Reload is rare, capabilities are small (<20 bytes each, <10 per peer).
 	if !capabilitiesEqual(a.Capabilities, b.Capabilities) {
 		return false
 	}
 
-	return true
+	// Compare every remaining field structurally. Copy so the exclusions below do
+	// not mutate the caller's settings. PeerSettings holds no locks, funcs, or
+	// channels (only scalars, slices, maps, and pointers), so both the copy and
+	// DeepEqual are well-defined.
+	ac, bc := *a, *b
+
+	// Excluded: compared semantically above.
+	ac.Capabilities, bc.Capabilities = nil, nil
+
+	// Excluded: PrefixUpdated is the ISO date prefix maximums were last refreshed
+	// from PeeringDB (peersettings.go:381). It is a hidden, display-only staleness
+	// marker that drives no session or datapath behavior, so a change to it alone
+	// must not bounce the session.
+	ac.PrefixUpdated, bc.PrefixUpdated = "", ""
+
+	return reflect.DeepEqual(&ac, &bc)
 }
 
 // capabilitiesEqual compares two capability slices by wire encoding.
