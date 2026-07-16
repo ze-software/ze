@@ -13,11 +13,31 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 )
+
+// socketDir returns a directory short enough to hold a Unix socket path.
+//
+// t.TempDir() embeds the test name and a per-test counter, so on darwin it
+// yields paths like
+// /var/folders/<16>/<30>/T/TestRewriteResponseSkipsNonHTML1258320514/001/
+// which leaves no room: sun_path is 104 bytes including the NUL, and the
+// longest test here overflows it, so bind() fails with EINVAL ("invalid
+// argument") before any assertion runs. Linux allows 108 and never noticed.
+// A short prefix keeps the whole path well inside the limit on both.
+func socketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "gk")
+	if err != nil {
+		t.Fatalf("mkdtemp: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
 
 // fakeGokrazy starts a fake gokrazy management server on a Unix socket in a
 // temp dir and returns its socket path plus a pointer to the last request's
@@ -25,7 +45,7 @@ import (
 // type so response-rewrite behavior can be asserted end to end.
 func fakeGokrazy(t *testing.T, contentType, body string) (socketPath string, gotAuth *string) {
 	t.Helper()
-	socketPath = filepath.Join(t.TempDir(), "gokrazy.sock")
+	socketPath = filepath.Join(socketDir(t), "gokrazy.sock")
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", socketPath)
 	if err != nil {
 		t.Fatalf("listen unix: %v", err)

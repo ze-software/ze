@@ -192,9 +192,27 @@ func TestGokrazyFirmwareUnsupported(t *testing.T) {
 	}
 }
 
+// probeSocketDir returns a directory short enough to hold a Unix socket path.
+//
+// t.TempDir() embeds the test name, and sun_path is 104 bytes including the NUL
+// on darwin (108 on linux). The names here happen to still fit, so this is a
+// latent trap rather than a live failure: renaming a caller to something longer
+// makes bind() fail with EINVAL ("invalid argument") before any assertion runs.
+// The identical construction in internal/component/gokrazy DID overflow.
+// Keep the prefix short so the length of a test name can never matter.
+func probeSocketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "gk")
+	if err != nil {
+		t.Fatalf("mkdtemp: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
 func startProbeServer(t *testing.T) string {
 	t.Helper()
-	socketPath := filepath.Join(t.TempDir(), "gokrazy.sock")
+	socketPath := filepath.Join(probeSocketDir(t), "gokrazy.sock")
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", socketPath)
 	if err != nil {
 		t.Fatalf("listen unix: %v", err)
