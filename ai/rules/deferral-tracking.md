@@ -41,16 +41,30 @@ Destination of every row whose Status is NOT terminal. The terminal set is
 
 | Status | Meaning | Destination checked? |
 |--------|---------|----------------------|
-| `open` | Live. Work has no home yet | YES |
-| `deferred` | Live. Work has no home yet | YES |
+| `open` | Live: the work has NO home. A rule violation, not a workflow state | YES |
+| `deferred` | Live: same as `open`. A rule violation, not a workflow state | YES |
 | `done` | Terminal. Implemented, or moved into a spec | no |
 | `cancelled` | Terminal. User decided not to do it | no |
 | `resolved` | Terminal. Closed with evidence (learned summary) | no |
 
-`open` and `deferred` are synonyms; prefer `deferred`. **Any other word is treated
-as live and checked**, deliberately: the gate is a denylist of terminal states, not
-an allowlist of live ones, so a status nobody has invented yet fails closed rather
-than slipping through silently (`ai/rules/fail-closed-guards.md`).
+**A correctly recorded row is born `done`.** Homing is mandatory and happens at the
+moment of deferral, so by the time you write the row the work already has a home and
+the spec is its tracker. `open` and `deferred` are therefore not statuses you should
+ever choose: they describe a row whose work has nowhere to go, which this rule
+forbids. They stay in the vocabulary because the gate must have something to catch,
+and `plan/deferrals.md` still carries pre-rule rows in that state.
+
+`open` and `deferred` are synonyms, and the redundancy is a wart: it is what let the
+gate and this rule teach different words in the first place. Do not add a third.
+**Any word that is not in the terminal set is treated as live and checked**,
+deliberately: the gate is a denylist of terminal states, not an allowlist of live
+ones, so a status nobody has invented yet fails closed rather than slipping through
+silently (`ai/rules/fail-closed-guards.md`).
+
+**Blind spot, stated rather than papered over:** a terminal status skips the
+destination check entirely, so a `done` row whose Destination is prose is not
+flagged. `done` is an assertion the gate trusts. Marking a row `done` without a real
+destination is the one way to defeat this rule, and it is the only way, so do not.
 
 This table and `DEFERRAL_TERMINAL_STATUSES` must not drift apart. They did once,
 and it cost: the gate tested only `status == "open"` while this rule's own prose
@@ -61,11 +75,11 @@ looked at. 23 live rows without a home had accumulated behind that hole.
 
 | Rule | Detail |
 |------|--------|
-| Always a destination spec | Every live deferral names a `plan/spec-*.md` that exists on disk. Only a terminal Status may name no spec |
+| Always a destination spec | Every deferral names a `plan/spec-*.md` that exists on disk, whatever its Status. Only `cancelled` / `user-approved-drop` may name no spec |
 | No prose destinations | "later", "future work", "a follow-up", "TBD" are not destinations. A destination is a filename |
 | No vague What | "Edge cases" is not acceptable. Name the specific case |
 | Record immediately | Do not batch. Record when the decision is made, not at commit time |
-| Review at session end | Check open deferrals before ending |
+| Review at session end | Expect zero live rows. A live row means the rule was broken; home it or cancel it before ending |
 
 The gate is one notch wider than this rule on purpose: it accepts any existing
 `plan/**.md`, not only `plan/spec-*.md`. The one sanctioned non-spec destination
@@ -84,10 +98,15 @@ the moment the deferral is made:
 |-------|--------|--------|
 | 1 | Find an existing spec that already covers the topic | `grep -l "<topic>" plan/spec-*.md`, and scan `make ze-spec-status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |
 | 2 | If one exists, add the work to its `## Task` section | The spec becomes the tracker. Record the deferral with that spec as Destination and Status `done` (moved to another spec, see "Resolving Deferrals") |
-| 3 | Only if no spec covers the topic, create a deferral spec | Named `plan/spec-<source>-deferred-<subtask>.md` (see below) |
+| 3 | Only if no spec covers the topic, create a deferral spec | Named `plan/spec-<source>-deferred-<subtask>.md` (see below). Record the row with that spec as Destination and Status `done`, exactly as in step 2 |
 
 An existing spec is preferred over a new file. Do not create a deferral spec to
 avoid the grep.
+
+**Both routes end at Status `done`.** A new deferral spec is still "moved to another
+spec": the row is closed and the spec tracks the work from then on. The status
+answers "does this ROW still need a home", not "is the work finished". Step 3 does
+not get a live status just because the spec is new.
 
 ### Deferral Spec Naming (BLOCKING)
 
@@ -129,7 +148,7 @@ plan/spec-<source>-deferred-<subtask>.md
 | 1 | Create the file from `plan/TEMPLATE.md` with `Status \| skeleton` |
 | 2 | Fill only the `## Task` section with the points to complete, plus any constraint already known. Leave the rest as template placeholders |
 | 3 | Name the source spec in the `## Task` section so the provenance survives |
-| 4 | Record the deferral in `plan/deferrals.md` with the new spec as Destination |
+| 4 | Record the deferral in `plan/deferrals.md` with the new spec as Destination and Status `done` |
 
 Keep it small. The goal is zero lost work, not a finished design -- a skeleton is
 captured intent, not a designed spec. It moves to `design` when someone picks it
@@ -160,4 +179,8 @@ would need to be added.
 |-------------|---------------|--------------------|
 | Implemented | `done` | Spec or commit where implemented |
 | User decided not to do it | `cancelled` | `user-approved-drop` |
-| Moved to another spec | `done` | Receiving spec filename |
+| Moved to another spec (existing or newly created) | `done` | Receiving spec filename |
+
+A row recorded under "Choosing the Destination Spec" is closed the moment it is
+written, via the last line of this table. There is no interval during which a
+correctly recorded deferral sits live, because the home exists before the row does.

@@ -34,6 +34,8 @@ gate that never fired was worth.
 - `plan/learned/1127-x.md` does not match a `[\w.-]+\.md` pattern (the nested `/`), so a regex written for flat spec names silently reads a real destination as "no file". Nested plan paths need their own alternative, ordered first so the longest form wins.
 - The pre-existing `commit-gate-deferral-assigned-ok` fixture asserted the OLD contract (a destination naming a nonexistent spec passes). A tightening gate makes such a fixture fail; the fix is to make the fixture create the spec, not to loosen the gate back.
 - Two sessions implemented this rule concurrently in the same working tree and produced duplicate deferral specs for the same two ddos rows under different `<source>` conventions. With a shared tree and a shared single-file log this is structural, not misconduct (see `ai/rules/git-safety.md`).
+- Making homing mandatory made the rule's own live statuses unreachable: every correctly recorded row is born `done`, so `open`/`deferred` can only mean the rule was broken. The Status table still described them as ordinary workflow states, and the rule never said which status a row homed in a NEW spec gets, so following the rule and following the vocabulary gave different answers. When a rule forbids a state, its vocabulary must say that state is a violation, not list it as an option.
+- The gate skips terminal rows entirely, so `done` plus a prose destination sails through: the enforcement rests on an author's assertion at exactly the point the rule stops being checkable. Documented in the rule rather than left for someone to discover, because the alternative (checking `done` rows too) collides with `done` legitimately naming a commit SHA for implemented work.
 
 ## Files
 
