@@ -591,12 +591,47 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 	// Stop simulators and reactor.
 	simCancel()
+
+	// Virtual time MUST keep moving while everything shuts down.
+	//
+	// session.Run() polls for its connection with s.clock.Sleep(10ms)
+	// (session.go:767), and VirtualClock.Sleep is a bare channel receive
+	// (virtualclock.go:49) -- clock.Clock.Sleep takes no ctx, so a goroutine
+	// parked there is unreachable by simCancel(): only Advance can release it.
+	// The advance loop above burns cfg.Duration of virtual time in
+	// (Duration/step)*stepDelay of REAL time -- 60s of virtual time in ~0.6s -- so
+	// a chaos action that fires late in the window is still mid-handshake when the
+	// loop exits. Stopping the clock here stranded ze's session mid-sleep forever:
+	// it never finished the handshake, the simulator blocked forever on the reply
+	// that therefore never came, and simWg.Wait() hung until the caller's context
+	// tore the sockets down. Real time does not stop while a system shuts down,
+	// and neither may virtual time.
+	stopAdvance := make(chan struct{})
+	advanceDone := make(chan struct{})
+	go func() {
+		defer close(advanceDone)
+		ticker := time.NewTicker(stepDelay)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopAdvance:
+				return
+			case <-ticker.C:
+				vc.Advance(step)
+			}
+		}
+	}()
+
 	simWg.Wait()
 
 	reactorCancel()
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer waitCancel()
 	_ = reactor.Wait(waitCtx)
+
+	// Both are down, so nothing can still be waiting on the clock.
+	close(stopAdvance)
+	<-advanceDone
 
 	// Close events channel and wait for the drain goroutine to finish.
 	close(events)
