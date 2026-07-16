@@ -1,0 +1,94 @@
+# Test: remove-private-as replace-with peer-as applies to ORIGINATED routes
+# VALIDATES: RFC 6996 Section 4 on the session write gate, in `replace-with peer-as`
+# VALIDATES: mode: the substituted ASN is the EXPORT DESTINATION peer AS (65002),
+# VALIDATES: not the local AS (65000).
+# PREVENTS: exportFilterForBody passing the wrong destPeerAS to the export chain.
+# PREVENTS: the STRIP-only sibling test passing while peer-as substitution is unwired
+# PREVENTS: (STRIP cannot distinguish a wrong peerAS -- it never uses it).
+#
+# The remove-vs-replace choice is vendor policy: RFC 6996 mandates removal from the
+# AS path (Section 4) but does not specify a substitution, so `replace-with peer-as`
+# is a Ze design decision, not an RFC requirement. What RFC 6996 Section 4 does
+# require, and what this test guards, is that 64512 does not reach the EBGP peer.
+# See plan/spec-fixit-private-asn-leak.md.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+# Private 64512 replaced by peer AS 65002 (0xFDEA): AS_PATH=AS_SEQUENCE[64496 65002 64497].
+# attrs(0x1C=28) = ORIGIN(4) + AS_PATH(17) + NEXT_HOP(7). 0xFDEA is the receiver's
+# remote AS; a local-AS substitution would encode 0xFDE8 and fail this assertion.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C4001010040020E02030000FBF00000FDEA0000FBF140030401010101180A0000
+EOF_PEER
+
+tmpfs=remove-private-as-replace-originated.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Originate one route carrying a private ASN; the peer wire assertion is the proof."""
+import sys
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+
+def main() -> None:
+    ready()
+    send('peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24')
+    wait_for_ack(expected_count=1)
+    print('INFO: originated route carrying private ASN 64512', file=sys.stderr)
+    wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external remove-private-as-replace-originated {
+		run ./remove-private-as-replace-originated.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		remove-private-as REPLACE {
+			replace-with peer-as
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			export [ remove-private-as:REPLACE ]
+		}
+		process remove-private-as-replace-originated {
+			send update
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-remove-private-as -:stdin=ze-bgp:timeout=15s
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

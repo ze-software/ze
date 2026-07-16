@@ -1,0 +1,90 @@
+# Test: remove-private-as export policy applies to ORIGINATED (non-forwarded) routes
+# VALIDATES: RFC 6996 Section 4 -- a Private Use ASN MUST NOT reach an EBGP peer,
+# VALIDATES: including on routes that leave via the session write gate rather than
+# VALIDATES: forwardUpdateCore (API/plugin injection, redistribute, static routes,
+# VALIDATES: adj-rib-in replay, and bgp-rs `update text` re-advertisement).
+# PREVENTS: exportFilterForBody honoring only Reject/raw and silently discarding the
+# PREVENTS: FilterModify TEXT delta that remove-private-as returns (private ASN leak).
+# PREVENTS: the egress gate parsing the body without the peer's send context, which
+# PREVENTS: renders an attribute-less filter text so no attribute filter ever matches.
+# See plan/spec-fixit-private-asn-leak.md.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Inject ORIGIN=IGP, AS_PATH=[64496 64512 64497], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24.
+# 64512 is the only RFC 6996 Private Use ASN here; 64496/64497 are RFC 5398
+# documentation ASNs and MUST be retained.
+cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+# Private 64512 stripped: AS_PATH=AS_SEQUENCE[64496 64497].
+# attrs(0x18=24) = ORIGIN(4) + AS_PATH(13) + NEXT_HOP(7)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FBF00000FBF140030401010101180A0000
+EOF_PEER
+
+tmpfs=remove-private-as-export-originated.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Originate one route carrying a private ASN; the peer wire assertion is the proof."""
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+
+def main() -> None:
+    ready()
+    send('peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24')
+    wait_for_ack(expected_count=1)
+    wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external remove-private-as-export-originated {
+		run ./remove-private-as-export-originated.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		remove-private-as STRIP {
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			export [ remove-private-as:STRIP ]
+		}
+		process remove-private-as-export-originated {
+			send update
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-remove-private-as -:stdin=ze-bgp:timeout=15s
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

@@ -14,16 +14,21 @@
 package reactor
 
 import (
-	"unsafe"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
 
 // exportFilterForBody runs the destination peer's export filter chain on the wire
-// body of an outbound (non-forwarded, non-EOR) route UPDATE, mirroring the export
-// handling in forwardUpdateCore. Returns suppress=true to drop the route for this
-// peer, or override != nil to write a rewritten body instead. Zero-cost when the
-// peer has no export filters (the common case).
+// body of an outbound (non-forwarded, non-EOR) route UPDATE, by delegating to the
+// SAME chain body forwardUpdateCore uses (runEgressPolicyChainASN4). Returns
+// suppress=true to drop the route for this peer, or override != nil to write a
+// rewritten body instead. Zero-cost when the peer has no export filters (the
+// common case).
+//
+// It must not re-implement the chain: this function used to "mirror"
+// forwardUpdateCore and honored only Reject and raw overrides, so every
+// FilterModify TEXT delta (which is what remove-private-as, as-path prepend and
+// the other text filters return) was silently discarded and the route went out
+// unfiltered. See plan/spec-fixit-private-asn-leak.md.
 //
 // Called from writeUpdate/SendAnnounce while the session writeMu is held, so the
 // (synchronous, in-process) filter RPC runs under that lock. This is acceptable:
@@ -35,24 +40,29 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	if facts == nil || len(facts.exportFilters) == 0 || r.api == nil {
 		return false, nil
 	}
-	wireUpdate := wireu.NewWireUpdate(body, 0)
-	attrsWire, _ := wireUpdate.Attrs()
-	// Zero-alloc filter text: render into a stack scratch and view it as a string
-	// without copying (the slice outlives the synchronous PolicyFilterChain call).
-	// Mirrors forwardUpdateCore (reactor_api_forward.go).
-	var scratchArr [65536]byte
-	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
-	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	res := PolicyFilterChain(facts.exportFilters, "export", facts.addrStr, facts.peerAS,
-		updateText, r.policyFilterFunc(body),
-	)
-	if res.Action == PolicyReject {
+	// The body was encoded by the session write path in THIS peer's SEND context,
+	// so that is the context its attributes must be parsed under -- and likewise
+	// why asn4 is facts.sendASN4 rather than a source-context lookup.
+	//
+	// Passing 0 here renders an attribute-less filter text ("nlri ipv4/unicast add
+	// 10.0.0.0/24"), because AttributesWire is constructed with the wire's ctxID
+	// (wireu/wire_update.go:106) and cannot decode ASN4 AS_PATH without it. Every
+	// attribute-matching filter then sees no attributes, returns Accept, and the
+	// route goes out unfiltered. That is the second half of the private-ASN leak.
+	wireUpdate := wireu.NewWireUpdate(body, facts.sendCtxID)
+	res := r.runEgressPolicyChainASN4(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, wireUpdate, facts.sendASN4)
+	if !res.accept {
 		return true, nil
 	}
-	if raw := decodeFilterRawOverride(res.Raw); raw != nil {
-		out := make([]byte, len(raw))
-		copy(out, raw)
-		return false, out
+	if res.wireOverride == nil {
+		return false, nil
 	}
-	return false, nil
+	// Copy: the caller (writeUpdate) hands the override straight to
+	// writeRawUpdateBody, which stages through the same session writeBuf that
+	// `body` may alias. buildModifiedPayload's nil-pool path already returns a
+	// freshly allocated slice, but the raw-override branch does not, so copy
+	// unconditionally rather than depend on which branch produced it.
+	out := make([]byte, len(res.wireOverride.Payload()))
+	copy(out, res.wireOverride.Payload())
+	return false, out
 }

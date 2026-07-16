@@ -196,6 +196,32 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 	if len(exportFilters) == 0 || r.api == nil {
 		return egressStepResult{accept: true}
 	}
+	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
+	// raw bytes are 2- or 4-octet per the source's negotiated ASN4.
+	srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
+	return r.runEgressPolicyChainASN4(exportFilters, destAddrStr, destPeerAS, destLocalAS, wireUpdate, srcCtx != nil && srcCtx.ASN4())
+}
+
+// runEgressPolicyChainASN4 is the shared body of the export policy chain. It is
+// the ONE implementation of "run this peer's export chain and turn the result
+// into a wire override", used by both egress paths:
+//
+//   - forwardUpdateCore (reflected / forwarded routes), via runEgressPolicyChain,
+//     which derives asn4 from the update's SOURCE encoding context.
+//   - exportFilterForBody (originated / injected / redistributed / replayed
+//     routes, incl. bgp-rs `update text` re-advertisement), which passes the
+//     DESTINATION peer's sendASN4, because the session write path has already
+//     encoded the body in the destination's send context.
+//
+// asn4 describes the encoding of the AS_PATH raw bytes in wireUpdate, and is the
+// only thing that differs between the two callers. Keeping one body is
+// load-bearing: the two paths previously had independent copies and the
+// originated one silently dropped every FilterModify text delta, leaking
+// RFC 6996 private ASNs to EBGP peers (spec-fixit-private-asn-leak).
+func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
+	if len(exportFilters) == 0 || r.api == nil {
+		return egressStepResult{accept: true}
+	}
 	attrsWire, attrErr := wireUpdate.Attrs()
 	if attrErr != nil {
 		fwdLogger().Debug("attrs extraction for export filter", "peer", destAddrStr, "error", attrErr)
@@ -221,9 +247,7 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 		origAttrs := parseFilterAttrs(updateText)
 		modAttrs := parseFilterAttrs(res.Text)
 		textDeltaToModOps(origAttrs, modAttrs, &exportMods)
-		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-		srcASN4 := srcCtx != nil && srcCtx.ASN4()
-		ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, destPeerAS, &exportMods)
+		ExtractRemovePrivateASOps(modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
 		ExtractASPathPrependOps(modAttrs, destLocalAS, &exportMods)
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 		if exportMods.Len() > 0 || nlriOverride != nil {
