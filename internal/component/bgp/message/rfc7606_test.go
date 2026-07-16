@@ -7,6 +7,9 @@ import (
 )
 
 // TestRFC7606MalformedOriginLength verifies RFC 7606 Section 7.1.
+//
+// RFC requirement: RFC7606-7.1-1 negative — ORIGIN length 2 selects treat-as-withdraw.
+// RFC requirement: RFC7606-3.e-1 negative — §3.e umbrella: malformed ORIGIN is treat-as-withdraw.
 func TestRFC7606MalformedOriginLength(t *testing.T) {
 	// ORIGIN with wrong length (2 instead of 1)
 	pathAttrs := []byte{
@@ -20,6 +23,12 @@ func TestRFC7606MalformedOriginLength(t *testing.T) {
 }
 
 // TestRFC7606MalformedCommunityLength verifies RFC 7606 Section 7.8.
+//
+// Covers only the "not a multiple of 4" clause. The zero-length clause of §7.8 has no
+// honest test: every zero-length COMMUNITY case is cascade-confounded (see the concession
+// at the extlen/COMMUNITY_deflate_to_0 case below).
+//
+// RFC requirement: RFC7606-7.8-1 negative — COMMUNITY length 5 is not a multiple of 4, so treat-as-withdraw.
 func TestRFC7606MalformedCommunityLength(t *testing.T) {
 	// Valid ORIGIN + AS_PATH + NEXT_HOP, then malformed Community
 	pathAttrs := []byte{
@@ -40,6 +49,8 @@ func TestRFC7606MalformedCommunityLength(t *testing.T) {
 }
 
 // TestRFC7606MissingOrigin verifies RFC 7606 Section 3.d.
+//
+// RFC requirement: RFC7606-3.d-1 negative — a missing well-known mandatory ORIGIN is treat-as-withdraw.
 func TestRFC7606MissingOrigin(t *testing.T) {
 	// Missing ORIGIN (only AS_PATH and NEXT_HOP)
 	pathAttrs := []byte{
@@ -56,6 +67,8 @@ func TestRFC7606MissingOrigin(t *testing.T) {
 }
 
 // TestRFC7606MissingASPath verifies RFC 7606 Section 3.d.
+//
+// RFC requirement: RFC7606-3.d-1 negative — a missing well-known mandatory AS_PATH is treat-as-withdraw.
 func TestRFC7606MissingASPath(t *testing.T) {
 	// Missing AS_PATH (only ORIGIN and NEXT_HOP)
 	pathAttrs := []byte{
@@ -72,6 +85,9 @@ func TestRFC7606MissingASPath(t *testing.T) {
 }
 
 // TestRFC7606MalformedAtomicAggregate verifies RFC 7606 Section 7.6.
+//
+// RFC requirement: RFC7606-7.6-1 negative — ATOMIC_AGGREGATE length 1 is not 0, so attribute discard.
+// RFC requirement: RFC7606-3.f-1 negative — §3.f umbrella: malformed ATOMIC_AGGREGATE is attribute discard.
 func TestRFC7606MalformedAtomicAggregate(t *testing.T) {
 	// ATOMIC_AGGREGATE with wrong length (should be 0)
 	pathAttrs := []byte{
@@ -88,6 +104,10 @@ func TestRFC7606MalformedAtomicAggregate(t *testing.T) {
 }
 
 // TestRFC7606ValidUpdate verifies valid UPDATE passes validation.
+//
+// RFC requirement: RFC7606-3.d-1 positive — all well-known mandatory attributes present, so accepted.
+// RFC requirement: RFC7606-7.3-1 positive — NEXT_HOP length 4 is accepted.
+// RFC requirement: RFC7606-4-2 positive — AS_PATH is one of the two attributes that may be zero-length.
 func TestRFC7606ValidUpdate(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -107,6 +127,12 @@ func TestRFC7606EmptyWithdrawal(t *testing.T) {
 }
 
 // TestRFC7606MultipleMPReach verifies RFC 7606 Section 3.g.
+//
+// Enforces the detection half of §3.g only: the action is session reset. That a
+// NOTIFICATION with subcode "Malformed Attribute List" is actually emitted is proven by
+// TestSessionRFC7606SessionResetNotification, which drives a real session.
+//
+// RFC requirement: RFC7606-3.g-1 negative — a second MP_REACH_NLRI selects session reset.
 func TestRFC7606MultipleMPReach(t *testing.T) {
 	// Two MP_REACH_NLRI attributes (invalid per RFC 7606 Section 3.g)
 	pathAttrs := []byte{
@@ -149,6 +175,92 @@ func TestRFC7606ExtendedCommunityLength(t *testing.T) {
 	require.Contains(t, result.Description, "7.14")
 }
 
+// TestRFC7606ExtendedCommunityValid verifies RFC 7606 Section 7.14.
+//
+// VALIDATES: A single well-formed 8-byte Extended Community is accepted.
+// PREVENTS: The length check over-firing and withdrawing conforming routes.
+//
+// The conforming half of §7.14's "non-zero multiple of 8" rule. Without it, a validator
+// that rejected every Extended Community would still satisfy TestRFC7606ExtendedCommunityLength.
+//
+// RFC requirement: RFC7606-7.14-1 positive — length 8 is a non-zero multiple of 8, so accepted.
+func TestRFC7606ExtendedCommunityValid(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// Extended Community, len=8: one Route Target (RFC 4360 Section 4)
+		// Type 0x00 (transitive two-octet AS specific), Sub-Type 0x02 (Route Target),
+		// Global Administrator AS 65000, Local Administrator 1.
+		0xc0, 0x10, 0x08,
+		0x00, 0x02, // Type / Sub-Type
+		0xfd, 0xe8, // AS 65000
+		0x00, 0x00, 0x00, 0x01, // Local Administrator = 1
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// TestRFC7606ExtendedCommunityZeroLength verifies RFC 7606 Section 7.14.
+//
+// VALIDATES: A zero-length Extended Community selects treat-as-withdraw.
+// PREVENTS: Accepting the empty-attribute case, which §7.14 makes malformed just as
+// surely as a length of 5 does ("not a non-zero multiple of 8" — zero fails the
+// "non-zero" half, and 0 % 8 == 0 would pass a multiple-of-8 test alone).
+//
+// The attribute is placed last with no trailing bytes, so the zero length cannot deflate
+// into a cascade of re-parsed attributes: exactly one error reaches the result. This is
+// what makes the zero-length clause honestly testable for EXTENDED_COMMUNITIES where the
+// COMMUNITY (§7.8) and CLUSTER_LIST (§7.10) equivalents were cascade-confounded.
+//
+// RFC requirement: RFC7606-7.14-1 negative — length 0 fails the "non-zero" clause, so treat-as-withdraw.
+func TestRFC7606ExtendedCommunityZeroLength(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		0xc0, 0x10, 0x00, // Extended Community len=0 (invalid), last attribute, no data
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, uint8(16), result.AttrCode)
+	require.Contains(t, result.Description, "7.14")
+}
+
+// TestRFC7606ExtendedCommunityUnrecognizedType verifies RFC 7606 Section 7.14.
+//
+// VALIDATES: An Extended Community with an unrecognized Type/Sub-Type is NOT an error.
+// PREVENTS: A future Type or Sub-Type allowlist in validateExtCommunityAttr, which would
+// break the "MUST NOT treat as an error" rule and drop routes carrying communities that
+// merely postdate this code.
+//
+// §7.14's closing note is a prohibition, not an obligation to detect anything: the only
+// conforming observation is acceptance. Asserting a rejection here would assert exactly
+// the behavior the RFC forbids, so this requirement is genuinely positive-only.
+//
+// Scope: this pins ValidateUpdateRFC7606, the RFC 7606 decision point. Length stays valid
+// (8) so the §7.14-1 length clause cannot fire and mask the type question.
+//
+// RFC requirement: RFC7606-7.14-2 positive — an unrecognized Extended Community Type/Sub-Type is accepted, not an error.
+func TestRFC7606ExtendedCommunityUnrecognizedType(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// Extended Community, len=8, Type 0x3f / Sub-Type 0xee: not a Type Ze recognizes.
+		// 0x3f keeps the Transitive bit clear per RFC 4360 Section 3 (transitive range
+		// 0x00-0x3f), so this is an ordinary transitive community of an unknown type.
+		0xc0, 0x10, 0x08,
+		0x3f, 0xee, // Type / Sub-Type (unrecognized)
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // opaque value
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
 // TestRFC7606LargeCommunityLength verifies RFC 8092 Section 5.
 func TestRFC7606LargeCommunityLength(t *testing.T) {
 	pathAttrs := []byte{
@@ -173,6 +285,8 @@ func TestRFC7606LargeCommunityLength(t *testing.T) {
 //
 // VALIDATES: AS_PATH with valid AS_SEQUENCE (type=2) is accepted.
 // PREVENTS: False positives in AS_PATH validation.
+//
+// RFC requirement: RFC7606-7.2-1 positive — a well-formed AS_SEQUENCE segment is accepted.
 func TestRFC7606ASPathValidSequence(t *testing.T) {
 	// AS_PATH with AS_SEQUENCE: type=2, len=2 (2 ASes), AS 65001, AS 65002
 	// Using 2-byte ASNs
@@ -193,6 +307,8 @@ func TestRFC7606ASPathValidSequence(t *testing.T) {
 //
 // VALIDATES: AS_PATH with valid AS_SET (type=1) is accepted.
 // PREVENTS: False positives in AS_PATH validation.
+//
+// RFC requirement: RFC7606-7.2-1 positive — AS_SET is a recognized segment type, so accepted.
 func TestRFC7606ASPathValidSet(t *testing.T) {
 	// AS_PATH with AS_SET: type=1, len=2 (2 ASes)
 	pathAttrs := []byte{
@@ -212,6 +328,9 @@ func TestRFC7606ASPathValidSet(t *testing.T) {
 //
 // VALIDATES: Unrecognized segment type triggers treat-as-withdraw.
 // PREVENTS: Accepting AS_PATH with invalid segment types (security).
+//
+// RFC requirement: RFC7606-7.2-1 negative — unrecognized segment type is treat-as-withdraw.
+// RFC requirement: RFC7606-3.e-1 negative — §3.e umbrella: malformed AS_PATH is treat-as-withdraw.
 func TestRFC7606ASPathUnrecognizedSegmentType(t *testing.T) {
 	// AS_PATH with invalid segment type=5 (only 1-4 are valid)
 	pathAttrs := []byte{
@@ -232,6 +351,8 @@ func TestRFC7606ASPathUnrecognizedSegmentType(t *testing.T) {
 //
 // VALIDATES: Segment length exceeding attribute data triggers treat-as-withdraw.
 // PREVENTS: Buffer overflow from malformed AS_PATH (security).
+//
+// RFC requirement: RFC7606-7.2-1 negative — segment overrun is treat-as-withdraw.
 func TestRFC7606ASPathSegmentOverrun(t *testing.T) {
 	// AS_PATH where segment claims 10 ASes but only has room for 1
 	pathAttrs := []byte{
@@ -252,6 +373,8 @@ func TestRFC7606ASPathSegmentOverrun(t *testing.T) {
 //
 // VALIDATES: Single trailing byte after segments triggers treat-as-withdraw.
 // PREVENTS: Accepting malformed AS_PATH with partial segment header.
+//
+// RFC requirement: RFC7606-7.2-1 negative — segment underrun is treat-as-withdraw.
 func TestRFC7606ASPathSegmentUnderrun(t *testing.T) {
 	// AS_PATH with valid segment + 1 trailing byte (partial header)
 	pathAttrs := []byte{
@@ -273,6 +396,12 @@ func TestRFC7606ASPathSegmentUnderrun(t *testing.T) {
 //
 // VALIDATES: Zero segment length triggers treat-as-withdraw.
 // PREVENTS: Accepting AS_PATH with empty segments (RFC violation).
+//
+// This is §7.2's "Path Segment Length = 0" clause (a zero-length SEGMENT inside a
+// non-empty attribute), not §4's zero-length ATTRIBUTE rule. The attribute length here is
+// 2 and covers the segment header exactly, so no trailing garbage confounds the result.
+//
+// RFC requirement: RFC7606-7.2-1 negative — a zero-length AS_PATH segment is treat-as-withdraw.
 func TestRFC7606ASPathZeroSegmentLength(t *testing.T) {
 	// AS_PATH with segment length=0
 	pathAttrs := []byte{
@@ -296,6 +425,8 @@ func TestRFC7606ASPathZeroSegmentLength(t *testing.T) {
 //
 // VALIDATES: ORIGIN value 0 (IGP) is accepted.
 // PREVENTS: False positives in ORIGIN value validation.
+//
+// RFC requirement: RFC7606-7.1-1 positive — ORIGIN length 1 with defined value IGP is accepted.
 func TestRFC7606OriginValueIGP(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP (0)
@@ -311,6 +442,8 @@ func TestRFC7606OriginValueIGP(t *testing.T) {
 //
 // VALIDATES: ORIGIN value 1 (EGP) is accepted.
 // PREVENTS: False positives in ORIGIN value validation.
+//
+// RFC requirement: RFC7606-7.1-1 positive — ORIGIN length 1 with defined value EGP is accepted.
 func TestRFC7606OriginValueEGP(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x01, // ORIGIN = EGP (1)
@@ -326,6 +459,8 @@ func TestRFC7606OriginValueEGP(t *testing.T) {
 //
 // VALIDATES: ORIGIN value 2 (INCOMPLETE) is accepted.
 // PREVENTS: False positives in ORIGIN value validation.
+//
+// RFC requirement: RFC7606-7.1-1 positive — ORIGIN length 1 with defined value INCOMPLETE is accepted.
 func TestRFC7606OriginValueIncomplete(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x02, // ORIGIN = INCOMPLETE (2)
@@ -341,6 +476,8 @@ func TestRFC7606OriginValueIncomplete(t *testing.T) {
 //
 // VALIDATES: Invalid ORIGIN value (>2) triggers treat-as-withdraw.
 // PREVENTS: Accepting UPDATE with undefined ORIGIN values.
+//
+// RFC requirement: RFC7606-7.1-1 negative — an undefined ORIGIN value is treat-as-withdraw.
 func TestRFC7606OriginValueInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x03, // ORIGIN = 3 (invalid)
@@ -362,6 +499,8 @@ func TestRFC7606OriginValueInvalid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with 16-byte next-hop for IPv6/unicast is accepted.
 // PREVENTS: False positives in MP_REACH validation.
+//
+// RFC requirement: RFC7606-7.11-1 positive — a 16-byte next hop is consistent with IPv6/unicast, so accepted.
 func TestRFC7606MPReachIPv6NextHopValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -385,6 +524,8 @@ func TestRFC7606MPReachIPv6NextHopValid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with 32-byte next-hop (global + link-local) is accepted.
 // PREVENTS: False positives in MP_REACH validation.
+//
+// RFC requirement: RFC7606-7.11-1 positive — a 32-byte global+link-local next hop is consistent with IPv6/unicast.
 func TestRFC7606MPReachIPv6NextHopDualValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -411,6 +552,8 @@ func TestRFC7606MPReachIPv6NextHopDualValid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with invalid next-hop length triggers session-reset.
 // PREVENTS: Accepting MP_REACH with corrupt next-hop (can't parse NLRI).
+//
+// RFC requirement: RFC7606-7.11-1 negative — next-hop length 5 is inconsistent with IPv6, so session reset.
 func TestRFC7606MPReachIPv6NextHopInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -434,6 +577,12 @@ func TestRFC7606MPReachIPv6NextHopInvalid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with 4-byte next-hop for IPv4/unicast is accepted.
 // PREVENTS: False positives in MP_REACH validation.
+//
+// RFC requirement: RFC7606-7.11-1 positive — a 4-byte next hop is consistent with IPv4/unicast, so accepted.
+// RFC requirement: RFC7606-3.g-1 positive — a single MP_REACH_NLRI is not a multiplicity error.
+// RFC requirement: RFC7606-5.1-3 positive — MP_REACH_NLRI is accepted although it is NOT
+// the first path attribute (ORIGIN and AS_PATH precede it here), which is exactly the
+// tolerance §5.1 requires of a receiver regardless of what senders SHALL do.
 func TestRFC7606MPReachIPv4NextHopValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -455,6 +604,8 @@ func TestRFC7606MPReachIPv4NextHopValid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with invalid next-hop length for IPv4 triggers session-reset.
 // PREVENTS: Accepting MP_REACH with corrupt next-hop.
+//
+// RFC requirement: RFC7606-7.11-1 negative — next-hop length 3 is inconsistent with IPv4, so session reset.
 func TestRFC7606MPReachIPv4NextHopInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -478,6 +629,8 @@ func TestRFC7606MPReachIPv4NextHopInvalid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with 12-byte next-hop for VPNv4 (SAFI=128) is accepted.
 // PREVENTS: False positives in MP_REACH validation for L3VPN.
+//
+// RFC requirement: RFC7606-7.11-1 positive — a 12-byte RD+IPv4 next hop is consistent with VPNv4.
 func TestRFC7606MPReachVPNv4NextHopValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -502,6 +655,8 @@ func TestRFC7606MPReachVPNv4NextHopValid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with invalid next-hop length for VPNv4 triggers session-reset.
 // PREVENTS: Accepting VPNv4 UPDATE with corrupt next-hop.
+//
+// RFC requirement: RFC7606-7.11-1 negative — next-hop length 4 omits the RD, inconsistent with VPNv4.
 func TestRFC7606MPReachVPNv4NextHopInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -525,6 +680,8 @@ func TestRFC7606MPReachVPNv4NextHopInvalid(t *testing.T) {
 //
 // VALIDATES: MP_REACH with length < 5 triggers session-reset.
 // PREVENTS: Buffer overflow from truncated MP_REACH.
+//
+// RFC requirement: RFC7606-3.j-1 negative — an MP_REACH too short to parse escalates to session reset.
 func TestRFC7606MPReachTooShort(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -549,6 +706,8 @@ func TestRFC7606MPReachTooShort(t *testing.T) {
 //
 // VALIDATES: IPv4 NLRI with prefix lengths 0-32 are accepted.
 // PREVENTS: False positives in NLRI validation.
+//
+// RFC requirement: RFC7606-3.j-1 positive — a parseable NLRI field does not escalate to session reset.
 func TestRFC7606NLRIPrefixLengthValidIPv4(t *testing.T) {
 	// Valid NLRI: /24 prefix (3 bytes) + /32 prefix (4 bytes)
 	nlri := []byte{
@@ -562,8 +721,18 @@ func TestRFC7606NLRIPrefixLengthValidIPv4(t *testing.T) {
 
 // TestRFC7606NLRIPrefixLengthTooLongIPv4 verifies RFC 7606 Section 5.3.
 //
-// VALIDATES: IPv4 NLRI with prefix length > 32 triggers treat-as-withdraw.
-// PREVENTS: Accepting invalid NLRI with impossible prefix length.
+// VALIDATES: IPv4 NLRI with prefix length > 32 triggers session reset.
+// PREVENTS: Accepting invalid NLRI with impossible prefix length; and silently
+// downgrading the RFC-mandated session reset to treat-as-withdraw.
+//
+// RFC requirement: RFC7606-5.3-1 negative — prefix length 33 makes the field
+// syntactically incorrect, which Section 3(j) escalates to session reset
+// RFC requirement: RFC7606-3.j-1 negative — an unparseable NLRI field selects session reset.
+//
+// Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
+// RFC 7606 Section 5.3 makes prefix length > 32 "syntactically incorrect"; Section 3(j)
+// then mandates session reset, because treat-as-withdraw is only available once "the
+// entire NLRI field ... [has been] successfully parsed".
 func TestRFC7606NLRIPrefixLengthTooLongIPv4(t *testing.T) {
 	// Invalid NLRI: prefix length 33 (> 32)
 	nlri := []byte{
@@ -573,7 +742,7 @@ func TestRFC7606NLRIPrefixLengthTooLongIPv4(t *testing.T) {
 
 	result := ValidateNLRISyntax(nlri, false)
 	require.NotNil(t, result)
-	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Contains(t, result.Description, "5.3")
 }
 
@@ -581,6 +750,8 @@ func TestRFC7606NLRIPrefixLengthTooLongIPv4(t *testing.T) {
 //
 // VALIDATES: IPv6 NLRI with prefix lengths 0-128 are accepted.
 // PREVENTS: False positives in NLRI validation.
+//
+// RFC requirement: RFC7606-3.j-1 positive — a parseable IPv6 NLRI field does not escalate to session reset.
 func TestRFC7606NLRIPrefixLengthValidIPv6(t *testing.T) {
 	// Valid NLRI: /64 prefix (8 bytes) + /128 prefix (16 bytes)
 	nlri := []byte{
@@ -595,8 +766,15 @@ func TestRFC7606NLRIPrefixLengthValidIPv6(t *testing.T) {
 
 // TestRFC7606NLRIPrefixLengthTooLongIPv6 verifies RFC 7606 Section 5.3.
 //
-// VALIDATES: IPv6 NLRI with prefix length > 128 triggers treat-as-withdraw.
-// PREVENTS: Accepting invalid NLRI with impossible prefix length.
+// VALIDATES: IPv6 NLRI with prefix length > 128 triggers session reset.
+// PREVENTS: Accepting invalid NLRI with impossible prefix length; and silently
+// downgrading the RFC-mandated session reset to treat-as-withdraw.
+//
+// RFC requirement: RFC7606-5.3-3 negative — an NLRI length inconsistent with the AFI/SAFI
+// makes the field incorrect, which Section 3(j) escalates to session reset
+// RFC requirement: RFC7606-3.j-1 negative — an unparseable IPv6 NLRI field selects session reset.
+//
+// Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
 func TestRFC7606NLRIPrefixLengthTooLongIPv6(t *testing.T) {
 	// Invalid NLRI: prefix length 129 (> 128)
 	nlri := []byte{
@@ -606,7 +784,7 @@ func TestRFC7606NLRIPrefixLengthTooLongIPv6(t *testing.T) {
 
 	result := ValidateNLRISyntax(nlri, true)
 	require.NotNil(t, result)
-	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Contains(t, result.Description, "5.3")
 }
 
@@ -617,6 +795,8 @@ func TestRFC7606NLRIPrefixLengthTooLongIPv6(t *testing.T) {
 //
 // RFC 7606 Section 3(j): treat-as-withdraw requires the entire NLRI field to be
 // successfully parsed. If not possible, session-reset MUST be followed.
+//
+// RFC requirement: RFC7606-3.j-1 negative — the last NLRI overruns the field, so session reset.
 func TestRFC7606NLRIOverrun(t *testing.T) {
 	// Invalid NLRI: claims /24 but only 2 bytes follow (needs 3)
 	nlri := []byte{
@@ -661,6 +841,8 @@ func TestRFC7606NLRIZeroPrefixLength(t *testing.T) {
 //
 // VALIDATES: LOCAL_PREF from EBGP peer triggers attribute-discard.
 // PREVENTS: Accepting LOCAL_PREF from external peers (RFC violation).
+//
+// RFC requirement: RFC7606-7.5-1 negative — LOCAL_PREF from an external peer is attribute discard.
 func TestRFC7606LocalPrefEBGPDiscard(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -680,6 +862,9 @@ func TestRFC7606LocalPrefEBGPDiscard(t *testing.T) {
 //
 // VALIDATES: LOCAL_PREF with length=4 from IBGP peer is accepted.
 // PREVENTS: False positives in LOCAL_PREF validation.
+//
+// RFC requirement: RFC7606-7.5-1 positive — the same LOCAL_PREF from an internal peer is NOT discarded.
+// RFC requirement: RFC7606-7.5-2 positive — LOCAL_PREF length 4 from iBGP is accepted.
 func TestRFC7606LocalPrefIBGPValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -697,6 +882,9 @@ func TestRFC7606LocalPrefIBGPValid(t *testing.T) {
 //
 // VALIDATES: LOCAL_PREF with invalid length from IBGP triggers treat-as-withdraw.
 // PREVENTS: Accepting malformed LOCAL_PREF in IBGP.
+//
+// RFC requirement: RFC7606-7.5-2 negative — LOCAL_PREF length 3 from iBGP is treat-as-withdraw.
+// RFC requirement: RFC7606-3.e-1 negative — §3.e umbrella: malformed LOCAL_PREF is treat-as-withdraw.
 func TestRFC7606LocalPrefIBGPInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -720,6 +908,8 @@ func TestRFC7606LocalPrefIBGPInvalid(t *testing.T) {
 //
 // VALIDATES: ORIGINATOR_ID from EBGP peer triggers attribute-discard.
 // PREVENTS: Accepting route reflector attributes from external peers.
+//
+// RFC requirement: RFC7606-7.9-1 negative — ORIGINATOR_ID from an external peer is attribute discard.
 func TestRFC7606OriginatorIDEBGPDiscard(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -739,6 +929,9 @@ func TestRFC7606OriginatorIDEBGPDiscard(t *testing.T) {
 //
 // VALIDATES: ORIGINATOR_ID with length=4 from IBGP peer is accepted.
 // PREVENTS: False positives in ORIGINATOR_ID validation.
+//
+// RFC requirement: RFC7606-7.9-1 positive — the same ORIGINATOR_ID from an internal peer is NOT discarded.
+// RFC requirement: RFC7606-7.9-2 positive — ORIGINATOR_ID length 4 from iBGP is accepted.
 func TestRFC7606OriginatorIDIBGPValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -756,6 +949,8 @@ func TestRFC7606OriginatorIDIBGPValid(t *testing.T) {
 //
 // VALIDATES: ORIGINATOR_ID with invalid length from IBGP triggers treat-as-withdraw.
 // PREVENTS: Accepting malformed ORIGINATOR_ID in IBGP.
+//
+// RFC requirement: RFC7606-7.9-2 negative — ORIGINATOR_ID length 5 from iBGP is treat-as-withdraw.
 func TestRFC7606OriginatorIDIBGPInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -779,6 +974,8 @@ func TestRFC7606OriginatorIDIBGPInvalid(t *testing.T) {
 //
 // VALIDATES: CLUSTER_LIST from EBGP peer triggers attribute-discard.
 // PREVENTS: Accepting route reflector attributes from external peers.
+//
+// RFC requirement: RFC7606-7.10-1 negative — CLUSTER_LIST from an external peer is attribute discard.
 func TestRFC7606ClusterListEBGPDiscard(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -798,6 +995,9 @@ func TestRFC7606ClusterListEBGPDiscard(t *testing.T) {
 //
 // VALIDATES: CLUSTER_LIST with length multiple of 4 from IBGP is accepted.
 // PREVENTS: False positives in CLUSTER_LIST validation.
+//
+// RFC requirement: RFC7606-7.10-1 positive — the same CLUSTER_LIST from an internal peer is NOT discarded.
+// RFC requirement: RFC7606-7.10-2 positive — CLUSTER_LIST length 8 is a non-zero multiple of 4, so accepted.
 func TestRFC7606ClusterListIBGPValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -818,6 +1018,11 @@ func TestRFC7606ClusterListIBGPValid(t *testing.T) {
 //
 // VALIDATES: CLUSTER_LIST with invalid length from IBGP triggers treat-as-withdraw.
 // PREVENTS: Accepting malformed CLUSTER_LIST in IBGP.
+//
+// Covers only the "not a multiple of 4" clause of §7.10. The zero-length clause is
+// cascade-confounded in every existing case, so it stays untagged.
+//
+// RFC requirement: RFC7606-7.10-2 negative — CLUSTER_LIST length 5 from iBGP is treat-as-withdraw.
 func TestRFC7606ClusterListIBGPInvalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -841,6 +1046,8 @@ func TestRFC7606ClusterListIBGPInvalid(t *testing.T) {
 //
 // VALIDATES: Well-known attribute with Optional bit set triggers treat-as-withdraw.
 // PREVENTS: Accepting well-known attributes incorrectly marked as optional.
+//
+// RFC requirement: RFC7606-3.c-1 negative — the Optional bit conflicts with well-known ORIGIN, so treat-as-withdraw.
 func TestRFC7606FlagsWellKnownMarkedOptional(t *testing.T) {
 	pathAttrs := []byte{
 		// ORIGIN with Optional bit set (0xc0 = optional + transitive)
@@ -860,6 +1067,8 @@ func TestRFC7606FlagsWellKnownMarkedOptional(t *testing.T) {
 //
 // VALIDATES: Well-known attribute without Transitive bit triggers treat-as-withdraw.
 // PREVENTS: Accepting well-known attributes incorrectly marked as non-transitive.
+//
+// RFC requirement: RFC7606-3.c-1 negative — a cleared Transitive bit conflicts with well-known AS_PATH.
 func TestRFC7606FlagsWellKnownNotTransitive(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN (valid)
@@ -878,6 +1087,9 @@ func TestRFC7606FlagsWellKnownNotTransitive(t *testing.T) {
 //
 // VALIDATES: Optional attribute with Optional bit set is accepted.
 // PREVENTS: False positives on correctly flagged optional attributes.
+//
+// RFC requirement: RFC7606-3.c-1 positive — flags matching the spec for MED raise no conflict.
+// RFC requirement: RFC7606-7.4-1 positive — MED length 4 is accepted.
 func TestRFC7606FlagsOptionalAttributeValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -899,6 +1111,11 @@ func TestRFC7606FlagsOptionalAttributeValid(t *testing.T) {
 //
 // VALIDATES: Duplicate well-known attribute discards all but first.
 // PREVENTS: Processing conflicting attribute values.
+//
+// Deliberately carries no `RFC requirement: RFC7606-3.g-2` tag. Both ORIGIN values here
+// are individually VALID, so asserting ActionNone proves only "a duplicate is not an
+// error" — an implementation that kept the LAST occurrence would pass identically. The
+// requirement is about WHICH copy survives, and nothing here observes that.
 func TestRFC7606DuplicateOrigin(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP (first)
@@ -916,6 +1133,9 @@ func TestRFC7606DuplicateOrigin(t *testing.T) {
 //
 // VALIDATES: Duplicate optional attribute discards all but first.
 // PREVENTS: Processing conflicting attribute values.
+//
+// Untagged for the same reason as TestRFC7606DuplicateOrigin: both MED copies are valid,
+// so this cannot distinguish first-wins from last-wins.
 func TestRFC7606DuplicateMED(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -938,6 +1158,8 @@ func TestRFC7606DuplicateMED(t *testing.T) {
 //
 // VALIDATES: AGGREGATOR with length 6 is valid when asn4=false.
 // PREVENTS: False positives for correctly sized AGGREGATOR.
+//
+// RFC requirement: RFC7606-7.7-1 positive — AGGREGATOR length 6 without 4-byte AS is accepted.
 func TestRFC7606AggregatorLen6NoASN4(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -958,6 +1180,8 @@ func TestRFC7606AggregatorLen6NoASN4(t *testing.T) {
 //
 // VALIDATES: AGGREGATOR with length 8 is valid when asn4=true.
 // PREVENTS: False positives for correctly sized AGGREGATOR.
+//
+// RFC requirement: RFC7606-7.7-1 positive — AGGREGATOR length 8 with 4-byte AS is accepted.
 func TestRFC7606AggregatorLen8WithASN4(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -978,6 +1202,9 @@ func TestRFC7606AggregatorLen8WithASN4(t *testing.T) {
 //
 // VALIDATES: AGGREGATOR with length 8 when asn4=false triggers attribute-discard.
 // PREVENTS: Accepting AGGREGATOR with wrong size for capability.
+//
+// RFC requirement: RFC7606-7.7-1 negative — AGGREGATOR length 8 without 4-byte AS is attribute discard.
+// RFC requirement: RFC7606-3.f-1 negative — §3.f umbrella: malformed AGGREGATOR is attribute discard.
 func TestRFC7606AggregatorLen8NoASN4Invalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -1000,6 +1227,8 @@ func TestRFC7606AggregatorLen8NoASN4Invalid(t *testing.T) {
 //
 // VALIDATES: AGGREGATOR with length 6 when asn4=true triggers attribute-discard.
 // PREVENTS: Accepting AGGREGATOR with wrong size for capability.
+//
+// RFC requirement: RFC7606-7.7-1 negative — AGGREGATOR length 6 with 4-byte AS is attribute discard.
 func TestRFC7606AggregatorLen6WithASN4Invalid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -1022,6 +1251,8 @@ func TestRFC7606AggregatorLen6WithASN4Invalid(t *testing.T) {
 //
 // VALIDATES: AS_PATH segment validation works correctly with asn4=true.
 // PREVENTS: AS_PATH validation errors with 4-byte ASN sessions.
+//
+// RFC requirement: RFC7606-7.2-1 positive — a well-formed 4-byte-ASN AS_SEQUENCE is accepted.
 func TestRFC7606ASPath4ByteASN(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -1047,6 +1278,8 @@ func TestRFC7606ASPath4ByteASN(t *testing.T) {
 // VALIDATES: MP_UNREACH_NLRI with length < 3 triggers session-reset.
 // PREVENTS: Accepting truncated MP_UNREACH that can't contain AFI+SAFI.
 // BOUNDARY: 2 (invalid, minimum is 3), 3 (valid).
+//
+// RFC requirement: RFC7606-3.j-1 negative — an MP_UNREACH too short to parse escalates to session reset.
 func TestRFC7606MPUnreachTooShort(t *testing.T) {
 	// MP_UNREACH_NLRI with length 2 (needs at least 3: AFI=2 + SAFI=1)
 	pathAttrs := []byte{
@@ -1068,6 +1301,11 @@ func TestRFC7606MPUnreachTooShort(t *testing.T) {
 // VALIDATES: MP_UNREACH_NLRI with minimum valid length (3) passes.
 // PREVENTS: False positives at the boundary.
 // BOUNDARY: 3 (valid, exactly AFI+SAFI).
+//
+// This is the End-of-RIB shape §5.2 explicitly exempts: an UPDATE carrying only an
+// MP_UNREACH_NLRI that encodes no NLRI. It must NOT be escalated to session reset.
+//
+// RFC requirement: RFC7606-5.2-1 positive — an MP_UNREACH-only UPDATE with no NLRI is exempt from escalation.
 func TestRFC7606MPUnreachMinValid(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -1086,6 +1324,8 @@ func TestRFC7606MPUnreachMinValid(t *testing.T) {
 //
 // VALIDATES: UPDATE with attrs but no NLRI + treat-as-withdraw error → session-reset.
 // PREVENTS: Accepting malformed attrs when NLRI can't be confirmed parseable.
+//
+// RFC requirement: RFC7606-5.2-1 negative — attributes, no reachable NLRI, non-discard error, so session reset.
 func TestRFC7606NoNLRIEscalation(t *testing.T) {
 	// UPDATE with path attributes but no NLRI, and a malformed ORIGIN (treat-as-withdraw)
 	// Section 5.2: "session reset" MUST be used since we can't confirm NLRI parsed correctly
@@ -1104,6 +1344,8 @@ func TestRFC7606NoNLRIEscalation(t *testing.T) {
 //
 // VALIDATES: UPDATE with attrs but no NLRI + only attribute-discard errors → NOT escalated.
 // PREVENTS: Over-escalating when the only errors are harmless discards.
+//
+// RFC requirement: RFC7606-5.2-1 positive — an attribute-discard-only error is exempt from escalation.
 func TestRFC7606NoNLRIAttributeDiscardNoEscalation(t *testing.T) {
 	// UPDATE with path attributes but no NLRI, only attribute-discard error
 	// Section 5.2 says: escalate only for errors OTHER than attribute-discard
@@ -1122,6 +1364,8 @@ func TestRFC7606NoNLRIAttributeDiscardNoEscalation(t *testing.T) {
 //
 // VALIDATES: When multiple errors exist, strongest action (treat-as-withdraw) wins.
 // PREVENTS: Using weaker action when stronger is required.
+// RFC requirement: RFC7606-3.h-2 negative — attribute-discard and treat-as-withdraw
+// co-occur, and the STRONGER (treat-as-withdraw) is the action taken.
 func TestRFC7606MultipleErrorsStrongest(t *testing.T) {
 	// UPDATE with:
 	// - ATOMIC_AGG wrong length → attribute-discard (weaker)
@@ -1144,6 +1388,8 @@ func TestRFC7606MultipleErrorsStrongest(t *testing.T) {
 //
 // VALIDATES: Multiple attribute-discard errors populate DiscardEntries with all codes and reasons.
 // PREVENTS: Stripping only the first bad attribute when multiple need stripping.
+// RFC requirement: RFC7606-3.h-1 negative — two errors that both specify
+// attribute-discard yield attribute-discard, and BOTH are recorded.
 func TestRFC7606CollectAllErrors(t *testing.T) {
 	// UPDATE with two attribute-discard errors:
 	// - ATOMIC_AGG wrong length → discard (reason: invalid length)
@@ -1235,6 +1481,17 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 	}
 
 	// Verify baselines are valid before corrupting anything.
+	//
+	// The baselines assert an EXACT ActionNone over a full attribute set, so each attribute
+	// below carries its own conforming case: a regression that started flagging a
+	// well-formed ATOMIC_AGGREGATE, AGGREGATOR or COMMUNITY fails here.
+	//
+	// RFC requirement: RFC7606-3.e-1 positive — well-formed ORIGIN, AS_PATH, NEXT_HOP and MED are accepted.
+	// RFC requirement: RFC7606-3.f-1 positive — well-formed ATOMIC_AGGREGATE and AGGREGATOR are not discarded.
+	// RFC requirement: RFC7606-4-1 positive — an attribute set with no length conflict is accepted.
+	// RFC requirement: RFC7606-4-2 positive — ATOMIC_AGGREGATE is one of the two attributes that may be zero-length.
+	// RFC requirement: RFC7606-7.6-1 positive — ATOMIC_AGGREGATE length 0 is accepted.
+	// RFC requirement: RFC7606-7.8-1 positive — COMMUNITY length 4 is a non-zero multiple of 4, so accepted.
 	t.Run("Baseline_EBGP", func(t *testing.T) {
 		result := ValidateUpdateRFC7606(assemble(ebgpSet, -1, 0), true, false, false)
 		require.Equal(t, RFC7606ActionNone, result.Action, "EBGP baseline must pass")
@@ -1244,6 +1501,18 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		require.Equal(t, RFC7606ActionNone, result.Action, "IBGP baseline must pass")
 	})
 
+	// NOTE ON `RFC requirement:` TAGS — the four wantMin tables below carry none.
+	//
+	// They assert a severity FLOOR ("at least this severe"), not the action the RFC names.
+	// Since None < AttributeDiscard < TreatAsWithdraw < SessionReset, a case wanting
+	// treat-as-withdraw also passes on session reset — the precise over-reaction RFC 7606
+	// exists to eliminate. So these cases cannot fail when the implementation stops
+	// complying, and tagging them would manufacture coverage that does not exist. They
+	// remain valuable as crash and silent-acceptance sweeps; they are just not evidence
+	// that a requirement is enforced.
+	//
+	// Tags live instead on the exact-assertion sub-tests further down and on the flat tests
+	// above, each of which pins the action exactly.
 	tests := []struct {
 		name    string
 		attrs   [][]byte
@@ -1336,6 +1605,15 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		return buf
 	}
 
+	// wantMin asserts a severity FLOOR, which is deliberately weak: most of these buffers
+	// can produce a structural error as well as the per-attribute one under test, so
+	// pinning an exact action would assert something the case does not isolate.
+	//
+	// `exact` opts a case into an exact-action assertion. Use it only where the buffer
+	// isolates ONE error, because a floor cannot fail on over-reaction: severity orders
+	// None < AttributeDiscard < TreatAsWithdraw < SessionReset, so a floor of
+	// TreatAsWithdraw also passes on SessionReset -- the very over-reaction RFC 7606
+	// exists to eliminate.
 	paddedTests := []struct {
 		name     string
 		pathAttr []byte // Complete path-attributes blob
@@ -1355,6 +1633,11 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		},
 		// NEXT_HOP len=8: valid 4-byte IP + 4 garbage bytes.
 		// Per-attribute: length 8 != 4 → treat-as-withdraw.
+		//
+		// exact: this buffer carries exactly one error, and wantCode pins it to NEXT_HOP,
+		// so the case isolates §7.3 and can assert the precise action.
+		//
+		// RFC requirement: RFC7606-7.3-1 negative — NEXT_HOP length != 4 is malformed, treat-as-withdraw
 		{
 			"padded/NEXT_HOP_len8_garbage",
 			join(
@@ -1365,6 +1648,10 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		},
 		// MED len=8: valid 4 bytes + 4 garbage bytes.
 		// Per-attribute: length 8 != 4 → treat-as-withdraw.
+		//
+		// exact: single-error buffer, wantCode pins it to MULTI_EXIT_DISC (§7.4).
+		//
+		// RFC requirement: RFC7606-7.4-1 negative — MULTI_EXIT_DISC length != 4 is malformed, treat-as-withdraw
 		{
 			"padded/MED_len8_garbage",
 			join(
@@ -1470,11 +1757,32 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		},
 	}
 
+	// Cases whose buffer isolates exactly ONE error, so the exact action can be asserted.
+	//
+	// This matters because a floor cannot fail on over-reaction: severity orders
+	// None < AttributeDiscard < TreatAsWithdraw < SessionReset, so `GreaterOrEqual(
+	// TreatAsWithdraw)` is also satisfied by SessionReset -- the very over-reaction RFC
+	// 7606 exists to eliminate. A floor-only case cannot fail when the implementation
+	// stops complying, which is why only these two carry an `RFC requirement:` tag.
+	//
+	// The rest stay floors on purpose: their buffers can produce a structural error as
+	// well as the per-attribute one under test, so an exact assertion would claim an
+	// isolation the case does not have.
+	exactAction := map[string]bool{
+		"padded/NEXT_HOP_len8_garbage": true,
+		"padded/MED_len8_garbage":      true,
+	}
+
 	for _, tt := range paddedTests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ValidateUpdateRFC7606(tt.pathAttr, true, tt.isIBGP, false)
-			require.GreaterOrEqual(t, int(result.Action), int(tt.wantMin),
-				"want at least %s, got %s: %s", tt.wantMin, result.Action, result.Description)
+			if exactAction[tt.name] {
+				require.Equal(t, tt.wantMin, result.Action,
+					"want exactly %s, got %s: %s", tt.wantMin, result.Action, result.Description)
+			} else {
+				require.GreaterOrEqual(t, int(result.Action), int(tt.wantMin),
+					"want at least %s, got %s: %s", tt.wantMin, result.Action, result.Description)
+			}
 			if tt.wantCode != 0 {
 				require.Equal(t, tt.wantCode, result.AttrCode)
 			}
@@ -1803,6 +2111,11 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 	//
 	// rfc7606.go:269 checks mpUnreachCount > 1 → session-reset.
 	// Only MP_REACH duplicate was tested; MP_UNREACH was not.
+	//
+	// Covers the MP_UNREACH leg of §3.g's detection only; the NOTIFICATION subcode is
+	// proven by TestSessionRFC7606SessionResetNotification (MP_REACH leg).
+	//
+	// RFC requirement: RFC7606-3.g-1 negative — a second MP_UNREACH_NLRI selects session reset.
 	// ==================================================================
 	t.Run("dup/MP_UNREACH_duplicate_session_reset", func(t *testing.T) {
 		pathAttr := join(
@@ -1823,6 +2136,8 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 	// When an UPDATE has path attributes but NO NLRI (hasNLRI=false,
 	// mpReachCount=0), errors stronger than attribute-discard are
 	// escalated to session-reset. Same corruption → different outcome.
+	//
+	// RFC requirement: RFC7606-5.2-1 negative — no reachable NLRI plus a treat-as-withdraw error, so session reset.
 	// ==================================================================
 	t.Run("no_nlri/treat_as_withdraw_escalates_to_session_reset", func(t *testing.T) {
 		// ORIGIN with corrupted length (5 instead of 1) → treat-as-withdraw.
@@ -1836,6 +2151,7 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		require.Contains(t, result.Description, "5.2")
 	})
 
+	// RFC requirement: RFC7606-5.2-1 positive — an attribute-discard-only error is exempt from escalation.
 	t.Run("no_nlri/attribute_discard_NOT_escalated", func(t *testing.T) {
 		// ATOMIC_AGGREGATE with corrupted length (4 instead of 0) →
 		// attribute-discard. hasNLRI=false but attribute-discard is NOT
@@ -1860,6 +2176,7 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		0x04, 0xc0, 0x00, 0x02, 0x01, // NH_LEN=4, 192.0.2.1
 		0x00} // Reserved
 
+	// RFC requirement: RFC7606-3.d-1 negative — ORIGIN missing on the MP_REACH path is treat-as-withdraw.
 	t.Run("mp_reach/missing_ORIGIN", func(t *testing.T) {
 		// MP_REACH present, AS_PATH present, but no ORIGIN.
 		pathAttr := join(bASPath, bMPReach)
@@ -1869,6 +2186,7 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 		require.Contains(t, result.Description, "ORIGIN")
 	})
 
+	// RFC requirement: RFC7606-3.d-1 negative — AS_PATH missing on the MP_REACH path is treat-as-withdraw.
 	t.Run("mp_reach/missing_AS_PATH", func(t *testing.T) {
 		// MP_REACH present, ORIGIN present, but no AS_PATH.
 		pathAttr := join(bOrigin, bMPReach)
@@ -1926,6 +2244,8 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 //
 // VALIDATES: AS_PATH segment overrun detected with asn4=true.
 // PREVENTS: Buffer overflow from malformed AS_PATH with 4-byte ASNs.
+//
+// RFC requirement: RFC7606-7.2-1 negative — segment overrun with 4-byte ASNs is treat-as-withdraw.
 func TestRFC7606ASPath4ByteASNOverrun(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP

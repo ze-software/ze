@@ -2,6 +2,16 @@
 # Verifies: Peer sends UPDATE with malformed ORIGIN (length=2 instead of 1).
 # Expected: ze treats UPDATE as withdrawn (not dispatched to plugins), session stays up.
 # Proof: A subsequent valid route from the plugin reaches the peer successfully.
+#
+# RFC requirement: RFC7606-7.1-1 negative — ORIGIN length != 1 is malformed, treat-as-withdraw
+# The session staying up is the load-bearing half: it is what distinguishes
+# treat-as-withdraw from session reset end-to-end.
+#
+# NOT tagged RFC7606-2-1 ("treated as though all contained routes had been withdrawn").
+# This test proves the UPDATE was not DISPATCHED and the session survived. Suppression is
+# not withdrawal: it never observes the RIB, so it would pass unchanged against an
+# implementation that leaves a previously-announced prefix installed and stale. Tagging it
+# would manufacture exactly the false coverage this system exists to catch.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

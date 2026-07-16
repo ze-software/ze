@@ -1,0 +1,21 @@
+# RFC requirement enrolment -- the gate's scope.
+#
+# columns: <rfc-stem>\t<why this RFC is enrolled>
+#
+# An enrolled RFC has EVERY MUST-level requirement in rfc/short/<stem>.md either
+#   (a) covered by a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, or
+#   (b) annotated in the summary with a reason: {not-applicable: why} / {gap: why} /
+#       {single-polarity: <polarity>; why}
+# `make ze-rfc-check` enforces this. See ai/skills/ze-rfc.md.
+#
+# This file GROWS ONLY. Un-enrolling an RFC fails the gate: obligations that were once
+# proven cannot quietly stop being proven. Adding a row is a deliberate act taken once the
+# tests exist -- writing a summary does NOT enroll it.
+#
+# The un-enrolled remainder is NOT hidden: every summary appears in ai/RFC-REQUIREMENTS.md
+# marked "not enrolled", which is the explicit tracked backlog required by
+# ai/rules/testing.md ("Back-Fill New Test Types"). An empty file fails the gate rather
+# than reporting clean -- clean must mean "I compared things and found nothing", never
+# "I compared nothing" (ai/rules/fail-closed-guards.md).
+
+rfc7606	Revised UPDATE error handling: the error-handling contract for every UPDATE Ze parses. Pilot for this system -- ~60 near-1:1 tests already exist and the one real divergence (5.1 MP ordering, docs/architecture/wire/mp-nlri-ordering.md) proves the {gap} path is honest rather than an escape hatch.

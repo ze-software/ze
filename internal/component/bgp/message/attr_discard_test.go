@@ -247,6 +247,12 @@ func TestApplyAttrDiscardValueTooShort(t *testing.T) {
 //
 // VALIDATES: Multiple discarded attributes produce a single ATTR_DISCARD with all pairs.
 // PREVENTS: Multiple ATTR_DISCARD instances violating RFC 4271 Section 5.
+//
+// This is the strongest evidence for §2's attribute-discard semantics: the malformed
+// attributes are gone from the wire bytes AND the surrounding UPDATE survives intact,
+// which is exactly "discard the attribute and continue processing the UPDATE".
+//
+// RFC requirement: RFC7606-2-2 negative — malformed attributes are removed and the rest of the UPDATE is preserved.
 func TestApplyAttrDiscardMultipleEntries(t *testing.T) {
 	pathAttrs := concatBytes(
 		makeAttr(0x40, 1, []byte{0x00}),                                           // ORIGIN
@@ -322,6 +328,12 @@ func TestApplyAttrDiscardMergeUpstream(t *testing.T) {
 //
 // VALIDATES: Empty discard entries returns path attrs unchanged.
 // PREVENTS: Unnecessary buffer allocation or modification.
+//
+// The conforming counterpart to the discard rule: with nothing malformed, nothing is
+// discarded and the UPDATE is byte-identical. Without this, a discard implementation that
+// stripped attributes unconditionally would still pass the negative cases.
+//
+// RFC requirement: RFC7606-2-2 positive — with no attribute to discard the UPDATE is left untouched.
 func TestApplyAttrDiscardEmptyEntries(t *testing.T) {
 	pathAttrs := concatBytes(
 		makeAttr(0x40, 1, []byte{0x00}),
@@ -392,6 +404,7 @@ func TestRFC7606DiscardEntryReasonCodes(t *testing.T) {
 		wantCode   uint8
 		wantReason uint8
 	}{
+		// RFC requirement: RFC7606-7.5-1 negative — LOCAL_PREF from an external peer is attribute discard.
 		{
 			name: "local_pref_ebgp_reason_1",
 			pathAttrs: concatBytes(
@@ -404,6 +417,8 @@ func TestRFC7606DiscardEntryReasonCodes(t *testing.T) {
 			wantCode:   5,
 			wantReason: DiscardReasonEBGPInvalid,
 		},
+		// RFC requirement: RFC7606-7.6-1 negative — ATOMIC_AGGREGATE length 2 is not 0, so attribute discard.
+		// RFC requirement: RFC7606-3.f-1 negative — §3.f umbrella: malformed ATOMIC_AGGREGATE is attribute discard.
 		{
 			name: "atomic_agg_wrong_length_reason_2",
 			pathAttrs: concatBytes(
@@ -416,6 +431,8 @@ func TestRFC7606DiscardEntryReasonCodes(t *testing.T) {
 			wantCode:   6,
 			wantReason: DiscardReasonInvalidLength,
 		},
+		// RFC requirement: RFC7606-7.7-1 negative — AGGREGATOR length 8 without 4-byte AS is attribute discard.
+		// RFC requirement: RFC7606-3.f-1 negative — §3.f umbrella: malformed AGGREGATOR is attribute discard.
 		{
 			name: "aggregator_wrong_length_reason_2",
 			pathAttrs: concatBytes(
@@ -429,6 +446,7 @@ func TestRFC7606DiscardEntryReasonCodes(t *testing.T) {
 			wantCode:   7,
 			wantReason: DiscardReasonInvalidLength,
 		},
+		// RFC requirement: RFC7606-7.9-1 negative — ORIGINATOR_ID from an external peer is attribute discard.
 		{
 			name: "originator_id_ebgp_reason_1",
 			pathAttrs: concatBytes(
@@ -441,6 +459,7 @@ func TestRFC7606DiscardEntryReasonCodes(t *testing.T) {
 			wantCode:   9,
 			wantReason: DiscardReasonEBGPInvalid,
 		},
+		// RFC requirement: RFC7606-7.10-1 negative — CLUSTER_LIST from an external peer is attribute discard.
 		{
 			name: "cluster_list_ebgp_reason_1",
 			pathAttrs: concatBytes(

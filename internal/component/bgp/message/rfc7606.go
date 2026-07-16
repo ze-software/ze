@@ -845,12 +845,20 @@ func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
 		prefixLen := int(nlri[pos]) //nolint:gosec // pos < len(nlri) guaranteed by loop
 		pos++
 
-		// RFC 7606 Section 5.3: Prefix length must not exceed max for address family
+		// RFC 7606 Section 5.3: the field is "syntactically incorrect" if "the length of
+		// any of the included NLRI is greater than 32" (128 for IPv6).
+		//
+		// Section 3 (j) then mandates session reset, not treat-as-withdraw: treat-as-
+		// withdraw requires that "the entire NLRI field ... need[s] to be successfully
+		// parsed -- ... If this is not possible ... the 'session reset' approach (or the
+		// 'AFI/SAFI disable' approach) MUST be followed." A prefix length past the family
+		// maximum means the remaining NLRI boundaries cannot be trusted, so the field has
+		// not been successfully parsed.
 		if prefixLen > maxLen {
 			var b textbuf.Buffer
 			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				Description: b.Reset().Str("RFC 7606 Section 5.3: prefix length ").Int(int64(prefixLen)).Str(" > ").Int(int64(maxLen)).String(),
+				Action:      RFC7606ActionSessionReset,
+				Description: b.Reset().Str("RFC 7606 Section 5.3/3(j): prefix length ").Int(int64(prefixLen)).Str(" > ").Int(int64(maxLen)).String(),
 			}
 		}
 

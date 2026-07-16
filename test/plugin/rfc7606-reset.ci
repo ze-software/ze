@@ -2,6 +2,11 @@
 # Verifies: Peer sends UPDATE with MP_REACH_NLRI too short (length=2, minimum is 5).
 # Expected: ze sends NOTIFICATION (code=3 UPDATE Message Error, subcode=1 Malformed Attribute List)
 #           and resets the session per RFC 7606 Section 5.3.
+#
+# RFC requirement: RFC7606-5.3-6 negative — MP_REACH_NLRI length < 5 makes the attribute incorrect
+# RFC requirement: RFC7606-3.a-1 negative — a session-reset error is indicated by NOTIFICATION
+#   with Error Code UPDATE Message Error (this test asserts code 3 / subcode 1 on the wire)
+# RFC requirement: RFC7606-3.j-1 negative — an MP attribute that cannot be parsed requires session reset
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

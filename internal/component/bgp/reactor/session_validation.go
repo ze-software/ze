@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — RFC 7606 UPDATE validation
 // Overview: session.go — BGP session struct and lifecycle
+// RFC: rfc/short/rfc7606.md — revised UPDATE error handling
 
 package reactor
 
@@ -31,34 +32,34 @@ import (
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	body := wu.Payload()
 
-	// Parse UPDATE structure — truncated sections trigger treat-as-withdraw
-	// to prevent malformed wire reaching plugins via callback dispatch.
+	// RFC 7606 Section 3 (b): a structural length conflict means the section boundaries
+	// cannot be trusted, so the NLRI field cannot be located at all. Section 3 (j) is
+	// explicit that treat-as-withdraw requires the NLRI to be successfully parsed, and
+	// "if this is not possible ... the 'session reset' approach ... MUST be followed".
 	if len(body) < 4 {
-		sessionLogger().Debug("RFC 7606 treat-as-withdraw (UPDATE too short for section headers)")
-		return wu, message.RFC7606ActionTreatAsWithdraw, nil
+		return s.rfc7606SessionReset(wu, "RFC 7606 Section 3(b): UPDATE too short for section headers")
 	}
 
 	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
 	offset := 2 + withdrawnLen
 	if offset+2 > len(body) {
-		sessionLogger().Debug("RFC 7606 treat-as-withdraw (withdrawn length exceeds UPDATE)")
-		return wu, message.RFC7606ActionTreatAsWithdraw, nil
+		return s.rfc7606SessionReset(wu, "RFC 7606 Section 3(b): Withdrawn Routes Length exceeds UPDATE")
 	}
 
-	// RFC 7606 Section 5.3: Validate withdrawn routes NLRI syntax (IPv4)
+	// RFC 7606 Section 3 (i)/5.3: the Withdrawn Routes field is checked for syntactic
+	// correctness in the same manner as the NLRI field. Honor the action the validator
+	// reports -- do not flatten every syntax error to treat-as-withdraw.
 	if withdrawnLen > 0 {
 		withdrawn := body[2 : 2+withdrawnLen]
 		if result := message.ValidateNLRISyntax(withdrawn, false); result != nil {
-			sessionLogger().Debug("RFC 7606 treat-as-withdraw (withdrawn NLRI syntax)", "description", result.Description)
-			return wu, message.RFC7606ActionTreatAsWithdraw, nil
+			return s.rfc7606NLRISyntaxAction(wu, result, "withdrawn")
 		}
 	}
 
 	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
 	offset += 2
 	if offset+attrLen > len(body) {
-		sessionLogger().Debug("RFC 7606 treat-as-withdraw (attribute length exceeds UPDATE)")
-		return wu, message.RFC7606ActionTreatAsWithdraw, nil
+		return s.rfc7606SessionReset(wu, "RFC 7606 Section 3(b): Total Attribute Length exceeds UPDATE")
 	}
 
 	pathAttrs := body[offset : offset+attrLen]
@@ -69,8 +70,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	if nlriLen > 0 {
 		nlri := body[offset+attrLen:]
 		if result := message.ValidateNLRISyntax(nlri, false); result != nil {
-			sessionLogger().Debug("RFC 7606 treat-as-withdraw (NLRI syntax)", "description", result.Description)
-			return wu, message.RFC7606ActionTreatAsWithdraw, nil
+			return s.rfc7606NLRISyntaxAction(wu, result, "nlri")
 		}
 	}
 
@@ -137,35 +137,81 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		return wu, message.RFC7606ActionAttributeDiscard, nil
 
 	case message.RFC7606ActionTreatAsWithdraw:
-		// RFC 7606 Section 2: "MUST be handled as though all of the routes
-		// contained in an UPDATE message ... had been withdrawn"
+		// RFC 7606 Section 2: "MUST be handled as though all of the routes contained in an
+		// UPDATE message ... had been withdrawn", "thus causing them to be removed from
+		// the Adj-RIB-In".
+		//
+		// Rewrite the announced routes into withdrawals and let the UPDATE dispatch
+		// normally; that is what removes them. Merely declining to dispatch would leave a
+		// previously-announced prefix installed and stale, which is the opposite of what
+		// the section requires.
 		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
 			"attr", result.AttrCode,
 			"description", result.Description)
+
+		if newBody, changed := message.SynthesizeWithdraw(body); changed {
+			oldCtxID := wu.SourceCtxID()
+			oldSourceID := wu.SourceID()
+			wu = wireu.NewWireUpdate(newBody, oldCtxID)
+			wu.SetSourceID(oldSourceID)
+		}
 		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
-		// RFC 7606: Session reset — send NOTIFICATION with UPDATE Message Error.
-		sessionLogger().Warn("RFC 7606 session-reset", "description", result.Description)
-
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-
-		// RFC 4271 Section 6.3: "If any ... error ... is detected ... a NOTIFICATION
-		// message MUST be sent with the Error Code UPDATE Message Error."
-		s.logNotifyErr(conn,
-			message.NotifyUpdateMessage,
-			message.NotifyUpdateMalformedAttr,
-			nil,
-		)
-		s.logFSMEvent(fsm.EventUpdateMsgErr)
-		s.closeConn()
-
-		return wu, message.RFC7606ActionSessionReset, fmt.Errorf("RFC 7606 session reset: %s", result.Description)
+		return s.rfc7606SessionReset(wu, result.Description)
 	}
 
 	return wu, message.RFC7606ActionNone, nil
+}
+
+// rfc7606SessionReset performs the session-reset action: NOTIFICATION, FSM event, close.
+//
+// RFC 7606 Section 3 (a), which replaces RFC 4271 Section 6.3's first paragraph: "An
+// error detected while processing the UPDATE message for which a session reset is
+// specified MUST be indicated by sending the NOTIFICATION message with the Error Code
+// UPDATE Message Error. The error subcode elaborates on the specific nature of the
+// error."
+//
+// Every session-reset path routes through here, so the mandated NOTIFICATION cannot be
+// skipped by a caller that returns the action directly.
+func (s *Session) rfc7606SessionReset(wu *wireu.WireUpdate, description string) (*wireu.WireUpdate, message.RFC7606Action, error) {
+	sessionLogger().Warn("RFC 7606 session-reset", "description", description)
+
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+
+	s.logNotifyErr(conn,
+		message.NotifyUpdateMessage,
+		message.NotifyUpdateMalformedAttr,
+		nil,
+	)
+	s.logFSMEvent(fsm.EventUpdateMsgErr)
+	s.closeConn()
+
+	return wu, message.RFC7606ActionSessionReset, fmt.Errorf("RFC 7606 session reset: %s", description)
+}
+
+// rfc7606NLRISyntaxAction enforces whatever action the NLRI syntax validator reported.
+//
+// RFC 7606 Section 5.3 makes a field "syntactically incorrect" when a prefix length
+// exceeds the family maximum OR the last NLRI overruns the field. Section 3 (j) then
+// requires session reset for either, because treat-as-withdraw is only available when
+// "the entire NLRI field ... need[s] to be successfully parsed", and it cannot be.
+//
+// This used to flatten every syntax result to treat-as-withdraw regardless of the action
+// the validator computed, silently downgrading a mandated session reset.
+func (s *Session) rfc7606NLRISyntaxAction(
+	wu *wireu.WireUpdate, result *message.RFC7606ValidationResult, field string,
+) (*wireu.WireUpdate, message.RFC7606Action, error) {
+	if result.Action == message.RFC7606ActionSessionReset {
+		return s.rfc7606SessionReset(wu, result.Description)
+	}
+	sessionLogger().Debug("RFC 7606 NLRI syntax",
+		"field", field,
+		"action", result.Action,
+		"description", result.Description)
+	return wu, result.Action, nil
 }
 
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.

@@ -3,6 +3,7 @@ package reactor
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"net"
 	"net/netip"
 	"runtime"
@@ -1325,6 +1326,11 @@ func TestSessionAcceptsRequiredCapability(t *testing.T) {
 // VALIDATES: Malformed ORIGIN (wrong length) triggers treat-as-withdraw, session stays up.
 //
 // PREVENTS: Session reset from recoverable attribute errors.
+//
+// Untagged: asserting "no error and still Established" proves only that the session was
+// not reset. An implementation that ignored the malformed ORIGIN and accepted the route
+// would pass identically, so this does not enforce that treat-as-withdraw was chosen.
+// TestRFC7606MalformedOriginLength pins the action itself and carries the §7.1 tag.
 func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 	// Setup: established session
 	settings := NewPeerSettings(
@@ -1433,6 +1439,10 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 // VALIDATES: Malformed Community (wrong length) triggers treat-as-withdraw.
 //
 // PREVENTS: Session reset from Community attribute parsing errors.
+//
+// Untagged for the same reason as TestSessionRFC7606MalformedOriginTreatAsWithdraw: it
+// proves "not a session reset", not "treat-as-withdraw was chosen".
+// TestRFC7606MalformedCommunityLength pins the action and carries the §7.8 tag.
 func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
@@ -1531,6 +1541,9 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 // VALIDATES: Missing ORIGIN attribute triggers treat-as-withdraw.
 //
 // PREVENTS: Session reset when mandatory attributes are missing.
+//
+// Untagged: proves "not a session reset", not "treat-as-withdraw was chosen".
+// TestRFC7606MissingOrigin pins the action and carries the §3.d tag.
 func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
@@ -1737,6 +1750,12 @@ func sendUpdateAndDrain(client net.Conn, updateMsg []byte) {
 //
 // VALIDATES: Duplicate MP_REACH_NLRI triggers session-reset with NOTIFICATION (code 3, subcode 1).
 // PREVENTS: Session staying up after structural errors that require session-reset.
+//
+// The only test that proves the whole of §3.g: it drives a real session and reads the
+// NOTIFICATION off the wire, asserting Error Code 3 and subcode 1 (Malformed Attribute
+// List). The message-level tests prove only that the session-reset action is selected.
+//
+// RFC requirement: RFC7606-3.g-1 negative — a duplicate MP_REACH_NLRI sends a NOTIFICATION with Malformed Attribute List.
 func TestSessionRFC7606SessionResetNotification(t *testing.T) {
 	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
 	defer cleanup()
@@ -1877,18 +1896,48 @@ func TestSessionNonNegotiatedMPFamilyNotification(t *testing.T) {
 		"NOTIFICATION subcode must be 9 (Optional Attribute Error)")
 }
 
-// TestSessionRFC7606TreatAsWithdrawSuppressesCallback verifies callback suppression.
+// TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal verifies that the routes a
+// malformed UPDATE announced are actually withdrawn.
 //
-// RFC 7606 Section 2: treat-as-withdraw "MUST be handled as though all of the
-// routes contained in an UPDATE message ... had been withdrawn"
+// RFC 7606 Section 2: treat-as-withdraw "MUST be handled as though all of the routes
+// contained in an UPDATE message ... had been withdrawn", "thus causing them to be
+// removed from the Adj-RIB-In".
 //
-// VALIDATES: Malformed UPDATE triggers treat-as-withdraw; callback is NOT invoked.
-// PREVENTS: Plugins receiving malformed UPDATEs that should be treated as withdrawn.
-func TestSessionRFC7606TreatAsWithdrawSuppressesCallback(t *testing.T) {
-	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
+// VALIDATES: a malformed UPDATE is dispatched as a WITHDRAWAL of the prefixes it named.
+// PREVENTS: a prefix already in the RIB, re-announced with a malformed attribute, keeping
+// its old entry and going stale.
+//
+// RFC requirement: RFC7606-2-1 negative — the UPDATE is handled as though its routes had been withdrawn
+// RFC requirement: RFC7606-2-5 negative — the affected routes are removed from the Adj-RIB-In
+//
+// This test previously asserted the OPPOSITE — that the callback must NOT fire — under the
+// name ...SuppressesCallback. Suppression is not withdrawal: not dispatching leaves a
+// previously advertised route installed forever, which is precisely what §2 forbids. The
+// implementation matched the old test (session_read.go returned without dispatching), so
+// the test could never have caught the bug: both encoded the same misreading.
+//
+// Changed with user approval (2026-07-16), alongside the fix that synthesizes the
+// withdrawal (message.SynthesizeWithdraw).
+func TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal(t *testing.T) {
+	session, client, _, cleanup := setupEstablishedSessionEBGP(t)
 	defer cleanup()
 
-	// Build UPDATE with MALFORMED ORIGIN (length=2 instead of 1)
+	// Capture what actually reaches the plugins, not merely that something did: the whole
+	// point is WHICH message is dispatched.
+	var dispatched []byte
+	var dispatchCount int
+	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
+		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
+		_ BufHandle, _ map[string]any,
+	) bool {
+		if direction == rpc.DirectionReceived && wu != nil {
+			dispatchCount++
+			dispatched = append([]byte(nil), wu.Payload()...)
+		}
+		return false
+	}
+
+	// UPDATE announcing 10.0.0.0/8 with a MALFORMED ORIGIN (length=2 instead of 1).
 	pathAttrs := []byte{
 		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN with length 2 (invalid)
 		0x40, 0x02, 0x00, // AS_PATH (empty)
@@ -1900,18 +1949,27 @@ func TestSessionRFC7606TreatAsWithdrawSuppressesCallback(t *testing.T) {
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
-	updateMsg := buildUpdateMsg(update)
-
 	go func() {
-		sendUpdateAndDrain(client, updateMsg)
+		sendUpdateAndDrain(client, buildUpdateMsg(update))
 	}()
 
 	err := session.ReadAndProcess()
 	require.NoError(t, err, "treat-as-withdraw must not return error")
-	require.Equal(t, fsm.StateEstablished, session.State())
+	require.Equal(t, fsm.StateEstablished, session.State(), "session must survive")
 
-	// Key assertion: callback must NOT fire for treat-as-withdraw
-	require.Equal(t, 0, *callbackCount, "callback must NOT fire for treat-as-withdraw UPDATE")
+	require.Equal(t, 1, dispatchCount, "the withdrawal must reach the plugins")
+	require.GreaterOrEqual(t, len(dispatched), 4)
+
+	withdrawnLen := int(binary.BigEndian.Uint16(dispatched[0:2]))
+	withdrawn := dispatched[2 : 2+withdrawnLen]
+	attrLen := int(binary.BigEndian.Uint16(dispatched[2+withdrawnLen : 2+withdrawnLen+2]))
+	nlri := dispatched[2+withdrawnLen+2+attrLen:]
+
+	assert.Equal(t, []byte{0x08, 0x0a}, withdrawn,
+		"10.0.0.0/8 must now be WITHDRAWN, not announced")
+	assert.Empty(t, nlri, "nothing may remain announced")
+	assert.Zero(t, attrLen,
+		"a withdrawal carries no path attributes -- and these are the attributes that failed validation")
 }
 
 // TestSessionRFC7606AttributeDiscardContinues verifies attribute-discard enforcement.
@@ -1921,6 +1979,14 @@ func TestSessionRFC7606TreatAsWithdrawSuppressesCallback(t *testing.T) {
 //
 // VALIDATES: LOCAL_PREF from EBGP triggers attribute-discard; session stays up; callback fires.
 // PREVENTS: Session reset from EBGP LOCAL_PREF; ensures UPDATE still dispatched.
+//
+// The "continues to be processed" half of §2's attribute-discard rule, proven end to end:
+// the callback firing is the observable that the UPDATE was still dispatched rather than
+// suppressed. The "attribute is removed" half is proven by the ApplyAttrDiscard tests in
+// internal/component/bgp/message/attr_discard_test.go.
+//
+// RFC requirement: RFC7606-2-2 negative — an attribute-discard error still dispatches the UPDATE.
+// RFC requirement: RFC7606-7.5-1 negative — LOCAL_PREF from an external peer is discarded, not a session reset.
 func TestSessionRFC7606AttributeDiscardContinues(t *testing.T) {
 	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
 	defer cleanup()

@@ -122,6 +122,7 @@ func stagesForMode(mode, makeCmd string) []stage {
 		return []stage{
 			mk("ze-lint-changed"),
 			mk("ze-tier-check"),
+			mk("ze-rfc-check"),
 			mk("ze-iface-resolution-check"),
 			mk("ze-plugin-boundary-check"),
 			mk("ze-config-coercion-check"),
@@ -138,6 +139,7 @@ func stagesForMode(mode, makeCmd string) []stage {
 		return []stage{
 			mk("ze-lint"),
 			mk("ze-tier-check"),
+			mk("ze-rfc-check"),
 			mk("ze-iface-resolution-check"),
 			mk("ze-plugin-boundary-check"),
 			mk("ze-config-coercion-check"),

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 290 design docs, 2991 files
+Total: 290 design docs, 2992 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -786,6 +786,7 @@ Total: 290 design docs, 2991 files
 | `internal/component/bgp/cli/main.go` | BGP CLI commands |
 | `internal/component/bgp/filter/filter.go` | route filtering |
 | `internal/component/bgp/grmarker/grmarker.go` | GR restart marker for Restarting Speaker detection |
+| `internal/component/bgp/message/rfc7606_withdraw.go` | RFC 7606 treat-as-withdraw synthesis |
 | `internal/component/bgp/plugin/register.go` | BGP plugin registration with ConfigRoots |
 | `internal/component/bgp/plugins/bmp/bmp.go` | BMP plugin lifecycle |
 | `internal/component/bgp/plugins/bmp/doc.go` | BGP plugin model |

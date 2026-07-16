@@ -306,6 +306,23 @@ ze-tier-check:
 	@python3 scripts/dev/dep_audit.py --check
 	@python3 scripts/dev/protocol_skeleton_report.py
 
+# RFC requirement coverage gate (plan/spec-rfc-requirement-coverage.md): every MUST-level
+# requirement of an ENROLLED RFC (rfc/enrolled.txt) must be bound to a positive AND a
+# negative test via an `RFC requirement: <ID> <polarity>` tag, or carry a reasoned
+# annotation. Requirement text lives in rfc/short/*.md; the test links are derived from the
+# tags, never hand-written (ai/rules/derive-not-hardcode.md).
+# --selftest proves the gate against its own fixtures before it judges the live tree.
+#
+# Wired into `make ze-verify` via stagesForMode() in scripts/status/verify_run.go (BOTH
+# branches) -- NOT _ze-verify-impl, which has zero callers (see the warning above ze-verify).
+ze-rfc-check:
+	@python3 scripts/dev/rfc_requirements.py --selftest
+	@python3 scripts/dev/rfc_requirements.py --check
+
+# Regenerate ai/RFC-REQUIREMENTS.md (requirement -> enforcing tests).
+ze-rfc-index:
+	@python3 scripts/dev/rfc_requirements.py --write
+
 # No-direct-resolution gate (plan/spec-iface-resolve-0-umbrella.md AC-U1,
 # sub-spec 7): interface consumers must resolve logical names via the shared
 # iface resolver, not the kernel directly. scripts/checks/iface_resolution.go

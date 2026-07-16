@@ -51,8 +51,16 @@ func TestEnforceRFC7606_ValidUpdate(t *testing.T) {
 	assert.NotNil(t, newWU)
 }
 
-// TestEnforceRFC7606_ShortBody verifies body < 4 bytes triggers treat-as-withdraw.
-// Truncated section headers must not reach plugins via callback dispatch.
+// TestEnforceRFC7606_ShortBody verifies body < 4 bytes triggers session reset.
+//
+// RFC requirement: RFC7606-3.a-1 negative — a session-reset error is signaled by
+// NOTIFICATION with Error Code UPDATE Message Error
+//
+// Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
+// A body too short to hold the section lengths means the NLRI field cannot be located at
+// all, so RFC 7606 Section 3(j) forbids treat-as-withdraw: that approach requires the
+// NLRI to have been successfully parsed. Section 3(b) routes the structural length
+// conflict to a NOTIFICATION with subcode Malformed Attribute List.
 func TestEnforceRFC7606_ShortBody(t *testing.T) {
 	s := newValidateSession()
 
@@ -60,13 +68,21 @@ func TestEnforceRFC7606_ShortBody(t *testing.T) {
 	wu := wireu.NewWireUpdate([]byte{0x00, 0x00}, 0)
 
 	newWU, action, err := s.enforceRFC7606(wu)
-	require.NoError(t, err)
-	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, action)
+	require.Error(t, err, "session reset must surface as an error to the caller")
+	assert.Equal(t, message.RFC7606ActionSessionReset, action)
 	assert.NotNil(t, newWU)
 }
 
-// TestEnforceRFC7606_InvalidWithdrawnNLRI verifies bad withdrawn NLRI triggers treat-as-withdraw.
-// RFC 7606 Section 5.3: invalid prefix length in withdrawn routes.
+// TestEnforceRFC7606_InvalidWithdrawnNLRI verifies bad withdrawn NLRI triggers session reset.
+//
+// RFC requirement: RFC7606-5.3-2 negative — a syntactically incorrect Withdrawn Routes
+// field escalates to session reset via Section 3(j)
+// RFC requirement: RFC7606-3.i-1 negative — the Withdrawn Routes field is checked for
+// syntactic correctness in the same manner as the NLRI field
+//
+// Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
+// RFC 7606 Section 5.3 makes prefix length 33 syntactically incorrect; Section 3(j)
+// mandates session reset because the field cannot be successfully parsed.
 func TestEnforceRFC7606_InvalidWithdrawnNLRI(t *testing.T) {
 	s := newValidateSession()
 
@@ -76,11 +92,18 @@ func TestEnforceRFC7606_InvalidWithdrawnNLRI(t *testing.T) {
 	wu := wireu.NewWireUpdate(body, 0)
 
 	_, action, err := s.enforceRFC7606(wu)
-	require.NoError(t, err)
-	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, action)
+	require.Error(t, err, "session reset must surface as an error to the caller")
+	assert.Equal(t, message.RFC7606ActionSessionReset, action)
 }
 
-// TestEnforceRFC7606_InvalidTrailingNLRI verifies bad trailing NLRI triggers treat-as-withdraw.
+// TestEnforceRFC7606_InvalidTrailingNLRI verifies bad trailing NLRI triggers session reset.
+//
+// RFC requirement: RFC7606-5.3-1 negative — an NLRI length greater than 32 makes the NLRI
+// field syntactically incorrect, which Section 3(j) escalates to session reset
+// RFC requirement: RFC7606-3.j-1 negative — if the NLRI field cannot be successfully
+// parsed, the session reset approach MUST be followed
+//
+// Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
 func TestEnforceRFC7606_InvalidTrailingNLRI(t *testing.T) {
 	s := newValidateSession()
 
@@ -96,8 +119,8 @@ func TestEnforceRFC7606_InvalidTrailingNLRI(t *testing.T) {
 	wu := wireu.NewWireUpdate(body, 0)
 
 	_, action, err := s.enforceRFC7606(wu)
-	require.NoError(t, err)
-	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, action)
+	require.Error(t, err, "session reset must surface as an error to the caller")
+	assert.Equal(t, message.RFC7606ActionSessionReset, action)
 }
 
 // TestEnforceRFC7606_MissingMandatoryAttrs verifies NLRI with empty attrs triggers treat-as-withdraw.
