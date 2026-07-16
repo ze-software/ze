@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1157 summaries
+Total: 1158 summaries
 
 ## 000-099
 
@@ -1226,3 +1226,4 @@ Total: 1157 summaries
 | 1163 | dispatcher-trailing-token-swallow | `plan/learned/1163-dispatcher-trailing-token-swallow.md` |
 | 1164 | deferral-destination-spec-gate | `plan/learned/1164-deferral-destination-spec-gate.md` |
 | 1165 | fixit-vpp-lcp-netns-remediation | `plan/learned/1165-fixit-vpp-lcp-netns-remediation.md` |
+| 1166 | rfc-clause-map-needs-producers | `plan/learned/1166-rfc-clause-map-needs-producers.md` |
