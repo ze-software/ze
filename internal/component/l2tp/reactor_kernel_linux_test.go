@@ -138,11 +138,21 @@ func TestReactorCollectsTeardownEvent(t *testing.T) {
 	require.Empty(t, tun.pendingKernelTeardowns, "teardown list must be drained")
 }
 
-func TestReactorKernelDisabledReturnsNil(t *testing.T) {
-	// VALIDATES: with no kernel worker configured (non-Linux path or
-	// subsystem start without kernel support), collectKernelEventsLocked
-	// returns nil instead of producing events for a nil worker.
-	// PREVENTS: nil-deref when kernel integration is disabled.
+func TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns(t *testing.T) {
+	// VALIDATES: with no kernel worker configured (non-Linux path, or subsystem
+	// start without kernel support), collectKernelEventsLocked produces no
+	// SETUPS and leaves kernelSetupNeeded set for a later retry -- but it still
+	// drains pendingKernelTeardowns and returns them.
+	//
+	// The teardown drain is deliberately NOT gated on the worker
+	// (reactor_kernel.go:19-27): subscriber-route withdrawal is independent of
+	// kernel-resource teardown, so the route observer must learn of torn
+	// sessions even where no kernel worker exists. That is the path
+	// TestPeerTeardownWithdrawsSubscriberRoute exercises end to end.
+	//
+	// PREVENTS: nil-deref when kernel integration is disabled; and a regression
+	// to gating the drain on the worker, which would strand a torn session's
+	// /32 injected after the session was gone.
 	_, r, stop := newUnstartedReactor(t)
 	defer stop()
 
@@ -155,8 +165,16 @@ func TestReactorKernelDisabledReturnsNil(t *testing.T) {
 	setups, teardowns := r.collectKernelEventsLocked(tun)
 	r.tunnelsMu.Unlock()
 
-	require.Nil(t, setups)
-	require.Nil(t, teardowns)
+	require.Nil(t, setups, "no kernel worker means no setup events")
+	// test-relax: the old teardowns-nil assertion asserted the pre-e231fbfdd
+	// behaviour and has failed deterministically ever since that commit made the
+	// drain unconditional on purpose (see the leading comment on
+	// collectKernelEventsLocked). The assertion was stale, not the code. It is
+	// REPLACED, not dropped, by the stricter equality check below plus the
+	// drained-list check -- this test now carries 4 assertions where it carried 3.
+	require.Equal(t, []kernelTeardownEvent{{localTID: 102, localSID: 9}}, teardowns,
+		"teardowns must drain even with no kernel worker, so routes are withdrawn")
+	require.Empty(t, tun.pendingKernelTeardowns, "teardown list must be drained")
 	require.True(t, sess.kernelSetupNeeded, "flag must NOT clear when worker absent")
 }
 
