@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "renderer": {
+    "name": "vhs",
+    "version": "0.11.0",
+    "image": "ze-terminal-demos:vhs-0.11.0",
+    "platform": "linux/native"
+  },
+  "gallery_page": "guide/terminal-demonstrations.md",
+  "demos": [
+    {
+      "id": "cli-dashboard",
+      "title": "Operate BGP from the live dashboard",
+      "description": "Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.",
+      "page": "features/cli-commands.md",
+      "anchor": "live-peer-dashboard",
+      "platform": "portable",
+      "duration": "50 seconds",
+      "tape": "cli-dashboard/demo.tape"
+    },
+    {
+      "id": "zefs-config",
+      "title": "Create ZeFS and commit over SSH",
+      "description": "Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.",
+      "page": "guide/quickstart.md",
+      "anchor": "initialize",
+      "platform": "portable",
+      "duration": "85 seconds",
+      "tape": "zefs-config/demo.tape"
+    },
+    {
+      "id": "rbac",
+      "title": "Prove read-only RBAC enforcement",
+      "description": "Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.",
+      "page": "guide/operator-access-rbac.md",
+      "anchor": "test-each-account",
+      "platform": "portable",
+      "duration": "45 seconds",
+      "tape": "rbac/demo.tape"
+    },
+    {
+      "id": "traceroute",
+      "title": "Trace a live path without external services",
+      "description": "Run Ze's live traceroute through a deterministic Linux network-namespace lab.",
+      "page": "guide/production-diagnostics.md",
+      "anchor": "continuous-monitoring",
+      "platform": "linux",
+      "privileged": true,
+      "duration": "55 seconds",
+      "tape": "traceroute/demo.tape"
+    },
+    {
+      "id": "launcher",
+      "title": "Discover Ze commands interactively",
+      "description": "Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.",
+      "page": "guide/command-reference.md",
+      "anchor": "ze",
+      "platform": "portable",
+      "duration": "55 seconds",
+      "tape": "launcher/demo.tape"
+    }
+  ]
+}

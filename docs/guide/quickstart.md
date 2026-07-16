@@ -48,6 +48,8 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 ```
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
 
+<!-- terminal-demo: zefs-config -->
+
 ## Minimal Config
 
 Save as `example.conf`:

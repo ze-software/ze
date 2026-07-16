@@ -1,0 +1,5 @@
+$ ssh ze-demo
+ze# run show traceroute 192.0.2.53
+ze# run monitor traceroute 192.0.2.53
+
+The destination and router live in an isolated Linux network-namespace lab. Ze sends real ICMP probes, then shows the same path as a one-shot trace and as a continuously refreshed loss and latency table. No public DNS or Internet route is used.
