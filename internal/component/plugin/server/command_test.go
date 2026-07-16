@@ -65,6 +65,102 @@ func TestDispatcherDispatch(t *testing.T) {
 	assert.Equal(t, []string{"extensive"}, receivedArgs)
 }
 
+// TestDispatchRejectsFlagShapedArgs is the fix for the silent-swallow class.
+//
+// matchCommandTokens walks only the KEY's tokens and never checks that the
+// input is exhausted; it returns the unmatched tail as args and reports a
+// successful match. For a command whose node has no leaves there are no
+// ArgDefs, so the validation guarded by `len(matchedCmd.ArgDefs) > 0` is
+// skipped entirely and the tail reaches a handler that may ignore it. The real
+// case: `show l2tp --user alice tunnels` matched `show l2tp`, whose handler
+// takes `_ []string`, so the operator got the SUMMARY for the DEFAULT user,
+// exit 0, with no hint that `--user alice` and `tunnels` were both discarded.
+//
+// A flag-shaped token can never be legitimate here: ArgKind has no signed
+// numeric kind (internal/component/command/node.go:17-20), and the pipe folding
+// that rewrites `| peer X` into trailing args (internal/component/command/
+// pipe.go:181) only ever emits bare filter names and their values.
+//
+// VALIDATES: a flag-shaped leftover is rejected with a non-nil error and the
+// handler never runs.
+// PREVENTS: acting as, or reporting on, something the operator did not ask for
+// while returning success.
+func TestDispatchRejectsFlagShapedArgs(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "long flag before subcommand", input: "alpha show --user alice detail", want: "--user"},
+		{name: "short flag", input: "alpha show -u alice", want: "-u"},
+		{name: "single-dash long form", input: "alpha show -user alice", want: "-user"},
+		{name: "flag after positional", input: "alpha show detail --user alice", want: "--user"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := NewDispatcher()
+			called := false
+			d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+				called = true
+				return &plugin.Response{Status: plugin.StatusDone}, nil
+			}, "Show alpha")
+
+			resp, err := d.Dispatch(nil, tt.input)
+			require.Error(t, err, "flag-shaped leftover must not dispatch successfully")
+			assert.Contains(t, err.Error(), tt.want)
+			if resp != nil {
+				assert.Equal(t, plugin.StatusError, resp.Status)
+			}
+			assert.False(t, called, "handler ran despite the rejected flag")
+		})
+	}
+}
+
+// TestDispatchAllowsNonFlagArgs pins the behavior the fix must NOT break.
+//
+// Zero ArgDefs does not mean "takes no arguments": extractArgDefs reads YANG
+// LEAF children only (internal/component/config/yang/command.go), so the ~60%
+// of command nodes whose children are containers get nil ArgDefs while their
+// handlers still read positional args (all of OSPF, the L2TP diag verbs,
+// `clear l2tp tunnel id 42`). Folded pipe filters arrive the same way:
+// `show bgp rib | peer X | family ipv4` is sent as `show bgp rib peer X family
+// ipv4`.
+//
+// VALIDATES: ordinary positional args, folded pipe-filter args, a bare "-",
+// the "--" end-of-options marker, and negative-looking values all still reach
+// the handler untouched.
+// PREVENTS: a flag check that overreaches into "reject any leftover", which
+// would disable RIB filters, OSPF, and L2TP teardown.
+func TestDispatchAllowsNonFlagArgs(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{name: "plain positional", input: "alpha show extensive", want: []string{"extensive"}},
+		{name: "folded pipe filters", input: "alpha show peer 10.0.0.1 family ipv4 count", want: []string{"peer", "10.0.0.1", "family", "ipv4", "count"}},
+		{name: "bare dash", input: "alpha show -", want: []string{"-"}},
+		{name: "end of options marker", input: "alpha show --", want: []string{"--"}},
+		{name: "negative-looking value", input: "alpha show -5", want: []string{"-5"}},
+		{name: "kebab filter name", input: "alpha show prefix-summary", want: []string{"prefix-summary"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := NewDispatcher()
+			var got []string
+			d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+				got = args
+				return &plugin.Response{Status: plugin.StatusDone}, nil
+			}, "Show alpha")
+
+			resp, err := d.Dispatch(nil, tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, "done", resp.Status)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // TestDispatcherDispatchNoArgs verifies dispatch with no extra args.
 //
 // VALIDATES: Commands without args receive empty slice.

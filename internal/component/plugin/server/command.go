@@ -579,6 +579,31 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			}, ErrUnauthorized
 		}
 
+		// Reject flag-shaped leftovers before the handler sees them.
+		//
+		// matchCommandTokens walks only the KEY's tokens and never checks that
+		// the input is exhausted: it returns the unmatched tail as args and
+		// reports a successful match. When the matched node has no leaves it has
+		// no ArgDefs, so the validation below is skipped and the tail is handed
+		// to a handler that may ignore it. `show l2tp --user alice tunnels` then
+		// matches `show l2tp`, whose handler takes `_ []string`, and the operator
+		// silently gets the summary for the DEFAULT user with exit 0.
+		//
+		// Only FLAG-shaped tokens are rejected, never leftovers generally: zero
+		// ArgDefs does not mean "takes no arguments" (extractArgDefs reads YANG
+		// leaf children only, so most nodes have none while their handlers still
+		// read positional args), and `| peer X` is folded into trailing args
+		// client-side by foldFilters. A leading dash, though, is never valid
+		// here: no ArgKind is signed, and folding only emits bare filter names
+		// and values. So a flag can only be a client-side flag that leaked.
+		if flag := firstFlagToken(args); flag != "" {
+			flagErr := fmt.Errorf("unexpected flag %q: flags are interpreted by the client, not the daemon", flag)
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Error:  flagErr.Error(),
+			}, flagErr
+		}
+
 		// Validate args against YANG-declared types, counting inline selector
 		// values extracted during prefix matching as already matched.
 		if len(matchedCmd.ArgDefs) > 0 {
@@ -732,6 +757,36 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 	}
 
 	return nil
+}
+
+// firstFlagToken returns the first flag-shaped token in args, or "" if there is
+// none. Flag-shaped means a leading dash followed by a letter ("-u", "-user",
+// "--user"), which no producer of a daemon command emits.
+//
+// Deliberately NOT flag-shaped:
+//   - "-" alone, a conventional stdin/placeholder token;
+//   - "--", the end-of-options marker;
+//   - "-5" and friends, so a value that merely looks negative is passed through
+//     to the handler rather than rejected here.
+func firstFlagToken(args []string) string {
+	for _, a := range args {
+		rest, ok := strings.CutPrefix(a, "-")
+		if !ok {
+			continue
+		}
+		// A second dash is still a flag ("--user"); a lone "--" is not.
+		if after, dashdash := strings.CutPrefix(rest, "-"); dashdash {
+			rest = after
+		}
+		if rest == "" {
+			continue
+		}
+		r := rest[0]
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			return a
+		}
+	}
+	return ""
 }
 
 // positionalError builds an error for an unmatched positional arg.
