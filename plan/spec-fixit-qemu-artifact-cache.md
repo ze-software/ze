@@ -18,6 +18,12 @@
 > **DECISIONS TAKEN 2026-07-16 (Thomas). Both blocking questions are settled:**
 > 1. **Cache root: Option 2, repo-local `cache/`** -- re-affirmed after being told its
 >    premise (that this would be the first durable cache) was false. Not a stale decision.
+>    **Refined 2026-07-16: a linked worktree does NOT get its own `cache/`; it points at the
+>    MAIN checkout's cache**, resolved as
+>    `dirname($(git rev-parse --path-format=absolute --git-common-dir))/cache`. This makes
+>    **AC-2 DESIGNED rather than dropped** and removes the ~200MB-per-worktree duplication
+>    that was Option 2's main cost, without moving the cache out of the repo. See Open
+>    Questions -> "AC-2 is DESIGNED, not dropped".
 > 2. **Make path: Option C -- `run.py` ASKS THE HOST ZE BINARY (`ze-host`) FOR THE CACHE
 >    KEY.** **This DELIBERATELY REVERSES the recorded decision in
 >    `plan/learned/988-kernel-build-consolidation.md` that "the make path must stay
@@ -478,7 +484,7 @@ BECAUSE no consumer-facing path moves.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `make ze-kernel`, `rm -rf tmp/`, `make ze-kernel` | The second run materialises from the durable cache in seconds, no ~30-minute rebuild. `tmp/` is disposable again |
-| AC-2 | A fresh clone or a new git worktree on the same host | Reuses the cached kernel and ISO rather than paying ~30 minutes again. Free if the root is `~/.cache/ze`; NOT satisfiable if the root is repo-local (see Open Questions) |
+| AC-2 | A fresh clone or a new git worktree on the same host | Reuses the cached kernel and ISO rather than paying ~30 minutes again. ~~Free if the root is `~/.cache/ze`; NOT satisfiable if the root is repo-local (see Open Questions)~~ **DESIGNED 2026-07-16 (user): a linked worktree does not get its own `cache/`; it resolves to the MAIN checkout's cache via `dirname($(git rev-parse --path-format=absolute --git-common-dir))/cache`.** So the WORKTREE half of AC-2 is satisfied with a repo-local root. The FRESH-CLONE half is NOT and is out of scope: a clone has its own `--git-common-dir`, so it legitimately pays the rebuild once. Do not conflate the two halves. See Open Questions -> "AC-2 is DESIGNED, not dropped" |
 | AC-3 | `ALPINE_VERSION` or `ALPINE_MINOR` is bumped | The extracted initramfs MISSES and is re-extracted from the new ISO. ALREADY SATISFIED by `_extract_dir_for` (`qemu-run.py:118-127`); `qemu-run.py --selftest` is the regression test. Keep it green |
 | AC-4 | A kernel or Alpine version bump | The superseded artifact is reclaimed; the cache does not grow monotonically. Includes reclaiming the orphaned legacy `tmp/qemu/iso/alpine-extract/` (~77M, present on disk today) |
 | AC-5 | A downloaded or cached ISO fails its checksum | Fails loudly and is not served. Existence is not integrity. `downloadAndVerify` (`cache.go:173-230`) is the reference: hash while streaming, atomic rename, never publish a bad file |
@@ -508,7 +514,8 @@ BECAUSE no consumer-facing path moves.
 | R-1 | Eviction deletes an artifact a concurrent run is booting | A QEMU run dies mid-boot while another session builds | Same shared-mutable-state hazard as `plan/spec-fixit-shared-plan-file-contention.md`. Evict only on an explicit key change, never on a timer; consider a lock or refcount; prefer leaving garbage over racing a live boot |
 | R-2 | Keep-exactly-one eviction makes bisecting across a version bump cost a rebuild each way | Developers complain after a kernel bump lands | Keep-N (2 is probably enough) keyed by version/config, not wall-clock age. Kernel bumps land every few weeks, so this is a recurring cost, not a one-off |
 | R-3 | The cache becomes the only copy of an unbuildable artifact | Nobody can reproduce a kernel from source | Keep the build reproducible and exercised; the cache stays an optimisation |
-| R-4 | A repo-local cache is still destroyed by `git clean -xdf` | Someone cleans and pays the rebuild | This is the argument for a user-level root. Whatever is chosen, document it in `ai/rules/qemu-testing.md` |
+| R-4 | A repo-local cache is still destroyed by `git clean -xdf` | Someone cleans and pays the rebuild | ~~This is the argument for a user-level root.~~ Whatever is chosen, document it in `ai/rules/qemu-testing.md`. **AMENDED 2026-07-16 by the AC-2 decision: SOFTENED for worktrees, CONCENTRATED for main.** A `git clean -xdf` in a worktree can no longer destroy the cache (it is not in the worktree); a `git clean -xdf` in the MAIN checkout now destroys it for every worktree at once. Blast radius is worse, frequency is lower. R-4 is NOT retired: the AC-6 loud guard is now the single protection for all trees, so a wiped cache must always cost a rebuild and never yield a silently-wrong artifact |
+| R-6 | **NEW (2026-07-16, from the AC-2 decision).** A worktree writes into the main checkout's `cache/`, which superficially resembles the cross-tree writes `.claude/hooks/pretool-bash.py` blocks and `CLAUDE.md` forbids | A hook blocks a cache write from a worktree, or a reviewer flags it as a violation | Legitimate and distinct: the cache is **gitignored build output**, not tracked files and not anyone's working tree, so it carries none of the "overwrites uncommitted work" hazard the rule exists to prevent. Record the distinction in `ai/rules/qemu-testing.md` alongside the cache-root documentation so the next agent does not "fix" it. Verify during implementation whether the pretool hook's cross-tree-copy check actually fires on this path; if it does, the hook needs an explicit carve-out for the cache root, NOT a workaround in the build scripts |
 | R-5 | Verification is added but the cached copy is never re-checked | A file rots or is truncated after caching and is served forever | AC-5 covers cached copies, not just fresh downloads |
 
 ## Open Questions (research before design)
@@ -559,11 +566,95 @@ BECAUSE no consumer-facing path moves.
   -> Constraint: Option 2's costs are now OWNED, not hypothetical, and the spec must
   carry them rather than rediscover them. Concretely: (a) `git clean -xdf` destroys the
   cache (R-4), so the loud-guard AC-4 matters more, not less, and a wiped cache must
-  cost a rebuild and never a silently-wrong artifact; (b) per-worktree duplication of
-  ~200MB x N is accepted; (c) AC-2 (worktree reuse) is NOT free and must be designed or
-  explicitly dropped -- flag it rather than quietly shipping without it; (d) the repo now
+  cost a rebuild and never a silently-wrong artifact; (b) ~~per-worktree duplication of
+  ~200MB x N is accepted~~ **RESOLVED 2026-07-16 by the AC-2 decision below: a worktree
+  no longer gets its own copy, so the duplication cost is removed, not merely accepted**;
+  (c) ~~AC-2 (worktree reuse) is NOT free and must be designed or
+  explicitly dropped -- flag it rather than quietly shipping without it~~ **DESIGNED
+  2026-07-16, not dropped -- see below**; (d) the repo now
   has two durable cache roots with one job, so eviction must state which root it governs
   and `~/.cache/ze` stays untouched and authoritative for the appliance path.
+
+  #### -> Decision (user, 2026-07-16): AC-2 is DESIGNED, not dropped. A worktree resolves to the MAIN checkout's cache.
+
+  Thomas's design, verbatim: **"we should be able to point the cache to the main copy when
+  in a worktree."** So the repo-local cache is repo-local to the **main checkout**, and a
+  linked worktree does NOT get its own `cache/`: it resolves to the main checkout's one.
+
+  -> Decision: this preserves Option 2's reason of record (state visible in the checkout,
+  a sibling of `tmp/`) while removing the duplication that was its main cost. It is NOT a
+  reversal of the Option 1 vs 2 call and must not be read as one: the cache stays in the
+  repo, there is still exactly one repo-local root, and `~/.cache/ze` stays untouched and
+  authoritative for the appliance path (d). The `~200MB x N` cost from (b) goes to ~200MB x 1.
+
+  -> Constraint: this is the "repo-local symlink into a shared root" escape hatch the
+  original decision already named as the smallest change preserving it ("If worktree
+  duplication later proves painful, the smallest change that preserves the decision is a
+  repo-local symlink into a shared root, NOT relocating the cache out of the repo"), except
+  the shared root is the MAIN CHECKOUT rather than `$HOME`. It is the sanctioned move, taken
+  deliberately and early rather than under pain.
+
+  **How a worktree identifies the main checkout (mechanism verified by execution,
+  2026-07-16, git 2.55.0):**
+
+  | Command | In main checkout (from repo root) | In main checkout (from a SUBDIR) | In a linked worktree |
+  |---------|-----------------------------------|----------------------------------|----------------------|
+  | `git rev-parse --git-dir` | `.git` | `/Users/.../ze/main/.git` | `/Users/.../ze/main/.git/worktrees/<name>` |
+  | `git rev-parse --git-common-dir` | `.git` | `../.git` **(RELATIVE!)** | `/Users/.../ze/main/.git` |
+  | `git rev-parse --path-format=absolute --git-common-dir` | `/Users/.../ze/main/.git` | `/Users/.../ze/main/.git` | `/Users/.../ze/main/.git` |
+
+  -> Decision: **resolve the cache root as
+  `dirname($(git rev-parse --path-format=absolute --git-common-dir))/cache`.** One
+  expression, no branching, no worktree detection needed: `--git-common-dir` points at the
+  SHARED git directory, which lives in the main checkout, so its parent IS the main
+  checkout root from every context above. Executed and confirmed to yield
+  `/Users/.../ze/main` from the main checkout, from a subdirectory of it, and from
+  `.claude/worktrees/agent-af24655dd2ac354ab`.
+
+  -> Constraint: **`--path-format=absolute` is MANDATORY, not cosmetic.** Bare
+  `git rev-parse --git-common-dir` returns a path relative to CWD (`../.git` from
+  `scripts/`, executed and confirmed above), so a naive `dirname $(git rev-parse
+  --git-common-dir)` silently resolves against the wrong directory depending on where the
+  make target was invoked from. `--path-format=absolute` requires git >= 2.31 (2021); the
+  host runs 2.55.0. If a floor that high is unacceptable, the portable equivalent is
+  `cd "$(git rev-parse --git-common-dir)" && pwd`, NOT dropping the flag.
+
+  -> Constraint: **do NOT detect a worktree by path prefix.** `.claude/worktrees/` is where
+  `EnterWorktree` puts agent worktrees, but it is NOT where all worktrees live:
+  `git worktree list` on this host shows `/Users/.../ze/gh-pages` as a linked worktree
+  OUTSIDE that directory (executed 2026-07-16). A `case "$PWD" in */.claude/worktrees/*)`
+  test would miss it and give `gh-pages` its own cache. `--git-common-dir` is correct for
+  every worktree regardless of location, which is the reason to prefer it over a path test.
+  Equivalent-but-worse alternative, recorded so it is not re-proposed: the first line of
+  `git worktree list` is the main worktree, but it needs output parsing and gives nothing
+  `--git-common-dir` does not.
+
+  -> Constraint: **cache absent, or main checkout moved.** The resolved root is computed
+  fresh from git on every invocation, so a MOVED main checkout is self-healing: nothing
+  stores an absolute path, and the next resolve returns the new location. This is the
+  decisive advantage over a committed symlink or a recorded path, both of which would
+  dangle after a move. Two cases the implementation must still handle explicitly:
+  (a) the resolved `cache/` does not exist yet -- create it (the main checkout may never
+  have built), and a worktree creating it in the main checkout is EXPECTED, not a violation
+  of the no-cross-tree-writes rule, because the cache is gitignored build output and not
+  someone's working tree; (b) `git rev-parse` fails entirely (not a git repo, e.g. a
+  released tarball) -- fail loudly per AC-6, or fall back to a checkout-local `cache/`, but
+  never silently to a stale or stock artifact.
+
+  -> Constraint: **this SOFTENS R-4 for worktrees ONLY, and AC-4's loud guard still
+  matters.** A `git clean -xdf` inside a worktree can no longer destroy the cache, because
+  the cache is not in the worktree. But `git clean -xdf` in the MAIN checkout destroys it
+  for every worktree at once, which is strictly worse blast radius than before, not better.
+  R-4 is therefore not retired: it is concentrated. The AC-6 guard (loud failure, never a
+  silent fallback) is what keeps a wiped cache a rebuild rather than a silently-wrong
+  artifact, and it is now the single point of protection for all trees.
+
+  -> Constraint: **AC-8 (concurrent-run eviction safety) gets HARDER, not easier.** Sharing
+  one cache across N worktrees means N concurrent QEMU runs contend on one root, so R-1's
+  shared-mutable-state hazard now spans trees rather than being confined to one. AC-8 was
+  already written for "two sessions or worktrees", so it does not change, but its mitigation
+  (lock/refcount, evict only on explicit key change, never on a timer) is now load-bearing
+  for the common case rather than an edge case.
 
   Superseded recommendation, kept for history: Option 1, on the "grep ze before proposing,
   do not invent what exists" rule (`ai/rules/design-context.md`). It also happens to

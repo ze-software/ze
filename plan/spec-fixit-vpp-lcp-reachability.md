@@ -3,22 +3,53 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | - |
+| Depends | - (shares one file, `internal/plugins/iface/vpp/doctor.go`, with `plan/spec-bgp-netns.md`; neither blocks the other) |
 | Phase | 0/N (research) |
 | Updated | 2026-07-16 |
 
 **DESIGN, NOT APPROVED.** Research is done: the Open Questions below are answered and the
 assumption table carries verdicts. Two assumptions came back BROKEN (A-2, A-6) and they
 change the shape of the work, so this spec must NOT move to `ready` until Thomas rules on
-~~the split question (A-8) and~~ the BGP netns config surface. Do not implement from this file yet.
+~~the split question (A-8) and~~ ~~the BGP netns config surface~~ Q10 (Warning vs Error).
+Do not implement from this file yet.
 
-**2026-07-16, Thomas: the split question (A-8) is DECIDED -- SPLIT.** This spec keeps
-**Problem B only** (the LCP-presence doctor check: one check, one code, one `.ci`, ships now).
-**Problem A** (netns-aware BGP listening) moves to a new spec that does **not exist yet** --
-its name and scope are proposed for Thomas to confirm before the file is created. Read Task ->
-"The 2026-07-16 split" before touching anything here. The netns half remains blocked on the
-still-unanswered **A-7**, so the split changes the filing, not the approval. **Status stays
-`design`; promotion to `ready` is Thomas's gate and has not been given.**
+**2026-07-16, Thomas: the split question (A-8) is DECIDED -- SPLIT. THE SPLIT IS NOW DONE.**
+This spec keeps **Problem B only**: the LCP-presence doctor check (one check, one code, one
+`.ci`). **Problem A** (netns-aware BGP listening) has MOVED to **`plan/spec-bgp-netns.md`**,
+created 2026-07-16. Its ACs (AC-1, AC-2, AC-3, AC-8, AC-9, AC-10) and Phases 2-6 moved with
+it and are NOT duplicated here: this file keeps a pointer only. Read Task ->
+"The 2026-07-16 split" before touching anything here.
+
+**What remains in THIS spec, and it can proceed:** the LCP plugin-presence doctor check. It is
+bounded (one check registered at Order 742, one `doctor-vpp-lcp-plugin` code, one
+`test/ui/doctor-vpp-lcp-plugin.ci`), needs no config surface, no reactor change, and no QEMU
+rail, and it depends on **nothing** that is still open. Every technical question it had is
+answered (A-4 and A-5 CONFIRMED; A-6 BROKEN but resolved: the probe opens its own connector).
+The only open item is Q10, a severity wording call, which is not a blocker.
+**Status stays `design`; promotion to `ready` is Thomas's gate and has not been given.**
+
+-> Decision (user, 2026-07-16): **A-7 is ANSWERED -- yes, support a non-root netns, because it
+IS the default and the documented model.** This does not change this spec's scope, but it
+retires the constraint below that said the netns half starts life BLOCKED. It does not. See
+`plan/spec-bgp-netns.md`.
+
+-> Decision (user, 2026-07-16), **CORRECTION, same day.** ~~A-7 is ANSWERED -- "Both: fix the
+default now, keep netns as real work", so a THIRD spec,
+`plan/spec-fixit-vpp-lcp-netns-default.md` (another agent), now owns fixing the default.~~
+**SUPERSEDED. That answer rested on a FALSE premise and is withdrawn.** The premise was that
+the `vpp.lcp.netns` default of `"dataplane"` is a mistake contradicting its own design intent,
+argued from the code comment at `lcp.go:105-108`. It is not a mistake:
+
+| Correction | Evidence (verified 2026-07-16) |
+|-----------|-------------------------------|
+| The default is DELIBERATE and STAYS | -> Decision (user, 2026-07-16). `plan/deferrals.md:36` (2026-07-10) records the real intent: make BGP netns-aware "so LCP TAPs in a non-root netns are reachable by BGP **without forcing the operator to a root-reachable netns**" |
+| `"dataplane"` is IPng Networks' production convention, copied on purpose | `54bffb83b` ("startup.conf generator **following IPng production template**"); `docs/research/vpp-deployment-reference.md:179-180` ("isolates the forwarding plane from the management plane") |
+| **`plan/spec-fixit-vpp-lcp-netns-default.md` was NEVER CREATED and must NOT be** | No such file. Every reference to it in this spec is struck through below, not deleted |
+| `plan/spec-bgp-netns.md` is PRIORITY-RAISED, not deprioritized | It is the fix for the DEFAULT case, not a niche capability. See its Task -> "Why this is the default case" |
+
+-> Constraint: the method error is the durable lesson. A code comment states what its author
+believed; it is not a decision record. The recorded decision was in `plan/deferrals.md` the
+whole time. See `ai/rules/fail-closed-guards.md` "Evidence corollary".
 
 ## Task
 
@@ -46,26 +77,56 @@ share a root cause".
 | Half | Becomes | Scope | Blocked on |
 |------|---------|-------|-----------|
 | **Problem B -- LCP-presence doctor check** | **THIS spec** (`plan/spec-fixit-vpp-lcp-reachability.md`), narrowed to Problem B only | One check (`checkVPPLCPPlugin`, registered beside the existing two at `internal/plugins/iface/vpp/doctor.go:27-56`, verified 2026-07-16: Order 740 `vpp-wireguard-plugin` / 741 `vpp-lcp-netns`, so the new one takes Order 742), one diagnostic code (`doctor-vpp-lcp-plugin` in `internal/core/diagnostic/codes.go`), one functional test (`test/ui/doctor-vpp-lcp-plugin.ci`). No config surface. No reactor change. No QEMU rail. **Ships now.** Keeps AC-4, AC-5, AC-6, AC-7, AC-11 and Phase 1 | Nothing technical. Q10 (Warning vs Error) is a wording/severity call, not a blocker |
-| **Problem A -- netns-aware BGP listening** | **A NEW spec, not yet created.** Name and scope proposed in the recording session's return; Thomas confirms before the file exists | The `RealListenerFactory.Netns` field + `netns_linux.go`/`netns_other.go`; the reactor change threading netns through BOTH branches of `newListenerFactory` (`reactor.go:1378-1385`, re-verified 2026-07-16: the MD5/GTSM branch returns a fresh `RealListenerFactory{MD5Peers, ListenTTL}` and discards `r.listenerFactory`); a BGP netns config surface; the A-3 kernel-semantics prototype; the AC-3 narrowing of `checkVPPLCPNetns`; a QEMU rail that **does not exist**. Takes AC-1, AC-2, AC-3, AC-8, AC-9, AC-10 and Phases 2-6 | **A-7, still unanswered.** See the constraint below |
+| **Problem A -- netns-aware BGP listening** | **`plan/spec-bgp-netns.md`, CREATED 2026-07-16.** The name the deferrals row anticipated | The `RealListenerFactory.Netns` field + `netns_linux.go`/`netns_other.go`; the reactor change threading netns through BOTH branches of `newListenerFactory` (`reactor.go:1378-1385`, re-verified at the producer 2026-07-16: the MD5/GTSM branch returns a fresh `RealListenerFactory{MD5Peers, ListenTTL}` and discards `r.listenerFactory`); a BGP netns config surface; the A-3 kernel-semantics prototype; the AC-3 narrowing of `checkVPPLCPNetns`; the QEMU rail. **Took AC-1, AC-2, AC-3, AC-8, AC-9, AC-10 and Phases 2-6 -- they live THERE now, not here** | **Nothing.** A-7 is answered (see below). Its remaining gates are Thomas's `ready` promotion and Q3 (config-surface shape) |
 
--> Constraint (user decision, 2026-07-16): **the netns half still depends on Thomas's
-unanswered A-7** -- is a non-root LCP netns worth supporting at all? The split does NOT
-answer it and does not unblock Problem A. Code evidence leans "yes" (`lcp.go:109-115` passes a
-non-root netns through deliberately; the YANG default is "dataplane"), but no code can answer
-whether operators want it, and everything in Problem A depends on the ruling. The new spec
-therefore starts life BLOCKED, not `ready`: creating the file does not make the work
-approved. If A-7 comes back "no", the netns spec is closed unstarted and `vpp.lcp.netns`'s
-default becomes the live question instead (Q7, which is tied to A-7 and must not be decided
-separately).
+-> Decision (user, 2026-07-16): **A-7 ANSWERED -- yes, support a non-root netns, because it IS
+the default and the documented model.** ~~The netns half still depends on Thomas's unanswered
+A-7.~~ **SUPERSEDED. The netns half is NOT blocked and does NOT start life blocked.** The answer
+arrived after A-7 was REFRAMED, and the reframing is the load-bearing part, recorded here and in
+full in `plan/spec-bgp-netns.md`: A-7 asked "is a non-root LCP netns worth supporting at all?",
+which implies a niche opt-in. The code says the opposite. `ze-vpp-conf.yang:199-201` defaults
+`netns` to `"dataplane"`; `lcpNetnsIsRootReachable` (`doctor.go:136-143`) accepts ONLY `""`,
+`"host"`, `"root"`, so `"dataplane"` is not root-reachable; `lcpPairNetns` (`lcp.go:109-114`)
+passes it through; BGP has zero netns awareness (`network.go:167-194`). **The DEFAULT config
+puts LCP TAPs where BGP cannot bind.**
+
+~~That contradicts the intent stated in the comment directly above the code (`lcp.go:105-108`:
+root-reachable is where "ze's BGP listener runs"; another name isolates "deliberately"). So the
+question split in two, and Thomas answered both halves:~~
+
+~~| Half of the answer | Owner | Note |~~
+~~| Fix the DEFAULT now | `plan/spec-fixit-vpp-lcp-netns-default.md` (another agent, concurrent) |~~
+~~| Keep netns-aware BGP as real, approved work | `plan/spec-bgp-netns.md` | its PRIORITY drops once the default lands |~~
+
+**SUPERSEDED, 2026-07-16 (same day). The "contradicts its own design intent" claim was FALSE.**
+The default putting TAPs beyond BGP's reach is real; the inference that this made the default a
+BUG was not. -> Decision (user, 2026-07-16): **the default STAYS `"dataplane"`**, and the
+question does NOT split in two:
+
+| Correction | Evidence (verified 2026-07-16) |
+|-----------|-------------------------------|
+| The recorded design intent is the OPPOSITE of the comment-derived reading: BGP should follow the TAP, the TAP should not be dragged to BGP | `plan/deferrals.md:36` (2026-07-10, this work's origin row): teach the BGP listener to bind in a named netns "so LCP TAPs in a non-root netns are reachable by BGP **without forcing the operator to a root-reachable netns**" |
+| `"dataplane"` is IPng's production convention, adopted deliberately | `54bffb83b` ("following IPng production template"); `docs/research/vpp-deployment-reference.md:179-180`: LCP TAPs live in `dataplane`, which "isolates the forwarding plane from the management plane" |
+| There is ONE owner, not two | **`plan/spec-fixit-vpp-lcp-netns-default.md` was never created and must not be.** `plan/spec-bgp-netns.md` owns the whole answer, and its priority is RAISED: it makes the shipped default work |
+
+-> Constraint: Q7 ("should the `vpp.lcp.netns` default stay dataplane?") is **ANSWERED: YES, it
+stays.** ~~It moved with the answer to `plan/spec-fixit-vpp-lcp-netns-default.md`.~~ It is
+CLOSED, not moved. Nothing changes the default.
 
 -> Constraint: the split is filing, not scope reduction. No AC is dropped; each is assigned
 to exactly one half in the table above. AC-3 (the fate of the `doctor-vpp-lcp-netns` warning)
 travels with the **netns** half, because its premise -- "BGP can now bind in the LCP netns" --
 only becomes true if Problem A lands. Until then the existing warning stays correct as
-shipped and must not be narrowed. Open judgement call flagged for Thomas: the
-**missing** `test/ui/doctor-vpp-lcp-netns.ci` (Q11 confirmed absent) covers the EXISTING
-check, so it could ship with the doctor half; this recording assigns it to the netns half to
-avoid writing a `.ci` that AC-3 immediately rewrites.
+shipped and must not be narrowed.
+
+-> Decision (user, 2026-07-16): **the missing `test/ui/doctor-vpp-lcp-netns.ci` ships with the
+DOCTOR half -- THIS spec.** ~~This recording assigns it to the netns half to avoid writing a
+`.ci` that AC-3 immediately rewrites.~~ SUPERSEDED by Thomas's ruling. It covers the check that
+exists TODAY (`checkVPPLCPNetns`, `doctor.go:100-131`, confirmed absent by `ls`, Q11), and a
+delivered check with no functional test is a gap now, not a gap contingent on a spec that may
+never be promoted. **Recorded and accepted: `spec-bgp-netns`'s AC-3 narrows `checkVPPLCPNetns`
+and will REWRITE this `.ci`.** That is the accepted cost, not a defect. The alternative was
+leaving a shipped check untested indefinitely.
 
 ## Origin
 
@@ -476,8 +537,8 @@ Both from `plan/deferrals.md` rows dated 2026-07-10, source `spec-followup-vpp-i
 | A-4 | A missing `linux_cp_plugin.so` is detectable from a live VPP before apply | `startupconf.go:82-91` asks for the plugin; the failure lands at `lcp.go:97` | The check cannot exist pre-apply and the answer is a better error at the binapi layer | Probe a VPP built without the plugin | **CONFIRMED, 2026-07-16.** Two independent lines. (1) Mechanism: `api.Channel.CheckCompatiblity` (govpp `api/api.go:109`, impl `core/channel.go:184-200`) resolves each message ID and reports `adapter.UnknownMsgError` as `CompatibilityError.IncompatibleMessages`; `LcpDefaultNsGet` (`binapi/lcp/lcp.ba.go:63`) is supplied only by linux_cp. (2) Real-VPP evidence already recorded: `plan/learned/1098-followup-vpp-iface.md:73-82` states `ligato/vpp-base` lacks `linux_cp_plugin.so` and the binapi call returns **"unknown message"** -- the exact condition `CheckCompatiblity` detects. Premise UNCHANGED, so `1098` needs no correction (see note below) |
 | A-5 | A GoVPP probe is the right mechanism, as the deferrals row states | deferrals 2026-07-10 row; but the only precedent (`checks_linux.go:266`) uses `vppctl` exec | The check uses vppctl instead, which conflicts with plugin self-containment | DESIGN decision with the user | **CONFIRMED, 2026-07-16.** GoVPP wins on merit, not just on the deferrals row's say-so: `CheckCompatiblity` is a pure message-ID lookup (it never sends the message), needs no `vppctl` binary, parses no human text, and lets the check live in the owning plugin per `ai/rules/plugin-self-containment.md`. The vppctl precedent exists only because the central doctor package had no VPP client; ifacevpp already has one |
 | A-6 | Doctor runs with a live VPP available at `DoctorPhasePostConfig` | `checkVPPVersion` execs vppctl at doctor time (`checks_linux.go:251-266`) | A runtime probe is impossible in that phase; the check needs a different phase or trigger | Trace the doctor phase's runtime context | **BROKEN, 2026-07-16.** Doctor is an OFFLINE, LOCAL command (`doctor/register.go:13-21`: `Mode: "offline"` + `MustRegisterLocalMeta("doctor", Run, ...)`); `Run` -> `runChecks` (`doctor/doctor.go:31,68`) builds only storage + platform and never starts a VPP Manager. The producer `GetActiveConnector` (`vpp.go:67-80`) returns `connectorRef`, set only by `setActiveConnector` on the daemon's Run path, so it is nil in the doctor process. Consequence: the probe MUST open its own connector from `vpp/api-socket` (`ze-vpp-conf.yang:39-43`). Not fatal to the check, but it invalidates the spec's own proposed integration point. Mistake Log row added |
-| A-7 | Operators actually want LCP TAPs in a non-root netns, so teaching BGP netns is worth it rather than forcing host netns | The `netns` leaf exists and defaults to "dataplane" (`ze-vpp-conf.yang:198-205`) | The cheaper answer is to default LCP to the host netns and keep the doctor warning | User / operator input | **UNVALIDATED -- NEEDS THOMAS.** Code evidence leans confirm: `lcpPairNetns` (`lcp.go:109-115`) passes a non-root netns through "so the operator can isolate the TAP deliberately", and the YANG default is "dataplane", so isolation is a deliberate shipped capability. But no code can answer whether operators WANT it; only Thomas can. This is the single decision gating the whole netns leg |
-| A-8 | The two problems belong in one spec | Both concern LCP usability | Split into `spec-bgp-netns` (as deferrals anticipated) plus a doctor follow-up | DESIGN review | ~~**RECOMMEND SPLIT -- NEEDS THOMAS.**~~ **BROKEN / RESOLVED -- -> Decision (user, 2026-07-16): SPLIT.** The assumption "the two problems belong in one spec" is rejected. Thomas: the LCP-presence doctor check and netns-aware BGP listening are **unrelated problems sharing a filename**. Original recommendation (upheld): Problem B is bounded (one check, one code, one `.ci`, no new config surface, no QEMU rail) and shippable now. Problem A needs a BGP YANG leaf, reactor surgery (A-2), thread-pinning validation (A-3), a QEMU rail (R-6), the AC-3 reconciliation, and a ruling on the other listeners. They share a subject, not a root cause (the spec's own Task section says so). See "The 2026-07-16 split" below for what each half concretely becomes. Not actioned by the recording session: the second spec file is NOT created; its name and scope are proposed for Thomas to confirm |
+| A-7 | Operators actually want LCP TAPs in a non-root netns, so teaching BGP netns is worth it rather than forcing host netns | The `netns` leaf exists and defaults to "dataplane" (`ze-vpp-conf.yang:199-201`) | The cheaper answer is to default LCP to the host netns and keep the doctor warning | User / operator input | ~~**UNVALIDATED -- NEEDS THOMAS.**~~ ~~**ANSWERED (user, 2026-07-16): "Both: fix the default now, keep netns as real work."**~~ **CORRECTED, 2026-07-16 (same day). The real answer: YES, support a non-root netns, because it IS the default and the documented model.** The QUESTION was REFRAMED first, and that is the load-bearing part: A-7 as written implies a niche opt-in, but the unreachable case is the **DEFAULT** (`ze-vpp-conf.yang:199-201` defaults to "dataplane"; `lcpNetnsIsRootReachable` at `doctor.go:136-143` accepts only "", "host", "root"). ~~which contradicts the design intent stated at `lcp.go:105-108`~~ **FALSE, withdrawn:** `lcp.go:105-108` is a code comment recording its author's belief, not a decision. The recorded decision is `plan/deferrals.md:36` (2026-07-10): reachability "**without forcing the operator to a root-reachable netns**". `"dataplane"` is IPng's production convention, copied on purpose (`54bffb83b`; `docs/research/vpp-deployment-reference.md:179-180`). -> Decision (user, 2026-07-16): **the default STAYS**; there is no default-fix spec and `plan/spec-fixit-vpp-lcp-netns-default.md` must not be created. The whole answer is owned by `plan/spec-bgp-netns.md`, whose priority is RAISED. **No longer gates anything in THIS spec** (it never gated Problem B), and no longer blocks the netns half either |
+| A-8 | The two problems belong in one spec | Both concern LCP usability | Split into `spec-bgp-netns` (as deferrals anticipated) plus a doctor follow-up | DESIGN review | ~~**RECOMMEND SPLIT -- NEEDS THOMAS.**~~ **BROKEN / RESOLVED -- -> Decision (user, 2026-07-16): SPLIT.** The assumption "the two problems belong in one spec" is rejected. Thomas: the LCP-presence doctor check and netns-aware BGP listening are **unrelated problems sharing a filename**. Original recommendation (upheld): Problem B is bounded (one check, one code, one `.ci`, no new config surface, no QEMU rail) and shippable now. Problem A needs a BGP YANG leaf, reactor surgery (A-2), thread-pinning validation (A-3), a QEMU rail (R-6), the AC-3 reconciliation, and a ruling on the other listeners. They share a subject, not a root cause (the spec's own Task section says so). See "The 2026-07-16 split" below for what each half concretely becomes. ~~Not actioned by the recording session: the second spec file is NOT created; its name and scope are proposed for Thomas to confirm~~ **ACTIONED 2026-07-16: `plan/spec-bgp-netns.md` exists.** Its scope, ACs (AC-1/2/3/8/9/10) and Phases were MOVED there, not copied |
 
 ### Risks
 
@@ -496,31 +557,34 @@ Both from `plan/deferrals.md` rows dated 2026-07-10, source `spec-followup-vpp-i
 
 ## Wiring Test (MANDATORY)
 
-Rows refined 2026-07-16. `test/ui/doctor-vpp-lcp-netns.ci` was confirmed ABSENT by `ls`.
+Rows refined 2026-07-16. `test/ui/doctor-vpp-lcp-netns.ci` was confirmed ABSENT by `ls`. The
+netns rows MOVED to `plan/spec-bgp-netns.md` with the split; only the doctor half's rows
+remain.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `vpp { lcp { netns dataplane } }` plus a `bgp` stanza, `ze doctor` | -> | `checkVPPLCPNetns` (`doctor.go:100`) | `test/ui/doctor-vpp-lcp-netns.ci` (NEW: confirmed it does not exist today; the delivered check has unit coverage but no `.ci`) |
+| `vpp { lcp { netns dataplane } }` plus a `bgp` stanza, `ze doctor` | -> | `checkVPPLCPNetns` (`doctor.go:100`), the check AS SHIPPED TODAY | `test/ui/doctor-vpp-lcp-netns.ci` (NEW: confirmed absent; the delivered check has unit coverage but no `.ci`). -> Decision (user, 2026-07-16): ships with THIS half. `spec-bgp-netns` AC-3 may rewrite it later; accepted |
 | `vpp { lcp { enabled true } }` on a VPP build without `linux_cp_plugin.so`, `ze doctor` | -> | `checkVPPLCPPlugin` (new, `internal/plugins/iface/vpp/doctor.go`) | `test/ui/doctor-vpp-lcp-plugin.ci` (new) |
-| `bgp { ... netns dataplane ... }` (config surface pending Thomas, see A-7) | -> | `reactor.config` -> `newListenerFactory` (`reactor.go:1378-1385`) -> `RealListenerFactory{Netns}` (`network.go:147`) -> `listener.go:108` | `TestNetnsListenerFactoryBindsInNamedNamespace` |
-| Same, **with MD5 configured on the port** | -> | the MD5/GTSM branch of `newListenerFactory` (`reactor.go:1381-1383`) | `TestNetnsListenerFactoryAppliedWithMD5` (R-8: without this row the netns silently vanishes for MD5 peers) |
-| BGP peer establishing over an LCP TAP in a non-root netns | -> | full listener plus reactor accept path (`listener.go:149-202`) | QEMU integration test, rail to be identified per `ai/rules/qemu-testing.md` |
+| (netns listener wiring: config surface -> `newListenerFactory` -> `RealListenerFactory{Netns}`; the MD5 branch; the QEMU rail) | -> | (see the new spec) | **MOVED to `plan/spec-bgp-netns.md`** |
 
 ## Acceptance Criteria
 
+-> Constraint (2026-07-16 split): **AC-1, AC-2, AC-3, AC-8, AC-9 and AC-10 MOVED to
+`plan/spec-bgp-netns.md`** and are deliberately NOT reproduced here. They keep their original
+numbers there, so the gaps below are self-documenting. Do not re-add them: two copies of an AC
+means one of them goes stale. The remaining ACs are the doctor half's, and they are complete
+on their own.
+
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `vpp.lcp.netns` names a non-root namespace and BGP is configured with a matching listener netns | BGP binds its listener inside that namespace and accepts sessions on the LCP TAP |
-| AC-2 | No netns is configured anywhere (every non-LCP deployment) | Listener behavior is byte-for-byte unchanged; no thread pinning, no new failure mode. `RealListenerFactory{}` with an empty `Netns` takes exactly today's code path |
-| AC-3 | BGP can bind in the LCP netns | The `doctor-vpp-lcp-netns` warning's fate is explicitly decided: removed, narrowed, or kept with a new rationale. It does not silently survive as a stale warning. Design answer (pending approval): NARROW to a mismatch check between `vpp.lcp.netns` and the BGP listener netns |
+| AC-1, AC-2, AC-3 | (netns-aware BGP listening) | **MOVED to `plan/spec-bgp-netns.md`.** AC-3 (the fate of the `doctor-vpp-lcp-netns` warning) travels with the netns half because its premise, "BGP can now bind in the LCP netns", only becomes true if that spec lands |
 | AC-4 | `lcp.enabled` is true and the running VPP lacks `linux_cp_plugin.so` | `ze doctor` reports an actionable diagnostic BEFORE apply, naming the linux_cp API as unavailable on the running VPP |
 | AC-5 | `lcp.enabled` is true and the plugin IS present | No diagnostic |
 | AC-6 | `lcp.enabled` is true and VPP is unreachable at doctor time (socket absent, VPP down) | Degrades to a warning about the probe, never a false "plugin missing" claim. Mirrors `checkVPPVersion` (`checks_linux.go:268-274`) |
 | AC-7 | The new diagnostic code | Registered in `internal/core/diagnostic/codes.go` with a description matching what the check actually does, and `ze explain <code>` works |
-| AC-8 | Netns listener on linux | Proven by a QEMU integration test, not only unit tests (`ai/rules/qemu-testing.md`) |
-| AC-9 (NEW) | A netns listener on a port that ALSO carries MD5 peers or a GTSM TTL | The listener binds in the configured namespace AND applies MD5/GTSM. Never one at the cost of the other (R-8; the current `newListenerFactory` would drop the netns) |
-| AC-10 (NEW) | A configured netns that does not exist, or ze lacks CAP_SYS_ADMIN | `Listen` returns a clear error naming the namespace. It NEVER falls back to binding in the host namespace |
+| AC-8, AC-9, AC-10 | (netns listener: QEMU proof, MD5 composition, no host-netns fallback) | **MOVED to `plan/spec-bgp-netns.md`** |
 | AC-11 (NEW) | `ze doctor` on a non-linux host, or with `lcp.enabled false` | The LCP plugin check skips cleanly; no probe connection is opened |
+| AC-12 (NEW, 2026-07-16) | The DELIVERED `checkVPPLCPNetns` (`doctor.go:100-131`), as it behaves TODAY | Covered by `test/ui/doctor-vpp-lcp-netns.ci`, which does not exist (Q11). -> Decision (user, 2026-07-16): this `.ci` ships with the DOCTOR half, testing the check's CURRENT root-reachable behavior. Accepted: `spec-bgp-netns`'s AC-3 will rewrite it when it narrows the check |
 
 ## End-to-End User Stories
 
@@ -540,13 +604,9 @@ Rows refined 2026-07-16. `test/ui/doctor-vpp-lcp-netns.ci` was confirmed ABSENT 
 | `TestCheckVPPLCPPluginPresentSilent` | `internal/plugins/iface/vpp/doctor_test.go` | Plugin present yields no diagnostic | proposed |
 | `TestCheckVPPLCPPluginProbeUnavailable` | `internal/plugins/iface/vpp/doctor_test.go` | VPP unreachable degrades to a probe warning, never a false negative claim (AC-6) | proposed |
 | `TestCheckVPPLCPPluginDisabledSkips` | `internal/plugins/iface/vpp/doctor_test.go` | `lcp.enabled` false skips the check entirely and opens NO connection (AC-11) | proposed |
-| `TestNetnsListenerFactoryBindsInNamedNamespace` | `internal/core/network/netns_linux_test.go` | The factory binds inside the named namespace | proposed |
-| `TestNetnsListenerFactoryUnknownNamespaceErrors` | `internal/core/network/netns_linux_test.go` | An absent namespace errors clearly rather than silently binding in the host netns (AC-10) | proposed |
-| `TestNetnsListenerFactoryEmptyNetnsUnchanged` | `internal/core/network/netns_linux_test.go` | An empty `Netns` takes the existing path; no thread pinning, no behavior change (AC-2) | proposed |
-| `TestNetnsListenerFactoryAppliedWithMD5` | `internal/core/network/netns_linux_test.go` | `Netns` + `MD5Peers` together: BOTH are applied (AC-9, R-8) | proposed |
-| `TestNetnsListenerSocketOutlivesThreadUnpin` | `internal/core/network/netns_linux_test.go` | Accept works after the binding thread is unpinned, proving pinning is bind-scoped (A-3) | proposed |
-| `TestNewListenerFactoryCarriesNetnsWithMD5` | `internal/component/bgp/reactor/reactor_test.go` | The producer `newListenerFactory` (`reactor.go:1378-1385`) threads netns through the MD5/GTSM branch instead of discarding it (R-8) | proposed |
-| ~~`TestListenerUsesInjectedFactory`~~ | ~~`internal/component/bgp/reactor/listener_test.go`~~ | ~~The existing injection seam carries a netns factory through `StartWithContext`~~ SUPERSEDED: A-2 is broken, that seam is overwritten by the reactor. Replaced by `TestNewListenerFactoryCarriesNetnsWithMD5` | dropped |
+| `TestCheckVPPLCPNetnsWarnsOnNonRootNetns` | `internal/plugins/iface/vpp/doctor_test.go` | The DELIVERED check's current behavior, backing the new `.ci` (AC-12). Verify against existing coverage first; do not duplicate it | proposed |
+| (the six netns tests: `TestNetnsListenerFactory*`, `TestNetnsListenerSocketOutlivesThreadUnpin`, `TestNewListenerFactoryCarriesNetnsWithMD5`) | `internal/core/network/`, `internal/component/bgp/reactor/` | **MOVED to `plan/spec-bgp-netns.md`** | moved |
+| ~~`TestListenerUsesInjectedFactory`~~ | ~~`internal/component/bgp/reactor/listener_test.go`~~ | ~~The existing injection seam carries a netns factory through `StartWithContext`~~ SUPERSEDED: A-2 is broken, that seam is overwritten by the reactor. Replaced by `TestNewListenerFactoryCarriesNetnsWithMD5`, which moved with the netns half | dropped |
 
 ### Boundary Tests
 
@@ -562,8 +622,9 @@ Rows refined 2026-07-16. `test/ui/doctor-vpp-lcp-netns.ci` was confirmed ABSENT 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `doctor-vpp-lcp-plugin` | `test/ui/doctor-vpp-lcp-plugin.ci` | An operator on a VPP build without linux_cp_plugin.so is warned before apply | proposed |
-| `doctor-vpp-wireguard` | `test/ui/doctor-vpp-wireguard.ci` | The existing sibling test to model the new one on | exists |
-| BGP over LCP TAP in a non-root netns | QEMU rail, to be identified | BGP peers over a VPP-managed NIC with default LCP settings | proposed |
+| `doctor-vpp-lcp-netns` | `test/ui/doctor-vpp-lcp-netns.ci` | An operator whose LCP netns is not root-reachable is warned that BGP cannot bind there. -> Decision (user, 2026-07-16): ships with THIS half; covers the check as it exists today (AC-12) | proposed |
+| `doctor-vpp-wireguard` | `test/ui/doctor-vpp-wireguard.ci` | The existing sibling test to model the new ones on | exists |
+| BGP over LCP TAP in a non-root netns | QEMU rail | **MOVED to `plan/spec-bgp-netns.md`** | moved |
 
 ### Interop Tests
 
@@ -582,7 +643,9 @@ None deferred. This is a skeleton; scope is set at DESIGN.
 
 ## Files to Modify
 
-Confirmed by research 2026-07-16. Grouped by problem, because A-8 recommends a split.
+Confirmed by research 2026-07-16. ~~Grouped by problem, because A-8 recommends a split.~~
+**The split is DONE: Problem A's files moved to `plan/spec-bgp-netns.md`.** Only Problem B's
+files remain in this spec.
 
 **Problem B (doctor check) -- bounded, no config surface, shippable alone:**
 
@@ -593,30 +656,21 @@ Confirmed by research 2026-07-16. Grouped by problem, because A-8 recommends a s
 - `internal/core/diagnostic/codes.go` - add the `doctor-vpp-lcp-plugin` row beside lines
   288-299. Description must state the MECHANISM actually implemented (R-7)
 - `test/ui/doctor-vpp-lcp-plugin.ci` - new functional test
+- `test/ui/doctor-vpp-lcp-netns.ci` - new functional test for the DELIVERED netns check
+  (AC-12). -> Decision (user, 2026-07-16): assigned to this half
 
-**Problem A (netns listener) -- blocked on Thomas's A-7 / A-8 ruling:**
+**Problem A (netns listener) -- MOVED, do not implement from this file:**
 
-- `internal/core/network/network.go` - add a `Netns string` field to `RealListenerFactory`
-  (beside `MD5Peers` and `ListenTTL`, lines 147-162) and route `Listen` (line 167) through the
-  build-tagged helper when it is non-empty
-- `internal/core/network/netns_linux.go` (new) + `netns_other.go` (new) - the helper, mirroring
-  the `md5_*.go` / `ttl_*.go` split already in this package
-- `internal/component/bgp/reactor/reactor.go` - **REQUIRED, contrary to the skeleton's guess.**
-  `newListenerFactory` (lines 1378-1385) must carry the netns into BOTH branches, or netns is
-  silently dropped on MD5/GTSM ports (A-2 BROKEN, R-8)
-- ~~`internal/component/bgp/reactor/listener.go` - likely unchanged if A-2 holds; the factory
-  seam already exists (lines 66-68, 108)~~ SUPERSEDED: `listener.go` is indeed unchanged, but
-  NOT for the stated reason. The seam at 66-68 is overwritten by the reactor; the reason
-  `listener.go` needs no edit is that the netns rides on the factory the reactor builds
-- `internal/component/bgp/reactor/config.go` - carry the netns value from config to
-  `newListenerFactory`
-- `internal/component/bgp/yang/` - a netns leaf; read `ai/rules/config-surface.md` and
-  `ai/rules/config-naming.md` first. Pending Thomas (A-7)
-- `internal/plugins/iface/vpp/doctor.go` - narrow `checkVPPLCPNetns` / `lcpNetnsIsRootReachable`
-  (lines 100-143) to a mismatch check (AC-3)
-- `internal/core/diagnostic/codes.go` - reword the `doctor-vpp-lcp-netns` description (line
-  ~296) to match the narrowed check
-- `docs/guide/vpp.md` - the netns constraint is operator-facing and documented there
+-> Constraint: every Problem A file (`internal/core/network/network.go`, `netns_linux.go`,
+`netns_other.go`, `internal/component/bgp/reactor/reactor.go`, `config.go`,
+`internal/component/bgp/yang/`, the AC-3 narrowing of `internal/plugins/iface/vpp/doctor.go`,
+the `doctor-vpp-lcp-netns` reword in `internal/core/diagnostic/codes.go`, and `docs/guide/vpp.md`)
+now lives in **`plan/spec-bgp-netns.md`**, with the load-bearing `newListenerFactory` finding
+and the "field, not wrapper" reasoning. Deliberately not duplicated here.
+
+-> Constraint (R-12 there): `internal/plugins/iface/vpp/doctor.go` is the ONE file both halves
+touch. This spec ADDS `checkVPPLCPPlugin`; the netns spec NARROWS `checkVPPLCPNetns`. Whichever
+lands second must re-read the file rather than trust the other spec's line numbers.
 
 **Not to modify:**
 
@@ -661,15 +715,13 @@ Confirmed by research 2026-07-16. Grouped by problem, because A-8 recommends a s
 
 ## Files to Create
 
-- `internal/core/network/netns_linux.go` - the linux netns bind helper serving the new
-  `RealListenerFactory.Netns` field. NOT a standalone `ListenerFactory` implementation: see
-  A-2 / R-8 for why a rival factory type is silently discarded by the reactor
-- `internal/core/network/netns_other.go` - the `//go:build !linux` stub, mirroring
-  `md5_other.go` / `ttl_other.go`
-- `internal/core/network/netns_linux_test.go` - proposed unit tests
 - `test/ui/doctor-vpp-lcp-plugin.ci` - proposed functional test for the new check
 - `test/ui/doctor-vpp-lcp-netns.ci` - the EXISTING netns check has no functional test
-  (confirmed absent by `ls`). Add it with the narrowed behavior (AC-3)
+  (confirmed absent by `ls`). ~~Add it with the narrowed behavior (AC-3)~~ -> Decision (user,
+  2026-07-16): add it here with the check's **CURRENT** behavior (AC-12). The narrowing is
+  `plan/spec-bgp-netns.md`'s AC-3 and will rewrite this `.ci`; that is accepted
+- (`internal/core/network/netns_linux.go`, `netns_other.go`, `netns_linux_test.go`) -
+  **MOVED to `plan/spec-bgp-netns.md`**
 
 ## Implementation Steps
 
@@ -687,12 +739,15 @@ Confirmed by research 2026-07-16. Grouped by problem, because A-8 recommends a s
 
 ### Implementation Phases
 
-**BLOCKING: Phase 0 (research) is DONE (2026-07-16). The phases below are a real design, but
-the spec is NOT approved. Two gates precede any coding: Thomas rules on the A-8 split and on
-the A-7 / config-surface question. Phase 1 is independent of both and could ship first.**
+**BLOCKING: Phase 0 (research) is DONE (2026-07-16). ~~Two gates precede any coding: Thomas
+rules on the A-8 split and on the A-7 / config-surface question.~~ BOTH GATES ARE NOW PASSED:
+A-8 answered (SPLIT, done) and A-7 answered ("Both"). The spec is still NOT `ready`: promotion
+is Thomas's gate and has not been given. Phase 1 is the ONLY phase left here and it depends on
+nothing that is still open.**
 
 0. ~~**Phase 0: Research (`/ze-spec`)**~~ DONE 2026-07-16. Open Questions answered below;
-   A-2 and A-6 came back BROKEN; A-4 and A-5 CONFIRMED; A-3 refined; A-7 and A-8 need Thomas.
+   A-2 and A-6 came back BROKEN; A-4 and A-5 CONFIRMED; A-3 refined; ~~A-7 and A-8 need
+   Thomas~~ A-7 and A-8 both ANSWERED by Thomas 2026-07-16.
 
 1. **Phase 1: Doctor check (Problem B, the bounded half).** No config surface, no reactor
    change, no QEMU rail. Ships independently of every open question.
@@ -709,36 +764,24 @@ the A-7 / config-surface question. Phase 1 is independent of both and could ship
      `TestCheckVPPLCPPluginProbeUnavailable`, `TestCheckVPPLCPPluginDisabledSkips`
    - Files: `internal/plugins/iface/vpp/doctor.go`, `internal/core/diagnostic/codes.go`
    - Verify: `test/ui/doctor-vpp-lcp-plugin.ci` passes
+   - Also in this phase (AC-12): add `test/ui/doctor-vpp-lcp-netns.ci` for the DELIVERED netns
+     check's current behavior. It is a separate check and a separate `.ci`, but the same file
+     and the same phase of work
 
-**GATE: Thomas rules on A-7 (is a non-root LCP netns worth supporting?) and A-8 (split?).
-Phases 2-6 do not start until then.**
+~~**GATE: Thomas rules on A-7 (is a non-root LCP netns worth supporting?) and A-8 (split?).
+Phases 2-6 do not start until then.**~~ **Both answered 2026-07-16. Phases 2-6 MOVED to
+`plan/spec-bgp-netns.md` (renumbered 1-5 there) and are deliberately not reproduced:**
 
-2. **Phase 2: Prototype the netns bind (settles A-3 BEFORE committing to a design).**
-   Spike only, discarded after: does a socket created in a named netns keep serving after the
-   binding thread is unpinned? If NO, the whole design changes (dedicated thread or fd-passing
-   helper, R-1) and the phases below are rewritten.
-   - Test: `TestNetnsListenerSocketOutlivesThreadUnpin`
-3. **Phase 3: `RealListenerFactory.Netns`.** Add the field + `netns_linux.go` / `netns_other.go`,
-   reusing the `enterTestNetns` idiom (`internal/test/runner/netns_linux.go`).
-   - Tests: `TestNetnsListenerFactoryBindsInNamedNamespace`,
-     `TestNetnsListenerFactoryUnknownNamespaceErrors` (must ERROR, never fall back: AC-10),
-     `TestNetnsListenerFactoryEmptyNetnsUnchanged` (AC-2),
-     `TestNetnsListenerFactoryAppliedWithMD5` (AC-9)
-   - Files: `internal/core/network/network.go`, `netns_linux.go`, `netns_other.go`
-4. **Phase 4: Config surface + thread it through the reactor.**
-   - Add the BGP netns leaf (shape pending Thomas), carry it via `config.go` into
-     `newListenerFactory` (`reactor.go:1378-1385`) so BOTH branches set `Netns` (R-8).
-   - Tests: `TestNewListenerFactoryCarriesNetnsWithMD5`
-   - Files: `internal/component/bgp/reactor/reactor.go`, `config.go`, `internal/component/bgp/yang/`
-5. **Phase 5: Netns doctor check reconciliation (AC-3).** Narrow `checkVPPLCPNetns` to a
-   mismatch check between `vpp.lcp.netns` and the BGP listener netns; reword its code
-   description; add the missing `test/ui/doctor-vpp-lcp-netns.ci`.
-6. **Phase 6: Functional and QEMU tests.** Prove BGP peers over an LCP TAP in a non-root netns.
-   Rail: NOT identified. `ai/rules/qemu-testing.md` is mandatory and no VPP QEMU rail was
-   found during research. → Constraint: identify the rail BEFORE Phase 3, or Phase 6 becomes
-   an unbounded task discovered at the end. This is the largest unknown in the netns leg.
-7. **Full verification**: `make ze-verify`
-8. **Complete spec**: learned summary, two-commit closure.
+| Was, here | Is now, in `plan/spec-bgp-netns.md` |
+|-----------|-------------------------------------|
+| Phase 2: prototype the netns bind (A-3) | Phase 1 |
+| Phase 3: `RealListenerFactory.Netns` | Phase 2 |
+| Phase 4: config surface + reactor threading | Phase 3 |
+| Phase 5: netns doctor check reconciliation (AC-3) | Phase 4 |
+| Phase 6: functional and QEMU tests | Phase 5 |
+
+2. **Full verification**: `make ze-verify`
+3. **Complete spec**: learned summary, two-commit closure.
 
 ### Critical Review Checklist
 
@@ -788,6 +831,7 @@ Phases 2-6 do not start until then.**
 | (A-2) A netns listener can be a new `ListenerFactory` implementation injected through the existing seam, with no reactor surgery | `Listener.SetListenerFactory` (`listener.go:66-68`) is overwritten by the reactor immediately after `NewListener` (`reactor.go:1004`, `:1402`), so it is not an external seam. And the producer `newListenerFactory` (`reactor.go:1378-1385`) DISCARDS the injected `r.listenerFactory` whenever MD5 or GTSM applies to the port, returning a fresh `RealListenerFactory{...}` | Read the producer `newListenerFactory` instead of stopping at the consumer `listener.go:108`. The skeleton had read only the call site and the setter, and inferred the seam was usable | Design change: netns becomes a FIELD on `RealListenerFactory`, not a rival factory. Reactor DOES change. Prevented a silent wrong-namespace bind for every MD5/GTSM peer (R-8) |
 | (A-6) A live VPP connector is available to doctor checks, via `vppcomp.GetActiveConnector` | Doctor is an offline LOCAL command (`doctor/register.go:13-21`) running in the `ze doctor` process; `GetActiveConnector` (`vpp.go:67-80`) returns `connectorRef`, set only by the daemon's Manager Run, so it is nil there | Read the producer `setActiveConnector`/`GetActiveConnector` and doctor's registration, rather than reasoning from `internal/plugins/static/backend_vpp_linux.go:31` which uses it successfully (that plugin runs INSIDE the daemon) | The spec's own proposed Integration Point was wrong. The probe must open its own connector from `vpp/api-socket`. Also explains WHY the vppctl precedent exists, dissolving the A-5 "tension" |
 | (A-3, basis only) `runtime.LockOSThread` netns precedent lives at `internal/plugins/static/resolve_integration_linux_test.go:65-86` | That path was not verified. The real in-tree netns idiom is `internal/test/runner/netns_linux.go` (`enterTestNetns`), plus `internal/core/routewatch/routewatch_linux.go` | Grepped for netns across the tree instead of trusting the cited path | Basis corrected. The assumption's substance (pinning is needed) still needs a prototype; only its citation was wrong |
+| (A-7) The `vpp.lcp.netns` default `"dataplane"` is a MISTAKE that "contradicts its own design intent", per the comment at `lcp.go:105-108` | The default is DELIBERATE. `plan/deferrals.md:36` (2026-07-10) records the actual decision: reachability "**without forcing the operator to a root-reachable netns**". `"dataplane"` is IPng's production convention, copied on purpose (`54bffb83b` "following IPng production template"; `docs/research/vpp-deployment-reference.md:179-180` "isolates the forwarding plane from the management plane"). The YANG leaf states the model plainly: "Routing daemons run in this namespace" | Thomas rejected the premise, 2026-07-16. The session had ALREADY read `plan/deferrals.md` earlier the same day (it is this spec's Origin section) and still took a code comment as the intent record | Invented a phantom spec (`plan/spec-fixit-vpp-lcp-netns-default.md`, never created) referenced from both specs, and inverted `plan/spec-bgp-netns.md`'s priority to "build it last". **A comment states what its author believed, not what was decided.** Rule updated: `ai/rules/fail-closed-guards.md` "Evidence corollary" |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -901,34 +945,38 @@ NEEDS THOMAS and are the reason this spec is not `ready`.
 | 4 | Do outbound BGP connections (the dialer) need the same treatment? | **NEEDS THOMAS / follow-up.** Not answered by research. `RealDialer` (`network.go:56-117`) has the same structure and would need a matching `Netns` field for a peer whose OUTBOUND session must egress the TAP. For a listener-only LCP peering story it is not required. Recording as a Known Limitation rather than silently scoping it out |
 | 5 | Do web / gnmi / looking-glass listeners need this too? | **NEEDS THOMAS / follow-up.** Research shows they do NOT go through `network.ListenerFactory` (`web/server.go:198`, `lg/server.go:346`, `dnsserver/secure.go:315` each build listeners directly), so BGP is genuinely special TODAY. If an operator wants the whole box in the dataplane namespace, a process-level netns (Q3) is a better answer than per-service leaves |
 | 6 | What happens to `doctor-vpp-lcp-netns` if BGP can bind in the LCP netns? | **ANSWERED: NARROW, do not delete.** It becomes a mismatch check: warn when `vpp.lcp.netns` and the BGP listener netns disagree. That is a real, permanent hazard, whereas "netns is not root-reachable" becomes false once BGP can follow. AC-3, Behavior-to-change #5, Phase 5 |
-| 7 | Should `vpp.lcp.netns` default stay "dataplane"? | **RECOMMEND KEEP, needs Thomas (tied to A-7).** If Problem A lands, "dataplane" stops being a trap and becomes the sensible isolated default. If Problem A is rejected, the default should arguably flip to `host` so the shipped default stops warning out of the box. The right answer depends entirely on the A-7 ruling; do not decide it separately |
+| 7 | Should `vpp.lcp.netns` default stay "dataplane"? | **ANSWERED (user, 2026-07-16): YES, IT STAYS.** The original research verdict, ~~"RECOMMEND KEEP, needs Thomas"~~, was RIGHT. ~~**ANSWERED and MOVED OUT: the default is being FIXED now**, owned by `plan/spec-fixit-vpp-lcp-netns-default.md` (another agent, concurrent).~~ **SUPERSEDED: that reversal was argued from a code comment (`lcp.go:105-108`) against the recorded decision in `plan/deferrals.md:36`, and the spec it named was never created and must not be.** The default is deliberate: IPng's production convention (`54bffb83b`; `docs/research/vpp-deployment-reference.md:179-180`), isolating forwarding from management. CLOSED, not moved |
 | 8 | GoVPP probe or `vppctl show plugins`? | **ANSWERED: GoVPP** (A-5 confirmed). `api.Channel.CheckCompatiblity` (`api/api.go:109`, impl `core/channel.go:184-200`) with `&lcp.LcpDefaultNsGet{}` (`lcp.ba.go:63`). No exec, no text parsing, no side effects (it only resolves a message ID; it never sends). Keeps the check inside the owning plugin per `ai/rules/plugin-self-containment.md`. The vppctl precedent exists only because the central doctor package has no VPP client |
 | 9 | Is a live VPP connection available at `DoctorPhasePostConfig`? Is `GetActiveConnector` usable? | **ANSWERED: NO, and NO** (A-6 BROKEN). Doctor is an offline LOCAL command (`doctor/register.go:13-21`) in its own process; `GetActiveConnector` (`vpp.go:67-80`) returns daemon-process state and is nil there. The check opens its own connector from `vpp/api-socket` (`ze-vpp-conf.yang:39-43`). The phase stays `DoctorPhasePostConfig`; only the connection source changes |
 | 10 | Severity for the LCP plugin check? | **ANSWERED: Warning** (with a flag to Thomas). LCP is on by default (`ze-vpp-conf.yang:177-181`) so Error risks failing doctor for working deployments (R-5), and the probe has an ambiguous failure mode (R-10). Counter-argument worth Thomas's attention: the apply-time consequence is fatal (`1098`: "ze exits at startup"), which argues for Error |
 | 11 | Does `test/ui/doctor-vpp-lcp-netns.ci` exist? | **ANSWERED: NO.** `ls` confirms only `test/ui/doctor-vpp-wireguard.ci` exists among the vpp doctor tests. The delivered netns check has unit coverage but no functional test. Added to Files to Create |
-| 12 | What QEMU rail can prove BGP peering over an LCP TAP? Does any VPP QEMU test exist? | **NOT ANSWERED -- the largest unknown.** No VPP QEMU rail was found. `ai/rules/qemu-testing.md` makes this mandatory for the netns leg, and `1098` records that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), which is an image-provisioning problem on top of a test-rail problem. → Constraint: identify the rail before Phase 3 or the netns leg has an unbounded tail. Strongest argument for the A-8 split |
-| 13 | Split into `spec-bgp-netns` + a doctor follow-up? | ~~**RECOMMEND SPLIT, needs Thomas** (A-8).~~ **ANSWERED -- -> Decision (user, 2026-07-16): SPLIT.** No longer open. Problem B is one check, one code, one `.ci`, no config surface, no QEMU rail. Problem A needs a config surface, reactor surgery, a kernel-semantics prototype, a QEMU rail that does not exist, and rulings on Q3/Q4/Q5/Q7. Bundling holds a ready fix behind an unapproved design. The deferrals row already anticipated `spec-bgp-netns`. See Task -> "The 2026-07-16 split" for what each half becomes. **The new spec file is NOT created by the recording session** -- its name and scope are proposed for Thomas to confirm first |
+| 12 | What QEMU rail can prove BGP peering over an LCP TAP? Does any VPP QEMU test exist? | **MOVED to `plan/spec-bgp-netns.md`** (it is a netns-leg question; this half needs no QEMU rail). Partly answered there 2026-07-16: the netns BIND rail exists and auto-discovers (`ZE_QEMU_INTEGRATION_PKGS`, `mk/test-integration.mk:319`). The residual, still unanswered, is the VPP+LCP end-to-end rail: `1098` records that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), an image-provisioning problem on top of a test-rail problem. It was the strongest argument for the A-8 split, which is now done |
+| 13 | Split into `spec-bgp-netns` + a doctor follow-up? | ~~**RECOMMEND SPLIT, needs Thomas** (A-8).~~ **ANSWERED -- -> Decision (user, 2026-07-16): SPLIT.** No longer open. Problem B is one check, one code, one `.ci`, no config surface, no QEMU rail. Problem A needs a config surface, reactor surgery, a kernel-semantics prototype, a QEMU rail that does not exist, and rulings on Q3/Q4/Q5/Q7. Bundling holds a ready fix behind an unapproved design. The deferrals row already anticipated `spec-bgp-netns`. See Task -> "The 2026-07-16 split" for what each half becomes. ~~**The new spec file is NOT created by the recording session** -- its name and scope are proposed for Thomas to confirm first~~ **DONE 2026-07-16: `plan/spec-bgp-netns.md` created, with AC-1/2/3/8/9/10 and Phases 2-6 moved into it** |
 
 ## Decisions Needed From Thomas (blocking `ready`)
 
+-> Constraint: after the 2026-07-16 rulings, **only decision 4 (Q10) remains for this spec, and
+it is not a blocker.** Decisions 1 and 3 are answered or moved. Nothing technical stands
+between this spec and implementation; it waits only on Thomas's `ready` promotion.
+
 | # | Decision | Why it cannot be decided from code |
 |---|----------|-----------------------------------|
-| 1 | **A-7:** is a non-root LCP netns a capability worth supporting, or should LCP be forced to the host netns with the doctor warning kept? | Code shows the capability is deliberate (`lcp.go:109-115` passes non-root through "so the operator can isolate the TAP deliberately"; YANG defaults to "dataplane"), but only Thomas knows whether operators want it. Everything in Problem A depends on this |
+| 1 | ~~**A-7:** is a non-root LCP netns a capability worth supporting, or should LCP be forced to the host netns with the doctor warning kept?~~ **ANSWERED (user, 2026-07-16): YES, support it. It is the default and the documented model; forcing LCP to the host netns is REJECTED.** No longer blocking anything. ~~"Both: fix the default now, keep netns as real work"; the default fix is `plan/spec-fixit-vpp-lcp-netns-default.md`~~ **SUPERSEDED: the default STAYS and that spec was never created.** The whole answer is `plan/spec-bgp-netns.md`, priority RAISED | ~~Code shows the capability is deliberate, but only Thomas knows whether operators want it~~ Answered. The code could not say whether operators want it, but it COULD say the unreachable case is the DEFAULT (`ze-vpp-conf.yang:199-201` + `doctor.go:136-143`). That reframing was right; the follow-on claim that the default therefore CONTRADICTED its intent was wrong, because it read a code comment (`lcp.go:105-108`) instead of the recorded decision (`plan/deferrals.md:36`) |
 | 2 | ~~**A-8:** split Problem B into its own spec and let it ship now?~~ **DECIDED (user, 2026-07-16): SPLIT.** No longer blocking. This spec keeps Problem B (the doctor check) and ships it; the netns half moves to a new spec that is not yet created (name/scope pending Thomas's confirmation). See Task -> "The 2026-07-16 split" | ~~A scope call, not a technical one~~ Decided by Thomas: the two are unrelated problems sharing a filename. Note the split does NOT unblock the netns half, which still waits on decision 1 (A-7) below |
-| 3 | **Q3:** the BGP netns config surface shape (per-listener YANG leaf vs process-level setting) | Design choice with a downstream effect on Q4/Q5; `ai/rules/config-surface.md` governs but does not decide |
+| 3 | ~~**Q3:** the BGP netns config surface shape (per-listener YANG leaf vs process-level setting)~~ **MOVED to `plan/spec-bgp-netns.md`**, where it is the remaining gate on that spec's `ready`. Not this spec's decision: the doctor half has no config surface | Design choice with a downstream effect on Q4/Q5; `ai/rules/config-surface.md` governs but does not decide |
 | 4 | **Q10:** Warning vs Error for `doctor-vpp-lcp-plugin` | A judgement about operator impact: Warning is safer (R-5), Error matches the fatal apply consequence |
 | 5 | Out-of-scope but found: the `doctor-vpp-wireguard` description (`codes.go:291`) over-claims a runtime check that does not exist; and `doctor.go:15` / `lcp.go:13` reference "(A-4)" in a retired spec that should point at `plan/learned/1098-followup-vpp-iface.md` | Both are pre-existing defects outside this spec's Task. Fix here or as a separate fixit? |
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated
+- [ ] AC-4, AC-5, AC-6, AC-7, AC-11, AC-12 all demonstrated (AC-1/2/3/8/9/10 moved to `plan/spec-bgp-netns.md`)
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete (every row has a concrete test name, none deferred)
 - [ ] `/ze-review` gate clean (Review Gate section filled: 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
-- [ ] QEMU integration test for the linux-only netns leg (`ai/rules/qemu-testing.md`)
+- [ ] QEMU: N/A for this half. The doctor check is host-testable; the linux-only netns leg and its QEMU gate moved to `plan/spec-bgp-netns.md` (`ai/rules/qemu-testing.md`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

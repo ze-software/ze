@@ -18,10 +18,14 @@ route and ensure that it can not be invalid?", the answer is **partly**:
 failure at runtime.** Both halves ship; the runtime error is not made redundant by the
 validation. "Cannot be invalid" is **not reachable**: an interface next-hop may legitimately
 name an interface ze does not configure (an externally-created tunnel), and resolution needs
-a runtime ifindex lookup, so a route can be config-valid and runtime-unresolvable. The
+a runtime ifindex lookup, so a route can be config-valid and runtime-unresolvable. ~~The
 config-validate half is **blocked on a new open question**: widening `WantsConfig`
 (`register.go:224`) to include `"interface"` changes what config the static plugin receives,
-and that is Thomas's call. **D-1 and D-3 remain open.** Read Design Decisions ->
+and that is Thomas's call.~~ **UNBLOCKED 2026-07-16: Thomas approved the widening to
+`["static", "interface"]` (C-8).** The config-validate half is buildable. The accepted cost
+(static is enqueued on every `interface` change) and the two mechanisms that keep it cheap
+are recorded under Design Decisions -> "Decision (user, 2026-07-16): WIDEN `WantsConfig`".
+**D-1 and D-3 remain open.** Read Design Decisions ->
 "Decision (user, 2026-07-16)" before implementing either leg. **Status stays `design`;
 promotion to `ready` is Thomas's gate and has not been given.**
 
@@ -284,7 +288,8 @@ is no lookup to fix, only an absent one to add.
 | C-4 | `toVPPRoute` refuses to resolve when the active iface backend is NOT vpp | `backend_vpp_linux.go`, + a new exported accessor on `internal/component/iface` | R-7: the two backends are independent globals (`vpp.go:75`, `iface/backend.go:271`); resolving through a netlink backend would emit a KERNEL ifindex as a VPP `sw_if_index` -- a silently wrong path. Subject to D-1 |
 | C-5 | `toFibPath` selects the path proto from the ROUTE's family when the next-hop address is unset, instead of defaulting to IP6 | `internal/plugins/static/vpp/backend.go:111-133` | A-2 broken: zero `netip.Addr` -> `Is4()==false` -> `PROTO_IP6` for an IPv4 route |
 | C-6 | `005-table-interface.ci` gains `option=needs-linux`, an `interface { backend netlink }` stanza, and creates `tun100` | `test/static/005-table-interface.ci` | A-5: it fails on darwin at `backend_other.go`, never reaching the path it claims to test |
-| C-7 | Per-route error isolation (AC-3) | `internal/plugins/static/inject.go:62-93` | Subject to D-3; today one bad next-hop drops the whole section |
+| C-7 | Per-route error isolation (AC-3) | `internal/plugins/static/inject.go:62-93` | Subject to D-3; today one bad next-hop drops the whole section. **NEW constraint (2026-07-16):** whatever D-3 answers, C-7 must PRESERVE the `routesEqual` diff at `:84-86` -- C-8 depends on it (see R-10) |
+| C-8 | **NEW (Thomas, 2026-07-16).** `WantsConfig: []string{pluginName, "interface"}` so the static plugin is delivered the `interface` subtree and the config-validate half becomes buildable | `internal/plugins/static/register.go:224` | `BuildPluginConfigSections` sends only declared roots (`plugin_verify.go:143-157`), so this is the ONLY way static can see interface config. Precedent: `bmp.go:270` declares two roots. Cost owned in R-10 |
 
 → Decision: C-1 is the linux leg. There is NO change to `resolveNexthopIndex`'s mechanism
   (`backend_linux.go:97-103`) beyond message quality: going through `iface.Resolve` is
@@ -429,6 +434,8 @@ resolution path") and `ai/rules/plugin-self-containment.md` (static never spells
 | A-5b | The static suite is not in the default gate, which is why `005` (and `004`) rotted unnoticed | `mk/test-functional.mk:20` "(release evidence only)"; `:49` names static as excluded; `mk/test-release.mk:71` runs it only as release extra | The reds would have been caught earlier and mean something else | Read the makefiles | **confirmed** |
 | A-6 | The two problems share enough design to stay one spec | Both are the same user-visible symptom on one next-hop form | Split into two specs at DESIGN | DESIGN review | **confirmed (stronger than assumed)** |
 | A-6a | The two legs now share ONE mechanism, so splitting would duplicate the design | Both legs resolve through `iface.Resolve` (`backend_linux.go:98`; C-3) and both depend on the same backend-ordering/identity questions (C-1, C-4) | Split into two specs | DESIGN review | **confirmed** |
+| A-8 | **NEW (C-8).** Re-running static's verify/apply on an unrelated `interface` change is idempotent and cheap enough to accept | `register.go:110-124`/`:148-157` no-op today when no `static` section is delivered (`pendingRoutes` stays nil, `:155` early-returns); after the feature lands, `applyRoutes` (`inject.go:62-93`) skips unchanged routes via `routesEqual` (`diff.go:10-25`), which compares next-hop `Address` AND `Interface` | C-8's accepted cost would be wrong: every interface edit would reprogram routes. Thomas would need to re-decide | Read the producers (done 2026-07-16). At implementation: a test delivering an interface-only reload asserts zero `applyRouteLocked` calls | **confirmed** 2026-07-16 |
+| A-9 | **NEW (C-8).** `VerifyBudget: 1` / `ApplyBudget: 2` (`register.go:225-226`) need no change under C-8 | `registration.go:72-73` documents them as "Estimated verify/apply time in seconds". C-8 makes static participate in MORE transactions but makes each interface-triggered run CHEAPER than a static-triggered one (A-8), so the existing worst-case estimates stay valid | The budgets under-estimate and a reload transaction times out on interface edits | Confirm no timeout regression when the full functional suite runs under C-1+C-8 (R-8 already mandates the full suite) | **confirmed by reading; runtime unvalidated** |
 | A-7 | `tun100` does not exist in the test environment and nothing in `005` creates it | `005-table-interface.ci:52-74`: the config declares only `routing-table` and `static`; no `interface` stanza, no device creation; the driver (`:9-50`) only polls and queries | A device already exists and R-2 is moot | Read the `.ci` in full | **confirmed** |
 
 ### Risks
@@ -444,6 +451,8 @@ resolution path") and `ai/rules/plugin-self-containment.md` (static never spells
 | R-7 | **NEW.** The static dataplane and the iface backend are chosen by two independent globals, so a VPP static backend can resolve names against a NETLINK iface backend and emit a kernel ifindex as a VPP `sw_if_index` -- a silently wrong path | Config has a VPP connector plus `interface { backend netlink }`; the route programs "successfully" to the wrong VPP interface | C-4/D-1: gate resolution on the active iface backend being vpp, and error otherwise. Producers: `backend_vpp_linux.go:31` (`GetActiveConnector`) vs `iface/register.go:414` (`LoadBackend`); `vpp.go:75-85` and `iface/backend.go:248` are unrelated globals. This is the same class of hazard as the index-0 trap `backend_vpp_linux.go:69-72` guards |
 | R-8 | **NEW.** `OptionalDependencies: ["interface"]` changes daemon startup ordering for EVERY config that has both stanzas, not just interface-next-hop ones | Startup-order-sensitive tests shift; a latent ordering assumption elsewhere breaks | The dependency is optional and additive (`registry.go:998-1006` constrains only when present), and it moves static LATER, never earlier. Run the full functional suite, not just `test/static/` |
 | R-9 | **NEW.** `iface.Resolve` caches per logical name (`resolve.go:82-100`) and the cache is invalidated by monitor link events. A name resolved BEFORE the device exists could cache a failure or a stale index | A static route keeps a stale ifindex after an interface is recreated | Read `resolve.go`'s invalidation path before implementing; failures are NOT cached today (`:90-93` returns before the cache write), so the risk is stale-index-after-recreate, which the monitor's `LinkEvent` path is designed to handle. Confirm during implementation |
+| R-10 | **NEW (the OWNED cost of C-8, accepted by Thomas 2026-07-16).** Widening `WantsConfig` to include `interface` enqueues static into the reload transaction on EVERY `interface` change, including edits that cannot affect any static route (an MTU tweak). Its verify/apply re-runs where today it would not run at all | An `interface`-only config edit shows static in the reload transaction's participant set / its `VerifyBudget`+`ApplyBudget` charged to that transaction | **Accepted, not mitigated away.** The cost is bounded by two independent mechanisms, both verified at their producers: (1) `applyRoutes` is diff-based -- `routesEqual` (`diff.go:10-25`) short-circuits every unchanged route at `inject.go:84-86`, so an MTU tweak yields NO netlink/VPP call and NO redistribute event; (2) `rootHasChanges` (`reload.go:297-319`) still gates on the `interface` root actually changing, so unrelated roots (`bgp`, `firewall`) never enqueue static. Net cost: a JSON parse plus a map diff. **NOT route churn, NOT a FIB rewrite.** Guard: R-10 is only true while (1) holds -- see the C-7 constraint |
+| R-11 | **NEW.** C-8 makes static's handlers receive section lists that contain `interface` but NOT `static` (an interface-only reload builds a section only per CHANGED root, `reload.go:224-243`). Feature code that assumes a `static` section is always present would nil-deref or silently wipe the route set | An interface-only reload logs a static error, or drops all static routes | Today's handlers are already correct by construction (`register.go:113`, `:128` skip non-`static` roots; `:155` early-returns on nil `pendingRoutes`). The risk is a REGRESSION introduced by the feature work, not an existing bug. Pin it with a test that delivers an interface-only section list and asserts the installed route set is unchanged |
 
 ### Decisions Needed (BLOCKING approval -- Thomas)
 
@@ -516,17 +525,85 @@ runtime error, whereas (c) proposed rejection **instead of** it.
 Config-time validation of the reference makes the whole-section-failure question *less
 frequent*, never moot: reasons 1 and 2 above still produce runtime failures that D-3 governs.
 
-**-> OPEN QUESTION FOR THOMAS (new, raised by this decision): is widening `WantsConfig` to
+~~**-> OPEN QUESTION FOR THOMAS (new, raised by this decision): is widening `WantsConfig` to
 include `"interface"` acceptable?** It changes what config the static plugin receives, which
-is a real coupling decision, not a detail:
-- It gives static a read dependency on the `interface` section (read-only; `WantsConfig` is
-  "roots this plugin reads, not owner" per `internal/component/config/transaction/orchestrator.go:58`).
-- It widens the reload surface: `reload.go:214-226` selects affected plugins by matching
+is a real coupling decision, not a detail:~~
+- ~~It gives static a read dependency on the `interface` section (read-only; `WantsConfig` is
+  "roots this plugin reads, not owner" per `internal/component/config/transaction/orchestrator.go:58`).~~
+- ~~It widens the reload surface: `reload.go:214-226` selects affected plugins by matching
   changed roots against `WantsConfigRoots`, so static would be reconfigured on **every**
-  `interface` change, not just `static` ones.
-- Without the widening, the config-validate half of this decision **cannot be implemented at
-  all** and only the runtime half survives.
-  Not actioned by the recording session: this is Thomas's call.
+  `interface` change, not just `static` ones.~~
+- ~~Without the widening, the config-validate half of this decision **cannot be implemented at
+  all** and only the runtime half survives.~~
+  ~~Not actioned by the recording session: this is Thomas's call.~~
+
+### -> Decision (user, 2026-07-16): WIDEN `WantsConfig` to `["static", "interface"]`. ANSWERED.
+
+**Thomas approved the widening**, on the grounds that without it the config-validate half of
+the decision above is not buildable at all: no amount of code inside the static plugin can
+reach a section it is never sent. The question above is CLOSED; the cost is accepted with
+open eyes and recorded as C-8 / R-10 / A-8 below rather than left to be rediscovered.
+
+**Mechanism (every hop verified at its producer 2026-07-16):**
+
+| Step | Producer | What it does |
+|------|----------|--------------|
+| Today's declaration | `internal/plugins/static/register.go:224` | `WantsConfig: []string{pluginName}` -- exactly one root, `"static"` (`register.go:24`) |
+| Why that blinds static | `internal/component/config/plugin_verify.go:143-157` `BuildPluginConfigSections` | `for _, root := range roots { subtree := ExtractConfigSubtree(configTree, root) ... }` -- it iterates **only the declared roots**. A section outside them is never marshalled and never sent. This is the structural cut |
+| Multi-root is already in use | `internal/component/bgp/plugins/bmp/bmp.go:270` | `WantsConfig: []string{"bgp", "environment"}` -- two roots, shipping today. The widening uses an existing shape, it does not invent one |
+
+-> Constraint: the change is a ONE-LINE declaration edit at `register.go:224`. It is
+mechanically available and carries no new mechanism. What it does carry is a runtime cost,
+below, which is OWNED as of this decision.
+
+**The OWNED cost, measured at the producers (2026-07-16). It is MILDER than the
+characterisation Thomas approved on, and the spec records the true shape:**
+
+| Hop | Producer | What actually happens |
+|-----|----------|----------------------|
+| Reload selects affected plugins | `internal/component/plugin/server/reload.go:214-226` | Iterates every process's `reg.WantsConfigRoots` and builds a section per root. Confirmed: matching IS by declared root |
+| ...but only for roots that changed | `reload.go:227` -> `rootHasChanges` (`:297-319`) | `if !rootHasChanges(diff, root) { continue }`. `rootHasChanges` prefix-matches the root against `diff.Added` / `Removed` / `Changed`. So static is enqueued on an `interface` change, and ONLY then; an unrelated `bgp` edit does not touch it |
+| A plugin with no changed section is dropped | `reload.go:245-247` | `if len(sections) > 0` gates the `affected` append. So the transaction only carries plugins with a genuinely changed root |
+
+-> Constraint: **so yes, an unrelated MTU tweak DOES enqueue static into the reload
+transaction.** That half of the characterisation is correct and is the accepted cost. What it
+does NOT do is rewrite the FIB, and the spec must not let a later session assume it does.
+
+**Is the re-apply idempotent and cheap? YES, at two independent layers:**
+
+| Layer | Producer | Why the re-apply is a no-op |
+|-------|----------|----------------------------|
+| 1. Today, before the feature exists | `register.go:110-124` (`OnConfigVerify`) and `:148-157` (`OnConfigApply`) | Verify skips any section whose `Root != pluginName` (`:113`), so an interface-only change leaves `pendingRoutes` nil. Apply then hits `if newRoutes == nil { return nil }` (`:155-157`) and returns before touching the journal or the route manager. A pure no-op |
+| 2. After the feature exists, when static DOES consume `interface` | `inject.go:62-93` (`applyRoutes`) | `applyRoutes` is DIFF-BASED, not a rewrite: it removes only keys absent from the new set (`:72-79`), and for each incoming route `if existing != nil && routesEqual(existing.route, r) { continue }` (`:84-86`) skips it entirely. No `applyRouteLocked`, no `programRouteLocked`, no netlink/VPP call, no redistribute event |
+| The equality test is the right one | `diff.go:10-25` (`routesEqual`) | Compares table/action/metric/tag/description and the SORTED next-hop set including `Address` **and** `Interface` (`:17-23`, `sortedNextHops` `:27-37`). So a genuine interface-derived next-hop change IS detected and reprogrammed; an MTU tweak yields equal routes and is skipped |
+
+-> Decision (user, 2026-07-16): the cost is **a parse plus a map diff on every `interface`
+edit**, not route churn and not a FIB rewrite. It is accepted. The two layers above are the
+REASON it is acceptable, so neither may be removed casually: layer 2 (`routesEqual`) is what
+stands between this decision and the route churn Thomas was warned about.
+
+-> Constraint: **`routesEqual` (`diff.go:10-25`) is load-bearing for this decision.** Any
+future change that makes `applyRoutes` unconditional, or that drops the `routesEqual`
+short-circuit at `inject.go:84-86`, converts every interface edit into a full static-route
+reprogram. If C-7 (D-3, per-route isolation) reworks `inject.go:62-93`, it MUST preserve the
+diff, and that is now a constraint on D-3's answer, not a detail of it.
+
+-> Constraint: the real recurring charge is the **transaction budget**, not the dataplane.
+`VerifyBudget: 1` / `ApplyBudget: 2` (`register.go:225-226`) are "estimated verify/apply time
+in seconds" (`internal/component/plugin/registration.go:72-73`). Widening `WantsConfig` means
+static joins the reload transaction for every `interface` change and charges its 1s/2s
+estimate to that transaction's budget. The estimates stay CORRECT (the work shrinks, it does
+not grow), so no budget edit is required by this decision; the change is that they are now
+charged more often. If implementation shows the interface-triggered path is measurably
+cheaper than the static-triggered one, the budgets are estimates for the WORST case and
+should stay as they are.
+
+-> Constraint: static must keep tolerating a section list that does NOT contain `static`. On
+an interface-only reload the transaction delivers `[{Root: "interface"}]` alone
+(`reload.go:224-243` builds a section only per CHANGED root). Today's handlers already do
+this correctly by construction (`register.go:113`, `:128` skip non-`static` roots; `:155`
+early-returns). The feature work must not regress it by assuming a `static` section is always
+present.
 
 ## Wiring Test (MANDATORY)
 
@@ -633,7 +710,12 @@ Confirmed by the 2026-07-16 research.
   (`:111-133`). Without this an interface-only IPv4 route encodes as `PROTO_IP6` (A-2a).
 - `internal/plugins/static/register.go` - **C-1 (NEW, not in the skeleton).** Add
   `OptionalDependencies: ["interface"]` to the registration (`:46-61`) to close the tier
-  race (A-1c).
+  race (A-1c). **C-8 (NEW, Thomas 2026-07-16):** widen `WantsConfig` at `:224` from
+  `[]string{pluginName}` to `[]string{pluginName, "interface"}`. One-line declaration edit;
+  `BuildPluginConfigSections` (`plugin_verify.go:143-157`) then delivers the `interface`
+  subtree too. Precedent `bmp.go:270`. Budgets at `:225-226` are unchanged (A-9). The verify
+  and configure handlers (`:110-124`, `:126-144`) keep their `Root != pluginName` skips, so
+  the new section is inert until the config-validate leg consumes it (R-11).
 - `internal/component/iface/` - **C-4 (NEW, subject to D-1).** A small exported accessor for
   the active backend's NAME. None exists today: `vppBackendName` is unexported
   (`backend.go:41`) and `LoadBackend` (`:271-298`) does not record the name. Additive; no
@@ -880,7 +962,7 @@ and 4 are unaffected by all three.
 | 1 | Does `static` run in-process (sharing `activeBackend`) or as a subprocess? | **IN-PROCESS.** So `activeBackend` IS shared, and the process-boundary hypothesis is dead. Problem A is a product bug, but for two other reasons (A-1b, A-1c). | `startup_autoload.go:132-136` (`Internal: true`); `process.go:456-457` -> `startInternal` `:465-520` runs `RunEngine` in a daemon goroutine |
 | 2 | Does `005` fail today, and with WHICH error? | **FAILS, with a THIRD error the spec never considered:** `static routes: not supported on this platform (Linux required)`. It dies at the platform guard on darwin and never reaches `iface.Resolve` or `tun100`. | `make ze-static-test` run 2026-07-16; producer `backend_other.go`. Also `004-show` fails unrelatedly (stale `next-hop` config field) |
 | 3 | Is `tun100` expected to exist, and who creates it? | **Nobody creates it.** The `.ci` declares only `routing-table` + `static`; no device is made. C-6 must create one (a dummy link suffices). | `005-table-interface.ci:52-74`; A-7 |
-| 4 | Config-verify rejection or runtime error for the no-backend case? | ~~**Runtime error + doctor check recommended (D-2).** Config-verify is NOT available to the static plugin: `WantsConfig: ["static"]` means it never sees the `interface` section, so it cannot know whether a backend will load.~~ **SUPERSEDED -> Decision (user, 2026-07-16): BOTH -- config-validate the reference where possible, AND still handle resolution failure at runtime.** The "not available" finding is correct but its qualifier matters: config-verify is unavailable **as it stands**, because of a declaration the spec can change (`register.go:224`), not a law of the architecture. Widening `WantsConfig` to `["static", "interface"]` (precedent: `bmp.go:270` declares two roots) would deliver the `interface` subtree and catch the common typo'd-name case. It would NOT make routes un-invalidatable: an interface next-hop may name an externally-created interface ze does not configure, and resolution still needs a runtime ifindex lookup. So the runtime error + doctor check STAY as the backstop. **New open question for Thomas: is widening `WantsConfig` acceptable?** See Design Decisions -> "Decision (user, 2026-07-16)" | `static/register.go:224`, `plugin_verify.go:143-157`, `startup.go:701-705`; supersedes D-2 |
+| 4 | Config-verify rejection or runtime error for the no-backend case? | ~~**Runtime error + doctor check recommended (D-2).** Config-verify is NOT available to the static plugin: `WantsConfig: ["static"]` means it never sees the `interface` section, so it cannot know whether a backend will load.~~ **SUPERSEDED -> Decision (user, 2026-07-16): BOTH -- config-validate the reference where possible, AND still handle resolution failure at runtime.** The "not available" finding is correct but its qualifier matters: config-verify is unavailable **as it stands**, because of a declaration the spec can change (`register.go:224`), not a law of the architecture. Widening `WantsConfig` to `["static", "interface"]` (precedent: `bmp.go:270` declares two roots) would deliver the `interface` subtree and catch the common typo'd-name case. It would NOT make routes un-invalidatable: an interface next-hop may name an externally-created interface ze does not configure, and resolution still needs a runtime ifindex lookup. So the runtime error + doctor check STAY as the backstop. ~~**New open question for Thomas: is widening `WantsConfig` acceptable?**~~ **ANSWERED (user, 2026-07-16): YES -- widen to `["static", "interface"]` (C-8).** Cost accepted and recorded in R-10/R-11/A-8/A-9. See Design Decisions -> "Decision (user, 2026-07-16): WIDEN `WantsConfig`" | `static/register.go:224`, `plugin_verify.go:143-157`, `startup.go:701-705`; supersedes D-2 |
 | 5 | Whole-section failure or per-route isolation? | **OPEN -- D-3, needs Thomas.** Today's behavior is worse than the skeleton recorded: it fails the section AND aborts daemon startup. | `inject.go:87-92` -> `register.go:138-140`; observed in the `005` run |
 | 6 | What is the right boundary for VPP name -> `sw_if_index` resolution? | **No new boundary.** The existing shared `iface.Resolve` already returns the VPP index; static uses the same call the netlink backend uses. `resolveIndex` stays private, `ifacevpp.go` is untouched, R-4 retired. | `query.go:232` -> `resolve.go:216`; A-3a |
 | 7 | Is `b.names` populated when static applies (ordering)? | **MOOT for `b.names`** (static never touches it). But the ORDERING question is real and was the hidden linux bug: static races the iface backend load because it declares no dependency on `interface`. | A-1c; `startup.go:341-348`, `registry.go:970-1006` |
@@ -890,7 +972,10 @@ and 4 are unaffected by all three.
 
 ### Still open for Thomas
 
-- **D-1, D-2, D-3** (see Decisions Needed).
+- ~~**Widening `WantsConfig` to include `"interface"`**~~ **ANSWERED 2026-07-16: approved
+  (C-8).** Cost owned in R-10/R-11, A-8/A-9.
+- **D-1, D-2, D-3** (see Decisions Needed). D-3 now carries an extra constraint from C-8:
+  any rework of `inject.go:62-93` must preserve the `routesEqual` diff (R-10).
 - **Q9**: fix sibling `iface.Resolve` consumers in the same work, or leave them?
 - **A-4's operator half**: the YANG proves the form was designed deliberately (A-4a), but
   whether operators actually rely on it is a product judgement, not a code fact.

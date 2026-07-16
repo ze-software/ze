@@ -23,7 +23,12 @@
 > forced by the 2026-07-16 shard-model approval". `rebase_learned.py` is **no longer
 > uncommitted**: it landed in `84f9f2d1f`, so the "coordinate before touching" caveat
 > throughout this file is obsolete. **Status stays `design`; promotion to `ready` is
-> Thomas's gate and has not been given.** Open questions 4 and 5 remain open.
+> Thomas's gate and has not been given.** ~~Open questions 4 and 5 remain open.~~
+>
+> **2026-07-16, Thomas: R-6 is MANDATORY for phase 1 -- confirmed explicitly, not only by
+> implication.** Open question 5 is therefore **ANSWERED (in phase 1)** and is no longer a
+> gate on `ready`. **Only open question 4 (AC-2 scope) remains open.** Both `:1122` and
+> `main()`'s handler were re-verified at the producers on 2026-07-16 (see question 5).
 
 ## Task
 
@@ -525,7 +530,7 @@ coding"). Two came back broken. Evidence is in Current Behavior.
   entire bug. Generating the aggregate to a file recreates that shape one layer up. Fold
   on read, never store (R-1).
 
-### ~~Needs Thomas's decision (blocking `ready`)~~ -- items 1-3 ANSWERED 2026-07-16
+### ~~Needs Thomas's decision (blocking `ready`)~~ -- items 1-3 and 5 ANSWERED 2026-07-16; only 4 remains
 
 1. ~~**Approve the shard model** in "Shard Model (Decisions)": per-record keys (spec stem /
    test name / summary filename), single writer per path, aggregate as an unstored fold.~~
@@ -594,17 +599,45 @@ session dies on a traceback instead of allocating the next number. Today that is
 because `.counter` raises the floor and makes the collision rare. Once `.counter` is deleted,
 `O_EXCL` at `:1122` becomes the **sole** allocation mechanism and the crash becomes the
 routine concurrent path. Phase 1 must wrap it in a bounded retry that re-globs and
-re-allocates (~5 lines). This answers open question 5 below in the affirmative by
-implication; it is recorded here because the decision to delete `.counter` is what makes it
-mandatory rather than optional.
+re-allocates (~5 lines). ~~This answers open question 5 below in the affirmative by
+implication;~~ **SUPERSEDED 2026-07-16: Thomas confirmed R-6 for phase 1 EXPLICITLY, so
+question 5 is answered outright, not by implication.** It is recorded here because the
+decision to delete `.counter` is what makes it mandatory rather than optional; see question 5
+for the re-verified producer citations.
 
 4. **AC-2 scope.** `/ze-status` is a prompt, not a program (A-3), so "one step answers
    what is open" is satisfied by a prompt edit and cannot be automatically tested. Accept
    that, or is a real machine-readable aggregate renderer in scope? The latter is a scope
    increase and no consumer needs it today.
-5. **R-6 in or out of phase 1?** Deleting `.counter` makes `O_EXCL` at `:1122` the sole
+5. ~~**R-6 in or out of phase 1?** Deleting `.counter` makes `O_EXCL` at `:1122` the sole
    allocation mechanism, and its loser currently dies on an uncaught `FileExistsError`
-   rather than retrying. Recommend in: it is ~5 lines and the bug becomes load-bearing.
+   rather than retrying. Recommend in: it is ~5 lines and the bug becomes load-bearing.~~
+   **-> Decision (user, 2026-07-16): IN. R-6 is MANDATORY for phase 1.** Thomas confirmed
+   the recommendation. This is no longer "answered by implication" of the `.counter`
+   deletion (the framing at "Constraints forced by the 2026-07-16 shard-model approval"):
+   it is an explicit decision, and question 5 is CLOSED. It does not gate `ready`.
+
+   **Both citations re-verified at the producers, 2026-07-16 (this session):**
+
+   | Claim | Producer | Verified text |
+   |-------|----------|---------------|
+   | The `O_EXCL` open has no handler | `scripts/dev/commit_helper.py:1122`, inside `learned_next` (`:1097`) | `fd = os.open(path, os.O_WRONLY \| os.O_CREAT \| os.O_EXCL, 0o644)`. No `try` encloses it: `:1116-1119`'s `try` covers only the `.counter` read (`except (OSError, ValueError)`), and it CLOSES at `:1119`, four lines before the open. The next statement after `:1122` is `with os.fdopen(fd, "w")` (`:1123`) |
+   | `main()` catches only `UsageError` | `scripts/dev/commit_helper.py:1236-1239` (function spans `:1233-1240`) | `try: return args.func(args)` / `except UsageError as exc:` -- the ONLY except clause. `FileExistsError` is an `OSError`, not a `UsageError`, so it is uncaught |
+   | The crash is reachable from the CLI | `:1155` `learned_cmd.set_defaults(func=learned_next)`; `:1244` `raise SystemExit(main(sys.argv[1:]))` | `commit_helper.py learned ...` dispatches to `learned_next`. The `FileExistsError` propagates out of `main()` BEFORE `SystemExit` is constructed, so the session gets a Python traceback and exit 1, not a clean error |
+
+   -> Constraint: **cosmetic today, load-bearing after phase 1.** The severity flips within
+   this spec's own phase 1, which is why it cannot be deferred out of it: `.counter` raising
+   the allocation floor (`:1120` `number = max(highest + 1, counter)`) is the only reason the
+   `O_EXCL` collision is rare today. Delete `.counter` and `:1122` becomes the SOLE mutual
+   exclusion, making the uncaught traceback the routine concurrent path. Shipping phase 1
+   without R-6 would convert a rare cosmetic crash into a common one -- a regression
+   introduced by this spec, not a pre-existing bug left alone.
+
+   -> Constraint: the fix is a bounded retry that re-globs and re-allocates around `:1122`
+   (~5 lines), NOT a broadened `except` in `main()`. Catching `FileExistsError` at `:1236-1239`
+   would turn the traceback into a clean error message while still failing to allocate; the
+   requirement is that the losing session SUCCEEDS with the next free number. Pinned by
+   `test_learned_next_retries_on_existing` (TDD Test Plan), which is RED today.
 
 ## Checklist
 
