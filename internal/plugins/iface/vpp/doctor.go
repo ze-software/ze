@@ -120,9 +120,18 @@ func checkVPPLCPNetns(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	if lcpNetnsIsRootReachable(netns) {
 		return nil
 	}
+	// Remediation: there is no config-only fix. No value of vpp.lcp.netns puts
+	// the TAPs where a root-netns ze can bind, because VPP resolves the leaf as
+	// a namespace NAME under /var/run/netns/ (linux-cp lcp_get_default_ns, third_party/vpp-linux-cp/src/lcp.c) -- host and root
+	// are not the host namespace -- and ze has no netns-aware listener
+	// (RealListenerFactory.Listen, internal/core/network/network.go:167). Naming
+	// a value here is what the previous message did, and following it fails LCP
+	// pair creation. The long form lives in the registered code's description
+	// (internal/core/diagnostic/codes.go), which ze explain prints.
 	var tb textbuf.Buffer
 	msg := tb.Str("bgp is enabled and vpp.lcp.netns=").Quoted(netns).
-		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. Set vpp.lcp.netns to host or root, or run BGP in that namespace.").String()
+		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. No vpp.lcp.netns value fixes this: VPP resolves the leaf as a namespace name under /var/run/netns/, so host and root are not the host namespace. Run ze in the ").Quoted(netns).
+		Str(" namespace so BGP binds where the TAPs are, or see ze explain doctor-vpp-lcp-netns").String()
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-vpp-lcp-netns",
 		Severity: diagnostic.SeverityWarning,
@@ -130,9 +139,18 @@ func checkVPPLCPNetns(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	}}
 }
 
-// lcpNetnsIsRootReachable reports whether an LCP netns name denotes the host
-// (root) network namespace, where ze's BGP listener runs by default. VPP's
-// per-pair netns override maps these to the host netns.
+// lcpNetnsIsRootReachable reports whether an LCP netns name is one ze TREATS as
+// the host (root) network namespace, where its BGP listener runs by default.
+//
+// This is a statement about ze's own marker set ("", host, root), not about VPP.
+// VPP has no special namespace names: it resolves vpp.lcp.netns to the path
+// /var/run/netns/<name> (linux-cp lcp_get_default_ns, third_party/vpp-linux-cp/src/lcp.c), and resolves an EMPTY per-pair netns
+// to the GLOBAL default (lcp_interface.c:856-861), which ze always writes from
+// this same leaf when LCP is enabled (internal/component/vpp/startupconf.go:106).
+// So netns=host makes VPP open /var/run/netns/host rather than stay in its own
+// namespace, and these markers are not the escape hatch they look like. Verified
+// in VPP's C sources, not in the generated binapi stub, which documents only that
+// the field exists; recorded as A-13 in plan/spec-bgp-netns.md.
 func lcpNetnsIsRootReachable(netns string) bool {
 	switch netns {
 	case "", "host", "root":

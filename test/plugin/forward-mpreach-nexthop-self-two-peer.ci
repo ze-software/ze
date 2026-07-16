@@ -8,6 +8,35 @@
 #           IPv6 next-hop regardless of its session, or the route is only in the
 #           RIB and never re-encoded onto the wire.
 
+# // test-relax: NOTHING RELAXED -- this file is deliberately left RED and
+# UNCONVERTED, with its expectations exactly as committed. Do not "fix" it by
+# pasting observed output over the assertion: observed output is NO UPDATE AT ALL.
+#
+# FINDING 2026-07-16 (Class A1 shard of spec-fixit-redistribute-establishment-stall):
+# this test is impossible as configured, and ze is CORRECT to send nothing.
+# Both peers carry an IPv4 session address (local ip 127.0.0.1 / 127.0.0.2) while
+# the redistributed route is ipv6/unicast. `nhop self` therefore resolves to an
+# IPv4 address for an IPv6 NLRI, which Peer.resolveNextHop rejects with
+# ErrNextHopIncompatible via canUseNextHopFor (internal/component/bgp/reactor/
+# peer.go:663-717): an IPv4 next-hop in an IPv6 MP_REACH is legal only when
+# Extended Next Hop (RFC 5549/8950) is negotiated for the family, and this session
+# negotiates only MP ipv6/unicast + ASN4. The batch path then skips the peer
+# silently (reactor_api_batch.go:96-100, Debug log + continue), so neither peer
+# ever receives an UPDATE. Verified: with a peer-consumed expectation added, both
+# peers bind and exchange OPEN, then "connection closed before completion".
+# The committed expectation ("ipv6/unicast" NLRI with "next-hop":"127.0.0.1") asks
+# ze to commit exactly the RFC violation it correctly refuses. It has never matched.
+#
+# The honest fix matches the test's own VALIDATES line (per-session IPv6 next-hop
+# in MP_REACH): give the two peers DISTINCT IPv6 session addresses, as the working
+# reference redistribute-as112-announce.ci does for its single IPv6 peer
+# (`remote ip ::1` + `option=bind:value=ipv6` + `ze-peer --bind ::1`, next-hop ::1).
+# That needs a SECOND IPv6 loopback address, and the harness cannot supply one:
+# ensureLoopbackAlias (internal/test/runner/loopback_darwin.go:42-49) aliases IPv4
+# in 127.0.0.0/8 only, and this host confirms only ::1 is bindable (::2 and
+# fe80::1%lo0 both EADDRNOTAVAIL). Fixing this needs an internal/test/ change
+# (IPv6 loopback aliasing) that is out of this shard's scope. Left red on purpose.
+#
 # ze-peer 1 (127.0.0.1) expectations
 stdin=peer1:terminator=EOF_PEER1
 option=tcp_connections:value=1
@@ -19,6 +48,8 @@ EOF_PEER1
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
+# // test-relax: see the FINDING block above -- placeholder probe removed, the
+# committed expectation is restored verbatim. This file stays red on purpose.
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"origin":"incomplete","ipv6/unicast":[{"action":"add","nlri":["2001:db8::1/128"],"next-hop":"127.0.0.2"}]}
 EOF_PEER2
 
@@ -75,6 +106,15 @@ def main():
         runtime_fail('post-startup callback never received')
         return
 
+    # REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
+    # EXIST. Observer polling is innocent; both peer blocks here declared only
+    # expect=json, which ze-peer does not consume, so ze-peer exited before
+    # binding and ze dialled a dead port with 5->10->20->40s backoff. That is the
+    # "opens-sent=0 indefinitely" symptom. Polling during connect is provably
+    # harmless (spec-fixit-redistribute-establishment-stall, E6/E9). This file's
+    # own blocker is the IPv4-next-hop-for-IPv6-NLRI problem in the FINDING block
+    # at the top, which is unrelated. Do not cite the text below as an engine defect.
+    #
     # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
     # W-2 findings): while these two peers are in the connect phase, ANY
     # periodic ze-plugin-engine:dispatch-command traffic from this observer

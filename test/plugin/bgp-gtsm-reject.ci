@@ -7,7 +7,8 @@
 # - parseTTLSettings rejects the combination before the reactor is built.
 # - Startup fails with a clear "ttl max cannot be combined" error.
 
-# ze-peer expectations (won't be reached - ze fails to start)
+# ze-peer runs as a sink: it is only a dial target and asserts nothing.
+# ze fails config validation before any session, so nothing reaches the wire.
 stdin=peer:terminator=EOF_PEER
 EOF_PEER
 
@@ -43,7 +44,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration - expect startup failure
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=5s
 expect=exit:code=1
 expect=stderr:contains=ttl max cannot be combined

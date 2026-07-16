@@ -3,15 +3,35 @@
 # VALIDATES: AC-7 -- `nhop self` triggers per-peer LocalAddress substitution at the reactor.
 # PREVENTS: All peers receiving the same NEXT_HOP regardless of session.
 
-stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
+# // test-relax: NOTHING RELAXED -- this STRENGTHENS the test to finally assert
+# AC-7. The single stdin=peer block (tcp_connections=2) is replaced by two peer
+# blocks and two ze-peer processes, mirroring the working twin
+# redistribute-l2tp-multi-peer-nexthop.ci. Reason: ze-peer binds 127.0.0.1 by
+# default (internal/test/peer/peer.go:107,201-217) while the ze config below gives
+# peer2 `local ip 127.0.0.2` / `remote ip 127.0.0.2`, so ze dialled 127.0.0.2:$PORT
+# where nothing ever listened. conn=2 could never happen and the old comment
+# ("both sessions terminate on 127.0.0.1") contradicted the config it described.
+# With the second listener in place, peer2's session really does terminate on
+# 127.0.0.2 and the per-session NEXT_HOP substitution AC-7 exists to prove becomes
+# observable -- which is why the two expectations below now differ.
+#
+# ze-peer 1 (127.0.0.1): ORIGIN incomplete, empty AS_PATH (iBGP), NEXT_HOP
+# 127.0.0.1, LOCAL_PREF 100, NLRI 10.0.0.1/32. LOCAL_PREF is well-known mandatory
+# on an iBGP session (RFC 4271 5.1.5), emitted by reactor_api_batch.go
+# buildWireModeUpdate.
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
 option=timeout:value=15s
-# Two peers, two UPDATEs. Both carry NEXT_HOP=127.0.0.1 in this single-loopback
-# topology because both sessions terminate on 127.0.0.1; the assertion that
-# matters is that the announce reaches BOTH peers (one per conn).
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
-expect=json:conn=2:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
-EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000140050400000064200A000001
+EOF_PEER1
+
+# ze-peer 2 (127.0.0.2): byte-identical except NEXT_HOP 127.0.0.2 -- the per-peer
+# LocalAddress substitution this test exists to prove.
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000240050400000064200A000001
+EOF_PEER2
 
 tmpfs=nhself-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
@@ -133,6 +153,10 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-expect=exit:code=0
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+# // test-relax: expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
+# is replaced by the per-peer ze-peer wire expectations above, which now govern the
+# verdict. The exit-code line asserted nothing about BGP and, until 2026-07-16,
+# actively disabled the peer check (spec-fixit-redistribute-establishment-stall, D2).

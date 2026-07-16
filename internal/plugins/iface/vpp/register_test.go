@@ -6,6 +6,8 @@ package ifacevpp
 
 import (
 	"errors"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -155,6 +157,97 @@ func TestDoctorLCPNetnsDisabled(t *testing.T) {
 	if diags := checkVPPLCPNetns(diagnostic.DoctorCheckContext{Tree: vppLCPTree(true, "dataplane", false)}); len(diags) != 0 {
 		t.Errorf("expected 0 diagnostics with lcp disabled, got %d", len(diags))
 	}
+}
+
+// lcpNetnsBannedAdvice are remediations the doctor-vpp-lcp-netns surfaces must
+// never carry. They are patterns, not exact strings, so a reworded regression is
+// caught too and so a later rewrite of the message is not blocked for cosmetic
+// reasons.
+//
+// Why this advice is banned: to VPP, vpp.lcp.netns is a namespace NAME resolved
+// to /var/run/netns/<name> (linux-cp lcp_get_default_ns formats the path and opens it;
+// third_party/vpp-linux-cp/src/lcp.c), and
+// an empty per-pair netns falls back to the global default (lcp_interface.c:856-861)
+// which ze itself sets from the same leaf (internal/component/vpp/startupconf.go:106).
+// So "host" and "root" are not the host namespace: they ask VPP for namespaces of
+// those literal names, which normally do not exist, and LCP pair creation fails.
+// Telling an operator to set them breaks the dataplane the check is protecting.
+var lcpNetnsBannedAdvice = []struct {
+	name string
+	re   *regexp.Regexp
+}{
+	// The directive shape, value-agnostic: no vpp.lcp.netns value is a fix while
+	// BGP has no netns awareness (internal/core/network/network.go:167).
+	{"directs the operator to set vpp.lcp.netns to a value", regexp.MustCompile(`(?i)\b(set|use|change|switch)\b[^.;]{0,40}vpp\.lcp\.netns\b[^.;]{0,24}\b(to|=)\b`)},
+	// The offered pair. Mentioning host/root to say they do NOT work is fine, so
+	// this targets the phrasing that offers them as alternatives.
+	{"offers host/root as the fix", regexp.MustCompile(`(?i)\b(host\s+or\s+root|root\s+or\s+host)\b`)},
+	{"describes host/root as a root-reachable namespace to pick", regexp.MustCompile(`(?i)root-reachable\s+namespace\s*\(`)},
+}
+
+// lcpNetnsRequiredAdvice are the properties every doctor-vpp-lcp-netns surface
+// must keep: name the subject, and name the one remedy that works today.
+// ai/rules/error-messages.md makes "what to do next" mandatory on doctor output,
+// so removing the false advice without replacing it is not an option either.
+var lcpNetnsRequiredAdvice = []struct {
+	name string
+	re   *regexp.Regexp
+}{
+	{"names the config leaf (the subject)", regexp.MustCompile(`vpp\.lcp\.netns`)},
+	{"names the working remedy: run ze/BGP in that namespace", regexp.MustCompile(`(?i)\brun\s+(ze|bgp)\b[^.;]*\bnamespace\b`)},
+}
+
+func assertLCPNetnsAdvice(t *testing.T, surface, text string) {
+	t.Helper()
+	for _, b := range lcpNetnsBannedAdvice {
+		if b.re.MatchString(text) {
+			t.Errorf("%s %s\nremediation is false: host/root are namespace NAMES to VPP, so this advice breaks LCP pair creation\ngot: %q", surface, b.name, text)
+		}
+	}
+	for _, r := range lcpNetnsRequiredAdvice {
+		if !r.re.MatchString(text) {
+			t.Errorf("%s does not satisfy %q (ai/rules/error-messages.md: what / why / next)\ngot: %q", surface, r.name, text)
+		}
+	}
+}
+
+// TestDoctorLCPNetnsRemediation verifies the doctor-vpp-lcp-netns message tells
+// the operator something that works. It drives the real check function, so it
+// asserts the text an operator actually sees from `ze doctor`.
+// VALIDATES: AC-1 -- the message does not direct the operator to set
+// vpp.lcp.netns to any value, and does not offer host/root as the fix.
+// VALIDATES: AC-2 -- the message names the remedy that works today (run ze in
+// the configured namespace) and quotes the offending value.
+// PREVENTS: ze doctor recommending a configuration that breaks the VPP dataplane.
+func TestDoctorLCPNetnsRemediation(t *testing.T) {
+	diags := checkVPPLCPNetns(diagnostic.DoctorCheckContext{Tree: vppLCPTree(true, "dataplane", true)})
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d", len(diags))
+	}
+	msg := diags[0].Message
+	assertLCPNetnsAdvice(t, "doctor message", msg)
+	// The evidence leg: the offending value must be visible and quoted, so an
+	// empty or look-alike netns name is not mistaken for a formatting artifact.
+	if !strings.Contains(msg, `"dataplane"`) {
+		t.Errorf("doctor message does not quote the offending netns value\ngot: %q", msg)
+	}
+}
+
+// TestDoctorLCPNetnsCodeDescription verifies the registered diagnostic code's
+// description carries the same true remedy. This is what `ze explain
+// doctor-vpp-lcp-netns` prints, so it is a second operator-facing surface and
+// it repeated the same false advice.
+// VALIDATES: AC-3 -- the registry row names no vpp.lcp.netns value as the fix
+// and names the working remedy instead.
+// PREVENTS: fixing the doctor message while `ze explain` keeps handing out the
+// advice that breaks the dataplane.
+func TestDoctorLCPNetnsCodeDescription(t *testing.T) {
+	diagnostic.RegisterBuiltinCodes()
+	meta := diagnostic.Lookup("doctor-vpp-lcp-netns")
+	if meta == nil {
+		t.Fatal("doctor-vpp-lcp-netns is not registered in internal/core/diagnostic/codes.go")
+	}
+	assertLCPNetnsAdvice(t, "ze explain description", meta.Description)
 }
 
 // TestVPPBackendImplementsInterface verifies compile-time interface compliance.

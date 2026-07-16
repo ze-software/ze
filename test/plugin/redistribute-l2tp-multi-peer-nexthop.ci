@@ -4,18 +4,32 @@
 # PREVENTS: resolveNextHop regression where all peers get the same NEXT_HOP
 #           regardless of their local session address.
 
+# // test-relax: the expect=json lines here are REPLACED by byte-exact expect=bgp
+# wire expectations, which strictly strengthens the fan-out assertion. An
+# expect=json in a block named peer1/peer2 was consumed by NOBODY: ze-peer drops
+# expect=json (peer/expect.go ConsumesLine) and the runner only parses the block
+# literally named "peer" into Record.Messages (runner/record_parse.go parseAndAdd),
+# so validateJSON never saw these. The peer therefore had nothing to check and
+# exited before binding. The decoded shape each line asserted is spelled out below
+# and is now enforced on the wire instead.
+#
 # ze-peer 1 (127.0.0.1) expectations
+# UPDATE: ORIGIN incomplete, empty AS_PATH (iBGP), NEXT_HOP 127.0.0.1,
+# LOCAL_PREF 100, NLRI 10.0.0.1/32. LOCAL_PREF is well-known mandatory on an iBGP
+# session (RFC 4271 5.1.5), emitted by reactor_api_batch.go buildWireModeUpdate.
 stdin=peer1:terminator=EOF_PEER1
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000140050400000064200A000001
 EOF_PEER1
 
 # ze-peer 2 (127.0.0.2) expectations
+# Same UPDATE but NEXT_HOP 127.0.0.2 -- the per-peer substitution this test exists
+# to prove. Byte-identical to peer1's apart from the NEXT_HOP attribute value.
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.2"}]}
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000240050400000064200A000001
 EOF_PEER2
 
 # Python observer: wait for all plugins ready, drive fakel2tp emit, shut down.
@@ -59,6 +73,13 @@ def main():
         runtime_fail('post-startup callback never received')
         return
 
+    # REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
+    # EXIST; see the same note in redistribute-l2tp-announce.ci. The stall was a
+    # harness defect: an expect=json-only peer block leaves ze-peer with nothing
+    # to check, so it exits before binding and ze dials a dead port. Polling
+    # during connect is provably harmless (spec-fixit-redistribute-establishment-
+    # stall, E6/E9). Do not cite the text below as evidence of an engine defect.
+    #
     # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
     # W-2 findings): with `internal fakel2tp` + `redistribute import l2tp`
     # configured, observer dispatch-command polling during connect keeps both
@@ -176,7 +197,10 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
-expect=exit:code=0
+# // test-relax: expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
+# is replaced by the per-peer ze-peer wire expectations above, which now govern the
+# verdict. The exit-code line asserted nothing about BGP and, until 2026-07-16,
+# actively disabled the peer check (spec-fixit-redistribute-establishment-stall, D2).
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

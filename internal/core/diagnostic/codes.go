@@ -294,7 +294,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-vpp-lcp-netns",
 		Title:       "LCP netns unreachable by BGP",
-		Description: "The VPP Linux Control Plane TAPs are created in a network namespace (vpp.lcp.netns) that ze's BGP listener does not run in, so BGP cannot bind on an LCP-shadowed interface. Set vpp.lcp.netns to a root-reachable namespace (host/root) or run BGP in that namespace.",
+		Description: "The VPP Linux Control Plane TAPs are created in a network namespace (vpp.lcp.netns) that ze's BGP listener does not run in, so BGP cannot bind on an LCP-shadowed interface. No value of the leaf avoids this: VPP resolves vpp.lcp.netns as a namespace name under /var/run/netns/, and ze also passes it as VPP's global default netns, so host and root name namespaces that normally do not exist and LCP pair creation fails. The only remedy today is to run ze in the same namespace as the TAPs; netns-aware BGP binding is specced but not implemented.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-lcp-netns"},
 	},
 	{

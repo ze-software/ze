@@ -6,9 +6,20 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-# First the announce, then the withdraw.
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.0.1/32"]}]}
+# First the announce, then the withdraw. The wire expectations are what make
+# ze-peer bind and check; the announce and the withdraw have DIFFERENT shapes:
+#  seq=1 announce: attrs ORIGIN incomplete, empty AS_PATH (iBGP), NEXT_HOP
+#        127.0.0.1, LOCAL_PREF 100 (well-known mandatory on iBGP, RFC 4271 5.1.5),
+#        then NLRI 10.0.0.1/32.
+#  seq=2 withdraw: WITHDRAWN_ROUTES carries 10.0.0.1/32 and Total Path Attribute
+#        Length is 0 (RFC 4271 4.3) -- a withdrawal carries NO attributes, so no
+#        NEXT_HOP and no LOCAL_PREF. The announce recipe does not transfer.
+# The two lines previously both used seq=1, which collides on one message index
+# (connSeqToIndex) so the withdraw silently overwrote the announce expectation.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000140050400000064200A000001
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005200A0000010000
+expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.0.1/32"]}]}
 EOF_PEER
 
 tmpfs=l2tp-withdraw-test.run:mode=755:terminator=EOF_RUN
@@ -44,6 +55,13 @@ def main():
     api.wait_for_registry()
     api.ready()
 
+    # REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
+    # EXIST; see the same note in redistribute-l2tp-announce.ci. The stall was a
+    # harness defect: an expect=json-only peer block leaves ze-peer with nothing
+    # to check, so it exits before binding and ze dials a dead port. Polling
+    # during connect is provably harmless (spec-fixit-redistribute-establishment-
+    # stall, E6/E9). Do not cite the text below as evidence of an engine defect.
+    #
     # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
     # W-2 findings): with `internal fakel2tp` + `redistribute import l2tp`
     # configured, observer dispatch-command polling during connect keeps the
@@ -134,4 +152,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
-expect=exit:code=0
+# // test-relax: expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
+# is replaced by the ze-peer wire expectations above, which now govern the verdict.
+# The exit-code line asserted nothing about BGP and, until 2026-07-16, actively
+# disabled the peer check and validateJSON (spec-fixit-redistribute-establishment-stall, D2).

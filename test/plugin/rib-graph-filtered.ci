@@ -8,7 +8,7 @@
 # VALIDATES: AC-5 "Filters applied before graph construction"
 # PREVENTS: Graph ignoring filter stages, showing all routes regardless.
 
-# ze-peer expectations
+# ze-peer runs as a sink: only a dial target, asserts nothing (routes injected via API)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -165,6 +165,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
