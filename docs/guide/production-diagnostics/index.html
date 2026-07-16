@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -195,10 +195,10 @@ show capture raw start bgp
 <pre><code>show system profile heap
 </code></pre>
 <p><strong>Check process memory from the kernel's perspective:</strong></p>
-<pre><code>show system memory-map
-</code></pre>
-<p>Compare VmRSS with Go's heap-in-use from <code>show system memory</code>:</p>
 <pre><code>show system memory
+</code></pre>
+<p>Compare VmRSS with Go's heap-in-use from <code>show runtime memory</code>:</p>
+<pre><code>show runtime memory
 </code></pre>
 <p>If VmRSS is much larger than heap-in-use, memory is held outside Go's heap (cgo, mmap).</p>
 <p><strong>Check goroutines for leaks:</strong></p>
@@ -235,7 +235,7 @@ show system goroutines blocked
 </code></pre>
 <p>Look for "Out of memory" or "Killed process" messages.</p>
 <p><strong>Check current memory state:</strong></p>
-<pre><code>show system memory-map
+<pre><code>show system memory
 </code></pre>
 <p><strong>Review warnings and errors:</strong></p>
 <pre><code>show warnings
@@ -297,7 +297,7 @@ show system goroutines summary
 show errors
 </code></pre>
 <h3 id="17-telemetry-metrics-gaps">17. Telemetry / Metrics Gaps</h3>
-<pre><code>show metrics-query ze_peer_state
+<pre><code>show metrics name ze_peer_state
 show system sockets
 show system profile cpu duration 5s
 </code></pre>
@@ -315,6 +315,40 @@ monitor traceroute &lt;target&gt; | log | origin
 appends one line per round and annotates hops with ASN names, useful for
 identifying which network a path change occurs in. <code>| log | resolve</code> adds
 reverse DNS hostnames instead.</p>
+<figure class="terminal-demo" data-terminal-demo="traceroute">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Trace a live path without external services</h3>
+      <p>Run Ze&#x27;s live traceroute through a deterministic Linux network-namespace lab.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>traceroute.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/traceroute.png" aria-label="Trace a live path without external services terminal demonstration">
+      <source src="../../../assets/demos/traceroute.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/traceroute.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>55 seconds</span><span>Linux namespace lab</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/traceroute.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ssh ze-demo
+ze# run show traceroute 192.0.2.53
+ze# run monitor traceroute 192.0.2.53
+
+The destination and router live in an isolated Linux network-namespace lab. Ze sends real ICMP probes, then shows the same path as a one-shot trace and as a continuously refreshed loss and latency table. No public DNS or Internet route is used.</code></pre>
+  </details>
+</figure>
+
 <h2 id="profiling-workflow">Profiling Workflow</h2>
 <h3 id="cpu-profile">CPU Profile</h3>
 <pre><code>show system profile cpu duration 10s

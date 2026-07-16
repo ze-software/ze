@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -228,10 +228,13 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Ping and traceroute:</strong> <code>show ping</code> and <code>show traceroute</code> run one-shot ICMP checks from the router itself using ze's internal engine -- no daemon required, they work as local handlers. <code>monitor ping</code> and <code>monitor traceroute</code> open a live, continuously-updating view (Ctrl-C to stop); pipe either through <code>| log</code> for scrollback, or add <code>| resolve</code> / <code>| origin</code> to enrich traceroute hops with reverse DNS or ASN info.</p>
+<p><strong>Ping and traceroute:</strong> <code>show ping</code> and <code>show traceroute</code> run one-shot ICMP checks from the router itself using ze's internal engine -- no daemon required, they work as local handlers. <code>monitor ping</code> and <code>monitor traceroute</code> open a live, continuously-updating view (Ctrl-C to stop); pipe either through <code>| log</code> for scrollback, or add <code>| resolve</code> / <code>| origin</code> to enrich traceroute hops with reverse DNS or ASN info.
+<code>size</code> sets the ICMP payload length (1-65507), not the total packet: unlike <code>ping(8)</code>'s "64 bytes" (56 payload + 8 header), <code>size 1400</code> sends 1400 payload bytes on top of the ICMP and IP headers. Both <code>show ping</code> and <code>monitor ping</code> take <code>count</code> (1-100) and <code>size</code>; omitting <code>count</code> on <code>monitor ping</code> is what makes it stream until Ctrl-C, and it additionally takes <code>interval</code> (100ms-30s).</p>
 <pre><code>ze show ping 8.8.8.8 count 5 timeout 3s
+ze show ping 8.8.8.8 size 1400
 ze show traceroute 8.8.8.8 max-hops 10 probes 1
 ze cli -c &quot;monitor ping 8.8.8.8 interval 500ms&quot;
+ze cli -c &quot;monitor ping 8.8.8.8 count 5 size 1400&quot;
 ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
 </code></pre>
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal, monitorPingLocal -->
@@ -241,6 +244,40 @@ ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
 
 <p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+
+<figure class="terminal-demo" data-terminal-demo="cli-dashboard">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Operate BGP from the live dashboard</h3>
+      <p>Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>cli-dashboard.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/cli-dashboard.png" aria-label="Operate BGP from the live dashboard terminal demonstration">
+      <source src="../../../assets/demos/cli-dashboard.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/cli-dashboard.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>50 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/cli-dashboard.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ssh ze-demo
+ze# exit
+ze&gt; monitor bgp
+
+The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and &quot;q&quot; to leave the dashboard.</code></pre>
+  </details>
+</figure>
 
 <p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>confirm</code> is not issued within the timeout window (1-3600 seconds). Use <code>confirm abort</code> to revert manually. Modeled after Junos commit confirmed.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->

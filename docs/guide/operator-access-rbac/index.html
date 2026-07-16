@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -191,13 +191,52 @@ ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
 ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
   /usr/local/bin/ze cli --user operator -c &quot;help&quot;
 </code></pre>
-<p>Test that NOC cannot enter the edit path:</p>
+<p>Test that NOC is refused a command its profile denies. The <code>read-only</code> profile above denies the <code>clear</code> prefix:</p>
 <pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
-  /usr/local/bin/ze cli --user noc -c &quot;configure&quot;
+  /usr/local/bin/ze cli --user noc -c &quot;clear interface counters&quot;
 </code></pre>
-<p>The command should be rejected by authorization. Check the daemon logs if it succeeds.</p>
+<p>Authorization refuses it, and says so:</p>
+<pre><code>error: command restricted by access control
+</code></pre>
+<p>Check the daemon logs if it succeeds instead:</p>
 <pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager
 </code></pre>
+<p>Pick a real command the profile denies when you write your own check. A command Ze does not have reports <code>unknown command</code> and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. <code>configure</code> is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so <code>ze cli -c "configure"</code> is never an authorization test. To check the edit path, run a command that writes, such as <code>set system ...</code>, or log in and try <code>configure</code> interactively.</p>
+<figure class="terminal-demo" data-terminal-demo="rbac">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Prove read-only RBAC enforcement</h3>
+      <p>Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>rbac.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/rbac.png" aria-label="Prove read-only RBAC enforcement terminal demonstration">
+      <source src="../../../assets/demos/rbac.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/rbac.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>45 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/rbac.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ze cli --user noc -c &#x27;show version&#x27;
+version: ze 26.07.15
+$ ze cli --user noc -c &#x27;clear interface counters&#x27;
+error: command restricted by access control
+
+The read-only NOC profile allows operational show commands and denies every command matching &quot;clear&quot;. The daemon resolves the command, finds the profile forbids it, and refuses before running it. The password is supplied outside the recording.</code></pre>
+  </details>
+</figure>
+
 <h2 id="5-add-ssh-public-keys">5. Add SSH public keys</h2>
 <p>Each public key has a local name, a key type, and the base64 body of the SSH public key. The key value is the middle field of a line from <code>~/.ssh/id_ed25519.pub</code>.</p>
 <pre><code class="language-bash">set -euo pipefail

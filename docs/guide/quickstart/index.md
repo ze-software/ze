@@ -48,6 +48,31 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 ```
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
 
+### Terminal demo: Create ZeFS and commit over SSH
+
+Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
+
+[Play the WebM recording](../../../assets/demos/zefs-config.webm) · [View the poster](../../../assets/demos/zefs-config.png) · [Plain-text transcript](../../../assets/demos/zefs-config.txt)
+
+Recorded with Ze 26.07.16 on macOS and Linux. Duration: 85 seconds.
+
+```console
+$ ze init < "$ZE_INIT_INPUT"
+$ ze config ls
+ze.conf
+$ ze data check
+
+$ ssh ze-demo
+ze# set environment cli format default table
+ze# show | compare
+ze# commit
+Session committed
+ze# run show bgp summary
+
+`ze init` creates `database.zefs`. The SSH editor then commits the table-format setting back to ZeFS, not to a second flat file. The operational command uses the new default immediately.
+```
+
+
 ## Minimal Config
 
 Save as `example.conf`:

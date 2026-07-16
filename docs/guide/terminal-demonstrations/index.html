@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Terminal Demonstrations - Ze</title>
+        <meta name="description" content="Ze documentation: guide/terminal-demonstrations.md" />
+        <meta property="og:title" content="Terminal Demonstrations - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/terminal-demonstrations.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Terminal Demonstrations - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/terminal-demonstrations.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Evaluate</span>
+    <h1 id="terminal-demonstrations">Terminal Demonstrations</h1>
+    <p>These recordings run real Ze commands against isolated local fixtures. The checked-in VHS tapes define every keystroke, pause, and terminal size, so a release can regenerate the videos when Ze changes. The recordings use no public service.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#interactive-command-launcher">Interactive command launcher</a></li>
+<li><a href="#live-bgp-dashboard">Live BGP dashboard</a></li>
+<li><a href="#zefs-and-ssh-configuration">ZeFS and SSH configuration</a></li>
+<li><a href="#read-only-operator-access">Read-only operator access</a></li>
+<li><a href="#traceroute-in-an-isolated-linux-lab">Traceroute in an isolated Linux lab</a></li>
+</ol></nav>
+<p>Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without requiring video playback.</p>
+<h2 id="interactive-command-launcher">Interactive command launcher</h2>
+<figure class="terminal-demo" data-terminal-demo="launcher">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Discover Ze commands interactively</h3>
+      <p>Use type-ahead filtering and drill-down navigation in Ze&#x27;s interactive command launcher.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>launcher.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/launcher.png" aria-label="Discover Ze commands interactively terminal demonstration">
+      <source src="../../../assets/demos/launcher.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/launcher.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>55 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/launcher.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ze
+
+Type &quot;show&quot; to filter the command launcher, then press Enter to open the show command tree.
+Type &quot;traceroute&quot; to find the path diagnostic command.
+Press Escape and Left to return, then type &quot;doctor&quot; to find the readiness checker.
+Press Escape to move back through the menu and return to the shell.</code></pre>
+  </details>
+</figure>
+
+<h2 id="live-bgp-dashboard">Live BGP dashboard</h2>
+<figure class="terminal-demo" data-terminal-demo="cli-dashboard">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Operate BGP from the live dashboard</h3>
+      <p>Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>cli-dashboard.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/cli-dashboard.png" aria-label="Operate BGP from the live dashboard terminal demonstration">
+      <source src="../../../assets/demos/cli-dashboard.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/cli-dashboard.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>50 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/cli-dashboard.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ssh ze-demo
+ze# exit
+ze&gt; monitor bgp
+
+The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and &quot;q&quot; to leave the dashboard.</code></pre>
+  </details>
+</figure>
+
+<h2 id="zefs-and-ssh-configuration">ZeFS and SSH configuration</h2>
+<figure class="terminal-demo" data-terminal-demo="zefs-config">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Create ZeFS and commit over SSH</h3>
+      <p>Create the ZeFS database, edit the active configuration through Ze&#x27;s SSH management plane, and verify the committed setting.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>zefs-config.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/zefs-config.png" aria-label="Create ZeFS and commit over SSH terminal demonstration">
+      <source src="../../../assets/demos/zefs-config.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/zefs-config.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>85 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/zefs-config.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
+$ ze config ls
+ze.conf
+$ ze data check
+
+$ ssh ze-demo
+ze# set environment cli format default table
+ze# show | compare
+ze# commit
+Session committed
+ze# run show bgp summary
+
+`ze init` creates `database.zefs`. The SSH editor then commits the table-format setting back to ZeFS, not to a second flat file. The operational command uses the new default immediately.</code></pre>
+  </details>
+</figure>
+
+<h2 id="read-only-operator-access">Read-only operator access</h2>
+<figure class="terminal-demo" data-terminal-demo="rbac">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Prove read-only RBAC enforcement</h3>
+      <p>Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>rbac.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/rbac.png" aria-label="Prove read-only RBAC enforcement terminal demonstration">
+      <source src="../../../assets/demos/rbac.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/rbac.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>45 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/rbac.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ze cli --user noc -c &#x27;show version&#x27;
+version: ze 26.07.15
+$ ze cli --user noc -c &#x27;clear interface counters&#x27;
+error: command restricted by access control
+
+The read-only NOC profile allows operational show commands and denies every command matching &quot;clear&quot;. The daemon resolves the command, finds the profile forbids it, and refuses before running it. The password is supplied outside the recording.</code></pre>
+  </details>
+</figure>
+
+<h2 id="traceroute-in-an-isolated-linux-lab">Traceroute in an isolated Linux lab</h2>
+<figure class="terminal-demo" data-terminal-demo="traceroute">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Trace a live path without external services</h3>
+      <p>Run Ze&#x27;s live traceroute through a deterministic Linux network-namespace lab.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>traceroute.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/traceroute.png" aria-label="Trace a live path without external services terminal demonstration">
+      <source src="../../../assets/demos/traceroute.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/traceroute.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>55 seconds</span><span>Linux namespace lab</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/traceroute.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ssh ze-demo
+ze# run show traceroute 192.0.2.53
+ze# run monitor traceroute 192.0.2.53
+
+The destination and router live in an isolated Linux network-namespace lab. Ze sends real ICMP probes, then shows the same path as a one-shot trace and as a continuously refreshed loss and latency table. No public DNS or Internet route is used.</code></pre>
+  </details>
+</figure>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

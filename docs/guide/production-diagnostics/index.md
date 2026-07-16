@@ -147,13 +147,13 @@ show system profile heap
 **Check process memory from the kernel's perspective:**
 
 ```
-show system memory-map
-```
-
-Compare VmRSS with Go's heap-in-use from `show system memory`:
-
-```
 show system memory
+```
+
+Compare VmRSS with Go's heap-in-use from `show runtime memory`:
+
+```
+show runtime memory
 ```
 
 If VmRSS is much larger than heap-in-use, memory is held outside Go's heap (cgo, mmap).
@@ -226,7 +226,7 @@ Look for "Out of memory" or "Killed process" messages.
 **Check current memory state:**
 
 ```
-show system memory-map
+show system memory
 ```
 
 **Review warnings and errors:**
@@ -333,7 +333,7 @@ show errors
 ### 17. Telemetry / Metrics Gaps
 
 ```
-show metrics-query ze_peer_state
+show metrics name ze_peer_state
 show system sockets
 show system profile cpu duration 5s
 ```
@@ -360,6 +360,23 @@ mtr-style display with per-hop loss and latency statistics. `| log | origin`
 appends one line per round and annotates hops with ASN names, useful for
 identifying which network a path change occurs in. `| log | resolve` adds
 reverse DNS hostnames instead.
+
+### Terminal demo: Trace a live path without external services
+
+Run Ze's live traceroute through a deterministic Linux network-namespace lab.
+
+[Play the WebM recording](../../../assets/demos/traceroute.webm) · [View the poster](../../../assets/demos/traceroute.png) · [Plain-text transcript](../../../assets/demos/traceroute.txt)
+
+Recorded with Ze 26.07.16 in a Linux namespace lab. Duration: 55 seconds.
+
+```console
+$ ssh ze-demo
+ze# run show traceroute 192.0.2.53
+ze# run monitor traceroute 192.0.2.53
+
+The destination and router live in an isolated Linux network-namespace lab. Ze sends real ICMP probes, then shows the same path as a one-shot trace and as a continuously refreshed loss and latency table. No public DNS or Internet route is used.
+```
+
 
 ## Profiling Workflow
 

@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -55,10 +55,10 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze-support">ze support</a></li>
 <li><a href="#ze-interface">ze interface</a></li>
 <li><a href="#show-traffic-control">show traffic control</a></li>
-<li><a href="#show-flow-export">show flow-export</a></li>
-<li><a href="#show-traffic-stat">show traffic-stat</a></li>
-<li><a href="#monitor-traffic-stat">monitor traffic-stat</a></li>
-<li><a href="#show-traffic-feature">show traffic-feature</a></li>
+<li><a href="#show-flow-export">show flow export</a></li>
+<li><a href="#show-traffic-stat">show traffic stat</a></li>
+<li><a href="#monitor-traffic-stat">monitor traffic stat</a></li>
+<li><a href="#show-traffic-feature">show traffic feature</a></li>
 <li><a href="#show-anomaly-detect">show anomaly detect</a></li>
 <li><a href="#show-anomaly-shape">show anomaly shape</a></li>
 <li><a href="#show-traffic-usage">show traffic usage</a></li>
@@ -85,7 +85,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#clear-dns-cache-stats-record">clear dns cache / stats / record</a></li>
 <li><a href="#clear-vpn-ipsec-sa">clear vpn ipsec sa</a></li>
 <li><a href="#show-system-profile">show system profile</a></li>
-<li><a href="#show-system-memory-map">show system memory-map</a></li>
+<li><a href="#show-system-memory">show system memory</a></li>
 <li><a href="#show-system-update">show system update</a></li>
 <li><a href="#show-system-update-history">show system update history</a></li>
 <li><a href="#update-system-firmware">update system firmware</a></li>
@@ -199,6 +199,41 @@ When piped or scripted (stdin is not a TTY), prints static help and exits 1.</p>
 ze &lt;config-file&gt;                 # Start daemon with config
 ze start                         # Start daemon from database
 </code></pre>
+<figure class="terminal-demo" data-terminal-demo="launcher">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Discover Ze commands interactively</h3>
+      <p>Use type-ahead filtering and drill-down navigation in Ze&#x27;s interactive command launcher.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>launcher.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/launcher.png" aria-label="Discover Ze commands interactively terminal demonstration">
+      <source src="../../../assets/demos/launcher.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/launcher.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>55 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/launcher.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ze
+
+Type &quot;show&quot; to filter the command launcher, then press Enter to open the show command tree.
+Type &quot;traceroute&quot; to find the path diagnostic command.
+Press Escape and Left to return, then type &quot;doctor&quot; to find the readiness checker.
+Press Escape to move back through the menu and return to the shell.</code></pre>
+  </details>
+</figure>
+
 <table>
 <thead>
 <tr>
@@ -695,10 +730,10 @@ be queued because the worker was stopped or the queue was full.</p>
 <!-- source: internal/component/aaa/cmd/show.go -- handleShowAAAAccounting -->
 
 <h3 id="ze-show-system">ze show system</h3>
-<p>Daemon process introspection. Three sibling commands surface the Go
-runtime state for the running ze process. Available via daemon SSH
-(online RPC); YANG registration only.</p>
-<pre><code>ze show system memory              # runtime.MemStats (alloc, heap, GC) + hardware enrichment
+<p>Daemon process introspection for the running ze process. <code>show runtime
+memory</code> is the Go allocator view; <code>show system memory</code> (below) is the
+OS view. Available via daemon SSH (online RPC); YANG registration only.</p>
+<pre><code>ze show runtime memory             # runtime.MemStats (alloc, heap, GC) + hardware enrichment
 ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS + hardware
 ze show system date                # wall-clock time: RFC3339, Unix, timezone
 ze show system platform            # runtime platform type and capabilities
@@ -713,7 +748,7 @@ ze show system platform            # runtime platform type and capabilities
 </thead>
 <tbody>
 <tr>
-<td><code>show system memory</code></td>
+<td><code>show runtime memory</code></td>
 <td><code>alloc</code>, <code>total-alloc</code>, <code>sys</code>, <code>heap-alloc</code>, <code>heap-sys</code>, <code>heap-in-use</code>, <code>heap-objects</code>, <code>stack-in-use</code>, <code>num-gc</code>, <code>gc-cpu-pct</code>, <code>hardware</code> (optional: physical memory + ECC from <code>host.DetectMemory()</code>)</td>
 </tr>
 <tr>
@@ -938,12 +973,12 @@ this platform" when no TC backend is loaded (e.g. on macOS).</p>
 <pre><code>ze show traffic control            # Summary of all interfaces with qdiscs
 ze show traffic control &lt;ifname&gt;   # Detail for one interface
 </code></pre>
-<h3 id="show-flow-export">show flow-export</h3>
+<h3 id="show-flow-export">show flow export</h3>
 <p>Per-collector flow export statistics for the <code>flowexport</code> component (sFlow v5,
 NetFlow v9, IPFIX). Returns <code>{"status": "not-configured"}</code> when no
 <code>flow-export { }</code> section is present.</p>
-<pre><code>ze show flow-export               # All configured collectors
-ze show flow-export &lt;collector&gt;   # One collector by name (error if not found)
+<pre><code>ze show flow export               # All configured collectors
+ze show flow export &lt;collector&gt;   # One collector by name (error if not found)
 </code></pre>
 <p>Each entry reports <code>name</code>, <code>address</code>, <code>port</code>, <code>protocol</code>, <code>datagrams-sent</code>,
 <code>bytes-sent</code>, <code>errors</code>, <code>sequence</code>, and <code>last-export-time</code> (Unix seconds,
@@ -952,7 +987,7 @@ See the <a href="../flow-export/">Flow Export guide</a>.</p>
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
 <!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
 
-<h3 id="show-traffic-stat">show traffic-stat</h3>
+<h3 id="show-traffic-stat">show traffic stat</h3>
 <!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
 
 <p>Aggregated traffic snapshot from the trafficstat service: per-interface rates,
@@ -960,19 +995,19 @@ top-N source/dest IPs, top ports (with service names from the portname table),
 protocol mix (TCP/UDP/...), severity tier, and 60s history. Returns a degraded
 snapshot (interface rates only) when no collector (traffic-usage / flow-export)
 is active.</p>
-<pre><code>show traffic-stat                     # All interfaces
-show traffic-stat name &lt;interface&gt;    # One interface by name
+<pre><code>show traffic stat                     # All interfaces
+show traffic stat name &lt;interface&gt;    # One interface by name
 </code></pre>
-<h3 id="monitor-traffic-stat">monitor traffic-stat</h3>
+<h3 id="monitor-traffic-stat">monitor traffic stat</h3>
 <!-- source: internal/component/trafficstat/cmd/render.go -- createTrafficMonitorSession -->
 
 <p>Full-screen live traffic monitor. Renders per-interface rates, top talkers,
 top ports with service names and amplification labels, protocol mix percentages,
 severity badge, and a sparkline history. Esc/q to quit.</p>
-<pre><code>monitor traffic-stat                  # All interfaces
-monitor traffic-stat name &lt;interface&gt; # One interface by name
+<pre><code>monitor traffic stat                  # All interfaces
+monitor traffic stat name &lt;interface&gt; # One interface by name
 </code></pre>
-<h3 id="show-traffic-feature">show traffic-feature</h3>
+<h3 id="show-traffic-feature">show traffic feature</h3>
 <!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-show:traffic-feature -->
 
 <p>Neutral per-source traffic feature signals (facts, not verdicts): fan-out
@@ -982,8 +1017,8 @@ entropy, new-peer, rare-port/proto, and coarse beaconing. Returns
 port-entropy, new-peer, rare-port, beaconing}]}</code>; <code>out-in-ratio</code> is the string
 <code>"inf"</code> when a source has no inbound bytes. Optional <code>name &lt;address&gt;</code> filters to
 one source.</p>
-<pre><code>show traffic-feature                  # Top source entities
-show traffic-feature name &lt;address&gt;   # One source by address
+<pre><code>show traffic feature                  # Top source entities
+show traffic feature name &lt;address&gt;   # One source by address
 </code></pre>
 <h3 id="show-anomaly-detect">show anomaly detect</h3>
 <!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-show:anomaly -->
@@ -1387,8 +1422,8 @@ ze show system profile allocs                   # Allocation profile
 concurrent requests return an error.</p>
 <!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
 
-<h3 id="show-system-memory-map">show system memory-map</h3>
-<pre><code>ze show system memory-map    # Process memory from /proc/self/status
+<h3 id="show-system-memory">show system memory</h3>
+<pre><code>ze show system memory        # OS process memory (VmRSS/VmSize) from /proc/self/status
 </code></pre>
 <p>Returns vm-rss-kb, vm-size-kb, vm-swap-kb, vm-peak-kb, vm-data-kb,
 vm-stack-kb, threads. Linux only.</p>
@@ -1449,7 +1484,27 @@ exactly what is reachable on the running daemon.</p>
 <p><code>show ping</code> and <code>show traceroute</code> use Ze's internal ICMP engine and work without
 the daemon running (registered as local handlers). <code>monitor ping</code> and <code>monitor
 traceroute</code> also work offline, streaming results until Ctrl-C.</p>
+<pre><code>ze show ping 8.8.8.8                          # 5 probes, 5s timeout
+ze show ping 8.8.8.8 count 10 timeout 3s      # count 1-100, timeout 1s-30s
+ze show ping 8.8.8.8 size 1400                # ICMP payload bytes (1-65507)
+ze monitor ping 8.8.8.8 interval 500ms        # stream until Ctrl-C (100ms-30s)
+ze monitor ping 8.8.8.8 count 5               # stop after 5 probes
+ze monitor ping 8.8.8.8 size 1400 count 20    # 20 probes carrying a 1400-byte payload
+</code></pre>
+<p><code>size</code> is the ICMP <strong>payload</strong> length, not the total packet: <code>size 1400</code> sends
+1400 bytes of payload plus the 8-byte ICMP and 20-byte IPv4 headers. This differs
+from <code>ping(8)</code>, whose familiar "64 bytes" counts the whole ICMP message (56
+payload + 8 header). Omit <code>size</code> and the engine sends its small default payload.
+The 65507 ceiling is what still fits a 65535-byte IP datagram after both headers.</p>
+<p>Both commands take <code>count</code> (1-100) and <code>size</code> (1-65507). They mean the same thing
+in each: <code>show ping</code> runs a bounded batch and prints a summary, while <code>monitor
+ping</code> streams live statistics. Omitting <code>count</code> on <code>monitor ping</code> streams until
+Ctrl-C, which is the difference between them; <code>monitor ping</code> additionally takes
+<code>interval</code> (100ms-30s). The two accept identical arguments whether or not a
+daemon is running.</p>
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
+<!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->
+<!-- source: internal/plugins/ping-cmd/yang/ze-ping-cmd.yang -- show/ping size leaf -->
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 
 <h3 id="show-crashes">show crashes</h3>
@@ -3206,28 +3261,28 @@ a keyword.</p>
 <td>Reliable transport window state (Ns, Nr, cwnd, retransmits)</td>
 </tr>
 <tr>
-<td><code>clear l2tp tunnel teardown &lt;tid&gt;</code></td>
+<td><code>clear l2tp tunnel id &lt;tid&gt;</code></td>
 <td>run</td>
 <td>Send StopCCN for one tunnel</td>
 </tr>
 <tr>
-<td><code>clear l2tp tunnel teardown-all</code></td>
+<td><code>clear l2tp tunnel all</code></td>
 <td>run</td>
 <td>Send StopCCN for every tunnel</td>
 </tr>
 <tr>
-<td><code>clear l2tp session teardown &lt;sid&gt; [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
+<td><code>clear l2tp session id &lt;sid&gt; [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
 <td>run</td>
 <td>Send CDN for one session with optional audit reason and disconnect cause</td>
 </tr>
 <tr>
-<td><code>clear l2tp session teardown-all</code></td>
+<td><code>clear l2tp session all</code></td>
 <td>run</td>
 <td>Send CDN for every session</td>
 </tr>
 </tbody>
 </table>
-<p>The <code>clear l2tp session teardown</code> command accepts optional keyword arguments:
+<p>The <code>clear l2tp session id</code> command accepts optional keyword arguments:
 - <code>reason &lt;text...&gt;</code>: free-text audit reason, recorded in the per-session event ring
 - <code>cause &lt;code&gt;</code>: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason</p>
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->

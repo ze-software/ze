@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -80,6 +80,48 @@ tagged release -- there are no tagged releases yet.</p>
 bin/ze init --force            # prompts for confirmation, then backs up and reinitializes
 </code></pre>
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
+
+<figure class="terminal-demo" data-terminal-demo="zefs-config">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <h3>Create ZeFS and commit over SSH</h3>
+      <p>Create the ZeFS database, edit the active configuration through Ze&#x27;s SSH management plane, and verify the committed setting.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>zefs-config.tape</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/zefs-config.png" aria-label="Create ZeFS and commit over SSH terminal demonstration">
+      <source src="../../../assets/demos/zefs-config.webm" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/zefs-config.webm">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.16</span><span>85 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/zefs-config.txt">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the terminal transcript</summary>
+    <pre><code>$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
+$ ze config ls
+ze.conf
+$ ze data check
+
+$ ssh ze-demo
+ze# set environment cli format default table
+ze# show | compare
+ze# commit
+Session committed
+ze# run show bgp summary
+
+`ze init` creates `database.zefs`. The SSH editor then commits the table-format setting back to ZeFS, not to a second flat file. The operational command uses the new default immediately.</code></pre>
+  </details>
+</figure>
 
 <h2 id="minimal-config">Minimal Config</h2>
 <p>Save as <code>example.conf</code>:</p>

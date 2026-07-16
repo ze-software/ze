@@ -1,0 +1,67 @@
+name: Deploy website
+
+on:
+  push:
+    branches: ["gh-pages"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Ze
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Checkout website
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: main/go.mod
+          cache-dependency-path: main/go.sum
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install VHS and ffmpeg
+        run: |
+          make -C main ze-terminal-demo-tools
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate terminal media
+        run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/site/assets/demos"
+
+      - name: Build website
+        run: uv run --with markdown python3 tools/build.py
+        working-directory: site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

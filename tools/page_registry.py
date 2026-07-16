@@ -72,6 +72,7 @@ DOCS_MANIFEST = {
     "guide/looking-glass-howto.md": "operate",
     "guide/tacacs.md": "secure",
     "guide/operator-access-rbac.md": "secure",
+    "guide/terminal-demonstrations.md": "observe",
     "guide/vpp.md": "services",
     "guide/appliance.md": "platform",
     "guide/ze-install.md": "platform",

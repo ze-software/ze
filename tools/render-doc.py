@@ -21,6 +21,7 @@ import sys
 import markdown
 
 import sitelib
+import terminal_demos
 
 
 def first_h1(md_text):
@@ -518,6 +519,7 @@ def render(
             body_html,
             base_url=markdown_base_url(dest),
         )
+    body_html, md_out = terminal_demos.expand(body_html, md_out, root, doc_rel)
     body_html = relayout_evidence_cells(body_html)
     body_html = colorcode_cells(body_html)
     body_html = sitelib.patch_external_link_targets(body_html)

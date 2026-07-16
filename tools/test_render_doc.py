@@ -1,5 +1,6 @@
 #!/usr/bin/env -S uv run --with markdown python3
 
+import hashlib
 import json
 import importlib.util
 import pathlib
@@ -14,8 +15,75 @@ sys.path.insert(0, str(HERE))
 SPEC = importlib.util.spec_from_file_location("render_doc", HERE / "render-doc.py")
 render_doc = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(render_doc)
-import sitelib
-import sitefacts
+import sitelib  # noqa: E402
+import sitefacts  # noqa: E402
+
+
+def terminal_demo_fixture(root):
+    demo_root = root / "terminal"
+    demo_root.mkdir(parents=True)
+    site_assets = root / "site-assets"
+    site_assets.mkdir(parents=True)
+    payloads = {
+        "poster": ("demo.png", b"png-data"),
+        "transcript": ("demo.txt", b"$ ze show version\n<safe output>\n"),
+        "video": ("demo.webm", b"webm-data"),
+    }
+    assets = {}
+    paths = {}
+    for kind, (name, payload) in payloads.items():
+        path = site_assets / name
+        path.write_bytes(payload)
+        paths[kind] = path
+        assets[kind] = {
+            "path": name,
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
+    (demo_root / "manifest.json").write_text(
+        json.dumps(
+            {
+                "gallery_page": "guide/terminal-demonstrations.md",
+                "schema": 1,
+                "demos": [
+                    {
+                        "id": "demo",
+                        "title": "Inspect live state",
+                        "description": "Run a checked terminal workflow.",
+                        "page": "guide/example.md",
+                        "platform": "portable",
+                        "duration": "12 seconds",
+                    }
+                ],
+            }
+        )
+    )
+    (site_assets / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema": 1,
+                "renderer": {"name": "vhs", "version": "0.11.0"},
+                "demos": {
+                    "demo": {
+                        "release": "26.07.15",
+                        "assets": assets,
+                    }
+                },
+            }
+        )
+    )
+    return demo_root, site_assets / "manifest.json", site_assets, paths
+
+
+def patch_terminal_demo_paths(demo_root, artifact_manifest, site_assets):
+    return mock.patch.multiple(
+        render_doc.terminal_demos,
+        DEMO_ROOT=demo_root,
+        SOURCE_MANIFEST=demo_root / "manifest.json",
+        ARTIFACT_MANIFEST=artifact_manifest,
+        SITE_ASSET_ROOT=site_assets,
+    )
 
 
 class FrontMatterTest(unittest.TestCase):
@@ -70,6 +138,84 @@ A rendered page.
         self.assertIn('<span class="journey-eyebrow">Feature</span>', html)
         self.assertIn("<table>", html)
         self.assertEqual(markdown, source_text.split("---\n", 2)[2])
+
+
+class TerminalDemoRenderTest(unittest.TestCase):
+    def test_marker_embeds_local_video_and_accessible_transcript(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            demo_root, artifact_manifest, site_assets, paths = terminal_demo_fixture(
+                tmp_path
+            )
+            source = tmp_path / "source.md"
+            destination = tmp_path / "public" / "index.html"
+            source.write_text("# Example\n\n<!-- terminal-demo: demo -->\n")
+
+            with patch_terminal_demo_paths(demo_root, artifact_manifest, site_assets):
+                render_doc.render(
+                    source,
+                    destination,
+                    "../",
+                    doc_rel="guide/example.md",
+                )
+
+            rendered_html = destination.read_text()
+            rendered_markdown = destination.with_suffix(".md").read_text()
+            published_video = (site_assets / "demo.webm").read_bytes()
+            source_video = paths["video"].read_bytes()
+
+        self.assertIn('data-terminal-demo="demo"', rendered_html)
+        self.assertIn("<video controls", rendered_html)
+        self.assertIn('poster="../assets/demos/demo.png"', rendered_html)
+        self.assertIn('src="../assets/demos/demo.webm"', rendered_html)
+        self.assertIn("&lt;safe output&gt;", rendered_html)
+        self.assertIn("### Terminal demo: Inspect live state", rendered_markdown)
+        self.assertIn("../assets/demos/demo.webm", rendered_markdown)
+        self.assertEqual(published_video, source_video)
+
+    def test_gallery_page_can_embed_every_demo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            demo_root, artifact_manifest, site_assets, _ = terminal_demo_fixture(
+                tmp_path
+            )
+            source = tmp_path / "source.md"
+            destination = tmp_path / "public" / "index.html"
+            source.write_text("# Demos\n\n<!-- terminal-demo: demo -->\n")
+
+            with patch_terminal_demo_paths(demo_root, artifact_manifest, site_assets):
+                render_doc.render(
+                    source,
+                    destination,
+                    "../",
+                    doc_rel="guide/terminal-demonstrations.md",
+                )
+
+            rendered_html = destination.read_text()
+
+        self.assertIn('data-terminal-demo="demo"', rendered_html)
+
+    def test_tampered_recording_is_rejected_before_publish(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            demo_root, artifact_manifest, site_assets, paths = terminal_demo_fixture(
+                tmp_path
+            )
+            paths["video"].write_bytes(b"not-video")
+            source = tmp_path / "source.md"
+            destination = tmp_path / "public" / "index.html"
+            source.write_text("# Example\n\n<!-- terminal-demo: demo -->\n")
+
+            with (
+                patch_terminal_demo_paths(demo_root, artifact_manifest, site_assets),
+                self.assertRaisesRegex(ValueError, "digest does not match"),
+            ):
+                render_doc.render(
+                    source,
+                    destination,
+                    "../",
+                    doc_rel="guide/example.md",
+                )
 
 
 class SiteChromeTest(unittest.TestCase):

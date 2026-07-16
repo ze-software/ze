@@ -674,7 +674,7 @@
       "category": "Firewall",
       "intent": "Policy-based routing rules",
       "ze": [
-        "show policy-routes"
+        "show policy routes"
       ],
       "vendors": {
         "junos-mx": [],
@@ -705,8 +705,8 @@
       "ze": [
         "show l2tp tunnels",
         "show l2tp sessions",
-        "clear l2tp tunnel teardown",
-        "clear l2tp session teardown"
+        "clear l2tp tunnel id",
+        "clear l2tp session id"
       ],
       "vendors": {
         "junos-mx": [],
@@ -966,7 +966,7 @@
       "ze": [
         "show metrics list",
         "show metrics values",
-        "show metrics-query"
+        "show metrics name"
       ],
       "vendors": {
         "junos-mx": [],
