@@ -373,6 +373,33 @@ tell the user, STOP.
 When the user integrates a worktree branch manually, it lands on main
 via `git rebase <branch>`, never `git merge`. Linear history.
 
+## Rebase Onto Diverged main: driving the bookkeeping conflicts
+
+A rebase of local commits onto a diverged `origin/main` re-conflicts on
+`plan/learned/.counter` and `ai/LEARNED-FULL-INDEX.md` at nearly every
+learned-touching commit -- the cross-branch learned-number collision covered
+in "Commit Rules" step 4 and `plan/learned/1155`. Both files are derivable, so
+drive the rebase with `scripts/dev/rebase_learned.py`: the human starts (and,
+if needed, aborts) the rebase; the script resolves the two bookkeeping files at
+each stop (`.counter` -> max+1, index regenerated via `learned_index.py`) and
+HALTS on any other unmerged path. Resolve that file, then re-run with
+`--take-theirs PATH` / `--take-ours PATH` / `--accept-incoming-delete` (each
+logged, never silent). `--help` documents the flags and exit codes.
+
+Finish the rebase first, then fix numbering -- never mid-rebase. Afterwards run
+`make ze-learned-numbers-fix` (renumbers colliding summaries and rewrites their
+references) and recompute any derived ratchet the rebase loosened (e.g.
+`test/.ci-sleep-baseline` = actual `time.sleep(` count in `test/**/*.ci`).
+
+Gotcha: `git rebase --continue` refuses with a MISLEADING "You must edit all
+merge conflicts" whenever there are unstaged tracked changes, not only when
+index entries are unmerged (`builtin/rebase.c` ACTION_CONTINUE checks
+`has_unstaged_changes()`). rebase_learned.py detects this and names the real
+files. The behavior is pinned by `TestRebaseContinueMessageIsMisleading` in
+`scripts/dev/rebase_learned_test.py`, so believe the test, not the message.
+Per "Branch Changes Are Forbidden" above, the AI never runs `git rebase`
+itself; the script only resolves conflicts within a rebase the user started.
+
 ## GPG Signing
 
 Never `--no-gpg-sign` / `-c commit.gpgsign=false`.

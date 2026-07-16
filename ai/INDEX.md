@@ -190,6 +190,7 @@ artifact type. Check them whenever your work touches the described concern.
 | `replace.py` | `scripts/dev/` | Bulk find-and-replace with diff preview (run without `--apply` to review, then `--apply` to write). Supports `--regex` and `--all`. |
 | `yang_move.py` | `scripts/dev/` | Format-aware YANG path refactoring. When YANG nodes move, updates slash paths, set commands, brace blocks, and GetContainer chains across the codebase. `remove <seg> --under <path>`, `rename <old> <new> --under <path>`, `move <src> <dst>`. Preview by default, `--apply` to write. Run `--test` for self-tests. |
 | `stress-repro.py` | `scripts/dev/` | Reproduce load-dependent / flaky-in-full-verify test failures WITHOUT the full suite: CPU+GC burners oversubscribe every core while many concurrent `ze-test <suite>` runs loop, capturing the first crash's untruncated output (`GOTRACEBACK=all`; optional `--race`). Writes `tmp/stress-repro/<suite>-<ts>.log`. See `ai/rules/flaky-under-load.md`. |
+| `rebase_learned.py` | `scripts/dev/` | Drive an in-progress rebase that keeps re-conflicting on the learned bookkeeping files (`plan/learned/.counter`, `ai/LEARNED-FULL-INDEX.md`): resolves those two derivable files mechanically at each stop and halts on anything needing judgment. Judgment flags `--take-theirs/--take-ours PATH`, `--accept-incoming-delete` (all logged). The human starts/aborts the rebase; the script only resolves. See `ai/rules/git-safety.md` "Rebase Onto Diverged main". |
 | `bundle-html.py` | `gh-pages: presentations/tools/` | Inline local images, slides.md, and embeds into HTML as a self-contained file. Output: `<name>-inlined.html`. Accepts multiple files. |
 | `make ze-verify-wiring-docs` | `mk/inventory.mk` | Changed-file-aware wiring, documentation, command, and inventory gate used by `make ze-verify`. |
 | `go run ./scripts/status/verify_run.go ze-verify` | `scripts/status/verify_run.go` | Verify protocol runner used by `make ze-verify`. Writes `tmp/ze-verify.log`, per-stage logs, compact failure indexes, and `tmp/ze-verify.status`. |
@@ -321,6 +322,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | route selection, best path | `route-selection.md` |
 | FSM, state, session, peer | `behavior/fsm.md` |
 | signal, SIGHUP, SIGUSR | `behavior/signals.md` |
+| reload fence, reload generation, show reload-status, wait for reload, reject/no-op observability | `docs/architecture/api/commands.md` ("show reload-status"), `internal/component/plugin/server/reload_generation.go`, `cmd/ze/hub/main_reload.go` |
 | API, command, announce, withdraw | `docs/architecture/api/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md` |
 | text format, IPC, formatter, parser | `docs/architecture/api/text-format.md`, `docs/architecture/api/text-parser.md`, `docs/architecture/api/text-coverage.md` |
 | IPC, wire format, muxconn | `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/wire-format.md`, `docs/architecture/api/process-protocol.md` |
