@@ -15,6 +15,29 @@ script (so staging never sits open between calls, nothing left dangling),
 then run that script yourself: `bash tmp/commit-<SESSION>.sh`. Committing
 is allowed; committing outside a script is not.
 
+**Shared plan files cross-commit even with a correct, explicit `--file`
+list.** The rule above fixes staging *timing*; it cannot fix staging
+*granularity*. `git add <file>` stages the WHOLE file, including hunks
+another session left uncommitted in it. `plan/deferrals.md`,
+`plan/known-failures.md` and `plan/learned/.counter` are single files that
+every session appends to, so whoever commits first carries everyone else's
+pending rows into their commit. Observed twice on 2026-07-15/16: one
+session's `deferrals.md` edits landed inside two unrelated VRRP commits,
+and three concurrent sessions (ping, ipc, lg) each had `plan/deferrals.md`
+in their own explicit `--file` list at the same time.
+
+Consequences, in order of importance:
+
+| Situation | Do |
+|-----------|-----|
+| Your rows in a shared plan file are already committed by someone else | Nothing. The content is correct and preserved; only attribution is off. NEVER rewrite history to reclaim it (`git revert`/`reset` are forbidden anyway). |
+| You edited a shared plan file | Commit it promptly. The longer it sits, the likelier another session's commit absorbs it. |
+| Your commit omits a shared plan file you edited | Check `git log -1 -- <file>` before assuming the edit was lost: another session probably committed it already. |
+| You see foreign rows in a shared plan file's diff | That is expected, not misconduct. Do not "clean" them out; you would revert another session's work. |
+
+Do not read a cross-commit as a rule violation by the other session. With
+concurrent sessions and a shared single-file log it is structural.
+
 **Explicit commit requests are a fast path.** When the user asks for a
 commit, the implementation/review phase is over. Prepare the commit
 script and run it immediately. Do not re-audit the implementation, run late
