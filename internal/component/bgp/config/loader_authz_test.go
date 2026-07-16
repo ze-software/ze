@@ -566,3 +566,65 @@ system {
 	require.Error(t, err, "invalid regex should produce config error")
 	assert.Contains(t, err.Error(), "invalid regex")
 }
+
+// TestValidateAuthzConfigRejectsUndefinedTacacsProfile verifies that a
+// tacacs-profile priv-lvl mapping naming a profile that does not exist is
+// rejected at config load, on the same footing as a user[*].profile reference.
+//
+// VALIDATES: AC-8 extended -- tacacs-profile references are checked too.
+// PREVENTS: a typo loading quietly and then silently not applying to the session
+//
+//	it was meant to restrict. Authorization receives profile names, not the
+//	mapping, so at runtime it can only ignore a name it cannot resolve; load
+//	time is the only place this is visible.
+func TestValidateAuthzConfigRejectsUndefinedTacacsProfile(t *testing.T) {
+	const input = `
+system {
+    authorization {
+        profile read-only {
+            run { default-action allow; }
+            edit { default-action deny; }
+        }
+    }
+    authentication {
+        tacacs-profile 1 { profile [ raed-only ]; }
+    }
+}
+`
+	tree, err := config.ParseTreeWithYANG(input, nil)
+	require.NoError(t, err)
+
+	err = ValidateAuthzConfig(tree)
+	require.Error(t, err, "a tacacs-profile naming an undefined profile must not load")
+	assert.Contains(t, err.Error(), "raed-only")
+}
+
+// TestValidateAuthzConfigAcceptsDefinedTacacsProfile guards the check above from
+// over-reaching: a mapping whose names all resolve must still load.
+//
+// VALIDATES: a valid priv-lvl mapping is accepted.
+// PREVENTS: the reference check rejecting working TACACS+ deployments.
+func TestValidateAuthzConfigAcceptsDefinedTacacsProfile(t *testing.T) {
+	const input = `
+system {
+    authorization {
+        profile read-only {
+            run { default-action allow; }
+            edit { default-action deny; }
+        }
+        profile admin {
+            run { default-action allow; }
+            edit { default-action allow; }
+        }
+    }
+    authentication {
+        tacacs-profile 1  { profile [ read-only ]; }
+        tacacs-profile 15 { profile [ admin ]; }
+    }
+}
+`
+	tree, err := config.ParseTreeWithYANG(input, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, ValidateAuthzConfig(tree))
+}

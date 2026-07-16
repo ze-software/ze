@@ -253,6 +253,24 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 		}
 	}
 
+	// Check tacacs-profile priv-lvl -> profile references, on the same footing as
+	// the user references above. These names decide what a TACACS+-authenticated
+	// session may run (the authenticator resolves them at login and authorization
+	// applies them), so an undefined one is the same operator error as an
+	// undefined user profile -- it just arrives through a different door.
+	//
+	// Catching it here matters because the runtime cannot report it: authorization
+	// receives profile names, not the mapping, so it can only ignore a name it
+	// cannot resolve. A typo would otherwise load quietly and surface as a session
+	// whose profile silently does not apply.
+	for level, entry := range auth.GetList("tacacs-profile") {
+		for _, pn := range entry.GetSlice("profile") {
+			if _, ok := profiles[pn]; !ok {
+				return fmt.Errorf("tacacs-profile %q references undefined profile %q", level, pn)
+			}
+		}
+	}
+
 	return nil
 }
 
