@@ -255,7 +255,7 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 	in2.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 1, 0}, true)
 	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = in2
 
-	status, ok := r.status().(map[string]any)
+	status, ok := r.status("").(map[string]any)
 	require.True(t, ok)
 
 	counts, ok := status["route-counts"].(map[string]any)
@@ -270,6 +270,65 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, 1, p2["in"], "peer .2 Adj-RIB-In size")
 	assert.Equal(t, 0, p2["out"], "peer .2 advertised nothing")
+}
+
+// TestRibStatusFamilyScopedRouteCounts verifies a family argument scopes the
+// per-peer route-counts to that family, while no argument reports all-family
+// totals.
+//
+// VALIDATES: status(fam) counts only `fam`; status("") counts every family.
+// PREVENTS: a family-filtered `show bgp summary <afi/safi>` reporting all-family
+// route counts (the /ze-review NOTE this fixes) — the counts would include IPv6
+// routes for an `ipv4/unicast` filter.
+func TestRibStatusFamilyScopedRouteCounts(t *testing.T) {
+	r := newTestRIBManager(t)
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
+
+	// Peer with two received routes in IPv4 and one in IPv6 (Adj-RIB-In).
+	in := storage.NewPeerRIB("192.0.2.1")
+	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0}, true)
+	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1}, true)
+	in.Insert(family.IPv6Unicast, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8}, true)
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = in
+	// Advertised: two IPv4, one IPv6 (Adj-RIB-Out).
+	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
+			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
+			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
+		},
+		family.IPv6Unicast: {
+			"2001:db8::/32": {Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "2001:db8::1", Origin: new(OriginIGP)},
+		},
+	})
+
+	peerCount := func(status any) map[string]any {
+		m, ok := status.(map[string]any)
+		require.True(t, ok)
+		counts, ok := m["route-counts"].(map[string]any)
+		require.True(t, ok)
+		p, ok := counts["192.0.2.1"].(map[string]any)
+		require.True(t, ok)
+		return p
+	}
+
+	// No family: all-family totals.
+	total := peerCount(r.status(""))
+	assert.Equal(t, 3, total["in"], "all-family Adj-RIB-In")
+	assert.Equal(t, 3, total["out"], "all-family Adj-RIB-Out")
+
+	// IPv4 filter: only the IPv4 routes.
+	v4 := peerCount(r.status("ipv4/unicast"))
+	assert.Equal(t, 2, v4["in"], "IPv4-scoped Adj-RIB-In")
+	assert.Equal(t, 2, v4["out"], "IPv4-scoped Adj-RIB-Out")
+
+	// IPv6 filter: only the IPv6 route.
+	v6 := peerCount(r.status("ipv6/unicast"))
+	assert.Equal(t, 1, v6["in"], "IPv6-scoped Adj-RIB-In")
+	assert.Equal(t, 1, v6["out"], "IPv6-scoped Adj-RIB-Out")
+
+	// Unrecognized family falls back to all-family totals (never panics).
+	bogus := peerCount(r.status("not/afamily"))
+	assert.Equal(t, 3, bogus["in"], "unknown family falls back to totals")
 }
 
 // TestInboundShowFamilyFilter verifies family filter restricts results.

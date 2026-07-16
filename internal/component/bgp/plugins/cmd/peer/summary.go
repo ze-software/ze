@@ -79,15 +79,21 @@ type ribRouteCount struct {
 }
 
 // fetchRibRouteCounts asks the bgp-rib plugin for its per-peer route counts.
-// Best-effort by design: returns nil when the plugin is not loaded
+// famFilter (the summary's expanded afi/safi filter, or "") scopes the counts to
+// one family so a family-filtered summary reports family-scoped, not all-family,
+// counts. Best-effort by design: returns nil when the plugin is not loaded
 // (ForwardToPlugin -> ErrUnknownCommand) or on any error, so the summary still
 // renders — the route-count keys are omitted, never faked to 0.
-func fetchRibRouteCounts(ctx *pluginserver.CommandContext) map[string]ribRouteCount {
+func fetchRibRouteCounts(ctx *pluginserver.CommandContext, famFilter string) map[string]ribRouteCount {
 	d := ctx.Dispatcher()
 	if d == nil {
 		return nil
 	}
-	resp, err := d.ForwardToPlugin(ctx, cmdRibStatus, nil, "")
+	var args []string
+	if famFilter != "" {
+		args = []string{famFilter}
+	}
+	resp, err := d.ForwardToPlugin(ctx, cmdRibStatus, args, "")
 	if err != nil || resp == nil || resp.Status != plugin.StatusDone {
 		return nil
 	}
@@ -208,7 +214,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	// Per-peer route counts owned by the bgp-rib plugin (Adj-RIB-In/Out sizes).
 	// Best-effort: nil when the plugin is absent, in which case the route-count
 	// keys are simply omitted (never faked to 0).
-	ribCounts := fetchRibRouteCounts(ctx)
+	ribCounts := fetchRibRouteCounts(ctx, familyFilter)
 	for i := range allPeers {
 		p := &allPeers[i]
 		if familyFilter != "" {

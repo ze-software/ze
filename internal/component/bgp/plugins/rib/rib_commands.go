@@ -125,8 +125,15 @@ func doRegisterBuiltinCommands() {
 		handler CommandHandler
 	}{
 		{[]string{"show bgp rib status"}, "Show RIB status (peer count, route counts)",
-			func(r *RIBManager, sel string, _ []string) (string, any, error) {
-				return statusDone, r.status(), nil
+			func(r *RIBManager, sel string, args []string) (string, any, error) {
+				// Optional first arg scopes the per-peer route-counts to one
+				// family (summary.go passes its family filter here). No arg =
+				// all-family totals.
+				fam := ""
+				if len(args) > 0 {
+					fam = args[0]
+				}
+				return statusDone, r.status(fam), nil
 			}},
 		{[]string{"show bgp rib"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
@@ -658,7 +665,7 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 }
 
 // status returns RIB status.
-func (r *RIBManager) status() any {
+func (r *RIBManager) status(famFilter string) any {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
@@ -670,6 +677,16 @@ func (r *RIBManager) status() any {
 	// non-BGP redistribution sources that do not map to a BGP peer row.
 	// RFC 4271 Section 3.2: Adj-RIB-In holds routes advertised by a peer,
 	// Adj-RIB-Out holds routes advertised to a peer.
+	//
+	// famFilter scopes the per-peer counts to one family (so a family-filtered
+	// `show bgp summary <afi/safi>` reports family-scoped, not all-family,
+	// counts). Empty famFilter, or an unrecognized one, reports all-family
+	// totals. The global routes-in/routes-out stay all-family totals regardless,
+	// since other consumers depend on them.
+	scopeFam, scoped := family.Family{}, false
+	if famFilter != "" {
+		scopeFam, scoped = family.LookupFamily(famFilter)
+	}
 	peerCounts := make(map[string]any, len(r.bgpPeers))
 	perPeer := func(addr netip.Addr) map[string]any {
 		key := addr.String()
@@ -684,9 +701,14 @@ func (r *RIBManager) status() any {
 	routesIn := 0
 	staleRoutes := 0
 	for addr, peerRIB := range r.bgpPeers {
-		routesIn += peerRIB.Len()
+		peerIn := peerRIB.Len()
+		routesIn += peerIn
 		staleRoutes += peerRIB.StaleCount()
-		perPeer(addr)["in"] = peerRIB.Len()
+		if scoped {
+			perPeer(addr)["in"] = peerRIB.FamilyLen(scopeFam)
+		} else {
+			perPeer(addr)["in"] = peerIn
+		}
 	}
 	for _, protoPeers := range r.ribInPool {
 		for _, peerRIB := range protoPeers {
@@ -698,10 +720,16 @@ func (r *RIBManager) status() any {
 	routesOut := 0
 	for addr, peerFamilies := range r.ribOut {
 		peerOut := 0
-		for _, familyRoutes := range peerFamilies {
-			peerOut += len(familyRoutes)
+		for fam, familyRoutes := range peerFamilies {
+			routesOut += len(familyRoutes)
+			if scoped {
+				if fam == scopeFam {
+					peerOut = len(familyRoutes)
+				}
+			} else {
+				peerOut += len(familyRoutes)
+			}
 		}
-		routesOut += peerOut
 		perPeer(addr)["out"] = peerOut
 	}
 

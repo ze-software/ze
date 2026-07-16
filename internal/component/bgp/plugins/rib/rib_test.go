@@ -354,7 +354,7 @@ func TestStatusJSON(t *testing.T) {
 	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
 	r.peerUp[netip.MustParseAddr("10.0.0.2")] = true
 
-	status := r.status()
+	status := r.status("")
 	assert.Contains(t, dataStr(t, status), `"running":true`)
 	assert.Contains(t, dataStr(t, status), `"peers":2`)
 	assert.Contains(t, dataStr(t, status), `"routes-in":2`)
@@ -1232,7 +1232,7 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 	r.handleReceived(event)
 	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
 
-	status := r.status()
+	status := r.status("")
 	assert.Contains(t, dataStr(t, status), `"routes-in":2`, "status should count pool routes")
 }
 
@@ -2037,7 +2037,7 @@ func TestStatusJSONMultiFamilyCount(t *testing.T) {
 		},
 	})
 
-	data := r.status()
+	data := r.status("")
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(3), result["routes-out"], "should count 3 total routes across families")
@@ -2737,7 +2737,7 @@ func TestShowIteratesAllProtocols(t *testing.T) {
 	r.ribInPool[monitorID] = monitorPeers
 
 	r.peerMu.RLock()
-	result := r.status()
+	result := r.status("")
 	r.peerMu.RUnlock()
 
 	var status map[string]any
