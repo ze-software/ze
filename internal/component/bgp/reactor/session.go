@@ -312,7 +312,8 @@ type Session struct {
 	done chan struct{}
 
 	// prefixCounts tracks received prefix count per family for prefix limit enforcement.
-	// Initialized in NewSession when PrefixMaximum is configured.
+	// Always initialized in NewSession, regardless of whether PrefixMaximum is
+	// configured: without limits the tally still feeds route-count anomaly detection.
 	// Only accessed from session's read goroutine (no synchronization needed).
 	prefixCounts *prefixCounts
 

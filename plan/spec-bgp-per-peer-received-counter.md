@@ -19,13 +19,27 @@ evidenced below; a future session should re-design, not re-plumb.
    maintains it internally", "this spec is about safe exposure ... not about
    computing a new number") is WRONG: an honest pre-policy count needs per-prefix
    identity tracking, which does not exist today.
-2. **File collision with the Depends spec.** `spec-bgp-filtered-route-storage`
-   went `skeleton` -> `in-progress` (Phase 2, Wiring) while this audit was running
-   and is being implemented by a concurrent session. It modifies
-   `cmd/peer/summary.go`, `lg/handler_api.go`, `reactor_notify.go`,
-   `summary_test.go` and `test/plugin/bgp-summary-route-counts.ci` -- the same
-   files this spec targets, in the same working tree on `main`. Sequence after it
-   lands and re-audit against what it leaves behind.
+2. **The Depends spec is superseded, and its replacement probably dissolves this
+   spec too.** During this audit `spec-bgp-filtered-route-storage` went
+   `skeleton` -> `in-progress` -> `blocked` in a concurrent session, which
+   concluded (its D-4) that it is **superseded, not merely blocked**, by
+   `spec-bgp-peer-settings-reload-ignored`: that spec's Phase B builds a
+   **pre-policy store** which "must capture the ORIGINAL payload"
+   (`plan/spec-bgp-peer-settings-reload-ignored.md:290`), making `routes_filtered`
+   a QUERY over that store rather than separate storage.
+
+   **Read that before re-designing this one.** A store keyed by prefix identity is
+   exactly what A-4 says the wire tally lacks: with it a re-announce REPLACES
+   instead of incrementing, so an honest pre-policy count becomes a query over the
+   store -- no new atomics, no `PeerInfo` plumbing, and most of this spec's Data
+   Flow and Files-to-Modify sections evaporate. Do NOT implement the atomic-snapshot
+   design here until Phase B's shape is known; re-derive against it.
+
+   (Collision note, kept as history: this spec targets `cmd/peer/summary.go`,
+   `lg/handler_api.go`, `summary_test.go` and
+   `test/plugin/bgp-summary-route-counts.ci`, all of which the superseded spec also
+   listed -- expect the same overlap with whatever replaces it, on `main`, in one
+   shared working tree.)
 
 ## Post-Compaction Recovery
 
@@ -125,7 +139,7 @@ implement it deliberately rather than half-land it.
 | A-1 | `prefixCounts` is genuinely pre-policy | `session_prefix.go:225` counts from the wire UPDATE before the reject gate at `reactor_notify.go:448` | The exposed number would be a duplicate of accepted, not a new signal | re-read producer + race-detector `.ci` that rejects a route via import policy and shows received > accepted | **confirmed** (2026-07-16): `session_read.go:198-201` calls `checkPrefixLimits` on the raw wire UPDATE under the comment "Check prefix limits BEFORE delivering to plugins"; plugin dispatch happens later at `session_read.go:233` via `onMessageReceived`, and the import-filter reject gate is downstream at `reactor_notify.go:448` (`if !res.accept { return false }`). The tally is strictly pre-policy. |
 | A-2 | Per-family atomic snapshot removes the race | `reactor_api.go:90` reads under `r.mu.RLock`; writer takes no lock | Data race persists | `go test -race` on a reactor test injecting concurrent UPDATEs | unvalidated (no code written). The RACE PREMISE is confirmed: `session.go:316` documents `prefixCounts` as "Only accessed from session's read goroutine (no synchronization needed)" and `add()` (`session_prefix.go:196`) mutates the map with no lock, so a read from `Peers()` would race. |
 | A-3 | LG consumers tolerate `routes_received` becoming pre-policy | `lg/handler_api.go` already reads the keys; birdwatcher semantics expect received >= imported | Downstream dashboards misreport | LG `.ci` asserting received (pre) >= imported (post) | unvalidated -- and THREATENED by R-3: for VPN/flowspec families the tally can UNDER-count, so `received >= imported` is not guaranteed for all families. |
-| A-4 | The tally is an accurate count of what the peer advertised | Spec Task section assumed the number only needed safe exposure | The exposed number is misleading in production; the whole spec premise collapses | read the producer's data structure and every mutation site | **BROKEN** (2026-07-16): `prefixCounts` (`session_prefix.go:179-182`) holds only `counts map[uint32]int64` + `warned map[uint32]bool` -- NO per-prefix identity -- and `add()` (line 196) does an unconditional `pc.counts[fk] += delta`. The only decrements are explicit withdrawals: `countBodyWithdrawn` (line 254) and `MP_UNREACH` (line 267); `applyPrefixDelta`/`applyPrefixCheck` are called ONLY from `checkPrefixLimits`. Therefore a re-announced prefix (BGP implicit withdraw, the normal attribute-update path) increments the tally AGAIN while the Adj-RIB-In replaces in place. Under route churn `received` climbs away from reality and never recovers. Acceptable for prefix-limit enforcement (fails safe: over-counts only), NOT acceptable as an operator-facing "routes the peer sent". |
+| A-4 | The tally is an accurate count of what the peer advertised | Spec Task section assumed the number only needed safe exposure | The exposed number is misleading in production; the whole spec premise collapses | read the producer's data structure and every mutation site | **BROKEN** (2026-07-16): `prefixCounts` (`session_prefix.go:179-182`) holds only `counts map[uint32]int64` + `warned map[uint32]bool` -- NO per-prefix identity -- and `add()` (line 196) does an unconditional `pc.counts[fk] += delta`. The only decrements are explicit withdrawals: `countBodyWithdrawn` (line 254) and `MP_UNREACH` (line 267); `applyPrefixDelta`/`applyPrefixCheck` are called ONLY from `checkPrefixLimits`. LSP `findReferences` on `prefixCounts.add` returns exactly 3 hits -- the definition (196:25) plus `applyPrefixDelta` (349:28) and `applyPrefixCheck` (371:28) -- so there is NO third mutation path in the codebase and nothing can decrement on implicit replace. Therefore a re-announced prefix (BGP implicit withdraw, the normal attribute-update path) increments the tally AGAIN while the Adj-RIB-In replaces in place. Under route churn `received` climbs away from reality and never recovers. Acceptable for prefix-limit enforcement (fails safe: over-counts only), NOT acceptable as an operator-facing "routes the peer sent". |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
