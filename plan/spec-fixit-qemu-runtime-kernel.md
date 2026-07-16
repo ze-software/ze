@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | - |
+| Depends | spec-fixit-qemu-artifact-cache (land that first: durable kernel cache) |
 | Phase | 0/N (research) |
 | Updated | 2026-07-16 |
 
@@ -24,12 +24,13 @@ already used by three other targets. What is missing is wiring plus a story for 
 build cost, which is the documented reason the main targets stayed on stock. Whether
 7.1.1 actually fixes the nft crash is UNVERIFIED and is AC-1.
 
-Scope therefore includes a durable, evicting cache for the built kernel, per user
-constraints (2026-07-16): the artifact must NOT live in `tmp/`, because `tmp/` must
-stay safe to delete wholesale, while a kernel costs ~30 minutes and changes only
-every few months; and a `kernel.version` bump must reclaim the superseded kernel and
-image rather than leak them. Today the repo violates both: it builds to
-`tmp/kernel/build` and stages to `tmp/kernel/vmlinuz`, and nothing ever evicts.
+The cache work this implies (the kernel must not live in `tmp/`, and a version bump
+must reclaim what it supersedes) is NOT owned here. It is
+`plan/spec-fixit-qemu-artifact-cache.md`, which covers the kernel, the Alpine ISO and
+its extracted initramfs together, because they are one artifact class behind one
+mechanism. That spec should land FIRST: it is independently useful (it fixes a
+confirmed stale-initramfs bug), and it gives this spec a kernel that survives a
+`tmp/` wipe.
 
 ## Origin
 
@@ -268,90 +269,23 @@ work; the change is the harness those `.ci` files run on.
 
 - Does 7.1.1 actually fix the crash? Everything else is downstream of this. Answer it
   first, by hand, before any design.
-- How is the ~30-minute build amortised? User direction 2026-07-16: "can we build and
-  cache this? have a cache folder in the repository to not rebuild but be able to
-  reuse?" Partly answered already, so the remaining question is narrow:
+- Build cost, caching and eviction are NOT open questions here: they are owned by
+  `plan/spec-fixit-qemu-artifact-cache.md`, which covers the kernel, the Alpine ISO
+  and its extracted initramfs as one artifact class. It records the user constraints
+  (2026-07-16): `tmp/` must stay deletable so the kernel cannot live there; a version
+  bump must reclaim what it supersedes; the Go caches deliberately STAY in `tmp/`
+  because they grow and are cleared often. Kernel updates land every few WEEKS (user
+  correction, 2026-07-16), which makes both the caching and the eviction recurring
+  concerns rather than one-offs.
 
-  CONFIRMED, a cache already exists and already works within one checkout.
-  `gokrazy/kernel/Makefile` declares `$(OUT)/vmlinuz` with `kernel.config`,
-  `kernel.require`, `runtime.config`, `runtime.require`, `patches/series`, the patch
-  files and the builder scripts as prerequisites, so make already skips the rebuild
-  when nothing changed. The ~30 minutes is a FIRST build, not a per-run cost
-  (`mk/test-integration.mk:421-422` says it "rebuilds when runtime.config changes").
-  There is also an existing in-repo cache convention: `qemu-run.py:84-92`
-  (`cache_dir`) creates `tmp/qemu/{iso,go-dl,go-cache,gomodcache}`, and `ensure_iso`
-  (`:99-115`) downloads the Alpine ISO once and reuses it.
-
-  CONFIRMED, the limit is scope, not correctness. `.gitignore:12` ignores `tmp/*`, so
-  the cache is per-checkout: a fresh clone rebuilds, and EVERY git worktree gets its
-  own `tmp/` (this repo uses `.claude/worktrees/`), so each worktree pays the 30
-  minutes again. That, not the first build, is the cost worth attacking.
-
-  USER CONSTRAINT, 2026-07-16, and it rules out the status quo: "we should not have
-  valuable cache in tmp as we must be able to delete it all, and kernel rebuild only
-  happens really every few months when the kernel is updated." So `tmp/` is by
-  definition disposable, and the kernel is a ~30-minute artifact with a lifetime of
-  MONTHS. Storing it in the scratch tree is backwards, and that is what the repo does
-  today: `gokrazy/kernel/Makefile` builds to `tmp/kernel/build` and `mk/gokrazy.mk:200`
-  stages to `tmp/kernel/vmlinuz`. `rm -rf tmp/` silently costs 30 minutes.
-
-  -> Decision: the cache location must survive a full `tmp/` wipe. Any option that
-  keeps the kernel under `tmp/` is rejected regardless of its other merits.
-
-  The same defect applies to the Alpine ISO: `qemu-run.py:84-92` caches it under
-  `tmp/qemu/iso`, so a `tmp/` wipe also re-downloads it. Whatever cache root is
-  chosen should probably host both, since they are the same class of artifact
-  (expensive to obtain, rarely changing, keyed by a version).
-
-  Remaining options, given that constraint:
-  1. ~~Status quo (`tmp/kernel`)~~: REJECTED. Valuable artifact in the disposable tree.
-  2. Repo-local cache dir OUTSIDE `tmp/` (e.g. gitignored `.cache/kernel/<key>/`):
-     survives `rm -rf tmp/`, is "in the repository" as asked, but is still per-worktree
-     and is still destroyed by `git clean -xdf`.
-  3. User-level shared cache (e.g. `~/.cache/ze/kernel/<key>/vmlinuz`), copied or
-     symlinked to whatever path the targets expect: survives a `tmp/` wipe, `git
-     clean`, a fresh clone, and is shared across `.claude/worktrees/`. Most durable
-     for a months-lived artifact; the tradeoff is that it lives outside the repo.
-  4. Prebuilt artifact fetched on demand: an `ensure_kernel()` mirroring
-     `ensure_iso()`. Precedented and it removes the 30 minutes entirely for most
-     people, but it needs somewhere to publish and there is no CI today.
-  5. Commit a binary kernel: NOT recommended. Tens of MB per rebuild, permanent in git
-     history, and it contradicts `gokrazy/kernel/Makefile`, which deliberately keeps
-     the ~400MB build under gitignored `tmp/` so artifacts "never pollute git status".
-
-  Options 2 and 3 are not exclusive: a shared cache root with a repo-local symlink
-  gets durability plus discoverability. Whichever is chosen, the build must remain
-  reproducible on demand, so the cache stays an optimisation and never becomes the
-  only copy of a kernel nobody can rebuild.
-
-- Eviction. USER CONSTRAINT, 2026-07-16: "we should clear old kernel / image when we
-  updated the kernel version in the repo." A durable cache that never evicts is just
-  a leak with better uptime: each `kernel.version` bump strands a vmlinuz (plus the
-  ~400MB build tree if that is cached too), and `ensure_iso` already names ISOs per
-  version (`qemu-run.py:101`) and never deletes the old one, so Alpine bumps leak the
-  same way. AC-7/AC-8 make reclamation a requirement, not a nicety.
-
-  The open part is the policy, and it is a genuine tradeoff:
-  - Keep-exactly-one (purge every key but the current one on build): simplest, matches
-    the user's wording, bounds the cache at one artifact. But switching branches or
-    bisecting across a `kernel.version` bump then costs a ~30-minute rebuild EACH WAY,
-    which is the exact cost this spec exists to remove.
-  - Keep-N (say 2) or age-based: survives branch switching and bisect, at the price of
-    a bounded amount of disk.
-  Prefer a policy tied to the version/config KEY rather than to wall-clock age, so the
-  behaviour is predictable: an operator who bumps the kernel and reverts should not be
-  punished, and one who never reverts should not accumulate. Whatever is chosen, GC
-  must be safe to run concurrently: sessions and worktrees share this repo, so
-  eviction must not delete a kernel another run is booting right now (the same shared
-  mutable state hazard as `plan/spec-fixit-shared-plan-file-contention.md`).
-
-  The load-bearing detail for options 2 and 3: the cache KEY must hash the config
-  inputs (`kernel.config` + `runtime.config` + `*.require` + `patches/`), not just
-  `internal/appliance/kernel.version`. Keying on version alone means a
-  `runtime.config` edit silently reuses a stale kernel, which is precisely the
-  failure the current make prerequisites prevent. A cache that loses that property is
-  worse than no cache: it would let a config change appear to work while testing the
-  old kernel.
+  Only one caching point is kernel-specific and it belongs here: the cache KEY must
+  hash the config inputs (`kernel.config` + `runtime.config` + `*.require` +
+  `patches/`), not just `internal/appliance/kernel.version`. Keying on the version
+  alone means a `runtime.config` edit silently reuses a stale kernel, which is exactly
+  the failure the current make prerequisites already prevent
+  (`gokrazy/kernel/Makefile`). A cache that loses that property is worse than no
+  cache: a config change would appear to work while testing the old kernel. AC-9
+  holds it.
 - Should `ze-qemu-all-test` require `make ze-gokrazy-deps` (`mk/gokrazy.mk:202-205`)?
   That is a new dependency for a target that currently needs only QEMU.
 - Does the runtime kernel need config additions to host the full suite (virtio, fs,
