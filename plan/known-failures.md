@@ -179,15 +179,44 @@ failing run before attributing. A separate `rsvpte-lsp-teardown` exit-2 (no stac
 in the 200-line capture) was seen once on 2026-07-13 and did not reproduce in 160
 runs; it is not the same panic and its cause is unverified.
 
-### `internal/chaos/inprocess` `TestInProcessChaosReconnect` -- flaky under `-race`
+### `internal/chaos/inprocess` `TestInProcessChaosReconnect` -- fails in isolation since 44ad25d23; was flaky under `-race`
 
 Observed 2026-07-08 in `ze-verify-changed` (`-race`): `assert.Greater(established,
 1)` failed with `established==1` at `runner_test.go:688`. Timing-dependent: chaos
 rate 1.0 should disconnect and re-establish the peer, but under the `-race` build's
-slowdown the re-establishment did not complete within the test window. Passes 3/3
-without `-race`. Unrelated to unify-replay -- `established` counts peer-FSM
-establishments, not route replay, and `internal/chaos/inprocess` is untouched.
-Owner: whoever next hardens chaos-reconnect timing for `-race`.
+slowdown the re-establishment did not complete within the test window. Unrelated to
+unify-replay -- `established` counts peer-FSM establishments, not route replay, and
+`internal/chaos/inprocess` is untouched.
+
+**2026-07-16 update: the original "Passes 3/3 without `-race`" claim above was
+removed because it is no longer true.** `44ad25d23` (`fix(bgp): reconnect backoff
+floor 5s, not 120s connect-retry`) widened this from a `-race`-only flake into a
+failure that reproduces WITHOUT `-race` whenever the test runs in isolation.
+Measured with the Makefile's build tags per this file's rule above, patching
+`peer.go` in place and restoring it:
+
+| Build | Result |
+|-------|--------|
+| pre-44ad25d23 (`reconnectMin := settings.ConnectRetry`) | PASS 2/2, ~4.3s |
+| HEAD (`reconnectMin := DefaultReconnectMin`) | FAIL, 92.00s, `established==1` |
+
+Still order-dependent, so it stays in scope for this file: a full-package `-race`
+run of `./internal/chaos/inprocess/` PASSED once, meaning `make ze-chaos-unit-test`
+may be green while the isolated test is red. The 92.00s is the test's own 90s
+context deadline (`runner_test.go:658`): `Run()` never reaches its 60s virtual
+duration. With the old 120s floor the peer never dialed inside the window; with the
+intended 5s floor it dials every 5s virtual and the advance loop burns 90s real,
+though `runner.go:427-430` (`step = 1s` virtual, `stepDelay = 10ms` real) implies
+under a second. Where that real time goes is UNVERIFIED.
+
+Do NOT resolve this by reverting 44ad25d23: the old 120s floor exceeded its own 60s
+ceiling and contradicts `peer_run.go:19-25`. The harness documents the intended 5s
+backoff (`runner_test.go:246`, `runner.go:518-522`), so this is chaos-harness
+timing work, not a BGP defect. Full analysis, including the disproven
+"reactor drops inbound while cycling" theory, is in
+`plan/spec-fixit-redistribute-establishment-stall.md`
+
+Owner: the session that landed 44ad25d23 (spec-fixit-migrate-sleeps-infra work).
 
 ### `reload` suite -- 6 iface tunnel/wireguard tests time out without CAP_NET_ADMIN (unprivileged sandbox)
 

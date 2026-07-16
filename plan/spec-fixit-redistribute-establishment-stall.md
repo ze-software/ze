@@ -37,6 +37,41 @@ recorded here so the next session does not repeat them.
   `SetReconnectDelay` overrides, so unaffected. Verified: converted `announce` 25/25 (was
   ~80% flaky pre-fix); reactor package unit tests green.
 
+### Regression caused by that fix (OPEN, 2026-07-16)
+44ad25d23 widened `internal/chaos/inprocess` `TestInProcessChaosReconnect`, already logged
+flaky-under-`-race` in `plan/known-failures.md` since 2026-07-08, into a failure that also
+reproduces WITHOUT `-race` when the test runs in isolation.
+
+Measured with the Makefile's build tags (bare `go test` is not equivalent, see
+`plan/known-failures.md` "BEFORE LOGGING ANYTHING HERE"), by patching `peer.go` in place and
+restoring it:
+
+| Build | Result |
+|-------|--------|
+| pre-44ad25d23 backoff (`reconnectMin := settings.ConnectRetry`) | PASS 2/2, ~4.3s |
+| HEAD (`reconnectMin := DefaultReconnectMin`) | FAIL, 92.00s, `established==1` (`runner_test.go:688`) |
+
+Order-dependent: a full-package `-race` run of `./internal/chaos/inprocess/` PASSED once, so
+`make ze-chaos-unit-test` (`mk/test-chaos.mk:27`, `go test -race ./internal/chaos/...`) may
+still be green. The isolation failure is the reliable reproducer.
+
+Mechanism, partly pinned: the 92.00s is the test's own 90s context deadline
+(`runner_test.go:658`); `Run()` never reaches the 60s virtual duration (`runner_test.go:664`).
+`runner.go:427-430` sets `step = 1s` virtual and `stepDelay = 10ms` real, so 60 iterations
+should cost well under a second. With the 120s floor the peer never dialed inside the window,
+so that cost never appeared; with the intended 5s floor it dials every 5s virtual and the loop
+burns 90s real. WHERE that real time goes inside `vc.Advance` is UNVERIFIED and is the open
+question. `MockDialer.DialContext` fails fast (`mocknet.go:118-120`) and the virtual timer
+channel is buffered (`virtualclock.go:81`), so neither is the stall.
+
+This is chaos-harness work, NOT a BGP defect: the harness itself documents the intended 5s
+backoff (`runner_test.go:246`, `runner.go:518-522` "DefaultReconnectMin = 5s virtual"). The
+test was green only because the 120s bug parked the retry loop outside the window.
+
+Do NOT "fix" this by reverting 44ad25d23: the 120s floor exceeded the 60s ceiling and
+contradicts `peer_run.go:19-25`, which documents this loop as deliberately replacing the RFC
+4271 ConnectRetryTimer with "min 5s, max 60s".
+
 ### CONFIRMED (evidence)
 - NOT a mutex deadlock: a 122-goroutine dump has zero `[semacquire]`. Refutes H1-H3 as
   *deadlock* hypotheses.
@@ -62,6 +97,16 @@ recorded here so the next session does not repeat them.
   Always let ze-test build (do not pin ZE_BIN to a core binary) for the `bgp plugin` suite.
 - "~20s StartPeers delay from observer polling": FALSE. That number conflated the ze-test
   `go build` time with startup. The manual full-log capture shows StartPeers is fast.
+- "The reactor drops or rejects an inbound connection while the peer's outbound retry loop is
+  cycling, so a faster backoff starves establishment": FALSE, and it is NOT a missing feature.
+  The accept-while-cycling path exists and is wired: `peer_run.go:126-137` selects the backoff
+  on `p.inboundNotify` alongside `p.clock.After(delay)` and restarts `runOnce` immediately
+  WITHOUT doubling the delay; `reactor_connection.go:151-163` (`acceptOrReject`) buffers the
+  connection via `peer.SetInboundConnection` rather than closing it on `ErrNotConnected` /
+  `ErrSessionTearingDown` / `ErrAlreadyConnected` for a passive peer, commented as handling
+  "the race where the remote reconnects faster than our session teardown";
+  `peer_connection.go:67-80` stores the conn and signals the size-1 notify channel. Do not go
+  looking for a missing inbound-accept mechanism in the reactor: read these three first.
 
 ### REMAINING (the real open question)
 Why does the ze-test check-mode peer never accept a connection when the observer polls during
