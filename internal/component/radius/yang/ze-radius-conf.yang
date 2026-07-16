@@ -91,7 +91,13 @@ module ze-radius-conf {
                     type string;
                     description
                         "Ze authorization profile name(s) assigned when the
-                         Access-Accept carries no profile-attribute";
+                         Access-Accept carries no profile-attribute.
+
+                         Optional: leave it unset when the RADIUS server always
+                         names a profile via profile-attribute. When the server
+                         does not, and no default is set here, the login names no
+                         profile and is denied -- ze never authorizes a user it
+                         cannot attach a profile to.";
                 }
             }
         }

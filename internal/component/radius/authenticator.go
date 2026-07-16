@@ -88,6 +88,9 @@ func authBudget(cfg ExtractedConfig) time.Duration {
 // Returns:
 //   - (success, nil) on Access-Accept, Profiles mapped from the reply
 //   - (zero, ErrAuthRejected) on Access-Reject so the chain stops
+//   - (zero, ErrAuthRejected) on an Access-Accept that resolves to no profile
+//     names, whether the reply carried none and no default is configured, or the
+//     names it carried were all empty
 //   - (zero, other error) on timeout/socket/unexpected-code so the chain tries
 //     the next backend (local fallback)
 func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
@@ -128,7 +131,37 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 
 	switch resp.Code {
 	case CodeAccessAccept:
+		// An Accept that resolves to no profile names is a denial, not a
+		// successful login with nothing attached. The server accepting is not the
+		// question: what matters is whether the login names a profile.
+		//
+		// This shape needs no misconfiguration. RFC 2865 does not require a
+		// Filter-Id in an Access-Accept, and default-profile is an optional
+		// leaf-list, so ExtractConfig assigns GetSlice("default-profile")
+		// unconditionally (config.go:103) and Tree.GetSlice returns nil both when
+		// the leaf-list is absent -- the out-of-the-box config -- and when every
+		// member is deactivated (tree.go:183-185).
+		//
+		// Returning success with an empty set would ESCALATE rather than restrict.
+		// aaa.RecordLoginProfiles ignores an empty slice (login_profiles.go:46), so
+		// nothing is recorded; authz.Store.Authorize then finds no assignment and no
+		// login profiles and, with no config user defined (hasUsers==false), falls
+		// back to BuiltinAdminProfile (authz.go:385-390). A server that omits
+		// Filter-Id would be handing every user admin.
+		//
+		// This is NOT the R-4 case above. There, SendToServers produced no answer at
+		// all, so asking the next backend is right and locking the operator out on an
+		// infra blip would be wrong. Here a reachable server answered: the profile set
+		// resolving to zero is the CONTENT of that answer, not the absence of one.
+		// Falling through would let a local account shadow the server's verdict, so
+		// this rejects like Access-Reject does -- the chain stops.
 		profiles := a.mapProfiles(resp)
+		if len(profiles) == 0 {
+			a.logger.Warn("RADIUS admin auth rejected: no profiles resolved",
+				"username", request.Username)
+			return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
+		}
+
 		a.logger.Info("RADIUS admin auth accepted",
 			"username", request.Username, "profiles", profiles)
 		return aaa.AuthResult{
@@ -147,6 +180,10 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 // mapProfiles reads the configured reply attribute (default Filter-Id) as ze
 // authorization profile names, one profile per attribute instance. When the
 // Access-Accept carries none, the configured default profiles apply (AC-6).
+//
+// May return an empty set: the reply named no profiles and no default is
+// configured. That is a legal config and a legal reply, so this stays a pure
+// mapping and leaves the meaning to Authenticate, which rejects the login.
 func (a *radiusAuthenticator) mapProfiles(resp *Packet) []string {
 	var profiles []string
 	for _, v := range resp.FindAllAttr(a.profileAttr) {

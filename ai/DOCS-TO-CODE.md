@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 290 design docs, 2987 files
+Total: 290 design docs, 2989 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -248,6 +248,7 @@ Total: 290 design docs, 2987 files
 | `internal/component/cmd/set/set.go` | set verb RPC registration |
 | `internal/component/cmd/show/audit.go` | show audit handler |
 | `internal/component/cmd/show/doc.go` | show verb command handlers |
+| `internal/component/cmd/show/reload_status.go` | show verb RPC registration |
 | `internal/component/cmd/show/show.go` | show verb RPC registration |
 | `internal/component/cmd/show/show_policy.go` | show policy list handler (cross-plugin) |
 | `internal/component/cmd/subscribe/doc.go` | BGP event subscription handlers |
@@ -279,6 +280,7 @@ Total: 290 design docs, 2987 files
 | `internal/component/ping/cmd/stream.go` | streaming ping session |
 | `internal/component/plugin/cli/register.go` | plugin command ownership |
 | `internal/component/plugin/server/quiesce.go` | quiesce barrier (test synchronization) |
+| `internal/component/plugin/server/reload_generation.go` | show reload-status observability surface |
 | `internal/component/resolve/cli/register.go` | resolve command ownership |
 | `internal/component/resolve/cmd/dns.go` | clear verb RPC registration |
 | `internal/component/sysctl/cli/register.go` | sysctl command ownership |

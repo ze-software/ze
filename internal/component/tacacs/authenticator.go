@@ -38,7 +38,8 @@ func NewTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, l
 // Returns:
 //   - (success result, nil) on PASS with mapped priv-lvl
 //   - (rejected result, ErrAuthRejected) on FAIL (explicit rejection, chain stops)
-//   - (rejected result, ErrAuthRejected) on PASS with unmapped priv-lvl (AC-18)
+//   - (rejected result, ErrAuthRejected) on PASS with a priv-lvl that names no
+//     profiles, whether unmapped or mapped to an empty list (AC-18)
 //   - (zero, error) on ERROR status or connection failure (chain tries next backend)
 func (a *TacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
 	service := request.Service
@@ -85,8 +86,24 @@ func (a *TacacsAuthenticator) handlePass(username string, reply *AuthenReply) (a
 		privLvl = 1
 	}
 
+	// A level that resolves to no profile names is treated as unmapped, not as a
+	// successful login with nothing attached. Presence in the map is not the
+	// question: what matters is whether the mapping names a profile.
+	//
+	// An empty entry is reachable from config. ExtractConfig assigns
+	// GetSlice("profile") unconditionally (config.go:103), and Tree.GetSlice
+	// returns nil both when the leaf-list is absent (`tacacs-profile { level 15; }`)
+	// and when every member is deactivated -- so the key is present with an empty
+	// value and a plain `, ok :=` lookup reports it as mapped.
+	//
+	// Returning success with an empty set would ESCALATE rather than restrict.
+	// aaa.RecordLoginProfiles ignores an empty slice (login_profiles.go:46), so
+	// nothing is recorded; authz.Store.Authorize then finds no assignment and no
+	// login profiles and, with no config user defined (hasUsers==false), falls back
+	// to BuiltinAdminProfile (authz.go:385-390). The operator who mapped a level to
+	// nothing would be handing that level admin.
 	profiles, ok := a.privLvlMap[privLvl]
-	if !ok {
+	if !ok || len(profiles) == 0 {
 		// AC-18: unmapped priv-lvl denies access.
 		a.logger.Warn("TACACS+ unmapped privilege level",
 			"username", username, "priv-lvl", privLvl)

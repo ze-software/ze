@@ -146,6 +146,122 @@ func TestAuthBudgetBounds(t *testing.T) {
 	assert.Less(t, mid, maxAuthBudget)
 }
 
+// TestRadiusAuthenticateProfileResolutionShapes covers the shapes an
+// Access-Accept's profile resolution can take, so the deny cases are read
+// against the allow cases rather than in isolation. The no-attrs/no-default row
+// is the regression: an Accept that names no profile must deny, not succeed with
+// an empty set.
+//
+// VALIDATES: AC-1 -- an Access-Accept resolving to ZERO profile names denies,
+// and an authenticated result never carries an empty profile set. AC-3 -- a
+// configured default-profile still applies when the reply carries no attribute.
+// PREVENTS: a RADIUS server that sends Access-Accept without a Filter-Id, against
+//
+//	out-of-the-box config with no default-profile, authenticating with zero
+//	profiles. Zero profiles are recorded nowhere (aaa.RecordLoginProfiles skips
+//	len(profiles)==0, login_profiles.go:46), so authz.Store.Authorize finds no
+//	assignment and no login profiles and, when no config user exists
+//	(hasUsers==false), returns BuiltinAdminProfile (authz.go:385-390). Such an
+//	Accept therefore grants ADMIN, and unlike the TACACS sibling it needs no
+//	operator misconfiguration: GetSlice returns nil for an absent leaf-list.
+func TestRadiusAuthenticateProfileResolutionShapes(t *testing.T) {
+	filterID := func(vals ...string) []Attr {
+		attrs := make([]Attr, 0, len(vals))
+		for _, v := range vals {
+			attrs = append(attrs, Attr{Type: AttrFilterID, Value: []byte(v)})
+		}
+		return attrs
+	}
+
+	tests := []struct {
+		name         string
+		reply        []Attr
+		defaults     []string
+		wantProfiles []string // non-nil => expect success with these profiles
+	}{
+		{"attrs present authenticate", filterID("netops"), nil, []string{"netops"}},
+		{"attrs present beat configured default", filterID("netops"), []string{"fallback"}, []string{"netops"}},
+		{"no attrs with default authenticates", nil, []string{"read-only"}, []string{"read-only"}},
+		{"no attrs no default denies", nil, nil, nil},
+		// Every default-profile member deactivated: Tree.GetSlice returns nil
+		// (tree.go:183-185), reaching the same shape without an empty leaf-list.
+		{"no attrs empty default denies", nil, []string{}, nil},
+		// mapProfiles skips empty attribute values (authenticator.go:153), so an
+		// Accept carrying Filter-Id = "" resolves to nothing just like no attr.
+		{"empty attr values no default denies", filterID("", ""), nil, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := []byte("testing123")
+			srv := newReplyServer(t, key, CodeAccessAccept, tt.reply)
+			defer srv.close()
+
+			a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
+				ProfileAttr: AttrFilterID, DefaultProfiles: tt.defaults,
+			})
+			res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
+
+			if tt.wantProfiles != nil {
+				require.NoError(t, err)
+				assert.True(t, res.Authenticated)
+				assert.Equal(t, tt.wantProfiles, res.Profiles)
+				return
+			}
+
+			assert.ErrorIs(t, err, aaa.ErrAuthRejected,
+				"an Access-Accept resolving to no profiles must be rejected")
+			assert.False(t, res.Authenticated,
+				"must not authenticate with an empty profile set")
+			assert.Empty(t, res.Profiles)
+			assert.Equal(t, "radius", res.Source)
+		})
+	}
+}
+
+// TestRadiusAuthenticatedImpliesProfiles states the invariant the fix protects,
+// independent of any particular reply or config shape: this authenticator never
+// reports success without naming at least one profile. authz treats "no profiles"
+// as "no opinion" and falls back to admin, so success with an empty set is
+// indistinguishable from an unrestricted login.
+//
+// VALIDATES: AC-2 -- Authenticated==true implies len(Profiles)>0.
+// PREVENTS: a future profile source (a new profile-attribute carrier, a
+//
+//	deactivated default-profile member, a new caller of newRadiusAuthenticator)
+//	reintroducing the empty-profile escalation through a path the table above
+//	does not enumerate.
+func TestRadiusAuthenticatedImpliesProfiles(t *testing.T) {
+	shapes := []struct {
+		reply    []Attr
+		defaults []string
+	}{
+		{nil, nil},
+		{nil, []string{}},
+		{nil, []string{"read-only"}},
+		{[]Attr{{Type: AttrFilterID, Value: []byte("")}}, nil},
+		{[]Attr{{Type: AttrFilterID, Value: []byte("netops")}}, nil},
+	}
+
+	for _, shape := range shapes {
+		key := []byte("testing123")
+		srv := newReplyServer(t, key, CodeAccessAccept, shape.reply)
+
+		a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
+			ProfileAttr: AttrFilterID, DefaultProfiles: shape.defaults,
+		})
+		res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
+		srv.close()
+
+		if res.Authenticated {
+			require.NoError(t, err)
+			assert.NotEmpty(t, res.Profiles,
+				"authenticated result must name at least one profile (reply=%v defaults=%v)",
+				shape.reply, shape.defaults)
+		}
+	}
+}
+
 // VALIDATES: AC-6 the configured Class attribute is honored as the carrier.
 // PREVENTS: hardcoding Filter-Id and ignoring the operator's profile-attribute.
 func TestRadiusProfileMappingClass(t *testing.T) {

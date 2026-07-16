@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1148 summaries
+Total: 1149 summaries
 
 ## 000-099
 
@@ -1217,3 +1217,4 @@ Total: 1148 summaries
 | 1154 | rib-arch-4: BGP Multipath ECMP to the FIB in Realtime | `plan/learned/1154-rib-arch-4-fib-ecmp-realtime.md` |
 | 1155 | learned-next cannot prevent duplicate numbers across branches | `plan/learned/1155-learned-numbers-collide-across-branches.md` |
 | 1156 | driving a diverged-main rebase through the learned bookkeeping files | `plan/learned/1156-rebase-learned-driver.md` |
+| 1157 | an empty profile set authenticated as admin (TACACS+ and RADIUS) | `plan/learned/1157-fail-open-auth-empty-profiles.md` |

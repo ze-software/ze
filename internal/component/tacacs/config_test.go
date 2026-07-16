@@ -110,6 +110,47 @@ func TestExtractConfigPrivLvlMap(t *testing.T) {
 	assert.Equal(t, []string{"read-only"}, cfg.PrivLvlMap[1])
 }
 
+// TestExtractConfigPrivLvlMapEmptyProfileList pins the config half of the
+// empty-mapping escalation: `tacacs-profile { level 9; }` with no profile entries
+// reaches PrivLvlMap as a PRESENT key holding an empty value, not as an absent one.
+// That distinction is the whole defect -- a `, ok :=` lookup calls it "mapped".
+//
+// This is the reason handlePass tests `len(profiles) == 0` rather than trusting
+// `ok`. If ExtractConfig ever starts skipping empty entries instead (making the
+// level genuinely absent), this test documents which layer changed, and the
+// handlePass guard stays correct either way.
+//
+// VALIDATES: an empty profile leaf-list yields a present-but-empty PrivLvlMap entry.
+// PREVENTS: the escalation being "fixed" by a handlePass guard alone while nobody
+//
+//	records that config can produce the ambiguous shape in the first place.
+func TestExtractConfigPrivLvlMapEmptyProfileList(t *testing.T) {
+	tree := config.NewTree()
+	sys := config.NewTree()
+	auth := config.NewTree()
+
+	// `tacacs-profile 9 { }` -- the level exists, no profile leaf-list members.
+	auth.AddListEntry("tacacs-profile", "9", config.NewTree())
+	auth.AddListEntry("tacacs-profile", "15", func() *config.Tree {
+		t := config.NewTree()
+		t.SetSlice("profile", []string{"admin"})
+		return t
+	}())
+
+	sys.SetContainer("authentication", auth)
+	tree.SetContainer("system", sys)
+
+	cfg := ExtractConfig(tree)
+
+	require.NotNil(t, cfg.PrivLvlMap)
+	profiles, ok := cfg.PrivLvlMap[9]
+	assert.True(t, ok, "level 9 is PRESENT in the map: a plain `, ok :=` lookup reports it as mapped")
+	assert.Empty(t, profiles, "level 9 names no profiles, so authenticating it would grant admin via the authz fall-back")
+
+	// The populated sibling is unaffected.
+	assert.Equal(t, []string{"admin"}, cfg.PrivLvlMap[15])
+}
+
 // VALIDATES: ExtractConfig uses default timeout when not specified.
 // PREVENTS: zero timeout causing immediate connection failure.
 func TestExtractConfigDefaultTimeout(t *testing.T) {

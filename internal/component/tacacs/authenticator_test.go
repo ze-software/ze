@@ -120,6 +120,110 @@ func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 	assert.False(t, result.Authenticated)
 }
 
+// TestTacacsAuthenticatorProfileMappingShapes covers the three shapes a priv-lvl
+// mapping can take, so the deny cases are read against the allow case rather
+// than in isolation. The empty-list row is the regression: a level present in
+// the map with no profile names must deny exactly like an absent level.
+//
+// VALIDATES: AC-1 -- a priv-lvl mapped to an EMPTY profile list denies access,
+// and an authenticated result never carries an empty profile set.
+// PREVENTS: `tacacs-profile { level 15; }` with no profile leaf-list entries
+//
+//	authenticating successfully with zero profiles. Zero profiles are recorded
+//	nowhere (aaa.RecordLoginProfiles skips len(profiles)==0, login_profiles.go:46),
+//	so authz.Store.Authorize finds no assignment and no login profiles and, when
+//	no config user exists (hasUsers==false), returns BuiltinAdminProfile
+//	(authz.go:385-390). An empty mapping therefore grants admin: the exact
+//	opposite of the operator's intent in restricting that level.
+func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
+	privMap := map[int][]string{
+		15: {"admin"},
+		1:  {"read-only"},
+		9:  {},  // present but empty: operator wrote `tacacs-profile { level 9; }`
+		7:  nil, // present but nil: every member deactivated (Tree.GetSlice)
+		// 5 intentionally absent: unmapped.
+	}
+
+	tests := []struct {
+		name         string
+		privLvl      uint8
+		wantProfiles []string // non-nil => expect success with these profiles
+	}{
+		{"non-empty list authenticates", 15, []string{"admin"}},
+		{"non-empty list authenticates (read-only)", 1, []string{"read-only"}},
+		{"empty list denies", 9, nil},
+		{"nil list denies", 7, nil},
+		{"unmapped level denies", 5, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := []byte("test-key")
+			srv := newTestServer(t, key, replyWithPrivLvl(tt.privLvl))
+			defer srv.close()
+
+			client := NewTacacsClient(TacacsClientConfig{
+				Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+				Timeout: 2 * time.Second,
+			})
+
+			auth := NewTacacsAuthenticator(client, privMap, nil)
+			result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
+
+			if tt.wantProfiles != nil {
+				require.NoError(t, err)
+				assert.True(t, result.Authenticated)
+				assert.Equal(t, tt.wantProfiles, result.Profiles)
+				return
+			}
+
+			assert.ErrorIs(t, err, authz.ErrAuthRejected,
+				"priv-lvl %d resolves to no profiles and must be rejected", tt.privLvl)
+			assert.False(t, result.Authenticated,
+				"priv-lvl %d must not authenticate with an empty profile set", tt.privLvl)
+			assert.Empty(t, result.Profiles)
+		})
+	}
+}
+
+// TestTacacsAuthenticatorAuthenticatedImpliesProfiles states the invariant the
+// fix protects, independent of any particular map shape: this authenticator
+// never reports success without naming at least one profile. authz treats "no
+// profiles" as "no opinion" and falls back to admin, so success with an empty
+// set is indistinguishable from an unrestricted login.
+//
+// VALIDATES: AC-2 -- Authenticated==true implies len(Profiles)>0.
+// PREVENTS: a future mapping source (config typo, deactivated leaf-list member,
+//
+//	a new caller of NewTacacsAuthenticator) reintroducing the empty-profile
+//	escalation through a path the table above does not enumerate.
+func TestTacacsAuthenticatorAuthenticatedImpliesProfiles(t *testing.T) {
+	for _, privMap := range []map[int][]string{
+		{15: {}},
+		{15: nil},
+		{15: {"admin"}},
+		{},
+	} {
+		key := []byte("test-key")
+		srv := newTestServer(t, key, replyWithPrivLvl(15))
+
+		client := NewTacacsClient(TacacsClientConfig{
+			Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+			Timeout: 2 * time.Second,
+		})
+
+		auth := NewTacacsAuthenticator(client, privMap, nil)
+		result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
+		srv.close()
+
+		if result.Authenticated {
+			require.NoError(t, err)
+			assert.NotEmpty(t, result.Profiles,
+				"authenticated result for map %v carries no profiles: authz would fall back to admin", privMap)
+		}
+	}
+}
+
 // VALIDATES: AC-15 -- ERROR status treated as infrastructure failure.
 // PREVENTS: ERROR status blocking auth chain.
 func TestTacacsAuthenticatorErrorStatus(t *testing.T) {

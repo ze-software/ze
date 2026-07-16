@@ -90,13 +90,20 @@ mapped to one or more locally-defined `system.authorization.profile` entries.
   supplies one profile name; multiple Filter-Id attributes yield multiple
   profiles. `class` reads the Class attribute (§5.25) the same way.
 - When the Access-Accept carries no such attribute, the `default-profile`
-  leaf-list applies. If neither is present the user is authenticated with no
-  profiles (and RBAC denies privileged actions).
+  leaf-list applies.
+- When neither is present the login resolves to no profile and is **rejected**,
+  with a `RADIUS admin auth rejected: no profiles resolved` warning naming the
+  user. Ze never authorizes a user it cannot attach a profile to: an
+  authenticated login always carries at least one profile name. The rejection
+  stops the chain, exactly as an Access-Reject does, because the server did
+  answer -- this is not the unreachable-server case that falls through to local.
 
 Configure your RADIUS server to return `Filter-Id = admin` (or your profile
-name) for operators, and define a matching `system.authorization.profile`.
+name) for operators, and define a matching `system.authorization.profile`. If
+your server does not send a profile attribute, set `default-profile` instead;
+otherwise no RADIUS user can log in.
 
-<!-- source: internal/component/radius/authenticator.go -- mapProfiles -->
+<!-- source: internal/component/radius/authenticator.go -- mapProfiles, Authenticate Access-Accept branch -->
 
 ## Chain order with TACACS+ and local
 
