@@ -9,15 +9,20 @@
 
 ## Task
 
-Four agent-facing surfaces tell agents something untrue, or demand something they cannot
+Six agent-facing surfaces tell agents something untrue, or demand something they cannot
 do. Each was verified at the producer on 2026-07-16 and filed in
 `plan/learned/HOOK-FRICTION.md` (F2, F3, F4, plus T-4 below found while writing this
 spec). The friction is RECORDED; the fixes are owed, which is why this spec exists.
 
 They share one cause: a gate or rule states a requirement its own implementation does not
 honour, so an agent that obeys the text is punished by the tool, and an agent that obeys
-the tool violates the text. Each is a separate task item. None is urgent. All four cost
+the tool violates the text. Each is a separate task item. None is urgent. All six cost
 real time on 2026-07-16.
+
+T-5 and T-6 were each found by this spec's own tooling while writing or committing it, and
+both are appended after the Checklist in discovery order. That is not tidy, and it is the
+point: the count keeps growing because the surfaces are used, not audited. T-6 in
+particular was found by the gate firing on the commit that filed the previous finding.
 
 ### T-1: the spec validator rejects the citation form the rules mandate
 
@@ -203,16 +208,21 @@ whole spec is about.
 - `.claude/hooks/pretool-writeedit.py` - T-4: the staleness check's evidence set
 - `.claude/rules/session-start.md` - T-2: the LSP mandate, only if the decision is a carve-out
 - `.claude/hooks/block-until-lsp.sh` - T-2: only if the decision is to make the gate tell a load from a query
-- `scripts/dev/commit_helper.py` - T-3: the refusal text
-- `scripts/dev/hook-fixture-check.py` - fixtures for T-1 and T-4
-- `scripts/dev/commit_helper_test.py` - the T-3 case
+- `scripts/dev/commit_helper.py` - T-3: the refusal text; T-6: the index-staleness check, which must consult a per-index source map instead of demanding all three
+- `scripts/dev/discovery_sources.py` - T-6: where the per-index source map must be built. It does NOT exist today: `OUTPUTS` (`:26-29`) is a flat tuple of the three index paths and `is_discovery_source` (`:35`) returns a bare bool, so the gate can only ask "is this a source of ANY index". The knowledge is present as prose in the module docstring (`:13-14`) and nowhere as data
+- `.claude/hooks/validate-spec.sh` - T-5: scope the `.ci` requirement to specs that touch daemon code
+- `scripts/dev/hook-fixture-check.py` - fixtures for T-1, T-4 and T-5
+- `scripts/dev/commit_helper_test.py` - the T-3 case; T-6: a commit feeding one index while another is dirty must pass, and a commit feeding a genuinely stale index must still refuse
 - `ai/rules/error-messages.md` - only if the decision is that a remediation MUST be verified true
 
 ## Implementation Steps
 
-1. Read each gate's intent before touching it. All four are correct in what they enforce.
+1. Read each gate's intent before touching it. All six are correct in what they enforce.
 2. T-1 and T-4 cost time daily; do them first.
 3. Each fix needs a must-not-fire test proving the gate still rejects what it should.
+4. T-6 needs BOTH directions tested. A per-index map that demands nothing is the fail-open
+   this spec is about: the passing test must be paired with one proving a real staleness
+   still refuses (AC-9).
 
 ## Acceptance Criteria
 
@@ -223,12 +233,14 @@ whole spec is about.
 - AC-5: the commit gate's remediation names a command that refreshes the record (T-3)
 - AC-6: reading the `.py` or `.sh` a spec is ABOUT satisfies the spec-write gate (T-4)
 - AC-7: no gate enforces LESS than it did before
+- AC-8: a spec about agent tooling can name its real functional surface and pass, while a spec touching daemon code still must name a `.ci` (T-5)
+- AC-9: the index-freshness gate demands only the indexes the commit's sources actually feed, and still refuses a genuinely stale one (T-6)
 
 ## Risks & Assumptions
 
 | ID | Assumption | Basis | Validation |
 |----|-----------|-------|------------|
-| A-1 | The four are independent and can land separately | Different files, different gates | unvalidated |
+| A-1 | The six are independent and can land separately | Different files, different gates | unvalidated |
 | A-2 | T-1's regex can accept a line-numbered path without accepting prose | The form is narrow and anchored | unvalidated |
 | A-3 | LSP's absence for subagents is a harness property, not a repo one | Observed 2026-07-16 | unvalidated: it may change without notice, so T-2 must not hard-code today's behaviour |
 
@@ -237,6 +249,8 @@ whole spec is about.
 | R-1 | A check is relaxed to make a warning go away | Every AC reads "accepts the correct form", never "warns less" |
 | R-2 | T-2 is "fixed" by deleting the mandate | LSP is genuinely useful; the rule's intent is right and only its mechanism is wrong |
 | R-3 | T-4 is "fixed" by widening the evidence to anything | The gate exists because inference-written specs cost ten false premises in one day. Widen to what a spec can be ABOUT, nothing more |
+| R-4 | T-6 is "fixed" by making the index gate warn-only, or by widening `--stale-index-ok` | With no CI, this gate is the only enforcement of index freshness. AC-9 requires it to still refuse a genuinely stale index; per-index scoping is the fix, not a softer refusal |
+| R-5 | The Files to Modify list stays scoped to T-1..T-4 and T-5/T-6 land untested | Both were found by tooling firing on this spec's own commits; whoever implements must add `scripts/dev/commit_helper_test.py` coverage for T-6 and a fixture for T-5 |
 
 ## Checklist
 
@@ -244,6 +258,8 @@ whole spec is about.
 - [ ] T-2 the LSP rule and its gate agree with subagent reality (AC-4)
 - [ ] T-3 the commit gate's remediation is true (AC-5)
 - [ ] T-4 the spec-write gate accepts the file types a spec can be about (AC-6)
+- [ ] T-5 a tooling spec can name its real functional surface; daemon specs still need a `.ci` (AC-8)
+- [ ] T-6 the index gate demands only the indexes the commit feeds (AC-9)
 - [ ] No gate enforces less than before (AC-7)
 - [ ] Tests written per item
 - [ ] Tests FAIL (paste output)
@@ -270,3 +286,51 @@ tests alone let 30 tests ship that never bound a peer (`aaefef8ce`, 2026-07-16).
 requirement to specs that touch daemon code, and let a tooling spec name its own real
 functional surface instead. Whatever replaces it must still be a test that DRIVES the
 thing, not one that reimplements it.
+
+### T-6: the commit gate demands indexes the commit does not feed
+
+Found on 2026-07-16 committing `plan/learned/1166-rfc-clause-map-needs-producers.md`. The
+commit carried its own regenerated index (`ai/LEARNED-FULL-INDEX.md`, written by
+`scripts/dev/learned_index.py`). The gate refused anyway, demanding
+`ai/DOCS-TO-CODE.md` — an index the commit does not feed.
+
+Verified at the producer: `ze-discovery-index` (`Makefile:424` -> the target at
+`Makefile`) runs three independent generators — `package_map.py`, `docs_to_code.py`,
+`learned_index.py`. They have disjoint inputs: `ai/DOCS-TO-CODE.md` is built from
+`// Design:` headers in `.go` files (its own preamble states this), and carries no
+`plan/learned/` dependency. Its dirty hunk at the time was one row for another session's
+`internal/component/bgp/message/rfc7606_withdraw.go`. The learned summary appears nowhere
+in it.
+
+The gate treats "this commit touches an index-feeding source" as "every index must be
+fresh", rather than "the indexes THIS source feeds must be fresh". The two remediations it
+leaves are both wrong:
+
+| Option | Consequence |
+|--------|-------------|
+| Add `--file ai/DOCS-TO-CODE.md` as instructed | Cross-commits another session's index row. Exactly the failure `git-safety.md` documents and `84f9f2d1f` committed on 2026-07-16 |
+| Pass `--stale-index-ok` | Correct here, but it is the same escape hatch for a real staleness, and nothing distinguishes the two |
+
+Cost: with concurrent sessions in one working tree, some generated index is nearly always
+dirty, so any commit adding a learned summary hits this. The rule's own text (workflow
+step 4) tells agents to include a learned summary whenever a commit changes agent
+workflow, rules, tooling, verification, or discovery — so the gate fires most reliably on
+the commits the rules most want.
+
+Root cause, verified: `scripts/dev/discovery_sources.py` cannot express the distinction.
+`OUTPUTS` (`:26-29`) is a flat tuple of the three index paths, and `is_discovery_source`
+(`:35`) answers a bare boolean — "is this a source of ANY index". Given only that, the
+gate has no way to demand a subset, so it demands all three. The per-index mapping is
+stated as prose in the module docstring (`:13-14`) and exists nowhere as data.
+
+-> Constraint: do NOT fix this by weakening the gate to warn-only, and do NOT widen
+`--stale-index-ok`. The gate is the only place index freshness is enforced (there is no
+CI). Fix it by making the staleness check per-index: map each index to the sources it
+actually reads, and demand only those. That map must be BUILT — the honest cost of T-6 is
+turning the docstring's prose into data, then having the gate consult it.
+
+-> Decision needed: whether an override that is right for one index and wrong for another
+should stay a single flag. An `--stale-index-ok` that means "I checked, this index is
+someone else's" is a different claim from "I know it is stale and am shipping anyway".
+Habitual use of the second spelling for the first reason is how the override stops
+meaning anything.
