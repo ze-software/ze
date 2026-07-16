@@ -1,4 +1,4 @@
-# 1121 -- rib-arch-3: RFC 5549 Extended Next-Hop for Injected Routes
+# 1151 -- rib-arch-3: RFC 5549 Extended Next-Hop for Injected Routes
 
 ## Context
 

@@ -420,6 +420,7 @@ ze-regen-check: ze-regen
 	@python3 scripts/dev/package_map.py --check
 	@python3 scripts/dev/docs_to_code.py --check
 	@python3 scripts/dev/learned_index.py --check
+	@python3 scripts/dev/learned_numbers.py --check
 	@scripts/dev/skill_sync.sh --check
 	@python3 scripts/dev/check_doc_links.py --md-only
 	@echo "All generated files are up to date"

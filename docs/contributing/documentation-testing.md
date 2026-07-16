@@ -28,6 +28,7 @@ checks needed for the current diff and is included in `make ze-verify`.
 | `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
 | `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale` and `ze-doc-test` | Every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, and check mode does not regenerate `ai/CODE-TO-DOCS.md`. |
 | `scripts/dev/digest_check.py` | `ze-digest-check` and `ze-doc-test` | Every `file:line` anchor in `ai/digests/*.md` resolves to a real file (subsystem-relative via each digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. |
+| `scripts/dev/learned_numbers.py --check` | `ze-learned-numbers-check` and `ze-doc-test` | Every `plan/learned/NNN-*.md` number is claimed by exactly one summary, each H1 number matches its filename, and `plan/learned/.counter` sits above the highest number. Duplicates are invisible to `commit_helper.py learned-next`, which allocates against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with `make ze-learned-numbers-fix`, then `make ze-discovery-index`. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 | `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
 
@@ -41,6 +42,7 @@ of code review, not doc review.
 <!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
 <!-- source: scripts/docvalid/commands.go -- main -->
 <!-- source: scripts/dev/code_to_docs.py -- check_mode -->
+<!-- source: scripts/dev/learned_numbers.py -- check, fix -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
 

@@ -259,7 +259,7 @@ tree.
 ## See also
 - `plan/learned/734-ipsec-3-data-model.md`, IPsec config data model (path stale, see gotchas)
 - `plan/learned/735-ipsec-2-xfrm.md`, XFRM *interface* (device) support in `iface`, distinct from this subsystem's SA/policy install
-- `plan/learned/737-ipsec-5-ikev2-wire.md`, IKEv2 wire codec (`internal/component/ike/wire`)
+- `plan/learned/1141-ipsec-5-ikev2-wire.md`, IKEv2 wire codec (`internal/component/ike/wire`)
 - `plan/learned/737-ipsec-4-data-model-eap.md`, EAP additions to the data model
 - `plan/learned/739-ipsec-6-ikev2-crypto.md`, crypto primitives layer (`internal/component/ike/crypto`)
 - `plan/learned/740-ipsec-7-ikev2-engine.md`, engine skeleton, plugin registration, config reconciliation

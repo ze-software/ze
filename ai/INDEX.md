@@ -78,6 +78,7 @@ and gated fresh, so they never lie about the current code.
 | Task | Read first | Then use |
 |---|---|---|
 | Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it yourself (`bash tmp/commit-<SESSION>.sh`); if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
+| Duplicate learned numbers after a merge or rebase | `ai/rules/git-safety.md` (learned-next does not span branches) | `make ze-learned-numbers-check` to detect, `make ze-learned-numbers-fix` to resolve; then `make ze-discovery-index` |
 
 ### Modifying Existing Code
 
@@ -182,6 +183,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Tool | Location | Purpose |
 |------|----------|---------|
 | `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable commit scripts that Claude runs itself (`bash tmp/commit-<SESSION>.sh`). Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
+| `learned_numbers.py` | `scripts/dev/` | Keep `plan/learned/NNN-*.md` numbering sound: no two summaries share a number, each H1 number matches its filename, `.counter` stays above the highest. `learned-next` allocates against the local tree only, so parallel branches collide and only a merge or rebase reveals it. `--check` (gate: `make ze-learned-numbers-check`, folded into `make ze-doc-test` and `ze-regen-check`); `--fix` (`make ze-learned-numbers-fix`) keeps the most-referenced summary at the contested number, renumbers the rest above the highest, and rewrites references. Run after any merge/rebase touching `plan/learned/`. |
 | `digest_check.py` | `scripts/dev/` | Validate the `file:line` anchors in `ai/digests/*.md`: each resolves to a real file (subsystem-relative via the digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests honest as code moves. Gate: `make ze-digest-check`, folded into `make ze-doc-test`. |
 | `spec-closure-check.py` | `scripts/dev/` | Detect specs implemented but never closed. `--list` shows the backlog in two tiers (high-confidence vs NEEDS VERIFICATION); `--spec <s>` exits 3 only for high-confidence (committed `plan/learned/NNN-<slug>.md` whose slug exactly equals the spec stem, spec `in-progress`, not an umbrella). Backs the Stop-hook closure gate. See `ai/rules/planning.md` "Closure Enforcement". |
 | `go_extract.go` | `scripts/dev/` | Move Go symbols between files |
@@ -384,7 +386,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | RawMessage, double marshal, callback passthrough, SDK callback | `plan/learned/826-ipc-dispatch-data-raw.md`, `plan/learned/827-dispatch-response-passthrough.md`, `plan/learned/828-codec-callback-passthrough.md` |
 | pipe first, pipe last, pipe metadata | `ai/rules/pipe-completeness.md`, `plan/learned/822-pipe-first-last.md` |
 | RIB dump, bounded dump, replay batching, update cursor | `plan/learned/823-rib-show-bounded-dump.md`, `plan/learned/824-rib-feed-replay-batch.md` |
-| plugin internal keyword, in-process plugin config | `plan/learned/821-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
+| plugin internal keyword, in-process plugin config | `plan/learned/1145-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
 | appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/authz/`, `internal/component/aaa/` |
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `scripts/evidence/effective-install-iso-qemu.py`, `mk/test-integration.mk` |
 | Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/appliance-dep-bumps.md`, `mk/gokrazy.mk` (`ze-gokrazy-deps`), `.github/dependabot.yml` |

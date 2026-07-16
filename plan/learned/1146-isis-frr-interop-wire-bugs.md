@@ -1,4 +1,4 @@
-# 938 - IS-IS FRR interop caught two self-consistent ze wire bugs
+# 1146 - IS-IS FRR interop caught two self-consistent ze wire bugs
 
 ## Context
 The spec-isis closure marked the AC-1..AC-10 interop acceptance criteria "pending

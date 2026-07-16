@@ -1,4 +1,4 @@
-# 477 -- DNS Resolver Component
+# 1129 -- DNS Resolver Component
 
 ## Context
 

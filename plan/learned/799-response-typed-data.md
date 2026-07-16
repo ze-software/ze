@@ -1,4 +1,4 @@
-# 797: Response Typed Data
+# 799: Response Typed Data
 
 ## Context
 

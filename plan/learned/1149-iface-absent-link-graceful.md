@@ -1,4 +1,4 @@
-# 1112 — iface-absent-link-graceful (CLOSURE)
+# 1149 — iface-absent-link-graceful (CLOSURE)
 
 Interface config-apply now **gracefully skips a configured physical (Ethernet)
 interface that is absent from the deployment target** instead of aborting the

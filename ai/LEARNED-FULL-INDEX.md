@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1146 summaries
+Total: 1147 summaries
 
 ## 000-099
 
@@ -507,15 +507,12 @@ Total: 1146 summaries
 | 474 | Web Admin Finder Navigation | `plan/learned/474-web-admin-finder.md` |
 | 475 | Web Interface Umbrella Retrospective | `plan/learned/475-web-0-umbrella-retrospective.md` |
 | 476 | Env Registry Consistency | `plan/learned/476-env-registry-consistency.md` |
-| 477 | DNS Resolver Component | `plan/learned/477-dns-resolver.md` |
 | 477 | ZeFS Key Registry | `plan/learned/477-zefs-key-registry.md` |
 | 478 | YANG Decorator Framework | `plan/learned/478-decorator.md` |
 | 479 | Redistribution Filter | `plan/learned/479-redistribution-filter.md` |
 | 480 | Consistency Cleanup | `plan/learned/480-consistency-cleanup.md` |
 | 481 | Managed Config | `plan/learned/481-managed-config.md` |
-| 482 | Plugin TLS Hardening | `plan/learned/482-plugin-tls-hardening.md` |
 | 482 | Prometheus Plugin Health Metrics | `plan/learned/482-prometheus-plugin-health.md` |
-| 482 | Update Groups | `plan/learned/482-update-groups.md` |
 | 483 | ExaBGP Bridge MuxConn | `plan/learned/483-exabgp-bridge-muxconn.md` |
 | 484 | Unified CLI (Plugin Debug Shell) | `plan/learned/484-unified-cli.md` |
 | 485 | ExaBGP Dynamic Port Allocation | `plan/learned/485-exabgp-dynamic-port.md` |
@@ -544,8 +541,6 @@ Total: 1146 summaries
 | 503 | Listener Normalization (umbrella) | `plan/learned/503-listener-0-umbrella.md` |
 | 504 | Colored slog output | `plan/learned/504-colored-slog.md` |
 | 505 | Structured colored help output | `plan/learned/505-help-colors.md` |
-| 506 | Remaining Migration Transformations and ExaBGP Env File | `plan/learned/506-listener-7-migrate-remaining.md` |
-| 506 | Resolution Component | `plan/learned/506-resolve-component.md` |
 | 506 | listener-6-compound-env | `plan/learned/506-listener-6-compound-env.md` |
 | 507 | Resolve CLI Commands | `plan/learned/507-resolve-cli.md` |
 | 508 | CLI Route Topology Graph | `plan/learned/508-cli-route-topology.md` |
@@ -653,12 +648,8 @@ Total: 1146 summaries
 | 605 | MVPN Pool Migration, Bounded Scratch, and UpdateBuilder Pool | `plan/learned/605-mvpn-pool-and-bounded-scratch.md` |
 | 606 | EventBus Typed Payloads | `plan/learned/606-eventbus-typed.md` |
 | 607 | RIB BART bestPrev consolidation | `plan/learned/607-rib-bart-bestprev.md` |
-| 608 | BMP receiver looking glass integration | `plan/learned/608-bmp-6-looking-glass.md` |
 | 608 | Concurrent test flake patterns (2026-04 distilled) | `plan/learned/608-concurrent-test-patterns.md` |
-| 608 | Learned: RIB Attribute Bundle (spec-perf-1) | `plan/learned/608-perf-1-rib-cache-layout.md` |
-| 608 | Learned: RIB Multi-Source Support (spec-rib-4-extraction) | `plan/learned/608-rib-4-extraction.md` |
 | 609 | spec-l2tp-6b-auth (PPP Authentication) | `plan/learned/609-l2tp-6b-auth.md` |
-| 610 | 610: bng-2 -- Accounting Traffic Counters | `plan/learned/610-bng-2-accounting-counters.md` |
 | 610 | vpp-7 Test Harness | `plan/learned/610-vpp-7-test-harness.md` |
 | 611 | vpp-1 Lifecycle Management | `plan/learned/611-vpp-1-lifecycle.md` |
 | 612 | vpp-6 Telemetry and Counters | `plan/learned/612-vpp-6-telemetry.md` |
@@ -681,7 +672,6 @@ Total: 1146 summaries
 | 629 | fw-7b-backend-hardening | `plan/learned/629-fw-7b-backend-hardening.md` |
 | 630 | rs-fastpath-3-passthrough | `plan/learned/630-rs-fastpath-3-passthrough.md` |
 | 631 | Host Inventory (host-0) | `plan/learned/631-host-0-inventory.md` |
-| 631 | rs-fastpath-0-umbrella | `plan/learned/631-rs-fastpath-0-umbrella.md` |
 | 632 | op-1-easy-wins | `plan/learned/632-op-1-easy-wins.md` |
 | 633 | op-0-umbrella | `plan/learned/633-op-0-umbrella.md` |
 | 634 | bgp-redistribute | `plan/learned/634-bgp-redistribute.md` |
@@ -705,10 +695,8 @@ Total: 1146 summaries
 | 652 | diag-1-runtime-state | `plan/learned/652-diag-1-runtime-state.md` |
 | 653 | netdata-os-collectors | `plan/learned/653-netdata-os-collectors.md` |
 | 654 | config-3-deactivate | `plan/learned/654-config-3-deactivate.md` |
-| 655 | 655: Per-Family Address Configuration | `plan/learned/655-iface-per-family-address.md` |
 | 655 | Learned: L2TP PPP/NCP Docker Interop Lab | `plan/learned/655-l2tp-12-ppp-interop-lab.md` |
 | 656 | Deployment Readiness Deep Review | `plan/learned/656-deployment-readiness-review.md` |
-| 656 | Learned: spec-l2tp-8-plugins -- Plugin Infrastructure | `plan/learned/656-l2tp-8-plugins.md` |
 | 657 | Learned: spec-l2tp-8a-auth-pool -- Local Auth + IP Pool | `plan/learned/657-l2tp-8a-auth-pool.md` |
 | 658 | Learned: spec-l2tp-8b-radius -- RADIUS Auth/Acct/CoA | `plan/learned/658-l2tp-8b-radius.md` |
 | 659 | Learned: spec-l2tp-8c-shaper -- TC Shaper Plugin | `plan/learned/659-l2tp-8c-shaper.md` |
@@ -795,7 +783,6 @@ Total: 1146 summaries
 | 735 | ipsec-2-xfrm | `plan/learned/735-ipsec-2-xfrm.md` |
 | 736 | Interface Rate Tracking | `plan/learned/736-iface-rate.md` |
 | 737 | IPsec Data Model EAP Extension | `plan/learned/737-ipsec-4-data-model-eap.md` |
-| 737 | ipsec-5 IKEv2 Wire Format Codec | `plan/learned/737-ipsec-5-ikev2-wire.md` |
 | 738 | CLI Grammar: Action Before Identifier | `plan/learned/738-cli-grammar.md` |
 | 739 | ipsec-6-ikev2-crypto | `plan/learned/739-ipsec-6-ikev2-crypto.md` |
 | 740 | 740: IKEv2 Engine (ipsec-7) | `plan/learned/740-ipsec-7-ikev2-engine.md` |
@@ -825,7 +812,6 @@ Total: 1146 summaries
 | 765 | GC Pressure Reduction on BGP Hot Paths | `plan/learned/765-gc-pressure-reduction.md` |
 | 766 | JSON-Safe String Append (Skip Per-Byte Escape) | `plan/learned/766-json-safe-string-append.md` |
 | 767 | Command Tokenizer: No Escape Sequences | `plan/learned/767-tokenizer-no-escape.md` |
-| 768 | 768: Enum-Over-String for Text Event Pipeline | `plan/learned/768-enum-over-string-text-events.md` |
 | 768 | 768: Extended Doctor and Runtime Health Checks | `plan/learned/768-doctor-health-checks.md` |
 | 769 | 769: ze install subcommand (fork pattern) | `plan/learned/769-install-subcommand.md` |
 | 770 | 770: Pre-Computation Optimization Critical Review | `plan/learned/770-precomputation-review.md` |
@@ -848,7 +834,6 @@ Total: 1146 summaries
 | 787 | In-Process Chaos and Route Dynamics | `plan/learned/787-chaos-inprocess-scheduling.md` |
 | 788 | Doctor Improvements | `plan/learned/788-doctor-improvements.md` |
 | 789 | Adj-RIB-Out Compact Storage (Phase 2) | `plan/learned/789-adjribout-compact-storage.md` |
-| 789 | ze support (tech-support bundle) | `plan/learned/789-support.md` |
 | 790 | 790: Debug Flags | `plan/learned/790-debug-flags.md` |
 | 791 | Configurable Default CLI Output Format | `plan/learned/791-spec-cli-default-format.md` |
 | 792 | Runtime Platform Detection | `plan/learned/792-platform-detection.md` |
@@ -856,10 +841,9 @@ Total: 1146 summaries
 | 794 | CLI Session Transcript | `plan/learned/794-cli-session-transcript.md` |
 | 795 | YANG-Typed Arguments for Operational Commands | `plan/learned/795-cmd-typed-args.md` |
 | 796 | Platform-Aware Doctor Coherence Checks | `plan/learned/796-doctor-platform-coherence.md` |
-| 797 | 797: RPKI validation uses store-and-reconcile, not retry-poll | `plan/learned/797-rpki-validation-store-not-retry.md` |
 | 797 | Interop Gap Coverage | `plan/learned/797-interop-gap-coverage.md` |
 | 798 | fib-depth-vpp-parity | `plan/learned/798-fib-depth-vpp-parity.md` |
-| 799 | 797: Response Typed Data | `plan/learned/799-response-typed-data.md` |
+| 799 | 799: Response Typed Data | `plan/learned/799-response-typed-data.md` |
 
 ## 800-899
 
@@ -886,7 +870,6 @@ Total: 1146 summaries
 | 818 | Flow Export: Counter Export Completion and Review Fixes | `plan/learned/818-flow-export-1-counter-export.md` |
 | 819 | Flow Export: Wiring the Spec-2 Integration Layer | `plan/learned/819-flow-export-2-flow-records.md` |
 | 820 | Flow Export Umbrella: Architecture Recap | `plan/learned/820-flow-export-0-umbrella.md` |
-| 821 | Plugin `internal` keyword | `plan/learned/821-plugin-internal-keyword.md` |
 | 821 | attrpool-shard | `plan/learned/821-spec-attrpool-shard.md` |
 | 822 | pipe-first-last | `plan/learned/822-pipe-first-last.md` |
 | 823 | rib-show-bounded-dump | `plan/learned/823-rib-show-bounded-dump.md` |
@@ -1007,7 +990,6 @@ Total: 1146 summaries
 | 935 | isis-10-auth | `plan/learned/935-isis-10-auth.md` |
 | 936 | isis-11-redistribution | `plan/learned/936-isis-11-redistribution.md` |
 | 937 | isis-13-cli-diag-interop | `plan/learned/937-isis-13-cli-diag-interop.md` |
-| 938 | IS-IS FRR interop caught two self-consistent ze wire bugs | `plan/learned/938-isis-frr-interop-wire-bugs.md` |
 | 938 | bug-review-0-umbrella | `plan/learned/938-bug-review-0-umbrella.md` |
 | 939 | bug-review-1-inventory-and-self-containment | `plan/learned/939-bug-review-1-inventory-and-self-containment.md` |
 | 940 | bug-review-2-plugin-engine-and-system-plugins | `plan/learned/940-bug-review-2-plugin-engine-and-system-plugins.md` |
@@ -1033,9 +1015,7 @@ Total: 1146 summaries
 | 960 | OSPF 6 Neighbor NSM | `plan/learned/960-ospf-6-neighbor-nsm.md` |
 | 961 | OSPF 7 LSDB Flooding | `plan/learned/961-ospf-7-lsdb-flooding.md` |
 | 962 | OSPFv2 SPF and RIB install | `plan/learned/962-ospf-8-spf-rib.md` |
-| 962 | needs-linux QEMU runner | `plan/learned/962-needs-linux-qemu-runner.md` |
 | 963 | OSPFv2 inter-area routing and ABR | `plan/learned/963-ospf-9-inter-area-abr.md` |
-| 963 | filter-irr: decouple startup from IRR resolution | `plan/learned/963-filter-irr-startup-decoupling.md` |
 | 964 | OSPFv2 AS-External routes, redistribution, and default-information | `plan/learned/964-ospf-10-as-external-asbr.md` |
 | 965 | OSPFv2 stub and NSSA areas (RFC 3101) | `plan/learned/965-ospf-11-stub-nssa.md` |
 | 966 | OSPFv2 authentication (RFC 2328 App D / 5709 / 7474) | `plan/learned/966-ospf-12-auth.md` |
@@ -1192,7 +1172,6 @@ Total: 1146 summaries
 | 1109 | ddos-detect Enhancements (bandwidth trigger, baseline persistence, incident confidence) | `plan/learned/1109-ddos-detect-enhancements.md` |
 | 1110 | ddos direction + traffic policy (allow/deny) | `plan/learned/1110-ddos-direction-allowlist.md` |
 | 1111 | ownership-0-umbrella (CLOSURE record: DESIGN-REVIEW finding #1) | `plan/learned/1111-ownership-0-umbrella.md` |
-| 1112 | iface-absent-link-graceful (CLOSURE) | `plan/learned/1112-iface-absent-link-graceful.md` |
 | 1112 | netlink .ci harness (Fix A readiness, Fix B netns+setcap, Fix C EOF) | `plan/learned/1112-netlink-ci-harness.md` |
 | 1113 | fib-depth-4-srv6 (CLOSURE): SRv6 FIB backend programming | `plan/learned/1113-fib-depth-4-srv6.md` |
 | 1114 | ospf-0-umbrella (CLOSURE record) | `plan/learned/1114-ospf-0-umbrella.md` |
@@ -1202,16 +1181,38 @@ Total: 1146 summaries
 | 1118 | quiesce-peer-drain | `plan/learned/1118-quiesce-peer-drain.md` |
 | 1119 | cli-hyphen-namespace-split | `plan/learned/1119-cli-hyphen-namespace-split.md` |
 | 1120 | payload-predicate-waits | `plan/learned/1120-payload-predicate-waits.md` |
-| 1120 | rib-arch-1: Central Per-Protocol RIB Store vs Event-Bus Delta Model | `plan/learned/1120-rib-arch-1-store-vs-delta.md` |
 | 1121 | negative-test-must-fail-for-its-reason | `plan/learned/1121-negative-test-must-fail-for-its-reason.md` |
-| 1121 | rib-arch-3: RFC 5549 Extended Next-Hop for Injected Routes | `plan/learned/1121-rib-arch-3-inject-rfc5549.md` |
-| 1122 | rib-arch-8: General NLRI-Byte Rewrite via ModAccumulator | `plan/learned/1122-rib-arch-8-nlri-rewrite.md` |
 | 1122 | vrrp-macvlan-vmac-dataplane | `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` |
-| 1123 | bare-go-test-drops-feature-tags | `plan/learned/1123-bare-go-test-drops-feature-tags.md` |
 | 1123 | rib-arch-6: First Production Change.Forward Consumer (RS/RR Fast Path) | `plan/learned/1123-rib-arch-6-rs-fastpath-consumer.md` |
-| 1124 | rib-arch-4: BGP Multipath ECMP to the FIB in Realtime | `plan/learned/1124-rib-arch-4-fib-ecmp-realtime.md` |
 | 1124 | vrrp-first-hop-redundancy | `plan/learned/1124-vrrp-first-hop-redundancy.md` |
 | 1125 | rib-arch-5: RFC 9069 BMP Loc-RIB Monitoring (PeerType=3) | `plan/learned/1125-rib-arch-5-bmp-locrib.md` |
 | 1126 | rib-arch-7: LLGR Egress Filter on the Readvertise Rail | `plan/learned/1126-rib-arch-7-llgr-multipeer-readvertise.md` |
 | 1127 | rib-arch-2: Binary `[]byte` Raw Carrier for the Filter IPC | `plan/learned/1127-rib-arch-2-filter-raw-bytes.md` |
 | 1128 | rib-arch-0 Umbrella: Closure and Cross-Cutting Lessons | `plan/learned/1128-rib-arch-umbrella-closure.md` |
+| 1129 | DNS Resolver Component | `plan/learned/1129-dns-resolver.md` |
+| 1130 | Update Groups | `plan/learned/1130-update-groups.md` |
+| 1131 | Plugin TLS Hardening | `plan/learned/1131-plugin-tls-hardening.md` |
+| 1132 | Resolution Component | `plan/learned/1132-resolve-component.md` |
+| 1133 | Remaining Migration Transformations and ExaBGP Env File | `plan/learned/1133-listener-7-migrate-remaining.md` |
+| 1134 | Learned: RIB Multi-Source Support (spec-rib-4-extraction) | `plan/learned/1134-rib-4-extraction.md` |
+| 1135 | BMP receiver looking glass integration | `plan/learned/1135-bmp-6-looking-glass.md` |
+| 1136 | Learned: RIB Attribute Bundle (spec-perf-1) | `plan/learned/1136-perf-1-rib-cache-layout.md` |
+| 1137 | 1137: bng-2 -- Accounting Traffic Counters | `plan/learned/1137-bng-2-accounting-counters.md` |
+| 1138 | rs-fastpath-0-umbrella | `plan/learned/1138-rs-fastpath-0-umbrella.md` |
+| 1139 | 1139: Per-Family Address Configuration | `plan/learned/1139-iface-per-family-address.md` |
+| 1140 | Learned: spec-l2tp-8-plugins -- Plugin Infrastructure | `plan/learned/1140-l2tp-8-plugins.md` |
+| 1141 | ipsec-5 IKEv2 Wire Format Codec | `plan/learned/1141-ipsec-5-ikev2-wire.md` |
+| 1142 | 1142: Enum-Over-String for Text Event Pipeline | `plan/learned/1142-enum-over-string-text-events.md` |
+| 1143 | ze support (tech-support bundle) | `plan/learned/1143-support.md` |
+| 1144 | 1144: RPKI validation uses store-and-reconcile, not retry-poll | `plan/learned/1144-rpki-validation-store-not-retry.md` |
+| 1145 | Plugin `internal` keyword | `plan/learned/1145-plugin-internal-keyword.md` |
+| 1146 | IS-IS FRR interop caught two self-consistent ze wire bugs | `plan/learned/1146-isis-frr-interop-wire-bugs.md` |
+| 1147 | needs-linux QEMU runner | `plan/learned/1147-needs-linux-qemu-runner.md` |
+| 1148 | filter-irr: decouple startup from IRR resolution | `plan/learned/1148-filter-irr-startup-decoupling.md` |
+| 1149 | iface-absent-link-graceful (CLOSURE) | `plan/learned/1149-iface-absent-link-graceful.md` |
+| 1150 | rib-arch-1: Central Per-Protocol RIB Store vs Event-Bus Delta Model | `plan/learned/1150-rib-arch-1-store-vs-delta.md` |
+| 1151 | rib-arch-3: RFC 5549 Extended Next-Hop for Injected Routes | `plan/learned/1151-rib-arch-3-inject-rfc5549.md` |
+| 1152 | rib-arch-8: General NLRI-Byte Rewrite via ModAccumulator | `plan/learned/1152-rib-arch-8-nlri-rewrite.md` |
+| 1153 | bare-go-test-drops-feature-tags | `plan/learned/1153-bare-go-test-drops-feature-tags.md` |
+| 1154 | rib-arch-4: BGP Multipath ECMP to the FIB in Realtime | `plan/learned/1154-rib-arch-4-fib-ecmp-realtime.md` |
+| 1155 | learned-next cannot prevent duplicate numbers across branches | `plan/learned/1155-learned-numbers-collide-across-branches.md` |

@@ -1,4 +1,4 @@
-# 506 -- Resolution Component
+# 1132 -- Resolution Component
 
 ## Context
 

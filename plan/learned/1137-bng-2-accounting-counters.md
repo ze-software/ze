@@ -1,4 +1,4 @@
-# 610: bng-2 -- Accounting Traffic Counters
+# 1137: bng-2 -- Accounting Traffic Counters
 
 **Objective:** Wire real per-subscriber byte/packet counters from pppN kernel interfaces into RADIUS accounting Interim-Update and Stop packets, replacing hardcoded zeros. Add RFC 2869 Gigaword attributes for sessions exceeding 4GB.
 

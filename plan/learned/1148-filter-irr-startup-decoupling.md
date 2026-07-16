@@ -1,4 +1,4 @@
-# 963 — filter-irr: decouple startup from IRR resolution
+# 1148 — filter-irr: decouple startup from IRR resolution
 
 ## Objective
 Fix a flaky filter-irr functional test (#161) where an UPDATE arriving before the

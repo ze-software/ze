@@ -1,4 +1,4 @@
-# 821 — Plugin `internal` keyword
+# 1145 — Plugin `internal` keyword
 
 Spec: `spec-plugin-internal-keyword.md`
 

@@ -1,4 +1,4 @@
-# 655: Per-Family Address Configuration
+# 1139: Per-Family Address Configuration
 
 **Spec:** `spec-iface-1-per-family-address`
 **Date:** 2026-05-17

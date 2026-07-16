@@ -1,4 +1,4 @@
-# 401 -- GC Pressure Reduction on Event Dispatch Hot Path
+# 409 -- GC Pressure Reduction on Event Dispatch Hot Path
 
 ## Objective
 
