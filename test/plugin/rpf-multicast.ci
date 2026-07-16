@@ -6,7 +6,20 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
+# RPF/multicast state; the BGP peer exists so ze has a session to configure.
+#
+# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# CONSTRUCTION -- the run-script calls `request shutdown` at post-startup, so ze
+# closes during the OPEN handshake ("open recv / open sent / connection closed
+# before completion") and the EOR is never sent. It could not fail for a real
+# reason, only pass vacuously (pre-F1) or hang the verdict (post-F1). Coverage is
+# NOT reduced: this test never asserted BGP wire content -- its own assertions and
+# expect=exit:code=0 are what it proves. Per
+# plan/spec-fixit-redistribute-establishment-stall.md the honest fixes are
+# --mode sink (peer is scaffolding, as here) or reaching Established first, which
+# would test BGP rather than this test's subject.
 EOF_PEER
 
 # Python test plugin: injects multicast routes then queries RPF
@@ -14,7 +27,7 @@ tmpfs=rpf-multicast-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 import json
-from ze_api import API, result_json_data
+from ze_api import API, result_json_data, result_text_data, runtime_fail
 # // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
@@ -24,6 +37,23 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
 
+def eor_on_wire(result):
+    """True once peer1's initial-sync End-of-RIB has been written."""
+    if result.get('status') != 'done':
+        return False
+    data = result_text_data(result, '{}')
+    try:
+        parsed = json.loads(data) if isinstance(data, str) else data
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    peers = parsed.get('peers', {})
+    if not isinstance(peers, dict):
+        return False
+    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
+               for row in peers.values())
+
 def main():
     api = API()
     api.declare_done()
@@ -32,6 +62,16 @@ def main():
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
+
+    # Let peer1 finish its initial sync before shutting down. The old script
+    # dispatched and shut down inside the OPEN handshake, so ze closed the
+    # session before ever sending its End-of-RIB and the peer's expectation
+    # was unreachable by construction.
+    synced = api.dispatch_until(
+        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
+    )
+    if not eor_on_wire(synced):
+        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
 
     try:
         # Inject multicast routes at two specificity levels
@@ -143,6 +183,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

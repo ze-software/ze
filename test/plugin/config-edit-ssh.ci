@@ -14,8 +14,21 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
 
-# EOR
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
+# `ze config edit` dispatching over SSH (see the flow above); the BGP peer exists
+# so ze has a session to configure, and the run-script calls `request shutdown` at
+# post-startup.
+#
+# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# CONSTRUCTION, not merely flaky: `request shutdown` fires while ze is still in the
+# OPEN handshake, so the peer logs "open recv / open sent / connection closed before
+# completion" and the EOR is never sent. The assertion could not fail for a real
+# reason, only pass vacuously (before F1) or hang the verdict (after F1). Coverage is
+# NOT reduced: nothing here ever asserted BGP wire content -- the SSH dispatch
+# assertions in the run-script and expect=exit:code=0 are what this test proves.
+# Per plan/spec-fixit-redistribute-establishment-stall.md the honest fixes are
+# --mode sink (peer is scaffolding, as here) or reaching Established before shutdown;
+# reaching Established would test BGP, which is not this test's subject.
 EOF_PEER
 
 # Python test plugin: verifies SSH server is reachable
@@ -139,6 +152,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

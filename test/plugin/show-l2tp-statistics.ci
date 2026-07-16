@@ -12,7 +12,20 @@ option=env:var=TEST_SECRET:value=stats-secret
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
+# `show l2tp statistics`; the BGP peer exists so ze has a session to configure.
+#
+# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# CONSTRUCTION -- the run-script calls `request shutdown` at post-startup, so ze
+# closes during the OPEN handshake ("open recv / open sent / connection closed
+# before completion") and the EOR is never sent. It could not fail for a real
+# reason, only pass vacuously (pre-F1) or hang the verdict (post-F1). Coverage is
+# NOT reduced: this test never asserted BGP wire content -- its l2tp assertions and
+# expect=exit:code=0 are what it proves. Per
+# plan/spec-fixit-redistribute-establishment-stall.md the honest fixes are
+# --mode sink (peer is scaffolding, as here) or reaching Established first, which
+# would test BGP rather than l2tp.
 EOF_PEER
 
 tmpfs=l2tp-peer.py:mode=755:terminator=EOF_PY
@@ -256,7 +269,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=background:seq=2:exec=python3 l2tp-peer.py $PORT2 0x0123
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
