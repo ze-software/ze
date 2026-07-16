@@ -165,7 +165,7 @@ class TestDeferralDestination(unittest.TestCase):
             root = self._repo(tmp, self._row("future work, once the RIB settles"))
             problems = ch.deferral_unassigned_problems(root)
             self.assertEqual(len(problems), 1)
-            self.assertIn("prose", problems[0])
+            self.assertIn("names no file", problems[0])
 
     def test_missing_spec_file_blocks(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -175,6 +175,34 @@ class TestDeferralDestination(unittest.TestCase):
             problems = ch.deferral_unassigned_problems(root)
             self.assertEqual(len(problems), 1)
             self.assertIn("does not exist", problems[0])
+
+    # VALIDATES: a real destination is not flagged because its prose also names a
+    # spec that was deleted at closure. ONE named file existing is a home.
+    # PREVENTS: the false positive this check shipped with. Two correctly-homed
+    # rows in plan/deferrals.md cite their retired original destination to
+    # explain a re-homing; requiring every filename to resolve flagged both, and
+    # the cheapest way to silence it would have been to delete the provenance.
+    def test_existing_destination_with_retired_spec_in_prose_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(
+                tmp,
+                self._row(
+                    "`plan/spec-rib-deferred-ipv6-coverage.md` (re-homed 2026-07-16: "
+                    "the original destination `spec-lg-birdwatcher-peer-fields.md` "
+                    "was deleted at closure, orphaning this row)"
+                ),
+            )
+            self.assertEqual(ch.deferral_unassigned_problems(root), [])
+
+    # VALIDATES: a nested plan/ path (a learned summary) is read as one path.
+    # PREVENTS: a regex that only spans [\w.-] silently matching nothing on
+    # plan/learned/1127-x.md and calling a real destination "no file".
+    def test_nested_plan_path_destination_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp, self._row("`plan/learned/1127-rib-arch-2.md`"))
+            (root / "plan" / "learned").mkdir(parents=True, exist_ok=True)
+            (root / "plan" / "learned" / "1127-rib-arch-2.md").write_text("# L\n")
+            self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
     def test_resolved_rows_are_not_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -192,14 +220,16 @@ def _deferral_gate(rows: list[tuple[str, str]]) -> list[str]:
 
     Any plan/*.md named by a destination is created, so these cases isolate the
     STATUS half: a row that fails here fails because of its status, never because
-    its spec happens not to exist in the fixture.
+    its spec happens not to exist in the fixture. Resolution goes through
+    ch.deferral_destination_paths so the harness creates exactly the paths the
+    gate checks; resolving it a second time here would let the two drift.
     """
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         (root / "plan").mkdir()
         body = ""
         for i, (dest, status) in enumerate(rows):
-            for ref in ch.DEFERRAL_DEST_PATH_RE.findall(dest):
+            for ref in ch.deferral_destination_paths(dest):
                 (root / ref).parent.mkdir(parents=True, exist_ok=True)
                 (root / ref).write_text("# Spec\n")
             body += f"| 2026-07-16 | spec-x | what-{i} | reason | {dest} | {status} |\n"

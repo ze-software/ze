@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1155 summaries
+Total: 1156 summaries
 
 ## 000-099
 
@@ -1224,3 +1224,4 @@ Total: 1155 summaries
 | 1161 | BGP Export Filter Applied Twice to Forwarded Routes | `plan/learned/1161-bgp-export-filter-applied-twice.md` |
 | 1162 | Session id shared marker | `plan/learned/1162-session-id-shared-marker.md` |
 | 1163 | dispatcher-trailing-token-swallow | `plan/learned/1163-dispatcher-trailing-token-swallow.md` |
+| 1164 | deferral-destination-spec-gate | `plan/learned/1164-deferral-destination-spec-gate.md` |

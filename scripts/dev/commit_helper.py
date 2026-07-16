@@ -704,7 +704,11 @@ DEFERRAL_PATTERNS = (
 
 DEFERRAL_NO_DESTINATION_NEEDED = frozenset({"cancelled", "user-approved-drop"})
 
-DEFERRAL_DEST_PATH_RE = re.compile(r"(plan/[\w./-]+\.md)")
+# A destination names a markdown file: a full `plan/...md` path (which may be
+# nested, e.g. plan/learned/1127-x.md) or a bare `spec-x.md` resolved against
+# plan/. The plan/ alternative comes first so the longest form wins; the
+# lookbehind stops a match starting mid-path or mid-word.
+DEFERRAL_DEST_PATH_RE = re.compile(r"(?<![\w/-])(plan/[\w./-]+\.md|[\w.-]+\.md)")
 
 # Statuses that mean the row is CLOSED and needs no destination. Everything else
 # is live and gets checked -- including a status word nobody has invented yet.
@@ -750,6 +754,21 @@ def _deferral_row_cells(line: str) -> list[str] | None:
     return cells
 
 
+def deferral_destination_paths(dest: str) -> list[str]:
+    """The repo-relative plan/ files a Destination cell names, in order.
+
+    The single source of truth for reading a Destination: the gate asks which
+    files must exist, and the test harness asks which files to create. Two
+    implementations of that question drift, and the drift is invisible (the
+    harness creates one path while the gate checks another, so a test proves
+    nothing about the gate).
+    """
+    return [
+        p if p.startswith("plan/") else f"plan/{p}"
+        for p in DEFERRAL_DEST_PATH_RE.findall(dest)
+    ]
+
+
 def deferral_destination_problem(repo: Path, dest: str) -> str | None:
     """Why this Destination cell fails the rule, or None when it is a valid home.
 
@@ -762,21 +781,24 @@ def deferral_destination_problem(repo: Path, dest: str) -> str | None:
     Both spellings of a destination are accepted, `plan/spec-x.md` and a bare
     `spec-x.md` resolved against plan/, because both name the same file and the
     rule is about the work having a home, not about path punctuation.
+
+    ONE named file needs to exist, not all of them. A Destination cell is a
+    filename plus prose, and good rows cite a retired spec in that prose to
+    explain a re-homing ("the original destination `spec-old.md` was deleted at
+    closure, orphaning this row"). Requiring every filename to resolve flagged
+    two such rows that were correctly homed, which would have taught people to
+    stop recording provenance to keep the gate quiet.
     """
     plain = dest.strip().strip("`").lower()
     if plain in DEFERRAL_NO_DESTINATION_NEEDED:
         return None
     if plain in DEFERRAL_PLACEHOLDERS:
         return "no destination"
-    paths = [
-        p if p.startswith("plan/") else f"plan/{p}"
-        for p in DEFERRAL_DEST_PATH_RE.findall(dest)
-    ]
+    paths = deferral_destination_paths(dest)
     if not paths:
         return "destination names no file"
-    missing = [p for p in paths if not (repo / p).is_file()]
-    if missing:
-        return "destination does not exist: " + ", ".join(missing)
+    if not any((repo / p).is_file() for p in paths):
+        return "destination does not exist: " + ", ".join(paths)
     return None
 
 

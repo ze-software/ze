@@ -328,16 +328,39 @@ def run_commit_gate(results: Results) -> None:
     finally:
         shutil.rmtree(repo, ignore_errors=True)
 
+    # An assigned destination passes only when the spec it names EXISTS. Both
+    # spellings resolve to the same file (ai/rules/deferral-tracking.md).
+    repo = _init_repo()
+    try:
+        _write(repo, "plan/spec-foo.md", "# Spec: foo\n")
+        _write(
+            repo,
+            "plan/deferrals.md",
+            _DEFERRALS_HEADER
+            + "| 2026-07-09 | abc | thing | reason | spec-foo.md | open |\n"
+            + "| 2026-07-09 | abc | thing2 | reason | `plan/spec-foo.md` | open |\n",
+        )
+        problems = ch.deferral_unassigned_problems(Path(repo))
+        results.check("commit-gate-deferral-assigned-ok", not problems, repr(problems))
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # A destination naming a spec nobody created loses the work exactly as a
+    # prose destination does, so it must block too.
     repo = _init_repo()
     try:
         _write(
             repo,
             "plan/deferrals.md",
             _DEFERRALS_HEADER
-            + "| 2026-07-09 | abc | thing | reason | spec-foo.md | open |\n",
+            + "| 2026-07-09 | abc | thing | reason | spec-never-written.md | open |\n",
         )
         problems = ch.deferral_unassigned_problems(Path(repo))
-        results.check("commit-gate-deferral-assigned-ok", not problems, repr(problems))
+        results.check(
+            "commit-gate-deferral-assigned-missing-blocks",
+            bool(problems),
+            repr(problems),
+        )
     finally:
         shutil.rmtree(repo, ignore_errors=True)
 
