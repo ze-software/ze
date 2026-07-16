@@ -263,6 +263,7 @@ ze-show:policy-list
 ze-show:policy-routes
 ze-show:policy-test
 ze-show:probe-round
+ze-show:reload-status
 ze-show:route
 ze-show:route-lookup
 ze-show:rr-peers

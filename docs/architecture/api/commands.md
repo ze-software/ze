@@ -432,7 +432,41 @@ request shutdown         # Gracefully shutdown
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
+show reload-status       # Show how many config reloads have been processed
 ```
+
+#### show reload-status (the reload fence)
+
+Returns the reload generation counter as JSON:
+
+```json
+{"generation": 3, "last-outcome": "applied", "last-reload-at": "2026-07-16T09:12:44Z"}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `generation` | Reloads PROCESSED since daemon start. Starts at 0. |
+| `last-outcome` | `applied`, `failed`, or `none` before the first reload. |
+| `last-reload-at` | RFC3339 UTC completion time; empty string before the first reload. |
+
+`generation` advances on **every** processed reload, including one that rejected
+a change or changed nothing. That is what makes it a fence rather than a
+statistic: a reload that rejects a change (l2tp refusing a listener rebind, for
+example) leaves no other observable trace, so an observer wanting to assert "the
+reload ran and correctly left this alone" has nothing else to wait on. It reads
+`generation`, triggers the reload, polls until the value advances, then asserts.
+Waiting on a timer instead makes the assertion pass vacuously against a reload
+that had not started.
+
+A reload refused with `ErrReloadInProgress` does not advance the counter: it was
+queued, not processed, and the replay advances it.
+
+The counter is observational only; nothing reads it to make a decision, so it
+cannot change what a reload accepts or rejects.
+
+<!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
+<!-- source: cmd/ze/hub/main_reload.go -- doReload, the increment site, after engine.Reload -->
+<!-- source: internal/component/cmd/show/reload_status.go -- ze-show:reload-status handler + JSON shape -->
 
 ### Peer Commands
 

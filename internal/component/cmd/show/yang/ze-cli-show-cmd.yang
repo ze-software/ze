@@ -26,6 +26,17 @@ Returns the start time and elapsed uptime. Handy after a maintenance
 window to confirm the process restarted.";
         }
 
+        container reload-status {
+            config false;
+            ze:command "ze-show:reload-status";
+            description "Show how many config reloads the daemon has processed.
+Returns a generation counter, the outcome of the most recent reload
+(applied or failed), and when it finished. The counter advances on every
+processed reload, including one that rejected or changed nothing, so you
+can confirm a SIGHUP was acted on even when it deliberately left the
+running config alone.";
+        }
+
         container runtime {
             config false;
             description "Go runtime internals of the daemon process";

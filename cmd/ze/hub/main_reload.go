@@ -75,7 +75,28 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 	}
 }
 
-// doReload performs a single config reload with a 30-second timeout.
+// doReload performs a single config reload and records the "reload processed"
+// fence that `show reload-status` surfaces.
+//
+// The fence is marked HERE, around the whole of runReload, rather than inside
+// pluginserver.Server.reloadConfig, because a reload's rejections are decided
+// by the subsystems engine.Reload fans out to (e.g. l2tp refusing a listener
+// rebind), which runs after ReloadConfig. Marking at the plugin-server layer
+// would advance the fence before those rejections had happened, and an observer
+// polling it could read state the reload had not finished touching.
+//
+// ErrReloadInProgress is deliberately NOT marked: that reload never ran: it is
+// queued and replayed by handleSIGHUPReload, and the replay marks it. Marking
+// it here would fence an observer on a reload that had not been processed.
+func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
+	err := runReload(s, eng, cp, store, configPath, load, lm)
+	if s != nil && !errors.Is(err, pluginserver.ErrReloadInProgress) {
+		s.MarkReloadProcessed(err == nil)
+	}
+	return err
+}
+
+// runReload performs a single config reload with a 30-second timeout.
 //
 // The load/plugin-apply/provider-refresh/subsystem-reload sequence runs in
 // lock-step from a SINGLE tree snapshot:
@@ -95,7 +116,9 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 // Keeping the tree single-sourced eliminates the race where the file
 // changes between the plugin-server read and the subsystem read, and
 // avoids redundant I/O + YANG parse on every SIGHUP.
-func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
+//
+// Callers go through doReload, which wraps this to record the reload fence.
+func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer reloadCancel()
 	candidateSet := false

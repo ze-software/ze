@@ -29,7 +29,6 @@ reload must reject the change and keep binding to $PORT2.
 
 import json
 import os
-import time
 
 from ze_api import API, runtime_fail, result_json_data
 
@@ -40,6 +39,27 @@ def dispatch(api, command):
     if resp is None:
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
+
+
+def generation_of(result):
+    """Reload generation from a 'show reload-status' result, or -1 if the
+    result is not a completed dispatch yet. Poll-safe: never raises."""
+    if result is None or result.get('status') != 'done':
+        return -1
+    try:
+        data = result_json_data(result, {})
+    except json.JSONDecodeError:
+        return -1
+    gen = data.get('generation')
+    return gen if isinstance(gen, int) else -1
+
+
+def read_reload_generation(api, label):
+    r = api.dispatch_until_done('show reload-status', attempts=40, delay=0.1)
+    gen = generation_of(r)
+    if gen < 0:
+        runtime_fail(f'{label}: show reload-status: {r!r}')
+    return gen
 
 
 def read_listener_port(api, label):
@@ -70,6 +90,11 @@ def main():
     if not isinstance(initial_port, int) or initial_port == 0:
         runtime_fail(f'before SIGHUP: bad initial port={initial_port!r}')
 
+    # Baseline the reload fence BEFORE releasing trigger.sh, which is what
+    # sends the SIGHUP. Reading it after would race the reload we are about
+    # to fence on.
+    baseline_gen = read_reload_generation(api, 'before SIGHUP')
+
     with open('observer.initial-ok', 'w') as f:
         f.write('ok')
 
@@ -77,9 +102,27 @@ def main():
     if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=100, delay=0.1):
         runtime_fail('trigger.sh never created reload.done marker')
 
-    # Listener rejects hot-rebind; poll briefly so the daemon has a
-    # chance to process the SIGHUP, then confirm the port is unchanged.
-    time.sleep(0.5)
+    # reload.done only proves trigger.sh sent the SIGHUP (it touches the
+    # marker right after `kill -HUP`), not that the daemon acted on it. And
+    # a rejected reload changes no observable state by design -- the whole
+    # point is that the port does NOT move -- so there is nothing in the
+    # l2tp state to wait for. Fence on the reload generation counter, which
+    # advances on every processed reload including a rejecting one
+    # (`show reload-status`, internal/component/plugin/server/reload_generation.go).
+    # Without this the port assertion below would pass vacuously against a
+    # reload that had not started yet: absence of a change is only evidence
+    # of a rejection once the reload has actually run.
+    fenced = api.dispatch_until(
+        'show reload-status',
+        lambda r: generation_of(r) > baseline_gen,
+        attempts=100,
+        delay=0.1,
+    )
+    if generation_of(fenced) <= baseline_gen:
+        runtime_fail(
+            f'reload generation never advanced past {baseline_gen} '
+            f'after SIGHUP: {fenced!r}')
+
     after_port = read_listener_port(api, 'after')
     if after_port != initial_port:
         runtime_fail(f'after SIGHUP: listener port changed {initial_port}->{after_port}; expected no change')

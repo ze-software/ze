@@ -104,6 +104,11 @@ type Server struct {
 
 	txLock txLock // Transaction exclusion (one config transaction at a time)
 
+	// reloadGen is the monotonic "reload processed" fence surfaced by
+	// `show reload-status`. Advanced by MarkReloadProcessed once a whole
+	// reload sequence completes, applied or rejected. See reload_generation.go.
+	reloadGen reloadGeneration
+
 	// Forked route-installing plugins (OSPF, IS-IS) insert into the engine Loc-RIB
 	// via the route-install RPC. installedByPlugin tracks each plugin's live routes
 	// (keyed by plugin name) so a disconnect withdraws them (AC-8: no stale routes
