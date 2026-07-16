@@ -59,6 +59,126 @@ func TestParseConfigProductionTreeShape(t *testing.T) {
 	}
 }
 
+// TestParseConfigCoAPortProductionPath verifies `coa-port` survives the real
+// File -> Tree -> Tree.ToMap() pipeline and reaches Config.CoAPort.
+//
+// VALIDATES: an operator writing `coa-port 3799` in a real config file gets a
+// Config whose CoAPort is 3799, which is the sole gate on the CoA listener
+// (`cfg.CoAPort > 0`, register.go applyConfig).
+// PREVENTS: the leaf being parsed by parseConfigFromTree (config.go:93-100) but
+// absent from the YANG schema, so the production parser rejects the file with
+// "unknown field in radius: coa-port" (config/parser.go) and the whole CoA
+// listener branch is unreachable from production config.
+func TestParseConfigCoAPortProductionPath(t *testing.T) {
+	cfg := `l2tp {
+    enabled true
+    auth {
+        radius {
+            server radius1 {
+                address 127.0.0.1
+                shared-key testing123
+            }
+            coa-port 3799
+        }
+    }
+}`
+	tree, err := config.ParseTreeWithYANG(cfg, map[string]string{
+		"l2tp-auth-radius": yang.ZeL2TPAuthRadiusConfYANG,
+	})
+	if err != nil {
+		t.Fatalf("parse tree with coa-port: %v", err)
+	}
+	parsed, err := parseConfigFromTree(tree.ToMap())
+	if err != nil {
+		t.Fatalf("parseConfigFromTree: %v", err)
+	}
+	if parsed.CoAPort != 3799 {
+		t.Errorf("coa-port: got %d, want 3799", parsed.CoAPort)
+	}
+}
+
+// TestParseConfigCoAPortAbsentDisablesListener pins the opt-in contract: with
+// no `coa-port` leaf the CoAPort stays 0, so applyConfig's `cfg.CoAPort > 0`
+// gate keeps the listener off.
+//
+// VALIDATES: existing RADIUS configs that never mentioned coa-port keep their
+// current behavior (no CoA listener, no new open UDP port).
+// PREVENTS: someone giving the YANG leaf a `default 3799`, which would
+// materialize into every parsed tree and silently start a CoA listener on every
+// deployment that upgrades.
+func TestParseConfigCoAPortAbsentDisablesListener(t *testing.T) {
+	cfg := `l2tp {
+    enabled true
+    auth {
+        radius {
+            server radius1 {
+                address 127.0.0.1
+                shared-key testing123
+            }
+        }
+    }
+}`
+	tree, err := config.ParseTreeWithYANG(cfg, map[string]string{
+		"l2tp-auth-radius": yang.ZeL2TPAuthRadiusConfYANG,
+	})
+	if err != nil {
+		t.Fatalf("parse tree: %v", err)
+	}
+	parsed, err := parseConfigFromTree(tree.ToMap())
+	if err != nil {
+		t.Fatalf("parseConfigFromTree: %v", err)
+	}
+	if parsed.CoAPort != 0 {
+		t.Errorf("coa-port absent: got %d, want 0 (listener disabled)", parsed.CoAPort)
+	}
+}
+
+// TestParseConfigCoAPortBounds checks the YANG range at its edges, per
+// ai/rules/tdd.md boundary testing: last valid, first invalid below, first
+// invalid above.
+//
+// VALIDATES: the schema rejects out-of-range ports at parse time rather than
+// letting them reach the listener.
+// PREVENTS: a range typo (e.g. "0..65535") admitting port 0, which would read
+// as "disabled" to the gate while the operator believes CoA is configured.
+func TestParseConfigCoAPortBounds(t *testing.T) {
+	tests := []struct {
+		name    string
+		port    string
+		wantErr bool
+	}{
+		{name: "last valid", port: "65535", wantErr: false},
+		{name: "first valid", port: "1", wantErr: false},
+		{name: "invalid below", port: "0", wantErr: true},
+		{name: "invalid above", port: "65536", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := `l2tp {
+    enabled true
+    auth {
+        radius {
+            server radius1 {
+                address 127.0.0.1
+                shared-key testing123
+            }
+            coa-port ` + tt.port + `
+        }
+    }
+}`
+			_, err := config.ParseTreeWithYANG(cfg, map[string]string{
+				"l2tp-auth-radius": yang.ZeL2TPAuthRadiusConfYANG,
+			})
+			if tt.wantErr && err == nil {
+				t.Errorf("coa-port %s: got nil error, want rejection", tt.port)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("coa-port %s: got error %v, want accepted", tt.port, err)
+			}
+		})
+	}
+}
+
 // TestParseConfigKeyedServerMap verifies the keyed-list map shape directly
 // (multiple servers keyed by name, scalars as strings), independent of the
 // config parser. Order must be deterministic (sorted by name) for predictable

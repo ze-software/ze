@@ -33,6 +33,13 @@ module ze-l2tp-auth-radius-conf {
                     default 300;
                     description "Accounting interim-update interval in seconds.";
                 }
+                leaf coa-port {
+                    type uint16 { range "1..65535"; }
+                    description "UDP port for the RADIUS CoA/Disconnect listener
+(RFC 5176), commonly 3799. Deliberately has no default: leaving it unset keeps
+the listener off, so an existing deployment does not start accepting CoA on
+upgrade. Requests are accepted only from the configured RADIUS server addresses.";
+                }
                 list server {
                     key "name";
                     ordered-by user;
