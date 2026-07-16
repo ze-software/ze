@@ -41,18 +41,22 @@ Destination of every row whose Status is NOT terminal. The terminal set is
 
 | Status | Meaning | Destination checked? |
 |--------|---------|----------------------|
-| `open` | Live: the work has NO home. A rule violation, not a workflow state | YES |
-| `deferred` | Live: same as `open`. A rule violation, not a workflow state | YES |
-| `done` | Terminal. Implemented, or moved into a spec | no |
+| `deferred` | Live: the work is outstanding. MUST name its home spec | YES |
+| `open` | Live: synonym of `deferred`. Prefer `deferred` | YES |
+| `done` | Terminal. The work landed, or the row was superseded | no |
 | `cancelled` | Terminal. User decided not to do it | no |
 | `resolved` | Terminal. Closed with evidence (learned summary) | no |
 
-**A correctly recorded row is born `done`.** Homing is mandatory and happens at the
-moment of deferral, so by the time you write the row the work already has a home and
-the spec is its tracker. `open` and `deferred` are therefore not statuses you should
-ever choose: they describe a row whose work has nowhere to go, which this rule
-forbids. They stay in the vocabulary because the gate must have something to catch,
-and `plan/deferrals.md` still carries pre-rule rows in that state.
+**A homed row stays live.** The status answers "is this work still outstanding",
+NOT "does it have a home". Homing is mandatory, so a live row is the NORMAL,
+correct state of a deferral: it has a spec AND the work has not landed yet. It goes
+`done` when the work is implemented, not when it is filed. A live row is not a
+violation and is not a backlog of unfiled work.
+
+This is the invariant the gate is built on: it re-checks every live row's
+destination on every commit, so "outstanding work names a real spec" is enforced
+continuously, for as long as the work is outstanding. Closing a row early to quiet
+the gate hides the work from the only thing checking it.
 
 `open` and `deferred` are synonyms, and the redundancy is a wart: it is what let the
 gate and this rule teach different words in the first place. Do not add a third.
@@ -63,8 +67,11 @@ silently (`ai/rules/fail-closed-guards.md`).
 
 **Blind spot, stated rather than papered over:** a terminal status skips the
 destination check entirely, so a `done` row whose Destination is prose is not
-flagged. `done` is an assertion the gate trusts. Marking a row `done` without a real
-destination is the one way to defeat this rule, and it is the only way, so do not.
+flagged. `done` is an assertion the gate trusts. That is tolerable only because
+`done` means the work LANDED, so nobody is routed toward it while work is
+outstanding, and its Destination is often a commit SHA rather than a file. Marking a
+row `done` before the work lands both lies and disables the check, which is why the
+row above stays live.
 
 This table and `DEFERRAL_TERMINAL_STATUSES` must not drift apart. They did once,
 and it cost: the gate tested only `status == "open"` while this rule's own prose
@@ -79,7 +86,7 @@ looked at. 23 live rows without a home had accumulated behind that hole.
 | No prose destinations | "later", "future work", "a follow-up", "TBD" are not destinations. A destination is a filename |
 | No vague What | "Edge cases" is not acceptable. Name the specific case |
 | Record immediately | Do not batch. Record when the decision is made, not at commit time |
-| Review at session end | Expect zero live rows. A live row means the rule was broken; home it or cancel it before ending |
+| Review at session end | Live rows are expected and fine. Check that each still names a real home, and close only the ones whose work actually landed |
 
 The gate is one notch wider than this rule on purpose: it accepts any existing
 `plan/**.md`, not only `plan/spec-*.md`. The one sanctioned non-spec destination
@@ -97,16 +104,16 @@ the moment the deferral is made:
 | Order | Action | Detail |
 |-------|--------|--------|
 | 1 | Find an existing spec that already covers the topic | `grep -l "<topic>" plan/spec-*.md`, and scan `make ze-spec-status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |
-| 2 | If one exists, add the work to its `## Task` section | The spec becomes the tracker. Record the deferral with that spec as Destination and Status `done` (moved to another spec, see "Resolving Deferrals") |
-| 3 | Only if no spec covers the topic, create a deferral spec | Named `plan/spec-<source>-deferred-<subtask>.md` (see below). Record the row with that spec as Destination and Status `done`, exactly as in step 2 |
+| 2 | If one exists, add the work to its `## Task` section | That spec is the home. Record the deferral with it as Destination, Status `deferred` |
+| 3 | Only if no spec covers the topic, create a deferral spec | Named `plan/spec-<source>-deferred-<subtask>.md` (see below). Record the row with it as Destination, Status `deferred`, exactly as in step 2 |
 
 An existing spec is preferred over a new file. Do not create a deferral spec to
 avoid the grep.
 
-**Both routes end at Status `done`.** A new deferral spec is still "moved to another
-spec": the row is closed and the spec tracks the work from then on. The status
-answers "does this ROW still need a home", not "is the work finished". Step 3 does
-not get a live status just because the spec is new.
+**Both routes record a LIVE row.** Filing work in a spec is not finishing it, so the
+row stays `deferred` and keeps naming its home until the work lands. Do not close a
+row at step 2 or 3: a `done` row is never destination-checked again, so closing it on
+filing is precisely how the work stops being watched (see "Status Vocabulary").
 
 ### Deferral Spec Naming (BLOCKING)
 
@@ -148,7 +155,7 @@ plan/spec-<source>-deferred-<subtask>.md
 | 1 | Create the file from `plan/TEMPLATE.md` with `Status \| skeleton` |
 | 2 | Fill only the `## Task` section with the points to complete, plus any constraint already known. Leave the rest as template placeholders |
 | 3 | Name the source spec in the `## Task` section so the provenance survives |
-| 4 | Record the deferral in `plan/deferrals.md` with the new spec as Destination and Status `done` |
+| 4 | Record the deferral in `plan/deferrals.md` with the new spec as Destination and Status `deferred` |
 
 Keep it small. The goal is zero lost work, not a finished design -- a skeleton is
 captured intent, not a designed spec. It moves to `design` when someone picks it
@@ -175,12 +182,17 @@ would need to be added.
 
 ## Resolving Deferrals
 
+A row is closed when the WORK is settled, never when it is merely filed.
+
 | To close as | Set Status to | Set Destination to |
 |-------------|---------------|--------------------|
 | Implemented | `done` | Spec or commit where implemented |
 | User decided not to do it | `cancelled` | `user-approved-drop` |
-| Moved to another spec (existing or newly created) | `done` | Receiving spec filename |
+| Superseded (another row or spec now owns it) | `done` | The row or spec that took it over |
 
-A row recorded under "Choosing the Destination Spec" is closed the moment it is
-written, via the last line of this table. There is no interval during which a
-correctly recorded deferral sits live, because the home exists before the row does.
+**Filing work in a spec is NOT a close.** Moving work into a spec gives the row its
+Destination; the row then stays `deferred` until the work lands. This table's
+predecessor said "moved to another spec -> `done`", which read as "filing closes the
+row" and cost real coverage: 13 rows were closed on filing in one session, hiding
+their work from the gate while none of it had been done. If the work is not in the
+tree, the row is not `done`.
