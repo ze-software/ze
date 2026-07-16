@@ -165,9 +165,10 @@ func TestDoctorLCPNetnsDisabled(t *testing.T) {
 // reasons.
 //
 // Why this advice is banned: to VPP, vpp.lcp.netns is a namespace NAME resolved
-// to /var/run/netns/<name> (linux-cp lcp_get_default_ns formats the path and opens it;
-// third_party/vpp-linux-cp/src/lcp.c), and
-// an empty per-pair netns falls back to the global default (lcp_interface.c:856-861)
+// to /var/run/netns/<name> (linux-cp lcp_set_default_ns formats the path and opens
+// it; third_party/vpp-linux-cp/src/lcp.c:73-74), and an empty per-pair netns falls
+// back to the global default (linux-cp lcp_itf_pair_create;
+// third_party/vpp-linux-cp/src/lcp_interface.c:850-855)
 // which ze itself sets from the same leaf (internal/component/vpp/startupconf.go:106).
 // So "host" and "root" are not the host namespace: they ask VPP for namespaces of
 // those literal names, which normally do not exist, and LCP pair creation fails.

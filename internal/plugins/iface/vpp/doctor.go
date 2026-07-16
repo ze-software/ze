@@ -122,7 +122,8 @@ func checkVPPLCPNetns(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	}
 	// Remediation: there is no config-only fix. No value of vpp.lcp.netns puts
 	// the TAPs where a root-netns ze can bind, because VPP resolves the leaf as
-	// a namespace NAME under /var/run/netns/ (linux-cp lcp_get_default_ns, third_party/vpp-linux-cp/src/lcp.c) -- host and root
+	// a namespace NAME under /var/run/netns/ (linux-cp lcp_set_default_ns,
+	// third_party/vpp-linux-cp/src/lcp.c:73-74) -- host and root
 	// are not the host namespace -- and ze has no netns-aware listener
 	// (RealListenerFactory.Listen, internal/core/network/network.go:167). Naming
 	// a value here is what the previous message did, and following it fails LCP
@@ -143,10 +144,12 @@ func checkVPPLCPNetns(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 // the host (root) network namespace, where its BGP listener runs by default.
 //
 // This is a statement about ze's own marker set ("", host, root), not about VPP.
-// VPP has no special namespace names: it resolves vpp.lcp.netns to the path
-// /var/run/netns/<name> (linux-cp lcp_get_default_ns, third_party/vpp-linux-cp/src/lcp.c), and resolves an EMPTY per-pair netns
-// to the GLOBAL default (lcp_interface.c:856-861), which ze always writes from
-// this same leaf when LCP is enabled (internal/component/vpp/startupconf.go:106).
+// VPP has no special namespace names: lcp_set_default_ns formats the leaf into the
+// path /var/run/netns/<name> and opens it
+// (third_party/vpp-linux-cp/src/lcp.c:73-74), and lcp_itf_pair_create resolves an
+// EMPTY per-pair netns to that GLOBAL default
+// (third_party/vpp-linux-cp/src/lcp_interface.c:850-855), which ze always writes
+// from this same leaf when LCP is enabled (internal/component/vpp/startupconf.go:106).
 // So netns=host makes VPP open /var/run/netns/host rather than stay in its own
 // namespace, and these markers are not the escape hatch they look like. Verified
 // in VPP's C sources, not in the generated binapi stub, which documents only that

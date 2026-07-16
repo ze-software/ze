@@ -641,24 +641,39 @@ corrected doc comments.
 
 ### Run 1 (initial)
 
+Run 1 reviewed the state as COMMITTED in `287aa411e` (the implementation had already
+landed; this session found the spec still open and un-gated). Both findings are in the
+prose shipped by that commit. Neither breaks behaviour: the CLAIMS are true and were
+verified at a producer. What is wrong is where the CITATIONS point, which is the exact
+defect class this spec exists to remove.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| 1 | ISSUE | **Citation resolves against a git-ignored scratch copy.** Three comments cite `lcp_interface.c:856-861` for the empty-per-pair -> global-default fallback. That range is correct ONLY in `tmp/vpp-lcp/lcp_interface.c`, the author's scratch fetch, which `.gitignore:12` excludes. The SAME commit vendored a DIFFERENT copy into `third_party/vpp-linux-cp/src/`, where the fallback is at `:850-855` and `:856-861` is the sub-interface block (`vnet_sw_interface_is_sub`). A reader following the citation in the only in-tree copy lands on unrelated code | `doctor.go:148`, `lcp.go:110`, `register_test.go:170` | FIXED: all three now cite `third_party/vpp-linux-cp/src/lcp_interface.c:850-855`, the vendored copy, with the producing function named (`lcp_itf_pair_create`) |
+| 2 | ISSUE | **Producer misattributed.** Three comments credit `lcp_get_default_ns` with formatting and opening `/var/run/netns/<name>`. It does not: `lcp.c:28-36` only returns `lcpm->default_namespace`. `lcp_set_default_ns` (`lcp.c:50-78`) formats the path (`:73`) and `open`s it (`:74`). The spec's own A-1 row carries the same misattribution (`lcp.c:67`, the scratch copy's line for `:73`) | `doctor.go:125`, `doctor.go:147`, `lcp.go:113`, `register_test.go:168` | FIXED: all sites now name `lcp_set_default_ns` and cite `third_party/vpp-linux-cp/src/lcp.c:73-74` |
+| 3 | NOTE | The path substitution that rewrote `tmp/vpp-lcp/` -> `third_party/vpp-linux-cp/src/` when the sources were vendored left three comment lines ~125 chars and visibly unreflowed, which is the visible trace of finding 1: the path was substituted, the LINE NUMBERS were not | `doctor.go:147`, `lcp.go:113`, `register_test.go:168` | FIXED incidentally: comment blocks reflowed as part of findings 1 and 2 |
+| 4 | NOTE | `plan/spec-bgp-netns.md` (`:202`, `:332`, `:448`, `:738`) also cites `lcp_interface.c:856-861`. NOT a defect and NOT touched: that spec explicitly labels its citation "not vendored; fetched from FDio/vpp" master, so the range is honest against the copy it names. Now that `third_party/vpp-linux-cp/` exists in-tree, that spec may want to re-anchor when it next lands | `plan/spec-bgp-netns.md` | Raised in the return; another spec's file, not edited |
 
 ### Fixes applied
 
-- (fill during review)
+- `internal/plugins/iface/vpp/doctor.go`: the remediation comment in `checkVPPLCPNetns`
+  and `lcpNetnsIsRootReachable`'s doc comment now name `lcp_set_default_ns` /
+  `lcp_itf_pair_create` and cite the VENDORED copy at its real lines.
+- `internal/plugins/iface/vpp/lcp.go`: same correction in `lcpPairNetns`'s CAUTION block.
+  **Comments only** -- `git diff` shows no non-`//` line, so AC-5 still holds.
+- `internal/plugins/iface/vpp/register_test.go`: same correction in the
+  `lcpNetnsBannedAdvice` header comment.
 
 ### Run 2+ (re-runs until clean)
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| - | - | No BLOCKER, no ISSUE. `grep -rn "856-861" internal/ docs/` and `grep -rn "lcp_get_default_ns" internal/ docs/` both return nothing. All 7 `TestDoctorLCPNetns*` PASS (`tmp/lcp-close/netns2.log`). `make ze-lint-changed` "0 issues." (`tmp/lcp-close/lint.log`) | - | - |
 
 ### Final status
 
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE — Run 2 clean; the two Run-1 ISSUEs are fixed and re-verified by grep + tests + lint
+- [ ] All NOTEs recorded above (or explicitly "none") — NOTE 3 fixed incidentally; NOTE 4 is another spec's file, raised in the return, deliberately not edited
 
 ## Pre-Commit Verification
 
