@@ -70,11 +70,15 @@ func pruneUnchangedNode(tree, baseline *Tree, node Node) {
 // pruneUnchangedListEntries prunes list entries that render identically and recurses
 // into those that differ. An entry absent from the baseline is new and is kept whole.
 func pruneUnchangedListEntries(tree, baseline *Tree, name string, node Node) {
+	entries := tree.GetList(name)
 	baseEntries := baseline.GetList(name)
 
-	for key, entry := range tree.GetList(name) {
+	// Snapshot the keys first: the loop deletes from the same live map GetList
+	// returns. See listKeys.
+	for _, key := range listKeys(tree, name) {
+		entry := entries[key]
 		baseEntry := baseEntries[key]
-		if baseEntry == nil {
+		if entry == nil || baseEntry == nil {
 			continue
 		}
 		if SerializeSubtree(entry, node) == SerializeSubtree(baseEntry, node) {
@@ -131,10 +135,31 @@ func childText(tree *Tree, name string, node Node) string {
 // to stay in step with serializeNode's nine cases.
 func removeChild(tree *Tree, name string) {
 	tree.RemoveContainer(name)
-	for key := range tree.GetList(name) {
+	for _, key := range listKeys(tree, name) {
 		tree.RemoveListEntry(name, key)
 	}
 	tree.removeValue(name)
+}
+
+// listKeys snapshots the keys of a list before the caller mutates it.
+//
+// GetList returns the LIVE map (tree.go: it returns t.lists[name] and drops the
+// read lock on return), so ranging it while RemoveListEntry write-locks and
+// deletes from the same map means iterating unlocked over a map another call is
+// mutating. Single-goroutine on a clone that is benign, but the safety would rest
+// entirely on every caller cloning first. pruneNode collects keys for exactly this
+// reason ("avoid mutation during iteration"); match it rather than rely on the
+// caller.
+func listKeys(tree *Tree, name string) []string {
+	entries := tree.GetList(name)
+	if len(entries) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(entries))
+	for key := range entries {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // PruneInactive removes inactive containers and list entries from the tree.

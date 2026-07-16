@@ -291,6 +291,130 @@ func TestPruneUnchangedNilTreeNoPanic(t *testing.T) {
 	require.NotPanics(t, func() { PruneUnchanged(NewTree(), NewTree(), nil) })
 }
 
+// TestPruneUnchangedPerNodeKind drives a CHANGED value through each node kind the
+// schema exposes beyond the plain leaf/container/list, and asserts both halves of
+// the contract per kind: the change survives, an untouched sibling does not.
+//
+// VALIDATES: R-1 -- "PruneUnchanged must handle every node kind diff_tree.go
+// handles; missing one silently drops config."
+// PREVENTS: A kind whose rendering childText/serializeNode handles differently
+// (leaf-lists render one line per member; flex renders a value AND a container
+// form) pruning wrongly. TestPruneUnchangedAgreesWithSerializer only compares
+// IDENTICAL trees, so it exercises the prune-everything path -- never the
+// keep-what-differs path, which is where a per-kind bug would live.
+func TestPruneUnchangedPerNodeKind(t *testing.T) {
+	tests := []struct {
+		name     string
+		baseline string
+		modified string
+		wantKept string // must survive: the change
+		wantGone string // must be pruned: an untouched sibling
+	}{
+		{
+			name: "leaf-list member added",
+			baseline: `bgp {
+    router-id 1.2.3.4
+    filter {
+        import [ alpha ]
+    }
+}`,
+			modified: `bgp {
+    router-id 1.2.3.4
+    filter {
+        import [ alpha beta ]
+    }
+}`,
+			wantKept: "beta",
+			wantGone: "router-id",
+		},
+		{
+			name: "leaf-list member removed",
+			baseline: `bgp {
+    router-id 1.2.3.4
+    filter {
+        import [ alpha beta ]
+    }
+}`,
+			modified: `bgp {
+    router-id 1.2.3.4
+    filter {
+        import [ alpha ]
+    }
+}`,
+			wantKept: "alpha",
+			wantGone: "router-id",
+		},
+		{
+			name: "one leaf-list changes, sibling leaf-list untouched",
+			baseline: `bgp {
+    filter {
+        import [ alpha ]
+        export [ gamma ]
+    }
+}`,
+			modified: `bgp {
+    filter {
+        import [ delta ]
+        export [ gamma ]
+    }
+}`,
+			wantKept: "delta",
+			wantGone: "gamma",
+		},
+		{
+			name: "list entry leaf changes, sibling container untouched",
+			baseline: `bgp {
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer alpha {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}`,
+			modified: `bgp {
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer alpha {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65999
+            }
+        }
+    }
+}`,
+			wantKept: "65999",
+			wantGone: "65000",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := pruneFixture(t, tt.baseline, tt.modified)
+			assert.Contains(t, out, tt.wantKept, "the change must survive the prune")
+			assert.NotContains(t, out, tt.wantGone, "an untouched sibling must be pruned")
+		})
+	}
+}
+
 // TestPruneUnchangedAgreesWithSerializer verifies the prune decision is exactly
 // "serializes identically" for every node kind reachable in the schema.
 //
