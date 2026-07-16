@@ -106,14 +106,21 @@ def _session_id_from_argv(argv):
     return ""
 
 
-def _walk_for_claude():
-    # Prefer the Claude CLI's own --session-id, read from the process tree. It is
-    # the canonical session UUID (the same value in tmp/session/.session-<id> and
-    # .lsp-loaded-<id> markers), unique per session, and constant across the many
-    # short-lived hook subprocesses. It does NOT depend on the CLI being named
-    # `claude`: its argv0 is the version string (e.g. .../versions/2.1.206), which
-    # is why the old name-only match never fired and fell through to an unstable
-    # $PPID that changed every hook invocation. Mirrors .claude/hooks/lib/session-id.sh.
+# Last resort, mirroring lib/session-id.sh: a fixed constant. It is shared across
+# concurrent sessions, but it is STABLE. $PPID is not -- it differs for every
+# short-lived hook subprocess, so a pid-derived id never matches the marker a
+# previous subprocess wrote, and marker matching fails silently.
+SESSION_ID_FALLBACK = "claude-session-fallback"
+
+
+def _sid_from_process_tree():
+    """The Claude CLI's own --session-id, read up the process tree, or ''.
+
+    This is the canonical session UUID: unique per session and constant across the
+    many short-lived hook subprocesses. It does NOT depend on the CLI being named
+    `claude` -- its argv0 is the version string (e.g. .../versions/2.1.206), which
+    is why an older name-only match never fired.
+    """
     pid = os.getpid()
     while pid > 1:
         try:
@@ -137,22 +144,19 @@ def _walk_for_claude():
             sid = _session_id_from_argv(argv)
             if sid:
                 return sid
-            argv0 = argv[0] if argv else ""
-            base = argv0.rsplit("/", 1)[-1]
-            if base == "claude" or argv0 == "claude":
-                return str(pid)
             if not ppid:
                 break
             pid = int(ppid)
         except Exception:
             break
-    return str(os.getppid())
+    return ""
 
 
-def session_id():
+def _sid_from_jwt():
+    """session_id from CLAUDE_CODE_SESSION_ACCESS_TOKEN, or ''."""
     tok = os.environ.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN")
     if not tok:
-        return _walk_for_claude()
+        return ""
     try:
         payload = tok.split(".")[1].replace("_", "/").replace("-", "+")
         mod = len(payload) % 4
@@ -166,7 +170,27 @@ def session_id():
             return m.group(1)
     except Exception:
         pass
-    return str(os.getppid())
+    return ""
+
+
+def session_id():
+    """Resolve this session's id.
+
+    The order MUST stay identical to .claude/hooks/lib/session-id.sh, because that
+    library is what the SHELL hooks use to WRITE the markers this file READS:
+    .lsp-invoked-<sid> and .source-read-<sid> (mark-lsp-invoked.sh,
+    mark-source-read.sh), .session-<sid>, and session-state-<sid>.md.
+
+    When the two ends disagree, every marker check here looks for a file nothing
+    writes. That does not fail open -- it fails CLOSED, blocking work that was in
+    fact done, and no amount of redoing it clears the block. On 2026-07-16 this
+    made c_design_without_lsp unsatisfiable: the shell wrote
+    .lsp-invoked-claude-session-fallback while this function returned a pid, so a
+    spec write was refused for "no implementation investigated" after the source had
+    been read and the LSP invoked. tmp/session/ still carries the pid-named symlinks
+    nine earlier sessions used to paper over it.
+    """
+    return _sid_from_process_tree() or _sid_from_jwt() or SESSION_ID_FALLBACK
 
 
 def state_file(sid):

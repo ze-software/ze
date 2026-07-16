@@ -38,11 +38,74 @@ they account for over 50 appearances in the corpus.
 | `block-system-tmp.sh` | 1 | Retired earlier | [Retired](#retired) |
 | `block-panic-error.sh` | 1 | Active | [block-panic-error.sh](#block-panic-errorsh) |
 | `block-layering.sh` | 1 | Retired 2026-04-19 | [Retired](#retired) |
+| `pretool-writeedit.py` `c_design_without_lsp` | 1 (2026-07-16) | Fixed 2026-07-16 at the source | [c_design_without_lsp](#pretool-writeeditpy--c_design_without_lsp) |
 
 ---
 
 <!-- auto_linter.sh, block-silent-ignore.sh, and check-existing-patterns.sh
      moved to the Retired section at the bottom on 2026-04-19. -->
+
+---
+
+## `pretool-writeedit.py` — `c_design_without_lsp`
+
+**Trigger.** `Write`/`Edit` on `plan/spec-*.md` or `plan/design-*.md` when neither
+marker exists: `tmp/session/.lsp-invoked-<sid>` or `tmp/session/.source-read-<sid>`,
+where `<sid>` comes from that file's own `session_id()`.
+
+**What it blocks.** Writing a spec without having investigated the implementation
+first. The intent is sound and worth keeping (`ai/rules/no-fabrication.md`): read the
+function that PRODUCES the behavior before authoring a spec that claims something
+about it.
+
+**This is not a regex false positive — the two ends disagree about the session id.**
+The marker *writer* recorded under `claude-session-fallback`
+(`.lsp-invoked-claude-session-fallback`, `.source-read-claude-session-fallback`, both
+freshly stamped), while `c_design_without_lsp` resolved the *same* session to a pid
+(`36334`) and looked for `.lsp-invoked-36334`, which nothing ever writes. The gate is
+therefore unsatisfiable in any session where the two resolutions diverge: reading the
+source and invoking LSP both fail to clear it, and the message advises doing exactly
+what the session has already done — which is the worst kind of block, because it reads
+as "you skipped a step" when you did not.
+
+**FIXED 2026-07-16 — no workaround needed.** `session_id()` in
+`pretool-writeedit.py` now mirrors `lib/session-id.sh` exactly, so both ends resolve
+the same id. Verified: the shell lib and the Python hook both return
+`claude-session-fallback` on this host (they returned `claude-session-fallback` and
+`36334` before), and a spec write passes with no marker symlinks present.
+
+Three divergences existed, despite the Python's own comment claiming it mirrored the
+shell:
+
+| | `lib/session-id.sh` | `pretool-writeedit.py` (before) |
+|---|---|---|
+| 1st choice | `--session-id` from the process tree | JWT env var |
+| 2nd choice | JWT env var | `--session-id` from the process tree |
+| Last resort | `claude-session-fallback` (stable) | `str(os.getppid())` (**unstable**) |
+| Dead branch | — | name-match `argv0 == "claude"` returning `str(pid)`, which its own comment said never fires |
+
+The last-resort row is what bit: with no `--session-id` in the tree and no JWT, the
+shell wrote `.lsp-invoked-claude-session-fallback` while the check looked for
+`.lsp-invoked-36334`.
+
+**Why this class of bug is nasty.** It does not fail open, it fails **closed**: the
+gate blocks work that *was* done, and doing it again cannot clear the block, because
+the evidence lands under a name the reader never looks at. The message then accuses
+the session of skipping a step it did not skip.
+
+**Historical note.** `tmp/session/` still holds pid-named symlinks from nine earlier
+sessions (`.lsp-invoked-2605`, `-40688`, `-40694`, `-40763`, `-52264`, `-60632`,
+`-6503`, `-97940`, `-97941` → `./.lsp-invoked-claude-session-fallback`). Each one is
+a session that hit this, worked around it, and moved on. They are harmless to leave
+and are no longer created. If you ever need to bridge a marker by hand again, that is
+a signal the two resolvers have drifted apart once more — fix `session_id()`, do not
+re-add the symlink, and never bridge a marker for work that was not actually done.
+
+**Related.** `state_file(sid)` in the same file keys off the same `session_id()`, so
+`session-state-<sid>.md` was mis-resolved too: the SessionStart banner reports
+`session-state-claude-session-fallback.md` while the check demanded a pid-named file.
+The single fix corrects all four consumers (`.lsp-invoked-`, `.source-read-`,
+`.session-`, `session-state-`).
 
 ---
 
