@@ -175,17 +175,35 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 // Called when "peer <addr> plugin session ready" is received (e.g., after route replay).
 // Routes the signal to the specified peer.
-// The peerAddr string is parsed as "ip:port" or bare IP (default port assumed).
+// The peerAddr string is parsed as "ip:port" or bare IP.
+//
+// A bare IP cannot be turned into a map key on its own: parsePeerAddrToKey has to
+// assume DefaultBGPPort, and a peer configured on a non-standard port is stored
+// under a different key. Emitters send a bare IP (bgp-rib's replay dispatches
+// "request peer <addr> plugin session ready" with the peer's address only), so
+// the direct map read misses for every non-179 peer. findPeerByAddr exists for
+// exactly this and keeps the default-port fast path.
+//
+// The miss must be loud. Nothing downstream can see it: the caller
+// (cmd/peer/session.go handlePeerSessionReady) still answers "peer ready
+// acknowledged", and the peer simply waits out waitForAPISync and sends its EOR
+// 2.5s late. See ai/rules/fail-closed-guards.md ("or say something").
 func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
 	key := parsePeerAddrToKey(peerAddr)
 
 	r.mu.RLock()
 	peer, ok := r.peers[key]
+	if !ok {
+		peer, ok = r.findPeerByAddr(key.Addr())
+	}
 	r.mu.RUnlock()
 
-	slog.Debug("peer api ready signal", "peer", peerAddr, "found", ok)
-
-	if ok && peer != nil {
-		peer.SignalAPIReady()
+	if !ok || peer == nil {
+		slog.Warn("api ready signal for unknown peer; its EOR will be delayed until the API sync timeout",
+			"peer", peerAddr)
+		return
 	}
+
+	slog.Debug("peer api ready signal", "peer", peerAddr)
+	peer.SignalAPIReady()
 }
