@@ -93,6 +93,14 @@ file, as `plugin/all/testdata/*.snapshot` does. Left as a note in the test rathe
 than a silent bump; converting these four counts to a snapshot remains open for
 whoever next touches that file.
 
+**A SECOND test had the same stale-`quiesce` root cause** and was only found when
+`make ze-verify` finally ran (2026-07-15): `internal/core/ipc` `TestExtractRPCs/system-api`
+(`yang_test.go:320-326`) asserts `ElementsMatch` against its own hardcoded
+`wantRPCs` list, which also predated `ze-system:quiesce`. Fixed by adding the
+entry. Two hardcoded copies of the same list drifted from one added RPC, which is
+precisely what `ai/rules/derive-not-hardcode.md` exists to prevent -- worth
+remembering if a third copy surfaces.
+
 ### ~~`config/cli` -- 3 tests fail, pre-existing~~ -- RESOLVED 2026-07-15: DISPROVEN, same missing-build-tags artifact
 
 **The `config-listener-conflict` validator is NOT broken. These tests pass.**

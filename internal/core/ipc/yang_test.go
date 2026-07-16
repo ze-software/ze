@@ -322,7 +322,7 @@ func TestExtractRPCs(t *testing.T) {
 				"daemon-shutdown", "daemon-reboot", "daemon-quit", "daemon-status", "daemon-reload",
 				"subsystem-list",
 				"command-list", "command-help", "command-complete",
-				"dispatch",
+				"dispatch", "quiesce",
 			},
 		},
 		{
