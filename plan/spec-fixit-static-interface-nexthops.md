@@ -9,8 +9,21 @@
 
 **DESIGN (research complete, NOT approved).** Research was run 2026-07-16. Every Open
 Question below is answered in place, every A-N carries evidence, and the design below is
-proposed for approval. It is NOT `ready`: two decisions (D-1 backend-mismatch gate, D-2
-no-backend diagnosis shape) need Thomas before implementation starts.
+proposed for approval. It is NOT `ready`: ~~two decisions (D-1 backend-mismatch gate, D-2
+no-backend diagnosis shape) need Thomas before implementation starts.~~
+
+**2026-07-16, Thomas -- the D-2/D-3 framing is SUPERSEDED.** Asked "can we not validate the
+route and ensure that it can not be invalid?", the answer is **partly**:
+**config-validate the interface REFERENCE where possible, AND still handle resolution
+failure at runtime.** Both halves ship; the runtime error is not made redundant by the
+validation. "Cannot be invalid" is **not reachable**: an interface next-hop may legitimately
+name an interface ze does not configure (an externally-created tunnel), and resolution needs
+a runtime ifindex lookup, so a route can be config-valid and runtime-unresolvable. The
+config-validate half is **blocked on a new open question**: widening `WantsConfig`
+(`register.go:224`) to include `"interface"` changes what config the static plugin receives,
+and that is Thomas's call. **D-1 and D-3 remain open.** Read Design Decisions ->
+"Decision (user, 2026-07-16)" before implementing either leg. **Status stays `design`;
+promotion to `ready` is Thomas's gate and has not been given.**
 
 **Research overturned three of the skeleton's premises.** The skeleton was written from a
 call-chain read; running the code and reading the producers changed the shape of both legs:
@@ -446,6 +459,75 @@ until they are settled.
 → Constraint: AC-3 as written ("blast radius is a deliberate, documented choice") is
   satisfiable by (a) or (b); it is NOT satisfiable by leaving the question unanswered.
 
+### -> Decision (user, 2026-07-16): validate at config time where possible, AND still handle resolution failure at runtime
+
+**This SUPERSEDES the D-2/D-3 framing above.** Thomas asked: *"can we not validate the route
+and ensure that it can not be invalid?"* The honest answer is **partly**, and the spec must
+record both halves rather than pick one.
+
+**Why config-time validation is not possible TODAY (the mechanism, verified at the
+producers 2026-07-16):**
+
+| Step | Producer | What it does |
+|------|----------|--------------|
+| Declaration | `internal/plugins/static/register.go:224` | `WantsConfig: []string{pluginName}`, and `pluginName = "static"` (`register.go:24`). The static plugin declares exactly one config root |
+| Delivery | `internal/component/plugin/server/startup.go:701-705` | `if len(reg.WantsConfigRoots) > 0 ... BuildPluginConfigSections(configTree, reg.WantsConfigRoots)` -- the ONLY source of a plugin's config payload |
+| The cut | `internal/component/config/plugin_verify.go:143-157` `BuildPluginConfigSections` | Iterates **only over the declared roots**, calling `ExtractConfigSubtree(configTree, root)` per root and marshalling each into one `rpc.ConfigSection`. Nothing outside the declared roots is ever sent |
+
+-> Constraint: therefore the static plugin **receives ONLY the `static` section and is
+structurally blind to `interface` config**. It cannot today check whether `tun100` is
+declared, because the string `tun100`'s declaration lives in a section it never sees. This
+is a **structural** limit, not a missing `if`: no amount of code inside the static plugin
+can reach config it is not sent.
+
+**Why widening `WantsConfig` would help (and is mechanically available):** declaring
+`WantsConfig: []string{"static", "interface"}` would deliver the `interface` subtree
+alongside `static`, letting config-verify catch **the common case: a typo'd interface
+name**. Multi-root is a supported, in-use shape, not a new mechanism:
+`internal/component/bgp/plugins/bmp/bmp.go:270` already declares
+`WantsConfig: []string{"bgp", "environment"}`, and `internal/component/iface/register.go:717`
+confirms `"interface"` is the root's name.
+
+-> Constraint: **"cannot be invalid" is NOT reachable, and the spec must not promise it.**
+Two independent reasons, either alone sufficient:
+1. An interface next-hop may legitimately name an interface **ze does not configure at
+   all** -- an externally-created tunnel. Such a route is correct and must keep working, so
+   "the name must appear in ze's `interface` section" cannot be a hard rejection without
+   breaking a valid deployment.
+2. Resolution needs a **runtime ifindex lookup**. An interface can be declared in config and
+   still be absent, renamed, or down when the route is programmed.
+   So a route can be **config-valid and runtime-unresolvable**. Validation narrows the
+   failure window; it cannot close it.
+
+-> Decision (user, 2026-07-16): **config-validate the REFERENCE, and still fail gracefully
+at runtime.** Both, not either. The runtime path (D-2's (a)+(b): actionable error + doctor
+check) is NOT superseded or made redundant by config validation -- it remains the backstop
+for cases 1 and 2 above. Any implementation that adds config validation and then treats the
+runtime failure as unreachable is wrong.
+
+-> Constraint: this reframes D-2. Option (c) ("config-verify rejection") was rejected on the
+grounds that it "is not available to the static plugin **as it stands**" -- correct as
+written, but the qualifier is load-bearing: it is unavailable **because of a declaration the
+spec can change** (`register.go:224`), not because of a law of the architecture. The
+decision above is not D-2's (c) either: it is validate-the-reference **plus** keep the
+runtime error, whereas (c) proposed rejection **instead of** it.
+
+-> Constraint: D-3 (blast radius) is **not** answered by this decision and stays open.
+Config-time validation of the reference makes the whole-section-failure question *less
+frequent*, never moot: reasons 1 and 2 above still produce runtime failures that D-3 governs.
+
+**-> OPEN QUESTION FOR THOMAS (new, raised by this decision): is widening `WantsConfig` to
+include `"interface"` acceptable?** It changes what config the static plugin receives, which
+is a real coupling decision, not a detail:
+- It gives static a read dependency on the `interface` section (read-only; `WantsConfig` is
+  "roots this plugin reads, not owner" per `internal/component/config/transaction/orchestrator.go:58`).
+- It widens the reload surface: `reload.go:214-226` selects affected plugins by matching
+  changed roots against `WantsConfigRoots`, so static would be reconfigured on **every**
+  `interface` change, not just `static` ones.
+- Without the widening, the config-validate half of this decision **cannot be implemented at
+  all** and only the runtime half survives.
+  Not actioned by the recording session: this is Thomas's call.
+
 ## Wiring Test (MANDATORY)
 
 Rows confirmed by the 2026-07-16 research unless marked.
@@ -798,7 +880,7 @@ and 4 are unaffected by all three.
 | 1 | Does `static` run in-process (sharing `activeBackend`) or as a subprocess? | **IN-PROCESS.** So `activeBackend` IS shared, and the process-boundary hypothesis is dead. Problem A is a product bug, but for two other reasons (A-1b, A-1c). | `startup_autoload.go:132-136` (`Internal: true`); `process.go:456-457` -> `startInternal` `:465-520` runs `RunEngine` in a daemon goroutine |
 | 2 | Does `005` fail today, and with WHICH error? | **FAILS, with a THIRD error the spec never considered:** `static routes: not supported on this platform (Linux required)`. It dies at the platform guard on darwin and never reaches `iface.Resolve` or `tun100`. | `make ze-static-test` run 2026-07-16; producer `backend_other.go`. Also `004-show` fails unrelatedly (stale `next-hop` config field) |
 | 3 | Is `tun100` expected to exist, and who creates it? | **Nobody creates it.** The `.ci` declares only `routing-table` + `static`; no device is made. C-6 must create one (a dummy link suffices). | `005-table-interface.ci:52-74`; A-7 |
-| 4 | Config-verify rejection or runtime error for the no-backend case? | **Runtime error + doctor check recommended (D-2).** Config-verify is NOT available to the static plugin: `WantsConfig: ["static"]` means it never sees the `interface` section, so it cannot know whether a backend will load. | `static/register.go:224`; D-2 |
+| 4 | Config-verify rejection or runtime error for the no-backend case? | ~~**Runtime error + doctor check recommended (D-2).** Config-verify is NOT available to the static plugin: `WantsConfig: ["static"]` means it never sees the `interface` section, so it cannot know whether a backend will load.~~ **SUPERSEDED -> Decision (user, 2026-07-16): BOTH -- config-validate the reference where possible, AND still handle resolution failure at runtime.** The "not available" finding is correct but its qualifier matters: config-verify is unavailable **as it stands**, because of a declaration the spec can change (`register.go:224`), not a law of the architecture. Widening `WantsConfig` to `["static", "interface"]` (precedent: `bmp.go:270` declares two roots) would deliver the `interface` subtree and catch the common typo'd-name case. It would NOT make routes un-invalidatable: an interface next-hop may name an externally-created interface ze does not configure, and resolution still needs a runtime ifindex lookup. So the runtime error + doctor check STAY as the backstop. **New open question for Thomas: is widening `WantsConfig` acceptable?** See Design Decisions -> "Decision (user, 2026-07-16)" | `static/register.go:224`, `plugin_verify.go:143-157`, `startup.go:701-705`; supersedes D-2 |
 | 5 | Whole-section failure or per-route isolation? | **OPEN -- D-3, needs Thomas.** Today's behavior is worse than the skeleton recorded: it fails the section AND aborts daemon startup. | `inject.go:87-92` -> `register.go:138-140`; observed in the `005` run |
 | 6 | What is the right boundary for VPP name -> `sw_if_index` resolution? | **No new boundary.** The existing shared `iface.Resolve` already returns the VPP index; static uses the same call the netlink backend uses. `resolveIndex` stays private, `ifacevpp.go` is untouched, R-4 retired. | `query.go:232` -> `resolve.go:216`; A-3a |
 | 7 | Is `b.names` populated when static applies (ordering)? | **MOOT for `b.names`** (static never touches it). But the ORDERING question is real and was the hidden linux bug: static races the iface backend load because it declares no dependency on `interface`. | A-1c; `startup.go:341-348`, `registry.go:970-1006` |

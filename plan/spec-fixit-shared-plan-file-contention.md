@@ -10,8 +10,20 @@
 > **DESIGN.** Research done 2026-07-16; Current Behavior below is traced to producing
 > functions. Two claims carried from the skeleton were BROKEN by that research (A-3,
 > A-5) and one was half-broken (A-4); superseded text is struck through with the
-> reason, per `ai/rules/planning.md` "Editing: append-only". Not `ready`: awaiting
-> approval of the shard model in "Shard Model (Decisions)".
+> reason, per `ai/rules/planning.md` "Editing: append-only". ~~Not `ready`: awaiting
+> approval of the shard model in "Shard Model (Decisions)".~~
+>
+> **2026-07-16, Thomas: the shard model is APPROVED**, including the 3-phase split (phase 1,
+> `.counter`, ships first and alone) and the fact that `scripts/dev/rebase_learned.py`
+> shrinks as a result -- a good outcome, because the conflict stops happening rather than
+> being auto-resolved. Two costs are accepted with eyes open: **A-4 is BROKEN** (deleting
+> `.counter` trips an invariant four gates enforce, so phase 1 is a migration, not a
+> `git rm`) and **R-6 becomes load-bearing** (the `O_EXCL` loser's uncaught
+> `FileExistsError` is in scope for phase 1). See "Needs Thomas's decision" -> "Constraints
+> forced by the 2026-07-16 shard-model approval". `rebase_learned.py` is **no longer
+> uncommitted**: it landed in `84f9f2d1f`, so the "coordinate before touching" caveat
+> throughout this file is obsolete. **Status stays `design`; promotion to `ready` is
+> Thomas's gate and has not been given.** Open questions 4 and 5 remain open.
 
 ## Task
 
@@ -373,8 +385,13 @@ no lookup (A-5).
 - [ ] `scripts/dev/commit_helper_test.go` - amend the `.counter` staging fixture
       (`:177-192`)
 - [ ] `scripts/dev/rebase_learned.py` - drop `.counter` from `BOOKKEEPING` (`:69`, `:71`)
-      and its resolution rule (`:16`); the file it reconciles will not exist. **This is
-      Thomas's uncommitted file; coordinate before touching it**
+      and its resolution rule (`:16`); also `resolve_counter()` (`:178-180`) and its driver
+      call (`:261-263`); the file it reconciles will not exist. ~~**This is
+      Thomas's uncommitted file; coordinate before touching it**~~ **CORRECTED 2026-07-16:
+      it is COMMITTED (`84f9f2d1f`), so no coordination is needed -- edit it normally.**
+      -> Decision (user, 2026-07-16): the resulting shrink is APPROVED and desired. Keep the
+      `ai/LEARNED-FULL-INDEX.md` half (`INDEX`, `:70`): it reconciles a genuinely generated
+      file this spec does not touch, and it still earns its keep
 - [ ] `ai/rules/planning.md` - `:206`, `:214`, `:344` all instruct bumping/staging `.counter`
 - [ ] `ai/rules/git-safety.md` - `:55` (the allocation guarantee), `:107` (the `--file`
       example), `:333-334` (the pre-commit checklist's two counter lines)
@@ -411,9 +428,15 @@ and in `learned_numbers.py`).
 5. Update the 5 rule/index sites, then `git rm plan/learned/.counter` LAST.
 6. Verify: `make ze-learned-numbers-check`, `make ze-doc-test`, `make ze-regen-check`,
    `make ze-unit-test` (all four `--check` call sites, R-7).
-   -> Constraint: `rebase_learned.py` is uncommitted work of Thomas's that resolves
+   -> ~~Constraint: `rebase_learned.py` is uncommitted work of Thomas's that resolves
    `.counter` rebase conflicts. Deleting `.counter` makes half of it dead. Coordinate;
-   do not edit it unilaterally (`ai/rules/never-destroy-work.md`).
+   do not edit it unilaterally (`ai/rules/never-destroy-work.md`).~~
+   **SUPERSEDED 2026-07-16 on both counts.** (1) It is no longer uncommitted: it landed in
+   `84f9f2d1f`, so `ai/rules/never-destroy-work.md` no longer bites and no coordination is
+   needed. (2) -> Decision (user, 2026-07-16): the shrink is **approved and desired** -- the
+   conflict stops happening rather than being auto-resolved. Remove only the `.counter` half
+   (`:16`, `:69`, `:71`, `:178-180`, `:261-263`); the `ai/LEARNED-FULL-INDEX.md` half (`:70`)
+   stays and still earns its keep.
 
 **Phase 2 -- shard `plan/deferrals.md` per source spec.**
 1. Teach `/ze-status` to glob `plan/deferrals/` AND fall back to `plan/deferrals.md`
@@ -502,15 +525,79 @@ coding"). Two came back broken. Evidence is in Current Behavior.
   entire bug. Generating the aggregate to a file recreates that shape one layer up. Fold
   on read, never store (R-1).
 
-### Needs Thomas's decision (blocking `ready`)
+### ~~Needs Thomas's decision (blocking `ready`)~~ -- items 1-3 ANSWERED 2026-07-16
 
-1. **Approve the shard model** in "Shard Model (Decisions)": per-record keys (spec stem /
-   test name / summary filename), single writer per path, aggregate as an unstored fold.
-2. **Approve the phase split into three independent commits**, phase 1 (`.counter`) first
-   and alone. Phases 2-3 touch `plan/` files with your uncommitted edits right now.
-3. **`rebase_learned.py` is yours and uncommitted.** Half of it (`:16`, `:69`, `:71`)
+1. ~~**Approve the shard model** in "Shard Model (Decisions)": per-record keys (spec stem /
+   test name / summary filename), single writer per path, aggregate as an unstored fold.~~
+   **-> Decision (user, 2026-07-16): APPROVED.** The shard model stands as written: per-record
+   keys, one writer per path, aggregate as an unstored fold computed on read (R-1 holds; the
+   aggregate is never tracked, never generated to a file, never staged).
+2. ~~**Approve the phase split into three independent commits**, phase 1 (`.counter`) first
+   and alone. Phases 2-3 touch `plan/` files with your uncommitted edits right now.~~
+   **-> Decision (user, 2026-07-16): APPROVED, including the 3-phase split.** Phase 1
+   (`.counter`) ships first and alone.
+3. ~~**`rebase_learned.py` is yours and uncommitted.** Half of it (`:16`, `:69`, `:71`)
    exists to resolve `.counter` rebase conflicts. Phase 1 deletes `.counter` and makes
-   that half dead. Do you want phase 1 to update it, or will you?
+   that half dead. Do you want phase 1 to update it, or will you?~~
+   **-> Decision (user, 2026-07-16): ACCEPTED -- `rebase_learned.py` shrinks, and that is a
+   GOOD outcome.** The file is no longer uncommitted: it landed in commit `84f9f2d1f`
+   ("tools(rebase): learned-bookkeeping rebase driver, with tests"), verified 2026-07-16 by
+   `git show --stat 84f9f2d1f`, which adds `scripts/dev/rebase_learned.py` (+319) and
+   `rebase_learned_test.py` (+229). So the "coordinate before touching, it is uncommitted"
+   caveat throughout this spec is **obsolete**: phase 1 edits a committed file normally.
+   Rationale (Thomas): deleting `.counter` makes roughly **half** of that script dead code,
+   and that is the point -- **the conflict stops happening rather than being auto-resolved.**
+   Removing the cause beats automating the cleanup. Verified against the producer
+   (2026-07-16): `BOOKKEEPING = {COUNTER, INDEX}` (`rebase_learned.py:71`) has exactly two
+   members, `COUNTER = "plan/learned/.counter"` (`:69`) and
+   `INDEX = "ai/LEARNED-FULL-INDEX.md"` (`:70`). Phase 1 removes the COUNTER half:
+   `resolve_counter()` (`:178-180`), its driver call (`:261-263`), the `.counter` resolution
+   rule in the docstring (`:16`), and `COUNTER` from `BOOKKEEPING`.
+   -> Constraint: **the `ai/LEARNED-FULL-INDEX.md` half still earns its keep and MUST NOT be
+   deleted.** `INDEX` (`:70`) is a genuinely generated file (`:17`: "regenerate with
+   scripts/dev/learned_index.py") that this spec does not touch and that will keep
+   conflicting on rebase. "Half the script is dead" is not "the script is dead". Phase 1
+   shrinks `rebase_learned.py`; it does not remove it.
+#### Constraints forced by the 2026-07-16 shard-model approval
+
+The approval is given with these two known costs accepted. They are NOT open questions and
+must not be re-litigated, but they are also not free and must not be forgotten.
+
+-> Constraint (user decision, 2026-07-16): **A-4 came back BROKEN -- deleting `.counter` is
+NOT free.** Every citation re-verified against the producers on 2026-07-16:
+- Commit `89aff42e8` ("tools(learned): resolve duplicate summary numbers, gate uniqueness")
+  added `scripts/dev/learned_numbers.py` (+293) and `learned_numbers_test.py` (+167), and
+  `git show --stat 89aff42e8 | grep commit_helper` returns **nothing** -- it does not touch
+  `commit_helper.py`, confirming it is a detector/repair tool and not a prevention.
+- The invariant is real: `check()` computes `highest = max(items)` and
+  `counter = counter_value(learned_dir)`, then `if counter < highest + 1` reports
+  "`.counter` is N but the highest summary is M; expected at least M+1"
+  (`scripts/dev/learned_numbers.py:117-123`). `counter_value` (`:86-90`) returns `0` on
+  `OSError`, i.e. **when the file is absent**. So `git rm .counter` alone turns the gate red.
+- **Four gates enforce it, all four verified present:** `Makefile:423`, `mk/inventory.mk:94`,
+  `mk/inventory.mk:130`, `mk/inventory.mk:138` (`ze-doc-test`, `ze-regen-check`,
+  `ze-discovery-index-check`, `ze-learned-numbers-check`). `grep -rn learned_numbers.py
+  Makefile mk/` returns exactly these four `--check` invocations and no others.
+  Consequence, accepted: phase 1 is a **migration, not a `git rm`**. Invariant 3
+  (`learned_numbers.py:117-123`) and `counter_value()` (`:86-90`) must be removed WITH the
+  file, and the last step is the deletion, never the first. Six code sites, five rule sites,
+  per Files to Modify. Dropping invariant 3 is a removal of a check on a deleted file, not a
+  weakening: invariants 1 (uniqueness) and 2 (H1 matches filename) -- the reason `89aff42e8`
+  exists -- are untouched (R-7).
+
+-> Constraint (user decision, 2026-07-16): **R-6 is load-bearing once `.counter` goes, and is
+therefore IN scope for phase 1.** Verified at the producers: `commit_helper.py:1122` is
+`fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)` with **no `try`/`except`
+around it**, and `main()` (`:1233-1240`) wraps `args.func(args)` in `try ... except
+UsageError` **only**. A `FileExistsError` is not a `UsageError`, so it is uncaught: the losing
+session dies on a traceback instead of allocating the next number. Today that is cosmetic,
+because `.counter` raises the floor and makes the collision rare. Once `.counter` is deleted,
+`O_EXCL` at `:1122` becomes the **sole** allocation mechanism and the crash becomes the
+routine concurrent path. Phase 1 must wrap it in a bounded retry that re-globs and
+re-allocates (~5 lines). This answers open question 5 below in the affirmative by
+implication; it is recorded here because the decision to delete `.counter` is what makes it
+mandatory rather than optional.
+
 4. **AC-2 scope.** `/ze-status` is a prompt, not a program (A-3), so "one step answers
    what is open" is satisfied by a prompt edit and cannot be automatically tested. Accept
    that, or is a real machine-readable aggregate renderer in scope? The latter is a scope
@@ -535,4 +622,12 @@ coding"). Two came back broken. Evidence is in Current Behavior.
 - [ ] No commit in this spec's series stages `plan/deferrals.md`,
       `plan/known-failures.md` or `plan/learned/.counter` alongside unrelated work
       (the spec would otherwise reproduce its own bug while fixing it)
-- [ ] `rebase_learned.py` coordination resolved with Thomas before `.counter` deletion
+- [ ] ~~`rebase_learned.py` coordination resolved with Thomas before `.counter` deletion~~
+      **Resolved 2026-07-16: no coordination needed** (it is committed as of `84f9f2d1f`) and
+      the shrink is approved. Replaced by the two checks below
+- [ ] `rebase_learned.py`: the `.counter` half is removed (`:16`, `:69`, `:71`, `:178-180`,
+      `:261-263`) and the `ai/LEARNED-FULL-INDEX.md` half (`:70`) still works, with its tests
+      (`rebase_learned_test.py`) green
+- [ ] `commit_helper.py:1122` `O_EXCL` is wrapped in a bounded retry; a losing concurrent
+      session allocates the next number instead of raising `FileExistsError` (R-6, now
+      load-bearing)

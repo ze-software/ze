@@ -14,6 +14,26 @@
 > caches the runtime kernel TREE there. The work is therefore to ROUTE the uncached
 > paths through the cache that exists, not to design a new one. See "Current
 > Behavior" and "Superseded by research" below.
+>
+> **DECISIONS TAKEN 2026-07-16 (Thomas). Both blocking questions are settled:**
+> 1. **Cache root: Option 2, repo-local `cache/`** -- re-affirmed after being told its
+>    premise (that this would be the first durable cache) was false. Not a stale decision.
+> 2. **Make path: Option C -- `run.py` ASKS THE HOST ZE BINARY (`ze-host`) FOR THE CACHE
+>    KEY.** **This DELIBERATELY REVERSES the recorded decision in
+>    `plan/learned/988-kernel-build-consolidation.md` that "the make path must stay
+>    Ze-binary-free".** Go stays the single source of truth for the key
+>    (`kernelCacheVariantFor`, `cache.go:110-120`) and cross-language drift becomes
+>    impossible rather than merely detectable. **Owned cost: `make ze-kernel` now requires a
+>    compiled HOST ze binary first** (`cmd/ze`, tags `ze_core,ze_setup`, **no GOARCH
+>    override**, named `ze-host`; the target arch is an ARGUMENT to it, never applied to its
+>    own build -- CLAUDE.md "Binary naming convention").
+>
+> **If you are here to "restore" 988's Ze-binary-free rule: don't.** It was overruled by its
+> owner with 988 in hand. Read Open Questions -> "Decision (user, 2026-07-16): Option C"
+> before touching `run.py`. At closure, 988 needs an additive correction pointer recording
+> the reversal (not done yet; 988 was out of scope to edit).
+>
+> **Status stays `design`; promotion to `ready` is Thomas's gate and has not been given.**
 
 ## Task
 
@@ -213,8 +233,14 @@ function, not inferred from a caller.**
   `tmp/kernel/pkg`. ~20 sites depend on them (see above). They become MATERIALISED
   VIEWS of the durable cache, exactly as `resolveRuntimeKernel` already does
   (`cmd_kernel.go:341`).
-- The make kernel path stays Ze-binary-free unless Thomas overrules
-  (`plan/learned/988-kernel-build-consolidation.md`).
+- ~~The make kernel path stays Ze-binary-free unless Thomas overrules
+  (`plan/learned/988-kernel-build-consolidation.md`).~~
+  **SUPERSEDED -> Decision (user, 2026-07-16): THOMAS HAS OVERRULED.** The make kernel path
+  does NOT stay Ze-binary-free: under Option C, `run.py` asks a host ze binary (`ze-host`)
+  for the cache key, so `make ze-kernel` requires that binary to be built first. This is a
+  deliberate reversal of `plan/learned/988`'s recorded decision, taken with 988 in hand.
+  What DOES survive from 988: `run.py` remains the one driver that owns the build and the
+  docker/qemu selection. Only the key is delegated to Go.
 - `~/.cache/ze` layout and key format stay compatible: the Go path is live and its
   cache must not be invalidated wholesale by this work.
 
@@ -368,7 +394,7 @@ after the move, plus the unit tests below.
 | `test_tmp_wipe_preserves_artifacts` (CANDIDATE) | new, `.ci` under `test/install/` beside `kernel-runtime-deps.ci` | AC-1: with a populated cache, wiping `tmp/` then re-materialising costs a copy. Point `XDG_CACHE_HOME` at a temp dir (`cache.go:48`) so the test never touches the developer's real cache. Precedent: `effective-install-scenarios-qemu.py:99-129` already drives `XDG_CACHE_HOME` exactly this way |
 | `test_cold_cache_downloads_and_verifies` (CANDIDATE) | new | AC-5: a checksum mismatch fails loudly and does NOT populate the cache |
 | `test_corrupt_cached_artifact_is_rejected` (CANDIDATE) | new | AC-5: existence is not integrity; a truncated cached file must not be served |
-| `test_make_and_go_paths_share_one_key` (CANDIDATE) | new cross-language fixture | AC-9: the Python key and `kernelCacheVariantFor` (`cache.go:110-120`) agree byte-for-byte. Mandatory under Option B. Model it on the existing anti-drift pair `kernel-shared-fragment.ci` + `TestResolveSharedInclude` |
+| `test_make_and_go_paths_share_one_key` (CANDIDATE) | new cross-language fixture | AC-9: ~~the Python key and `kernelCacheVariantFor` (`cache.go:110-120`) agree byte-for-byte. Mandatory under Option B. Model it on the existing anti-drift pair `kernel-shared-fragment.ci` + `TestResolveSharedInclude`~~ **RESHAPED by the Option C decision (user, 2026-07-16): there is no Python key to compare.** `run.py` asks the host ze binary for the key, so the two paths share one implementation by construction and byte-for-byte agreement is structural, not asserted. The anti-drift fixture is NOT needed (that was Option B's mandatory mitigation). What DOES need a test: that `run.py` actually consults `ze-host` and fails loudly when the binary is absent or the key query errors, rather than falling back to a guessed key (AC-6). Rename accordingly during implementation |
 | `test_missing_kernel_fails_loudly` (CANDIDATE) | new | AC-6: no silent fallback when an artifact is absent |
 | `test_kernel_clean_keeps_durable_cache` (CANDIDATE) | new | AC-10: `ze-kernel-clean` (`mk/gokrazy.mk:238`) clears `tmp/kernel` only |
 
@@ -388,8 +414,14 @@ Scoped after research. The blast radius is far smaller than the skeleton assumed
 BECAUSE no consumer-facing path moves.
 
 - [ ] `tools/kernel-builder/run.py` - the cache lookup/populate for the make kernel
-      path, mirroring `kernelCacheVariantFor` (`cache.go:110-120`). This is the
-      Ze-binary-free option (Option B, see Open Questions)
+      path, ~~mirroring `kernelCacheVariantFor` (`cache.go:110-120`). This is the
+      Ze-binary-free option (Option B, see Open Questions)~~
+      **SUPERSEDED -> Decision (user, 2026-07-16): Option C.** Do NOT mirror
+      `kernelCacheVariantFor`; **ask the host ze binary for the key** so Go stays its single
+      source of truth and cross-language drift is impossible. `run.py` still owns the build
+      and the docker/qemu selection. Requires building `ze-host` first
+      (`go build -tags ze_core,ze_setup -o ze-host ./cmd/ze`, NO GOARCH override; target arch
+      is an argument). This reverses `plan/learned/988`'s Ze-binary-free decision deliberately
 - [ ] `tools/kernel-builder/qemu-build.py` - drop its private `ensure_iso()`
       (`:155-170`) and `ALPINE_VERSION`/`ALPINE_MINOR` (`:36-37`); use the shared,
       verified ISO helper. `build_dir()` (`:115-119`) and `ccache_dir()` (`:73-77`)
@@ -421,8 +453,17 @@ BECAUSE no consumer-facing path moves.
    scratch, stays in `tmp/`.
 3. ~~Choose the cache root.~~ Answered by research, pending Thomas: the repo already
    has one (`cache.go:47-57`). See Open Questions.
-4. BLOCKING, Thomas: settle Option A vs B (Ze-binary-free make path) and the cache
-   root. Both are recorded decisions being revisited, so neither is ours to take.
+4. ~~BLOCKING, Thomas: settle Option A vs B (Ze-binary-free make path) and the cache
+   root. Both are recorded decisions being revisited, so neither is ours to take.~~
+   **DONE 2026-07-16. Both settled by Thomas:** the cache root is **Option 2, repo-local
+   `cache/`** (re-affirmed with the corrected premise in hand), and the make path is
+   **Option C: `run.py` asks the host ze binary for the cache key**, which deliberately
+   reverses `plan/learned/988`'s Ze-binary-free decision. Both recorded decisions were
+   revisited by their owner, as required. No longer blocking.
+   -> Constraint: build `ze-host` (`-tags ze_core,ze_setup`, NO GOARCH override) before
+   `make ze-kernel` can resolve a key; the target arch is an argument to it, never applied to
+   its own build (CLAUDE.md "Binary naming convention"; precedent
+   `scripts/evidence/effective-install-qemu.py:153-168`).
 5. Route the make kernel path through the cache. Prove it with the cheap test first:
    `make ze-kernel`, `rm -rf tmp/kernel`, `make ze-kernel` again, assert the second is
    seconds not ~30 minutes and that `~/.cache/ze/runtime-kernel/` is populated.
@@ -459,7 +500,7 @@ BECAUSE no consumer-facing path moves.
 | A-5 | ~~Artifacts can move without breaking consumers~~ | ~~Consumers are few and explicit: three `test -f` guards plus `effective-install-iso-qemu.py:185`~~ | The design changes: do not move anything | grep for `tmp/kernel` and `tmp/qemu` | **BROKEN 2026-07-16**. Both halves wrong. (a) ~20 consumers, not four: `mk/gokrazy.mk:181-182,238`, `mk/test-integration.mk:410,424,456`, `cmd_kernel.go:43`, `cmd_kernel_test.go:734`, six `test/install/*.ci`, two evidence scripts, four docs. (b) `effective-install-iso-qemu.py:185` is NOT a consumer: it is `ze appliance iso --kernel` taking the operator-supplied installer kernel (`effective-install-qemu.py:128-132`), unrelated to `tmp/kernel/vmlinuz`. -> Design consequence: nothing moves; `tmp/` becomes a materialised view |
 | A-6 | The `test -f tmp/kernel/vmlinuz` guard is a sufficient precondition | The three labs use it and the pattern was described as "the guard pattern to preserve" | The guard passes on a kernel that cannot boot | Read the guard and the arch derivation | **BROKEN 2026-07-16**. `GOKRAZY_ARCH ?= amd64` (`mk/gokrazy.mk:37`) and `KERNEL_ARCH ?= $(GOKRAZY_ARCH)` (`:177`), so a bare `make ze-kernel` on Apple Silicon stages an **amd64** vmlinuz to the arch-unkeyed `tmp/kernel/vmlinuz` (`:200`), while `QEMU_GOARCH` derives **arm64** (`mk/test-integration.mk:216`). `test -f` passes; the boot fails. The guards' own error text ("run: make ze-kernel GOKRAZY_ARCH=arm64", `:410`) is the workaround. The durable cache is arch-keyed (`cache.go:110-120`), so routing through it FIXES this for free |
 | A-7 | The existing `~/.cache/ze` cache evicts | Not claimed by the skeleton; assumed while designing on top of it | Eviction is new work, not a pre-existing feature to reuse | Read `cache.go` for any removal | **broken/confirmed-absent 2026-07-16**: `cache.go` has no eviction. `copyTree` (`:306-312`) does `os.RemoveAll(dst)` on the DESTINATION only. Every superseded `<version>-<variant>` entry is stranded forever. AC-4 is genuinely new work and it applies to `installer-kernel` and `installer-initrd` too, not only the QEMU artifacts |
-| A-8 | Routing the make path through the cache is a small change | `run.py` already resolves the fragments the key hashes (`build.py:91-92`) | If the key must be byte-identical across Python and Go, this is a cross-language contract, not a one-liner | Read how the repo handled the same problem before | **confirmed, with a caveat 2026-07-16**: the repo already accepted exactly this duplication for the fragment resolver, and guards it with a cross-language fixture (`plan/learned/988-kernel-build-consolidation.md`: resolver duplicated in `run.py` + `kernelreg.go`, `kernel-shared-fragment.ci` + `TestResolveSharedInclude` guard drift). Precedent exists AND ships its own anti-drift mechanism. Caveat: a second cross-language hash contract is a real maintenance cost, which is what makes Option A vs B a Thomas decision |
+| A-8 | Routing the make path through the cache is a small change | `run.py` already resolves the fragments the key hashes (`build.py:91-92`) | If the key must be byte-identical across Python and Go, this is a cross-language contract, not a one-liner | Read how the repo handled the same problem before | **confirmed, with a caveat 2026-07-16**: the repo already accepted exactly this duplication for the fragment resolver, and guards it with a cross-language fixture (`plan/learned/988-kernel-build-consolidation.md`: resolver duplicated in `run.py` + `kernelreg.go`, `kernel-shared-fragment.ci` + `TestResolveSharedInclude` guard drift). Precedent exists AND ships its own anti-drift mechanism. Caveat: a second cross-language hash contract is a real maintenance cost, which is what makes Option A vs B a Thomas decision. **-> Decision (user, 2026-07-16): that caveat DECIDED it, and neither A nor B won -- Option C did.** The precedent's anti-drift fixture detects drift; Option C makes drift impossible by deleting the second implementation (`run.py` asks `ze-host` for the key). A drifted hash key serves a stale kernel silently, so "detectable" was judged not good enough. The 988 precedent therefore does NOT transfer to the key, even though it stands for the fragment resolver |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -533,15 +574,78 @@ BECAUSE no consumer-facing path moves.
   `tmp/qemu/build/<alpine_arch>`), with `ccache_dir()` at `:73-77`. Both are qemu-path
   build scratch, needed only while actually rebuilding. They STAY in `tmp/`, as the
   spec predicted.
-- **NEW, needs Thomas: does `make ze-kernel` stay Ze-binary-free?** This decides the
-  whole kernel half.
+- ~~**NEW, needs Thomas: does `make ze-kernel` stay Ze-binary-free?**~~ **ANSWERED 2026-07-16.
+  NO -- it does not. See "Decision (user, 2026-07-16)" below. This decided the
+  whole kernel half.**
 
   | Option | How | Cost |
   |--------|-----|------|
-  | **A. `make ze-kernel` calls `ze appliance kernel --target runtime`** | The cache logic already exists in Go and is already tested. Near-zero new code | Contradicts a RECORDED decision (`plan/learned/988-kernel-build-consolidation.md`: the make path must stay Ze-binary-free, which is why the fragment resolver is duplicated at all). Requires building a HOST `ze` binary with `-tags ze_core,ze_setup` first (`ze appliance kernel` lives in `ze-setup`, per `plan/learned/870-kernel-build-convergence.md:22`) |
-  | **B. `run.py` grows the same cache** | Honours the Ze-binary-free constraint. Direct precedent: the fragment resolver is already duplicated Python/Go with a cross-language fixture guarding drift (A-8) | A SECOND cross-language contract, this time on a hash key. Drift here is silent and serves a stale kernel, so the fixture is mandatory, not optional |
+  | ~~**A. `make ze-kernel` calls `ze appliance kernel --target runtime`**~~ NOT CHOSEN | The cache logic already exists in Go and is already tested. Near-zero new code | Contradicts a RECORDED decision (`plan/learned/988-kernel-build-consolidation.md`: the make path must stay Ze-binary-free, which is why the fragment resolver is duplicated at all). Requires building a HOST `ze` binary with `-tags ze_core,ze_setup` first (`ze appliance kernel` lives in `ze-setup`, per `plan/learned/870-kernel-build-convergence.md:22`) |
+  | ~~**B. `run.py` grows the same cache**~~ **REJECTED** | ~~Honours the Ze-binary-free constraint. Direct precedent: the fragment resolver is already duplicated Python/Go with a cross-language fixture guarding drift (A-8)~~ | A SECOND cross-language contract, this time on a hash key. **Drift here is silent and serves a stale kernel.** This cost is what killed it |
+  | **C. `run.py` ASKS THE GO BINARY for the cache key** -- **CHOSEN 2026-07-16** | The make path keeps its structure and keeps owning the BUILD; it queries the host ze binary for the KEY rather than reimplementing `kernelCacheVariantFor`. Go stays the single source of truth for the key | `make ze-kernel` now requires a compiled HOST ze binary first. Reverses `learned/988`'s Ze-binary-free decision. See the owned constraint below |
 
-  -> Constraint (CLAUDE.md "Binary naming convention"): if Option A is chosen, the ze
+  ### -> Decision (user, 2026-07-16): Option C. `run.py` asks the Go binary for the cache key
+
+  > **READ THIS BEFORE "RESTORING" THE `learned/988` DECISION.**
+  > **This DELIBERATELY REVERSES a recorded decision in
+  > `plan/learned/988-kernel-build-consolidation.md`.** That summary's Decisions section
+  > states, verbatim: *"Resolver duplicated in `run.py` (single python copy, make path) and
+  > `kernelreg.go` (Go verified path) over a single resolver, **because the make path must
+  > stay Ze-binary-free**; a cross-language fixture (`kernel-shared-fragment.ci` +
+  > `TestResolveSharedInclude`) guards drift."* Thomas has overruled the Ze-binary-free
+  > constraint **for the cache key**, with that decision in hand. It is not an oversight, not
+  > a regression, and not a decision made in ignorance of 988. A future agent that finds
+  > `run.py` invoking a ze binary and "fixes" it back to Ze-binary-free would silently
+  > reintroduce the cross-language hash contract this decision exists to prevent. **Do not.**
+
+  **Rationale (Thomas):** Go stays the **single source of truth** for the cache key
+  (`kernelCacheVariantFor`, `internal/appliance/cache.go:110-120`, re-verified 2026-07-16:
+  it keys on target + arch + profile name + a sha256 over every resolved config fragment and
+  manifest + a sha256 over `build.py`/`run.py`/`ksource.py`). Asking for the key makes
+  **cross-language drift impossible** rather than merely detectable. Option B's fixture
+  detects drift after the fact; Option C removes the second implementation entirely, so
+  there is nothing to drift. This is the decisive difference: a drifted hash key does not
+  fail loudly, it **serves a stale kernel**, which is the exact class of bug this spec
+  exists to kill (see the stale-extract bug in Task).
+
+  -> Constraint (OWNED COST, user-accepted 2026-07-16): **`make ze-kernel` now requires a
+  compiled HOST ze binary first.** This is the price of Option C and it is accepted, not
+  discovered later. Per CLAUDE.md "Binary naming convention" (read 2026-07-16), that binary
+  is:
+  - `cmd/ze` built with tags **`ze_core,ze_setup`** (`ze appliance kernel` lives under
+    `ze_setup`), and
+  - **NO `GOOS`/`GOARCH` override.** It must execute on the build host.
+  - Named **`ze-host`** by convention.
+  - The **target arch is passed as an argument** to that host binary, and is **NEVER**
+    applied to the host tool's own build. A target-arch `ze-host` cannot exec on the build
+    host ("exec format error").
+
+  **Precedent, verified 2026-07-16:** `scripts/evidence/effective-install-qemu.py:153-168`
+  is `build_host_ze(root, work)`, whose docstring reads *"Build a HOST ze binary (runs on
+  the build machine, not the target). **No GOARCH override: must execute on this host.** The
+  appliance commands (init/build/initrd) are under ze_setup."* and whose body is
+  `go build -tags ze_core,ze_setup -o ze-host ./cmd/ze` (cwd = repo root). Copy that shape.
+
+  -> Constraint: this trap is **live here specifically** because the artifact being built IS
+  an arm64/amd64 kernel, so a target arch is already in hand and trivially applied to the
+  wrong thing. The arch belongs in the ze-host **argument**, never in its `go build`.
+
+  -> Constraint: at closure, `plan/learned/988-kernel-build-consolidation.md` needs a
+  **superseding note** recording that its Ze-binary-free decision was reversed here, and by
+  whom, so the next reader of 988 finds the reversal at the source rather than trusting a
+  stale rule. Per `ai/rules/planning.md` a learned summary records what was decided THEN and
+  must not be rewritten; the correct form is an **additive correction pointer**, exactly as
+  988 itself already carries one for `plan/learned/870-kernel-build-convergence.md` (see
+  988's own Files section). **Not actioned by the recording session** (2026-07-16): 988 was
+  explicitly out of scope to edit. This is a closure obligation, not a suggestion.
+
+  -> Constraint: Option C does NOT make the make path call `ze appliance kernel` (that was
+  Option A, not chosen). `run.py` still owns the BUILD and the docker/qemu selection that
+  988 consolidated into it. Only the **key** is delegated. The distinction matters: 988's
+  "one driver" consolidation stands; only its "Ze-binary-free" corollary is reversed.
+
+  -> Constraint (CLAUDE.md "Binary naming convention"): if ~~Option A is chosen~~ **any
+  option invoking a host ze binary is chosen (Option C is)**, the ze
   binary that runs `ze appliance kernel` is a **HOST** binary and MUST NOT be
   cross-compiled. Build it with no `GOOS`/`GOARCH` override, name it `ze-host` by
   convention, exactly as `scripts/evidence/effective-install-qemu.py:153-168` does
@@ -593,8 +697,18 @@ the whole reason it declares a dependency, and it is why this spec lands first.
 - [ ] The stale-extract bug has a regression test (AC-3)
 - [ ] `rm -rf tmp/` costs nothing (AC-1)
 - [ ] Eviction cannot race a live QEMU boot (AC-8)
-- [ ] Thomas has settled the cache root (Option 1 vs 2) and the Ze-binary-free
-      question (Option A vs B) before any code is written
+- [ ] ~~Thomas has settled the cache root (Option 1 vs 2) and the Ze-binary-free
+      question (Option A vs B) before any code is written~~ **DONE 2026-07-16: cache root =
+      Option 2 (repo-local `cache/`); make path = Option C (`run.py` asks the host ze binary
+      for the key), reversing `plan/learned/988`'s Ze-binary-free decision**
+- [ ] `run.py` obtains the cache key from `ze-host`, never reimplements
+      `kernelCacheVariantFor`; no second key implementation exists anywhere (the Option C
+      guarantee)
+- [ ] `ze-host` is built with `-tags ze_core,ze_setup` and NO `GOOS`/`GOARCH` override; the
+      target arch is passed as an argument to it (CLAUDE.md "Binary naming convention")
+- [ ] `plan/learned/988-kernel-build-consolidation.md` carries an additive correction
+      pointer recording that its Ze-binary-free decision was reversed by this spec
+      (closure obligation; NOT done at decision-recording time)
 - [ ] No consumer-facing path moved; all ~20 `tmp/kernel` consumers still work (AC-7)
 - [ ] Every cache test redirects `XDG_CACHE_HOME`; none can touch the real cache
 - [ ] The handoff contract above matches what was actually built

@@ -365,8 +365,8 @@ block. The wording is at `:11-14` and is scoped to the darwin dev host.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Research on Problem A complete | The real reason `ddos-detect-mitigate.ci` does not pass is established by running it under QEMU and observing the failure, not inferred. A-1 resolved either way. **Partially met at DESIGN:** A-1 is BROKEN on static evidence (F1-F5) and a second dead cause was found (no nft backend before `c5273da42`, F6/F8). The QEMU run stays BLOCKING because the header's three runtime behaviors (`:14-22`) are still unproven for an external flooder (A-3) |
-| ~~AC-2~~ | ~~`test/plugin/ddos-detect-mitigate.ci` after rework~~ | ~~Runs green under QEMU and uses the in-daemon `ze_api` observer-probe pattern; no `daemon.pid` / `daemon.ready` polling remains~~ **SUPERSEDED 2026-07-16 pending user approval of D-1.** Reason: the AC mandates a pattern chosen to escape a handshake that is not dead (A-1 BROKEN), and the in-daemon probe cannot assert the hook through any dispatch surface (A-2 BROKEN, F9) while root-execing `nft` from a daemon child works only by suite accident (A-7). Replaced by AC-2a. Struck rather than deleted per `ai/rules/planning.md` (append-only) |
-| AC-2a | `test/plugin/ddos-detect-mitigate.ci` after rework (pending D-1 approval) | Runs green under QEMU. Keeps the `daemon.pid`/`daemon.ready` handshake, and every hand-rolled `time.sleep` poll loop (`:39-47`, `:74-75`) is replaced by `ze_api.wait_until`, matching `test/vrrp/vrrp-instance-up.ci:123`. Net `.ci` sleep count decreases (F15) |
+| ~~AC-2~~ | ~~`test/plugin/ddos-detect-mitigate.ci` after rework~~ | ~~Runs green under QEMU and uses the in-daemon `ze_api` observer-probe pattern; no `daemon.pid` / `daemon.ready` polling remains~~ **STRUCK -- SUPERSEDED by AC-2a. -> Decision (user, 2026-07-16): D-1 approved, so this AC is dead and is NOT to be reinstated.** Reason: the AC mandates a pattern chosen to escape a handshake that is not dead (A-1 BROKEN), and the in-daemon probe cannot assert the hook through any dispatch surface (A-2 BROKEN, F9: `show.go:23-37` returns enabled/active/target only) while root-execing `nft` from a daemon child works only by suite accident (A-7, false under netns mode). Struck rather than deleted per `ai/rules/planning.md` (append-only) |
+| AC-2a | `test/plugin/ddos-detect-mitigate.ci` after rework | **APPROVED 2026-07-16 (D-1); replaces AC-2.** Runs green under QEMU. **Keeps** the `daemon.pid`/`daemon.ready` handshake and the root `driver.py`, and every hand-rolled `time.sleep` poll loop (`:39-47`, `:74-75`) is replaced by `ze_api.wait_until`, matching `test/vrrp/vrrp-instance-up.ci:123`. Net `.ci` sleep count decreases (F15). The nft readback stays in `driver.py`, which the runner keeps privileged for exactly this (`runner_exec.go:740-744`) |
 | AC-3 | The reworked test's assertions | Still prove the original intent (header `:3-9`): the detector emits a populated victim DstPrefix AND ddos-local installs an nft drop for it. Not weakened to a log-grep or an incident-field check alone |
 | AC-4 | A 2-interface transit topology (veth + forwarding) under QEMU, victim reachable through the box, `ddos { local { forward-mitigation } }` on | An nft drop for the victim is installed on the FORWARD hook (parent AC-10 proven end to end) |
 | AC-5 | Same topology, `forward-mitigation` off | No on-host drop is installed; the responder logs deferral to flowspec (`responder.go:115-117`) |
@@ -462,12 +462,18 @@ approves it before any product code moves.
 
 ### Implementation Phases
 
--> Constraint: Phase 0 gates everything. D-1 contradicts AC-2 as written, and implementing
-either shape before the user rules would burn the work.
+-> ~~Constraint: Phase 0 gates everything. D-1 contradicts AC-2 as written, and implementing
+either shape before the user rules would burn the work.~~
+**SUPERSEDED: Phase 0 is COMPLETE. -> Decision (user, 2026-07-16): D-1 approved** (keep
+driver.py, migrate the sleep loops to `ze_api.wait_until`, do NOT port to the in-daemon
+probe). AC-2 is struck, AC-2a governs, and the shape question is settled. Phase 1 (the
+empirical QEMU run) is still BLOCKING and still runs first: it establishes WHY the test is
+red, which the decision does not answer.
 
-0. **Phase: User decision on D-1 (BLOCKING).** Present the A-1/A-2 evidence and the
+0. ~~**Phase: User decision on D-1 (BLOCKING).** Present the A-1/A-2 evidence and the
    driver.py-vs-probe choice. Until it is settled, write no test code. Phase 1 may run in
-   parallel: it is read-only observation and its result informs D-1.
+   parallel: it is read-only observation and its result informs D-1.~~
+   **DONE 2026-07-16: D-1 approved by Thomas.** No longer gates anything.
 1. **Phase: Resolve A-1 empirically (BLOCKING, do this first)** - run `ddos-detect-mitigate.ci`
    as-is under QEMU (`bin/ze-test plugin --pattern ddos-detect-mitigate`). Capture the actual
    failure. Static evidence says both historical blockers are gone (F1-F8), so the live
@@ -585,11 +591,27 @@ the runner; it missed the second (the nft backend) because it never asked why a 
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| **D-1 (BLOCKED ON USER): keep the `driver.py` + `daemon.ready` pattern; do NOT port to the in-daemon `ze_api` probe.** Modernize instead: replace the two hand-rolled `time.sleep` poll loops (`ddos-detect-mitigate.ci:39-47,74-75`) with `ze_api.wait_until`, exactly as `test/vrrp/vrrp-instance-up.ci:123` does. | (a) Port to the in-daemon probe, as the deferral row and current AC-2 direct. (b) Keep driver.py unchanged. (c) Add a `hook` field to `show ddos local` so the probe can assert it. | The deferral chose the probe to escape a handshake it believed dead. It is not dead (A-1 BROKEN, F1-F5), so the reason is gone. Positively: the assertion REQUIRES reading the nft ruleset (F9 -- no dispatch surface carries the hook), root is needed to read it, and the runner's design reserves the privileged foreground driver for exactly that while dropping the daemon (F12/A-8). The probe can exec `nft` today only because the plugin suite happens to leave ze root (A-7), which is false under netns mode. So (a) buys nothing and couples the test to a suite accident. (b) leaves the ad-hoc poll loops and misses the deferral's legitimate intent. (c) is a product change to make a test pass (R-4) and needs approval on its own merits. **This contradicts AC-2 as written; the user must approve before Phase 2.** |
+| ~~**D-1 (BLOCKED ON USER)**~~ **D-1 APPROVED -> Decision (user, 2026-07-16): keep the `driver.py` + `daemon.ready` pattern; do NOT port to the in-daemon `ze_api` probe.** Migrate its hand-rolled sleep loops (`ddos-detect-mitigate.ci:39-47,74-75`) to `ze_api.wait_until`, exactly as `test/vrrp/vrrp-instance-up.ci:123` does. No longer blocked; Phase 0 is satisfied. | (a) ~~Port to the in-daemon probe, as the deferral row and current AC-2 direct~~ **REJECTED.** (b) ~~Keep driver.py unchanged~~ **REJECTED** (leaves the ad-hoc poll loops). (c) ~~Add a `hook` field to `show ddos local` so the probe can assert it~~ **REJECTED -- see the rejected-alternative note below; it is a product change to make a test pass.** | The deferral chose the probe to escape a handshake it believed dead. It is not dead (A-1 BROKEN, F1-F5), so the reason is gone. Positively, and **re-verified at the producers on 2026-07-16**: the assertion REQUIRES reading the nft ruleset, because no dispatch surface carries the hook -- `handleShowDdosLocal` (`internal/plugins/ddos/local/show.go:23-37`) returns only `enabled`, `active` and (when active) `target`. Reading nft state needs root, and the runner **deliberately** drops the daemon's privileges while keeping `driver.py` privileged for exactly this purpose: `internal/test/runner/runner_exec.go:740-744` reads "drop the ze daemon to a normal user so its readiness handshake works ... **ze-peer / driver.py stay privileged (root under sudo) so they can read nft state and signal the daemon**", and the UID drop at `:745-749` is applied only when `binName == "ze"`. The in-daemon probe can exec `nft` today only because the QEMU plugin suite happens to leave ze root (A-7, F11) -- a **suite accident, not a property of the pattern, and false under netns mode**. So (a) buys nothing and couples the test to that accident. **AC-2 is struck and replaced by AC-2a.** |
 | **D-2: no `firewall {}` block in either test.** Let `ApplyAll` autoload nft. | Declare `firewall { backend nft }` like the original observation did. | Autoload (F6) gives a real kernel backend with the responder as sole nft driver, avoiding the two-driver combination behind R-1 (F7). A block would add nothing and re-create the hang. |
 | **D-3: no runner change.** | Add a veth/topology directive to the `.ci` format. | A-4 CONFIRMED: `setup.py` at `cmd=foreground:seq=1` is awaited (F13) and already builds veths in `vrrp-instance-up.ci`. The spec's conditional runner row is therefore dropped from Files to Modify. |
 | **D-4: assert kernel state AND the responder log, not either alone.** nft readback for `ddos-local` + victim + the chain's hook; plus `expect=stderr:contains=ddos-local: drop rule installed` (which carries `hook=forward` / `hook=ingress`, F10). | nft only; log only. | AC-3 forbids weakening to a log-grep, so nft is primary. The log is a cheap corroborator that pins WHICH hook the responder chose, and localizes failures (intent vs kernel). |
 | **D-5: keep both problems in one spec** (A-6 CONFIRMED). | Split A and B. | The split rationale was "B is blocked, A is not". R-1 is downgraded, so both are unblocked, and they now share one harness. Splitting would duplicate setup.py/driver.py scaffolding. |
+
+### The rejected alternative (D-1 option c), recorded so it is not silently revived
+
+-> Decision (user, 2026-07-16): **adding a `hook` field to `show ddos local` is REJECTED as a
+means of satisfying this spec** -- it is a **product change made to make a test pass**
+(R-4), and this spec is test-infrastructure only. The tail must not wag the dog: the test
+adapts to the product's existing surface (a root `driver.py` nft readback), not the reverse.
+
+-> Constraint: the rejection is **scoped to this spec's motivation, not to the idea itself.**
+Thomas noted the field is **independently worth considering on operator-usefulness grounds**:
+"which hook is my drop on?" is a reasonable thing for an operator to ask, and
+`handleShowDdosLocal` (`show.go:23-37`) currently cannot answer it. If it is pursued, it must
+stand on its own merits in its own spec, justified by operator need and approved on that
+basis -- never as a test-enablement change. If such a spec ever lands, this spec's nft
+readback stays: it proves KERNEL state, whereas a dispatch field would prove only what the
+responder believes (the same intent-vs-kernel distinction D-4 rests on).
 
 ## Known Limitations
 - ~~Problem B may be gated on `plan/spec-fixit-firewall-concurrency-deadlock.md` (R-1). If so,

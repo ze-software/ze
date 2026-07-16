@@ -557,10 +557,16 @@ renumbered below. 5 phases; set `Phase | 1/5` when coding starts.
 -> Constraint: Phase 4 MUST NOT precede Phase 3. INITIAL_CONTACT rides in
 IKE_AUTH (message 3); a responder that drops the peer at message 1 never sees
 it. Shipping 4 before 3 would look like a fix and change nothing.
--> Decision: Phase 2 is independently shippable and fixes the operator-visible
+-> ~~Decision: Phase 2 is independently shippable and fixes the operator-visible
 bug. If open question 1 resolves as "A only", Phases 3-5 move to a new spec and
 AC-3/AC-5 move with them (requires Thomas's explicit approval per
-`ai/rules/no-partial-completion.md`).
+`ai/rules/no-partial-completion.md`).~~
+**SUPERSEDED -> Decision (user, 2026-07-16): A and B ship together; Phases 3-5 do
+NOT move to a new spec.** Phase 2 remains independently *shippable* as an
+ordering property (it is still implemented first), but it is NOT independently
+*sufficient*: a crashed peer sends no Delete, so without Phase B the responder
+still refuses the fresh init and convergence falls back to the ~150-190s DPD path
+(AC-7, R-4). All of AC-1..AC-7 stay in this spec. See Open question 1 (answered).
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
@@ -661,9 +667,39 @@ AC-3/AC-5 move with them (requires Thomas's explicit approval per
 
 | # | Question | Why it needs a decision |
 |---|----------|------------------------|
-| 1 | **Ship A and B together in this spec, or land A first and split B into its own spec?** | A is ~1 day and fixes the operator-visible bug (AC-1/AC-2). B is the RFC-conformance fix (AC-3) and touches the single-owner model that spec-ipsec-13 paid for in races (R-5) -- it is the larger, riskier half, and it is really "ze's responder is not RFC 7296 §2.4 conformant", which is a different bug than "clear is slow". The spec's ACs currently demand both. My recommendation: **keep both here, implement A then B in phases**, because AC-3 is where the actual protocol defect lives and splitting it risks it never landing. But if the priority is the operator bug, A-only + a skeleton spec for B is legitimate and I will not make that call unilaterally (`ai/rules/no-partial-completion.md`: scope reduction needs explicit approval). |
+| 1 | ~~**Ship A and B together in this spec, or land A first and split B into its own spec?**~~ **ANSWERED 2026-07-16 -- no longer open.** | ~~A is ~1 day and fixes the operator-visible bug (AC-1/AC-2). B is the RFC-conformance fix (AC-3) and touches the single-owner model that spec-ipsec-13 paid for in races (R-5) -- it is the larger, riskier half, and it is really "ze's responder is not RFC 7296 §2.4 conformant", which is a different bug than "clear is slow". The spec's ACs currently demand both. My recommendation: **keep both here, implement A then B in phases**, because AC-3 is where the actual protocol defect lives and splitting it risks it never landing. But if the priority is the operator bug, A-only + a skeleton spec for B is legitimate and I will not make that call unilaterally (`ai/rules/no-partial-completion.md`: scope reduction needs explicit approval).~~ **-> Decision (user, 2026-07-16): ship Phase A AND Phase B together in this spec.** Scope is NOT reduced; the A-only option is closed. Rationale (Thomas): **A alone leaves ze non-conformant**, because a crashed peer sends no Delete, so the responder still refuses the fresh init and convergence falls back to DPD (~150-190s). The operator-visible fix and the RFC 7296 §2.4 conformance fix ship as one unit. All of AC-1..AC-7 stay in this spec. Do not re-open this as "land A first"; it was considered and rejected on the merits above. |
 | 2 | **Should `reconcilePeers`' peer-removal path (`reconcile.go:205-224`) also send a Delete?** | Removing a peer from config is also a "say goodbye" moment, and the same owner-loop mechanism would serve it. It is a behavior change outside this spec's stated scope (R-6). Arguably correct, arguably a separate spec. |
 | 3 | **Does Phase B's initiator send INITIAL_CONTACT unconditionally on every first IKE_AUTH?** | RFC 7296 §2.4 says it asserts "this IKE SA is the only IKE SA currently active between the authenticated identities" -- true for ze's one-SA-per-peer model, so unconditional is defensible and is what strongSwan does by default (`uniqueids=yes`). But it changes every ze IKE_AUTH on the wire, which widens the interop surface beyond the clear path. Alternative: send it only on a session started by an operator clear. |
+
+### Constraints forced by the 2026-07-16 A+B decision
+
+-> Constraint (user decision, 2026-07-16): **the one-line fix to the
+`responderBusy` gate is WRONG and MUST NOT be shipped as "Phase B".** Freeing the
+CAS at `register.go:546` alone leaves two further single-SA-per-peer couplings
+that bite, both re-verified against the producers on 2026-07-16:
+1. `routeInbound` (`register.go:482-495`) decides the owner loop from
+   `lookupPeerSession(sa.PeerName)` at `register.go:486` -- it keys on the **peer
+   name, not the SA**. So the accepted init reaches the OLD SA's owner loop and
+   fails to decrypt under the old SA's keys. `tryResponderSAInit` itself ends by
+   calling `routeInbound` (`register.go:563`), so even the accepted init is
+   misrouted.
+2. `ps.setSA(sa)` at `register.go:561` publishes the new responder SA into the
+   single `ps.sa` slot, **clobbering the established SA** that `runResponder`'s
+   poll loop and `TerminateAllSAs` read.
+   A one-line gate fix would look right, pass a naive unit test, and misroute on
+   the wire. Phase B is the three-part change (gate scope + per-SA routing +
+   explicit second slot), never the one-liner. This restates the Failed Approaches
+   row as a binding constraint so it cannot be re-discovered as a shortcut.
+
+-> Constraint (user decision, 2026-07-16): **interop scenario
+`11-responder-accepts-reinit` (strongSwan initiator, ze responder) is the
+higher-value test of the two and is not droppable.** A two-ze `.ci` is
+**structurally incapable** of catching this defect: both ends share ze's bugs and
+ze's reading of §2.4, so a ze responder that wrongly drops an init and a ze
+initiator that never sends INITIAL_CONTACT agree with each other perfectly. Only
+a strongSwan peer can falsify ze's interpretation. AC-5 therefore cannot be
+satisfied by functional tests alone, and `11-` is the scenario that proves the
+conformance half (Phase B) that the A+B decision exists to ship.
 
 ## Known Limitations
 - ~~Re-establishment timing depends on the initiator's connect-retry cadence; the bound is defined during design.~~
@@ -812,11 +848,19 @@ a summary that does not contain the rule is a dangling citation.
   statement is corrected from "never re-establishes" to "re-establishes in
   ~150-190s via DPD self-heal", which is still a real defect but changes the AC
   shape (bounded, SPI-changed) and is why the `.ci` needs a tight bound.
-- **Not moved to `ready`: three open questions need Thomas** (Key Design
+- ~~**Not moved to `ready`: three open questions need Thomas** (Key Design
   Decisions -> Open question for Thomas). The blocking one is #1: ship Phase A+B
   together here, or land A and split B (the RFC-conformance half) into its own
   spec. Scope reduction requires explicit approval
-  (`ai/rules/no-partial-completion.md`); this design does not presume it.
+  (`ai/rules/no-partial-completion.md`); this design does not presume it.~~
+- **2026-07-16, Thomas: open question #1 is ANSWERED -- ship Phase A AND Phase B
+  together.** The blocking question is closed and scope is NOT reduced. Two
+  constraints follow and are recorded under Key Design Decisions -> "Constraints
+  forced by the 2026-07-16 A+B decision": the one-line `responderBusy` fix is
+  banned (two further couplings bite), and interop `11-responder-accepts-reinit`
+  is the higher-value, non-droppable scenario. **Open questions #2 and #3 remain
+  open**; Status stays `design` (promotion to `ready` is Thomas's gate and has not
+  been given).
 - **Prerequisite before implementation writes RFC comments:** `/ze-rfc` for RFC
   7296 §2.4. The summary exists but carries neither normative quote the fix
   enforces, and `rfc/full/rfc7296.txt` is not in the tree.

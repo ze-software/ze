@@ -10,7 +10,15 @@
 **DESIGN, NOT APPROVED.** Research is done: the Open Questions below are answered and the
 assumption table carries verdicts. Two assumptions came back BROKEN (A-2, A-6) and they
 change the shape of the work, so this spec must NOT move to `ready` until Thomas rules on
-the split question (A-8) and the BGP netns config surface. Do not implement from this file yet.
+~~the split question (A-8) and~~ the BGP netns config surface. Do not implement from this file yet.
+
+**2026-07-16, Thomas: the split question (A-8) is DECIDED -- SPLIT.** This spec keeps
+**Problem B only** (the LCP-presence doctor check: one check, one code, one `.ci`, ships now).
+**Problem A** (netns-aware BGP listening) moves to a new spec that does **not exist yet** --
+its name and scope are proposed for Thomas to confirm before the file is created. Read Task ->
+"The 2026-07-16 split" before touching anything here. The netns half remains blocked on the
+still-unanswered **A-7**, so the split changes the filing, not the approval. **Status stays
+`design`; promotion to `ready` is Thomas's gate and has not been given.**
 
 ## Task
 
@@ -23,9 +31,41 @@ moves LCP to a root-reachable namespace. Second, when the VPP build lacks
 layer with a raw VPP error. Goal: VPP LCP interfaces are actually usable by BGP, and LCP
 misconfiguration is diagnosed by `ze doctor` before apply.
 
-Group rationale: both are about making VPP LCP interfaces reachable and diagnosable. They
+~~Group rationale: both are about making VPP LCP interfaces reachable and diagnosable. They
 are grouped for tracking, not because they share a root cause. Problem A is a BGP listener
-capability; Problem B is a doctor check. DESIGN may split them.
+capability; Problem B is a doctor check. DESIGN may split them.~~
+
+**SUPERSEDED. -> Decision (user, 2026-07-16): SPLIT the spec.** DESIGN asked; Thomas ruled.
+The two problems are **unrelated problems sharing a filename**, not one task. The grouping
+("reachable and diagnosable") was a filing convenience and is withdrawn as a rationale. The
+spec's own words above already conceded the point: grouped "for tracking, not because they
+share a root cause".
+
+### The 2026-07-16 split: what each half becomes
+
+| Half | Becomes | Scope | Blocked on |
+|------|---------|-------|-----------|
+| **Problem B -- LCP-presence doctor check** | **THIS spec** (`plan/spec-fixit-vpp-lcp-reachability.md`), narrowed to Problem B only | One check (`checkVPPLCPPlugin`, registered beside the existing two at `internal/plugins/iface/vpp/doctor.go:27-56`, verified 2026-07-16: Order 740 `vpp-wireguard-plugin` / 741 `vpp-lcp-netns`, so the new one takes Order 742), one diagnostic code (`doctor-vpp-lcp-plugin` in `internal/core/diagnostic/codes.go`), one functional test (`test/ui/doctor-vpp-lcp-plugin.ci`). No config surface. No reactor change. No QEMU rail. **Ships now.** Keeps AC-4, AC-5, AC-6, AC-7, AC-11 and Phase 1 | Nothing technical. Q10 (Warning vs Error) is a wording/severity call, not a blocker |
+| **Problem A -- netns-aware BGP listening** | **A NEW spec, not yet created.** Name and scope proposed in the recording session's return; Thomas confirms before the file exists | The `RealListenerFactory.Netns` field + `netns_linux.go`/`netns_other.go`; the reactor change threading netns through BOTH branches of `newListenerFactory` (`reactor.go:1378-1385`, re-verified 2026-07-16: the MD5/GTSM branch returns a fresh `RealListenerFactory{MD5Peers, ListenTTL}` and discards `r.listenerFactory`); a BGP netns config surface; the A-3 kernel-semantics prototype; the AC-3 narrowing of `checkVPPLCPNetns`; a QEMU rail that **does not exist**. Takes AC-1, AC-2, AC-3, AC-8, AC-9, AC-10 and Phases 2-6 | **A-7, still unanswered.** See the constraint below |
+
+-> Constraint (user decision, 2026-07-16): **the netns half still depends on Thomas's
+unanswered A-7** -- is a non-root LCP netns worth supporting at all? The split does NOT
+answer it and does not unblock Problem A. Code evidence leans "yes" (`lcp.go:109-115` passes a
+non-root netns through deliberately; the YANG default is "dataplane"), but no code can answer
+whether operators want it, and everything in Problem A depends on the ruling. The new spec
+therefore starts life BLOCKED, not `ready`: creating the file does not make the work
+approved. If A-7 comes back "no", the netns spec is closed unstarted and `vpp.lcp.netns`'s
+default becomes the live question instead (Q7, which is tied to A-7 and must not be decided
+separately).
+
+-> Constraint: the split is filing, not scope reduction. No AC is dropped; each is assigned
+to exactly one half in the table above. AC-3 (the fate of the `doctor-vpp-lcp-netns` warning)
+travels with the **netns** half, because its premise -- "BGP can now bind in the LCP netns" --
+only becomes true if Problem A lands. Until then the existing warning stays correct as
+shipped and must not be narrowed. Open judgement call flagged for Thomas: the
+**missing** `test/ui/doctor-vpp-lcp-netns.ci` (Q11 confirmed absent) covers the EXISTING
+check, so it could ship with the doctor half; this recording assigns it to the netns half to
+avoid writing a `.ci` that AC-3 immediately rewrites.
 
 ## Origin
 
@@ -437,7 +477,7 @@ Both from `plan/deferrals.md` rows dated 2026-07-10, source `spec-followup-vpp-i
 | A-5 | A GoVPP probe is the right mechanism, as the deferrals row states | deferrals 2026-07-10 row; but the only precedent (`checks_linux.go:266`) uses `vppctl` exec | The check uses vppctl instead, which conflicts with plugin self-containment | DESIGN decision with the user | **CONFIRMED, 2026-07-16.** GoVPP wins on merit, not just on the deferrals row's say-so: `CheckCompatiblity` is a pure message-ID lookup (it never sends the message), needs no `vppctl` binary, parses no human text, and lets the check live in the owning plugin per `ai/rules/plugin-self-containment.md`. The vppctl precedent exists only because the central doctor package had no VPP client; ifacevpp already has one |
 | A-6 | Doctor runs with a live VPP available at `DoctorPhasePostConfig` | `checkVPPVersion` execs vppctl at doctor time (`checks_linux.go:251-266`) | A runtime probe is impossible in that phase; the check needs a different phase or trigger | Trace the doctor phase's runtime context | **BROKEN, 2026-07-16.** Doctor is an OFFLINE, LOCAL command (`doctor/register.go:13-21`: `Mode: "offline"` + `MustRegisterLocalMeta("doctor", Run, ...)`); `Run` -> `runChecks` (`doctor/doctor.go:31,68`) builds only storage + platform and never starts a VPP Manager. The producer `GetActiveConnector` (`vpp.go:67-80`) returns `connectorRef`, set only by `setActiveConnector` on the daemon's Run path, so it is nil in the doctor process. Consequence: the probe MUST open its own connector from `vpp/api-socket` (`ze-vpp-conf.yang:39-43`). Not fatal to the check, but it invalidates the spec's own proposed integration point. Mistake Log row added |
 | A-7 | Operators actually want LCP TAPs in a non-root netns, so teaching BGP netns is worth it rather than forcing host netns | The `netns` leaf exists and defaults to "dataplane" (`ze-vpp-conf.yang:198-205`) | The cheaper answer is to default LCP to the host netns and keep the doctor warning | User / operator input | **UNVALIDATED -- NEEDS THOMAS.** Code evidence leans confirm: `lcpPairNetns` (`lcp.go:109-115`) passes a non-root netns through "so the operator can isolate the TAP deliberately", and the YANG default is "dataplane", so isolation is a deliberate shipped capability. But no code can answer whether operators WANT it; only Thomas can. This is the single decision gating the whole netns leg |
-| A-8 | The two problems belong in one spec | Both concern LCP usability | Split into `spec-bgp-netns` (as deferrals anticipated) plus a doctor follow-up | DESIGN review | **RECOMMEND SPLIT -- NEEDS THOMAS.** Problem B is bounded (one check, one code, one `.ci`, no new config surface, no QEMU rail) and shippable now. Problem A needs a BGP YANG leaf, reactor surgery (A-2), thread-pinning validation (A-3), a QEMU rail (R-6), the AC-3 reconciliation, and a ruling on the other listeners. They share a subject, not a root cause (the spec's own Task section says so). Bundling them holds a ready fix behind an unapproved design. Not actioned: creating `spec-bgp-netns` is Thomas's call |
+| A-8 | The two problems belong in one spec | Both concern LCP usability | Split into `spec-bgp-netns` (as deferrals anticipated) plus a doctor follow-up | DESIGN review | ~~**RECOMMEND SPLIT -- NEEDS THOMAS.**~~ **BROKEN / RESOLVED -- -> Decision (user, 2026-07-16): SPLIT.** The assumption "the two problems belong in one spec" is rejected. Thomas: the LCP-presence doctor check and netns-aware BGP listening are **unrelated problems sharing a filename**. Original recommendation (upheld): Problem B is bounded (one check, one code, one `.ci`, no new config surface, no QEMU rail) and shippable now. Problem A needs a BGP YANG leaf, reactor surgery (A-2), thread-pinning validation (A-3), a QEMU rail (R-6), the AC-3 reconciliation, and a ruling on the other listeners. They share a subject, not a root cause (the spec's own Task section says so). See "The 2026-07-16 split" below for what each half concretely becomes. Not actioned by the recording session: the second spec file is NOT created; its name and scope are proposed for Thomas to confirm |
 
 ### Risks
 
@@ -867,14 +907,14 @@ NEEDS THOMAS and are the reason this spec is not `ready`.
 | 10 | Severity for the LCP plugin check? | **ANSWERED: Warning** (with a flag to Thomas). LCP is on by default (`ze-vpp-conf.yang:177-181`) so Error risks failing doctor for working deployments (R-5), and the probe has an ambiguous failure mode (R-10). Counter-argument worth Thomas's attention: the apply-time consequence is fatal (`1098`: "ze exits at startup"), which argues for Error |
 | 11 | Does `test/ui/doctor-vpp-lcp-netns.ci` exist? | **ANSWERED: NO.** `ls` confirms only `test/ui/doctor-vpp-wireguard.ci` exists among the vpp doctor tests. The delivered netns check has unit coverage but no functional test. Added to Files to Create |
 | 12 | What QEMU rail can prove BGP peering over an LCP TAP? Does any VPP QEMU test exist? | **NOT ANSWERED -- the largest unknown.** No VPP QEMU rail was found. `ai/rules/qemu-testing.md` makes this mandatory for the netns leg, and `1098` records that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), which is an image-provisioning problem on top of a test-rail problem. → Constraint: identify the rail before Phase 3 or the netns leg has an unbounded tail. Strongest argument for the A-8 split |
-| 13 | Split into `spec-bgp-netns` + a doctor follow-up? | **RECOMMEND SPLIT, needs Thomas** (A-8). Problem B is one check, one code, one `.ci`, no config surface, no QEMU rail. Problem A needs a config surface, reactor surgery, a kernel-semantics prototype, a QEMU rail that does not exist, and rulings on Q3/Q4/Q5/Q7. Bundling holds a ready fix behind an unapproved design. The deferrals row already anticipated `spec-bgp-netns` |
+| 13 | Split into `spec-bgp-netns` + a doctor follow-up? | ~~**RECOMMEND SPLIT, needs Thomas** (A-8).~~ **ANSWERED -- -> Decision (user, 2026-07-16): SPLIT.** No longer open. Problem B is one check, one code, one `.ci`, no config surface, no QEMU rail. Problem A needs a config surface, reactor surgery, a kernel-semantics prototype, a QEMU rail that does not exist, and rulings on Q3/Q4/Q5/Q7. Bundling holds a ready fix behind an unapproved design. The deferrals row already anticipated `spec-bgp-netns`. See Task -> "The 2026-07-16 split" for what each half becomes. **The new spec file is NOT created by the recording session** -- its name and scope are proposed for Thomas to confirm first |
 
 ## Decisions Needed From Thomas (blocking `ready`)
 
 | # | Decision | Why it cannot be decided from code |
 |---|----------|-----------------------------------|
 | 1 | **A-7:** is a non-root LCP netns a capability worth supporting, or should LCP be forced to the host netns with the doctor warning kept? | Code shows the capability is deliberate (`lcp.go:109-115` passes non-root through "so the operator can isolate the TAP deliberately"; YANG defaults to "dataplane"), but only Thomas knows whether operators want it. Everything in Problem A depends on this |
-| 2 | **A-8:** split Problem B into its own spec and let it ship now? | A scope call, not a technical one |
+| 2 | ~~**A-8:** split Problem B into its own spec and let it ship now?~~ **DECIDED (user, 2026-07-16): SPLIT.** No longer blocking. This spec keeps Problem B (the doctor check) and ships it; the netns half moves to a new spec that is not yet created (name/scope pending Thomas's confirmation). See Task -> "The 2026-07-16 split" | ~~A scope call, not a technical one~~ Decided by Thomas: the two are unrelated problems sharing a filename. Note the split does NOT unblock the netns half, which still waits on decision 1 (A-7) below |
 | 3 | **Q3:** the BGP netns config surface shape (per-listener YANG leaf vs process-level setting) | Design choice with a downstream effect on Q4/Q5; `ai/rules/config-surface.md` governs but does not decide |
 | 4 | **Q10:** Warning vs Error for `doctor-vpp-lcp-plugin` | A judgement about operator impact: Warning is safer (R-5), Error matches the fatal apply consequence |
 | 5 | Out-of-scope but found: the `doctor-vpp-wireguard` description (`codes.go:291`) over-claims a runtime check that does not exist; and `doctor.go:15` / `lcp.go:13` reference "(A-4)" in a retired spec that should point at `plan/learned/1098-followup-vpp-iface.md` | Both are pre-existing defects outside this spec's Task. Fix here or as a separate fixit? |
