@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 290 design docs, 2990 files
+Total: 290 design docs, 2991 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1564,6 +1564,7 @@ Total: 290 design docs, 2990 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/bgp/wireu/aspath_as4.go` | AS4_PATH construction for OLD-speaker peers |
 | `internal/component/bgp/wireu/aspath_rewrite.go` | AS-PATH rewriting for EBGP forwarding |
 | `internal/component/bgp/wireu/aspath_transcode.go` | AS-PATH wire encoding |
 | `internal/component/bgp/wireu/tombstone.go` | ATTR_TOMBSTONE wire marker |

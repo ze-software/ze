@@ -3,13 +3,16 @@
 // Related: session_write.go -- writeUpdate / SendAnnounce call this gate for originated routes
 //
 // Forwarded (reflected) routes run their export filter chain in forwardUpdateCore
-// before the forward pool writes them via SendRawUpdateBody. Every OTHER outbound
-// route -- API/plugin injection, redistribute, bgp-adj-rib-in replay, configured
-// update{} blocks, static routes -- is written by the session via writeUpdate or
-// SendAnnounce, which historically bypassed export filters entirely. exportFilterForBody
-// is the single egress gate those session write paths call so a peer's export filter
-// applies uniformly to ALL outbound routes, not just reflected ones. EORs and the
-// already-filtered forwarded path (writeRawUpdateBody) are excluded by the callers.
+// before the forward pool writes them via writeRawUpdateBody / writeUpdatePreFiltered.
+// Every OTHER outbound route -- API/plugin injection, redistribute, bgp-adj-rib-in
+// replay, configured update{} blocks, static routes -- is written by the session via
+// writeUpdate or SendAnnounce, which historically bypassed export filters entirely.
+// exportFilterForBody is the single egress gate those session write paths call so a
+// peer's export filter applies uniformly to ALL outbound routes, not just reflected
+// ones. EORs and the already-filtered forwarded path are excluded by the callers:
+// the forward pool must NOT re-enter this gate, or every export filter is applied
+// twice -- once by forwardUpdateCore on the original wire and once here on the final
+// EBGP-prepended wire (see writeUpdatePreFiltered in session_write.go).
 
 package reactor
 

@@ -232,17 +232,43 @@ func (s *Session) TriggerHoldTimerExpiry() {
 	s.closeConn()
 }
 
-// writeUpdate writes an UPDATE to bufWriter without locking or flushing.
-// Caller must hold writeMu.
+// writeUpdate writes an UPDATE to bufWriter without locking or flushing, running
+// the peer's export filter gate. Caller must hold writeMu.
+//
+// Use this for originated / injected / replayed routes -- anything that has NOT
+// already been through the peer's export filter chain. Forwarded routes must use
+// writeUpdatePreFiltered instead.
 func (s *Session) writeUpdate(update *message.Update) error {
+	return s.writeUpdateGated(update, true)
+}
+
+// writeUpdatePreFiltered writes an UPDATE that has ALREADY been through the peer's
+// export filter chain, skipping the egress gate. Caller must hold writeMu.
+//
+// forwardUpdateCore runs the export chain on the ORIGINAL received wire and only
+// then applies the RFC 4271 Section 9.1.2 EBGP local-AS prepend, so the wire the
+// forward pool hands us is final. Re-running the gate here would apply every
+// export filter a SECOND time, to a wire that already carries the local AS: a
+// remove-private-as policy would then rewrite ze's OWN just-prepended local AS
+// when that AS is itself private (RFC 6996), an as-path-prepend filter would
+// prepend twice, and so on. The rawBodies half of the forward pool has always
+// bypassed the gate via writeRawUpdateBody; this is the same exemption for the
+// re-encode half.
+func (s *Session) writeUpdatePreFiltered(update *message.Update) error {
+	return s.writeUpdateGated(update, false)
+}
+
+// writeUpdateGated is the shared body of writeUpdate / writeUpdatePreFiltered.
+// Caller must hold writeMu.
+func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	s.writeBuf.Reset()
 	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
 
 	// Egress gate: originated / injected / replayed routes honor the peer's export
-	// filter chain here (forwarded routes are filtered in forwardUpdateCore and use
-	// writeRawUpdateBody; End-of-RIB markers of any family are exempt — RFC 4724
+	// filter chain here (forwarded routes are filtered in forwardUpdateCore and are
+	// written pre-filtered; End-of-RIB markers of any family are exempt — RFC 4724
 	// graceful-restart signals are not routes).
-	if s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
+	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		suppress, override := s.egressRouteFilter(body)
 		if suppress {

@@ -170,7 +170,9 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			}
 		}
 		for _, update := range items[i].updates {
-			if err := session.writeUpdate(update); err != nil {
+			// Pre-filtered: forwardUpdateCore already ran this peer's export chain
+			// (and only then the EBGP prepend). See writeUpdatePreFiltered.
+			if err := session.writeUpdatePreFiltered(update); err != nil {
 				fwdLogger().Warn("forward batch write failed",
 					"peer", peer.Settings().Address,
 					"err", err,

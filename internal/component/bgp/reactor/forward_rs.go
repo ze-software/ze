@@ -58,7 +58,9 @@ func tryDirectWriteNoFlush(item *fwdItem) (bool, *Session) {
 		}
 	}
 	for _, update := range item.updates {
-		if err := session.writeUpdate(update); err != nil {
+		// Pre-filtered: forwardUpdateCore already ran this peer's export chain
+		// (and only then the EBGP prepend). See writeUpdatePreFiltered.
+		if err := session.writeUpdatePreFiltered(update); err != nil {
 			session.sentMeta = nil
 			session.writeMu.Unlock()
 			return true, session
