@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -60,12 +59,10 @@ func showPingLocal(args []string) int {
 }
 
 func monitorPingLocal(args []string) int {
-	// count and size are parsed but unused here: NewPingSession streams until
-	// interrupted with a fixed probe payload, so neither is plumbed through.
-	dest, _, timeout, _, err := parsePingArgs(args)
+	dest, interval, timeout, err := parseMonitorPingArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
-		tb.Str("monitor ping: ").Err(err).Byte('\n')
+		tb.Err(err).Byte('\n')
 		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
@@ -73,7 +70,7 @@ func monitorPingLocal(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	ch, cancel, sessionErr := NewPingSession(ctx, dest.String(), time.Second, timeout)
+	ch, cancel, sessionErr := NewPingSession(ctx, dest.String(), interval, timeout)
 	if sessionErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor ping: ").Err(sessionErr).Byte('\n')

@@ -68,8 +68,10 @@
 | `ze show <command>` | Read-only daemon commands |
 
 **Ping and traceroute:** `show ping` and `show traceroute` run one-shot ICMP checks from the router itself using ze's internal engine -- no daemon required, they work as local handlers. `monitor ping` and `monitor traceroute` open a live, continuously-updating view (Ctrl-C to stop); pipe either through `| log` for scrollback, or add `| resolve` / `| origin` to enrich traceroute hops with reverse DNS or ASN info.
+`size` sets the ICMP payload length (1-65507), not the total packet: unlike `ping(8)`'s "64 bytes" (56 payload + 8 header), `size 1400` sends 1400 payload bytes on top of the ICMP and IP headers. `count` and `size` are `show ping` only -- `monitor ping` streams a fixed probe until Ctrl-C and takes `interval` / `timeout`, rejecting the other two rather than ignoring them.
 ```
 ze show ping 8.8.8.8 count 5 timeout 3s
+ze show ping 8.8.8.8 size 1400
 ze show traceroute 8.8.8.8 max-hops 10 probes 1
 ze cli -c "monitor ping 8.8.8.8 interval 500ms"
 ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
@@ -81,6 +83,8 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 
 **Live peer dashboard:** `monitor bgp` in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+
+<!-- terminal-demo: cli-dashboard -->
 
 **Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `confirm` is not issued within the timeout window (1-3600 seconds). Use `confirm abort` to revert manually. Modeled after Junos commit confirmed.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->

@@ -43,6 +43,8 @@ ze <config-file>                 # Start daemon with config
 ze start                         # Start daemon from database
 ```
 
+<!-- terminal-demo: launcher -->
+
 | Flag | Purpose |
 |------|---------|
 | `-d`, `--debug` | Enable debug logging |
@@ -1184,7 +1186,26 @@ exactly what is reachable on the running daemon.
 the daemon running (registered as local handlers). `monitor ping` and `monitor
 traceroute` also work offline, streaming results until Ctrl-C.
 
+```
+ze show ping 8.8.8.8                       # 5 probes, 5s timeout
+ze show ping 8.8.8.8 count 10 timeout 3s   # count 1-100, timeout 1s-30s
+ze show ping 8.8.8.8 size 1400             # ICMP payload bytes (1-65507)
+ze monitor ping 8.8.8.8 interval 500ms     # stream until Ctrl-C (100ms-30s)
+```
+
+`size` is the ICMP **payload** length, not the total packet: `size 1400` sends
+1400 bytes of payload plus the 8-byte ICMP and 20-byte IPv4 headers. This differs
+from `ping(8)`, whose familiar "64 bytes" counts the whole ICMP message (56
+payload + 8 header). Omit `size` and the engine sends its small default payload.
+The 65507 ceiling is what still fits a 65535-byte IP datagram after both headers.
+
+`count` and `size` are `show ping` only. `monitor ping` streams a fixed probe
+until interrupted, so both are rejected there rather than silently ignored;
+`monitor ping` takes `interval` and `timeout`.
+
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
+<!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->
+<!-- source: internal/plugins/ping-cmd/yang/ze-ping-cmd.yang -- show/ping size leaf -->
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 
 ### show crashes

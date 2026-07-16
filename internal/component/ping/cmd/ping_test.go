@@ -89,6 +89,95 @@ func TestPingParseArgsSizeMissingValue(t *testing.T) {
 	assert.Contains(t, err.Error(), "size requires a value")
 }
 
+// TestMonitorPingParseArgsInterval verifies `monitor ping` honors interval.
+//
+// VALIDATES: interval reaches the caller; the default applies when omitted.
+// PREVENTS: the silent default this fixes. monitorPingLocal used parsePingArgs,
+// which has no interval case, so `monitor ping <dest> interval 500ms` fell
+// through to the destination branch and streamed at a hardcoded 1s -- while
+// docs/guide/command-reference.md advertised the flag as working.
+func TestMonitorPingParseArgsInterval(t *testing.T) {
+	dest, interval, timeout, err := parseMonitorPingArgs([]string{"10.0.0.1", "interval", "500ms"})
+	require.NoError(t, err)
+	assert.Equal(t, "10.0.0.1", dest.String())
+	assert.Equal(t, 500*time.Millisecond, interval)
+	assert.Equal(t, defaultPingTimeout, timeout)
+
+	_, interval, _, err = parseMonitorPingArgs([]string{"10.0.0.1"})
+	require.NoError(t, err)
+	assert.Equal(t, defaultPingMonitorInterval, interval, "omitted interval uses the default")
+}
+
+// TestMonitorPingParseArgsIntervalBounds pins the accepted interval range.
+//
+// VALIDATES: 100ms and 30s are accepted; below/above are rejected.
+// PREVENTS: drift from the interactive CLI's own bounds
+// (model_ping.go parsePingMonitorArgs), which must agree so `monitor ping`
+// behaves the same with and without a daemon.
+func TestMonitorPingParseArgsIntervalBounds(t *testing.T) {
+	cases := []struct {
+		name    string
+		val     string
+		wantErr bool
+	}{
+		{name: "minimum", val: "100ms"},
+		{name: "maximum", val: "30s"},
+		{name: "below minimum", val: "99ms", wantErr: true},
+		{name: "above maximum", val: "31s", wantErr: true},
+		{name: "not a duration", val: "soon", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, _, err := parseMonitorPingArgs([]string{"127.0.0.1", "interval", tc.val})
+			if tc.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "interval must be")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestMonitorPingRejectsShowOnlyArgs verifies count and size are refused.
+//
+// VALIDATES: `monitor ping <dest> count N` and `... size N` error, naming the
+// show ping alternative.
+// PREVENTS: the operator trap this fixes. monitorPingLocal parsed both via the
+// shared parsePingArgs and discarded them, so the probe silently ignored an
+// explicit request. Rejecting matches the interactive CLI, whose parser already
+// errors on these ("unexpected argument"). Accept-and-ignore is banned by
+// ai/rules/no-workarounds-for-missing-behavior.md.
+func TestMonitorPingRejectsShowOnlyArgs(t *testing.T) {
+	for _, arg := range []string{"count", "size"} {
+		t.Run(arg, func(t *testing.T) {
+			_, _, _, err := parseMonitorPingArgs([]string{"127.0.0.1", arg, "5"})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "is not supported")
+			assert.Contains(t, err.Error(), "show ping", "the error must name the command that does support it")
+		})
+	}
+}
+
+// TestMonitorPingParseArgsErrors covers the remaining rejection paths.
+//
+// VALIDATES: missing destination, missing interval value, and a second
+// positional argument all error.
+// PREVENTS: a trailing keyword or a stray token being silently swallowed.
+func TestMonitorPingParseArgsErrors(t *testing.T) {
+	_, _, _, err := parseMonitorPingArgs([]string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing destination")
+
+	_, _, _, err = parseMonitorPingArgs([]string{"127.0.0.1", "interval"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "interval requires a value")
+
+	_, _, _, err = parseMonitorPingArgs([]string{"127.0.0.1", "8.8.8.8"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected argument")
+}
+
 func TestPingParseArgsMissingDest(t *testing.T) {
 	_, _, _, _, err := parsePingArgs([]string{})
 	assert.Error(t, err)

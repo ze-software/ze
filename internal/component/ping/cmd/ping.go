@@ -21,15 +21,17 @@ import (
 
 // CLI argument keywords shared across the ping handlers in this package.
 const (
-	argCount   = "count"
-	argSize    = "size"
-	argTimeout = "timeout"
+	argCount    = "count"
+	argInterval = "interval"
+	argSize     = "size"
+	argTimeout  = "timeout"
 )
 
 var (
 	errPingCountRequiresAValue       = errors.New("ping: count requires a value")
 	errPingSizeRequiresAValue        = errors.New("ping: size requires a value (bytes)")
 	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
+	errPingIntervalRequiresAValue    = errors.New("monitor ping: interval requires a value (e.g. 500ms)")
 	errPingMissingDestinationAddress = errors.New("ping: missing destination address")
 )
 
@@ -41,7 +43,74 @@ const (
 	// maxPingSize is the largest ICMP echo payload that still fits a 65535-byte
 	// IP datagram after the 20-byte IPv4 and 8-byte ICMP headers.
 	maxPingSize = 65507
+
+	// Monitor-only bounds. These match the interactive CLI's own monitor parser
+	// (internal/component/cli/model_ping.go parsePingMonitorArgs) so `monitor
+	// ping` accepts the same arguments whether or not a daemon is running.
+	defaultPingMonitorInterval = time.Second
+	minPingMonitorInterval     = 100 * time.Millisecond
+	maxPingMonitorInterval     = 30 * time.Second
 )
+
+// parseMonitorPingArgs parses `monitor ping <dest> [interval <dur>] [timeout <dur>]`.
+//
+// Deliberately NOT parsePingArgs: monitor streams a fixed probe until
+// interrupted, so `count` and `size` cannot mean anything here and are rejected
+// rather than accepted and dropped. It previously shared parsePingArgs and
+// silently ignored both, plus `interval` -- which the docs advertise -- because
+// parsePingArgs has no interval case and the value fell through to the
+// destination branch. Each command now parses exactly what it honors.
+func parseMonitorPingArgs(args []string) (netip.Addr, time.Duration, time.Duration, error) {
+	var dest netip.Addr
+	interval := defaultPingMonitorInterval
+	timeout := defaultPingTimeout
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case argInterval:
+			if i+1 >= len(args) {
+				return dest, 0, 0, errPingIntervalRequiresAValue
+			}
+			d, err := time.ParseDuration(args[i+1])
+			if err != nil || d < minPingMonitorInterval || d > maxPingMonitorInterval {
+				return dest, 0, 0, fmt.Errorf("monitor ping: interval must be %s-%s", minPingMonitorInterval, maxPingMonitorInterval)
+			}
+			interval = d
+			i++
+		case argTimeout:
+			if i+1 >= len(args) {
+				return dest, 0, 0, errPingTimeoutRequiresAValueE
+			}
+			d, err := time.ParseDuration(args[i+1])
+			if err != nil || d < time.Second || d > maxPingTimeout {
+				return dest, 0, 0, fmt.Errorf("monitor ping: timeout must be 1s-%s", maxPingTimeout)
+			}
+			timeout = d
+			i++
+		case argCount:
+			return dest, 0, 0, fmt.Errorf("monitor ping: %q is not supported (monitor streams until interrupted); use: show ping <dest> count <n>", argCount)
+		case argSize:
+			return dest, 0, 0, fmt.Errorf("monitor ping: %q is not supported (monitor sends a fixed probe); use: show ping <dest> size <bytes>", argSize)
+		default:
+			if !dest.IsValid() {
+				if err := validateResolveTarget(args[i]); err != nil {
+					return dest, 0, 0, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
+				}
+				addr, err := probe.ResolveTarget(args[i])
+				if err != nil {
+					return dest, 0, 0, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
+				}
+				dest = addr
+				continue
+			}
+			return dest, 0, 0, fmt.Errorf("monitor ping: unexpected argument %q", args[i])
+		}
+	}
+	if !dest.IsValid() {
+		return dest, 0, 0, errPingMissingDestinationAddress
+	}
+	return dest, interval, timeout, nil
+}
 
 // handleShowPing is the RPC handler for `show ping` (ze-show:ping): a bounded
 // batch of ICMP echo requests sent from the router, returning per-reply RTT
