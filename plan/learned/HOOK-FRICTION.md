@@ -30,7 +30,7 @@ they account for over 50 appearances in the corpus.
 | `block-test-deletion.sh` | 6 | Active | [block-test-deletion.sh](#block-test-deletionsh) |
 | `block-legacy-log.sh` | 4 | Retired 2026-04-19 | [Retired](#retired) |
 | `block-ignored-errors.sh` | 4 | Active | [block-ignored-errors.sh](#block-ignored-errorssh) |
-| `block-temp-debug.sh` | 3 | Active | [block-temp-debug.sh](#block-temp-debugsh) |
+| `block-temp-debug.sh` | 3 | Active | [block-temp-debug.sh](#block-temp-debugsh-now-c_temp_debug-in-pretool-writeeditpy) |
 | `block-root-build.sh` | 3 | Active | [block-root-build.sh](#block-root-buildsh) |
 | `block-pipe-tail.sh` | 2 | Active | [block-pipe-tail.sh](#block-pipe-tailsh) |
 | `block-init-register.sh` | 2 | Active | [block-init-register.sh](#block-init-registersh) |
@@ -39,6 +39,14 @@ they account for over 50 appearances in the corpus.
 | `block-panic-error.sh` | 1 | Active | [block-panic-error.sh](#block-panic-errorsh) |
 | `block-layering.sh` | 1 | Retired 2026-04-19 | [Retired](#retired) |
 | `pretool-writeedit.py` `c_design_without_lsp` | 1 (2026-07-16) | Fixed 2026-07-16 at the source | [c_design_without_lsp](#pretool-writeeditpy--c_design_without_lsp) |
+| `validate-spec.sh` argv false-green | 3 (2026-07-16) | Fixed 2026-07-16 at the source | [F1](#f1-validate-specsh-false-greened-when-invoked-via-argv) |
+| `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
+| `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
+
+Non-hook tooling friction filed the same day (the LSP gate, the commit gate's
+advice, `commit_helper.py --body`, and rule/gate vocabulary drift) is in the same
+[2026-07-16 section](#filed-2026-07-16-seven-frictions-one-session-zero-reports),
+because that is where a reader looking for "why did the tooling fight me" goes.
 
 ---
 
@@ -106,6 +114,341 @@ re-add the symlink, and never bridge a marker for work that was not actually don
 `session-state-claude-session-fallback.md` while the check demanded a pid-named file.
 The single fix corrects all four consumers (`.lsp-invoked-`, `.source-read-`,
 `.session-`, `session-state-`).
+
+---
+
+## Filed 2026-07-16: seven frictions, one session, zero reports
+
+One long session hit every friction below and filed none of them at the time.
+They are recorded here in the Format `ai/rules/friction-reporting.md` prescribes
+(Friction / Pattern / Impact / Rule decision / Proposed fix) rather than this
+file's older Trigger/Blocks/Workaround shape, because most are not hook false
+positives: two are a validator that passes without checking, one is a gate whose
+own advice does not work, one is an argparse edge, one is rule/gate vocabulary
+drift. The Trigger/Blocks/Workaround entries below this section are unchanged.
+
+**Read F8 first if you read only one.** It is why the other seven arrived in one
+batch at the end of a session instead of one at a time as they were hit.
+
+---
+
+### F1: `validate-spec.sh` false-greened when invoked via argv
+
+**Friction:** `bash .claude/hooks/validate-spec.sh plan/spec-foo.md` exited **0**
+without running a single check, which reads as "spec valid". The script takes a
+PostToolUse JSON payload on stdin: `INPUT=$(cat)` at `:7`, then jq for
+`.tool_name` (at `:8` before the fix, `:32` after). Under argv, stdin is empty,
+jq returns empty, `TOOL_NAME` is `""`, and the pre-fix guard at `:11-14`
+(`if [[ "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Edit" ]]; then exit 0; fi`)
+treated "I could not tell what tool this is" exactly like "this is a tool I do
+not handle". Verified before the fix: argv on a real spec gave `EXIT=0` and no
+output; the same spec over JSON stdin produced a verdict. All `:NN` citations in
+this entry are post-fix line numbers unless marked otherwise.
+
+**Pattern:** Recurs, and demonstrably did. Two to three agents found this
+independently on 2026-07-16 and each warned the *next* agent in its handoff. It
+travelled three times as folklore and never reached a file. Any agent who
+manually validates a spec hits it, because argv is the obvious way to run a
+script that takes a path.
+
+**Impact:** Unbounded and silent, which is the worst combination. Every spec
+"validated" this way passed unchecked, and the agent then reported the spec as
+validated in good faith. This is exactly `ai/rules/fail-closed-guards.md`'s
+zero-value trap: exit 0 is a legitimate-looking answer, so the miss is invisible
+at every later layer.
+
+**Rule decision:** No new rule. `ai/rules/fail-closed-guards.md` (committed the
+same day, `c49a6dcd9`) already names this shape precisely: "a guard must fail
+closed or say something", and "a zero value that downstream reads as a legitimate
+answer is how it hides". The rule was right and nothing applied it to the hook
+layer. What was missing was a durable filing destination, which is F8.
+
+**Proposed fix:** DONE. `validate-spec.sh` now distinguishes the two cases: an
+unparseable payload (`:32-34`) or an absent tool name (`:35-37`) calls
+`usage_refusal()` (`:21`) and exits 2 with the correct invocation; a tool name
+that is present but not `Write`/`Edit` still exits 0 quietly (`:41-44`). The early
+exit was never the bug and is kept: a hook MUST no-op on tools it does not
+handle. Locked by three new fixtures in `scripts/dev/hook-fixture-check.py`
+(`validate-spec-argv-no-stdin-refuses`, `-absent-tool-name-refuses`,
+`-other-tool-quiet-pass`), which drive a structurally INVALID spec so that a pass
+can only mean no check ran. `make ze-hook-test`: 131/131 parity + 37/37 fixtures.
+
+---
+
+### F2: `validate-spec.sh` rejects the citation form the rules mandate
+
+**Friction:** The Current Behavior check (`:125`, `:127`) requires a source-file
+bullet matching `` `path.(go|py|rs|ts|js)` `` with the closing backtick
+IMMEDIATELY after the extension. So it REJECTS `` - [ ] `authz.go:385` ``, the
+`file:line` form `CLAUDE.md` ("cite the function that PRODUCES the behavior as
+`file:line`") and `ai/rules/fail-closed-guards.md` (`validator.go:631`) both
+require, and ACCEPTS only `` `authz.go` `` or `` `authz.go` line 385 ``.
+Verified against the live regex, six forms:
+
+| Bullet | Verdict |
+|---|---|
+| `` - [ ] `commit_helper.py:193` `` | REJECT |
+| `` - [ ] `commit_helper.py` line 193 `` | ACCEPT |
+| `` - [ ] `internal/component/authz/authz.go:385` `` | REJECT |
+| `` - [ ] `internal/component/authz/authz.go` `` | ACCEPT |
+| `` - [ ] `.claude/hooks/validate-spec.sh` `` | REJECT |
+| `` - [ ] `Makefile:243` `` | REJECT |
+
+Two further limits confirmed: the section is truncated to its first 30 lines
+(`:122` `| head -30`), so a spec listing many files silently loses the tail; and
+the extension allowlist has no `.sh`, `.mk`, `.py`-adjacent shell, or
+extensionless `Makefile`, which is perverse for a spec about shell or build code
+and such a spec cannot satisfy the check at all except by citing an unrelated
+`.go` file.
+
+**Pattern:** Recurs for every spec whose subject is not Go, and for every agent
+who follows `no-fabrication.md` literally. Two rules in the same repo demand
+opposite things; the agent obeys one and a gate rejects it for obeying.
+
+**Impact:** Minutes per spec, plus a worse second-order effect: the fix that makes
+the gate green is to DROP the line number, degrading the citation precision
+`no-fabrication.md` exists to enforce. A gate that rewards weaker evidence is
+worse than no gate.
+
+**Rule decision:** Update the hook, not the rules. The rules are right:
+`file:line` is the correct citation form. This is a hook false positive against
+the project's own mandated style.
+
+**Proposed fix:** Widen the regex to accept an optional `:<line>` or
+`:<start>-<end>` suffix inside the backticks, add `sh|mk|yang|ci` and an
+extensionless `Makefile` to the allowlist, and raise or remove the `head -30`
+truncation. NOT done here: out of scope for this task, and the change deserves a
+survey across `plan/spec-*.md` first (as spec-followup-hooks AC-4 did for arrows)
+to confirm it does not turn ~40 legacy specs red. Filed rather than fixed.
+
+---
+
+### F3: LSP is unavailable to subagents, and the rule shames them for it
+
+**Friction:** `.claude/rules/session-start.md` makes
+`ToolSearch query="select:LSP"` the "UNCONDITIONAL FIRST ACTION", BLOCKING, with
+a six-row table of "banned excuses" and the line "If it is not, you have violated
+this rule. Apologize, load it, proceed." In a subagent, that call returns **"No
+matching deferred tools found"**. Verified: this filing's own first action was
+that exact call and that exact result; LSP is absent from the subagent's deferred
+tool list entirely.
+
+**Pattern:** Recurs for every subagent, every session, permanently. It is not
+environmental.
+
+**Impact:** Small in time, corrosive in effect. A rule that cannot be satisfied
+teaches agents that BLOCKING rules are negotiable, which is the opposite of what
+the six-row table is defending. It also produces false self-reports: an agent that
+"loaded LSP" and got nothing may believe it complied.
+
+**Nuance that the folklore version gets wrong.** The gate is still *clearable*.
+`block-until-lsp.sh:88-97` writes the marker when the ToolSearch **query text**
+matches `/LSP/i` (`grep -qi "LSP"` on `$QUERY`), not when a tool actually loads.
+So running the mandated command clears the block even though no LSP tool exists.
+The rule is unsatisfiable in the CAPABILITY sense (a subagent can never use LSP),
+not in the GATE sense (a subagent can always clear it). "The rule is unsatisfiable
+for subagents" is therefore too strong; the honest claim is that the mandated
+action is a no-op for subagents that the gate accepts anyway.
+
+**Rule decision:** Update `.claude/rules/session-start.md`. Not by weakening the
+rule for main sessions, where it is load-bearing and its diagnosis is right.
+
+**Proposed fix:** Add one row to the checklist scoping step 1: if `select:LSP`
+returns no match (subagent context), that is a known environment limit, not an
+excuse. Proceed, and satisfy `no-fabrication.md` by reading the producing `.go`
+source instead, which `mark-source-read.sh` already accepts as equivalent evidence
+for the `design-without-lsp` gate. That equivalence already exists in the hook
+layer (`hook-mapping.md:83`); the rule text has simply not caught up. NOT done
+here: `.claude/rules/session-start.md` was out of scope for this task.
+
+---
+
+### F4: the commit gate's structural-red advice does not do what it says
+
+**Friction:** `commit_helper.py`'s structural-gate refusal (`:1125-1135`) says:
+"re-run `make " + gate_reds[0] + "` (or `make ze-verify`) until green. If you
+already fixed it, that re-run refreshes tmp/ze-verify-failures.json and clears
+this." It does not. `gate_reds[0]` is a stage name from `STRUCTURAL_GATES`
+(`:492-503`: `ze-lint`, `ze-lint-changed`, `ze-tier-check`, ...), and running that
+stage directly never writes the JSON. Verified at the producer: the only writer of
+`tmp/ze-verify-failures.json` is `scripts/status/verify_run.go:326`
+(`os.WriteFile(filepath.Join(root, failuresJSONPath), ...)`, path constant at
+`:28`), and `verify_run.go` is invoked only by `ze-verify` (Makefile:279-280) and
+`ze-verify-changed` (`:293-294`). `make ze-lint-changed` (`:243-247`) is
+`golangci-lint run $pkgs` and touches nothing else. Only the parenthetical
+`make ze-verify` actually clears the gate; the advice the message leads with does
+not, for any of the eight gates.
+
+**Pattern:** Recurs for anyone who hits a structural red and follows the
+instruction, which is precisely the audience the message is written for.
+
+**Impact:** Real time lost today. The failure mode is nasty: you fix the code, run
+the named target, watch it go green, re-run the commit helper, and get the
+identical refusal with no indication why. The tree is fixed and the gate still
+says it is broken, so you start doubting the fix rather than the message.
+
+**Rule decision:** No rule change. This is a wrong string in a tool, and
+`ai/rules/git-safety.md:224` already documents the JSON's refresh semantics
+correctly ("which `verify_run.go` rewrites after every run"). The rule is right;
+the error message contradicts it.
+
+**Proposed fix:** Reword `:1132-1134` to name a target that actually refreshes the
+artifact: fix at the source, then `make ze-verify` (or `make ze-verify-changed`)
+(optionally suggesting `make <stage>` as a fast inner-loop check while making it
+explicit that only a full verify run rewrites the routing index and clears the
+gate). NOT done here: `scripts/dev/commit_helper.py` is explicitly out of scope for
+this task (it changed today).
+
+---
+
+### F5: `c_throwaway_tests` blocks legitimate `scripts/dev/` test filenames
+
+**Friction:** `c_throwaway_tests` in `.claude/hooks/pretool-writeedit.py`
+(`:1225-1233`) blocks a `Write` whose basename matches `test_.*\.(go|py|sh)$` OR
+`_test_.*\.(go|py|sh)$` unless the path contains `/internal/`, `/test/`, or
+`/cmd/`. `scripts/dev/` is none of those, so `audit_test_relaxation_test.py` was
+rejected and had to be renamed `audit_relaxation_test.py`. Verified: the infix
+`_test_` in `audit_test_relaxation` matches, and the renamed file matches neither
+pattern (`audit_relaxation_test.py` ends `test.py`, not `test_`), which is why the
+rename worked.
+
+**Pattern:** Recurs for any `scripts/dev/` tool whose name contains a `test_` or
+`_test_` token, a live category, since `scripts/dev/` is exactly where this
+repo's test *infrastructure* lives (`hook-fixture-check.py`,
+`hook-parity-check.py`, `audit-test-relaxation.py`, `commit_helper_test.py`).
+
+**Impact:** Small per instance (one rename), but it corrupts naming: the file is
+now named around the hook instead of its subject, and `audit_relaxation_test.py`
+is a worse name than `audit_test_relaxation_test.py` for a thing that audits test
+relaxation. The next reader has no idea why.
+
+**Rule decision:** Update the hook. The intent, no throwaway tests in scratch
+locations, is sound and worth keeping; `scripts/dev/` is not a scratch location.
+
+**Proposed fix:** Add `scripts/` to the allowed-path set alongside `internal/`,
+`test/`, and `cmd/` at `:1228-1232`. Note `/tmp/` and `/var/tmp/` are already
+handled separately at `:1222-1224`, so the scratch-location intent survives
+intact. NOT done here: outside this task's scope, and `pretool-writeedit.py` is
+covered by the parity golden table, so the change needs a re-bless.
+
+---
+
+### F6: `commit_helper.py --body` and `--`-prefixed text (CLAIM CORRECTED)
+
+**The reported version of this friction is WRONG and is filed corrected.** The
+report said "a body containing `--mode sink` makes argparse reject the whole
+invocation". It does not. Verified by driving the real script:
+
+| Invocation | Result |
+|---|---|
+| `--body "--mode sink"` | **ACCEPTED**, parses, proceeds to the verify gate |
+| `--body "--unverified now"` | **ACCEPTED**, parses, proceeds to the verify gate |
+| `--body "--mode"` | **REJECTED**, `argument --body: expected one argument` |
+| `--body=--mode` | **ACCEPTED**, parses, proceeds to the verify gate |
+
+**Friction:** `--body` (`:1284-1289`, `action="append"`) rejects a value that is a
+single `--`-prefixed token with NO whitespace. A multi-word value starting with
+`--` is fine, because argparse's option detection returns "this is a value, not an
+option" for any argument string containing a space. So the trigger is not
+"`--`-prefixed text" but "`--`-prefixed text with no space in it".
+
+**Pattern:** Rare and narrow. It fires only when a body paragraph is exactly one
+`--`-prefixed token, which is an unusual thing to write. The common case that
+looks dangerous (quoting a flag with its argument, `--mode sink`) works.
+
+**Impact:** Overstated in the report. The workaround is one character:
+`--body=--mode`.
+
+**Rule decision:** **No rule, and no fix.** This entry is filed for a different
+reason than the other six: as the worked example of why
+`ai/rules/no-fabrication.md` applies to friction reports too. It was passed on as
+a confident claim, cost was attributed to it, and driving the producer showed the
+stated trigger was not the real one. A false entry in the friction record is the
+same disease the record exists to cure: a future agent would have spent time
+"fixing" a bug at a shape that does not fire. Verify a friction at the producer
+before filing it, exactly as for any other behavioral claim.
+
+---
+
+### F7: `deferral-tracking.md` taught `deferred` while its gate checked `open`
+
+**Friction:** The rule taught a status vocabulary its own gate did not read.
+`deferral_unassigned_problems` filtered `if status != "open": continue` while 40
+of 68 rows in `plan/deferrals.md` carried `deferred`, the word
+`ai/rules/deferral-tracking.md` uses for exactly that state. The gate never looked
+at them. Fixed today in `c4f570214`.
+
+**Pattern:** Recurs whenever a rule and the gate enforcing it name the same
+concept in different words, and nothing ties them together. Filed as the worked
+example because it is the one that got CAUGHT, so its full shape is visible.
+
+**Impact:** Four deferral rows written, gate run, green, believed enforced,
+and nothing had checked. It survived four walkthroughs by its own author. Two
+independent improvements had to land together to do anything: a sibling agent had
+tightened the destination check earlier the same day into the strictest check in
+the repo, and it sat behind a status filter 60 of 68 rows bypassed, so it caught
+nothing. Neither half worked alone. That is the signature of vocabulary drift:
+each piece looks correct in isolation.
+
+**Rule decision:** Already done in `c4f570214`, and the fix generalizes better
+than a one-word patch would have. The status check became a DENYLIST of terminal
+states (`done`, `cancelled`, `resolved`) rather than an allowlist of live ones, so
+an unknown status is now live and gets checked. An allowlist re-runs this bug the
+next time the vocabulary drifts, which is precisely how `deferred` got through.
+`deferral-tracking.md` gained a Status Vocabulary table naming the exact terminal
+set the gate reads.
+
+**Proposed fix:** None outstanding. The transferable lesson, and the reason it is
+in this file: **when a gate filters on a vocabulary, the rule teaching that
+vocabulary and the gate reading it must name the same words, and the gate must
+fail closed on a word it does not know.** F1 is the same disease in a different
+organ: `open` vs `deferred` there, `""` vs `Bash` here. Both let an unrecognized
+input take the quiet path.
+
+---
+
+### F8: the rule fired zero times in the session that generated seven
+
+**Friction:** `ai/rules/friction-reporting.md` says to report friction
+"immediately", with a Format and a rule decision. Across one very long session
+that hit at least seven reportable frictions, it fired **zero** times. Not once
+late. Never. Worse, F1 was found INDEPENDENTLY by two to three agents, and each
+one warned the next agent in its handoff report. The same finding was rediscovered
+and re-transmitted three times, as folklore, and never reached a durable artifact.
+Every rediscovery paid full price.
+
+**Pattern:** Structural, not a lapse of attention, and it recurs by construction.
+The rule asks the reader to remember to report, and "report" resolves in practice
+to "say it in chat". Chat scrolls away, and the next session starts with none of
+it. Nothing collects. A rule whose only enforcement is the reader's memory fires
+at whatever rate the reader remembers, which across a long session tends to zero:
+friction is hit while *inside* another task, and the cost of stopping to file it
+is charged against the task the agent is being judged on, so it is always
+deferred, and "later" never arrives.
+
+**Impact:** The largest of the eight, because it is the multiplier on the other
+seven. It is why they arrived as an end-of-session batch instead of seven timely
+reports, and why F1 cost three agents instead of one. A handoff is not a record:
+it reaches exactly one successor and dies there.
+
+**Rule decision:** Update `ai/rules/friction-reporting.md`, minimally. Its
+diagnosis is correct and its Format is the right one; every entry in this section
+uses it. The single missing element was a destination. Do not rewrite a rule that
+is right about everything except where the output goes.
+
+**Proposed fix:** DONE, one line, in the Timing section: reporting in chat is not
+filing; hook and tooling friction is not reported until it is written to
+`plan/learned/HOOK-FRICTION.md` in the prescribed Format, and a finding passed
+only to the next agent in a handoff is folklore, not a record.
+
+**Honest limit of this fix.** It converts "report it" into "write it here", which
+is necessary but not sufficient: it is still prose asking the reader to remember,
+so it will still be skipped under task pressure. The real fix is mechanical, and
+this section does not deliver it. A Stop-hook prompt when a session's transcript
+shows hook rejections or gate refusals with no diff to this file would collect
+what memory does not. Filed as the next step rather than claimed as solved. If a
+future session finds this file still gathering seven-at-a-time batches, that is
+the evidence the mechanical version is owed.
 
 ---
 

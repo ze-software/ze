@@ -5,10 +5,40 @@
 set -e
 
 INPUT=$(cat)
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+
+# This hook reads a PostToolUse JSON payload on STDIN. It takes no argv.
+#
+# "I checked and found nothing" and "I could not tell what to check" are
+# different answers and MUST NOT share an exit code. An unparseable payload or
+# an absent tool name means NOTHING WAS CHECKED, so a silent exit 0 there is
+# read by the caller as "spec valid" -- a false green. Refuse loudly instead.
+# A tool name that is present but simply not ours is the legitimate no-op and
+# still exits 0 quietly, below. See ai/rules/fail-closed-guards.md.
+#
+# How it bit: invoked as `validate-spec.sh plan/spec-foo.md`, stdin is empty, jq
+# yields an empty TOOL_NAME, and the old "not Write/Edit" test exited 0. Specs
+# "validated" that way passed without a single check running.
+usage_refusal() {
+    echo -e "${RED:-}${BOLD:-}❌ validate-spec.sh: $1 -- NOTHING WAS CHECKED.${RESET:-}" >&2
+    echo "  This is a PostToolUse hook: it reads a JSON payload on stdin and takes no argv." >&2
+    echo "  A silent pass here would mean 'I could not tell what to check', not 'valid'." >&2
+    echo "  Manual invocation:" >&2
+    echo "    echo '{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"plan/spec-foo.md\"}}' \\" >&2
+    echo "      | bash .claude/hooks/validate-spec.sh" >&2
+    echo "  Fixtures: python3 scripts/dev/hook-fixture-check.py --only validate-spec" >&2
+    exit 2
+}
+
+if ! TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>&1); then
+    usage_refusal "unparseable hook payload on stdin (jq: ${TOOL_NAME})"
+fi
+if [[ -z "$TOOL_NAME" ]]; then
+    usage_refusal "no tool name in the hook payload"
+fi
+
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
-# Only process Write/Edit tools
+# A tool name that is present but not one we handle: legitimate no-op.
 if [[ "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Edit" ]]; then
     exit 0
 fi

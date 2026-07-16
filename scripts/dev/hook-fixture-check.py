@@ -141,6 +141,9 @@ def run_format_alloc(results: Results) -> None:
 # validate-spec: drive validate-spec.sh over crafted spec files
 # --------------------------------------------------------------------------- #
 
+# Sentinel: distinguishes "caller passed no payload" from "caller passed None".
+_UNSET = object()
+
 _VALID_SPEC = """# Spec: fixture
 
 | Field | Value |
@@ -218,7 +221,14 @@ Fixture spec exercising validate-spec.sh arrow handling.
 """
 
 
-def _run_validate_spec(script: str, spec_text: str):
+def _run_validate_spec(script: str, spec_text: str, *, argv=None, payload=_UNSET):
+    """Drive validate-spec.sh over a crafted spec.
+
+    argv/payload let a case bypass the normal JSON-stdin call to assert the
+    absent-tool-name refusal: argv=[spec] sends NO stdin, mimicking the
+    `validate-spec.sh plan/spec-foo.md` invocation that used to exit 0 without
+    running a single check.
+    """
     work = tempfile.mkdtemp(prefix="validate-spec-", dir=_fixture_root())
     try:
         plan = os.path.join(work, "plan")
@@ -226,11 +236,13 @@ def _run_validate_spec(script: str, spec_text: str):
         fp = os.path.join(plan, "spec-fixture.md")
         with open(fp, "w", encoding="utf-8") as fh:
             fh.write(spec_text)
-        payload = {"tool_name": "Write", "tool_input": {"file_path": fp}}
+        if payload is _UNSET:
+            payload = {"tool_name": "Write", "tool_input": {"file_path": fp}}
+        stdin = "" if argv else json.dumps(payload)
         env = dict(os.environ, CLAUDE_PROJECT_DIR=work)
         proc = subprocess.run(
-            ["bash", script],
-            input=json.dumps(payload),
+            ["bash", script] + [a.replace("@SPEC@", fp) for a in (argv or [])],
+            input=stdin,
             text=True,
             capture_output=True,
             env=env,
@@ -256,6 +268,37 @@ def run_validate_spec(results: Results) -> None:
     )
     rc, err = _run_validate_spec(script, malformed)
     results.check("validate-spec-missing-section-blocks", rc == 2, f"rc={rc}")
+
+    # An ABSENT tool name must not take the same path as a legitimately
+    # different one. Called via argv the hook gets no stdin, so TOOL_NAME is
+    # empty and the pre-fix script exited 0 -- reporting "valid" for a spec it
+    # had not read. Drive a spec that is structurally INVALID: a pass here can
+    # only mean no check ran. See ai/rules/fail-closed-guards.md.
+    rc, err = _run_validate_spec(script, malformed, argv=["@SPEC@"])
+    results.check(
+        "validate-spec-argv-no-stdin-refuses",
+        rc != 0 and "NOTHING WAS CHECKED" in err,
+        f"rc={rc} err={err[:160]!r}",
+    )
+
+    rc, err = _run_validate_spec(script, malformed, payload={"tool_input": {}})
+    results.check(
+        "validate-spec-absent-tool-name-refuses",
+        rc != 0 and "NOTHING WAS CHECKED" in err,
+        f"rc={rc} err={err[:160]!r}",
+    )
+
+    # ...while a tool this hook does not handle stays a quiet no-op.
+    rc, err = _run_validate_spec(
+        script,
+        malformed,
+        payload={"tool_name": "Bash", "tool_input": {"command": "ls"}},
+    )
+    results.check(
+        "validate-spec-other-tool-quiet-pass",
+        rc == 0 and err == "",
+        f"rc={rc} err={err[:160]!r}",
+    )
 
 
 # --------------------------------------------------------------------------- #
