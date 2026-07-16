@@ -17,19 +17,36 @@
 
 ## Task
 
-Two verified sites build a wire message into a FIXED-SIZE buffer and then slice it
-by the returned length, with no `n > cap(buf)` guard. If the message ever exceeds
-the buffer, `buf[:n]` panics with a slice-bounds error.
+Multiple verified sites build a wire message into a FIXED-SIZE buffer and then slice it
+by the returned length, with no capacity guard. The panic does NOT happen at the `buf[:n]`
+re-slice: the encoders index directly into the buffer, so an oversized message panics with a
+slice-bounds error INSIDE the encoder's `WriteTo` (before `n` is ever returned) -- e.g.
+`internal/component/l2tp/ppp/dhcpv6.go:255` (`buf[off] = cfg.Type`) and `:269+`
+(`binary.BigEndian.PutUint16(buf[off:], ...)`), and the IKE payload writers reached through
+`internal/component/ike/wire/message.go:36` (`m.Payloads[i].Payload.WriteTo(buf, off)`, which
+lands in writers such as `payload_notify.go:54` `buf[off] = p.ProtocolID`). Consequence: a
+post-hoc `n > cap(buf)` check at the caller is DEAD CODE -- control never reaches it on
+overflow. Only sizing the buffer to the message length up front (a `Len()`-first allocation) or
+a `CheckedWriteTo` that bounds every index before writing actually prevents the panic; the
+post-hoc-check option is a non-fix.
 
 | Site | Shape | Verified |
 |------|-------|----------|
 | `internal/component/ike/engine/responder.go:317-319` (`sendSAInitNotify`; same shape at `dpd.go:97`) | `buf := make([]byte, 512)`, `n := msg.WriteTo(buf, 0)`, `tr.Send(buf[:n], remote)` | read 2026-07-16, lines confirmed |
 | `internal/component/l2tp/ppp/ipv6_service.go:145-146` (also `:181`, `:213`, `:238`, `:250`) | `var buf [512]byte`, `n := BuildDHCPv6Reply(buf[:], ...)`, then `buf[:n]` | read 2026-07-16, lines confirmed |
+| `internal/component/ike/engine/responder.go:243-245` and `internal/component/ike/engine/initiator.go:83-85` (full IKE_SA_INIT build, response and request) | `buf := make([]byte, 4096)`, `n := msg.WriteTo(buf, 0)`, `return buf[:n]` | read 2026-07-16, lines confirmed |
 
-**Neither is reachable today.** IKE emits only tiny NO_PROPOSAL_CHOSEN / INVALID_KE
-notify payloads (n << 512); L2TP emits only small DHCPv6-PD replies. This is a latent
-class, not a live bug -- unlike the MRT record overflow (remotely triggerable, already
-fixed), which is what surfaced this class.
+**The two 512-byte notify/reply sites are not reachable today.** IKE emits only tiny
+NO_PROPOSAL_CHOSEN / INVALID_KE notify payloads (n << 512); L2TP emits only small DHCPv6-PD
+replies. This is a latent class, not a live bug -- unlike the MRT record overflow (remotely
+triggerable, already fixed), which is what surfaced this class.
+
+**But the full IKE_SA_INIT builders are closer to live.** `responder.go:243-245` and
+`initiator.go:83-85` assemble a complete IKE_SA_INIT message (including a KE payload whose size
+tracks the negotiated DH group, remotely influenced) into a fixed `make([]byte, 4096)` buffer
+with the identical `WriteTo`/`buf[:n]` shape. Their 4096 buffer is larger, but the size is
+remotely influenced rather than fixed by ze -- so they are the higher-priority members of this
+class and belong in the mandatory sweep-first phase, not an afterthought.
 
 **Durable class fix** (decide in design, do not pick here): either size the buffer to
 `msg.Len()`, or adopt the bounds-checking contract already defined for BGP at
@@ -67,7 +84,9 @@ followed by `WriteTo` / `buf[:n]` shape is the first design step.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/engine/responder.go` - `:317-319` builds a 512-byte buffer, calls `msg.WriteTo(buf, 0)`, sends `buf[:n]`; no capacity check
+- [ ] `internal/component/ike/engine/responder.go` - `:317-319` builds a 512-byte buffer, calls `msg.WriteTo(buf, 0)`, sends `buf[:n]`; no capacity check. ALSO `:243-245` builds a full IKE_SA_INIT response into `make([]byte, 4096)` with the same `WriteTo`/`buf[:n]` shape (same class, remotely-influenced KE size)
+- [ ] `internal/component/ike/engine/initiator.go` - `:83-85` builds a full IKE_SA_INIT request into `make([]byte, 4096)`, `n := msg.WriteTo(buf, 0)`, `return buf[:n]`; no capacity check (same class as responder)
+- [ ] `internal/component/ike/wire/message.go` - `:36` `Message.WriteTo` calls `m.Payloads[i].Payload.WriteTo(buf, off)`, which indexes `buf` directly in each payload writer (e.g. `payload_notify.go:54`); this is where the slice-bounds panic actually fires, and `Message` has no `Len()` method
 - [ ] `internal/component/l2tp/ppp/ipv6_service.go` - `:145-146` declares `var buf [512]byte`, calls `BuildDHCPv6Reply(buf[:], ...)`, uses `buf[:n]`; no capacity check
 - [ ] `internal/core/bgp/wire/writer.go` - defines `BufWriter.WriteTo(buf, off) int` and `CheckedBufWriter` adding `CheckedWriteTo` + `Len()`
 
@@ -91,7 +110,11 @@ followed by `WriteTo` / `buf[:n]` shape is the first design step.
 4. Caller re-slices to `buf[:n]` and hands the slice to the transport.
 5. Transport sends the datagram.
 
-Stage 3 is where the bound is missing: the encoder is trusted to fit, and stage 4 panics if it did not.
+Stage 3 is where the bound is missing AND where the panic fires. The encoder is trusted to fit
+and indexes directly into the buffer, so on overflow it panics INSIDE `WriteTo` (stage 3) before
+`n` is returned -- stage 4 (`buf[:n]`) is never reached. A post-hoc `n > cap(buf)` guard at the
+caller (stage 4) is therefore DEAD CODE and NOT a fix; only a `Len()`-first buffer size or a
+`CheckedWriteTo` contract that bounds each index before writing prevents the panic.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -118,13 +141,13 @@ Stage 3 is where the bound is missing: the encoder is trusted to fit, and stage 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No live payload can exceed 512 bytes at either site today | Deferral rows 2026-07-13; both say "not reachable with today's payloads" | The class is a live bug, not latent, and the spec becomes urgent | Compute worst-case `Len()` for every notify type and DHCPv6 reply shape | unvalidated |
-| A-2 | These two are the only sites of this shape | Rows were filed ad-hoc from one incident, not from a sweep | The fix is incomplete and the class survives | Repo-wide sweep for fixed-size buffer + `WriteTo`/`buf[:n]` | unvalidated |
+| A-2 | These two are the only sites of this shape | ALREADY FALSE: `responder.go:243-245` and `initiator.go:83-85` build a full IKE_SA_INIT into `make([]byte, 4096)` with the same `WriteTo`/`buf[:n]` shape (read 2026-07-16) | The fix is incomplete and the class survives | Repo-wide sweep for fixed-size buffer + `WriteTo`/`buf[:n]` | BROKEN -- at least 4 sites known; a full sweep is mandatory before any fix |
 | A-3 | `CheckedBufWriter` can be reused outside BGP without a tier violation | `internal/core/bgp/wire/writer.go` is under `internal/core/` | The contract must be moved or duplicated | `make ze-tier-check` after a trial import | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Adding `Len()` to the IKE/L2TP encoders is wide (every payload type must report its length) | The diff grows past the two call sites | Fall back to sizing the buffer from a computed worst case at the caller only |
+| R-1 | Adding `Len()` to the IKE/L2TP encoders is wide (every payload type must report its length). CONFIRMED wide, not hypothetical: `wire.Message` (`internal/component/ike/wire/message.go`, the type also spelled `wire.Message` at the call sites) has NO `Len()` method -- a grep for `) Len()` across `internal/component/ike/wire/*.go` returns nothing (read 2026-07-16), so per-payload length accounting must be added to every payload writer | The diff grows past the two call sites | Fall back to sizing the buffer from a computed worst case at the caller only |
 | R-2 | A fix that allocates per packet regresses the hot path | Benchmark regression on the L2TP subscriber path | Keep a session-scoped reusable buffer (`wire.SessionBuffer` pattern) |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
@@ -214,8 +237,8 @@ Stage 3 is where the bound is missing: the encoder is trusted to fit, and stage 
 
 ### Implementation Phases
 
-1. **Phase: Sweep (MANDATORY FIRST)** — resolve A-2 before fixing anything
-   - Verify: a repo-wide sweep lists every fixed-buffer + `WriteTo`/`buf[:n]` site; the spec's site table is updated to match
+1. **Phase: Sweep (MANDATORY FIRST)** — resolve A-2 before fixing anything (A-2 is already BROKEN: the sweep confirms scope, it does not decide whether to sweep)
+   - Verify: a repo-wide sweep lists every fixed-buffer + `WriteTo`/`buf[:n]` site -- INCLUDING the full-message IKE_SA_INIT builders (`responder.go:243`, `initiator.go:83`, `make([]byte, 4096)`) already known to be in this class; the spec's site table is updated to match
 2. **Phase: Decide the contract** — resolve A-3
    - Verify: either `CheckedBufWriter` is importable from IKE/L2TP with `make ze-tier-check` green, or a neutral home is chosen
 3. **Phase: Wiring** — add the failing bound tests at both sites

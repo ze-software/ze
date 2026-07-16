@@ -5,7 +5,7 @@
 | Status | skeleton |
 | Depends | spec-fixit-migrate-sleeps-infra (harness-gated carve-out) |
 | Phase | 0/N (research) |
-| Updated | 2026-07-15 |
+| Updated | 2026-07-16 |
 
 ## Task
 
@@ -55,8 +55,8 @@ attempting the conversion. Skeleton written 2026-07-15 alongside `spec-fixit-sle
 - [ ] `internal/test/cli/register.go:33` (`registerCIRoot("static", ...)`) and `:47` (`registerRoot("vpp", cmdVpp, ...)`).
   → Constraint: both suites are host-runnable and neither appears in `scripts/evidence/qemu-all-tests.sh`, so QEMU never runs them. This spec's work is verifiable natively, unlike its sibling.
 - [ ] `test/vpp/007-fib-route-lookup.ci:51` - the only blind sleep in the vpp bucket: `time.sleep(2.0)` with "Give the VPP backend a moment to acquire its channel", right after `api.wait_for_post_startup(timeout=10.0)` (:48).
-- [ ] `scripts/dev/verify_wiring_docs.py:196` (`check_ci_sleep_ratchet`), `:258` (`check_ci_sleep_justification`), and `test/.ci-sleep-baseline` (currently `126`).
-  → Constraint: the baseline is tight (the tree contains exactly 126). Converting the 3 blind sleeps here takes it to 123, in the same change.
+- [ ] `scripts/dev/verify_wiring_docs.py:196` (`check_ci_sleep_ratchet`), `:258` (`check_ci_sleep_justification`), and `test/.ci-sleep-baseline` (currently `132`).
+  → Constraint: the baseline is tight (the tree contains exactly 132). Converting the 3 blind sleeps here takes it to 129, in the same change.
 
 ### Related Specs
 - [ ] `plan/spec-fixit-static-interface-nexthops.md` - the sibling skeleton owning `005`'s interface-only next-hop dependency.
@@ -172,8 +172,8 @@ sleep-migration work.
 ### Ratchet impact (CONFIRMED)
 
 Total blind sleeps in scope: **3** (`static/004:22`, `static/005:24`, `vpp/007:51`).
-`test/.ci-sleep-baseline` is `126` and the tree contains exactly 126, so full success here
-takes it to **123**. The harness work is large; the ratchet credit is small. That asymmetry
+`test/.ci-sleep-baseline` is `132` and the tree contains exactly 132, so full success here
+takes it to **129**. The harness work is large; the ratchet credit is small. That asymmetry
 is the point of the group rationale, and it should be stated plainly rather than discovered
 mid-implementation.
 
@@ -231,7 +231,7 @@ of the spec.
 | driver waits for the CLI to answer | -> | deterministic wait replacing the blind settle | `test/static/004-show.ci`, `test/static/005-table-interface.ci` |
 | `show route lookup` through the vpp backend | -> | vpp channel-acquired signal replacing the blind 2.0s hold | `test/vpp/007-fib-route-lookup.ci` |
 | SSH show-CLI harness pattern is discoverable | -> | `docs/architecture/testing/ci-format.md` | `test/firewall/004-cli-show.ci` (the reference it documents) |
-| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py:196`) | `test/.ci-sleep-baseline` lowered to 123; `make ze-verify-changed` green |
+| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py:196`) | `test/.ci-sleep-baseline` lowered to 129; `make ze-verify-changed` green |
 
 ## Acceptance Criteria
 
@@ -243,7 +243,7 @@ of the spec.
 | AC-4 | The blind settle at `004:22` and `005:24` | Replaced by a deterministic wait on a real post-apply signal. The bounded CLI retry loop is not a substitute: research must decide whether it already suffices once the CLI can connect, in which case the settle is simply deleted |
 | AC-5 | `test/vpp/007-fib-route-lookup.ci` | The "lookup-test: no peers match selector" blocker is root-caused and fixed, then the blind `time.sleep(2.0)` (:51) is replaced by a wait on the vpp backend's channel-acquired state |
 | AC-6 | `test/vpp/005-mpls-push.ci`, `test/vpp/006-iface-create.ci` | Their blockers are either fixed or explicitly re-scoped out. Neither contains a blind sleep, so neither changes the ratchet; no bounded poll in them is converted |
-| AC-7 | Any commit that removes sleeps | `test/.ci-sleep-baseline` lowered by exactly the number removed, same change (126 -> 123 if all three land) |
+| AC-7 | Any commit that removes sleeps | `test/.ci-sleep-baseline` lowered by exactly the number removed, same change (132 -> 129 if all three land) |
 | AC-8 | Every sleep left in a touched `.ci` file | Still carries a justifying comment; `check_ci_sleep_justification` green on the changed files |
 | AC-9 | The SSH show-CLI harness | Documented so the next test needing a show-CLI assertion finds the pattern instead of rediscovering it (`ai/rules/discovery-updates.md`) |
 | AC-10 | Full suite after the changes | `bin/ze-test static` and `bin/ze-test vpp` green; `test/firewall/004-cli-show.ci` (the reference) still green |
@@ -263,7 +263,7 @@ of the spec.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Large harness effort for 3 sleeps of ratchet credit | noticing mid-implementation that 126 -> 123 is the entire numeric payoff | stated up front in Problem / Evidence; the real value is the tests actually testing `show static`, not the ratchet. Judge the spec on that |
+| R-1 | Large harness effort for 3 sleeps of ratchet credit | noticing mid-implementation that 132 -> 129 is the entire numeric payoff | stated up front in Problem / Evidence; the real value is the tests actually testing `show static`, not the ratchet. Judge the spec on that |
 | R-2 | The static tests are red today and the "conversion" silently becomes a repair | AC-1 comes back red | AC-1 is the first action; re-scope openly rather than folding a repair into a migration |
 | R-3 | An SSH-enabled static test locks itself out or hangs (the `firewall/004` loopback trap, :102-111) | the CLI times out with no error | copy the `allow-loopback` reasoning; static declares no firewall, so the trap likely does not apply, but confirm rather than assume |
 | R-4 | `005`'s interface-next-hop dependency blocks it regardless of the harness | 005 red while 004 green after the same change | split: land 004 alone, defer 005 against `plan/spec-fixit-static-interface-nexthops.md` |
@@ -287,7 +287,7 @@ Unit tests apply only where research adds Go-side support.
 | Field | Range | Notes |
 |-------|-------|-------|
 | any new wait timeout | bounded, > 0 | times out naming the awaited signal |
-| `test/.ci-sleep-baseline` | non-negative integer, monotonically decreasing | 126 -> 123 if all three conversions land |
+| `test/.ci-sleep-baseline` | non-negative integer, monotonically decreasing | 132 -> 129 if all three conversions land |
 | SSH port in the test config | fixed 2222 per the reference, or dynamic | depends on A-3 (netns isolation) |
 
 ### Functional Tests
@@ -316,7 +316,7 @@ Unit tests apply only where research adds Go-side support.
 - `test/static/005-table-interface.ci` - SSH harness + blind settle at :24 converted (may block on interface next-hops).
 - `test/vpp/007-fib-route-lookup.ci` - blocker fixed + blind sleep at :51 converted; the stale `plan/spec-vpp-fib-query.md` Design ref (:1) corrected while in the file.
 - `test/vpp/005-mpls-push.ci`, `test/vpp/006-iface-create.ci` - blockers only; no sleep change.
-- `test/.ci-sleep-baseline` - lowered by the number of sleeps removed (126 -> 123 if all land).
+- `test/.ci-sleep-baseline` - lowered by the number of sleeps removed (132 -> 129 if all land).
 - Production files: NONE expected. An offline fallback for `show static` (A-6) or a vpp channel-acquired signal (A-5) would each add one, and each needs its own justification before being written.
 
 ### Integration Checklist
@@ -371,7 +371,7 @@ Unit tests apply only where research adds Go-side support.
 |-------------|--------------|
 | static tests actually exercise `show static` | `bin/ze-test static` green; the assertion is on real daemon output |
 | vpp 007 blocker fixed + sleep converted | `bin/ze-test vpp` green |
-| Ratchet lowered | `cat test/.ci-sleep-baseline` shows 123 (or the count actually achieved); `scripts/dev/verify_wiring_docs.py` green |
+| Ratchet lowered | `cat test/.ci-sleep-baseline` shows 129 (or the count actually achieved); `scripts/dev/verify_wiring_docs.py` green |
 | Harness documented | the pattern is findable from `ai/INDEX.md` / `docs/architecture/testing/ci-format.md` |
 | No regressions | `bin/ze-test firewall` green |
 

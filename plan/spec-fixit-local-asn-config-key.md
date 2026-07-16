@@ -19,12 +19,18 @@
 ## Task
 
 **Two BGP plugins read a config key that does not exist, so both silently degrade to
-a zero local AS.** `extractLocalASN` is duplicated verbatim in the `role` and `gr`
-plugins. Both read `bgpSubtree["local-as"]`. The config tree carries the global local
-AS at `bgp/session/asn/local`, never at `bgp/local-as`. Both copies therefore return
-0 for every real configuration, and each caller treats 0 as a valid answer rather
-than a lookup failure (`ai/rules/fail-closed-guards.md`: a zero value must never be
-a valid-looking answer).
+a zero local AS.** `extractLocalASN` is near-duplicated in the `role` and `gr`
+plugins -- NOT verbatim. Both read `bgpSubtree["local-as"]`, but the copies diverge:
+role's coerces string-delivered leaves and warns on every miss
+(`internal/component/bgp/plugins/role/config.go:249-257`); gr's has neither a `string`
+case nor any warning (`internal/component/bgp/plugins/gr/gr_llgr.go:261-279`). The
+config tree carries the global local AS at `bgp/session/asn/local`, never at
+`bgp/local-as`. Both copies therefore return 0 for every real configuration, and each
+caller treats 0 as a valid answer rather than a lookup failure
+(`ai/rules/fail-closed-guards.md`: a zero value must never be a valid-looking answer).
+The divergence matters for the fix: because gr lacks the `string` case, a naive key
+rename in gr still returns 0 for string-delivered leaves, so the two copies cannot be
+repaired by the same one-line change.
 
 Found on 2026-07-16 while verifying an unrelated deferral row (AS-Confederation OTC,
 now `plan/spec-bgp-deferred-confederation-otc.md`). Not previously in any spec's scope.
@@ -34,7 +40,7 @@ now `plan/spec-bgp-deferred-confederation-otc.md`). Not previously in any spec's
 | # | Fact | Evidence |
 |---|------|----------|
 | 1 | The role plugin reads key `local-as` from the BGP subtree | `internal/component/bgp/plugins/role/config.go:236` |
-| 2 | The gr plugin reads the same non-existent key, in a duplicated function | `internal/component/bgp/plugins/gr/gr_llgr.go:266` |
+| 2 | The gr plugin reads the same non-existent key, in a NEAR-duplicate (no `string` case, no warning) | `internal/component/bgp/plugins/gr/gr_llgr.go:261-279` (cf. role's `string` case, `role/config.go:249-257`) |
 | 3 | The real tree carries the global local AS at `bgp` > `session` > `asn` > `local` | `internal/component/bgp/reactor/config.go:480-486`, whose own comment states it |
 | 4 | The YANG declares it at `session/asn/local`; no top-level `local-as` leaf exists | `internal/component/bgp/yang/ze-bgp-conf.yang:85` (the only other `local` leaf, `:446`, is a per-peer override) |
 | 5 | Callers: role at `role.go:155`, gr at `gr.go:175` | both assign the 0 result into live filter state |
@@ -64,6 +70,38 @@ path) or whether each plugin keeps its own reader, per
 `ai/rules/plugin-self-containment.md`. Deleting one copy in favor of an import across
 plugin boundaries may not be legal here: check the tier rules first.
 
+## Key Design Decision
+
+**Preferred fix: populate the local AS the plugins already receive, do NOT add a second
+raw-tree read.** The filter API already carries the local AS for exactly this purpose:
+`filterapi.PeerFilterInfo.LocalAS` (`internal/component/bgp/filterapi/filterapi.go:36`,
+commented "Local AS number (for iBGP detection)"). The reactor already parses the local
+AS and populates this field on the readvertise/stale path
+(`internal/component/bgp/reactor/reactor_api_batch.go:829-833` sets `LocalAS: localAS`).
+The forward-path builder OMITS it: `buildForwardFacts` constructs `PeerFilterInfo` with
+Address, PeerAS, Name and GroupName only
+(`internal/component/bgp/reactor/peer_forward_facts.go:123-128`) -- and the reactor
+already has the value in scope there (`s.GlobalLocalAS`, read four lines below at `:134`).
+
+Preferred approach: fill `LocalAS` on the forward path from the reactor's already-parsed
+effective local AS, then have both plugins read `dest.LocalAS` instead of re-parsing raw
+JSON. This deletes BOTH `extractLocalASN` copies (root cause removed, not renamed), avoids
+reimplementing group/peer inheritance of the local AS inside plugin JSON, and fixes iBGP
+detection under a per-peer local-as override: the reactor computes the EFFECTIVE local AS
+per peer, whereas a global `local-as` / `session/asn/local` key read hard-codes the global
+value and mis-detects iBGP whenever a peer overrides it (`ze-bgp-conf.yang:446-450`).
+
+Fallback (raw-tree-key fix): rename the key each copy reads to `session/asn/local`. Lower
+blast radius, but keeps two readers, reimplements inheritance in JSON, and gets the
+per-peer-override case WRONG. Take it only if the forward-path field cannot be populated
+for some peer class; justify against `ai/rules/plugin-self-containment.md` and the tier
+rules first.
+
+**Related spec / ordering.** `plan/spec-bgp-deferred-confederation-otc.md` schedules this
+same role-plugin key fix as its Phase-1 "Prerequisite" (that spec's Implementation step 1
+and assumption A-3 both depend on OTC egress stamping working first). That spec should
+declare `Depends` on THIS spec, and this one should land first.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -91,7 +129,7 @@ plugin boundaries may not be legal here: check the tier rules first.
 - [ ] `internal/component/bgp/plugins/role/config.go` - `extractLocalASN` reads `bgpSubtree["local-as"]` at `:236`, returns 0 on miss with no warning
 - [ ] `internal/component/bgp/plugins/role/role.go` - `:155` stores the result; `getLocalASN` at `:66` serves it to the filter
 - [ ] `internal/component/bgp/plugins/role/otc.go` - `:429-436` skips the egress stamp when the ASN is 0
-- [ ] `internal/component/bgp/plugins/gr/gr_llgr.go` - `:261-266` duplicate of the same broken reader
+- [ ] `internal/component/bgp/plugins/gr/gr_llgr.go` - `:261-279` near-duplicate of the same broken reader, but WITHOUT the `string` case or warnings that role has
 - [ ] `internal/component/bgp/plugins/gr/gr.go` - `:175` assigns it into `egressFilterState.localAS`
 - [ ] `internal/component/bgp/plugins/gr/gr_egress.go` - `:83` iBGP detection; `:97` the withdrawal branch it wrongly takes
 - [ ] `internal/component/bgp/reactor/config.go` - `:480-486` the correct read of `session/asn/local`
@@ -158,7 +196,7 @@ plugin boundaries may not be legal here: check the tier rules first.
 |-------------|---|--------------|------|
 | Config sets `bgp/session/asn/local` | → | `role.extractLocalASN` via the delivered section | `TestRoleLocalASNFromReactorTree` |
 | Config sets `bgp/session/asn/local` | → | `gr.extractLocalASN` into `egressFilterState.localAS` | `TestLLGREgressIBGPClassification` |
-| Operator config to OTC on the wire | → | `role/otc.go` egress stamp | `test/bgp/otc-egress-stamp.ci` |
+| Operator config to OTC on the wire | → | `role/otc.go` egress stamp | `test/plugin/role-otc-egress-stamp.ci` (exists -- extend, do not duplicate) |
 
 ## Acceptance Criteria
 
@@ -180,7 +218,7 @@ plugin boundaries may not be legal here: check the tier rules first.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `otc-egress-stamp` | `test/bgp/otc-egress-stamp.ci` | Operator configures a global local AS and a customer peer, and the announced route carries OTC set to that AS | |
+| `otc-egress-stamp` | extend `test/plugin/role-otc-egress-stamp.ci` (already committed) -- do NOT add a duplicate `test/bgp/otc-egress-stamp.ci` | Operator configures a global local AS and a customer peer, and the announced route carries OTC set to that AS | |
 | `llgr-stale-ibgp-noexport` | `test/bgp/llgr-stale-ibgp-noexport.ci` | A stale route to a non-LLGR iBGP peer arrives with NO_EXPORT and LOCAL_PREF=0 rather than as a withdrawal | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -222,6 +260,22 @@ plugin boundaries may not be legal here: check the tier rules first.
 ## Design Insights
 <!-- LIVE -- write IMMEDIATELY when you learn something -->
 - A unit test that hand-writes its input tree proves the parser reads its own fixture, nothing more. Both copies of this reader had passing tests throughout.
+- A committed functional test already asserts the OTC egress stamp on the wire:
+  `test/plugin/role-otc-egress-stamp.ci` (added in cf17879de) expects `C023040000FDE8`
+  (OTC = AS 65000) at the destination Customer peer (`:25`). Its config sets NO global
+  local AS and NO top-level `local-as`; it sets only per-peer `session/asn/local 65000`
+  (`:109`, `:139`). Two consequences for this spec:
+  1. The proposed `test/bgp/otc-egress-stamp.ci` DUPLICATES this file. Extend the existing
+     one; do not add a second copy.
+  2. If that test genuinely passes, it CONTRADICTS Consequence 1 ("Ze never adds the OTC
+     attribute ... whatever the configuration"): OTC is stamped from a per-peer local AS
+     with no global key configured, while `otc.go:429` guards on `getLocalASN()` (which
+     reads the global-key `filterLocalASN`, `role.go:60-70`). Either the stamp reaches the
+     wire via a path other than `getLocalASN()` -- making the root-cause analysis
+     incomplete -- OR the test passed vacuously through the exit-code-masks-BGP-assertions
+     defect (`internal/test/runner/peer_contract.go:10-17`). It DOES carry
+     `expect=bgp:...hex=...` wire assertions (not exit-code-only), so vacuity is not
+     obvious; resolve which during design BEFORE trusting Consequence 1.
 
 ## Known Limitations
 - [To be filled during design]

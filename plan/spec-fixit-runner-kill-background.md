@@ -25,10 +25,12 @@ only `Process.Kill()` calls are teardown or timeout paths, verified 2026-07-16:
 | `internal/test/runner/runner_exec.go:430` | `var bgProcs []*exec.Cmd` -- the tracking slice |
 | `internal/test/runner/runner_exec.go:431-436` | `defer func(){ ... p.Process.Kill() }` -- teardown only, runs when the test ends |
 | `internal/test/runner/runner_exec.go:146`, `:161`, `:220` | ze-peer teardown / timeout |
-| `internal/test/runner/runner_exec_util.go:368` | command timeout |
+| `internal/test/runner/runner_exec_util.go:368` | the forced `Process.Kill()` inside `terminateGracefully` -- a SIGTERM-then-SIGKILL graceful-stop helper invoked at teardown (`runner_exec.go:963`), NOT a command-timeout path |
 
-Background processes are started at `runner_exec.go:759` (`cmd.Mode == modeBackground`).
-Nothing between start and teardown can terminate one.
+Background processes are started at `runner_exec.go:759` (`cmd.Mode == modeBackground`,
+`modeBackground` defined at `runner_exec_util.go:113`). The append at `:759-760` is
+`bgProcs = append(bgProcs, proc)` -- a bare `*exec.Cmd` with NO name field. Nothing
+between start and teardown can terminate one, and nothing today can name one.
 
 **What this blocks.** Any behavior that fires only on peer death cannot be observed
 end to end. The known case is IPsec DPD liveness teardown: prove the initiator tears
@@ -44,7 +46,11 @@ commit gate. `plan/learned/1107-test-coverage-gaps.md:59-63` records the gap and
 names `spec-fixit-runner-kill-background.md` as its owner -- this file makes that true.
 
 **Scope.** Add a runner primitive to stop a named background process at a chosen step.
-It is test infrastructure, not product code. Design must settle: how a `.ci` names the
+It is test infrastructure, not product code. Two distinct pieces of work: (a) a NAMING
+grammar -- background processes have no name field today (the `:759-760` append stores a
+bare `proc`), so a first-class way to name a background process at start and reference it
+later must be ADDED to the grammar; this is the bulk of the grammar work, not a lookup.
+And (b) the stop primitive itself. Design must settle: how a `.ci` names the
 target process, which signal is sent (SIGKILL vs SIGTERM -- DPD needs a peer that stops
 answering, and SIGTERM may let strongSwan/ze send a DELETE, which defeats the test), and
 whether the runner waits for the process to actually exit before advancing.
@@ -73,7 +79,7 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 
 **Source files read:**
 - [ ] `internal/test/runner/runner_exec.go` - `:430` tracks `bgProcs`; `:431-436` kills them only in a deferred teardown; `:759` starts `modeBackground` processes; `:922` picks the foreground daemon as "the last non-peer background process"
-- [ ] `internal/test/runner/runner_exec_util.go` - `:368` kills on command timeout only
+- [ ] `internal/test/runner/runner_exec_util.go` - `:113` defines `modeBackground`; `:368` is the forced `Process.Kill()` inside `terminateGracefully`, the SIGTERM-then-SIGKILL graceful-stop helper invoked at teardown (`runner_exec.go:963`) -- not a command-timeout path
 - [ ] `internal/test/runner/record_parse.go` - parses `.ci` directives; a new directive registers here
 
 **Behavior to preserve:**
@@ -120,9 +126,9 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A killed responder is indistinguishable from a silent peer, so DPD fires | RFC 7296 liveness: DPD triggers on unanswered retransmits | SIGKILL may cause a TCP/UDP-level error ze treats differently from silence, and DPD never fires | Prototype: kill the responder, observe ze's logs for DPD probe retransmits | unvalidated |
-| A-2 | Background processes can be uniquely named in `.ci` today | `runner_exec.go:759` starts them; naming is unverified | The directive needs a naming scheme added to the grammar first, widening scope | Read `record_parse.go` `modeBackground` parsing | unvalidated |
-| A-3 | This primitive is the only thing blocking the DPD test | `plan/learned/1107:59-63` says so | Restoring the `.ci` needs more (e.g. the bgp-namespace event-subscription gap, `spec-fixit-plugin-event-subscription`) | Prototype the restored `.ci` end to end | unvalidated |
+| A-1 | A killed responder is indistinguishable from a silent peer, so DPD fires | RFC 7296 liveness: DPD triggers on unanswered retransmits | SIGKILL may cause a TCP/UDP-level error ze treats differently from silence, and DPD never fires | Prototype: kill the responder, observe ze's logs for DPD probe retransmits | unvalidated (BLOCKS AC-4) |
+| A-2 | Naming a background process requires NEW grammar -- no name field exists today | Code-verified 2026-07-16: `modeBackground` (`runner_exec_util.go:113`) at `runner_exec.go:759`; the append `:759-760` stores a bare `proc` with no name | Confirms the naming grammar is a first-class phase (the bulk of the grammar work), not a lookup under an existing scheme | Read of `runner_exec.go:759-760` and `runner_exec_util.go:113` | resolved: new naming grammar required |
+| A-3 | This primitive is the only thing blocking the DPD test | `plan/learned/1107:59-63` says so | Restoring the `.ci` needs more (e.g. the bgp-namespace event-subscription gap, `spec-fixit-plugin-event-subscription`) | Prototype the restored `.ci` end to end | unvalidated (BLOCKS AC-4) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -146,7 +152,7 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 | AC-1 | A `.ci` names a background process and stops it at step N | The process is terminated at step N, before step N+1 runs |
 | AC-2 | The stop directive names an unknown process | The test FAILS with a clear error; it does not silently pass (`ai/rules/fail-closed-guards.md`) |
 | AC-3 | A test that stops a background process then ends | Teardown does not error on the already-dead process; no leaked processes |
-| AC-4 | An IPsec DPD `.ci` kills the responder | The initiator tears the SA down after the DPD interval, observable via `show vpn ipsec sa` |
+| AC-4 | An IPsec DPD `.ci` kills the responder | The initiator tears the SA down after the DPD interval, observable via `show vpn ipsec sa`. BLOCKED-BY (both unvalidated, must be confirmed first): A-1 (does SIGKILL read as DPD-silence, or a transport error ze handles differently?) and A-3 (`spec-fixit-plugin-event-subscription` may also gate this). AC-4 cannot be claimed until both are validated |
 | AC-5 | Every pre-existing `.ci` | Parses and runs exactly as before |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -194,7 +200,7 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 | /implement Stage | Spec Section |
 |------------------|--------------|
 | 1. Read spec | This file |
-| 2. Audit | Files to Modify; resolve A-2 |
+| 2. Audit | Files to Modify; naming grammar is a first-class phase (A-2 verified: new grammar needed) |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. Full verification | `make ze-verify` |
@@ -205,8 +211,9 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 1. **Phase: Wiring (MANDATORY FIRST)** — add the directive to the parser with a stub executor
    - Tests: `TestParseStopBackgroundDirective`
    - Verify: the directive parses; the executor is a stub so `stop-background.ci` FAILS
-2. **Phase: Naming** — resolve A-2; give background processes addressable names
-   - Verify: a `.ci` can name a background process at start
+2. **Phase: Naming grammar (first-class, the bulk of the grammar work)** — ADD a way for a `.ci` to name a background process at start and reference it later. Verified (A-2): no name field exists today (the `:759-760` append stores a bare `proc`), so this adds new grammar in `record_parse.go` plus a name alongside the tracked `*exec.Cmd`; it is not a lookup under an existing scheme
+   - Tests: `TestParseStopBackgroundDirective` (naming half)
+   - Verify: a `.ci` can name a background process at start and the name is stored alongside its `*exec.Cmd`
 3. **Phase: Stop** — implement lookup + signal + reap
    - Tests: `TestStopBackgroundKillsNamedProcess`, `TestTeardownToleratesStoppedProcess`
    - Verify: `test/runner/stop-background.ci` goes green

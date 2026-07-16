@@ -29,10 +29,9 @@ Thomas approved recording now and deciding later. Do NOT implement from this
 skeleton without an explicit decision on the Options table below.
 
 Scope of this spec: the `min-elements`/`max-elements` enforcement gap in the YANG
-validator only. The two live escalations it contributed to
-(`plan/spec-fixit-tacacs-empty-profile-mapping.md`,
-`plan/spec-fixit-radius-empty-profile-mapping.md`) are tracked in their own specs
-and are NOT re-litigated here.
+validator only. The two live escalations it contributed to (the TACACS and RADIUS
+empty-profile-mapping defects) were tracked and resolved in their own specs, since
+closed and git-rm'd, and are NOT re-litigated here.
 
 ## Required Reading
 
@@ -64,8 +63,8 @@ no wire behavior.
   → Constraint: the mandatory-child loop (:619-629) cannot compensate: it fires only on `child.Mandatory == yang.TSTrue`, and goyang never derives `Mandatory` from `min-elements`.
   → Constraint: the leaf-list guard (:669) is `if str, ok := value.(string); ok && str != ""`. Both the type assertion and the emptiness test skip the branch, `continue` at :692.
   → Constraint: the comment at :667-668 ("Bracket leaf-lists are stored as space-separated strings") is STALE. That is not the shape `Tree.ToMap` produces for a multi-member leaf-list.
-- [ ] `internal/component/config/tree.go` - `ToMap` (:866), leaf-list rendering (:883-893)
-  → Constraint: THIS is the producer of the shape `walkTree` consumes, and it renders a leaf-list three different ways by member count: 0 active members → key OMITTED (:886-887); 1 → `result[k] = active[0]`, a bare `string` (:888-889); 2+ → `result[k] = active`, a `[]string` (:890-891).
+- [ ] `internal/component/config/tree.go` - `ToMap` (:884), leaf-list rendering (:901-911)
+  → Constraint: THIS is the producer of the shape `walkTree` consumes, and it renders a leaf-list three different ways by member count: 0 active members → key OMITTED (:904-905); 1 → `result[k] = active[0]`, a bare `string` (:906-907); 2+ → `result[k] = active`, a `[]string` (:908-909).
   → Decision: the three-way shape is what makes cardinality unreachable. The only count that survives the `value.(string)` assertion at validator.go:669 is exactly 1.
 - [ ] `internal/component/config/cli/cmd_validate.go` - `runValidation` (:240), `yangSectionsToValidate` (:50-54), the only production caller of the YANG tree validator (:277)
   → Constraint: `ValidateTreeAllModules` has exactly ONE non-test caller in the tree. YANG tree validation runs on the `ze config validate` path ONLY.
@@ -97,7 +96,7 @@ after use; a deletion script is at `tmp/delete-yang-min-elements-spec.sh` becaus
 | Probe case | VRRP declares | Result | Reading |
 |-----------|---------------|--------|---------|
 | `virtual-address [ 192.0.2.1 ]` (1 member) | min 1, max 16 | 0 errors | Correct, but only by accident: this is the ONLY shape that reaches `checkCardinality`, and count==1 trivially satisfies both bounds |
-| `virtual-address` absent | min 1 | 0 errors | Mechanism 1: key omitted by `ToMap` (:886-887), never visited by `walkTree` (:632) |
+| `virtual-address` absent | min 1 | 0 errors | Mechanism 1: key omitted by `ToMap` (:904-905), never visited by `walkTree` (:632) |
 | `virtual-address [ ]` (empty brackets) | min 1 | 0 errors | Mechanism 2: `ToMap` yields `""`; skipped by the `str != ""` guard (:669) |
 | `virtual-address [ ...17 addrs... ]` | **max 16** | **0 errors** | Mechanism 3: `ToMap` yields `[]string`; the `value.(string)` assertion (:669) FAILS, branch skipped at :692 |
 | **Contrast:** `sysctl` with 51 `profile` entries | list, max 50 | **1 error:** `sysctl/profile cardinality too many entries: 51 (maximum 50)` | The LIST branch (:658) reaches `checkCardinality` correctly. The helper and the error plumbing both work |
@@ -113,16 +112,16 @@ right and its conclusion holds, but it is incomplete and understates the defect:
 
 | Reported | Verified |
 |----------|----------|
-| Mechanism 1: `walkTree:632` iterates only present keys, so an absent leaf-list never reaches `checkCardinality` | CONFIRMED at `validator.go:632`, with the producing shape at `tree.go:886-887` |
+| Mechanism 1: `walkTree:632` iterates only present keys, so an absent leaf-list never reaches `checkCardinality` | CONFIRMED at `validator.go:632`, with the producing shape at `tree.go:904-905` |
 | Mechanism 2: the guard at `:668` is `if str, ok := value.(string); ok && str != ""`, so an empty string is skipped | CONFIRMED in effect, at `:669` (`:668` is the enclosing `if child.IsLeafList()`) |
-| "`checkCardinality` is only ever invoked with a count >= 1" | Understated. It is only ever invoked with a count of EXACTLY 1. A leaf-list of 2+ members renders as `[]string` (`tree.go:890-891`), fails the `value.(string)` assertion at `:669`, and is skipped |
+| "`checkCardinality` is only ever invoked with a count >= 1" | Understated. It is only ever invoked with a count of EXACTLY 1. A leaf-list of 2+ members renders as `[]string` (`tree.go:908-909`), fails the `value.(string)` assertion at `:669`, and is skipped |
 | "`min-elements 1` can never reject anything" | CONFIRMED, and **`max-elements` on a leaf-list can never reject anything either** — proven by the 17-vs-16 probe. The defect is leaf-list cardinality entirely, not just `min-elements` |
 | The earlier sibling-agent probe (`PROBE absent leaf-list err=<nil>`, `PROBE empty brackets err=<nil>`) via `config.ParseTreeWithYANG` | Results REPRODUCED but MISATTRIBUTED. `ParseTreeWithYANG` (`loader.go:76-131`) never invokes the YANG tree validator at all, so that probe could not have exercised `walkTree`. It shows a real and broader fact (the config LOAD path runs no cardinality validation), not evidence for the `walkTree` mechanisms. `TestCheckCardinality` passing plus this probe is a coincidence of two different gaps. |
 
-The TACACS spec's A-3 row (`plan/spec-fixit-tacacs-empty-profile-mapping.md:295`)
-records the same two mechanisms and reached the same conclusion by the same
-misattributed probe. Its conclusion (the code guard is the only load-bearing
-defence) is correct and unaffected.
+The now-closed TACACS empty-profile-mapping spec's A-3 row recorded the same two
+mechanisms and reached the same conclusion by the same misattributed probe. Its
+conclusion (the code guard is the only load-bearing defence) is correct and
+unaffected.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -135,20 +134,20 @@ defence) is correct and unaffected.
 3. `PruneInactive(tree, schema)` drops `inactive:` subtrees.
 4. **Load path forks here and stops** (`loader.go:128-130`): returns the tree. No validation.
 5. **Validate path only** (`cmd_validate.go:271-277`): `YANGValidatorWithPlugins(nil)`, then per section in `yangSectionsToValidate`, `tree.GetContainer(section).ToMap()`.
-6. `Tree.ToMap` (`tree.go:866`) renders leaf-lists three ways by active-member count (:883-893). **This is where cardinality information is destroyed:** a 0-member leaf-list becomes indistinguishable from an absent one, and count is no longer recoverable by a `string`-typed reader.
+6. `Tree.ToMap` (`tree.go:884`) renders leaf-lists three ways by active-member count (:901-911). **This is where cardinality information is destroyed:** a 0-member leaf-list becomes indistinguishable from an absent one, and count is no longer recoverable by a `string`-typed reader.
 7. `Validator.ValidateTreeAllModules` → `walkTree` (:616) → leaf-list branch (:668) → `checkCardinality` (:782), reached only when the value is a non-empty `string`, i.e. exactly one member.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Parser ↔ Tree | leaf-list members stored in `Tree.multiValues` | [ ] |
-| Tree ↔ Validator | `Tree.ToMap()` → `map[string]any`; leaf-list count collapsed to a 3-way shape (`tree.go:883-893`) | [ ] |
+| Tree ↔ Validator | `Tree.ToMap()` → `map[string]any`; leaf-list count collapsed to a 3-way shape (`tree.go:901-911`) | [ ] |
 | Validator ↔ goyang | `*yang.Entry.ListAttr.{Min,Max}Elements`; `Entry.Mandatory` never set for a leaf-list | [ ] |
 | CLI ↔ Validator | `ze config validate` only; the daemon load path never crosses this boundary | [ ] |
 
 ### Integration Points
 - `checkCardinality` (`validator.go:782`) - already correct, already called correctly from the LIST branch (:658). A fix wires the leaf-list branch to it, it does not add a checker.
-- `Tree.ToMap` (`tree.go:866`) - the shape producer. Any fix must read count from a shape that still carries it.
+- `Tree.ToMap` (`tree.go:884`) - the shape producer. Any fix must read count from a shape that still carries it.
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -169,7 +168,7 @@ All 6 leaf-list rows are inert. Both `list` rows enforce.
 |---|-------------|------|---------------------|----------------------------|
 | 1 | `internal/plugins/vrrp/yang/ze-vrrp-conf.yang:56` — `leaf-list virtual-address` (IPv4), `min-elements 1`, `max-elements 16` | leaf-list | A VRRP IPv4 group MUST advertise at least one virtual address (RFC 9568 Section 5.2.9); at most 16 | Neither bound fires. A group with no `virtual-address`, or `[ ]`, validates clean (probed). 17+ addresses validate clean (probed). |
 | 2 | `internal/plugins/vrrp/yang/ze-vrrp-conf.yang:165` — `leaf-list virtual-address` (IPv6), `min-elements 1`, `max-elements 16` | leaf-list | Same for IPv6; the first address MUST be link-local (enforced separately by the plugin verifier, not by YANG) | Same as #1. Inert on both bounds. |
-| 3 | `internal/component/tacacs/yang/ze-tacacs-conf.yang:91` — `leaf-list profile`, `min-elements 1` | leaf-list | A TACACS+ privilege level mapped to zero profiles is meaningless: it authenticates the user while granting nothing | Inert twice over. Not only is the leaf-list branch unreachable, `tacacs` is not in `yangSectionsToValidate` (`cmd_validate.go:51-53`), so the section is never handed to the validator on any path. Defence is the code guard in `handlePass` (see `plan/spec-fixit-tacacs-empty-profile-mapping.md`). |
+| 3 | `internal/component/tacacs/yang/ze-tacacs-conf.yang:91` — `leaf-list profile`, `min-elements 1` | leaf-list | A TACACS+ privilege level mapped to zero profiles is meaningless: it authenticates the user while granting nothing | Inert twice over. Not only is the leaf-list branch unreachable, `tacacs` is not in `yangSectionsToValidate` (`cmd_validate.go:51-53`), so the section is never handed to the validator on any path. Defence is the code guard in `handlePass` (recorded in the now-closed TACACS empty-profile-mapping spec). |
 
 ### `max-elements` (5 declarations: 3 inert leaf-lists, 2 working lists)
 
@@ -195,7 +194,7 @@ refuse its own saved config. Concretely, per declaration:
 | 1 | vrrp IPv4 `virtual-address` min 1 | `vrrp { group lan { vrid 1; } }` — a group with a VRID and no virtual address, or with `virtual-address [ ]` | **Yes.** Named as the concrete example. A half-configured group is a natural intermediate state an operator can save and commit. Today it is accepted. |
 | 2 | vrrp IPv6 `virtual-address` min 1 | Same shape under `ipv6` | Yes, same reasoning |
 | 1,2 | vrrp `virtual-address` max 16 | A group with 17+ virtual addresses | Unlikely but possible; would newly fail |
-| 3 | tacacs `profile` min 1 | `tacacs-profile { level 9; }` — a level mapped to no profiles | **Yes**, and this is exactly the escalation in `plan/spec-fixit-tacacs-empty-profile-mapping.md`. Note the code guard now DENIES this at runtime, so enforcing it at load turns a silent runtime denial into a loud load failure. That is arguably the desired outcome, but it is still a newly-rejected config. |
+| 3 | tacacs `profile` min 1 | `tacacs-profile { level 9; }` — a level mapped to no profiles | **Yes**, and this is exactly the escalation the now-closed TACACS empty-profile-mapping spec addressed. Note the code guard now DENIES this at runtime, so enforcing it at load turns a silent runtime denial into a loud load failure. That is arguably the desired outcome, but it is still a newly-rejected config. |
 | 4 | as112 `community` max 32 | 33+ communities | Unlikely |
 | 5 | geodns `nameserver` max 9 | 10+ nameservers | Plausible on a large deployment |
 | 6 | iface `sysctl-profile` max 10 | 11+ sysctl profiles on one unit | Plausible |
@@ -215,15 +214,15 @@ claims to "close the gap" must state which of the two paths it closes.
 
 | Option | What it does | For | Against |
 |--------|-------------|-----|---------|
-| **(a) Fix `walkTree` so cardinality enforces** | Make the leaf-list branch read count from a shape that preserves it, and visit declared-but-absent leaf-lists with `MinElements > 0`. Both bounds start firing for all 6 leaf-lists. | The constraint means what it says. `max-elements` starts working too (currently a silent, unreported hole). Uses `checkCardinality` as-is; the LIST branch already proves the pattern. Every future `min-elements` is live for free. | Newly rejects config that loads today (see Upgrade Risk). Needs a migration story. The count-preserving read is not free: `ToMap`'s 3-way shape (`tree.go:883-893`) cannot distinguish 0 members from absent, so a faithful fix likely needs a count source other than `ToMap`, which widens the change beyond the validator. |
+| **(a) Fix `walkTree` so cardinality enforces** | Make the leaf-list branch read count from a shape that preserves it, and visit declared-but-absent leaf-lists with `MinElements > 0`. Both bounds start firing for all 6 leaf-lists. | The constraint means what it says. `max-elements` starts working too (currently a silent, unreported hole). Uses `checkCardinality` as-is; the LIST branch already proves the pattern. Every future `min-elements` is live for free. | Newly rejects config that loads today (see Upgrade Risk). Needs a migration story. The count-preserving read is not free: `ToMap`'s 3-way shape (`tree.go:901-911`) cannot distinguish 0 members from absent, so a faithful fix likely needs a count source other than `ToMap`, which widens the change beyond the validator. |
 | **(b) Delete the declarations** | Remove all 6 leaf-list cardinality declarations; rely on code guards (TACACS `handlePass`, the VRRP plugin verifier). | The schema stops lying. Nothing looks like a constraint it isn't. Zero upgrade risk. Honest today. | Loses declared intent and the operator-facing `description` rationale. Contradicts `ai/patterns/config-option.md` ("maximum native validation"). Directly reverses the TACACS decision from days ago. Discards `max-elements` semantics that a future validator fix would have honoured, and leaves nothing to re-enable. Arguably a workaround for missing behavior (`ai/rules/no-workarounds-for-missing-behavior.md`). |
 | **(c) Enforce only newly-added declarations** | Gate enforcement per declaration (e.g. a `ze:enforce-cardinality` extension, or an allowlist), so new constraints bite and existing ones stay advisory. | No upgrade risk for existing config. Lets new leaves get real validation immediately. | A YANG constraint whose enforcement depends on a side-channel is worse than either honest state: two classes of `min-elements` that look identical. Permanently institutionalizes the bug. Needs new extension machinery + registration. Nobody will ever migrate the grandfathered set, so the split is forever. |
 
 **Recommended: (a), staged — but the recommendation is conditional and the decision is Thomas's.**
 
 Reasoning:
-- (b) is the wrong direction. The precedent set days ago by the TACACS fix
-  (`plan/spec-fixit-tacacs-empty-profile-mapping.md:339`) deliberately KEPT `min-elements 1`
+- (b) is the wrong direction. The precedent set days ago by the now-closed TACACS
+  empty-profile-mapping fix deliberately KEPT `min-elements 1`
   as declared intent, documented it as non-enforcing, and made the code guard load-bearing,
   explicitly so that it "becomes live for free if the `walkTree` gap is ever closed."
   Option (b) throws away the asset that decision was designed to preserve, and would
@@ -248,19 +247,19 @@ The staging is a proposal, not a decision. Steps 1-3 are independently approvabl
 | A-1 | `checkCardinality` is correct and needs no change | Read `validator.go:782-806`; `TestCheckCardinality` (`validator_test.go:35-74`) passes incl. the count-0 row (:51) | A fix would have to change the helper too, widening scope | Read + existing unit test | **confirmed** |
 | A-2 | `walkTree:632` never visits an absent leaf-list, and no other check compensates | Read `validator.go:632`; mandatory loop at :619-629 keys off `child.Mandatory`; goyang `entry.go:613` sets `Mandatory` for `*Leaf` only, `:616-653` (LeafList case) never sets it | The gap would be narrower than recorded | Read of both producer and goyang; probe "absent" → 0 errors | **confirmed** |
 | A-3 | A present-but-empty leaf-list is skipped by the `str != ""` guard at `:669` | Read `validator.go:669`; probe shows `virtual-address [ ]` → `ToMap` yields `""` | — | Probe "empty brackets" → 0 errors | **confirmed** |
-| A-4 | A leaf-list of 2+ members is skipped because `ToMap` yields `[]string` and the `value.(string)` assertion fails | Read `tree.go:890-891` (producer) and `validator.go:669` (consumer); tree map dumped in probe | The `max-elements` finding would be wrong and Option (a) staging step 1 would be unnecessary | Probe: 17 addrs vs `max-elements 16` → 0 errors; map dumped as `[]string{...}` | **confirmed** |
+| A-4 | A leaf-list of 2+ members is skipped because `ToMap` yields `[]string` and the `value.(string)` assertion fails | Read `tree.go:908-909` (producer) and `validator.go:669` (consumer); tree map dumped in probe | The `max-elements` finding would be wrong and Option (a) staging step 1 would be unnecessary | Probe: 17 addrs vs `max-elements 16` → 0 errors; map dumped as `[]string{...}` | **confirmed** |
 | A-5 | `list` cardinality DOES enforce, so the defect is leaf-list-specific | Read `validator.go:658` (list branch calls `checkCardinality` with `len(subMap)`) | The defect would be all of `walkTree`, changing the fix shape | Probe: 51 sysctl profiles vs `max-elements 50` → error raised | **confirmed** |
 | A-6 | The YANG tree validator runs ONLY on `ze config validate`, never at daemon load | `grep` for callers: `ValidateTreeAllModules` has one non-test caller, `cmd_validate.go:277`; `parseTreeWithYANG` (`loader.go:89-131`) returns after `PruneInactive` | The upgrade risk would be far larger (daemon would reject config at boot), and would change the recommendation | Grep of all callers + read of the load path | **confirmed** |
-| A-7 | The comment at `validator.go:667-668` ("stored as space-separated strings") describes a shape `Tree.ToMap` never produces for multi-member leaf-lists | Read `tree.go:883-893`; probe dump shows `string` for 1 member and `[]string` for 17 | Some other producer may deliver that shape on another path, meaning the branch is not wholly dead | Probe dump of the production tree map. NOT exhaustively traced: the set-format parser (`parseSetWithMigration`, `loader.go:134`) and the web/gNMI tree readers were not probed | **unvalidated** — a fix must confirm no caller delivers a space-separated string before deleting that branch |
+| A-7 | The comment at `validator.go:667-668` ("stored as space-separated strings") describes a shape `Tree.ToMap` never produces for multi-member leaf-lists | Read `tree.go:901-911`; probe dump shows `string` for 1 member and `[]string` for 17 | Some other producer may deliver that shape on another path, meaning the branch is not wholly dead | Probe dump of the production tree map. NOT exhaustively traced: the set-format parser (`parseSetWithMigration`, `loader.go:134`) and the web/gNMI tree readers were not probed | **unvalidated** — a fix must confirm no caller delivers a space-separated string before deleting that branch |
 | A-8 | Enforcing `min-elements` would newly reject real operator config | Probe shows `vrrp { group lan { vrid 1; } }` validates clean today; TACACS escalation documents `tacacs-profile { level 9; }` in the wild | The upgrade risk is theoretical and the fix could land unstaged | Probe of the absent-leaf-list shape. No survey of actual deployed configs was done | **unvalidated** — no field config was inspected; the risk is reasoned, not measured |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A fix lands and an operator's saved config is rejected at upgrade | Functional tests break on configs that previously passed; field reports after release | Staged warn-then-reject (Option (a) step 2). Never promote to error in the same release that introduces the warning |
-| R-2 | A future session reads `min-elements 1` in VRRP or TACACS YANG and assumes it is enforced, then removes the load-bearing code guard | A diff deletes a `len(...) == 0` guard citing the YANG constraint | This spec + `plan/spec-fixit-tacacs-empty-profile-mapping.md:151` (R-2 there) record the non-enforcement. The guards have direct tests that would fail |
+| R-2 | A future session reads `min-elements 1` in VRRP or TACACS YANG and assumes it is enforced, then removes the load-bearing code guard | A diff deletes a `len(...) == 0` guard citing the YANG constraint | This spec (and the R-2 row of the now-closed TACACS empty-profile-mapping spec) record the non-enforcement. The guards have direct tests that would fail |
 | R-3 | The `max-elements` hole is silently relied upon: some config in the wild already exceeds a declared max and works | Enforcing `max-elements` breaks a config nobody knew was over-limit | Staging step 1 should ship with a warning first, same as `min-elements`, despite being "just a bug fix" |
-| R-4 | A fix to `Tree.ToMap`'s leaf-list shape to preserve count breaks unrelated consumers | Compile errors, or silent behavior change in web/gNMI/plugin readers that type-assert `string` | Do NOT change `ToMap`. Source the count elsewhere (e.g. `Tree.multiValues` / `activeMembersLocked`, `tree.go:883-884`) or pass the tree, not the map, to the validator |
+| R-4 | A fix to `Tree.ToMap`'s leaf-list shape to preserve count breaks unrelated consumers | Compile errors, or silent behavior change in web/gNMI/plugin readers that type-assert `string` | Do NOT change `ToMap`. Source the count elsewhere (e.g. `Tree.multiValues` / `activeMembersLocked`, `tree.go:901-902`) or pass the tree, not the map, to the validator |
 | R-5 | Fixing `walkTree` creates false confidence that the daemon now validates cardinality, when only `ze config validate` does | A spec or doc claims config load enforces `min-elements` | Option (a) step 3 exists precisely to force that question to be answered separately and explicitly |
 | R-6 | Sections not in `yangSectionsToValidate` (`tacacs`, `as112`, `geodns`) stay unvalidated even after a perfect `walkTree` fix | A fix closes the gap but the TACACS constraint still never fires | Recorded here. Any fix claiming to make TACACS `min-elements 1` live MUST also add `tacacs` to `yangSectionsToValidate` (`cmd_validate.go:50-54`), or say plainly that it does not |
 
@@ -417,7 +416,7 @@ Filling this section requires:
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
-| A regression guard (AC-4, AC-5, AC-6) fails | Stop. The fix changed working behavior. Re-read `tree.go:883-893` |
+| A regression guard (AC-4, AC-5, AC-6) fails | Stop. The fix changed working behavior. Re-read `tree.go:901-911` |
 | A previously-passing functional test now fails on cardinality | This is R-1 made visible, not a test bug. Do NOT weaken the test. Escalate the migration question |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user |
 
@@ -426,7 +425,7 @@ Filling this section requires:
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| The `PROBE ... err=<nil>` evidence via `config.ParseTreeWithYANG` demonstrated the `walkTree` mechanisms | `ParseTreeWithYANG` (`loader.go:76-131`) never calls the YANG tree validator at all. The probe results were real and reproducible but could not have exercised `walkTree`; they evidenced a different, broader gap | Grepping callers of `ValidateTreeAllModules` after a control probe (17 addrs vs `max-elements 16`) unexpectedly returned 0 errors, which the two stated mechanisms could not explain | The conclusion survived, but for a partly different reason. Recorded in `plan/spec-fixit-tacacs-empty-profile-mapping.md:295` too, where A-3 cites the same misattributed probe |
+| The `PROBE ... err=<nil>` evidence via `config.ParseTreeWithYANG` demonstrated the `walkTree` mechanisms | `ParseTreeWithYANG` (`loader.go:76-131`) never calls the YANG tree validator at all. The probe results were real and reproducible but could not have exercised `walkTree`; they evidenced a different, broader gap | Grepping callers of `ValidateTreeAllModules` after a control probe (17 addrs vs `max-elements 16`) unexpectedly returned 0 errors, which the two stated mechanisms could not explain | The conclusion survived, but for a partly different reason. Recorded in the now-closed TACACS empty-profile-mapping spec too, where its A-3 row cites the same misattributed probe |
 | `checkCardinality` is invoked with count >= 1, so only `min-elements` is inert | It is invoked with count EXACTLY 1. `max-elements` on a leaf-list is equally inert — a 17-member leaf-list renders as `[]string` and is skipped | Control probe: 17 addresses against `max-elements 16` produced 0 errors | Doubled the blast radius: 6 inert declarations, not 3. Changed the recommendation (staging step 1 exists only because of this) |
 
 ### Failed Approaches
@@ -443,7 +442,7 @@ Filling this section requires:
 ## Design Insights
 
 - **The gap is reachability, not logic.** `checkCardinality` is correct and well-tested. The LIST branch reaches it correctly. Only the leaf-list branch cannot. A fix that "adds validation" has misdiagnosed the problem.
-- **`Tree.ToMap` destroys the information the validator needs.** Rendering by member count (0 → absent, 1 → `string`, 2+ → `[]string`, `tree.go:883-893`) is reasonable for readers that want values, and fatal for a reader that wants a count. The validator is the only consumer that needs cardinality, and it is the one consuming the lossy shape.
+- **`Tree.ToMap` destroys the information the validator needs.** Rendering by member count (0 → absent, 1 → `string`, 2+ → `[]string`, `tree.go:901-911`) is reasonable for readers that want values, and fatal for a reader that wants a count. The validator is the only consumer that needs cardinality, and it is the one consuming the lossy shape.
 - **A stale comment documented the bug as the design.** `validator.go:667-668` says leaf-lists are "stored as space-separated strings." That shape is not what `ToMap` produces. The code matches the comment; both are wrong; `strings.Fields` on a single-member string is why one count works.
 - **Two independent gaps produced one consistent-looking story.** The load path does not validate; the leaf-list branch cannot validate. Either alone explains `err=<nil>`. This is exactly the `ai/rules/no-fabrication.md` failure mode: a coherent narrative that survives because no control case was run.
 
@@ -500,7 +499,7 @@ Found, not fixed:
 None. No behavior changed.
 
 ### Deviations from Plan
-- The task described 2 mechanisms and 3 affected declarations. Verification found a third mechanism (the `[]string` shape, `tree.go:890-891` vs `validator.go:669`) and 6 affected declarations. The spec records the wider finding; see Mistake Log.
+- The task described 2 mechanisms and 3 affected declarations. Verification found a third mechanism (the `[]string` shape, `tree.go:908-909` vs `validator.go:669`) and 6 affected declarations. The spec records the wider finding; see Mistake Log.
 - The task's supplied probe evidence was reproduced but found to be misattributed. Recorded rather than papered over, per `ai/rules/no-fabrication.md`.
 
 ## Implementation Audit
@@ -542,7 +541,7 @@ None. No behavior changed.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| The defect is verified, not assumed | Probe through the real validator path + source read of every producer | `validator.go:632`, `:669`, `:692`, `:782`; `tree.go:883-893`; goyang `entry.go:613`, `:616-653`. Probe: absent / `[ ]` / 17-addrs all → 0 errors |
+| The defect is verified, not assumed | Probe through the real validator path + source read of every producer | `validator.go:632`, `:669`, `:692`, `:782`; `tree.go:901-911`; goyang `entry.go:613`, `:616-653`. Probe: absent / `[ ]` / 17-addrs all → 0 errors |
 | The probe harness can observe a real failure | Control case | 51 sysctl profiles vs `max-elements 50` → `too many entries: 51 (maximum 50)`. Without this control the leaf-list results are unfalsifiable |
 | Blast radius is complete | Exhaustive grep | `grep -rn "min-elements\|max-elements" --include="*.yang" internal/` → 10 hits, 8 declarations, all classified list vs leaf-list |
 | No production code changed | git status | Only `plan/spec-fixit-yang-min-elements-inert.md` (new) and `tmp/delete-yang-min-elements-spec.sh` (probe cleanup script) |
@@ -579,8 +578,8 @@ None. No behavior changed.
 | `plan/spec-fixit-yang-min-elements-inert.md` | Yes | This file |
 | `internal/plugins/vrrp/yang/ze-vrrp-conf.yang` | Yes | `grep -rn "min-elements" --include="*.yang" internal/` → `:56`, `:165` |
 | `internal/component/tacacs/yang/ze-tacacs-conf.yang` | Yes | same grep → `:91` |
-| `plan/spec-fixit-tacacs-empty-profile-mapping.md` | Yes | `ls` → 33K, 2026-07-16 11:52 |
-| `plan/spec-fixit-radius-empty-profile-mapping.md` | Yes | `ls` → 41K, 2026-07-16 12:11 (concurrent agent) |
+| TACACS empty-profile-mapping spec (referenced) | Closed | Existed at write time (`ls` → 33K, 2026-07-16 11:52); since closed and git-rm'd, referenced as history only |
+| RADIUS empty-profile-mapping spec (referenced) | Closed | Existed at write time (`ls` → 41K, 2026-07-16 12:11); since closed and git-rm'd, referenced as history only |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -598,7 +597,7 @@ None. No behavior changed.
 | A-1 | confirmed | `validator.go:782-806` read; `TestCheckCardinality` count-0 row (`validator_test.go:51`) passes |
 | A-2 | confirmed | `validator.go:632`, `:619-629`; goyang `entry.go:613` (Leaf only), `:616-653` (LeafList sets ListAttr, not Mandatory); probe "absent" → 0 errors |
 | A-3 | confirmed | `validator.go:669`; probe "empty brackets" → `ToMap` yields `""` → 0 errors |
-| A-4 | confirmed | `tree.go:890-891`; probe dump `"virtual-address":[]string{...}`; 17 vs max 16 → 0 errors |
+| A-4 | confirmed | `tree.go:908-909`; probe dump `"virtual-address":[]string{...}`; 17 vs max 16 → 0 errors |
 | A-5 | confirmed | `validator.go:658`; probe 51 vs max 50 → `too many entries: 51 (maximum 50)` |
 | A-6 | confirmed | `ValidateTreeAllModules` non-test callers = 1 (`cmd_validate.go:277`); `loader.go:89-131` returns after `PruneInactive` |
 | A-7 | **unvalidated** | Set-format parser and web/gNMI readers not probed. BLOCKING for any fix that deletes the `string` branch. Carried forward deliberately: a skeleton does not need it settled, an implementation does |

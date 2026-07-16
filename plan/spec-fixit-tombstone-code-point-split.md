@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | - |
+| Depends | spec-fixit-tombstone-ebgp-transitive |
 | Phase | - |
 | Updated | 2026-07-16 |
 
@@ -31,11 +31,21 @@ Consequence, verified at the producer: `ExtractUpstreamAttrDiscard` searches for
 only, so **a 252 marker ze itself wrote is invisible to ze's own upstream-merge**, and
 draft Section 5.1's merge rule silently fails against ze's own egress marker.
 
-**Nothing is broken today.** Commit `706b77b7d` closed the LIVE bug by teaching the
-egress path to recognise both codes: `attrTombstoneLegacy = 253`
-(`wireu/tombstone.go:26`) and `isTombstoneCode` (`:29-31`) returns true for either.
-This spec is about **unifying the code points** and following the rename through the
-file and symbol names, so the dual-code compatibility shim can be deleted.
+**The EGRESS path is not broken today, but the MERGE path is.** Commit `706b77b7d`
+closed the LIVE egress bug by teaching the egress path to recognise both codes:
+`attrTombstoneLegacy = 253` (`wireu/tombstone.go:26`) and `isTombstoneCode` (`:29-31`)
+returns true for either. That shim covers ONLY wireu egress recognition; the message-tier
+merge path is still split and two breakages are LIVE:
+- `ExtractUpstreamAttrDiscard` (`attr_discard.go:135`) searches `attrCodeAttrDiscard`
+  (253) only, so a 252 marker a ze speaker wrote via `WriteTombstone` is invisible to
+  a second ze speaker's merge. An RFC 7606 Section 5.1 attr-discard merge between two
+  ze speakers therefore FAILS NOW (this is AC-2's red case).
+- `rebuildWithAttrDiscard` (`attr_discard.go:181`) removes only `attrCodeAttrDiscard`
+  (253) before re-inserting, so a received 252 marker is not stripped and DUPLICATES on
+  rebuild.
+This spec **unifies the code points** (which fixes both merge breakages) and follows
+the rename through the file and symbol names, so the dual-code compatibility shim can be
+deleted.
 
 Points to complete:
 
@@ -173,6 +183,8 @@ nothing emits 252 into an asserted wire today.
 | R-1 | Deleting the dual-recognition shim re-opens the bug `706b77b7d` closed, if any producer is missed | `wireu/tombstone_forward_test.go` goes red, or a marker survives the eBGP boundary transitive | Do not delete `isTombstoneCode` until grep proves one code remains; keep the Section 5.3 tests green throughout |
 | R-2 | The rename churns 12 Go files and buries the one-byte semantic change in noise | Review diff is unreadable | Land the code-point unification and the rename as separate commits, unification first |
 | R-3 | `attr_discard.go` is ~330 lines and 51 of its refs are the old name; a mechanical rename may hit `DiscardEntry`/`DiscardReason*`, which the DRAFT still calls "discard" (Section 4.4 reason codes) | Renaming reason codes contradicts the draft | Rename the ATTRIBUTE (`ATTR_DISCARD` → `ATTR_TOMBSTONE`), keep the draft's "discard reason" vocabulary |
+| R-4 | **DEPENDS on `spec-fixit-tombstone-ebgp-transitive`.** That in-progress sibling owns an unresolved decision (its lines 58-63) on `test/plugin/remove-private-as-export.ci:49`. Its preferred option (b) removes the invalid LOCAL_PREF from the fixture's source frame, so no marker is produced and the `C0FD0405010000` marker byte is deleted from the fixture. That would strand THIS spec's AC-5, Assumption A-2, Wiring Test row 2, and the `remove-private-as-export` functional-test row — all of which key on the fixture asserting a marker on the wire | Sibling closes with option (b), fixture loses its marker line | Do not update the fixture hex until the sibling resolves its decision; if (b) lands, re-home this spec's fixture-based ACs onto a marker-bearing test the sibling keeps |
+| R-5 | **`C0FD`-vs-clear inconsistency — resolve during design, BEFORE Phase 1.** The fixture asserts `C0FD0405010000` (flags `0xC0`, Transitive SET) on an eBGP wire, yet `706b77b7d` added a Transitive clear at `wireu/aspath_rewrite.go:528-542` (`clearTombstoneTransitive` in `rewriteASPathPrepend`) and did NOT touch the fixture. So either the test is RED at HEAD, or this scenario bypasses `rewriteASPathPrepend` via a second egress funnel. The sibling spec (its lines 55-56) confirms the tension: clearing the bit for an eBGP destination makes `remove-private-as-export.ci:49` go RED. This also contradicts this spec's claim that "only the code-point byte changes" (the flags byte may change too) | Rerunning the fixture at HEAD is RED, or a grep shows a second egress path | Determine during design which funnel this fixture exercises and whether its expected flags are `0xC0` or `0x80`; reconcile with the sibling before editing the fixture hex |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 

@@ -643,6 +643,39 @@ the next one. F1 will likely turn other tests red across the 21 files listed bel
 red is a pre-existing false green, not a regression, and must be triaged not silenced
 (`ai/rules/no-workarounds-for-missing-behavior.md`).
 
+| F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go:42-49`, re-read 2026-07-16); `isSelfValidated` returns false ONLY for a check peer (`:60-62`), so with the peer sinked the bare `rec.ExpectExitCode != nil` at `:72` makes it TRUE. `runner_exec.go:1117` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it at `:1141` (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/fail-closed-guards.md` names | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go:1117,1141` (the gate) | Found by the test-219 F4 shard |
+
+-> Evidence (F5, reproduced not inferred): `forward-mpreach-nexthop-self-two-peer.ci`
+turns **PASS in 8.2s while asserting nothing** when sinked, because its only real
+expectations are `expect=json` (`:44`, `:53`). An agent following the guard's literal
+advice will "fix" that file into a green that checks nothing.
+
+-> Decision (F5): two candidate fixes. (a) make the remedy text state the `expect=json`
+consequence so the author chooses knowingly -- a [workaround], it only warns. (b) evaluate
+`validateJSON` outside the peer branch so runner-side JSON assertions survive sinking --
+the [source] fix, since `expect=json` is consumed by the RUNNER, not by ze-peer
+(`internal/test/peer/expect.go:112` ignores `cmd`; json never reaches the peer), so its
+evaluation has no business being gated on the peer path at all.
+
+-> Constraint (F5, scope): this does NOT affect the 8 tests sinked in `4ce173e32` /
+`282663671`. All 8 were checked: **none declares `expect=json`**, so the skipped
+`validateJSON` costs them nothing, and their surviving assertions were proven live by
+deliberately breaking `show-l2tp-statistics`'s `expect=stderr:contains` (red) and
+restoring it byte-exactly (green). The hole is real; those files do not sit in it.
+
+| F6 (open, 2026-07-16) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go:700` sets `msg.Cmd`; the ONLY reader is `report.go:149-150`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go:112`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere) | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go:112`, `record_parse.go:700`, `report.go:149-150` | Found by the test-506 F4 shard |
+
+-> Constraint (F6): this is a THIRD vacuity class, distinct from F1 and F2. F1 = the peer
+never bound. F2 = the peer declared nothing to check. F6 = the peer binds and asserts
+correctly, but the test's PREMISE (that routes exist) was never established, so a
+correct assertion is made against an empty RIB. F1/F2 cannot detect it: nothing about the
+peer block is malformed.
+
+-> Constraint (F6): do NOT bulk-convert. Whether a `cmd=api` line is load-bearing or
+decorative is per-file judgement -- `test-pipe-first-last` needed real injection;
+another file may inject via its `.run` script and carry `cmd=api` as a comment. Read each
+test's VALIDATES line, as F4 requires.
+
 ### Blast radius (verified by scan + spot-checked with `ze-test peer`)
 
 23 check-mode peer blocks in 21 files spawn a ze-peer that exits without listening (D1).

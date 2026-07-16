@@ -17,15 +17,27 @@
 
 ## Task
 
-**`test/pppoe/` is orphaned dead code.** It cannot parse, and nothing runs it. The
-PPPoE Access feature row in `docs/features.md:88` (marked `Partial`) therefore has no
-functional test behind it.
+**`test/pppoe/` is orphaned AND now redundant dead code.** It cannot parse, nothing
+runs it -- but PPPoE Access is NOT uncovered. The 3 `.ci` are stale artifacts of an
+abandoned netns approach that two real functional labs (landed 2026-06-20) superseded.
+Both labs exercise RFC 2516 discovery against a real accel-ppp peer:
 
-Two independent reasons, both verified at the producer on 2026-07-16:
+| Coverage that already exists | Entry point | What it drives |
+|------------------------------|-------------|----------------|
+| accel-ppp Docker lab | `make ze-deployment-pppoe-accel-docker-test` -> `test/pppoe-interop/run.py` (`lab.py`, scenario `test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/`) | Ze's `pppoe-client` interface vs a real accel-ppp AC over a Docker bridge; PPPoE discovery (EtherType 0x8863) |
+| QEMU accel-ppp lab | `ze-qemu-pppoe-accel-test` (`mk/test-integration.mk:423`) -> `scripts/evidence/effective-pppoe-accel.py` | Ze's PPPoE client vs a real accel-ppp AC on a CONFIG_PPPOE kernel in QEMU |
+
+The `.ci` (`pppoe-basic.ci`, `pppoe-vlan.ci` both 2026-05-28) predate that lab
+(2026-06-20); the netns primitive they assume was never built and the labs made it
+unnecessary. This is therefore **low-priority housekeeping (delete stale files), NOT a
+coverage gap** -- sequence it below active feature work.
+
+The narrow defect is nonetheless real. Two independent reasons keep the 3 files silent,
+both verified at the producer on 2026-07-16:
 
 | # | Claim | Verification |
 |---|-------|--------------|
-| 1 | The `.ci` files use an option type the parser rejects | `parseOption` (`internal/test/runner/record_parse.go:295-448`) switches on `optType`. Its cases are: `env`, `skip-os`, `needs-linux`, `skip-env`, `require-tag`. There is **no `netns` case**, so `option=netns:veth=...` falls to the `default:` branch at `:444-445`, which returns `fmt.Errorf("unknown option type %q", optType)`. |
+| 1 | The `.ci` files use an option type the parser rejects | `parseOption` (`internal/test/runner/record_parse.go:295-448`) switches on `optType`. Its 12 cases are: `file`, `asn`, `bind`, `timeout`, `tcp_connections`, `open`, `update`, `env`, `skip-os`, `needs-linux`, `skip-env`, `require-tag`. There is **no `netns` case**, so `option=netns:veth=...` falls to the `default:` branch at `:444-445`, which returns `fmt.Errorf("unknown option type %q", optType)`. |
 | 2 | No suite registers pppoe | `internal/test/cli/register.go` calls `registerCIRoot` 20 times at `:17-36` (appliance, firewall, flow-export, install, ipsec, isis, isis-wire, ospf-wire, ospf, ospfv3, l2tp, l2tp-wire, ldp, managed, policy, rsvpte, static, traffic, ui, vrrp). **pppoe is not among them**; `grep -rni pppoe internal/test/cli/` returns nothing. |
 
 All **3** files are affected, and all 3 carry the rejected directive:
@@ -40,17 +52,25 @@ All **3** files are affected, and all 3 carry the rejected directive:
 tree (`grep -rln "option=netns" test/` returns exactly these three). Nothing else
 depends on the directive, so repairing it serves only these tests.
 
-### Options to consider (this spec RECORDS them; it does NOT choose)
+### Options to consider
+
+**Recommended: Option D + the `TestCIRootsRegistered` guard.** Because the QEMU and
+Docker accel-ppp labs already cover RFC 2516 discovery, repairing the orphaned `.ci`
+(Options A/B/C) buys no coverage that does not already exist, while Option A alone is a
+large netns/veth/root test-infrastructure project. Delete the 3 stale files and keep
+only the generalizable guard so the next orphaned suite is caught automatically.
 
 | Option | What it means | Notes already known |
 |--------|---------------|---------------------|
-| A. Repair the directive | Implement a `netns` case in `parseOption` plus the veth/netns setup it implies | The largest option: needs root/CAP_NET_ADMIN, is Linux-only (`ai/rules/qemu-testing.md` applies), and the runner has no netns primitive today |
-| B. Re-mark the tests | Rewrite the 3 `.ci` onto directives that already exist | All 3 already carry `option=skip-os:value=darwin` (`pppoe-basic.ci:9`, `pppoe-vlan.ci:7`, `pppoe-concurrent-l2tp.ci:7`); the question is what replaces the topology setup |
-| C. Register a suite | Add `registerCIRoot("pppoe", ...)` to `internal/test/cli/register.go` | Necessary for A and B, insufficient alone: without a `netns` case the files still fail to parse |
-| D. Delete them | Remove `test/pppoe/` | Requires user approval per `ai/rules/never-destroy-work.md`; would leave `docs/features.md:88` PPPoE Access with no functional coverage and the `Partial` marking unexplained |
+| D. Delete them (recommended) | Remove `test/pppoe/` (the 3 stale `.ci`) | Requires user approval per `ai/rules/never-destroy-work.md`. Removes NO coverage: PPPoE RFC 2516 discovery is exercised by `test/pppoe-interop/` and `ze-qemu-pppoe-accel-test`. The `.ci` remain in git history. |
+| C'. Guard against recurrence (recommended alongside D) | Add `TestCIRootsRegistered` (assert every `test/` subdir with `.ci` files is rooted) | Independent of D and worth keeping regardless: it is what would have caught this orphan in May |
+| A. Repair the directive | Implement a `netns` case in `parseOption` plus the veth/netns setup it implies | Hard to justify now: needs root/CAP_NET_ADMIN, is Linux-only (`ai/rules/qemu-testing.md`), the runner has no netns primitive, AND the labs already cover the path. Not recommended. |
+| B. Re-mark the tests | Rewrite the 3 `.ci` onto directives that already exist | All 3 already carry `option=skip-os:value=darwin` (`pppoe-basic.ci:9`, `pppoe-vlan.ci:7`, `pppoe-concurrent-l2tp.ci:7`); re-marking them to parse-and-skip is a false green (`ai/rules/no-workarounds-for-missing-behavior.md`). Not recommended. |
+| C. Register a suite | Add `registerCIRoot("pppoe", ...)` to `internal/test/cli/register.go` | Only meaningful as a prerequisite for A/B (both not recommended); alone it turns silent death into a loud parse failure |
 
-→ Decision needed from the user before design proceeds: which option. Do not pick one
-by default. Note that C is a prerequisite for A and B, not an alternative to them.
+→ Decision for the user: confirm deletion (Option D) plus landing `TestCIRootsRegistered`.
+Options A/B/C are recorded for completeness but are not recommended, because the coverage
+they would build already exists.
 
 → Constraint (`ai/rules/no-workarounds-for-missing-behavior.md`): if the tests are
 repaired, they must actually exercise the PPPoE discovery path. Making them parse and
@@ -62,7 +82,7 @@ skip is a false green, which is what the current state already is in effect.
 - [ ] `docs/functional-tests.md` - the `.ci` directive contract and how suites are registered
   → Constraint: a `.ci` that no suite roots is never discovered, so it cannot fail visibly.
 - [ ] `docs/guide/pppoe.md` - the feature these tests were meant to cover
-  → Decision: `docs/features.md:88` marks PPPoE Access `Partial`; this orphaning is part of why.
+  → Decision: `docs/features.md:88` marks PPPoE Access `Partial` to reflect incomplete PPPoE *features*, NOT missing tests -- RFC 2516 discovery is covered by `test/pppoe-interop/` and `ze-qemu-pppoe-accel-test`.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc2516.md` - PPPoE discovery (PADI/PADO/PADR/PADS/PADT), if the tests are repaired to assert wire behavior
@@ -75,7 +95,7 @@ skip is a false green, which is what the current state already is in effect.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/test/runner/record_parse.go` - `parseOption` (`:295-448`) accepts only `env`, `skip-os`, `needs-linux`, `skip-env`, `require-tag`; `default:` at `:444-445` returns `unknown option type %q`. `parseLine` (`:243`) dispatches `option` at `:273`
+- [ ] `internal/test/runner/record_parse.go` - `parseOption` (`:295-448`) has 12 cases (`file`, `asn`, `bind`, `timeout`, `tcp_connections`, `open`, `update`, `env`, `skip-os`, `needs-linux`, `skip-env`, `require-tag`), none named `netns`; `default:` at `:444-445` returns `unknown option type %q`. `parseLine` (`:243`) dispatches `option` at `:273`
 - [ ] `internal/test/cli/register.go` - `registerCIRoot` called for 20 suites at `:17-36`; no pppoe entry
 - [ ] `test/pppoe/pppoe-basic.ci` - `option=skip-os:value=darwin` (`:9`), `option=env:var=TEST_IFACE:value=veth-sub` (`:148`), `option=netns:veth=veth-bng,veth-sub` (`:149`)
 - [ ] `test/pppoe/pppoe-vlan.ci` - `option=netns:veth=veth-bng,veth-sub:vlan=100` (`:110`)
@@ -84,7 +104,7 @@ skip is a false green, which is what the current state already is in effect.
 **Behavior to preserve:** (unless user explicitly said to change)
 - The 20 registered suites in `register.go:17-36` and their behavior — this spec adds at most one row, changes none.
 - `parseOption`'s fail-closed `default:` branch. An unknown option type MUST stay an error; do not relax it to a warning to make these files parse (`ai/rules/fail-closed-guards.md`).
-- The existing 5 option types and their semantics.
+- The existing 12 option types and their semantics.
 
 **Behavior to change:** (only if user explicitly requested)
 - Depends entirely on which of options A-D the user picks. Under D, `test/pppoe/` is deleted and nothing in `internal/` changes.
@@ -141,8 +161,8 @@ skip is a false green, which is what the current state already is in effect.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-functional-test` discovers `test/pppoe/` | → | a `registerCIRoot("pppoe", ...)` entry in `internal/test/cli/register.go` | `test/pppoe/pppoe-basic.ci` (must run, not skip) |
-| A `.ci` declares the topology directive | → | the option handler that accepts it in `parseOption` | `TestParseOptionNetns` |
+| `make ze-test` runs the guard | → | `TestCIRootsRegistered` asserts every `test/` subdir with `.ci` files is rooted (or absent) | `TestCIRootsRegistered` (RED while `test/pppoe/` exists unrooted, GREEN once deleted) |
+| A `.ci` declares an unknown option (`netns`) | → | `parseOption`'s fail-closed `default:` still errors | `TestParseOptionUnknownStillErrors` |
 
 ## Acceptance Criteria
 
@@ -150,14 +170,14 @@ skip is a false green, which is what the current state already is in effect.
 |-------|-------------------|-------------------|
 | AC-1 | `make ze-functional-test` | `test/pppoe/*.ci` are either discovered and RUN, or absent from the tree — never present-and-ignored |
 | AC-2 | Each of the 3 `.ci` parses | No `unknown option type` error (or the file no longer exists, under option D) |
-| AC-3 | `docs/features.md:88` PPPoE Access row | Its `Partial` marking matches reality: either functional coverage now exists, or the row states that it does not |
+| AC-3 | `docs/features.md:88` PPPoE Access row | Left as-is: RFC 2516 discovery already has functional coverage (`test/pppoe-interop/`, `ze-qemu-pppoe-accel-test`); deleting the stale `.ci` removes no coverage, so the `Partial` marking (a feature-completeness statement, not a test claim) needs no change |
 | AC-4 | An unknown option type in any `.ci` | Still an error. `parseOption`'s fail-closed default is not weakened |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs the functional test suite and sees PPPoE covered (or honestly declared uncovered) | `make ze-functional-test` → suite registry → `test/pppoe/` walk → parse → run | `test/pppoe/pppoe-basic.ci` |
+| 1 | Runs the PPPoE accel-ppp labs and sees RFC 2516 discovery pass; the tree carries no orphaned `.ci` | `make ze-deployment-pppoe-accel-docker-test` / `ze-qemu-pppoe-accel-test` for coverage; `TestCIRootsRegistered` for the no-orphan guard | `test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/check.py`, `TestCIRootsRegistered` |
 
 ## 🧪 TDD Test Plan
 
@@ -176,25 +196,28 @@ skip is a false green, which is what the current state already is in effect.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `pppoe-basic` | `test/pppoe/pppoe-basic.ci` | Operator's PPPoE client completes discovery against ze's access concentrator | |
-| `pppoe-vlan` | `test/pppoe/pppoe-vlan.ci` | PPPoE over a VLAN sub-interface | |
-| `pppoe-concurrent-l2tp` | `test/pppoe/pppoe-concurrent-l2tp.ci` | PPPoE and L2TP run concurrently on one daemon | |
+| accel-ppp Docker lab | `test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/check.py` | Ze's PPPoE client completes RFC 2516 discovery + CHAP against a real accel-ppp AC | exists |
+| QEMU accel-ppp lab | `scripts/evidence/effective-pppoe-accel.py` (`ze-qemu-pppoe-accel-test`) | Same, on a CONFIG_PPPOE kernel in QEMU | exists |
+| `TestCIRootsRegistered` guard | `internal/test/cli/register_test.go` | The tree carries no orphaned `.ci` directory | |
 
 ### Interop Tests (MANDATORY for protocol features)
+
+Already exist -- do NOT create new scenarios. PPPoE interop against a real accel-ppp
+peer is covered by the lab below; this spec adds none.
+
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| (fill during design) | `test/interop/scenarios/` | `pppoe-client` / `accel-ppp` | Real client completes RFC 2516 discovery against ze | |
+| PPPoE CHAP IPv4 | `test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/` | `accel-ppp` (Ze `pppoe-client`) | Real RFC 2516 discovery + PPP/CHAP session between Ze and accel-ppp | exists |
 
 ### Future (if deferring any tests)
 - (fill during design)
 
 ## Files to Modify
-- `internal/test/cli/register.go` - add a `registerCIRoot("pppoe", ...)` row (options A/B/C)
-- `internal/test/runner/record_parse.go` - add a `netns` case to `parseOption` (option A only)
-- `test/pppoe/pppoe-basic.ci` - `:149` directive
-- `test/pppoe/pppoe-vlan.ci` - `:110` directive
-- `test/pppoe/pppoe-concurrent-l2tp.ci` - `:145` directive
-- `docs/features.md` - `:88` PPPoE Access row, if its coverage claim changes
+- `internal/test/cli/register_test.go` - add `TestCIRootsRegistered` (recommended; the recurrence guard)
+- `test/pppoe/pppoe-basic.ci`, `test/pppoe/pppoe-vlan.ci`, `test/pppoe/pppoe-concurrent-l2tp.ci` - DELETE (recommended Option D)
+- `internal/test/cli/register.go` - add a `registerCIRoot("pppoe", ...)` row (ONLY under non-recommended options A/B/C)
+- `internal/test/runner/record_parse.go` - add a `netns` case to `parseOption` (ONLY under non-recommended option A)
+- `docs/features.md` - `:88` PPPoE Access row: no change expected (coverage already exists; `Partial` reflects feature completeness, not tests)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -205,7 +228,7 @@ skip is a false green, which is what the current state already is in effect.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | [ ] | `docs/features.md:88` PPPoE Access row coverage claim |
+| 1 | New user-facing feature? | [ ] | `docs/features.md:88` PPPoE Access row: no change expected — coverage already exists, `Partial` reflects feature completeness |
 | 6 | Has a user guide page? | [ ] | `docs/guide/pppoe.md` |
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` — a new option type or suite must be documented |
 
@@ -228,7 +251,7 @@ skip is a false green, which is what the current state already is in effect.
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Decide** — put options A-D to the user; record the ruling here before any code
+1. **Phase: Decide** — put options A-D to the user, recommending D + `TestCIRootsRegistered`; record the ruling here before any code
    - Tests: none
    - Files: this spec
    - Verify: the user has chosen; scope is agreed (`ai/rules/no-partial-completion.md` — no unilateral scope reduction)
@@ -236,11 +259,11 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Tests: `TestCIRootsRegistered`
    - Files: `internal/test/cli/register_test.go`
    - Verify: RED against today's tree (pppoe unrooted)
-3. **Phase: Execute the chosen option** — A, B, C+A, C+B, or D
+3. **Phase: Execute the chosen option** — recommended: delete `test/pppoe/` (D); otherwise A, B, C+A, or C+B
    - Tests: per the TDD table
    - Files: per Files to Modify
-   - Verify: the 3 `.ci` run and assert real PPPoE behavior, or are gone
-4. **Functional tests** → the 3 `.ci` green for the right reason, not skipped
+   - Verify: under D the 3 `.ci` are gone and `TestCIRootsRegistered` is GREEN; under A/B they run and assert real PPPoE behavior
+4. **Functional tests** → PPPoE coverage stays green via the accel-ppp labs; no orphaned `.ci` remain
 5. **Full verification** → `make ze-verify`
 6. **Complete spec** → learned summary, two commits
 
@@ -297,7 +320,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |----------|------------------------|-----------|
 
 ## Known Limitations
-- Until this spec closes, `docs/features.md:88` PPPoE Access `Partial` has no functional test behind it. The subsystem may work; nothing in CI proves it.
+- The `Partial` marking on `docs/features.md:88` PPPoE Access reflects incomplete PPPoE *features*, not missing tests: RFC 2516 discovery is proven by `test/pppoe-interop/` and `ze-qemu-pppoe-accel-test`. The orphaned `.ci` never contributed to that coverage.
 
 ## RFC Documentation
 
@@ -347,7 +370,7 @@ MUST document: validation rules, error conditions, state transitions.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| PPPoE Access has functional coverage, or honestly declares it has none | functional test | (fill during implementation) |
+| The tree carries no orphaned `.ci`; PPPoE RFC 2516 discovery coverage is preserved | functional test + guard | `TestCIRootsRegistered` green; `test/pppoe-interop/` and `ze-qemu-pppoe-accel-test` unchanged and passing |
 
 ## Review Gate
 
