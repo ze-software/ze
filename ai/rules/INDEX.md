@@ -30,7 +30,7 @@ Total: 87 rules
 | Config String Coercion | Writing or reviewing a plugin/component `config.go` that reads YANG leaf values out of the delivered config into a typed `Config` struct. | `ai/rules/config-string-coercion.md` |
 | Config Surface: YANG Config vs Env Var | Extends: `ai/rules/config-design.md`, `ai/patterns/config-option.md` Naming: `ai/rules/config-naming.md` | `ai/rules/config-surface.md` |
 | Data Flow Tracing | Trace full data flow before writing or reviewing specs. | `ai/rules/data-flow-tracing.md` |
-| Deferral Tracking | Every decision to not perform in-scope work MUST be recorded. | `ai/rules/deferral-tracking.md` |
+| Deferral Tracking | Every decision to not perform in-scope work MUST be recorded AND land in a destination spec. | `ai/rules/deferral-tracking.md` |
 | Derive, Never Hardcode | If enumerated data has a canonical source (registry, map, typed enum, list function), DERIVE every display/help/error/usage/doc string from it. No second hardcoded copy. | `ai/rules/derive-not-hardcode.md` |
 | Design Context | Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), load the relevant context below. Trained instincts about "how software works" are wrong... | `ai/rules/design-context.md` |
 | Design Document References | All `.go` source files (non-test, non-generated) MUST have `// Design:` comment. | `ai/rules/design-doc-references.md` |

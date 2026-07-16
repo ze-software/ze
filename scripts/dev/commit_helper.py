@@ -702,39 +702,131 @@ DEFERRAL_PATTERNS = (
 )
 
 
-def deferral_unassigned_problems(repo: Path) -> list[str]:
-    """Open rows in plan/deferrals.md whose Destination is a placeholder (block).
+DEFERRAL_NO_DESTINATION_NEEDED = frozenset({"cancelled", "user-approved-drop"})
 
-    Faithful to check_deferral_unassigned: the six-column table is Date | Source
-    | What | Reason | Destination | Status, read by index (dest = field 5,
-    status = field 6). Independent of what this commit touches -- an unassigned
-    open deferral blocks every commit until it names a home or is cancelled.
+DEFERRAL_DEST_PATH_RE = re.compile(r"(plan/[\w./-]+\.md)")
+
+# Statuses that mean the row is CLOSED and needs no destination. Everything else
+# is live and gets checked -- including a status word nobody has invented yet.
+#
+# This is a denylist of terminal states, not an allowlist of live ones, and the
+# direction is the whole point (ai/rules/fail-closed-guards.md). The gate used to
+# test `status == "open"`, so `deferred` -- the word ai/rules/deferral-tracking.md
+# itself uses for this state -- was never looked at, and four rows written on
+# 2026-07-16 named no home and sailed through. An allowlist re-runs that bug the
+# next time the vocabulary drifts; a terminal denylist fails closed, because an
+# unrecognised status is treated as live and checked.
+#
+# plan/deferrals.md's own header is the contract: "A row lives here only while the
+# work has no home. Once it is moved into a spec, it is resolved ... and the spec
+# becomes the tracker."
+DEFERRAL_TERMINAL_STATUSES = frozenset({"done", "cancelled", "resolved"})
+
+# The table's own header and its |---|---| separator are not rows.
+DEFERRAL_HEADER_CELLS = ("date", "source", "what", "reason", "destination", "status")
+DEFERRAL_SEPARATOR_RE = re.compile(r"^:?-{2,}:?$")
+
+
+def _deferral_row_cells(line: str) -> list[str] | None:
+    """The six cells of a deferrals table row, or None when the line is not a row.
+
+    Returns None for prose and for the table's header/separator. A line that IS a
+    row but does not split into exactly six cells is malformed and NOT silently
+    dropped: the caller reports it. Reading `dest`/`status` from fixed indices of
+    a short row is how a Status-less row got status "" and passed as absent-and-fine.
+    """
+    if not line.lstrip().startswith("|"):
+        return None
+    fields = line.split("|")
+    # A well-formed `| a | b | c | d | e | f |` splits into 8: leading and
+    # trailing empties around the six cells.
+    if len(fields) != 8 or fields[0].strip() or fields[-1].strip():
+        return ["MALFORMED"]
+    cells = [f.strip() for f in fields[1:7]]
+    if tuple(c.lower() for c in cells) == DEFERRAL_HEADER_CELLS:
+        return None
+    if all(DEFERRAL_SEPARATOR_RE.match(c) for c in cells):
+        return None
+    return cells
+
+
+def deferral_destination_problem(repo: Path, dest: str) -> str | None:
+    """Why this Destination cell fails the rule, or None when it is a valid home.
+
+    ai/rules/deferral-tracking.md: a live deferral ALWAYS names a destination
+    spec that exists on disk. Only a terminal Status may name no file. Prose
+    ("later", "future work") is a deletion with a polite name, and a path to a
+    spec nobody created loses the work just as completely -- both lose the work,
+    so both are rejected.
+
+    Both spellings of a destination are accepted, `plan/spec-x.md` and a bare
+    `spec-x.md` resolved against plan/, because both name the same file and the
+    rule is about the work having a home, not about path punctuation.
+    """
+    plain = dest.strip().strip("`").lower()
+    if plain in DEFERRAL_NO_DESTINATION_NEEDED:
+        return None
+    if plain in DEFERRAL_PLACEHOLDERS:
+        return "no destination"
+    paths = [
+        p if p.startswith("plan/") else f"plan/{p}"
+        for p in DEFERRAL_DEST_PATH_RE.findall(dest)
+    ]
+    if not paths:
+        return "destination names no file"
+    missing = [p for p in paths if not (repo / p).is_file()]
+    if missing:
+        return "destination does not exist: " + ", ".join(missing)
+    return None
+
+
+def deferral_unassigned_problems(repo: Path) -> list[str]:
+    """Live rows in plan/deferrals.md with no usable destination (block).
+
+    The six-column table is Date | Source | What | Reason | Destination | Status.
+    A row is checked unless its Status is terminal (DEFERRAL_TERMINAL_STATUSES);
+    an unrecognised status is live, so the gate fails closed rather than skipping
+    a row whose vocabulary it does not know. Independent of what this commit
+    touches -- a live deferral without a home blocks every commit until it names
+    one that exists or is cancelled.
     """
     path = repo / "plan" / "deferrals.md"
     if not path.is_file():
         return []
     unassigned: list[str] = []
-    for idx, line in enumerate(
-        path.read_text(encoding="utf-8", errors="replace").splitlines()
+    malformed: list[str] = []
+    for lineno, line in enumerate(
+        path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
     ):
-        if idx < 2:
+        cells = _deferral_row_cells(line)
+        if cells is None:
             continue
-        fields = line.split("|")
-        if len(fields) < 7:
+        if cells == ["MALFORMED"]:
+            malformed.append(f"  - line {lineno}: {line.strip()[:90]}")
             continue
-        status = fields[6].strip().lower()
-        dest = fields[5].strip()
-        what = fields[3].strip()
-        if status == "open" and dest.lower() in DEFERRAL_PLACEHOLDERS:
-            unassigned.append(f'  - {what} (destination: "{dest}")')
-    if not unassigned:
-        return []
-    return [
-        "open deferrals without a destination:\n"
-        + "\n".join(unassigned)
-        + "\n  Name a receiving spec or cancel each in plan/deferrals.md"
-        " (ai/rules/deferral-tracking.md)."
-    ]
+        _date, _source, what, _reason, dest, status = cells
+        if status.lower() in DEFERRAL_TERMINAL_STATUSES:
+            continue
+        problem = deferral_destination_problem(repo, dest)
+        if problem is not None:
+            unassigned.append(f'  - {what} ({problem}: "{dest}")')
+    problems: list[str] = []
+    if unassigned:
+        problems.append(
+            "live deferrals without a destination spec:\n"
+            + "\n".join(unassigned)
+            + "\n  Each must name an existing plan/spec-*.md (add the work to a spec"
+            "\n  that covers the topic, or create plan/spec-<source>-deferred-<subtask>.md"
+            "\n  from plan/TEMPLATE.md), or be cancelled (ai/rules/deferral-tracking.md)."
+        )
+    if malformed:
+        problems.append(
+            "malformed rows in plan/deferrals.md (cannot be checked, so not\n"
+            "  assumed innocent -- a row this gate cannot read is a row it cannot"
+            " enforce):\n" + "\n".join(malformed) + "\n  Each row needs exactly six"
+            " cells: | Date | Source | What | Reason | Destination | Status |."
+        )
+    return problems
 
 
 def _prospective_added_lines(

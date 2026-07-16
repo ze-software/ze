@@ -63,7 +63,7 @@ class TestIndexPending(unittest.TestCase):
             self.assertTrue(ch.index_pending(root, rel))  # modified -> pending
 
 
-FAKEGEN = textwrap.dedent('''\
+FAKEGEN = textwrap.dedent("""\
     import sys
     from pathlib import Path
     root = Path(__file__).resolve().parents[2]
@@ -78,7 +78,7 @@ FAKEGEN = textwrap.dedent('''\
             sys.exit(1)
         sys.exit(0)
     out.write_text(content)
-''')
+""")
 
 
 class TestHeadStatus(unittest.TestCase):
@@ -118,6 +118,191 @@ class TestHeadStatus(unittest.TestCase):
             root = Path(tmp)
             _git(root, "init", "-q")
             self.assertEqual(ch.discovery_index_head_status(root)[0], "unknown")
+
+
+DEFERRALS_HEADER = (
+    "| Date | Source | What | Reason | Destination | Status |\n"
+    "|------|--------|------|--------|-------------|--------|\n"
+)
+
+
+class TestDeferralDestination(unittest.TestCase):
+    """ai/rules/deferral-tracking.md: an open deferral always names a spec that exists."""
+
+    def _repo(self, tmp: str, rows: str) -> Path:
+        root = Path(tmp)
+        (root / "plan").mkdir(parents=True)
+        (root / "plan" / "spec-rib-deferred-ipv6-coverage.md").write_text("# Spec\n")
+        (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER + rows)
+        return root
+
+    def _row(self, dest: str) -> str:
+        return (
+            f"| 2026-07-16 | spec-rib.md | IPv6 flush path | time | {dest} | open |\n"
+        )
+
+    def test_existing_spec_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(
+                tmp, self._row("`plan/spec-rib-deferred-ipv6-coverage.md`")
+            )
+            self.assertEqual(ch.deferral_unassigned_problems(root), [])
+
+    def test_cancelled_needs_no_spec(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp, self._row("user-approved-drop"))
+            self.assertEqual(ch.deferral_unassigned_problems(root), [])
+
+    def test_placeholder_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp, self._row("-"))
+            problems = ch.deferral_unassigned_problems(root)
+            self.assertEqual(len(problems), 1)
+            self.assertIn("no destination", problems[0])
+
+    def test_prose_destination_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp, self._row("future work, once the RIB settles"))
+            problems = ch.deferral_unassigned_problems(root)
+            self.assertEqual(len(problems), 1)
+            self.assertIn("prose", problems[0])
+
+    def test_missing_spec_file_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(
+                tmp, self._row("`plan/spec-rib-deferred-nobody-wrote-it.md`")
+            )
+            problems = ch.deferral_unassigned_problems(root)
+            self.assertEqual(len(problems), 1)
+            self.assertIn("does not exist", problems[0])
+
+    def test_resolved_rows_are_not_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "plan").mkdir(parents=True)
+            (root / "plan" / "deferrals.md").write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-16 | spec-rib.md | old item | time | later maybe | done |\n"
+            )
+            self.assertEqual(ch.deferral_unassigned_problems(root), [])
+
+
+def _deferral_gate(rows: list[tuple[str, str]]) -> list[str]:
+    """Run deferral_unassigned_problems over a table of (destination, status).
+
+    Any plan/*.md named by a destination is created, so these cases isolate the
+    STATUS half: a row that fails here fails because of its status, never because
+    its spec happens not to exist in the fixture.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "plan").mkdir()
+        body = ""
+        for i, (dest, status) in enumerate(rows):
+            for ref in ch.DEFERRAL_DEST_PATH_RE.findall(dest):
+                (root / ref).parent.mkdir(parents=True, exist_ok=True)
+                (root / ref).write_text("# Spec\n")
+            body += f"| 2026-07-16 | spec-x | what-{i} | reason | {dest} | {status} |\n"
+        (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER + body)
+        return ch.deferral_unassigned_problems(root)
+
+
+class TestDeferralUnassigned(unittest.TestCase):
+    """The STATUS half of the gate enforcing ai/rules/deferral-tracking.md's "no
+    deferral without a destination".
+
+    TestDeferralDestination above covers which Destination cells are a valid home.
+    This class covers WHICH ROWS ARE LOOKED AT AT ALL, which is the half that was
+    fail-open (ai/rules/fail-closed-guards.md): the gate tested `status == "open"`,
+    so every row at `deferred` bypassed the destination check no matter how strict
+    that check became.
+    """
+
+    # VALIDATES: a row at status `deferred` with no destination is flagged.
+    # `deferred` is the word ai/rules/deferral-tracking.md itself uses for this
+    # state, and 40 of the 68 rows in plan/deferrals.md carry it.
+    # PREVENTS: hole 1 -- `status == "open"` meant a row written in the rule's own
+    # vocabulary was never looked at.
+    def test_status_hole_deferred_with_placeholder_destination(self):
+        self.assertTrue(_deferral_gate([("none", "deferred")]))
+
+    # VALIDATES: `deferred` + a prose destination is flagged. This is the exact
+    # shape of the four rows written on 2026-07-16: they named no home, in the
+    # vocabulary the rule teaches, and the gate never looked.
+    def test_status_hole_deferred_with_prose_destination(self):
+        self.assertTrue(_deferral_gate([("none yet (future spec)", "deferred")]))
+
+    # VALIDATES: an unrecognised status is treated as live and checked.
+    # PREVENTS: the fix re-running the original bug. An allowlist of live statuses
+    # would skip the next word someone invents, which is precisely how `deferred`
+    # got through; the terminal denylist fails closed instead.
+    def test_unknown_status_is_checked_not_skipped(self):
+        self.assertTrue(_deferral_gate([("none yet", "parked")]))
+
+    # VALIDATES: a terminal status is exempt even with a placeholder destination.
+    # plan/deferrals.md really carries `none (permanent exclusion; ...)` at
+    # `cancelled`; flagging it would make the gate noise.
+    # PREVENTS: over-reach -- a gate that flags everything is as useless as one
+    # that flags nothing. This is why the status half must be bounded, not removed.
+    def test_must_not_fire_terminal_status_with_placeholder(self):
+        self.assertEqual(
+            _deferral_gate(
+                [
+                    (
+                        "none (permanent exclusion; AC-5 covers in-tree pages)",
+                        "cancelled",
+                    ),
+                    ("none yet", "done"),
+                    ("-", "resolved"),
+                ]
+            ),
+            [],
+        )
+
+    # VALIDATES: a real, existing destination spec at a live status is not flagged.
+    # Widening the status half must not turn the 28 correctly-homed live rows red.
+    def test_must_not_fire_real_destination_at_live_status(self):
+        self.assertEqual(
+            _deferral_gate(
+                [
+                    ("`plan/spec-finish-l2tp.md` (work item added)", "deferred"),
+                    ("`plan/spec-fixit-x.md` (F4)", "open"),
+                    ("`plan/learned/1127-rib-arch-2.md`", "in-progress (spec)"),
+                ]
+            ),
+            [],
+        )
+
+    # VALIDATES: the original `open` behavior still holds (regression guard).
+    def test_open_with_empty_destination_still_flagged(self):
+        self.assertTrue(_deferral_gate([("", "open")]))
+
+    # VALIDATES: a row that cannot be parsed is reported rather than skipped.
+    # PREVENTS: hole 3 -- `len(fields) < 7: continue` dropped a short row on the
+    # floor and a Status-less row read status as "" and passed, so a malformed row
+    # was silently treated as absent-and-fine (ai/rules/fail-closed-guards.md:
+    # a guard that neither denies nor speaks does not exist).
+    def test_malformed_row_is_reported_not_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "plan").mkdir()
+            (root / "plan" / "deferrals.md").write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-16 | spec-x | dropped work | reason | dest-only |\n"
+            )
+            problems = ch.deferral_unassigned_problems(root)
+            self.assertTrue(problems, "a Status-less row must not pass silently")
+            self.assertIn("malformed", "\n".join(problems).lower())
+
+    # VALIDATES: the table's own header and separator are not parsed as rows.
+    # PREVENTS: the separator's `-------------` destination being read as the `-`
+    # placeholder once the destination match widens.
+    def test_header_and_separator_are_not_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "plan").mkdir()
+            (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER)
+            self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
 
 if __name__ == "__main__":

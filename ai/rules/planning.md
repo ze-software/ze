@@ -255,6 +255,28 @@ summary (`plan/learned/NNN-<name>.md`) inside commit A. Deleting a spec that
 source files still reference breaks design traceability;
 `scripts/dev/check_doc_links.py --design-only` reports the breakage.
 
+**Closure resolves the spec's deferral rows.** Before commit B, grep
+`plan/deferrals.md` for this spec's filename. Every row naming it as **Destination**
+must be resolved inside commit A: set Status `done` and Destination to the learned
+summary (`plan/learned/NNN-<name>.md`), which is where the knowledge now lives.
+
+Why: closure DELETES the spec, and `deferral_unassigned_problems`
+(`scripts/dev/commit_helper.py`) checks that every live row's destination exists on
+disk. A row left pointing at a closed spec can therefore never be satisfied -- it
+dangles forever and blocks every future commit, and the next reader cannot tell
+whether the work was done or silently lost. The two rules collided precisely because
+neither side was written down: "destination must exist" and "closure deletes the
+spec" are both right, and closure is the side that must give.
+
+Resolving the row is not a claim that the deferred work was implemented. It records
+that the deferral has a permanent home. If the learned summary does NOT record the
+item (check, do not assume -- a Review Gate NOTE on a deleted spec evaporates, and a
+summary with no Known Limitations section records nothing), then the row has no home:
+keep it live and give it a real destination spec per `ai/rules/deferral-tracking.md`
+"Choosing the Destination Spec". Never resolve a row to a summary that does not
+mention it -- that is the fail-open the gate exists to catch
+(`ai/rules/fail-closed-guards.md`).
+
 **Never `git rm -f` a spec without committing it first.** The `-f` flag silently
 discards uncommitted edits. If the spec was modified during implementation (it
 almost always is), those modifications must be committed before deletion.
@@ -262,6 +284,8 @@ almost always is), those modifications must be committed before deletion.
 | Banned | Why |
 |--------|-----|
 | "I'll close it later" | Later never comes. Other sessions see it as in-progress. |
+| `git rm` a spec while a deferral row still names it as Destination | The row dangles forever and blocks every future commit. Resolve it in commit A. |
+| Resolving a row to a learned summary that never mentions the item | Fail-open bookkeeping: the row goes quiet and the knowledge is lost. Verify the summary records it. |
 | "The user will handle it" | The user asked us to implement. Closure is part of implementation. |
 | `git rm` in the same commit as implementation | Spec edits are lost from history. Two commits required. |
 | `git rm -f` without a prior commit of the spec | Destroys uncommitted design work. |
@@ -292,7 +316,7 @@ If it exists, the spec is stale, not the code. Update the spec to match reality.
 
 See `ai/rules/deferral-tracking.md` for the full deferral process and log format.
 
-**No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec with an explicit task item for this work. If no such spec exists, create a skeleton spec (`Status | skeleton`, from `plan/TEMPLATE.md`) capturing just the points before committing -- see `ai/rules/deferral-tracking.md` "Destination Spec Missing".
+**No deferral without a destination spec.** Work deferred from a spec MUST land in a concrete, existing spec with an explicit task item for this work. Search for one that already covers the topic first (`grep -l "<topic>" plan/spec-*.md`, `make ze-spec-status`) and prefer it. Only if none exists, create a skeleton (`Status | skeleton`, from `plan/TEMPLATE.md`) named `plan/spec-<source>-deferred-<subtask>.md`, where `<source>` is the stem of the spec the work came from -- see `ai/rules/deferral-tracking.md` "Choosing the Destination Spec".
 
 Before marking a spec done, for every deferral: verify the receiving spec exists, has the deferred item listed, and the deferral is recorded in the current spec's Deviations section.
 
