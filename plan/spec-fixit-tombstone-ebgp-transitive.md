@@ -30,6 +30,73 @@ policy), quoted verbatim:
 > bit before forwarding the marker to the EBGP peer.  This prevents the peer from
 > propagating the marker further.
 
+### Inherited work item (from the F4 shard, 2026-07-16): reconcile how tests treat RFC-invalid LOCAL_PREF
+
+**A `.ci` expectation in HEAD will break when this spec lands, and it is the same
+decision this spec is making.** Three F4 tests fed LOCAL_PREF on an EBGP session --
+which RFC 4271 Section 5.1.5 forbids ("MUST NOT ... included in UPDATE messages sent
+to external peers") -- and ze correctly discards it per RFC 7606 Section 7.5
+(`message/rfc7606.go:442-449`, `validateLocalPrefAttr`: `!isIBGP` -> `AttributeDiscard`
+/ `DiscardReasonEBGPInvalid`), stamping the marker in place (`attr_discard.go:96-115`).
+Two agents fixing sibling tests in parallel reached OPPOSITE conclusions:
+
+| Test | Approach | State |
+|------|----------|-------|
+| `bgp-rs-fastpath-ebgp-shared.ci` | removed the invalid LOCAL_PREF from the INPUT frame | passes |
+| `remove-private-as-replace-peer.ci` | removed it from the INPUT frame | passes |
+| `remove-private-as-export.ci:49` | KEPT the invalid input and expects the marker on the wire: `C0FD0405010000` | passes |
+
+-> Constraint: **that third expectation is coupled to this spec's outcome.**
+`attrDiscardFlags` (`attr_discard.go`, re-read 2026-07-16) computes
+`0x80 | (original_flags & 0x50)`; LOCAL_PREF is well-known transitive (`0x40`), so the
+marker is stamped `0xC0` at RECEIVE time, which is what that test asserts. Its own doc
+comment says Section 5.3's egress rule "is enforced per destination on the EBGP wire
+path, in `wireu.rewriteASPathPrepend`, not here" -- i.e. exactly what this spec adds.
+Once the Transitive bit is cleared for an EBGP destination the marker becomes `0x80`,
+and `remove-private-as-export.ci:49` goes RED.
+
+-> Decision needed (do not defer past this spec's closure): either (a) update that
+expectation to the post-fix flags, or (b) adopt the input-side precedent its two
+siblings already use and remove the invalid LOCAL_PREF from its source frame. (b) is
+preferred: the test's subject is AS_PATH rewriting, and carrying an orthogonal RFC-7606
+concern in it is what coupled it to this spec in the first place. Either way the repo
+must stop handling the same invalid input two contradictory ways.
+
+-> **RULED 2026-07-16 (Thomas): take (b)** -- remove the invalid LOCAL_PREF from the
+source frame -- **as the interim answer "until we re-engineer how we deal with
+attributes"**. So (b) is adopted here on the test-hygiene argument, NOT as a settled
+verdict on attribute handling: the re-engineering may revisit where discard markers
+belong, and this test must not be the thing that pins that decision. Recording the
+caveat so the next reader does not mistake a scoped test fix for an architectural
+ruling.
+
+-> The change is byte-mechanical and its shape is already proven by the sibling that
+took the same route. `remove-private-as-replace-peer.ci:39` carries the exact frame
+(b) produces here -- same AS_PATH `[64496 64512 64497]`, same NEXT_HOP, no LOCAL_PREF,
+`length=0x0037`, `attr-len=0x001C`:
+
+| Line | From | To |
+|------|------|-----|
+| `remove-private-as-export.ci:21` (input) | `...003E020000002340010100 40020E02030000FBF00000FC000000FBF1 40030401010101 40050400000064 180A0000` | `...0037020000001C40010100 40020E02030000FBF00000FC000000FBF1 40030401010101 180A0000` |
+| `remove-private-as-export.ci:49` (expect) | `...003E020000002340010100 40020E02030000FDE80000FBF00000FBF1 40030401010101 C0FD0405010000 180A0000` | `...0037020000001C40010100 40020E02030000FDE80000FBF00000FBF1 40030401010101 180A0000` |
+
+Dropping the 7-byte LOCAL_PREF takes `attr-len` 0x23 (35) -> 0x1C (28) and message
+length 0x3E (62) -> 0x37 (55) on both frames. With no invalid LOCAL_PREF arriving,
+no ATTR_DISCARD marker is produced at all, so the expectation stops depending on this
+spec's outcome in either direction -- which is the point of (b).
+
+-> Constraint honoured: the load-bearing AS_PATH assertion `[65000 64496 64497]`
+(`0000FDE8 0000FBF0 0000FBF1`) is byte-identical before and after. (b) removes an
+orthogonal attribute from the frame; it does not weaken the assertion this test exists
+to make. The comment block at `:36-46` must be rewritten to the siblings' "NO
+LOCAL_PREF: this test's UPDATE is sourced from an EBGP peer..." wording
+(`remove-private-as-replace-peer.ci:10-20`) rather than left describing a marker the
+frame no longer produces.
+
+-> Constraint: this is NOT licence to weaken the test. `remove-private-as-export.ci`'s
+AS_PATH assertion `[65000 64496 64497]` is load-bearing -- it was unsatisfiable until
+`afb068cc0` fixed the double-filter bug and must stay byte-exact.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -231,6 +298,7 @@ A wire-level marker whose meaning depends on the destination cannot be finalized
 | Clear in `rewriteASPathPrepend`'s copy loop | (a) receive-time stamp; (b) a separate post-pass over the EBGP wire; (c) inside `TranscodeASPath` | (a) is wrong (destination unknown, shared buffer); (b) costs an extra scan of every EBGP UPDATE; (c) is not EBGP-gated. The copy loop already touches every attribute in a per-destination buffer: the clear is one byte-mask, zero added allocation, zero added traversal |
 | Recognize both 252 and 253 | Only 252 (the "canonical" constant) | The real receive-time marker is 253; recognizing only 252 would leave the actual bug unfixed |
 | Do not implement the configurable "inherit"/"strip"/"propagate" policy | Build it now | Section 5.3 says implementations SHOULD provide it, and it needs a YANG surface, per-neighbor/peer-group resolution, and its own tests. That is a separate spec. "inherit" is the draft's default and is what ze now implements |
+| Fix `remove-private-as-export.ci`'s coupling on the INPUT side: remove the RFC-invalid LOCAL_PREF from its source frame (option (b)) | (a) keep the invalid input and re-bless the expectation with the post-fix `0x80` marker flags | Ruled by Thomas 2026-07-16, explicitly as the interim answer "until we re-engineer how we deal with attributes". (b) decouples the test from this spec's outcome entirely: with no invalid LOCAL_PREF arriving, no marker is generated, so the expectation stops tracking marker flags in either direction. It also stops the repo handling one invalid input two contradictory ways -- the other two siblings already took (b). (a) would have kept an orthogonal RFC-7606 concern inside a test whose subject is AS_PATH rewriting, i.e. preserved the coupling that raised the question. The frame (b) produces is byte-identical to the proven `remove-private-as-replace-peer.ci:39` |
 
 ## Known Limitations
 - **The configurable forwarding policy (Section 5.3) is not implemented.** Only the default "inherit" behavior is. "strip" (which needs a rebuild to remove the marker) and "propagate" (which sets the Transitive bit and clears Partial) are not available. Section 5.3 rates this a SHOULD and asks for per-peer-group/per-neighbor granularity: a config surface, and a separate spec.

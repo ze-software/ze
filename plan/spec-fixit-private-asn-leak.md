@@ -168,6 +168,25 @@ An outbound route for a peer with a non-empty export filter chain. Two disjoint 
   server sends unfiltered, silently. NOT addressed here; no evidence it is reachable while
   sessions are established, and inventing a fix for an untraced path is what
   `ai/rules/no-fabrication.md` forbids. **Left open, flagged for Thomas.**
+  → **RULED 2026-07-16 (Thomas): trace reachability first, then decide fix vs fail-closed.**
+    Homed in `plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md`
+    (`Status | skeleton`). R1 stays a surviving risk of THIS spec (it is unfixed); it is no
+    longer an unhomed one. Still correctly not fixed here: this spec's subject is the
+    private-ASN MUST.
+  → The homing trace found this spec's own citation is short. `:196` is exact for
+    `runEgressPolicyChain`, but `exportFilterForBody`'s guard is at
+    `egress_inject_filter.go:43` (with a second fail-open, `facts == nil`, fused in), and R1
+    misses `filter_ordered.go:222` -- `runEgressPolicyChainASN4`, the shared body this spec
+    extracted and the one `exportFilterForBody` actually reaches -- plus `:139` on ingress.
+    **Five sites, not two.**
+  → It also found the argument R1 was missing: reachability is the weaker case. The same
+    `r.api == nil` condition already fails **closed, with a Warn**, at
+    `filter_chain.go:368-371` (`policyFilterFunc`, marked `// fail-closed`) and
+    `peer_initial_sync.go:718-722`. `policyFilterFunc` is only reached *through*
+    `PolicyFilterChain` at `filter_ordered.go:147`/`:232`, both **after** the early returns
+    at `:196`/`:222` -- so when api is nil, the correct guard is unreachable, pre-empted by
+    the wrong one. One package, one condition, two loud denials and one silent accept.
+    That contradiction needs no reachability proof to be worth fixing.
 - **R2.** Widening the gate from "Reject/raw only" to the full chain means text-delta
   filters now actually take effect on originated routes. That is the POINT, but it is a
   behavior change for any deployment that had (unknowingly) been relying on the no-op.
@@ -315,7 +334,37 @@ the zero-value trap).
   API-originated routes on an EBGP session is a **separate open question, deliberately not
   answered here** — it is orthogonal to the private-ASN MUST and was not traced to a
   producer. Flagged for Thomas.
-- **R1 above:** `r.api == nil` fail-open, unaddressed.
+  → **ANSWERED 2026-07-16 (Thomas), with a design rather than a yes/no:** *"we should have
+    an 'auto-added' filter added to the chain of ebgp peer to add our ASN to the peer when
+    sending and another one to remove local pref."* So: yes prepend, but not as a
+    special case -- as an auto-added entry on the EBGP peer's export chain, alongside a
+    second auto entry stripping LOCAL_PREF. Homed in
+    `plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md` (`Status | skeleton`).
+  → **That design cashes in this spec's Goal Gate.** "one shared chain body; a future
+    outcome added to the chain is honored by both paths automatically" (Goal Validation,
+    row 3) is exactly the invariant an auto chain entry needs to reach the originated path.
+    This spec built the mechanism the ruling spends.
+  → **Two corrections the homing trace found, both against this bullet:**
+    1. "The originated path" is **two paths that disagree**. The `update text`/`BuildPlugin`
+       path does not prepend (`message/update_build_plugin.go:58-69`), but the rib-commit
+       path **does**: `rib/commit.go:444-464` prepends `c.ctx.LocalASN()` for non-IBGP,
+       preserving verbatim only when `c.isIBGP()` (`:436-442`). This bullet is true of the
+       first and false of the second.
+    2. `attributes.ci` does not support the "same verbatim-as-path behavior" claim for the
+       EBGP case: its peer1 is **IBGP** (`local 1`/`remote 1`, `attributes.ci:66-67`), so
+       its verbatim AS_PATH and its `400504000000C8` LOCAL_PREF are the IBGP baseline. It
+       says nothing about EBGP either way.
+  → **And the trace found a live RFC MUST NOT violation next door**, which the second auto
+    filter closes: RFC 4271 S5.1.5 ("MUST NOT include LOCAL_PREF in UPDATE messages sent to
+    external peers") is enforced on ingress (`message/rfc7606.go:442-450`) and on
+    origination (`update_build_plugin.go:97-105`, `rib/commit.go:341-344`) but **nowhere on
+    the forwarded egress path** -- `grep -i localpref internal/component/bgp/wireu/*.go`
+    returns zero non-test hits. An **IBGP-sourced route carrying LOCAL_PREF, forwarded to an
+    EBGP destination, keeps LOCAL_PREF on the wire today.** Ingress discard hides this for
+    EBGP-sourced routes only. Not this spec's bug and not fixed here; recorded because this
+    spec's trace is what surfaced it.
+- **R1 above:** `r.api == nil` fail-open, unaddressed here; ruled and homed 2026-07-16 (see
+  Risks).
 - The two pre-existing `.ci` files (`remove-private-as-export.ci`,
   `remove-private-as-replace-peer.ci`) are UNTOUCHED and remain red for their two unrelated
   reasons (the LOCAL_PREF/ATTR_DISCARD question, and the check-mode-peer sequential-accept
@@ -406,8 +455,13 @@ green at HEAD -> red with fix:   api-rib-clear-in, api-rib-show-in, bgp-summary-
 
 ### Completion (BLOCKING — before ANY commit)
 - [ ] Critical Review passes
-- [ ] Partial/Skipped items have user approval (R1 and the EBGP-prepend question are
-      FLAGGED OPEN, not silently dropped — they need Thomas's ruling)
+- [ ] Partial/Skipped items have user approval (R1 and the EBGP-prepend question were
+      FLAGGED OPEN, not silently dropped — **both ruled by Thomas 2026-07-16 and homed**:
+      R1 -> `plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md` (trace
+      reachability first, then fix vs fail-closed); EBGP-prepend ->
+      `plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md` (auto-added export
+      chain entries: prepend our ASN, strip LOCAL_PREF). Both recorded in
+      `plan/deferrals.md`. This gate no longer waits on Thomas.)
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
 - [ ] Write learned summary to `plan/learned/NNN-<name>.md`
@@ -434,6 +488,30 @@ The two-line-shaped, two-defect fix in `exportFilterForBody`, plus the extractio
 2. **ctxID 0** (`egress_inject_filter.go:38` pre-fix) — the filter never saw the attributes.
    Found only because fixing (1) alone did NOT stop the leak; the measurement contradicted
    the story and the story lost.
+
+### Deviations from Plan
+
+- **Nothing planned was dropped.** The two deviations are both *additions* to the record,
+  not reductions in scope: R1 and the EBGP-prepend question were flagged open during
+  implementation and ruled by Thomas on 2026-07-16, after the code was complete.
+- **R1 (`r.api == nil` silent fail-open) — deferred, homed, still unfixed.**
+  Destination: `plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md`
+  (`Status | skeleton`). Ruling: trace reachability first, then decide fix vs fail-closed.
+  Correctly out of scope here (this spec's subject is the RFC 6996 private-ASN MUST), and
+  fixing an untraced path blind is what `ai/rules/no-fabrication.md` forbids. Recorded in
+  `plan/deferrals.md`. Surviving risk R1 stays on this spec's books.
+- **EBGP-prepend-on-originate — answered with a design, deferred, homed.**
+  Destination: `plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md`
+  (`Status | skeleton`). Thomas's ruling turns the yes/no question into a design: EBGP peers
+  get auto-added export chain entries (prepend our ASN; strip LOCAL_PREF). Recorded in
+  `plan/deferrals.md`.
+- **Two claims in this spec's own Known Limitations were found wrong while homing the
+  above** (the `update text` vs `rib/commit` prepend disagreement, and `attributes.ci` being
+  an IBGP baseline rather than EBGP evidence). Corrected in place there rather than deleted,
+  so the destination spec inherits the correction and not the error.
+- **A live RFC 4271 S5.1.5 violation was surfaced but NOT fixed here** (LOCAL_PREF survives
+  IBGP-source -> EBGP-destination forwarding). Out of scope, no scope reduction: it was
+  never in the plan. It is AC-1 of the auto-filters spec.
 
 ### Mistake Log / Wrong Assumptions
 

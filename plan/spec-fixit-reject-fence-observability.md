@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-fixit-migrate-sleeps-infra (infra-gated carve-out) |
-| Phase | 1/2 |
+| Phase | 1/1 (was 1/2; Phase 2 left this spec 2026-07-16 by Thomas's ruling -- see "Needs a decision -- RESOLVED") |
 | Updated | 2026-07-16 |
 
 ## Task
@@ -163,16 +163,17 @@ Phase 2 (external-plugin exit signal, NOT this phase -- see A-1):
 
 ## Implementation Status (2026-07-16)
 
-Phase 1 is code-complete and verified on the host. Phase 2 is NOT started and needs a
-decision from Thomas before it can be (see A-1 and "Needs a decision" below).
+Phase 1 is code-complete and verified on the host. Phase 2 was blocked on a decision from
+Thomas; **that decision was made 2026-07-16 and Phase 2 has left this spec** (see "Needs a
+decision -- RESOLVED" below). This spec is now Phase-1-complete and closable.
 
 | AC | State | Proof |
 |----|-------|-------|
 | AC-1 | Met | `TestReloadStatusAdvancesOnRejectedReload` (rejected case advances the counter), `TestHandleShowReloadStatusReportsRejectedReload` (it is queryable). Both pass under `-race`. |
 | AC-2 | Met | `reload-listener-rejected.ci` fences on the counter, PASS 3x. Mutation-proven: disabling `MarkReloadProcessed` makes it fail `reload generation never advanced past 0`. |
 | AC-3a | Met | 1 test converted; baseline ratcheted 463 -> 132 (see note). |
-| AC-3b | NOT met | Blocked. Needs the external-plugin-exit signal AND an observer plugin in each test. Not deliverable by the counter (A-1). |
-| AC-3 (whole) | NOT met | AC-3b outstanding, so the spec stays open. |
+| AC-3b | **Moved out** (2026-07-16) | No longer this spec's work. Homed in `plan/spec-fixit-reject-fence-observability-deferred-external-plugin-signals.md` by Thomas's ruling. Was: blocked, needing an external-plugin signal AND an observer plugin in each test; not deliverable by the counter (A-1). |
+| AC-3 (whole) | **Retired** (2026-07-16) | AC-3 bundled AC-3a and AC-3b. AC-3a is Met; AC-3b left scope. AC-3 as written is retired rather than met -- recording it as "Met" would claim two test conversions that did not happen. |
 | AC-4 | Met | Zero diff in `internal/component/l2tp/`, `plugin/server/reload.go`, `reload_tx.go`. The `expect=stderr:contains=l2tp reload: listener endpoint change ignored` proof is unchanged and still passes. The counter is write-only state; nothing reads it to decide anything. |
 
 Baseline note: the spec predicted 463 -> 462, assuming the committed baseline equalled the
@@ -182,7 +183,7 @@ fails, so the baseline had drifted far above reality and was enforcing nothing. 
 takes the count to 132 and sets the baseline to the true value, which is what the gate
 instructs on a drop. The ratchet is now actually tight.
 
-## Needs a decision
+## Needs a decision -- RESOLVED 2026-07-16
 
 Phase 2 (`as112-external-refuses.ci`, `cos-external-warns.ci`) cannot proceed without a
 call on WHERE the external-plugin-exit signal lives. Its surface (external plugin
@@ -190,15 +191,43 @@ subprocess lifecycle) overlaps `spec-fixit-plugin-event-subscription`, which was
 designed concurrently. Options: fold AC-3b into that spec, or spec it separately once that
 one lands. Do NOT design it inside this spec without deconflicting first.
 
+-> **RULED (Thomas, 2026-07-16): spec it separately, once `spec-fixit-plugin-event-subscription`
+lands.** Not folded into that spec: it is at `design` and owns its own two gaps (namespace-locked
+startup subscriptions, and the second gap in its Task section); loading the exit-signal surface
+into it widens a spec that is not yet built and couples two things that fail independently.
+
+Consequences, all applied here:
+- **AC-3b leaves this spec's scope.** It is homed in
+  `plan/spec-fixit-reject-fence-observability-deferred-external-plugin-signals.md`
+  (`Status | skeleton`, `Depends | spec-fixit-plugin-event-subscription`), created
+  2026-07-16 under the "no deferral without a destination spec" rule
+  (`ai/rules/planning.md`). Recorded in `plan/deferrals.md` and in Deviations below.
+- **"The external-plugin-exit signal" is a misnomer, and the destination spec renames it.**
+  Re-reading the two tests while homing them: `cos-external-warns.ci:74-76` says cos WARNS
+  AND KEEPS RUNNING, so an exit event can never fence it -- only `as112-external-refuses.ci`
+  exits (`:85`). This spec has been asking for one signal where the tests need two (an exit
+  signal, and a startup-reached/warn-emitted signal). Hence
+  `-deferred-external-plugin-signals`, plural. Anyone who had designed "the exit event" this
+  spec asked for would have found this at implementation time.
+- **This spec closes at Phase 1**, whose AC-1/AC-2/AC-3a/AC-4 are Met and verified on the
+  host (see the Implementation Status table). AC-3 as originally written is retired, not
+  met: it bundled AC-3a and AC-3b, and AC-3b is no longer this spec's work.
+- The deconfliction the old text demanded has now happened, so the "do NOT design it inside
+  this spec" instruction is discharged rather than outstanding.
+
 ## Acceptance Criteria
 
 - AC-1: a reload (applied OR rejected) advances a plugin-queryable generation counter.
 - AC-2: an observer can deterministically wait for "reload processed" without a sleep.
-- AC-3: the 3 infra-gated tests convert off `time.sleep`, keeping their stderr proofs,
-  verified in the appropriate environment; baseline ratcheted.
-  - AC-3a (Phase 1): `reload-listener-rejected.ci` converts; baseline 463 -> 462.
-  - AC-3b (Phase 2): `as112-external-refuses.ci` + `cos-external-warns.ci` convert.
-    Blocked on the external-plugin-exit signal, NOT deliverable by the counter (A-1).
+- AC-3: ~~the 3 infra-gated tests convert off `time.sleep`~~ **RETIRED 2026-07-16.** It
+  bundled two items with different fates; scored as a whole it can only be a lie in one
+  direction or the other. Superseded by AC-3a alone.
+  - AC-3a (Phase 1): `reload-listener-rejected.ci` converts; baseline 463 -> 462. **Met**
+    (actual ratchet 463 -> 132; see the Implementation Status baseline note).
+  - AC-3b (Phase 2): ~~`as112-external-refuses.ci` + `cos-external-warns.ci` convert.~~
+    **MOVED OUT 2026-07-16** to
+    `plan/spec-fixit-reject-fence-observability-deferred-external-plugin-signals.md`
+    per Thomas's ruling. Not this spec's work; not scored here.
 - AC-4: no change to reject/no-op semantics; the runner-side stderr checks still pass.
 
 ## Risks & Assumptions
