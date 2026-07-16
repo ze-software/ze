@@ -58,9 +58,19 @@ worked:
   unachievable (the address is local to the parent, so `arp_ignore` cannot muzzle
   it). Install such a VIP as a host route (/32), never the subnet prefix, or you
   add a duplicate connected route. `vipMaskBits` (`register.go`) does this.
-- **IPv6 needs none of this.** ND resolves the VIP to the vMAC natively because
-  Neighbor Solicitation targets the VIP's solicited-node multicast group, which
-  only the macvlan joins -- the parent never competes. No sysctls, no cold race.
+- **IPv6 needs none of the ARP-flux recipe** (ND resolves the VIP to the vMAC
+  natively -- NS targets the VIP's solicited-node multicast group, which only the
+  macvlan joins, so the parent never competes; no cold race) **but it DOES need
+  DAD disabled on the macvlan** (`net.ipv6.conf.<vmac>.accept_dad=0`). A VRRP VIP
+  lives on one router at a time, so DAD is pointless; leaving it on makes the VIP
+  tentative (unreachable) for ~1s after every promotion. Proven end to end against
+  keepalived IPv6 (QEMU): adverts accepted both ways, election, node-death
+  failover, unsolicited NA burst, and the observer resolving the VIP to
+  00:00:5e:00:02:{vrid}. One cosmetic quirk left un-fixed: the FIRST advert
+  sources from the macvlan's auto (EUI-64) link-local, not the configured
+  `fe80::1`, because the FSM sends the first advert before InstallVIPs puts
+  `fe80::1` on the device; the auto link-local is a valid RFC 9568 5.1.2.2 source
+  and keepalived accepts it, so it is a non-issue.
 - **You are fighting the iface component for the parent's sysctls.** iface emits
   `arp_ignore`/`arp_filter`/`rp_filter` from unit config on every apply, which
   clobbers the recipe. The engine re-asserts on every config apply

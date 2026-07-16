@@ -45,10 +45,11 @@ type sysctlKV struct {
 	value string
 }
 
-// ipv4Conf builds a per-interface IPv4 sysctl path. The procfs directory is the
-// literal interface name (dots and all, e.g. eth0.100), unlike the dotted key
-// form, so no escaping is needed.
+// ipv4Conf / ipv6Conf build a per-interface sysctl path. The procfs directory is
+// the literal interface name (dots and all, e.g. eth0.100), unlike the dotted
+// key form, so no escaping is needed.
 func ipv4Conf(dev, key string) string { return filepath.Join(procNetRoot, "ipv4", "conf", dev, key) }
+func ipv6Conf(dev, key string) string { return filepath.Join(procNetRoot, "ipv6", "conf", dev, key) }
 
 // allRPFilterPath is the host-global reverse-path-filter knob.
 func allRPFilterPath() string { return ipv4Conf("all", "rp_filter") }
@@ -123,6 +124,17 @@ var (
 // Refcounts are always incremented so revert stays balanced.
 func applyDataplaneSysctls(parent, vmac, family string) error {
 	if family == familyIPv6 {
+		// IPv6 needs no ARP-flux recipe (ND answers from the macvlan natively --
+		// spec-vrrp-6), but DAD must be disabled on the macvlan. A VRRP VIP lives
+		// on exactly one router at a time, so Duplicate Address Detection is
+		// pointless, and leaving it on costs a ~1s tentative window on every
+		// promotion: the VIP is unreachable during it and the first advert sources
+		// from the macvlan's auto link-local instead of the configured link-local
+		// (both observed in the keepalived IPv6 interop lab). Set once at create,
+		// before any VIP is installed; the knob dies with the device (no revert).
+		if err := sysctlWrite(ipv6Conf(vmac, "accept_dad"), "0"); err != nil {
+			logger().Warn("vrrp: set macvlan accept_dad failed", "vmac", vmac, "error", err)
+		}
 		return nil
 	}
 	for _, kv := range vmacSysctls(vmac) {

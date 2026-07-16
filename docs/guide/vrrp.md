@@ -112,6 +112,16 @@ ipv6 {
 IPv4 and IPv6 groups are independent state machines even when they share a
 `vrid`, so a group of each on one unit is normal and correct.
 
+IPv6 needs none of the ARP-flux sysctls IPv4 needs: Neighbor Solicitation for
+the virtual IP targets its solicited-node multicast group, which only the
+virtual-MAC macvlan joins (the parent does not hold the virtual IP), so the
+parent never competes to answer. Ze does disable Duplicate Address Detection on
+that macvlan (`accept_dad=0`): a virtual IP lives on one router at a time, so DAD
+would only add a tentative window during which the address is unreachable right
+after a promotion. IPv6 interoperability is verified against keepalived under
+QEMU (election, node-death failover, and virtual-MAC resolution of the virtual
+IP).
+
 ### The address owner
 
 If a group's virtual address equals an address configured on the unit, that

@@ -80,21 +80,28 @@ func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
 	}
 }
 
-// TestDataplaneIPv6IsNoop proves an IPv6 group touches no sysctls. IPv6 needs
-// none: ND resolves the VIP to the virtual MAC natively because Neighbor
+// TestDataplaneIPv6OnlyDisablesDAD proves an IPv6 group touches NO ARP-flux
+// knobs (ND resolves the VIP to the virtual MAC natively -- Neighbor
 // Solicitation targets the VIP's solicited-node multicast group, which only the
-// macvlan joins (the parent does not hold the VIP), so the parent never competes
-// -- unlike IPv4's broadcast ARP. Validated in QEMU (bridge topology, 6/6 to the
-// virtual MAC with zero sysctls, no cold-start race; plan/spec-vrrp-6).
-func TestDataplaneIPv6IsNoop(t *testing.T) {
+// macvlan joins, so the parent never competes, validated in QEMU 6/6 with no
+// cold race) and sets ONLY accept_dad=0 on the macvlan, so the VIP is reachable
+// immediately on promotion instead of tentative for a DAD cycle.
+func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 	f := newFakeSysctl(map[string]string{allRPFilterPath(): "1"})
 	f.install(t)
 
 	if err := applyDataplaneSysctls("eth0", "zv6-2-10", familyIPv6); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if len(f.writes) != 0 {
-		t.Errorf("IPv6 group wrote %d sysctls, want 0: %v", len(f.writes), f.writes)
+	if got := f.get(ipv6Conf("zv6-2-10", "accept_dad")); got != "0" {
+		t.Errorf("macvlan accept_dad = %q, want 0", got)
+	}
+	// No IPv4 ARP knobs and no global rp_filter change for an IPv6 group.
+	if got := f.get(allRPFilterPath()); got != "1" {
+		t.Errorf("IPv6 group changed all.rp_filter to %q, want untouched (1)", got)
+	}
+	if len(f.writes) != 1 {
+		t.Errorf("IPv6 group wrote %d sysctls, want exactly 1 (accept_dad): %v", len(f.writes), f.writes)
 	}
 }
 
