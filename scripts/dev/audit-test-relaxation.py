@@ -11,13 +11,24 @@ The weakening detection is IMPORTED from .claude/hooks/pretool-writeedit.py
 (_test_weakening_errs) so the audit and the hook can never drift apart.
 
 Usage:
-    python3 scripts/dev/audit-test-relaxation.py            # uncommitted vs HEAD
-    python3 scripts/dev/audit-test-relaxation.py main       # whole branch vs main
-    python3 scripts/dev/audit-test-relaxation.py --selftest # internal tests
+    python3 scripts/dev/audit-test-relaxation.py             # uncommitted vs HEAD
+    python3 scripts/dev/audit-test-relaxation.py origin/main # committed work + worktree
+    python3 scripts/dev/audit-test-relaxation.py --selftest  # internal tests
 
-Exit 0 = no test deletion/weakening/relaxation found.
+This repo commits DIRECTLY TO MAIN, so `main` is normally the same commit as HEAD
+and `... .py main` would audit an empty commit range. That used to print a clean
+verdict; it is now refused (exit 2). Use origin/main to audit work that is
+committed but not yet pushed. On a feature branch, a base of `main` works as it
+always did.
+
+A base is only usable if it gives a real comparison. "Clean" must mean "I
+compared things and found nothing", never "I compared nothing"
+(ai/rules/fail-closed-guards.md).
+
+Exit 0 = a comparison ran and found no test deletion/weakening/relaxation.
 Exit 1 = findings reported (review them).
-Exit 2 = audit could not run (e.g. detection logic not importable).
+Exit 2 = audit could not run: detection logic not importable, or the base is
+         unusable (nonexistent, unrelated, or an empty range auditing nothing).
 """
 
 import importlib.util
@@ -26,6 +37,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from typing import NamedTuple
 
 RED = "\033[31m"
 YELLOW = "\033[33m"
@@ -64,13 +76,99 @@ def is_test_path(p):
     return False
 
 
-def changed_test_files(base, cwd):
-    """Return list of (status, old_path, new_path) for changed test files in base..worktree."""
+def _suggest_remote_base(base, cwd, head_sha):
+    """Suggest origin/<base> when it exists and WOULD give a real comparison.
+
+    A suggestion, never a substitution: silently retargeting the audit at a base
+    the caller did not name would swap one wrong answer for another, and the
+    caller still would not know what was compared.
+    """
+    if "/" in base:
+        return None
+    remote = f"origin/{base}"
+    if git(["rev-parse", "--verify", f"{remote}^{{commit}}"], cwd).returncode != 0:
+        return None
+    mb = git(["merge-base", remote, "HEAD"], cwd)
+    if mb.returncode != 0 or mb.stdout.strip() == head_sha:
+        return None
+    ahead = git(["rev-list", "--count", f"{remote}..HEAD"], cwd).stdout.strip()
+    return remote, ahead
+
+
+def resolve_anchor(base, cwd):
+    """Resolve the commit to diff the worktree against.
+
+    Returns (anchor, err). A non-None err means there is no honest comparison to
+    make and the audit MUST NOT run: every path here used to fall through to an
+    empty finding list, which report() then printed as a clean bill of health.
+    The empty list is the zero-value trap -- it cannot distinguish "compared and
+    found nothing" from "compared nothing" -- so the miss is made explicit here,
+    at the only layer that knows it happened (ai/rules/fail-closed-guards.md).
+    """
+    head = git(["rev-parse", "--verify", "HEAD^{commit}"], cwd)
+    if head.returncode != 0:
+        return None, "HEAD does not resolve to a commit (empty repository?)."
+    head_sha = head.stdout.strip()
+
+    # The default. "Diff the worktree against HEAD" is a real comparison, so an
+    # anchor of HEAD is legitimate here and only here.
+    if base == "HEAD":
+        return head_sha, None
+
+    if git(["rev-parse", "--verify", f"{base}^{{commit}}"], cwd).returncode != 0:
+        return None, (
+            f"base {base!r} does not resolve to a commit (typo, or a ref that was "
+            f"never fetched).\n"
+            f"  Nothing was compared, so no verdict can be given."
+        )
+
     mb = git(["merge-base", base, "HEAD"], cwd)
-    anchor = mb.stdout.strip() if mb.returncode == 0 and mb.stdout.strip() else base
+    if mb.returncode != 0 or not mb.stdout.strip():
+        return None, (
+            f"base {base!r} shares no common ancestor with HEAD, so there is no "
+            f"range to audit."
+        )
+    anchor = mb.stdout.strip()
+
+    if anchor == head_sha:
+        msg = (
+            f"base {base!r} resolves to the same commit as HEAD ({head_sha[:12]}), so "
+            f"the range {base}..HEAD holds no commits.\n"
+            f"  Auditing it would compare nothing and report a pass. This repo commits "
+            f"directly to main, so a local\n"
+            f"  branch name is almost never the base you want. Try:"
+        )
+        hint = _suggest_remote_base(base, cwd, head_sha)
+        cmds = []
+        if hint:
+            remote, ahead = hint
+            cmds.append(
+                (
+                    remote,
+                    f"{ahead} commit(s) here are not on {remote}, plus the worktree",
+                )
+            )
+        cmds.append(("HEAD", "audit uncommitted changes only"))
+        width = max(len(c) for c, _ in cmds)
+        for cmd, why in cmds:
+            msg += f"\n    audit-test-relaxation.py {cmd:<{width}}  # {why}"
+        return None, msg
+
+    return anchor, None
+
+
+def changed_test_files(anchor, cwd):
+    """Return (rows, err) of (status, old_path, new_path) for changed test files.
+
+    A failed diff returns err, not []: an empty row list must only ever mean the
+    range genuinely contains no test-file changes.
+    """
     out = git(["diff", "--name-status", "-M", anchor, "--"], cwd)
     if out.returncode != 0:
-        return anchor, []
+        return None, (
+            f"git diff against {anchor[:12]} failed, so nothing was compared:\n"
+            f"  {out.stderr.strip()}"
+        )
     rows = []
     for line in out.stdout.splitlines():
         parts = line.split("\t")
@@ -83,7 +181,7 @@ def changed_test_files(base, cwd):
             old_p = new_p = parts[1]
         if is_test_path(old_p) or is_test_path(new_p):
             rows.append((status, old_p, new_p))
-    return anchor, rows
+    return rows, None
 
 
 def read_worktree(path, cwd):
@@ -95,9 +193,24 @@ def read_worktree(path, cwd):
         return None
 
 
+class Audit(NamedTuple):
+    anchor: str  # commit the worktree was diffed against
+    findings: list  # (kind, path, details:list[str])
+    examined: int  # test files actually inspected; the verdict's evidence
+    err: str  # why no comparison was possible, or "" when one ran
+
+
 def run_audit(base, cwd, detector):
-    anchor, rows = changed_test_files(base, cwd)
+    anchor, err = resolve_anchor(base, cwd)
+    if err:
+        return Audit("", [], 0, err)
+    rows, err = changed_test_files(anchor, cwd)
+    if err:
+        return Audit(anchor, [], 0, err)
     findings = []  # (kind, path, details:list[str])
+    # Added files are counted but never inspected: a brand-new test cannot be a
+    # weakening of anything. The verdict reports what it actually looked at.
+    examined = sum(1 for s, _, _ in rows if s != "A")
     for status, old_p, new_p in rows:
         if status == "A":
             continue
@@ -122,13 +235,19 @@ def run_audit(base, cwd, detector):
             findings.append(
                 ("WEAKENED", new_p, [label.strip()] * bool(label) + details)
             )
-    return anchor, findings
+    return Audit(anchor, findings, examined, "")
 
 
-def report(anchor, findings, base):
+def report(audit, base):
+    anchor, findings = audit.anchor, audit.findings
     if not findings:
+        # The verdict states what it is based on. A pass that cannot show its
+        # range and its file count is indistinguishable from a pass that
+        # compared nothing, which is the bug this tool had.
         print(
-            f"{GREEN}Test-relaxation audit: clean (no tests deleted or weakened).{RESET}"
+            f"{GREEN}Test-relaxation audit: clean (no tests deleted or weakened).{RESET}\n"
+            f"  base {base}, range {anchor[:12]}..worktree, "
+            f"{audit.examined} changed test file(s) examined."
         )
         return 0
     print(
@@ -204,8 +323,11 @@ def selftest():
     )
     os.remove(os.path.join(work, "pkg/c_test.go"))
 
-    _, findings = run_audit("HEAD", work, detector)
-    got = {path: kind for kind, path, _ in findings}
+    audit = run_audit("HEAD", work, detector)
+    if audit.err:
+        print(f"SELFTEST FAIL: audit could not run: {audit.err}")
+        return 2
+    got = {path: kind for kind, path, _ in audit.findings}
     expect = {
         "pkg/a_test.go": "WEAKENED",
         "pkg/b_test.go": "RELAXED",
@@ -233,8 +355,16 @@ def main(argv):
             file=sys.stderr,
         )
         return 2
-    anchor, findings = run_audit(base, cwd, detector)
-    return report(anchor, findings, base)
+    audit = run_audit(base, cwd, detector)
+    if audit.err:
+        # Exit 2 = "audit could not run", which is exactly what a base with no
+        # honest comparison is. Refusing beats guessing at the caller's intent.
+        print(
+            f"{RED}{BOLD}Test-relaxation audit: CANNOT RUN.{RESET}\n  {audit.err}",
+            file=sys.stderr,
+        )
+        return 2
+    return report(audit, base)
 
 
 if __name__ == "__main__":
