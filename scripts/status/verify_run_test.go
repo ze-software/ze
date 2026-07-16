@@ -333,8 +333,22 @@ func TestExabgpVerifyModeSummaryUsesNewlinesAndExactReproducers(t *testing.T) {
 // PREVENTS: a verification gate added to _ze-verify-impl/_ze-verify-changed-impl
 // (the natural-looking place, since ze-tier-check/ze-iface-resolution-check
 // already lived there) silently never executing under `make ze-verify`.
+//
+// ze-hook-test is in the list for the same reason, having hit the same trap from
+// the other side: it was reachable ONLY by typing `make ze-hook-test` by hand --
+// absent from ze-test (Makefile), from this stage list, and from .woodpecker/
+// (whose only step is `make ze-verify`). Its checks guard the agent hooks, whose
+// failure mode is silent and fail-CLOSED: a session-id mismatch between
+// lib/session-id.sh and pretool-writeedit.py blocks every agent from writing while
+// reporting work was never done (real incident, 2026-07-16). A guard nobody runs
+// does not guard.
 func TestStagesForModeIncludesStaticAnalysisGates(t *testing.T) {
-	requiredStages := []string{"ze-tier-check", "ze-iface-resolution-check", "ze-plugin-boundary-check"}
+	requiredStages := []string{
+		"ze-tier-check",
+		"ze-iface-resolution-check",
+		"ze-plugin-boundary-check",
+		"ze-hook-test",
+	}
 	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
 		names := map[string]bool{}
 		for _, st := range stagesForMode(mode, "make") {

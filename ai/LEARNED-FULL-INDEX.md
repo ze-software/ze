@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1153 summaries
+Total: 1154 summaries
 
 ## 000-099
 
@@ -1222,3 +1222,4 @@ Total: 1153 summaries
 | 1159 | Fixit: CLI Credential Resolution | `plan/learned/1159-fixit-cli-credential-resolution.md` |
 | 1160 | cli-compare-isolate-changes | `plan/learned/1160-cli-compare-isolate-changes.md` |
 | 1161 | BGP Export Filter Applied Twice to Forwarded Routes | `plan/learned/1161-bgp-export-filter-applied-twice.md` |
+| 1162 | Session id shared marker | `plan/learned/1162-session-id-shared-marker.md` |

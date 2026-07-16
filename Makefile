@@ -259,7 +259,9 @@ ze-unit-test-changed: $(TMP_SENTINEL)
 # Regression + behavioural tests for the Claude agent-guard hooks. parity-check
 # locks the consolidated dispatchers' exit codes against their golden table;
 # fixture-check drives the hooks whose behaviour the golden table cannot isolate
-# (c_format_alloc, validate-spec.sh, the commit_helper.py commit-time gates).
+# (c_format_alloc, validate-spec.sh, the commit_helper.py commit-time gates, and
+# session-id agreement between lib/session-id.sh and pretool-writeedit.py -- the
+# shell WRITES the markers Python READS, and a mismatch fails CLOSED).
 # See ai/rules/hook-mapping.md.
 ze-hook-test:
 	@echo "Hook dispatcher parity (golden exit codes)..."

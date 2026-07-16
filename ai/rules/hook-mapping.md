@@ -37,6 +37,19 @@ are never rejected. Two of them write a non-blocking freshness marker so the
 `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and `ToolSearch` (which
 loads LSP) are actually gated.
 
+**Every marker is keyed by session id**, and the id is resolved in TWO places that
+MUST agree: `.claude/hooks/lib/session-id.sh` (`_session_id`, used by the shell
+hooks that WRITE `.lsp-loaded-*` / `.lsp-invoked-*` / `.source-read-*` /
+`.session-*`) and a port inside `pretool-writeedit.py` (`session_id()`, which
+READS them). Disagreement fails CLOSED -- the reader looks for a file nothing
+wrote and blocks work that was actually done. Both read `$CLAUDE_CODE_SESSION_ID`
+first; an id that is not a safe filename component is rejected by both rather than
+rewritten. `make ze-hook-test` (section `session-id`) locks this. Before
+2026-07-16 neither end had an env lookup, so with no `--session-id` in argv and no
+access token every concurrent session shared ONE marker set -- `spec-session.sh
+claim` then silently overwrote another session's spec claim. If you touch either
+resolver, change BOTH and re-run the test.
+
 ## PreToolUse Checks (block before the tool runs)
 
 ### LSP gate (`block-until-lsp.sh`, standalone)
@@ -77,7 +90,7 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 | panic-error | `go-standards.md` | `.go` | Blocks `panic()` except `unreachable`/`not implemented`/`TODO`/`BUG`/`impossible`. BLOCKING. |
 | ignored-errors | `go-standards.md` | `.go` | Blocks `_, _ =` error-swallowing. BLOCKING. |
 | silent-ignore | `config-design.md` | `.go` | Blocks empty `default:` cases. BLOCKING. |
-| temp-debug | `go-standards.md` | `.go` | Blocks `fmt.Print*`/`println` in production Go. BLOCKING. |
+| temp-debug | `go-standards.md` | `.go` | Blocks debug-MARKER prints (`DEBUG`/`TRACE`/`>>>`/`<<<`/`***`/`XXX`/`FIXME`) via `fmt.Print*`/`Fprint*`, bare `println(...)`, and short bare `fmt.Println("...")` in production Go. Plain `os.Stderr` output is ALLOWED -- it is the CLI's interface, and `cli-patterns.md` prescribes it. BLOCKING. |
 | os-exit | `cli-patterns.md` | `.go` | Blocks `os.Exit()` outside `main.go`/`register.go`/`scripts/`. BLOCKING. |
 | layering | `no-layering.md` | `.go` | Blocks backwards-compat/layering patterns. BLOCKING. |
 | exabgp-in-engine | `compatibility.md` | `.go` | Blocks ExaBGP awareness outside `exabgp/`. BLOCKING. |

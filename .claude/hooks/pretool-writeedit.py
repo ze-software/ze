@@ -112,6 +112,27 @@ def _session_id_from_argv(argv):
 # previous subprocess wrote, and marker matching fails silently.
 SESSION_ID_FALLBACK = "claude-session-fallback"
 
+# An id is used only when it is safe as a filename component. Mirrors _sid_safe in
+# lib/session-id.sh: reject rather than rewrite, so the two ends cannot disagree.
+_SID_SAFE_RE = re.compile(r"\A[A-Za-z0-9._-]+\Z")
+
+
+def _sid_safe(sid):
+    """Return sid when it is usable as a filename component, else ''."""
+    return sid if sid and _SID_SAFE_RE.match(sid) else ""
+
+
+def _sid_from_env():
+    """This session's UUID as exported by the CLI, or ''.
+
+    The CLI puts CLAUDE_CODE_SESSION_ID in the environment of every process it
+    spawns, so it reaches each short-lived hook subprocess with no ps walk and no
+    parsing. Subagents and forks inherit the PARENT session's value (verified
+    2026-07-16): a subagent therefore sees the markers its parent wrote, which is
+    required -- .lsp-invoked-<sid> and .source-read-<sid> are fail-CLOSED gates.
+    """
+    return _sid_safe(os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
+
 
 def _sid_from_process_tree():
     """The Claude CLI's own --session-id, read up the process tree, or ''.
@@ -141,7 +162,7 @@ def _sid_from_process_tree():
             else:
                 argv = _ps("command=", pid).split()
                 ppid = _ps("ppid=", pid).strip()
-            sid = _session_id_from_argv(argv)
+            sid = _sid_safe(_session_id_from_argv(argv))
             if sid:
                 return sid
             if not ppid:
@@ -167,7 +188,7 @@ def _sid_from_jwt():
         decoded = base64.b64decode(payload).decode("utf-8", "replace")
         m = re.search(r'"session_id":\s*"([^"]*)"', decoded)
         if m and m.group(1):
-            return m.group(1)
+            return _sid_safe(m.group(1))
     except Exception:
         pass
     return ""
@@ -189,8 +210,20 @@ def session_id():
     spec write was refused for "no implementation investigated" after the source had
     been read and the LSP invoked. tmp/session/ still carries the pid-named symlinks
     nine earlier sessions used to paper over it.
+
+    _sid_from_env is FIRST because the other two sources are routinely absent: an
+    interactive `claude` carries no --session-id in argv, and subscription auth
+    issues no access token. With both missing, every concurrent session fell through
+    to SESSION_ID_FALLBACK and SHARED one marker set -- so `spec-session.sh claim`
+    silently overwrote another session's claim (observed 2026-07-16: two sessions,
+    one marker, the second clobbered the first's spec).
     """
-    return _sid_from_process_tree() or _sid_from_jwt() or SESSION_ID_FALLBACK
+    return (
+        _sid_from_env()
+        or _sid_from_process_tree()
+        or _sid_from_jwt()
+        or SESSION_ID_FALLBACK
+    )
 
 
 def state_file(sid):
@@ -429,6 +462,22 @@ def c_string_concat(ctx):
     return None
 
 
+# Debug-marker print. Matches fmt.Print* AND fmt.Fprint* (the `F?`): a debug
+# line is just as likely to be Fprintf(os.Stderr, "DEBUG: ...") as Printf, and
+# `fmt\.Print` alone never matches "fmt.Fprintf" because of the F.
+#
+# There is deliberately NO blanket `fmt\.Fprint.*os\.Stderr` rule. It was
+# removed after measuring it against the tree: it flagged 1118 committed stderr
+# writes across 123 files, of which 1117 were legitimate CLI output (usage text,
+# interactive prompts, error messages) and the single "hit" was a false positive
+# -- a diff header, `fmt.Fprintf(os.Stderr, "--- %s (original)\n", path)`, caught
+# only because "---" was in the marker list. Precision was zero, so the rule
+# blocked real work and never caught a real debug print. Writing to stderr is
+# what a CLI DOES; it is not evidence of a debug statement. "---" is dropped for
+# the same reason. The markers below are the actual tells.
+_DEBUG_MARKER = r'fmt\.F?Print.*"(DEBUG|debug|TRACE|trace|>>>|<<<|\*\*\*|XXX|FIXME)'
+
+
 def c_temp_debug(ctx):
     fp = ctx["fp"]
     if (
@@ -442,12 +491,7 @@ def c_temp_debug(ctx):
     content = ctx["content"]
     if (
         grep_lines(content, r"^[ \t]*println[ \t]*\(")
-        or grep_lines(content, r"fmt\.Fprint.*os\.Stderr")
-        or grep_lines(
-            content,
-            r'fmt\.Print.*"(DEBUG|debug|TRACE|trace|>>>|<<<|---|\*\*\*|XXX|FIXME)',
-            ignorecase=True,
-        )
+        or grep_lines(content, _DEBUG_MARKER, ignorecase=True)
         or filter_out(
             grep_lines(content, r'fmt\.Println[ \t]*\([ \t]*"[^"]{1,50}"[ \t]*\)'),
             r"error|fail|warn|usage|help|version",
@@ -457,15 +501,7 @@ def c_temp_debug(ctx):
         found = []
         for n, l in grep_lines(content, r"^[ \t]*println[ \t]*\(")[:2]:
             found.append(f"  L{n}: println(...)  -> use slog or remove")
-        for n, l in grep_lines(content, r"fmt\.Fprint.*os\.Stderr")[:2]:
-            found.append(
-                f"  L{n}: fmt.Fprint(os.Stderr, ...) -> use slog.Error or remove"
-            )
-        for n, l in grep_lines(
-            content,
-            r'fmt\.Print.*"(DEBUG|debug|TRACE|trace|>>>|<<<|---|\*\*\*|XXX|FIXME)',
-            ignorecase=True,
-        )[:2]:
+        for n, l in grep_lines(content, _DEBUG_MARKER, ignorecase=True)[:2]:
             found.append(f"  L{n}: debug print -> remove")
         for n, l in filter_out(
             grep_lines(content, r'fmt\.Println[ \t]*\([ \t]*"[^"]{1,50}"[ \t]*\)'),
@@ -476,7 +512,8 @@ def c_temp_debug(ctx):
         detail = "\n".join(found[:4]) if found else ""
         fix = (
             "\n  Remove debug statements. Use slog for permanent logging.\n"
-            "  Allowed in: _test.go, cmd/, scripts/, register.go"
+            "  Allowed in: _test.go, cmd/, scripts/, register.go\n"
+            "  Operator-facing CLI output on os.Stderr is NOT a debug statement."
         )
         return (
             2,

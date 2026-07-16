@@ -6,6 +6,14 @@
 # Ze workflow of many agents editing main concurrently: no two sessions ever
 # write the same path, so there is no append/remove discipline and no races.
 #
+# That safety is a property of the ID, not of this script, and until 2026-07-16 it
+# did NOT hold: an interactive `claude` passes no --session-id and subscription auth
+# issues no access token, so every session fell through to the shared constant and
+# this helper's guarantee inverted -- `claim` OVERWROTE whatever spec another
+# session had claimed (observed 2026-07-16: two sessions, one marker, the second
+# clobbered the first). session-id.sh strategy 1 now reads the exported
+# $CLAUDE_CODE_SESSION_ID first; `make ze-hook-test` locks writer/reader parity.
+#
 # The session id is derived the same way the hooks derive it (state-file.sh ->
 # session-id.sh), so a claim written here is read back identically by
 # session-start.sh, compaction-reminder.sh and pretool-writeedit.py.
@@ -17,8 +25,9 @@
 #
 # <spec> may be a bare basename (spec-foo.md) or a path (plan/spec-foo.md).
 
-# No `set -u`: the shared session-id.sh reads $CLAUDE_CODE_SESSION_ACCESS_TOKEN
-# without a default, matching the hooks, which never run under `set -u`.
+# No `set -u`: the shared session-id.sh reads $CLAUDE_CODE_SESSION_ID and
+# $CLAUDE_CODE_SESSION_ACCESS_TOKEN without a default, matching the hooks, which
+# never run under `set -u`.
 set -eo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

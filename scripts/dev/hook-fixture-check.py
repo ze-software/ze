@@ -14,11 +14,16 @@ dir. That harness cannot exercise the three hooks this runner covers:
   * the commit-time gates (deferral / wiring / doc-drift / spec-audit) live in
     commit_helper.py and need a real git repository, which the parity harness
     never provides.
+  * session id resolution spans TWO languages -- lib/session-id.sh writes the
+    marker files pretool-writeedit.py reads -- so the invariant is agreement
+    between two programs under a controlled environment, which a single-dispatcher
+    exit code cannot express.
 
 Sections (select one with --only):
     format-alloc   c_format_alloc guarded-file / comment-exemption logic
     validate-spec  validate-spec.sh over ASCII / Unicode / malformed specs
     commit-gate    commit_helper.py creation-time gates in git fixtures
+    session-id     lib/session-id.sh vs pretool-writeedit.py resolve ONE id
 
     python3 scripts/dev/hook-fixture-check.py                 # all sections
     python3 scripts/dev/hook-fixture-check.py --only validate-spec
@@ -506,11 +511,118 @@ def run_commit_gate(results: Results) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# session-id: lib/session-id.sh (writer) vs pretool-writeedit.py (reader) parity
+# --------------------------------------------------------------------------- #
+
+
+def _sid_bash(env: dict) -> str:
+    """_session_id from lib/session-id.sh under a given environment."""
+    r = subprocess.run(
+        ["bash", "-c", "source .claude/hooks/lib/session-id.sh; _session_id"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return r.stdout.strip()
+
+
+def _sid_python(env: dict) -> str:
+    """session_id() from pretool-writeedit.py under a given environment.
+
+    Run in a subprocess, not via _load_pretool_writeedit(): session_id() reads
+    os.environ and walks the process tree, so an in-process import would see THIS
+    runner's environment and pid instead of the fixture's.
+    """
+    code = (
+        "import importlib.util,sys;"
+        "spec=importlib.util.spec_from_file_location('m',sys.argv[1]);"
+        "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);"
+        "print(m.session_id())"
+    )
+    r = subprocess.run(
+        [sys.executable, "-c", code, os.path.join(HOOKS, "pretool-writeedit.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return r.stdout.strip()
+
+
+def run_session_id(results: Results) -> None:
+    """Lock the shell writer and the Python reader to ONE session id.
+
+    These two ends key the same marker files (.lsp-invoked-<sid>,
+    .source-read-<sid>, .session-<sid>, session-state-<stem>-<sid>.md): the shell
+    hooks WRITE them, pretool-writeedit.py READS them. Any disagreement fails
+    CLOSED -- the reader looks for a file nothing wrote and blocks work that was in
+    fact done (real incident, 2026-07-16; see session_id.__doc__).
+
+    Only pretool-writeedit.py's docstring asserted the invariant, and prose does
+    not fail a build. This is the executable form.
+    """
+    print("session-id:")
+    base = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}
+    base.pop("CLAUDE_CODE_SESSION_ACCESS_TOKEN", None)
+
+    def env_with(sid):
+        e = dict(base)
+        if sid is not None:
+            e["CLAUDE_CODE_SESSION_ID"] = sid
+        return e
+
+    # The exported session UUID wins, and both ends read it identically.
+    e = env_with("11111111-2222-3333-4444-555555555555")
+    b, p = _sid_bash(e), _sid_python(e)
+    results.check(
+        "session-id-env-parity",
+        b == p == "11111111-2222-3333-4444-555555555555",
+        f"bash={b!r} py={p!r}",
+    )
+
+    # Distinct sessions MUST NOT collide -- this is the bug the env lookup fixes:
+    # with no id source, every concurrent session shared one marker set and
+    # `spec-session.sh claim` silently overwrote another session's claim.
+    e2 = env_with("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+    b2 = _sid_bash(e2)
+    results.check(
+        "session-id-distinct-sessions-differ",
+        b2 != b and b2 == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        f"first={b!r} second={b2!r}",
+    )
+
+    # An id unusable as a filename component is REJECTED, not rewritten: both ends
+    # must fall through together, or they would disagree on the marker path.
+    for label, bad in (
+        ("traversal", "../../../etc/passwd"),
+        ("slash", "a/b"),
+        ("space", "has space"),
+        ("empty", ""),
+    ):
+        e3 = env_with(bad)
+        b3, p3 = _sid_bash(e3), _sid_python(e3)
+        results.check(
+            f"session-id-rejects-{label}",
+            b3 == p3 and "/" not in b3 and b3 != "" and b3 != bad,
+            f"bash={b3!r} py={p3!r}",
+        )
+
+    # With no id source at all, both ends still agree (on the shared constant).
+    e4 = env_with(None)
+    b4, p4 = _sid_bash(e4), _sid_python(e4)
+    results.check(
+        "session-id-no-source-parity", b4 == p4 and b4 != "", f"bash={b4!r} py={p4!r}"
+    )
+
+
+# --------------------------------------------------------------------------- #
 
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
     "commit-gate": run_commit_gate,
+    "session-id": run_session_id,
 }
 
 
