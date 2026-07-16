@@ -1,6 +1,8 @@
 package ppp
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -146,6 +148,159 @@ func TestIPCPOpenedEmitsAssigned(t *testing.T) {
 	}
 	if assigned.DNSPrimary != ipcpTestDNS1 {
 		t.Errorf("DNSPrimary = %v, want %v", assigned.DNSPrimary, ipcpTestDNS1)
+	}
+}
+
+// TestIPCPBackendAddressFailureFailsSession drives the iface.Backend error
+// path, which onNCPOpened (ncp.go) reaches when AddAddressP2P returns non-nil.
+//
+// VALIDATES: when the kernel refuses the point-to-point address, the session is
+// brought DOWN with the backend's reason, rather than being reported up with an
+// address that was never installed.
+// PREVENTS: the mock's addAddrP2PErr field existing but never being set by any
+// test, leaving the fail() branch (`s.fail("iface AddAddressP2P: ...")`,
+// ncp.go, immediately before the EventSessionIPAssigned send) unexercised. A
+// regression that dropped the error check would install nothing, still emit
+// IPAssigned, and every test would stay green.
+func TestIPCPBackendAddressFailureFailsSession(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+	defer td.cleanup()
+
+	// Armed before IPCP reaches Opened; AddAddressP2P is only called at
+	// onNCPOpened, after the exchange completeIPCP plays below.
+	td.backend.setAddAddrP2PErr(errors.New("rtnetlink: address already assigned"))
+
+	td.completeIPCP(t)
+
+	down, ok := waitForEventOfType[EventSessionDown](t, td.driver.EventsOut(), 2*time.Second)
+	if !ok {
+		t.Fatal("no EventSessionDown after the backend refused the address")
+	}
+	if !strings.Contains(down.Reason, "AddAddressP2P") {
+		t.Errorf("reason = %q, want it to name the failing backend call", down.Reason)
+	}
+	if !strings.Contains(down.Reason, "address already assigned") {
+		t.Errorf("reason = %q, want it to carry the backend's error", down.Reason)
+	}
+	// The address must have been ATTEMPTED: this pins that the failure came
+	// from the backend call rather than from never reaching it.
+	if calls := td.backend.P2PCalls(); len(calls) != 1 {
+		t.Errorf("AddAddressP2P calls = %d, want 1 attempt; got %+v", len(calls), calls)
+	}
+}
+
+// readIPCPUntil reads IPCP packets from the peer end until one carries the
+// wanted code, skipping ze's own Configure-Request retransmissions (its CR is
+// still unacknowledged during these exchanges, so it legitimately repeats).
+func readIPCPUntil(t *testing.T, td *ncpTestDriver, want uint8) LCPPacket {
+	t.Helper()
+	for range 6 {
+		pkt := td.readPeerNCPPacket(t, ProtoIPCP)
+		if pkt.Code == want {
+			return pkt
+		}
+	}
+	t.Fatalf("no IPCP packet with code %d after 6 reads", want)
+	return LCPPacket{}
+}
+
+// TestIPCPDNSRejectAbsorbed drives absorbIPCPReject's non-fatal branch.
+//
+// ze never OFFERS DNS in its own Configure-Request: writeNCPOptions (ncp.go)
+// carries only IP-Address, because RFC 1877 DNS is communicated via Nak to the
+// peer's Configure-Request (buildNakOrReject, ncp.go, fills PrimaryDNS from
+// s.dnsPrimary). So the absorb branch defends against a peer that rejects
+// options ze never sent, and its observable effect is on the NAK ze sends next.
+//
+// VALIDATES: after a peer Configure-Rejects the DNS options, the session
+// survives (non-fatal) and ze's subsequent Nak offers NO DNS addresses, while
+// still Nak-ing the peer's IP-Address.
+// PREVENTS: the HasPrimary/HasSecondary clearing in absorbIPCPReject going
+// unexercised. Without it ze would keep pushing DNS a peer explicitly refused.
+// The control subtest proves the reject is what causes the difference, so the
+// assertion cannot pass vacuously.
+func TestIPCPDNSRejectAbsorbed(t *testing.T) {
+	t.Run("control: nak carries dns when nothing was rejected", func(t *testing.T) {
+		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+		defer td.cleanup()
+
+		cr := td.readPeerNCPPacket(t, ProtoIPCP)
+		if cr.Code != LCPConfigureRequest {
+			t.Fatalf("got code %d, want Configure-Request", cr.Code)
+		}
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureAck, cr.Identifier, cr.Data)
+
+		// Peer asks for an address and both DNS servers.
+		peerCR := []byte{IPCPOptIPAddress, 6, 0, 0, 0, 0, IPCPOptPrimaryDNS, 6, 0, 0, 0, 0, IPCPOptSecondaryDNS, 6, 0, 0, 0, 0}
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x20, peerCR)
+
+		nak := readIPCPUntil(t, td, LCPConfigureNak)
+		opts, err := ParseIPCPOptions(nak.Data)
+		if err != nil {
+			t.Fatalf("parse nak: %v", err)
+		}
+		if !opts.HasPrimary || opts.PrimaryDNS != ipcpTestDNS1 {
+			t.Errorf("control nak primary DNS = %v (has=%v), want %v", opts.PrimaryDNS, opts.HasPrimary, ipcpTestDNS1)
+		}
+		if !opts.HasSecondary || opts.SecondaryDNS != ipcpTestDNS2 {
+			t.Errorf("control nak secondary DNS = %v (has=%v), want %v", opts.SecondaryDNS, opts.HasSecondary, ipcpTestDNS2)
+		}
+	})
+
+	t.Run("dns cleared after configure-reject", func(t *testing.T) {
+		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+		defer td.cleanup()
+
+		cr := td.readPeerNCPPacket(t, ProtoIPCP)
+		if cr.Code != LCPConfigureRequest {
+			t.Fatalf("got code %d, want Configure-Request", cr.Code)
+		}
+
+		// Reject the DNS options, echoed verbatim per RFC 1661 5.4.
+		reject := []byte{IPCPOptPrimaryDNS, 6, 0, 0, 0, 0, IPCPOptSecondaryDNS, 6, 0, 0, 0, 0}
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, cr.Identifier, reject)
+
+		// Peer now asks for an address and both DNS servers.
+		peerCR := []byte{IPCPOptIPAddress, 6, 0, 0, 0, 0, IPCPOptPrimaryDNS, 6, 0, 0, 0, 0, IPCPOptSecondaryDNS, 6, 0, 0, 0, 0}
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x21, peerCR)
+
+		nak := readIPCPUntil(t, td, LCPConfigureNak)
+		opts, err := ParseIPCPOptions(nak.Data)
+		if err != nil {
+			t.Fatalf("parse nak: %v", err)
+		}
+		if opts.HasPrimary {
+			t.Errorf("nak still offers primary DNS %v after the peer rejected it", opts.PrimaryDNS)
+		}
+		if opts.HasSecondary {
+			t.Errorf("nak still offers secondary DNS %v after the peer rejected it", opts.SecondaryDNS)
+		}
+		// The address is NOT part of what was rejected: it must still be Nak-ed,
+		// proving the session was absorbed rather than torn down.
+		if !opts.HasIPAddress || opts.IPAddress != ipcpTestPeer {
+			t.Errorf("nak IP-Address = %v (has=%v), want %v", opts.IPAddress, opts.HasIPAddress, ipcpTestPeer)
+		}
+	})
+}
+
+// TestIPCPIPAddressRejectIsFatal is absorbIPCPReject's other half.
+//
+// VALIDATES: rejecting the mandatory IP-Address option takes the session down
+// instead of absorbing it (fatal=true).
+// PREVENTS: treating IP-Address like DNS and continuing without an address.
+func TestIPCPIPAddressRejectIsFatal(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPCP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("got code %d, want Configure-Request", cr.Code)
+	}
+	reject := []byte{IPCPOptIPAddress, 6, 0, 0, 0, 0}
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, cr.Identifier, reject)
+
+	if _, ok := waitForEventOfType[EventSessionDown](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionDown after the peer rejected the mandatory IP-Address option")
 	}
 }
 

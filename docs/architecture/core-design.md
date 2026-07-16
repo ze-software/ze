@@ -1289,6 +1289,7 @@ Cross-component coupling follows a strict hierarchy:
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
 | mcp | audit |
 | plugin/server | aaa, audit |
+| ppp | none (leaf: PPP/LCP/NCP state machines; only `internal/core/textbuf` outside stdlib) |
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |
 | ssh | audit, cli, authz, config, plugin/server |
 | web | aaa, audit, cli, authz, config |

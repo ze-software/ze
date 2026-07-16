@@ -69,6 +69,15 @@ func (f *fakeBackend) AddAddressP2P(name, localCIDR, peerCIDR string) error {
 	return f.addAddrP2PErr
 }
 
+// setAddAddrP2PErr arms the AddAddressP2P failure path. It takes the mutex
+// because the driver goroutine reads the field while the test goroutine writes
+// it; a bare assignment is a data race the race detector will fail on.
+func (f *fakeBackend) setAddAddrP2PErr(err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.addAddrP2PErr = err
+}
+
 func (f *fakeBackend) AddRoute(name, destCIDR, gateway string, metric int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
