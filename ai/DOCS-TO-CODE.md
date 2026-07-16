@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 290 design docs, 2989 files
+Total: 290 design docs, 2990 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1462,6 +1462,7 @@ Total: 290 design docs, 2989 files
 | `internal/test/runner/netns_other.go` | per-test netns launch mode (Fix B) |
 | `internal/test/runner/parallel.go` | test runner framework |
 | `internal/test/runner/parsing.go` | test runner framework |
+| `internal/test/runner/peer_contract.go` | .ci peer blocks and their consumers |
 | `internal/test/runner/ports.go` | test runner framework |
 | `internal/test/runner/record.go` | test record types and state |
 | `internal/test/runner/record_collection.go` | test record collection and querying |
