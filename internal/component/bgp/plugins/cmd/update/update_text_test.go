@@ -1208,7 +1208,6 @@ func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                        
 func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                             { return nil }
 func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error                  { return nil }
 func (m *mockReactorBatch) FlushForwardPoolPeer(_ context.Context, _ string) error    { return nil }
-func (m *mockReactorBatch) DrainPeerSync(_ context.Context) error                     { return nil }
 func (m *mockReactorBatch) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8) error { return nil }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                      { return nil }
 func (m *mockReactorBatch) RIBStats() bgptypes.RIBStatsInfo                           { return bgptypes.RIBStatsInfo{} }
