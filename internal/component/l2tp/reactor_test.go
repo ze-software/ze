@@ -1054,6 +1054,19 @@ func TestTunnelFSM_TieBreakerEqual(t *testing.T) {
 //nolint:unparam // all current callers use 60s but the parameter keeps call sites self-documenting.
 func buildLogReactorWithClock(t *testing.T, now *time.Time, helloInterval time.Duration, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
 	t.Helper()
+	return buildLogReactorWithClockObserver(t, now, helloInterval, secret, nil)
+}
+
+// buildLogReactorWithClockObserver is buildLogReactorWithClock with a
+// RouteObserver installed. It installs before Start() because that is the
+// setter's contract: SetRouteObserver writes r.routeObserver with no lock and
+// relies on Start()'s goroutine creation to publish the write to the run loop,
+// which reads the field from the reactor goroutine. Installing after Start()
+// is a genuine data race, not a timing flake -- unlike the reload-time setters
+// (setHelloRetries and friends), which take tunnelsMu and are safe any time.
+// A nil observer is a documented no-op, so the wrapper above passes nil.
+func buildLogReactorWithClockObserver(t *testing.T, now *time.Time, helloInterval time.Duration, secret string, obs RouteObserver) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -1064,6 +1077,7 @@ func buildLogReactorWithClock(t *testing.T, now *time.Time, helloInterval time.D
 		Defaults:      TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
 		Clock:         func() time.Time { return *now },
 	})
+	r.SetRouteObserver(obs)
 	require.NoError(t, r.Start())
 
 	stop := func() {
@@ -1170,11 +1184,9 @@ func (o *recordingRouteObserver) downs() [][2]uint16 {
 func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	helloInterval := 60 * time.Second
-	ln, r, _, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
-	defer stop()
-
 	spy := &recordingRouteObserver{}
-	r.SetRouteObserver(spy)
+	ln, r, _, stop := buildLogReactorWithClockObserver(t, &now, helloInterval, "", spy)
+	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
 	defer client.Close()
@@ -1223,11 +1235,10 @@ func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	helloInterval := 5 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	spy := &recordingRouteObserver{}
+	ln, r, logs, stop := buildLogReactorWithClockObserver(t, &now, helloInterval, "", spy)
 	defer stop()
 
-	spy := &recordingRouteObserver{}
-	r.SetRouteObserver(spy)
 	r.setHelloRetries(2) // dead-peer detection at 2 * 5s = 10s
 
 	client, localTID := driveToEstablished(t, ln, "")
