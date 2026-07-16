@@ -141,6 +141,7 @@ Withdraw the test rule from the same source:
 /usr/local/bin/ze cli -c "peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
+
 ## 5. Protect the BGP session itself
 
 The example uses three layers:

@@ -303,6 +303,8 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 | 1, 4, 7, 10... | %3 == 1 | Invalid | 10.0.1.0/24 |
 | 2, 5, 8, 11... | %3 == 2 | NotFound | 11.0.1.0/24 |
 
+<!-- terminal-demo: rpki -->
+
 ## Without RPKI
 
 When the rpki plugin is not loaded, routes flow directly into the adj-rib-in with zero overhead. No pending state, no validation delay. The validation gate is only activated when the rpki plugin sends `request bgp adj-rib-in enable-validation` during startup.

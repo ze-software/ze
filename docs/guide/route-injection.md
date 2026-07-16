@@ -3,6 +3,32 @@
 Ze supports injecting routes at runtime through text, hex, or base64 encoded UPDATE commands. Routes can be sent from the CLI, from external plugins, or from process scripts.
 <!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 command parsing -->
 
+## Injecting into the Local RIB
+
+`request bgp rib inject` inserts a synthetic candidate into Ze's BGP RIB without
+requiring a live BGP session. If the route wins best-path selection, it continues
+through the system RIB and configured FIB backends.
+
+```bash
+ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42"
+ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show rib"
+```
+
+Withdraw the same candidate with the matching synthetic peer, family, and prefix:
+
+```bash
+ze cli -c "request bgp rib withdraw 192.0.2.10 ipv4/unicast 198.51.100.0/24"
+```
+
+The `bgp-rib` and `rib` plugins provide best-path and system-RIB selection.
+On Linux, the `fib-kernel` plugin programs selected routes through netlink.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
+<!-- source: internal/component/sysrib/sysrib.go -- system RIB arbitration -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- Linux FIB programming -->
+
+<!-- terminal-demo: rib-fib -->
+
 ## Text Format
 
 Human-readable format with flat attribute declarations:

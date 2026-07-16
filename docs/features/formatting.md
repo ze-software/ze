@@ -81,6 +81,26 @@ session (`log`, `no-more`).
 
 <!-- source: cmd/ze/ze_core_format.go -- runFormat, formatUsage -->
 
+### Configuration presentation
+
+Configuration uses the same separation between data and presentation. Operators
+can inspect compact hierarchical blocks, while automation can consume one complete
+`set` path per line:
+
+```bash
+ze config show router.conf bgp peer transit-a
+ze config migrate --format set router.conf
+```
+
+`ze config migrate --format hierarchical` converts set syntax back to blocks.
+Rendering both forms back to canonical set syntax provides a presentation-neutral
+comparison.
+
+<!-- source: internal/component/config/cli/cmd_show.go -- path-scoped hierarchical view -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- set and hierarchical rendering -->
+
+<!-- terminal-demo: config-views -->
+
 ### Command-specific filters
 
 Some commands extend the generic set with their own filter vocabulary,

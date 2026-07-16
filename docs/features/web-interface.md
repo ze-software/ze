@@ -21,6 +21,14 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 | YANG decorators | Leaves with `ze:decorate` extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS) |
 | Workbench UI (default) | RouterOS-style operator workbench (default since Phase 2); row-level related-tool buttons declared via `ze:related` YANG extension dispatch through the standard CommandDispatcher; CLI available as separate `/cli` tab |
 
+## Browser Configuration Workflow
+
+The recording below signs in to a local Ze instance, edits a YANG-backed value,
+reviews the generated diff, commits the browser session's draft, and verifies
+the active value. The daemon and browser run locally during generation.
+
+<!-- terminal-demo: web-config -->
+
 <!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->

@@ -78,6 +78,8 @@ when any component is `down`.
 Each check completes within 1 second. Components report `healthy`, `degraded`,
 or `down`. The overall status is the worst of all components.
 
+<!-- terminal-demo: health-reports -->
+
 ## Runtime: `show warnings` / `show errors`
 
 The report bus surfaces individual anomalies:
