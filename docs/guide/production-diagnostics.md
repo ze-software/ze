@@ -361,6 +361,8 @@ appends one line per round and annotates hops with ASN names, useful for
 identifying which network a path change occurs in. `| log | resolve` adds
 reverse DNS hostnames instead.
 
+<!-- terminal-demo: traceroute -->
+
 ## Profiling Workflow
 
 ### CPU Profile

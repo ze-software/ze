@@ -591,6 +591,7 @@ help-test:
 	@echo "    ze-perf-gate                   Perf bench (ze DUT) + regression check"
 	@echo "    ze-release-assets             Rebuild every release-owned website asset"
 	@echo "    ze-terminal-demos-release     Re-record all terminal demos for this release"
+	@echo "    ze-terminal-demo-tools       Install native VHS, ffmpeg, and ttyd (macOS/Ubuntu)"
 	@echo ""
 	@echo "  Escalation: single test -> package -> component group -> ze-verify"
 	@echo "  See docs/contributing/testing.md for the full workflow."

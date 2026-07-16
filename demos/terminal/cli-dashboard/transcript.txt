@@ -1,0 +1,5 @@
+$ ssh ze-demo
+ze# exit
+ze> monitor bgp
+
+The dashboard polls three local BGP sessions. Press "s" to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and "q" to leave the dashboard.

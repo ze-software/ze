@@ -9,12 +9,17 @@ TERMINAL_DEMO_GOARCH ?= $(shell $(GO) env GOARCH)
 TERMINAL_DEMO_IMAGE := ze-terminal-demos:vhs-0.11.0
 TERMINAL_DEMO_RELEASE ?= $(ZE_VERSION)
 TERMINAL_DEMO_BIN_DIR := $(CURDIR)/tmp/terminal-demos/bin
+TERMINAL_DEMO_OUTPUT ?= $(CURDIR)/../gh-pages/assets/demos
 TERMINAL_DEMO_TAGS := ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)
 
 .PHONY: ze-terminal-demo ze-terminal-demos ze-terminal-demos-check
 .PHONY: ze-terminal-demo-image ze-terminal-demo-binaries
 .PHONY: ze-terminal-demos-release ze-terminal-demos-release-check
+.PHONY: ze-terminal-demo-tools
 .PHONY: ze-release-assets ze-release-assets-check
+
+ze-terminal-demo-tools:
+	@demos/terminal/install-vhs.sh
 
 ze-terminal-demo-image:
 	@command -v docker >/dev/null || { echo "error: docker is required to render terminal demos"; exit 1; }
@@ -34,20 +39,20 @@ ze-terminal-demo-binaries:
 
 ze-terminal-demo: ze-terminal-demo-image ze-terminal-demo-binaries
 	@test -n "$(DEMO)" || { echo "error: pass DEMO=<id> (see demos/terminal/manifest.json)"; exit 1; }
-	@python3 demos/terminal/render.py --demo "$(DEMO)" --release "$(TERMINAL_DEMO_RELEASE)"
+	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --demo "$(DEMO)" --release "$(TERMINAL_DEMO_RELEASE)"
 
 ze-terminal-demos: ze-terminal-demo-image ze-terminal-demo-binaries
-	@python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)"
+	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)"
 
 ze-terminal-demos-check:
-	@python3 demos/terminal/render.py --all --check
+	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --check
 
 # Release preparation calls this aggregate target before tagging. It rebuilds
 # the released binaries and every website recording from the checked-in tapes.
 ze-terminal-demos-release: ze-terminal-demos
 
 ze-terminal-demos-release-check:
-	@python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)" --check
+	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)" --check
 
 ze-release-assets: ze-terminal-demos-release
 

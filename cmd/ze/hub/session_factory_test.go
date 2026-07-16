@@ -90,3 +90,24 @@ func TestSessionEditorWithoutReloadFn(t *testing.T) {
 	assert.False(t, ed.HasReloadNotifier(),
 		"nil reload function must not register a notifier")
 }
+
+// TestDashboardFactoryUsesPublicSummaryCommand verifies that SSH dashboard
+// polling uses the registered CLI path rather than the internal RPC nickname.
+//
+// VALIDATES: monitor bgp reaches the live BGP summary over an SSH session.
+// PREVENTS: a healthy dashboard rendering an empty peer table.
+func TestDashboardFactoryUsesPublicSummaryCommand(t *testing.T) {
+	var command string
+	factory := dashboardFactoryFromExecutor(func(input string) (string, error) {
+		command = input
+		return `{"summary":{"peers-configured":3}}`, nil
+	})
+
+	poller, err := factory()
+	require.NoError(t, err)
+	output, err := poller()
+	require.NoError(t, err)
+
+	assert.Equal(t, "show bgp summary", command)
+	assert.JSONEq(t, `{"summary":{"peers-configured":3}}`, output)
+}

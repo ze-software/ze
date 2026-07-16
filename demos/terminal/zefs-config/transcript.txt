@@ -1,0 +1,13 @@
+$ ze init < "$ZE_INIT_INPUT"
+$ ze config ls
+ze.conf
+$ ze data check
+
+$ ssh ze-demo
+ze# set environment cli format default table
+ze# show | compare
+ze# commit
+Session committed
+ze# run show bgp summary
+
+`ze init` creates `database.zefs`. The SSH editor then commits the table-format setting back to ZeFS, not to a second flat file. The operational command uses the new default immediately.

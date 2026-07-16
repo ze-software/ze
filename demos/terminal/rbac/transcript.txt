@@ -1,0 +1,6 @@
+$ ze cli --user noc -c 'show version'
+version: ze 26.07.15
+$ ze cli --user noc -c 'clear interface counters'
+error: command restricted by access control
+
+The read-only NOC profile allows operational show commands and denies every command matching "clear". The daemon resolves the command, finds the profile forbids it, and refuses before running it. The password is supplied outside the recording.
