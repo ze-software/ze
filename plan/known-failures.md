@@ -357,17 +357,32 @@ addresses reach the kernel through the owner registry, which is covered by
 `registry_integration_linux_test.go` and the new
 `device_owner_integration_linux_test.go` and is green.
 
-### `internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute` -- genuine `-race` data race, load-sensitive
+### ~~`internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute`~~ -- FIXED 2026-07-16 (`9af30c440`): the test violated a documented setter contract
 
-Observed 2026-07-01, re-confirmed 2026-07-03 (1/3 under `-race -count=3` in
-isolation): `go test -race` reports a data race between
-`L2TPReactor.SetRouteObserver` (`reactor_setters.go:114`, called from the test)
-and `L2TPReactor.notifyRouteObserverDown` (`reactor_kernel.go:253`, called from
-the reactor's goroutine) -- both racing on the same `RouteObserver` field. The
-test calls `SetRouteObserver` after `Start()`, with no barrier against the
-reactor goroutine already running. Fix: set the observer before `Start()`, or
-synchronize via a channel. Owner: whichever session next touches
-`internal/component/l2tp/reactor_test.go`.
+The diagnosis here was correct (write at `reactor_setters.go:114` vs read at
+`reactor_kernel.go:263`, the test calling `SetRouteObserver` after `Start()`), and
+the suggested fix -- set the observer before `Start()` -- was the one taken.
+
+Two corrections for the record. **It was not load-sensitive and not 1-in-3**:
+`-race` reports it on the FIRST run, 3/3, both alone and in the full package. The
+"1/3 under `-race -count=3`" measurement understated it. And it was never a
+product bug: `SetRouteObserver` documents "MUST be called before `Start()`; the
+goroutine creation barrier synchronizes the write here with reads in the run
+loop" (`reactor_setters.go:106-109`), and the sole production caller honours it --
+`subsystem.go:241` installs the observer, `:313` starts the reactor 72 lines
+later. The lock-free write is deliberate: the reload-time setters
+(`setHelloRetries` and friends, `reactor_setters.go:18-98`) DO take `tunnelsMu`
+because `subsystem_reload.go` calls them on a live reactor, while the install-time
+setters trade the lock for the `Start()` happens-before edge. Adding a mutex would
+have weakened a working design to accommodate a misusing test.
+
+Fixed by giving the builder an observer parameter that installs before `Start()`
+(`buildLogReactorWithClockObserver`); the other 11 callers are untouched and the
+wrapper passes nil, a documented no-op. `setHelloRetries` stays after `Start()`,
+which is safe -- it locks.
+
+Verified: the two affected tests 5/5 under `-race`, and the whole
+`./internal/component/l2tp/...` tree green under `-race`.
 
 ### `internal/component/l2tp` `TestReactorKernelDisabledReturnsNil` -- stale assertion vs. deliberate design change
 
