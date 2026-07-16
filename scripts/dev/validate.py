@@ -289,8 +289,8 @@ def _type_used_as_field_in_pkg(root: Path, pkg_dir: str, type_name: str) -> bool
     return False
 
 
-def _func_return_signature(line: str) -> str | None:
-    """The return-signature text of an exported func/method declaration on line.
+def _func_signature(line: str) -> tuple[str, str, str] | None:
+    """(name, parameter-list, return-signature) of an exported func/method decl.
 
     Balances parentheses from the parameter-list open so a func-typed parameter's
     inner ')' and a multi-value return tuple '(*T, error)' are both handled. The
@@ -301,7 +301,8 @@ def _func_return_signature(line: str) -> str | None:
     m = EXPORTED_FUNC_RE.match(line)
     if not m:
         return None
-    i = m.end() - 1  # index of the '(' opening the parameter list
+    start = m.end() - 1  # index of the '(' opening the parameter list
+    i = start
     depth = 0
     n = len(line)
     while i < n:
@@ -313,7 +314,41 @@ def _func_return_signature(line: str) -> str | None:
             if depth == 0:
                 break
         i += 1
-    return line[i + 1 :].split("{", 1)[0]
+    return m.group(1), line[start + 1 : i], line[i + 1 :].split("{", 1)[0]
+
+
+def _wired_func_names_naming_type(
+    root: Path, pkg_dir: str, type_name: str, search_dirs: list[str], part: int
+) -> bool:
+    """True if an exported same-package func names type_name in signature `part`
+    (1 = parameter list, 2 = return signature) AND itself has a cross-package
+    non-test caller.
+
+    The cross-package-caller requirement on the CONTAINING function is what bounds
+    both seams below. Without it, any type mentioned in any signature would be
+    exempt, which is nearly every dead exported type: the check would fail open.
+    """
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return False
+    word = re.compile(r"(?<![\w.])" + re.escape(type_name) + r"\b")
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            content = go_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in content.splitlines():
+            sig = _func_signature(line)
+            if sig is None or not word.search(sig[part]):
+                continue
+            func_name = sig[0]
+            if func_name == type_name:
+                continue  # its own constructor name collision; ignore
+            if _has_cross_pkg_ref(root, func_name, pkg_dir, search_dirs):
+                return True
+    return False
 
 
 def _type_returned_by_wired_func(
@@ -330,27 +365,29 @@ def _type_returned_by_wired_func(
     false positive (the constructor-seam case, sibling to the constants and
     struct-field cases above).
     """
-    pkg_path = root / pkg_dir
-    if not pkg_path.is_dir():
-        return False
-    word = re.compile(r"(?<![\w.])" + re.escape(type_name) + r"\b")
-    for go_file in sorted(pkg_path.glob("*.go")):
-        if go_file.name.endswith("_test.go"):
-            continue
-        try:
-            content = go_file.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        for line in content.splitlines():
-            ret = _func_return_signature(line)
-            if ret is None or not word.search(ret):
-                continue
-            func_name = EXPORTED_FUNC_RE.match(line).group(1)
-            if func_name == type_name:
-                continue  # its own constructor name collision; ignore
-            if _has_cross_pkg_ref(root, func_name, pkg_dir, search_dirs):
-                return True
-    return False
+    return _wired_func_names_naming_type(root, pkg_dir, type_name, search_dirs, 2)
+
+
+def _type_used_as_param_of_wired_func(
+    root: Path, pkg_dir: str, type_name: str, search_dirs: list[str]
+) -> bool:
+    """True if an exported same-package func takes type_name as a parameter and is
+    itself wired.
+
+    A type that is only the PARAMETER of an exported setter or registration hook
+    (SetPingFactory(PingFactory), SetCommandCompleter(CommandModeCompleter)) is
+    never spelled by name in another package: Go's structural assignability means
+    the caller passes a plain func literal or a concrete value
+    (m.SetPingFactory(streamingPingFactory)), so the bare-name grep undercounts.
+    The type is part of the exported CONTRACT of a wired function, which is what
+    makes it live (the parameter-seam case, sibling to the constructor-return
+    case above).
+
+    Bounded by the same rule as that sibling: the function TAKING the parameter
+    must itself have a cross-package non-test caller. A type whose only exported
+    consumer is dead stays flagged.
+    """
+    return _wired_func_names_naming_type(root, pkg_dir, type_name, search_dirs, 1)
 
 
 def _pkg_exported_interface_methods(root: Path, pkg_dir: str) -> set[str]:
@@ -443,8 +480,10 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
             continue
 
         # A type may be reached without ever spelling its bare name in another
-        # package: callers switch on its constants (RouteVerbInstall) or read it
-        # through a struct field (inv.CPU, cap.Families). Either makes the type
+        # package: callers switch on its constants (RouteVerbInstall), read it
+        # through a struct field (inv.CPU, cap.Families), take it from a wired
+        # constructor (ev := pkg.Global()), or pass an assignable value to a wired
+        # setter (m.SetPingFactory(streamingPingFactory)). Each makes the type
         # wired even though the cross-package name grep found nothing.
         if kind == "type" and (
             any(
@@ -453,6 +492,7 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
             )
             or _type_used_as_field_in_pkg(root, pkg_dir, sym)
             or _type_returned_by_wired_func(root, pkg_dir, sym, search_dirs)
+            or _type_used_as_param_of_wired_func(root, pkg_dir, sym, search_dirs)
         ):
             continue
 

@@ -314,6 +314,65 @@ class TestCrossPackageWiring(unittest.TestCase):
                 f"Evaluator should stay flagged; got: {findings}",
             )
 
+    def test_type_wired_as_param_of_wired_setter(self):
+        """A type reached only as the PARAMETER of an exported setter that is
+        itself wired (SetPingFactory(PingFactory)) is wired: Go's structural
+        assignability means the caller passes a plain func literal or a concrete
+        value and never spells the parameter type."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            pkg2 = root / "internal" / "beta"
+            pkg2.mkdir(parents=True)
+
+            # Factory is never named outside alpha; the field holding it is
+            # unexported, so the struct-field seam cannot cover it either.
+            (pkg / "model.go").write_text(
+                "package alpha\n\n"
+                "type Factory func(x int) error\n\n"
+                "type Model struct {\n\tf Factory\n}\n\n"
+                "func NewModel() *Model { return &Model{} }\n\n"
+                "func (m *Model) SetFactory(f Factory) { m.f = f }\n"
+            )
+            # Consumer passes a bare func literal: assignability, no type name.
+            (pkg2 / "consumer.go").write_text(
+                'package beta\n\nimport "alpha"\n\n'
+                "func Use() {\n"
+                "\tm := alpha.NewModel()\n"
+                "\tm.SetFactory(func(x int) error { return nil })\n"
+                "}\n"
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/model.go"])
+            self.assertEqual(findings, [], f"unexpected findings: {findings}")
+
+    def test_type_param_of_unwired_func_still_flagged(self):
+        """The parameter-seam leniency must not over-suppress: a type that is
+        only the parameter of an exported func with NO cross-package caller
+        stays flagged. Without this bound the exemption would clear nearly every
+        dead exported type, since most appear in some signature."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+
+            (pkg / "model.go").write_text(
+                "package alpha\n\n"
+                "type Factory func(x int) error\n\n"
+                "func SetFactory(f Factory) { _ = f }\n"
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/model.go"])
+            self.assertTrue(
+                any(
+                    f.message
+                    == "exported symbol Factory has no cross-package non-test caller"
+                    for f in findings
+                ),
+                f"Factory should stay flagged; got: {findings}",
+            )
+
     def test_value_only_spec_does_not_inherit_type(self):
         """A value-only spec (`X = expr`, no type) after a typed spec must NOT
         be attributed to the enum type, matching Go's iota rules (NOTE 1)."""
