@@ -1,6 +1,8 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc7606.md — attribute discard error handling
+// RFC: rfc/drafts/draft-mangin-idr-attr-tombstone-00.txt — in-place attribute discard marker
 // Related: rfc7606.go — RFC 7606 revised error handling actions
+// Related: ../wireu/tombstone.go — the same marker written on the egress wire path
 
 package message
 
@@ -10,18 +12,24 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
-// ATTR_DISCARD path attribute implementation.
-// draft-mangin-idr-attr-discard-00: In-place marker for RFC 7606 attribute discard.
+// ATTR_TOMBSTONE path attribute implementation.
+// draft-mangin-idr-attr-tombstone-00: In-place marker for RFC 7606 attribute discard.
+// (The draft was renamed from draft-mangin-idr-attr-discard-00; the ATTR_DISCARD
+// names in this file predate the rename and are retained for now.)
 //
 // When a BGP speaker applies "attribute discard" per RFC 7606, it overwrites
 // the malformed attribute's header and first two value bytes with an
-// ATTR_DISCARD marker, preserving the wire layout for zero-copy forwarding.
+// ATTR_TOMBSTONE marker, preserving the wire layout for zero-copy forwarding.
 
-// attrCodeAttrDiscard is the ATTR_DISCARD type code.
-// draft-mangin-idr-attr-discard-00: TBD (IANA allocation pending).
+// attrCodeAttrDiscard is the ATTR_TOMBSTONE type code.
+// draft-mangin-idr-attr-tombstone-00 Section 8: TBD (IANA allocation pending).
+//
+// NOTE: this is ze's second provisional value for the draft's single TBD code:
+// internal/core/bgp/attribute.AttrTombstone is 252 and is what wireu writes on the
+// egress path. The two producers disagree and must be unified.
 const attrCodeAttrDiscard uint8 = 253
 
-// Discard reason codes per draft-mangin-idr-attr-discard-00 Section 4.4.
+// Discard reason codes per draft-mangin-idr-attr-tombstone-00 Section 4.4.
 const (
 	DiscardReasonUnspecified    uint8 = 0 // Reason not recorded or not applicable.
 	DiscardReasonEBGPInvalid    uint8 = 1 // Attribute invalid in EBGP context (RFC 7606 §7.5, §7.9, §7.10).
@@ -31,28 +39,34 @@ const (
 )
 
 // DiscardEntry represents a single attribute discard with reason code.
-// draft-mangin-idr-attr-discard-00 Section 4.1, 4.4.
+// draft-mangin-idr-attr-tombstone-00 Section 4.1, 4.4.
 type DiscardEntry struct {
 	Code   uint8 // Original attribute type code.
 	Reason uint8 // Reason code (DiscardReason* constants).
 }
 
-// attrDiscardFlags computes the flags byte for an ATTR_DISCARD marker.
-// draft-mangin-idr-attr-discard-00 Section 4.2:
+// attrDiscardFlags computes the flags byte for an ATTR_TOMBSTONE marker.
+// draft-mangin-idr-attr-tombstone-00 Section 4.2:
 //
 //	new_flags = 0x80 | (original_flags & 0x50)
 //
 // Sets Optional bit, preserves Transitive and Extended Length bits, clears Partial.
+//
+// This is the generation-time derivation only. The marker is stamped at receive
+// time, where the destination is not yet known, so a transitive original yields a
+// transitive marker here. Section 5.3's egress rule (clear the Transitive bit when
+// forwarding to an EBGP peer) is enforced per destination on the EBGP wire path,
+// in wireu.rewriteASPathPrepend, not here.
 func attrDiscardFlags(originalFlags uint8) uint8 {
 	return 0x80 | (originalFlags & 0x50)
 }
 
-// ApplyAttrDiscard applies ATTR_DISCARD markers to a path attributes section.
+// ApplyAttrDiscard applies ATTR_TOMBSTONE markers to a path attributes section.
 //
-// draft-mangin-idr-attr-discard-00 Section 5.1:
+// draft-mangin-idr-attr-tombstone-00 Section 5.1:
 //   - Single discard with value >= 2: in-place overwrite (modifies pathAttrs, returns false)
 //   - Multiple discards or value < 2: rebuild (returns new buffer, true)
-//   - Upstream ATTR_DISCARD present: merged per RFC 4271 Section 5
+//   - Upstream ATTR_TOMBSTONE present: merged per RFC 4271 Section 5
 //
 // Returns (resultAttrs, rebuilt). If rebuilt is false, pathAttrs was modified in-place.
 func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
@@ -79,12 +93,12 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 	return rebuildWithAttrDiscard(pathAttrs, entries, merged), true
 }
 
-// applyInPlace overwrites a single malformed attribute with ATTR_DISCARD in-place.
+// applyInPlace overwrites a single malformed attribute with ATTR_TOMBSTONE in-place.
 // Returns true if successful, false if the attribute is not found or value length < 2.
 //
 // Zero allocation — uses AttrFind (standalone function, no pointer receiver escape).
 //
-// draft-mangin-idr-attr-discard-00 Section 5.1, steps 1-8:
+// draft-mangin-idr-attr-tombstone-00 Section 5.1, steps 1-8:
 //  1. Locate the attribute by code
 //  2. Overwrite flags: new_flags = 0x80 | (original_flags & 0x50)
 //  3. Save original type code
@@ -134,12 +148,13 @@ func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
 }
 
 // rebuildWithAttrDiscard rebuilds the path attributes section, removing discarded
-// attributes and any upstream ATTR_DISCARD, then inserting a single merged ATTR_DISCARD.
+// attributes and any upstream ATTR_TOMBSTONE, then inserting a single merged marker.
 //
-// draft-mangin-idr-attr-discard-00 Section 5.1 / Section 5.3:
-// "remove the upstream ATTR_DISCARD and all locally-discarded attributes,
-// then insert a single ATTR_DISCARD whose value contains all (code, reason)
-// pairs -- upstream pairs followed by local pairs."
+// draft-mangin-idr-attr-tombstone-00 Section 5.1:
+// "the local speaker MUST use the rebuild procedure: remove the upstream
+// ATTR_TOMBSTONE and all locally- discarded attributes, then insert a single
+// ATTR_TOMBSTONE whose value contains all (code, reason) pairs -- upstream pairs
+// followed by local pairs."
 //
 // Parameters:
 //   - pathAttrs: original path attributes bytes
@@ -177,10 +192,10 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 	}
 	discardTotalLen := discardHdrLen + discardValueLen
 
-	// Compute flags for the merged ATTR_DISCARD.
-	// draft-mangin-idr-attr-discard-00 Section 5.10:
-	// ALL transitive → MUST 0xC0, ALL non-transitive → MUST 0x80,
-	// mixed → SHOULD 0x80 (conservative default).
+	// Compute flags for the merged ATTR_TOMBSTONE.
+	// draft-mangin-idr-attr-tombstone-00 Section 5.7: "if all discarded attributes
+	// were transitive, the result is transitive (0xC0); if all were non-transitive,
+	// non-transitive (0x80); if mixed, the result MUST be non-transitive (0x80)."
 	mergedFlags := uint8(0x80) // Default: optional non-transitive.
 
 	// Determine transitivity from upstream ATTR_DISCARD (if present).
@@ -203,7 +218,9 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 		allLocalTransitive = false
 	}
 
-	// Section 5.10: only set Transitive when ALL sources agree.
+	// draft-mangin-idr-attr-tombstone-00 Section 5.7: "The merged ATTR_TOMBSTONE is
+	// transitive (0xC0) only if the upstream ATTR_TOMBSTONE was transitive AND all
+	// locally discarded attributes were also transitive."
 	if hasUpstream {
 		if upstreamTransitive && allLocalTransitive {
 			mergedFlags |= 0x40

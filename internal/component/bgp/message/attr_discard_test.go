@@ -10,7 +10,7 @@ import (
 
 // TestAttrDiscardFlags verifies the flags computation formula.
 //
-// VALIDATES: new_flags = 0x80 | (original_flags & 0x50) per draft-mangin-idr-attr-discard-00 §4.2.
+// VALIDATES: new_flags = 0x80 | (original_flags & 0x50) per draft-mangin-idr-attr-tombstone-00 §4.2.
 // PREVENTS: Wrong flag bits — Optional not set, Partial leaked, Transitive lost.
 func TestAttrDiscardFlags(t *testing.T) {
 	tests := []struct {
@@ -468,8 +468,8 @@ func TestRFC7606DiscardEntryReasonCodes(t *testing.T) {
 
 // TestApplyAttrDiscardTransitivity verifies transitivity rules in rebuild mode.
 //
-// VALIDATES: draft-mangin-idr-attr-discard-00 Section 5.10:
-// ALL transitive → 0xC0, ALL non-transitive → 0x80, mixed → SHOULD 0x80.
+// VALIDATES: draft-mangin-idr-attr-tombstone-00 Section 5.7:
+// ALL transitive → 0xC0, ALL non-transitive → 0x80, mixed → MUST 0x80.
 // PREVENTS: Mixed transitivity propagating across AS boundaries.
 func TestApplyAttrDiscardTransitivity(t *testing.T) {
 	tests := []struct {
@@ -598,8 +598,8 @@ func TestApplyAttrDiscardNotFound(t *testing.T) {
 
 // TestApplyAttrDiscardUpstreamTransitivityMerge verifies upstream transitivity merge rules.
 //
-// VALIDATES: draft-mangin-idr-attr-discard-00 Section 5.10 applied during upstream merge.
-// Upstream transitive + local non-transitive = mixed → SHOULD 0x80.
+// VALIDATES: draft-mangin-idr-attr-tombstone-00 Section 5.7 applied during upstream merge.
+// Upstream transitive + local non-transitive = mixed → MUST 0x80.
 // Upstream transitive + local transitive = all transitive → MUST 0xC0.
 // PREVENTS: Unconditional transitivity inheritance from upstream ignoring local entries.
 func TestApplyAttrDiscardUpstreamTransitivityMerge(t *testing.T) {

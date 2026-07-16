@@ -19,8 +19,13 @@ import (
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.
 //
 // Returns the (potentially new) WireUpdate, the action taken, and an error if
-// session-reset is required. When attribute-discard applies, ATTR_DISCARD markers
-// are written into the wire bytes per draft-mangin-idr-attr-discard-00.
+// session-reset is required. When attribute-discard applies, ATTR_TOMBSTONE markers
+// are written into the wire bytes per draft-mangin-idr-attr-tombstone-00.
+//
+// The marker is stamped here, at receive time, into the shared received wire. The
+// Transitive bit derived here (Section 4.2) is what IBGP peers see. Section 5.3's
+// EBGP-boundary clear is applied per destination on the egress wire path
+// (wireu.rewriteASPathPrepend), where the destination session type is known.
 // Called from processMessage() BEFORE callback dispatch so that malformed
 // UPDATEs are never delivered to plugins as valid routes.
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
@@ -101,13 +106,15 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	case message.RFC7606ActionAttributeDiscard:
 		// RFC 7606 Section 2: "The attribute MUST be discarded ... and the UPDATE
 		// message continues to be processed."
-		// draft-mangin-idr-attr-discard-00: Apply ATTR_DISCARD markers.
+		// draft-mangin-idr-attr-tombstone-00 Section 5.1: Apply ATTR_TOMBSTONE markers.
 		sessionLogger().Debug("RFC 7606 attribute-discard",
 			"attr", result.AttrCode,
 			"discard-entries", result.DiscardEntries,
 			"description", result.Description)
 
-		// draft-mangin-idr-attr-discard-00 Section 5.1: log upstream pairs before merge.
+		// draft-mangin-idr-attr-tombstone-00 Section 5.1: "Implementations SHOULD log
+		// the upstream pairs separately before merging to preserve diagnostic
+		// traceability."
 		if upstream := message.ExtractUpstreamAttrDiscard(pathAttrs); len(upstream) > 0 {
 			sessionLogger().Debug("RFC 7606 upstream ATTR_DISCARD before merge",
 				"upstream-entries", upstream,

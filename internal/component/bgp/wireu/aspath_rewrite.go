@@ -525,7 +525,24 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 			// Otherwise skip: replaced by new AS4_AGGREGATOR appended at end.
 
 		default:
-			n += copy(dst[n:], payload[off:off+hl+length])
+			if isTombstoneCode(code) {
+				// draft-mangin-idr-attr-tombstone-00 Section 5.3: "At the originating
+				// AS's EBGP boundary, the sending speaker controls propagation.  Under
+				// the "inherit" policy, a recognizing EBGP speaker MUST clear the
+				// Transitive bit before forwarding the marker to the EBGP peer.  This
+				// prevents the peer from propagating the marker further."
+				//
+				// This function only ever builds wire for a true EBGP peer (it prepends
+				// the local ASN per RFC 4271 Section 9.1.2), and it writes into a
+				// per-destination buffer, so clearing here cannot affect the received
+				// wire that IBGP peers still share zero-copy: they keep the transitive
+				// marker, as Section 5.3 requires.
+				flagsOff := n
+				n += copy(dst[n:], payload[off:off+hl+length])
+				clearTombstoneTransitive(dst, flagsOff)
+			} else {
+				n += copy(dst[n:], payload[off:off+hl+length])
+			}
 		}
 
 		off += hl + length

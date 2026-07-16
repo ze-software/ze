@@ -48,7 +48,7 @@ func (a RFC7606Action) String() string {
 type RFC7606ValidationResult struct {
 	Action         RFC7606Action
 	AttrCode       uint8          // Attribute code that caused the strongest error (0 if N/A)
-	Reason         uint8          // Discard reason code (draft-mangin-idr-attr-discard-00 Section 4.4)
+	Reason         uint8          // Discard reason code (draft-mangin-idr-attr-tombstone-00 Section 4.4)
 	Description    string         // Human-readable error description for the strongest error
 	DiscardEntries []DiscardEntry // Attributes to discard with reason codes when Action is AttributeDiscard
 }

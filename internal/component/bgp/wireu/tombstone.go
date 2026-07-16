@@ -18,6 +18,39 @@ const (
 	TombstoneLocalPolicy   byte = 4
 )
 
+// attrTombstoneLegacy is ze's second, older code point for the same marker.
+// message/attr_discard.go stamps 253 at receive time while this package writes
+// attribute.AttrTombstone (252); both are provisional stand-ins for the draft's
+// single TBD code (draft-mangin-idr-attr-tombstone-00 Section 8), so forwarding
+// rules must recognize either spelling until the two producers are unified.
+const attrTombstoneLegacy attribute.AttributeCode = 253
+
+// isTombstoneCode reports whether code is one of ze's ATTR_TOMBSTONE spellings.
+func isTombstoneCode(code attribute.AttributeCode) bool {
+	return code == attribute.AttrTombstone || code == attrTombstoneLegacy
+}
+
+// clearTombstoneTransitive clears the Transitive bit of an ATTR_TOMBSTONE marker
+// whose flags byte sits at dst[flagsOff]. Zero-copy: masks one byte already
+// written into the caller's buffer, no allocation and no data movement.
+//
+// draft-mangin-idr-attr-tombstone-00 Section 5.3 ("inherit", the default policy):
+// "At the originating AS's EBGP boundary, the sending speaker controls
+// propagation.  Under the "inherit" policy, a recognizing EBGP speaker MUST clear
+// the Transitive bit before forwarding the marker to the EBGP peer.  This
+// prevents the peer from propagating the marker further."
+//
+// Only the Transitive bit is touched: Section 4.2 requires the Optional bit to
+// stay set and the Extended Length bit to keep matching the length encoding.
+//
+// The caller MUST only invoke this on a buffer destined for a true EBGP peer.
+// Section 5.5 keeps confederation boundaries out of scope: markers there are
+// "handled according to their Transitive bit, per standard RFC 5065 processing",
+// so a confederation member-AS boundary is not an AS boundary for this rule.
+func clearTombstoneTransitive(dst []byte, flagsOff int) {
+	dst[flagsOff] &^= byte(attribute.FlagTransitive)
+}
+
 // WriteTombstone writes an ATTR_TOMBSTONE marker into dst at offset n,
 // replacing a malformed or policy-discarded attribute. The marker occupies
 // exactly the same wire space as the original attribute (no data movement).

@@ -51,7 +51,7 @@ Validation collects all errors and applies the strongest action:
 
 Multiple errors in one UPDATE do not produce multiple reasons. The strongest action
 determines the outcome. Attribute-discard marks the specific attribute in-place
-(draft-mangin-idr-attr-discard-00) but the route itself continues.
+(draft-mangin-idr-attr-tombstone-00) but the route itself continues.
 
 ### RPKI Validation
 

@@ -63,6 +63,12 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// Best-path commands (RFC 4271 §9.1.2)
 	assert.Contains(t, commandNames, "show bgp rib best")
 	assert.Contains(t, commandNames, "show bgp rib best status")
+	// RPF lookup. Declared here or the engine's command registry cannot route
+	// it: the handler, the CLI proxy (ze-rib-api:rpf) and the YANG container
+	// all existed from the start, so it tab-completed while every dispatch
+	// failed with "plugin command not registered". test/plugin/rpf-multicast.ci
+	// covers the runtime path.
+	assert.Contains(t, commandNames, "show bgp rib rpf")
 	// Route injection (manual RIB manipulation)
 	assert.Contains(t, commandNames, "request bgp rib inject")
 	assert.Contains(t, commandNames, "request bgp rib withdraw")
@@ -75,7 +81,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "request bgp rib withdraw-router")
 	// Zero-copy forward-handle fast path (rib-arch-6)
 	assert.Contains(t, commandNames, "request bgp rib fastpath")
-	assert.Len(t, regInput.Commands, 19, "bgp rib registers exactly 19 commands")
+	assert.Len(t, regInput.Commands, 20, "bgp rib registers exactly 20 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 
