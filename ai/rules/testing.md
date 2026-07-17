@@ -9,6 +9,31 @@ Structural template: `ai/patterns/functional-test.md`
 
 **BLOCKING:** NEVER modify test data (golden files, expected output, fixtures, `.ci` expectations) to make a failing test pass without explicit user authorization. When output changes, the default assumption is that the code is wrong, not the test data. Ask the user before updating any test data, even if the new output looks plausible.
 
+## RFC-Tagged Tests (BLOCKING)
+
+A test carrying an `RFC requirement: <id> <polarity>` tag is the proof behind a public
+compliance claim in `docs/features/rfc-status.md`, and `make ze-rfc-check` counts it as
+that proof. Editing it to match the code retires the evidence while the claim stays up.
+
+| Situation | Do |
+|-----------|-----|
+| A tagged test fails after your change | Fix YOUR code. The test is the requirement |
+| You believe the test is genuinely wrong | STOP. Show the user the RFC text beside the test and ask. Do not edit first and explain after |
+| The summary misquotes the RFC | Fix `rfc/short/rfcNNNN.md` (keep the id), then re-run `/ze-rfc-audit` |
+| Reformat / comment / re-tag | Allowed; behavior must be unchanged |
+
+`// test-relax:` does **not** authorize changing a tagged test: it is your own
+justification, not the user's approval. Enforced by the `rfc-tagged-test` hook, which runs
+before `test-weakening` precisely so the relax token cannot pre-empt it
+(`ai/rules/hook-mapping.md`). Once the USER approves, record what they approved:
+`// rfc-test-change-approved: <date> <what and why>`.
+
+Every gated requirement needs BOTH a positive and a negative test. A negative-only test
+passes if the code rejects everything; a positive-only test passes if it accepts
+everything. Only the pair pins behavior to the requirement. Assert the EXACT outcome, never
+a floor: `GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it cannot
+fail when the implementation over-reacts. See `ai/skills/ze-rfc.md`.
+
 ## Back-Fill New Test Types (BLOCKING)
 
 **BLOCKING:** When you introduce a new test type, technique, or infrastructure (fuzz target, property test, mutation gate, `-race` sweep, clock-injection audit, new `.ci`/`.et` category, QEMU harness), apply it to the existing code it covers, not only to the code added alongside it. Coverage that grows only forward from the introduction date is the trap (`plan/learned/RECURRING-PATTERNS.md`, "New test type added but not back-filled to existing code").

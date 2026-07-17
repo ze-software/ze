@@ -52,8 +52,8 @@ def git(args, cwd):
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
 
-def load_detector(repo_root):
-    """Import _test_weakening_errs from the canonical hook so logic stays shared."""
+def load_hook_module(repo_root):
+    """Import the canonical hook so its detection logic is SHARED, never reimplemented."""
     hook = os.path.join(repo_root, ".claude", "hooks", "pretool-writeedit.py")
     if not os.path.isfile(hook):
         return None
@@ -63,7 +63,25 @@ def load_detector(repo_root):
         spec.loader.exec_module(mod)
     except Exception:
         return None
-    return getattr(mod, "_test_weakening_errs", None)
+    return mod
+
+
+def load_detector(repo_root):
+    """Import _test_weakening_errs from the canonical hook so logic stays shared."""
+    mod = load_hook_module(repo_root)
+    return getattr(mod, "_test_weakening_errs", None) if mod else None
+
+
+def load_rfc_detector(repo_root):
+    """Import _rfc_tagged_change_err from the canonical hook.
+
+    The hook only sees one edit as it happens. This sees a whole branch, so it catches an
+    RFC-tagged test changed out-of-band -- an edit made before the hook existed, one made
+    with the hook disabled, or an approval token an agent wrote for itself. The hook asks;
+    this reports to a human either way.
+    """
+    mod = load_hook_module(repo_root)
+    return getattr(mod, "_rfc_tagged_change_err", None) if mod else None
 
 
 def is_test_path(p):
@@ -200,7 +218,7 @@ class Audit(NamedTuple):
     err: str  # why no comparison was possible, or "" when one ran
 
 
-def run_audit(base, cwd, detector):
+def run_audit(base, cwd, detector, rfc_detector=None):
     anchor, err = resolve_anchor(base, cwd)
     if err:
         return Audit("", [], 0, err)
@@ -222,6 +240,16 @@ def run_audit(base, cwd, detector):
         if new is None:
             new = git(["show", f"HEAD:{new_p}"], cwd).stdout
         details = detector(old, new, new_p) if detector else []
+        # An RFC-tagged test is the proof behind a public compliance claim
+        # (docs/features/rfc-status.md), so ANY behavior change to one is reportable --
+        # not only the count-based weakening the heuristic above can see. Swapping an
+        # expected value keeps every count identical and would otherwise pass silently.
+        rfc_tags = rfc_detector(old, new, new_p) if rfc_detector else None
+        if rfc_tags:
+            details = details + [
+                "RFC-TAGGED test changed without an approval token: " + ", ".join(rfc_tags),
+                "  the user must approve this; see rfc-test-change-approved:",
+            ]
         old_tokens = len(_RELAX_LINE.findall(old))
         new_tokens = _RELAX_LINE.findall(new)
         added_tokens = [t for t in new_tokens[old_tokens:]]
@@ -323,7 +351,7 @@ def selftest():
     )
     os.remove(os.path.join(work, "pkg/c_test.go"))
 
-    audit = run_audit("HEAD", work, detector)
+    audit = run_audit("HEAD", work, detector, load_rfc_detector(repo_root))
     if audit.err:
         print(f"SELFTEST FAIL: audit could not run: {audit.err}")
         return 2
@@ -355,7 +383,7 @@ def main(argv):
             file=sys.stderr,
         )
         return 2
-    audit = run_audit(base, cwd, detector)
+    audit = run_audit(base, cwd, detector, load_rfc_detector(cwd))
     if audit.err:
         # Exit 2 = "audit could not run", which is exactly what a base with no
         # honest comparison is. Refusing beats guessing at the caller's intent.

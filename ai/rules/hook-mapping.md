@@ -110,6 +110,7 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 | require-design-ref | `design-doc-references.md` | `.go` | Blocks Go files without `// Design:` comment. BLOCKING. |
 | require-related-refs | `related-refs.md` | `.go` | Blocks missing/stale `// Related:`/`// Detail:`/`// Overview:` refs. BLOCKING. |
 | test-weakening (Edit/Write/MultiEdit) | `no-test-deletion.md` | test files | Blocks deleting OR weakening tests: removed funcs/cases/assertions, added `t.Skip`, `require`->`assert` downgrade, commented-out asserts, `ignore` build tag. Escape: `// test-relax: <reason>`. BLOCKING. |
+| rfc-tagged-test (Edit/Write/MultiEdit) | `testing.md`, `ai/skills/ze-rfc.md` | test files carrying `RFC requirement:` | Blocks ANY behavior change to a test that proves an RFC obligation; runs BEFORE test-weakening, and `// test-relax:` does NOT satisfy it (self-service justification is not user approval). Comment/format edits pass; a rename blocks. Escape: `// rfc-test-change-approved: <date> <what the user approved>`, and only the user may authorize it. BLOCKING. |
 | system-tmp (path) | `testing.md` | any | Blocks writing to `/tmp`. BLOCKING. |
 | generated-files | `canonical-sources.md` | `CLAUDE.md`/`AGENTS.md` | Blocks editing generated files. BLOCKING. |
 | claude-plans | `.claude/rules/planning.md` | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. | <!-- doc-links: ignore (banned location, deliberately nonexistent) -->

@@ -196,6 +196,8 @@ artifact type. Check them whenever your work touches the described concern.
 | `go run ./scripts/status/verify_run.go ze-verify` | `scripts/status/verify_run.go` | Verify protocol runner used by `make ze-verify`. Writes `tmp/ze-verify.log`, per-stage logs, compact failure indexes, and `tmp/ze-verify.status`. |
 | `verify-status.sh` | `scripts/dev/` | Checks whether the current tree is byte-identical to the last passing `ze-verify` run. Commit preparation must treat FRESH as authoritative and skip rerunning verify. |
 | `make ze-doc-test` | `mk/inventory.mk` | Documentation drift, stale source anchors, and YANG command handler contract checks. |
+| `make ze-rfc-check` | `scripts/dev/rfc_requirements.py` | Gate: every MUST-level requirement of an enrolled RFC (`rfc/enrolled.txt`) is bound to a positive AND a negative test, or carries a reasoned annotation. |
+| `make ze-rfc-index` | `scripts/dev/rfc_requirements.py` | Regenerates `ai/RFC-REQUIREMENTS.md`: requirement -> enforcing tests, plus the Coverage-by-RFC backlog naming what is still owed. |
 | `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
 | `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
 | `make ze-cli-grammar-check` / `-json` | `mk/inventory.mk` | CLI grammar gate: every built-in command obeys the verb-first rules R1-R9 (`ai/rules/cli-grammar.md`; R9 = compound-vs-namespace split) and no `.yang` carries a `--flag`. In `make ze-verify`. |

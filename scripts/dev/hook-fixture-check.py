@@ -684,11 +684,79 @@ def run_session_id(results: Results) -> None:
 
 # --------------------------------------------------------------------------- #
 
+def run_rfc_test_guard(results: Results) -> None:
+    """The RFC-tagged test guard (plan/spec-rfc-requirement-coverage.md).
+
+    An RFC-tagged test is the proof behind a public compliance claim, so editing it to
+    match the code retires the claim's evidence while the claim stays up. The golden
+    exit-code table cannot isolate this: it depends on the CONTENT of both sides of the
+    edit, which only a fixture can supply.
+    """
+    print("rfc-test-guard:")
+    mod = _load_pretool_writeedit()
+    cw = mod.c_test_weakening
+    fp = "/repo/internal/component/bgp/message/rfc7606_test.go"
+
+    tagged = (
+        "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n"
+        "func TestX(t *testing.T) {\n"
+        "\trequire.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)\n"
+        "}\n"
+    )
+
+    def edit(old: str, new: str, path: str = fp):
+        return cw({"tool": "Edit", "ti": {"old_string": old, "new_string": new}, "fp": path})
+
+    # The core case: "fix" the failing test instead of the code.
+    r = edit(tagged, tagged.replace("TreatAsWithdraw", "None"))
+    results.check("rfc-guard-blocks-expectation-swap", r is not None and r[0] == 2, repr(r))
+
+    # test-relax is SELF-SERVICE. It must not buy a pass here: an agent writing its own
+    # justification is not the user's approval. This is the loophole the guard closes.
+    r = edit(tagged, tagged.replace(
+        "\trequire.Equal", "\t// test-relax: no longer applies\n\trequire.NotEqual"))
+    results.check("rfc-guard-relax-token-insufficient", r is not None and r[0] == 2, repr(r))
+
+    # Deleting the assertion entirely.
+    r = edit(tagged, "// RFC requirement: RFC7606-7.1-1 negative - x.\nfunc TestX(t *testing.T) {\n}\n")
+    results.check("rfc-guard-blocks-assertion-delete", r is not None and r[0] == 2, repr(r))
+
+    # Must NOT over-block ordinary maintenance, or the hook gets disabled and protects
+    # nothing (spec risk R-8).
+    r = edit(tagged, tagged.replace("\t", "    "))
+    results.check("rfc-guard-allows-reformat", r is None, repr(r))
+
+    r = edit(tagged, tagged.replace("ORIGIN len != 1 withdraws", "malformed ORIGIN is withdrawn"))
+    results.check("rfc-guard-allows-comment-edit", r is None, repr(r))
+
+    # The user approved: recorded, auditable, allowed.
+    approved = tagged.replace(
+        "func TestX",
+        "// rfc-test-change-approved: 2026-07-17 user agreed 3(j) mandates reset\nfunc TestX",
+    ).replace("TreatAsWithdraw", "SessionReset")
+    results.check("rfc-guard-allows-user-approved", edit(tagged, approved) is None, "")
+
+    # An untagged test keeps the old behavior exactly: this guard adds a rule, it does not
+    # replace c_test_weakening's heuristic.
+    untagged = tagged.split("\n", 1)[1]
+    r = edit(untagged, untagged.replace("require.Equal", "require.NotEqual"))
+    results.check("rfc-guard-untagged-unaffected", r is None, repr(r))
+
+    # A .ci test is tagged with '#', and the guard must see it there too.
+    ci = (
+        "# RFC requirement: RFC7606-3.a-1 negative - NOTIFICATION on reset.\n"
+        "expect=bgp:conn=1:seq=1:hex=FFFF\n"
+    )
+    r = edit(ci, ci.replace("FFFF", "DEAD"), "/repo/test/plugin/rfc7606-reset.ci")
+    results.check("rfc-guard-covers-ci", r is not None and r[0] == 2, repr(r))
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
     "commit-gate": run_commit_gate,
     "session-id": run_session_id,
+    "rfc-test-guard": run_rfc_test_guard,
 }
 
 

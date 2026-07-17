@@ -11,6 +11,20 @@ Rationale: `ai/rationale/tdd.md`
 4. Run → MUST PASS (paste output)
 5. Refactor while green
 
+## RFC-Enforcing Tests
+
+A test that enforces an RFC obligation carries a third tag beside `VALIDATES:`/`PREVENTS:`:
+
+```go
+// RFC requirement: RFC7606-7.1-1 negative — ORIGIN length != 1 is treated as withdraw.
+```
+
+One id per line, polarity mandatory (`positive`/`negative`), placed INLINE at the table
+case when one function covers many requirements. `make ze-rfc-check` binds it to
+`rfc/short/*.md`; the tag is the only authored half, so it dies with the test. Once
+tagged, the test may not change behavior without user approval
+(`ai/rules/testing.md`). Full rules: `ai/skills/ze-rfc.md`.
+
 ## Patterns
 
 - **Table-driven:** `tests := []struct{...}` with `t.Run(tt.name, ...)`

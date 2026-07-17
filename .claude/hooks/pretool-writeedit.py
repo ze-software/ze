@@ -1715,6 +1715,57 @@ def _test_weakening_errs(old, new, fp):
     return errs
 
 
+_RFC_TAG = re.compile(r"RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9.\-]*-\d+")
+_RFC_APPROVED = re.compile(r"rfc-test-change-approved:[ \t]*\S")
+_GO_LINE_COMMENT = re.compile(r"//.*$", re.MULTILINE)
+_CI_LINE_COMMENT = re.compile(r"^[ \t]*#.*$", re.MULTILINE)
+_WS = re.compile(r"\s+")
+
+
+def _behavior_bytes(text, fp):
+    """The part of a test that decides what it asserts: code minus comments and layout.
+
+    Used to tell a reformat, a comment edit, or a re-tag from a change to what the test
+    actually checks. Deliberately crude -- it only has to answer "did the assertions move".
+    """
+    stripped = (
+        _CI_LINE_COMMENT.sub("", text)
+        if fp.endswith(".ci")
+        else _GO_LINE_COMMENT.sub("", text)
+    )
+    return _WS.sub("", stripped)
+
+
+def _rfc_tagged_change_err(old, new, fp):
+    """Describe an unapproved behavior change to a test carrying an `RFC requirement:` tag.
+
+    An RFC-tagged test is the only thing standing between a regression and a shipped
+    protocol violation: it encodes an obligation Ze publicly claims to meet
+    (docs/features/rfc-status.md), and `make ze-rfc-check` counts it as the proof. Editing
+    it to match the code inverts the whole point -- ai/rules/testing.md already says fix the
+    code, not the test; here that is enforced rather than asked.
+
+    Scoped to BEHAVIOR-bearing edits: reformatting and comment/tag edits pass, because a
+    hook that blocks gofmt gets disabled, and then it protects nothing.
+
+    A rename DOES block, since an identifier is code and this check cannot tell a rename
+    from a rewrite without parsing Go. That is the deliberate side the error falls on: a
+    spurious block costs one question, a missed one ships an unproven compliance claim.
+    Renaming a test that carries a standards obligation is worth a beat of thought anyway.
+
+    NOT satisfied by `// test-relax:`: that token is self-service, and an agent writing its
+    own justification is not user approval. It is exactly the loophole this closes.
+    """
+    if not _RFC_TAG.search(old):
+        return None
+    if _behavior_bytes(old, fp) == _behavior_bytes(new, fp):
+        return None  # comments/whitespace only
+    if _RFC_APPROVED.search(new):
+        return None
+    tags = sorted(set(_RFC_TAG.findall(old)))
+    return tags
+
+
 def c_test_weakening(ctx):
     fp = ctx["fp"]
     is_test = bool(
@@ -1742,6 +1793,30 @@ def c_test_weakening(ctx):
         new = ctx["ti"].get("content", "") or ""
     else:
         return None
+    # RFC-tagged tests are checked FIRST, before the test-relax escape hatch below, and
+    # deliberately: test-relax is self-service, and an agent writing its own justification
+    # is not user approval. Letting it run first would leave the loophole open.
+    tags = _rfc_tagged_change_err(old, new, fp)
+    if tags:
+        named = "\n".join(f"  - {t}" for t in tags)
+        return (
+            2,
+            f"{RED}{BOLD}BLOCKED: RFC-tagged test - ask the user before changing it{RESET}\n"
+            f"  {os.path.basename(fp)} enforces RFC obligations:\n{named}\n"
+            "  These are the proof behind a public compliance claim\n"
+            "  (docs/features/rfc-status.md), counted by `make ze-rfc-check`.\n"
+            "  Editing the test to match the code inverts that: the obligation stops being\n"
+            "  proven while still being advertised.\n"
+            "  Fix the CODE. If you believe the test is genuinely wrong, STOP and show the\n"
+            "  user the RFC text next to the test -- do not edit first and explain after.\n"
+            "  `// test-relax:` does NOT authorize this: it is your own justification, not\n"
+            "  the user's approval.\n"
+            "  Once the USER has approved, record what they approved on the changed test:\n"
+            "    // rfc-test-change-approved: <date> <what the user approved and why>\n"
+            "  (auditable: grep -rn 'rfc-test-change-approved:')\n"
+            "  Reformatting and comment/tag edits are never blocked. A rename is, because\n"
+            "  this check cannot tell one from a rewrite -- approve it the same way.",
+        )
     # Documented, auditable escape hatch. Forces a written reason instead of a
     # silent edit. Audit every relaxation: grep -rn 'test-relax:' --include='*_test.go'
     if _RELAX_TOKEN.search(new):
