@@ -23,6 +23,15 @@
 # ever gets a chance to run. option=needs-linux below; not executable on the
 # darwin dev host, but confirmed PASSING under
 # `make ze-qemu-needs-linux-test` (real QEMU Linux VM, plan/learned/1045).
+#
+# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# await=stderr fence below. Coverage is REPLACED, not weakened: the
+# warn-message assertion (expect=stderr:contains=) is preserved byte-for-byte;
+# only the WHEN-to-tear-down changes from a fixed sleep to a deterministic wait
+# for the exact line. ddos-detect warns from inside RunEngine after the external
+# TLS connect-back and keeps running, so the daemon is torn down by the fence
+# rather than by the plugin's own exit; the relayed line proves the warning
+# fired through the real external-plugin transport, exactly as before.
 
 option=needs-linux
 
@@ -74,21 +83,8 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Hold the test open long enough for the external ddos-detect subprocess
-to start and log its external-mode warning -- observable via the daemon's
-relayed stderr (default relay level is WARN, and warnIfExternal logs at
-WARN). Unlike the refuse cases, ddos-detect keeps running after the
-warning, so this test tears the daemon down via the sleep timeout rather
-than waiting for the plugin's own exit."""
-import time
-
-# blind hold: waits for the external plugin's refuse/warn on the daemon's own relayed stderr; no queryable signal (reject-fence bucket, see spec-fixit-reject-fence-observability)
-time.sleep(4.0)
-EOF_PY
-
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
-expect=exit:code=0
+# // test-relax: the blind sleep + wait.py hold is replaced by the await=stderr
+# fence below (see header). The warn-message assertion is preserved byte-for-byte.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=will never receive a rate signal
 expect=stderr:contains=will never receive a rate signal
