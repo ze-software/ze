@@ -33,6 +33,7 @@ and gated fresh, so they never lie about the current code.
 | Detect behavioral security anomalies (exfil, C2, scanning) | learned `1046`/`1048`/`1049` | Neutral facts in `internal/component/trafficfeature` (fan-out, out/in ratio, entropy, beaconing) on `internal/core/stats`; `anomaly/detect` (report-only) scores per-entity deviation + cohort rarity into incidents (`show anomaly`); `anomaly/shape` responds shadow-first (per-source rate-limit, arm/auto-revert/kill-switch, `show anomaly-shape`). Separate security domain from `ddos`. |
 | Provide or extend first-hop gateway redundancy (VRRP) | `docs/guide/vrrp.md` | RFC 9568/3768 in `internal/plugins/vrrp/` (self-contained plugin) with the per-group virtual-MAC macvlan in `internal/component/iface/macvlan.go`; extend via `plan/spec-vrrp-0-umbrella.md` (indexes `spec-vrrp-1..7`) |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
+| Prove an RFC MUST is enforced (tag a test, coverage gate) | `ai/skills/ze-rfc.md` | Tag the test `RFC requirement: <id> <polarity>` (both polarities); `make ze-rfc-check` gates coverage; ledger `ai/RFC-REQUIREMENTS.md` via `make ze-rfc-index`; audit with `/ze-rfc-audit` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
@@ -351,6 +352,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | ADD-PATH | `edge-cases/addpath.md` |
 | extended message | `edge-cases/extended-message.md` |
 | test, functional, .ci, verify failures | `docs/functional-tests.md` (top-level, not architecture/), `testing/ci-format.md` |
+| RFC requirement coverage, RFC MUST tests, rfc-requirements, RFC requirement tag, ze-rfc-check, ze-rfc-index | `make ze-rfc-check`, `ai/RFC-REQUIREMENTS.md`, `ai/skills/ze-rfc.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/functional-tests.md` (RFC Requirement Tags) |
 | payload-predicate waits, sleep elimination, ci-sleep ratchet, ci-sleep justification, time.sleep comment, wait_until, dispatch_until, wait_for_event predicate, engine-step predicates (matches=/absent=/json=) | `docs/functional-tests.md` ("Payload-predicate waits"), `docs/architecture/testing/ci-format.md` ("Engine Steps"), `ai/rules/testing.md` (Observer API), `ai/rules/ci-sleep-justification.md`, `test/scripts/ze_api.py`, `internal/test/runner/engine_steps.go` |
 | netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `docs/features.md`, `plan/learned/653-netdata-os-collectors.md` |
 | DHCP, dhcp-server, lease, pool | `internal/plugins/dhcpserver/` (plugin), `ze-dhcp-server-conf.yang` |

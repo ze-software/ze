@@ -73,12 +73,21 @@ def load_detector(repo_root):
 
 
 def load_rfc_detector(repo_root):
-    """Import _rfc_tagged_change_err from the canonical hook.
+    """Import _rfc_tagged_change_err from the canonical hook -- the SAME detector object.
 
-    The hook only sees one edit as it happens. This sees a whole branch, so it catches an
-    RFC-tagged test changed out-of-band -- an edit made before the hook existed, one made
-    with the hook disabled, or an approval token an agent wrote for itself. The hook asks;
-    this reports to a human either way.
+    The hook sees one edit as it happens; this sees a whole branch, so it catches an
+    RFC-tagged test changed out-of-band with NO approval token: an edit made before the
+    hook existed, or one made while the hook was disabled. On those the shared detector
+    still fires.
+
+    It does NOT provide a second opinion on a forged token. Because this audit imports the
+    hook's exact detector, the `rfc-test-change-approved:` token that silences the hook
+    silences this audit too -- the detector returns None the moment the new content carries
+    one (see _rfc_tagged_change_err). A self-written token therefore defeats BOTH gates.
+    The only backstop against one is `grep -rn 'rfc-test-change-approved:'` plus human
+    review of each hit, which the hook's own block message already instructs. Do not read
+    this audit as catching a token an agent wrote for itself; it cannot
+    (ai/rules/no-fabrication.md, ai/rules/fail-closed-guards.md).
     """
     mod = load_hook_module(repo_root)
     return getattr(mod, "_rfc_tagged_change_err", None) if mod else None
@@ -247,7 +256,8 @@ def run_audit(base, cwd, detector, rfc_detector=None):
         rfc_tags = rfc_detector(old, new, new_p) if rfc_detector else None
         if rfc_tags:
             details = details + [
-                "RFC-TAGGED test changed without an approval token: " + ", ".join(rfc_tags),
+                "RFC-TAGGED test changed without an approval token: "
+                + ", ".join(rfc_tags),
                 "  the user must approve this; see rfc-test-change-approved:",
             ]
         old_tokens = len(_RELAX_LINE.findall(old))

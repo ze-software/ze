@@ -309,6 +309,7 @@ Agent rules, self-improvement, discovery paths, and development-time inventories
 
 Test patterns, infrastructure, chaos testing.
 
+- [1172](plan/learned/1172-rfc-requirement-coverage.md) -- RFC MUST-to-test coverage gate: authored test-side `RFC requirement:` tags + derived two-way ledger, mandatory both-polarity rule, section-anchored IDs, fingerprinted semantic audit, RFC-tagged-test approval hook. Lessons: a committed pilot's "green" can be a lie (confounded tags passing via an unrelated rule), the gate's own ratchets shipped unwired, and an NLRI-syntax walk is add-path-blind unless the negotiated per-family state is threaded into it
 - [274](plan/learned/274-spec-test-diagnostics.md) -- Test diagnostic improvements
 - [258](plan/learned/258-bgp-chaos-families.md) -- Chaos family fuzzing
 - [265](plan/learned/265-bgp-chaos-selftest.md) -- Chaos self-test patterns

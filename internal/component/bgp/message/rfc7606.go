@@ -102,7 +102,9 @@ func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 	// set) and non-transitive (Transitive bit clear). Section 3(j) escalates that to session
 	// reset -- STRONGER than the generic Section 3.c treat-as-withdraw for a well-known flag
 	// conflict -- because an MP attribute whose framing is in doubt cannot have its NLRI
-	// boundaries trusted.
+	// boundaries trusted. Only the Optional and Transitive bits are constrained: the
+	// Extended-Length bit (0x10) is a legal encoding choice and the Partial bit (0x20) is
+	// not restricted by RFC 4760, so neither is rejected here.
 	if code == attrCodeMPReachNLRI || code == attrCodeMPUnreachNLRI {
 		if flags&attrFlagOptional == 0 || flags&attrFlagTransitive != 0 {
 			var b textbuf.Buffer
@@ -998,13 +1000,11 @@ func ValidateNLRISyntaxAddPath(nlri []byte, isIPv6, addPath bool) *RFC7606Valida
 			}
 		}
 
-		// Calculate bytes needed for this prefix: ceiling(prefixLen / 8)
+		// Bytes needed for this prefix: ceiling(prefixLen / 8).
 		prefixBytes := (prefixLen + 7) / 8
 
-		// RFC 7606 Section 3(j): "in order to use the approach of 'treat-as-withdraw',
-		// the entire NLRI field ... need to be successfully parsed ... If this is not
-		// possible ... the 'session reset' approach ... MUST be followed."
-		// Overrun means the field cannot be fully parsed — session-reset required.
+		// RFC 7606 Section 3(j): treat-as-withdraw needs the entire NLRI field parsed; if not
+		// possible the session-reset approach MUST be followed. Overrun = unparseable.
 		if pos+prefixBytes > len(nlri) {
 			var b textbuf.Buffer
 			return &RFC7606ValidationResult{

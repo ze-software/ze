@@ -23,6 +23,7 @@ never "I compared nothing".
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -34,6 +35,19 @@ HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "audit-test-relaxation.py"
 REPO_ROOT = HERE.parent.parent
 HOOK = REPO_ROOT / ".claude" / "hooks" / "pretool-writeedit.py"
+
+
+def _load_audit_module():
+    """Import audit-test-relaxation.py by path (its hyphenated name is not importable).
+
+    Lets a test call the audit's own loader/detector functions directly, hermetically,
+    without spinning up a git fixture.
+    """
+    spec = importlib.util.spec_from_file_location("ze_audit_relax", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 
 HEALTHY = (
     "package a\n"
@@ -183,6 +197,104 @@ class TestSelftest(unittest.TestCase):
             code, out = fx.audit("--selftest")
             self.assertEqual(code, 0, out)
             self.assertIn("SELFTEST PASS", out)
+
+
+class TestRfcDetectorIsShared(unittest.TestCase):
+    """AC-17: the RFC detector is IMPORTED from the hook, never re-defined here."""
+
+    def test_shared_detector_imported(self):
+        # VALIDATES (AC-17): the audit reuses the hook's _rfc_tagged_change_err
+        # rather than keeping its own copy, so the hook and the branch audit can
+        # never drift apart on what counts as an RFC-tagged change.
+        # PREVENTS: someone reimplementing the detector (or its _RFC_TAG /
+        # _RFC_APPROVED regexes) locally in audit-test-relaxation.py, which would
+        # let the two gates diverge silently.
+        src = SCRIPT.read_text()
+        self.assertNotIn(
+            "def _rfc_tagged_change_err",
+            src,
+            "audit must IMPORT the RFC detector from the hook, not define its own copy",
+        )
+        self.assertNotIn(
+            "_RFC_TAG",
+            src,
+            "the RFC-tag regex must live only in the hook, not be copied into the audit",
+        )
+        self.assertNotIn(
+            "_RFC_APPROVED",
+            src,
+            "the approval-token regex must live only in the hook, not be copied here",
+        )
+        # And prove the detector the audit actually loads ORIGINATES in the hook
+        # file. co_filename is the discriminator: a local reimplementation would
+        # report audit-test-relaxation.py here and fail this assertion.
+        mod = _load_audit_module()
+        detector = mod.load_rfc_detector(REPO_ROOT)
+        self.assertIsNotNone(
+            detector, "audit failed to import the RFC detector from the hook"
+        )
+        self.assertEqual(detector.__name__, "_rfc_tagged_change_err")
+        self.assertTrue(
+            detector.__code__.co_filename.endswith("pretool-writeedit.py"),
+            f"detector must be defined in the hook, got "
+            f"{detector.__code__.co_filename!r}",
+        )
+
+
+class TestRfcTaggedChangeSurfaced(unittest.TestCase):
+    """AC-18: a branch diff that changes an RFC-tagged test is surfaced by the audit."""
+
+    RFC_OLD = (
+        "package a\n"
+        "// RFC requirement: RFC4271-9\n"
+        "func TestHoldtime(t *testing.T){ require.Equal(t, 30, holdtime()) }\n"
+    )
+    # Same test, expected value swapped 30 -> 90, NO approval token: a behavior
+    # change the count-based weakening heuristic cannot see (every count is equal).
+    RFC_NEW = (
+        "package a\n"
+        "// RFC requirement: RFC4271-9\n"
+        "func TestHoldtime(t *testing.T){ require.Equal(t, 90, holdtime()) }\n"
+    )
+    # The same value swap, but now carrying a self-written approval token.
+    RFC_NEW_APPROVED = (
+        "package a\n"
+        "// RFC requirement: RFC4271-9\n"
+        "// rfc-test-change-approved: 2026-07-17 widen holdtime per user\n"
+        "func TestHoldtime(t *testing.T){ require.Equal(t, 90, holdtime()) }\n"
+    )
+
+    def test_branch_diff_surfaces_rfc_test_change(self):
+        # VALIDATES (AC-18): an RFC-tagged test whose expected value changes with
+        # NO approval token is reported by the audit's RFC path. Swapping 30 -> 90
+        # keeps every weakening count identical, so only the RFC detector catches it.
+        # PREVENTS: an equal-count edit to a compliance test passing the audit silently.
+        #
+        # The NEGATIVE half documents the real, honest behavior from Fix 3: the SAME
+        # shared detector returns None once a self-written rfc-test-change-approved:
+        # token is present, so the branch audit is silenced exactly like the hook.
+        # PREVENTS: re-introducing the false claim that the audit is a backstop against
+        # a token an agent wrote for itself (the only real backstop is grep + review).
+        mod = _load_audit_module()
+        rfc_detector = mod.load_rfc_detector(REPO_ROOT)
+        self.assertIsNotNone(
+            rfc_detector, "audit failed to import the RFC detector from the hook"
+        )
+        tags = rfc_detector(self.RFC_OLD, self.RFC_NEW, "pkg/holdtime_test.go")
+        self.assertTrue(
+            tags, "unapproved RFC-tagged behavior change must be surfaced by the audit"
+        )
+        self.assertTrue(
+            any("RFC4271-9" in t for t in tags),
+            f"the reported tag must name the RFC requirement, got {tags!r}",
+        )
+        approved = rfc_detector(
+            self.RFC_OLD, self.RFC_NEW_APPROVED, "pkg/holdtime_test.go"
+        )
+        self.assertIsNone(
+            approved,
+            "a forged rfc-test-change-approved: token suppresses BOTH gates (Fix 3)",
+        )
 
 
 if __name__ == "__main__":

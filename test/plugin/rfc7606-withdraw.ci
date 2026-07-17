@@ -1,6 +1,8 @@
 # RFC 7606 treat-as-withdraw test
 # Verifies: Peer sends UPDATE with malformed ORIGIN (length=2 instead of 1).
-# Expected: ze treats UPDATE as withdrawn (not dispatched to plugins), session stays up.
+# Expected: ze applies treat-as-withdraw (RFC 7606 Section 2) — the routes the malformed
+# UPDATE announced are rewritten into a withdrawal and dispatched, so nothing is left
+# installed and stale — and the session stays up.
 # Proof: A subsequent valid route from the plugin reaches the peer successfully.
 #
 # RFC requirement: RFC7606-7.1-1 negative — ORIGIN length != 1 is malformed, treat-as-withdraw
@@ -8,10 +10,12 @@
 # treat-as-withdraw from session reset end-to-end.
 #
 # NOT tagged RFC7606-2-1 ("treated as though all contained routes had been withdrawn").
-# This test proves the UPDATE was not DISPATCHED and the session survived. Suppression is
-# not withdrawal: it never observes the RIB, so it would pass unchanged against an
-# implementation that leaves a previously-announced prefix installed and stale. Tagging it
-# would manufacture exactly the false coverage this system exists to catch.
+# ze now DOES dispatch the malformed UPDATE as a synthesized withdrawal (Section 2), but this
+# test still only observes session survival and the updates-received counter, never the RIB.
+# It cannot prove the synthesized withdrawal actually removed a previously-installed prefix,
+# so tagging RFC7606-2-1 here would still manufacture false coverage. The RIB-removal proof
+# lives at the unit layer (session_test.go TestSessionRFC7606...DispatchesWithdrawal asserts
+# the withdrawal bytes).
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -29,11 +33,11 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A020000000F40010200004002004003040A000001180A0000
 # Step 3b: Send a well-formed EOR (empty IPv4/unicast UPDATE) as a processing fence,
 # in the same seq=2 group so the peer emits it immediately after the malformed above.
-# ze increments updates-received for this EOR but NOT for the malformed treat-as-withdraw
-# (session_read.go returns before the counter). Because ze processes this connection in
-# TCP order on one session-read goroutine, the observer seeing updates-received >= 1
-# proves the malformed UPDATE was already handled. This lets the observer gate Route 2
-# on real processing instead of a blind sleep(1.0).
+# ze increments updates-received for BOTH the malformed treat-as-withdraw (Section 2 now
+# synthesizes and dispatches a withdrawal, which counts) and this EOR. Because ze processes
+# this connection in TCP order on one session-read goroutine, the observer seeing
+# updates-received >= 1 proves the malformed UPDATE was already handled. This lets the
+# observer gate Route 2 on real processing instead of a blind sleep(1.0).
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # Step 4: Expect second valid route from plugin (10.0.1.0/24) — proves session survived
@@ -98,10 +102,11 @@ def main() -> None:
     api.send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24')
 
     # Deterministic replacement for sleep(1.0): the peer sends the malformed UPDATE
-    # followed by a well-formed EOR (see the peer block, Step 3/3b). ze counts the EOR
-    # but not the malformed treat-as-withdraw, and processes the connection in TCP order,
-    # so updates-received >= 1 proves the malformed UPDATE was already handled. Only then
-    # is it valid to send Route 2 as proof the session survived the malformed UPDATE.
+    # followed by a well-formed EOR (see the peer block, Step 3/3b). ze counts both the
+    # malformed treat-as-withdraw (Section 2 dispatches a synthesized withdrawal) and the
+    # EOR, and processes the connection in TCP order, so updates-received >= 1 proves the
+    # malformed UPDATE was already handled. Only then is it valid to send Route 2 as proof
+    # the session survived the malformed UPDATE.
     if not api.wait_until(lambda: updates_received(api) >= 1, attempts=100, delay=0.1):
         print('FAIL: ze never counted the post-malformed EOR fence', file=sys.stderr)
         sys.exit(1)

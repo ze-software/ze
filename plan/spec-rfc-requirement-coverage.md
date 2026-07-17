@@ -231,8 +231,8 @@ deleted, weakened, or drifting from the requirement it was written for.
 | R-4 | ID renumbering breaks every tag at once | A re-authored summary shifts IDs | IDs allocated once, never reused/renumbered; gate fails on reuse and dangling tags; sequence independent of keyword level |
 | R-5 | Fingerprint churn makes verdicts permanently stale, so the audit is ignored | Every unrelated edit re-stales verdicts | Fingerprint the tagged unit, not the file; over-triggering is SAFE (re-audit), under-triggering is not (silent rot) |
 | R-6 | The positive/negative rule is satisfied by a token second test that asserts nothing meaningful | A `positive` tag on a test with no assertion tying it to the requirement | `/ze-rfc-audit` judges BOTH polarities for letter-and-spirit, not just existence; the gate proves presence, the skill proves substance |
-| R-7 | Hook protection is forgeable: an agent invents an approval token and proceeds | Approval tokens appear in diffs the user never saw | Defense in depth, and say so honestly: hook blocks (exit 2) → fingerprint re-stales the verdict → gate fails → `audit-test-relaxation.py` surfaces the change in the branch diff for human review. No single layer is trusted |
-| R-8 | Over-blocking edits to RFC-tagged tests makes agents route around the hook (A-7) | Agents disabling the hook, or `test-relax:` spam | Scope the strict trigger to behavior-bearing edits; allow formatting/rename; measure in Phase 7 |
+| R-7 | Hook protection is forgeable: an agent invents an approval token and proceeds | Approval tokens appear in diffs the user never saw | Defense in depth, stated honestly: hook blocks (exit 2) → fingerprint re-stales the verdict → gate fails. A FORGED `rfc-test-change-approved:` token silences BOTH the hook AND `audit-test-relaxation.py` — they share one detector, so the audit does NOT catch a self-written token. The only backstop for a forged token is `grep -rn 'rfc-test-change-approved:'` + human review, which the hook's block message instructs. The audit catches an unapproved out-of-band change; it is not overclaimed to catch a forged approval (corrected 2026-07-17) |
+| R-8 | Over-blocking edits to RFC-tagged tests makes agents route around the hook (A-7) | Agents disabling the hook, or `test-relax:` spam | Scope the strict trigger to behavior-bearing edits; allow formatting and comment/tag edits. A rename blocks (indistinguishable from a rewrite) and is cleared by the same one-line approval token — accepted as the safe side (D-1) |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -273,7 +273,7 @@ deleted, weakened, or drifting from the requirement it was written for.
 | AC-18 | A branch diff changes an RFC-tagged test | `audit-test-relaxation.py` reports it for human review even if the hook was bypassed (R-7 defense in depth) |
 | AC-19 | RFC 7606 (pilot) fully enrolled | `make ze-rfc-check` exits 0: every MUST-level requirement has positive AND negative coverage, or a reasoned disposition, including the §5.1 ordering `{gap}` |
 | AC-20 | `ai/RFC-REQUIREMENTS.md` stale vs sources | `ze-doc-test` reports it and names the regeneration target (mirrors `docs_to_code.py:119-131`) |
-| AC-21 | A formatting-only or rename-only edit to an RFC-tagged test (A-7) | Hook does NOT block — the strict path triggers on behavior-bearing edits, so the protection is not routed around (R-8) |
+| AC-21 | A formatting-only or comment/tag-only edit to an RFC-tagged test (A-7) | Hook does NOT block: comments and whitespace are stripped before comparison (`_behavior_bytes`). A rename-only edit DOES block — the detector cannot tell a rename from a rewrite without a Go parser, so it falls on the safe side and requires the same `// rfc-test-change-approved:` approval as any behavior edit. Divergence from the original AC-21 wording ("rename does not block"), reconciled here per user decision 2026-07-17 (see Deviations D-1). Cost: one approval line per genuine rename (R-8 accepted) |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -338,9 +338,20 @@ deleted, weakened, or drifting from the requirement it was written for.
 | n/a — developer tooling, not a runtime feature | — | Covered by gate test + selftest + hook fixtures, per `scripts/dev/python_tests_test.go:17-20` | |
 
 ### Interop Tests (MANDATORY for protocol features)
-Not applicable with justification: this spec adds no wire protocol behavior. It adds a
-traceability gate over existing tests; no peer daemon interaction changes.
-(`ai/rules/interop-and-goal-validation.md` — interop required when wire behavior changes.)
+The gate itself adds no wire behavior, but the RFC 7606 pilot then found and FIXED four
+compliance divergences that DO change wire/session behavior (so the original "N/A: no wire
+behavior" justification no longer holds — corrected 2026-07-17). Coverage:
+- `test/plugin/rfc7606-reset.ci` — genuine interop: drives `ze` over TCP against `ze-peer`,
+  sends a malformed MP_REACH, asserts the NOTIFICATION bytes (`0303 01`) off the wire (§3(b)/§5.3).
+- `test/plugin/rfc7606-withdraw.ci` — drives §2 treat-as-withdraw end-to-end: the malformed
+  UPDATE is dispatched as a synthesized withdrawal and the session survives.
+- §3(b)/§5.3 session-reset and the new §5.3-4/§5.3-5 MP NLRI/flag validation are pinned by
+  session-level Go tests over a real `net.Pipe` session (`session_validate_test.go`,
+  `session_rfc7606_structural_test.go`) and by exhaustive message-layer unit tests.
+Remaining edge (NOTE, not a hidden gap): no daemon-level `.ci` observes the §2 RIB removal
+directly; the synthesized-withdrawal bytes are asserted at the unit layer
+(`session_test.go` `TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal`).
+(`ai/rules/interop-and-goal-validation.md`.)
 
 ### Future (if deferring any tests)
 - Enrollment of the remaining 172 summaries is explicitly OUT OF SCOPE and tracked by
@@ -517,6 +528,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | A-2/A-6: every RFC 7606 MUST has, or can cheaply gain, both polarities | BROKEN. Of 47: 26 have both, 6 have one (4 one-polarity BY NATURE, 2 genuine gaps), 15 have neither (3 not code-testable, 12 real and testable) | Full read of the 7 RFC 7606 test files mapping each requirement to a test per polarity | Pilot cannot go green honestly without ~12 new tests and two behavior decisions. Reported to user rather than papered over |
 | The tests that exist enforce what the checklist says | BROKEN in two places. (1) §3.b mandates NOTIFICATION subcode Malformed Attribute List; `internal/component/bgp/reactor/session_validation.go:42-46` returns treat-as-withdraw, and `session_validate_test.go:56` ASSERTS that divergence. (2) checklist says NLRI prefix len > 32 => session reset; `rfc7606_test.go:567,600` assert treat-as-withdraw | Requirement-to-test mapping | Two real RFC 7606 divergences found by building the gate. Each needs a user decision: fix the code, or annotate `{gap}` and disclose in `docs/features/rfc-status.md` |
 | My own `check_id_allocation` test was meaningful | BROKEN. `check_id_allocation` was a stub returning `[]`, and `test_id_reuse_after_removal_fails` asserted `== []` on both branches -- it passed regardless of behavior | Self-review before wiring the gate | Replaced with a real high-water-mark rule + 5 discriminating tests. A vacuous green in the very gate built to prevent vacuous greens |
+| The committed pilot's 52/52 green meant coverage was honest and the gate's guards were wired | BROKEN (found in closure verification, 6 independent agents + manual). (1) `RFC7606-5.3-4/-5.3-5` were tagged both-polarity but UNENFORCED: `validateMPReachAttr` never parsed inner MP NLRI and `validateAttributeFlags` skipped MP codes 14/15, so the tagged tests passed via an unrelated rule (§7.11 next-hop length 0). `rfc7606_structural_test.go:114-128` even documented §5.3-4 as an uncovered gap while `rfc7606_withdraw_test.go` tagged it covered -- the exact false coverage this system exists to catch, in its own pilot. (2) `check_id_allocation` (AC-2 ID-reuse) and the AC-20 ledger-staleness check were DEAD CODE -- no production caller; the gate could not catch either regression. (3) `check_status_agreement` (AC-10) failed OPEN on an empty Remaining column | Closure verification against `rfc/full/rfc7606.txt` + the confounded tests + the self-contradicting structural test; whole-repo grep for `check_id_allocation` callers | User chose FC1 Option B: IMPLEMENTED inner MP_REACH/UNREACH NLRI overrun + RFC 4760 flag validation (§5.3-4/§5.3-5 → session reset via §3(j)) for IPv4/IPv6 unicast; rewrote the confounded tests to isolate each rule with a valid next hop; verdicts re-audited weak→enforced. Wired `check_id_allocation` via `_git_baseline_ids()`, added `--check-ledger` into `ze-doc-test`, and closed the AC-10 fail-open -- the gate's own guards now fire |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -859,7 +871,7 @@ focused correctness review of the `§5.3` validator change.
 - Reviewer confirmed clean on bounds/panic, NLRI offset, immediate-return, and pointer-mutation
   categories; the only finding was the add-path gap (fixed).
 
-### Run 2+ (re-runs until clean)
+### Run 2 (fresh-eyes review of the add-path fix)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 | — | — | Re-ran the audit after every fix; final verdicts 44 enforced / 8 unimplemented / 0 weak / 0 wrong | `rfc/audit/rfc7606.json` | Clean |
@@ -873,22 +885,45 @@ focused correctness review of the `§5.3` validator change.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `scripts/dev/rfc_requirements.py` | Yes | gate + parser + `--check-ledger` |
+| `rfc/audit/rfc7606.json` | Yes | 50 verdicts, fingerprints via `R.requirement_sha`/`R.tagged_unit_shas` |
+| `ai/RFC-REQUIREMENTS.md` | Yes | regenerated, `--check-ledger` up to date |
+| `plan/spec-followup-rfc-enrollment.md` | Yes | `validate-spec.sh` exit 0 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-19 | pilot green AND honest | `make ze-rfc-check` exit 0; §5.3-4/§5.3-5 implemented + enforced |
+| AC-2 | reuse ratchet wired | `check_id_allocation` now called in `run_check`; `test_run_check_fails_on_reused_id` |
+| AC-20 | ledger staleness wired | `make ze-doc-test` runs "RFC requirement ledger ... up to date" |
+| AC-13 | fingerprint fires | closure edits re-staled 12 verdicts until audit re-run |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `make ze-rfc-check` | — | exit 0 (selftest 86 + check + ledger) |
+| `ze-verify` `stagesForMode()` | — | `verify_run.go:126` + `:142` (both branches) |
+| §3(b)/§5.3 session reset | `test/plugin/rfc7606-reset.ci` | PASS |
+| §2 treat-as-withdraw | `test/plugin/rfc7606-withdraw.ci` | PASS |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | broken | Mistake Log: 8 lines corrected, 9 obligations added |
+| A-2 | broken | resolved via new tests + annotations + FC1 implementation |
+| A-3 | confirmed | fingerprints located tagged units; closure re-staled 12 |
+| A-4 | confirmed | `.ci` terminator-block skipping (selftest) |
+| A-5 | confirmed | status rows parsed; AC-10 fail-open closed |
+| A-6 | broken→resolved | §5.3-4/§5.3-5 implemented both polarities (Option B) |
+| A-7 | confirmed (adjusted) | formatting/comment allowed; rename blocks (D-1) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| RFC 7606 row discloses gaps + new validation scope | `docs/features/rfc-status.md:29` | against `rfc7606.go` |
+| `RFC requirement:` tag authoring surface | `docs/functional-tests.md`, `rfc-implementation-guide.md §9.7` | `make ze-doc-test` pass |
+| `ai/RFC-REQUIREMENTS.md` listed as discovery surface | `ai/rules/discovery-updates.md` | `make ze-doc-test` pass |
+| ledger fresh vs sources | `--check-ledger` exit 0 | `make ze-doc-test` |
 
 ## Checklist
 

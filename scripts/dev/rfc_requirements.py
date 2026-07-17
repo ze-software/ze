@@ -701,6 +701,55 @@ def _git_baseline_enrolment() -> Set[str]:
     return parse_enrolled(res.stdout)
 
 
+def _git_baseline_ids() -> Set[str]:
+    """The set of requirement IDs allocated in the committed (HEAD) rfc/short/*.md.
+
+    Mirrors _git_baseline_enrolment: the reuse ratchet (check_id_allocation) needs the ids
+    that already existed at HEAD so it can tell "text edit, keep the id" (fine) from
+    "id retired, then a DIFFERENT obligation re-points at it" (catastrophic). On the first
+    commit, a missing baseline, or any git failure, return an empty set -- the same graceful
+    fallback, meaning simply "no reuse baseline to compare against yet".
+    """
+    try:
+        listing = subprocess.run(
+            ["git", "ls-tree", "-r", "-z", "--name-only", "HEAD", "rfc/short"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return set()
+    if listing.returncode != 0:
+        return set()
+    ids: Set[str] = set()
+    for path in listing.stdout.split("\0"):
+        path = path.strip()
+        if not path.endswith(".md"):
+            continue
+        stem = os.path.basename(path)[: -len(".md")]
+        try:
+            show = subprocess.run(
+                ["git", "show", "HEAD:" + path],
+                cwd=PROJECT_DIR,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            continue
+        if show.returncode != 0:
+            continue
+        try:
+            for req in parse_summary_text(show.stdout, stem, source=path):
+                ids.add(req.rid)
+        except ParseError:
+            # A committed summary that no longer parses contributes no baseline ids for its
+            # sections; the ratchet skips reuse-checking there rather than crashing the gate.
+            continue
+    return ids
+
+
 # --------------------------------------------------------------------------
 # Status ledger cross-check
 # --------------------------------------------------------------------------
@@ -748,9 +797,20 @@ def check_status_agreement(
             continue
         status = row["status"]
         remaining = row["remaining"]
-        discloses = (not status.startswith("Supported")) or (
-            not _NO_GAP_RE.search(remaining)
-        )
+        remaining_stripped = remaining.strip()
+        if status.startswith("Supported"):
+            # Under a clean 'Supported' claim, ONLY an explicit non-empty gap note in the
+            # Remaining column discloses the gap. An empty/whitespace/neutral Remaining does
+            # NOT -- that was the fail-open: `_NO_GAP_RE.search("")` is None, so a blank
+            # Remaining read as "disclosed" and a {gap} MUST hid behind clean support
+            # (ai/rules/fail-closed-guards.md: absence of a claim is not a disclosure).
+            discloses = bool(remaining_stripped) and not _NO_GAP_RE.search(
+                remaining_stripped
+            )
+        else:
+            # A non-'Supported' status (Partial, Not supported, ...) itself discloses that
+            # the RFC is not fully met, so the row is not advertising clean support.
+            discloses = True
         if not discloses:
             errs.append(
                 f"{req.rid} is annotated {{gap: {ann.reason[:50]}}} but "
@@ -1182,6 +1242,13 @@ def run_check() -> int:
         # is per-RFC and un-enrolled summaries have not been converted, so their parse
         # failures are expected and not reported.
         errs.extend(parse_errs)
+
+        # IDs are allocated once and never reused. Compare the current id set against the
+        # committed baseline so "delete 5.3-4, add a different 5.3-4" is caught even though
+        # the two are textually indistinguishable (AC-2). Reuse is a bug regardless of
+        # enrolment, so this runs over every parsed requirement.
+        errs.extend(check_id_allocation(reqs, _git_baseline_ids()))
+
         errs.extend(evaluate(reqs, tags, enrolled))
 
         with open(STATUS_FILE, encoding="utf-8") as fh:
@@ -1189,7 +1256,11 @@ def run_check() -> int:
         errs.extend(check_status_agreement(reqs, rows, enrolled))
         errs.extend(check_audit_freshness(reqs, tags, enrolled))
         errs.extend(check_ledger_fresh(reqs, tags, enrolled))
-    except ParseError as exc:
+    except (ParseError, OSError) as exc:
+        # OSError too: an unreadable rfc/enrolled.txt or a missing docs/features/rfc-status.md
+        # must fail closed with a clean exit-2 message, not surface as an uncaught traceback
+        # (ai/rules/fail-closed-guards.md). scan_tree/load_audit already wrap their OSErrors
+        # in ParseError; this covers the two direct read sites (load_enrolled, STATUS_FILE).
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
         return 2
 
@@ -1230,7 +1301,7 @@ def run_check_fresh() -> int:
     try:
         enrolled, reqs, _, tags = _collect_for_check()
         errs = check_ledger_fresh(reqs, tags, enrolled)
-    except ParseError as exc:
+    except (ParseError, OSError) as exc:
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
         return 2
     if errs:

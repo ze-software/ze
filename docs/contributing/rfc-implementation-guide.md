@@ -486,44 +486,52 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 [ ] Test error messages are helpful to users
 ```
 
-### 9.7 Requirement Coverage Tags (RFC MUSTs)
+### 9.7 RFC Requirement Coverage Tags
 
-Every MUST-level obligation in `rfc/short/rfcNNNN.md` carries a stable id
-(`RFCNNNN-<section>-<n>`, e.g. `RFC7606-7.1-1`). A test proves it by tagging the
-enforcing unit; the tag is the machine-checkable counterpart to the prose
-`// RFC NNNN Section X.Y:` comment above the code:
+Implementing a MUST is only half the job: the enforcing test must be **bound** to
+the requirement, so the coverage gate can prove the link exists and catch a later
+regression. When a test proves an RFC 2119 MUST-level obligation, tag it. In Go:
 
 ```go
+// RFC requirement: RFC7606-7.1-1 positive -- valid ORIGIN length 1 is accepted
 // RFC requirement: RFC7606-7.1-1 negative -- ORIGIN length 2 is treated as withdraw
-func TestRFC7606MalformedOriginLength(t *testing.T) { ... }
 ```
 
+A `.ci` functional test uses a line-start `#` comment with the same fields (never
+inside a `terminator=` block):
+
 ```
-# test/plugin/rfc7606-withdraw.ci  (line-start '#' comment)
-# RFC requirement: RFC7606-7.1-1 negative
+# RFC requirement: RFC7606-7.1-1 negative -- malformed ORIGIN withdraws the route
 ```
 
-Three rules, all enforced by `make ze-rfc-check` (runs in both verify modes):
+- **Allocate the id with `/ze-rfc <rfc>`.** Every Compliance Checklist line in
+  `rfc/short/rfcNNNN.md` gets a permanent `RFC<n>-<section>-<ordinal>` id, and that
+  id is the contract the tag references. Never renumber or reuse one.
+- **Provide BOTH polarities.** Every gated MUST needs a `positive` AND a `negative`
+  test; a one-sided test passes on blanket accept or blanket reject. If a
+  requirement is genuinely testable only one way, annotate its summary line
+  `{single-polarity: positive|negative; why}` instead. `{gap: why; ref}` and
+  `{not-applicable: why}` cover deliberate divergence and inapplicability, each
+  with a reason (a bare annotation is rejected).
+- **`make ze-rfc-check` gates coverage; `make ze-rfc-index` renders the ledger.**
+  For an enrolled RFC (`rfc/enrolled.txt`) the gate fails unless every MUST has its
+  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC;
+  enrollment is a separate, deliberate step taken once the tests exist.
+- **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
+  exists but cannot read the test. The audit reads the RFC itself and each tagged
+  test and judges whether the test would fail if the code stopped complying,
+  recording a per-requirement verdict that `make ze-rfc-check` re-stales when the
+  requirement text or a tagged test changes.
+- **Never change a tagged test to make it pass.** Once a test carries an
+  `RFC requirement:` tag it is the requirement: fix your code, not the test.
+  Changing its behavior needs explicit user approval recorded as
+  `// rfc-test-change-approved: <date> <what and why>`; the `rfc-tagged-test` hook
+  blocks the edit otherwise.
 
-- **Both polarities are required.** A gated MUST needs a `positive` tag (a
-  conforming input the code accepts) *and* a `negative` tag (a violation the code
-  rejects). One polarity is not coverage: a negative-only test passes if the code
-  rejects everything, a positive-only test passes if it accepts everything. Only the
-  pair pins the behaviour to the requirement. If a requirement is genuinely testable
-  one way only, annotate the checklist line `{single-polarity: <p>; why}` with a real
-  argument, never a faked tag.
-- **Place the tag at the enforcing unit.** On a flat one-requirement test the doc
-  comment on the function is fine. On a table-driven mega-test, tag the individual
-  case — a function-level tag stays green after the one enforcing case is deleted.
-- **Never edit a tagged test to make it pass.** Once a test carries an
-  `RFC requirement:` tag, changing its behaviour needs explicit user approval; the
-  `rfc-tagged-test` hook blocks the edit (a `// test-relax:` note does not satisfy it).
-  A code-behaviour bug is fixed in the code, never by quietly weakening the test that
-  caught it. See `ai/rules/testing.md`.
+<!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags, evaluate -->
+<!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 
-The generated map of requirement → enforcing tests (and the un-enrolled backlog) is
-`ai/RFC-REQUIREMENTS.md` (`make ze-rfc-index`). `/ze-rfc-audit rfcNNNN` re-reads each
-tagged test and judges whether it still enforces the requirement's letter and spirit.
+Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 
 ```
 [ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
@@ -571,6 +579,7 @@ Before marking implementation complete:
 [ ] All tests pass: make ze-test (timeout 300s)
 [ ] All linting passes: make ze-lint (zero issues)
 [ ] All functional tests pass: make ze-functional-test
+[ ] RFC MUST tests tagged both polarities, make ze-rfc-check passes (see 9.7)
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements
 [ ] RFC requirement coverage tags on tests (see 9.7): make ze-rfc-check passes

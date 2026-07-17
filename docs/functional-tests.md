@@ -381,6 +381,60 @@ Automation should read `tmp/ze-verify-failures.json`.
 
 ---
 
+## RFC Requirement Tags
+
+A test that enforces an RFC 2119 MUST-level requirement tags itself, so the
+coverage gate can bind the requirement to the proof that enforces it. The tag
+names a stable requirement id (allocated in `rfc/short/*.md`, e.g.
+`RFC7606-7.1-1` is §7.1, first requirement) and a mandatory polarity, `positive`
+or `negative`. In Go tests the tag is a `//` comment; place it on the function
+doc comment when the function tests one requirement, or inline at the table case
+when one function covers many:
+
+```go
+// RFC requirement: RFC7606-7.1-1 positive -- valid ORIGIN length 1 is accepted
+func TestRFC7606OriginValueIGP(t *testing.T) {
+
+// RFC requirement: RFC7606-7.1-1 negative -- ORIGIN length 2 is treated as withdraw
+func TestRFC7606MalformedOriginLength(t *testing.T) {
+```
+
+In a `.ci` file the tag is a line-start `#` comment with the same fields, and
+must not sit inside a `terminator=` block (there `#` is raw file content, not a
+comment):
+
+```
+# RFC requirement: RFC7606-7.1-1 negative -- malformed ORIGIN withdraws the route
+```
+
+Rules the gate enforces:
+
+- **Polarity is mandatory and never inferred.** A tag with no `positive` or
+  `negative` word fails to parse.
+- **Every gated MUST needs BOTH polarities.** A negative-only test passes if the
+  code rejects everything; a positive-only test passes if it accepts everything.
+  Only the pair pins behavior to the requirement. A requirement that is genuinely
+  testable only one way carries a `{single-polarity: positive|negative; why}`
+  annotation on its summary line instead.
+- **`make ze-rfc-check` is the gate.** For every MUST-level requirement of an
+  enrolled RFC (`rfc/enrolled.txt`) it requires the positive/negative pair, or a
+  reasoned `{gap}` / `{not-applicable}` / `{single-polarity}` annotation. It scans
+  Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`, and
+  `make ze-rfc-index` renders the requirement to test ledger into
+  `ai/RFC-REQUIREMENTS.md`.
+- **Do not edit a tagged test to make it pass.** Once a test carries an
+  `RFC requirement:` tag its behavior may not change without explicit user
+  approval, recorded as `// rfc-test-change-approved: <date> <what and why>`. Fix
+  the code instead; the `rfc-tagged-test` hook blocks the edit otherwise.
+
+<!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags -->
+
+Full authoring guidance: `ai/skills/ze-rfc.md` (id allocation and annotations),
+`ai/skills/ze-rfc-audit.md` (letter-and-spirit audit), and
+`docs/contributing/rfc-implementation-guide.md`.
+
+---
+
 ## Test Types
 
 ### 1. Encode Tests (`test/encode/`)

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1162 summaries
+Total: 1163 summaries
 
 ## 000-099
 
@@ -1231,3 +1231,4 @@ Total: 1162 summaries
 | 1168 | rfc-requirement-coverage | `plan/learned/1168-rfc-requirement-coverage.md` |
 | 1169 | CLI root namespace grammar | `plan/learned/1169-cli-root-namespace-grammar.md` |
 | 1170 | cli-dash-stdio | `plan/learned/1170-cli-dash-stdio.md` |
+| 1172 | rfc-requirement-coverage | `plan/learned/1172-rfc-requirement-coverage.md` |

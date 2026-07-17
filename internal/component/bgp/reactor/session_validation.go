@@ -87,7 +87,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	nlriLen := len(body) - (offset + attrLen)
 	hasNLRI := nlriLen > 0
 
-	// RFC 7606 Section 5.3: Validate NLRI syntax (IPv4)
+	// RFC 7606 Section 5.3: Validate IPv4 unicast body NLRI syntax, ADD-PATH-aware (RFC 7911).
 	if nlriLen > 0 {
 		nlri := body[offset+attrLen:]
 		if result := checkIPv4NLRI(nlri); result != nil {

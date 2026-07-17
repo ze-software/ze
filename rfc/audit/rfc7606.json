@@ -304,7 +304,7 @@
         "internal/component/bgp/message/rfc7606_test.go:525": "d015a64ad82b416d",
         "internal/component/bgp/message/rfc7606_test.go:542": "d015a64ad82b416d",
         "internal/component/bgp/message/rfc7606_test.go:559": "d015a64ad82b416d",
-        "test/plugin/rfc7606-withdraw.ci:6": "0bb2696a6294305e"
+        "test/plugin/rfc7606-withdraw.ci:8": "57248be6f49bee1d"
       }
     },
     "RFC7606-7.10-1": {

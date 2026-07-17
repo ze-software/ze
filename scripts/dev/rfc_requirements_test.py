@@ -7,7 +7,9 @@ Auto-discovered and run under `go test` by scripts/dev/python_tests_test.go
 Spec: plan/spec-rfc-requirement-coverage.md
 """
 
+import contextlib
 import importlib.util
+import io
 import os
 import sys
 import tempfile
@@ -26,6 +28,34 @@ def _load():
 
 
 R = _load()
+
+
+@contextlib.contextmanager
+def _patched(**overrides):
+    """Temporarily replace module-level attributes on R, restoring them afterward.
+
+    Used by the GATE-LEVEL tests: they drive run_check / run_check_fresh end-to-end with
+    controlled data sources so a wiring regression (a check that stops being called) fails
+    the test, not just the helper in isolation.
+    """
+    saved = {name: getattr(R, name) for name in overrides}
+    try:
+        for name, val in overrides.items():
+            setattr(R, name, val)
+        yield
+    finally:
+        for name, val in saved.items():
+            setattr(R, name, val)
+
+
+def _run_capturing(fn):
+    """Run a driver function, returning (exit_code, captured_stdout). Exceptions propagate
+    so an uncaught traceback (e.g. a handler that no longer catches OSError) surfaces as a
+    test error rather than being hidden."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        code = fn()
+    return code, buf.getvalue()
 
 
 # --------------------------------------------------------------------------
@@ -852,6 +882,167 @@ class TestLedgerFreshness(unittest.TestCase):
         vacuum (ai/rules/fail-closed-guards.md)."""
         errs = self._check(None)
         self.assertEqual(len(errs), 1)
+
+
+# --------------------------------------------------------------------------
+# ID-reuse ratchet wiring (AC-2) — GATE LEVEL, not just the helper
+# --------------------------------------------------------------------------
+class TestIDAllocationWiring(unittest.TestCase):
+    """check_id_allocation is dead code unless run_check actually calls it with the git
+    baseline. These drive run_check end-to-end: if the wiring regresses (the call is
+    removed, or fed an empty baseline), the reuse goes undetected and the test fails."""
+
+    def _drive(self, baseline_ids):
+        reused = _req("RFC7606-2-3")  # source rfc/short/rfc7606.md:1
+        tags = [
+            _tag("RFC7606-2-3", "positive"),
+            _tag("RFC7606-2-3", "negative"),
+        ]
+        with _patched(
+            load_enrolled=lambda: {"rfc7606"},
+            summary_stems=lambda: {"rfc7606"},
+            parse_summary_file=lambda path: [reused],
+            _git_baseline_enrolment=lambda: {"rfc7606"},
+            _git_baseline_ids=lambda: baseline_ids,
+            scan_tree=lambda *a, **k: tags,
+            check_status_agreement=lambda *a, **k: [],
+            check_audit_freshness=lambda *a, **k: [],
+            check_ledger_fresh=lambda *a, **k: [],
+        ):
+            return _run_capturing(R.run_check)
+
+    def test_run_check_fails_on_reused_id(self):
+        """AC-2: §2 allocated up to 2-5, then 2-3 was retired. Re-adding a DIFFERENT 2-3
+        (below the high-water, absent from the committed baseline) must fail the GATE,
+        proving check_id_allocation is wired into run_check with the real baseline."""
+        code, out = self._drive({"RFC7606-2-1", "RFC7606-2-2", "RFC7606-2-5"})
+        self.assertEqual(code, 2, out)
+        self.assertIn("RFC7606-2-3", out)
+        self.assertIn("reuses a retired id", out)
+
+    def test_run_check_allows_text_edit_of_existing_id(self):
+        """Discriminates from 'always fails': when 2-3 IS in the committed baseline the id
+        is a text edit, not a reuse, so the same run_check reports clean (exit 0)."""
+        code, out = self._drive({"RFC7606-2-1", "RFC7606-2-3", "RFC7606-2-5"})
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("reuses a retired id", out)
+
+
+# --------------------------------------------------------------------------
+# Ledger staleness (AC-20) — run_check_fresh / --check-fresh
+# --------------------------------------------------------------------------
+class TestLedgerStaleness(unittest.TestCase):
+    """AC-20 at the CLI level: a committed ai/RFC-REQUIREMENTS.md that drifts from a fresh
+    render must fail `--check-fresh` (what ze-doc-test runs) and name the regeneration
+    target. TestLedgerFreshness drives the check_ledger_fresh helper; this drives the
+    run_check_fresh entry point, so an unwired helper still fails here. Driven from
+    fixtures so it does not depend on the live tree (whose tags may be mid-flight)."""
+
+    REQS = [_req("RFC7606-2-1")]
+    TAGS = [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")]
+
+    def _drive(self, committed):
+        fd, path = tempfile.mkstemp(suffix=".md")
+        os.close(fd)
+        if committed is None:
+            os.unlink(path)
+        else:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(committed)
+        orig = R.LEDGER_FILE
+        try:
+            R.LEDGER_FILE = path
+            with _patched(
+                _collect_for_check=lambda: ({"rfc7606"}, self.REQS, [], self.TAGS),
+            ):
+                return _run_capturing(R.run_check_fresh)
+        finally:
+            R.LEDGER_FILE = orig
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_fresh_ledger_passes(self):
+        fresh = R.render_ledger(self.REQS, self.TAGS, {"rfc7606"}) + "\n"
+        code, out = self._drive(fresh)
+        self.assertEqual(code, 0, out)
+
+    def test_stale_ledger_fails_and_names_regen_target(self):
+        """Would pass under a version that never compared; fails because the committed copy
+        differs from the fresh render, and the message points at the regeneration target."""
+        code, out = self._drive("# a stale, hand-drifted ledger\n")
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("ze-rfc-index", out)
+
+    def test_missing_ledger_fails(self):
+        """A missing ledger must fail closed at the CLI too, not pass by vacuum."""
+        code, out = self._drive(None)
+        self.assertNotEqual(code, 0, out)
+
+    def test_render_is_deterministic(self):
+        """--check-fresh only works if render is stable: two renders of the same inputs
+        must be byte-identical, else a fresh ledger would spuriously read as stale."""
+        a = R.render_ledger(self.REQS, self.TAGS, {"rfc7606"})
+        b = R.render_ledger(self.REQS, self.TAGS, {"rfc7606"})
+        self.assertEqual(a, b)
+
+
+# --------------------------------------------------------------------------
+# Status disclosure fails closed on empty Remaining (AC-10)
+# --------------------------------------------------------------------------
+class TestStatusDisclosureFailsClosed(unittest.TestCase):
+    """AC-10: a 'Supported' row with a blank Remaining does NOT disclose a {gap} MUST.
+    The old code let the empty string slip through _NO_GAP_RE and the gap hid behind a
+    clean 'Supported' claim -- the exact lie the cross-check exists to catch."""
+
+    def _rows(self, remaining):
+        status = (
+            "| RFC | Area | Status | Coverage | Remaining |\n"
+            "|-----|------|--------|----------|-----------|\n"
+            "| RFC 7606 | x | Supported | cov | %s |\n" % remaining
+        )
+        return R.parse_status_ledger(status)
+
+    def test_supported_with_empty_remaining_fails(self):
+        for remaining in ("", "   ", "No tracked gap in current source anchors."):
+            rows = self._rows(remaining)
+            ann = R.Annotation(kind="gap", polarity=None, reason="ordering")
+            errs = R.check_status_agreement(
+                [_req("RFC7606-5.1-1", annotation=ann)], rows, {"rfc7606"}
+            )
+            self.assertTrue(
+                errs, "Supported + non-disclosing Remaining %r must fail" % remaining
+            )
+            joined = " ".join(errs)
+            self.assertIn("RFC7606-5.1-1", joined)
+            self.assertIn("rfc7606", joined)
+
+    def test_supported_with_real_gap_text_passes(self):
+        """A 'Supported' row that spells the gap out in Remaining discloses it -> passes,
+        so the fix does not over-fire on genuinely disclosed gaps."""
+        rows = self._rows("Ze emits MP_UNREACH first, not compliant with 5.1 ordering.")
+        ann = R.Annotation(kind="gap", polarity=None, reason="ordering")
+        errs = R.check_status_agreement(
+            [_req("RFC7606-5.1-1", annotation=ann)], rows, {"rfc7606"}
+        )
+        self.assertEqual(errs, [])
+
+
+# --------------------------------------------------------------------------
+# Fail-closed on unreadable inputs (Fix 4)
+# --------------------------------------------------------------------------
+class TestRunCheckReadErrors(unittest.TestCase):
+    """An OSError reading rfc/enrolled.txt or docs/features/rfc-status.md must exit 2 with
+    a clean message, not an uncaught traceback. Drives run_check so a handler that stops
+    catching OSError surfaces here (the exception would escape _run_capturing)."""
+
+    def test_unreadable_enrolled_exits_two_cleanly(self):
+        def boom():
+            raise OSError("[Errno 13] Permission denied: rfc/enrolled.txt")
+
+        with _patched(load_enrolled=boom):
+            code, out = _run_capturing(R.run_check)
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot run", out)
 
 
 # --------------------------------------------------------------------------
