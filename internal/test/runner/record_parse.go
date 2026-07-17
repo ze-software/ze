@@ -280,6 +280,8 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 		return et.parseAction(r, lineType, kvPairs)
 	case "cmd":
 		return et.parseCmd(r, lineType, kvPairs, line)
+	case "await":
+		return et.parseAwait(r, lineType, kvPairs)
 	case "http":
 		return et.parseHTTP(r, lineType, line)
 	case engineActionCommand, engineActionStream:

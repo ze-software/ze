@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 292 design docs, 2994 files
+Total: 292 design docs, 2995 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1450,6 +1450,7 @@ Total: 292 design docs, 2994 files
 | `internal/test/peer/message.go` | BGP message types and wire helpers |
 | `internal/test/peer/peer.go` | test BGP peer |
 | `internal/test/peer/peer_connmap.go` | connection mapping |
+| `internal/test/runner/await_stderr.go` | await=stderr deterministic fence |
 | `internal/test/runner/base.go` | test runner framework |
 | `internal/test/runner/color.go` | test runner framework |
 | `internal/test/runner/decode.go` | test runner framework |

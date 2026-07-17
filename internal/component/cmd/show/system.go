@@ -1,6 +1,6 @@
 // Design: docs/guide/command-catalogue.md -- system/* operational commands
 // Related: show.go -- sibling show handlers (uptime, warnings, errors, interface)
-// Related: host.go -- `show host *` commands sharing the inventory library
+// Related: internal/component/host -- inventory library (DetectCPU/DetectPlatform)
 //   used for the `hardware` enrichment below
 
 package show

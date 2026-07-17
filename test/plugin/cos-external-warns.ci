@@ -15,6 +15,14 @@
 # mocked conn.
 # PREVENTS: an operator running `plugin { external cos { ... } }` getting no
 # indication that dynamic QoS updates are disabled.
+#
+# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# await=stderr fence below. Coverage is REPLACED, not weakened: the
+# warn-message assertion (expect=stderr:contains=) is preserved byte-for-byte;
+# only the WHEN-to-tear-down changes from a fixed sleep to a deterministic wait
+# for the exact line. cos warns from inside RunEngine after the external TLS
+# connect-back, so the relayed line proves the warning fired through the real
+# external-plugin transport, exactly as before.
 
 stdin=ze-bgp:terminator=EOF_CONF
 class-of-service {
@@ -66,21 +74,6 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Hold the test open long enough for the external cos subprocess to start
-and log its external-mode warning -- observable via the daemon's relayed
-stderr (default relay level is WARN, and warnIfExternal logs at WARN).
-Unlike the refuse cases, cos keeps running after the warning, so this test
-tears the daemon down via the sleep timeout rather than waiting for cos's
-own exit."""
-import time
-
-# blind hold: waits for the external plugin's refuse/warn on the daemon's own relayed stderr; no queryable signal (reject-fence bucket, see spec-fixit-reject-fence-observability)
-time.sleep(4.0)
-EOF_PY
-
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
-expect=exit:code=0
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=dynamic per-interface QoS map updates
 expect=stderr:contains=dynamic per-interface QoS map updates

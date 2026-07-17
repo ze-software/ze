@@ -7,6 +7,15 @@
 # PREVENTS: an operator configuring `plugin { external as112 { ... } }`
 # getting a plugin that "succeeds" at every config commit while silently
 # never landing its anycast addresses on any real kernel interface.
+#
+# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# await=stderr fence below. Coverage is REPLACED and STRENGTHENED, not weakened:
+# the WHEN-to-tear-down changes from a fixed sleep to a deterministic wait, and
+# the refuse-message assertion is tightened to an as112-SPECIFIC substring (the
+# old bare phrase is shared by traffic-usage/flow-export). An observer plugin
+# cannot poll `system subsystem list` here because as112's refusal aborts the
+# daemon's plugin-startup coordinator (StartupCoordinator.PluginFailed), so the
+# relayed stderr line is the only non-plugin signal.
 
 stdin=ze-bgp:terminator=EOF_CONF
 service {
@@ -67,19 +76,10 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Hold the test open long enough for the external as112 subprocess to
-start, log its refuse message, and exit -- observable via the daemon's
-relayed stderr (default relay level is WARN; the refuse message logs at
-ERROR, which is always at or above WARN)."""
-import time
-
-# blind hold: waits for the external plugin's refuse/warn on the daemon's own relayed stderr; no queryable signal (reject-fence bucket, see spec-fixit-reject-fence-observability)
-time.sleep(4.0)
-EOF_PY
-
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
-expect=exit:code=0
-expect=stderr:contains=refusing to start as an external plugin process
+# The needle includes "-- the address-ownership registry" so it is SPECIFIC to
+# as112: the bare "refusing to start as an external plugin process" phrase is
+# emitted verbatim by traffic-usage and flow-export too (same IsInternal guard).
+# No ':' in the needle (a ':' would be truncated by the kv splitter).
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=refusing to start as an external plugin process -- the address-ownership registry
+expect=stderr:contains=refusing to start as an external plugin process -- the address-ownership registry

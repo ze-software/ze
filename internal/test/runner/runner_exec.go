@@ -441,6 +441,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	var peerOutputs []peerOutput
 	var clientStdout, clientStderr strings.Builder
 
+	// await=stderr fence: when set, the daemon's relayed stderr is teed through
+	// this syncWriter so the runner can block until it carries the needle before
+	// teardown (see await_stderr.go). nil (the common case) leaves stderr
+	// handling byte-for-byte unchanged.
+	var awaitStderrSW *syncWriter
+	if rec.AwaitStderr != "" {
+		awaitStderrSW = newSyncWriterPattern(rec.AwaitStderr)
+	}
+
 	// Exit error of the last awaited quick-exit ze command (see awaitQuickZe),
 	// fed into the expect=exit check when there is no daemon fgProc to wait on.
 	var lastQuickZeErr error
@@ -734,7 +743,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Stderr = &quickStderr
 		default:
 			proc.Stdout = &clientStdout
-			proc.Stderr = &clientStderr
+			proc.Stderr = teeDaemonStderr(&clientStderr, awaitStderrSW, binName == "ze")
 		}
 
 		// Fix B: drop the ze daemon to a normal user so its readiness handshake
@@ -794,7 +803,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// publish daemon.pid. Without this the poller times out by
 				// construction (the runner never wrote either file).
 				if proc.Process != nil {
-					if !hasPeer {
+					// An await=stderr fence provides its own synchronization (and
+					// a plugin that aborts startup may never write daemon.ready),
+					// so skip this 5s wait then -- mirrors the foreground path.
+					if !hasPeer && rec.AwaitStderr == "" {
 						readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
 						waitReady(testCtx, readyPath, 5*time.Second)
 					}
@@ -854,8 +866,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
 				// prevents a race where signal.sh sends SIGHUP before the
-				// process has registered signal handlers.
-				if !hasPeer {
+				// process has registered signal handlers. An await=stderr fence
+				// provides its own synchronization (and a plugin that aborts
+				// startup may never write daemon.ready), so skip this wait then.
+				if !hasPeer && rec.AwaitStderr == "" {
 					readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
 					waitReady(testCtx, readyPath, 5*time.Second)
 				}
@@ -934,6 +948,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	var err error
 
 	switch {
+	case awaitStderrSW != nil:
+		// await=stderr fence: block until the daemon's relayed stderr carries the
+		// needle, then fall through to the graceful-stop teardown below. This is
+		// the synchronization point for the reject-fence bucket, where the plugin
+		// under test aborts startup and no in-daemon observer can run. On timeout
+		// the helper tears the daemon down and records the failure.
+		if !awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs) {
+			return false
+		}
 	case rec.ExpectExitCode != nil && fgProc != nil:
 		// Testing exit code: wait for foreground process
 		err = fgProc.Wait()

@@ -19,6 +19,7 @@ action=type:key=value:key=value:...
 | `option=` | Test configuration |
 | `cmd=` | Commands (API, shell, foreground/background) |
 | `expect=` | Expectations to validate |
+| `await=` | Block until the daemon's stderr carries a line, then tear down (deterministic fence) |
 | `reject=` | Negative expectations (fail if matched) |
 | `action=` | Actions (send notification, raw bytes) |
 | `http=` | HTTP endpoint checks and readiness polls |
@@ -518,6 +519,38 @@ expect=stderr:contains=<text>
 Two modes:
 - `pattern=` — regex match against stderr (uses Go `regexp` syntax)
 - `contains=` — substring match against stderr
+
+### Await (deterministic stderr fence)
+
+```
+await=stderr:contains=<text>[:timeout=<dur>]
+```
+
+Blocks the runner until the daemon's relayed stderr contains `<text>`, then tears
+the daemon down — a deterministic replacement for a blind `time.sleep` that only
+held the daemon open long enough for a line to appear. `timeout=` is an optional
+Go duration (default 10s); on timeout the test fails with a precise message.
+`<text>` follows the same rule as `expect=stderr:contains=` (the needle must not
+contain a literal `:`).
+
+Pair it with a matching `expect=stderr:contains=` so the line is both the fence
+and the assertion. Use it for the reject-fence bucket: an external plugin whose
+refusal aborts the daemon's plugin-startup coordinator
+(`StartupCoordinator.PluginFailed`) leaves no in-daemon observer able to poll it,
+so the relayed stderr line is the only non-plugin signal.
+
+Choose a needle that is SPECIFIC to the plugin under test, not just a shared
+phrase. Example (`test/plugin/as112-external-refuses.ci`): the bare "refusing to
+start as an external plugin process" is emitted verbatim by three plugins, so the
+needle includes the as112-only tail `-- the address-ownership registry`:
+
+```
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=refusing to start as an external plugin process -- the address-ownership registry
+expect=stderr:contains=refusing to start as an external plugin process -- the address-ownership registry
+```
+
+<!-- source: internal/test/runner/await_stderr.go -- parseAwait / awaitDaemonStderr -->
 
 ### Syslog Expectations
 

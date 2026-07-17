@@ -137,8 +137,20 @@ type Record struct {
 	SyslogPort   int      // Dynamically assigned port for test-syslog
 
 	// Exit code validation
-	ExpectExitCode       *int     // expect:exit:code=N - expected exit code (nil = don't check)
-	ExpectStderrMatch    []string // expect=stderr:contains=TEXT - substring match (not regex), multiple allowed
+	ExpectExitCode    *int     // expect:exit:code=N - expected exit code (nil = don't check)
+	ExpectStderrMatch []string // expect=stderr:contains=TEXT - substring match (not regex), multiple allowed
+
+	// AwaitStderr, when non-empty, makes the runner BLOCK until the daemon's
+	// relayed stderr contains this substring before it tears the daemon down --
+	// a deterministic fence that replaces a blind time.sleep for tests observing
+	// an external plugin's refuse/warn message. It exists for the reject-fence
+	// bucket: a plugin whose refusal aborts plugin startup (StartupCoordinator.
+	// PluginFailed) leaves no in-daemon observer able to poll it, so the only
+	// non-plugin signal is the relayed stderr line itself. Parsed from
+	// await=stderr:contains=TEXT[:timeout=DUR]. Empty = disabled (no behavior
+	// change).
+	AwaitStderr          string
+	AwaitStderrTimeout   string   // optional Go duration (e.g. "10s"); empty = default
 	ExpectStdoutMatch    []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
 	ExpectStdoutNotMatch []string // expect=stdout:!contains=TEXT - stdout must NOT contain TEXT, multiple allowed
 	ExpectStdoutRegex    []string // expect=stdout:pattern=PATTERN (regex)

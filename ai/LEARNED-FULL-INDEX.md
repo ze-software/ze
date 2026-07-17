@@ -1231,4 +1231,5 @@ Total: 1163 summaries
 | 1168 | rfc-requirement-coverage | `plan/learned/1168-rfc-requirement-coverage.md` |
 | 1169 | CLI root namespace grammar | `plan/learned/1169-cli-root-namespace-grammar.md` |
 | 1170 | cli-dash-stdio | `plan/learned/1170-cli-dash-stdio.md` |
+| 1171 | fixit-reject-fence-observability-deferred-external-plugin-signals | `plan/learned/1171-fixit-reject-fence-observability-deferred-external-plugin-signals.md` |
 | 1172 | rfc-requirement-coverage | `plan/learned/1172-rfc-requirement-coverage.md` |

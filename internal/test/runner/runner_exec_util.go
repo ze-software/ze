@@ -146,6 +146,14 @@ func newSyncWriter() *syncWriter {
 	return &syncWriter{pattern: peerListeningPattern}
 }
 
+// newSyncWriterPattern creates a writer that waits for a caller-supplied
+// substring rather than ze-peer's fixed "listening on" marker. Used by the
+// await=stderr:contains= fence to block until a daemon's relayed stderr carries
+// a given line (e.g. an external plugin's refuse/warn message).
+func newSyncWriterPattern(pattern string) *syncWriter {
+	return &syncWriter{pattern: pattern}
+}
+
 // maxOutputBytes caps captured output to prevent OOM from runaway processes.
 const maxOutputBytes = 10 << 20 // 10 MB
 
