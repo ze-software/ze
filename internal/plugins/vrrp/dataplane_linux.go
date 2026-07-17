@@ -98,7 +98,7 @@ func osSysctlWrite(path, value string) error {
 
 // trimSysctl strips the trailing newline procfs adds to a scalar knob.
 func trimSysctl(s string) string {
-	for len(s) > 0 && (s[len(s)-1] == '\n' || s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
+	for s != "" && (s[len(s)-1] == '\n' || s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
 		s = s[:len(s)-1]
 	}
 	return s

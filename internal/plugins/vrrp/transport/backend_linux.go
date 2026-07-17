@@ -100,7 +100,7 @@ func (linuxBackend) OpenInstance(spec InstanceSpec, sink rxSink) (InstanceHandle
 		done:        make(chan struct{}),
 	}
 	if oerr := li.openSockets(parentOS); oerr != nil {
-		li.closeFDs()
+		_ = li.closeFDs() // cleanup on the error path; return the original openSockets error
 		return nil, oerr
 	}
 	go li.readLoop()

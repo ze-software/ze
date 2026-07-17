@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc9568.md -- Section 5.2.8 (v3 checksum, IPv4 message-only) + rx RFC 5798 dual-accept
 // RFC: rfc/short/rfc3768.md -- Section 5.3.7 (v2 checksum, no pseudo-header)
-// Design: RFC 8200 Section 8.1 -- IPv6 upper-layer checksum pseudo-header
+// Design: (RFC 8200 Section 8.1 -- IPv6 upper-layer checksum pseudo-header)
 //
 // checksum.go implements the RFC 1071 one's-complement checksum used by VRRP,
 // the family-specific pseudo-headers, the tx backfill (FillChecksum) and the rx
