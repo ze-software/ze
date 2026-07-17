@@ -1,8 +1,16 @@
 # Deferral Tracking
 
-**BLOCKING:** Every decision to not perform in-scope work MUST be recorded AND land in a destination spec.
+**Obligation on you (not a hard gate):** Every decision to not perform in-scope work MUST be recorded AND land in a destination spec.
 Rationale: Untracked deferrals are invisible scope reductions. They accumulate silently across sessions.
 A deferral whose destination is prose ("later", "future work") is a deletion with a polite name.
+
+The commit gate that checks homing **WARNS, it does not block** (see "Status Vocabulary"
+and the gate note below). An unhomed deferral row is harmless to software behaviour: the
+worst case is that it is committed too early or in the wrong commit. Blocking every commit on
+it -- including commits that never touched deferrals, and rows another session wrote into the
+shared working tree -- held real work back for no software reason. So the obligation to home
+a deferral is a discipline the gate reminds you of, not one it enforces: the warning keeps an
+unhomed row visible so it is not lost, but you are the one who must give it a home.
 
 ## Central Log
 
@@ -54,9 +62,9 @@ correct state of a deferral: it has a spec AND the work has not landed yet. It g
 violation and is not a backlog of unfiled work.
 
 This is the invariant the gate is built on: it re-checks every live row's
-destination on every commit, so "outstanding work names a real spec" is enforced
-continuously, for as long as the work is outstanding. Closing a row early to quiet
-the gate hides the work from the only thing checking it.
+destination on every commit, so "outstanding work names a real spec" is surfaced
+continuously (as a warning), for as long as the work is outstanding. Closing a row
+early to quiet the warning hides the work from the only thing watching it.
 
 `open` and `deferred` are synonyms, and the redundancy is a wart: it is what let the
 gate and this rule teach different words in the first place. Do not add a third.
@@ -162,10 +170,15 @@ captured intent, not a designed spec. It moves to `design` when someone picks it
 up (status table in `ai/rules/planning.md`).
 
 The commit gate `deferral_unassigned_problems` (`scripts/dev/commit_helper.py`)
-blocks any commit while a LIVE deferral (any non-terminal Status, see Status
-Vocabulary) names no destination or names a spec file that does not exist. It
-also reports rows it cannot parse rather than skipping them: a row the gate
-cannot read is a row it cannot enforce.
+WARNS -- it surfaces, it does not block -- on any LIVE deferral (any non-terminal
+Status, see Status Vocabulary) that names no destination or names a spec file that
+does not exist, and on any row it cannot parse. It is routed through
+`commit_gate_warnings`, not `commit_gate_problems`: the message prints to stderr
+and the commit proceeds. This is advisory by design, for the reason in the banner
+above (an unhomed row is harmless to software; blocking unrelated and other-session
+commits on it was too aggressive). Homing stays mandatory as an obligation on the
+author; the warning is what keeps an unhomed or unparseable row visible so it is
+not silently lost.
 
 ## Verify Before Deferring (BLOCKING)
 

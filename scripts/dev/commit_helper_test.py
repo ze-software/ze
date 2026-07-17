@@ -153,21 +153,21 @@ class TestDeferralDestination(unittest.TestCase):
             root = self._repo(tmp, self._row("user-approved-drop"))
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
-    def test_placeholder_blocks(self):
+    def test_placeholder_flagged(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp, self._row("-"))
             problems = ch.deferral_unassigned_problems(root)
             self.assertEqual(len(problems), 1)
             self.assertIn("no destination", problems[0])
 
-    def test_prose_destination_blocks(self):
+    def test_prose_destination_flagged(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp, self._row("future work, once the RIB settles"))
             problems = ch.deferral_unassigned_problems(root)
             self.assertEqual(len(problems), 1)
             self.assertIn("names no file", problems[0])
 
-    def test_missing_spec_file_blocks(self):
+    def test_missing_spec_file_flagged(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(
                 tmp, self._row("`plan/spec-rib-deferred-nobody-wrote-it.md`")
@@ -333,6 +333,48 @@ class TestDeferralUnassigned(unittest.TestCase):
             (root / "plan").mkdir()
             (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER)
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
+
+
+class TestDeferralGateSeverity(unittest.TestCase):
+    """An unhomed deferral is ADVISORY: its message rides commit_gate_warnings,
+    never commit_gate_problems, so a bookkeeping-only issue (harmless to software
+    behaviour) cannot hard-block a commit (ai/rules/deferral-tracking.md). The
+    detector still flags it, so nothing goes silent.
+    """
+
+    def _repo_with_unhomed_row(self, tmp: str) -> Path:
+        root = Path(tmp)
+        (root / "plan").mkdir(parents=True)
+        (root / "plan" / "deferrals.md").write_text(
+            DEFERRALS_HEADER
+            + "| 2026-07-16 | spec-x | dropped work | reason | future work | deferred |\n"
+        )
+        return root
+
+    def test_detector_still_flags_the_unhomed_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo_with_unhomed_row(tmp)
+            self.assertTrue(ch.deferral_unassigned_problems(root))
+
+    def test_unhomed_row_is_not_a_block_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo_with_unhomed_row(tmp)
+            problems = " ".join(ch.commit_gate_problems(root, (), ())).lower()
+            self.assertNotIn(
+                "live deferrals",
+                problems,
+                "an unhomed deferral must not appear among BLOCK-severity gates",
+            )
+
+    def test_unhomed_row_is_surfaced_as_a_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo_with_unhomed_row(tmp)
+            warnings = " ".join(ch.commit_gate_warnings(root, ())).lower()
+            self.assertIn(
+                "live deferrals",
+                warnings,
+                "an unhomed deferral must still be surfaced as a warning",
+            )
 
 
 if __name__ == "__main__":

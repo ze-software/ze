@@ -682,8 +682,10 @@ def discovery_index_head_status(repo: Path) -> tuple[str, list[str]]:
 # contains, and which check_destructive_git blocks outright when it does. They
 # were therefore doubly dead. Creation time is where the agent can still fix the
 # commit, and the helper already knows exactly which files the commit will add
-# and remove. Severities match the originals: deferral/spec-audit BLOCK (raise
-# UsageError), wiring/doc-drift WARN (print to stderr, commit proceeds). See
+# and remove. Severities: spec-audit and deferral-in-diff BLOCK (raise
+# UsageError); deferral-unassigned, wiring, and doc-drift WARN (print to stderr,
+# commit proceeds -- an unhomed deferral row is harmless to software behaviour,
+# so it is surfaced, not used to hard-block an otherwise-valid commit). See
 # ai/rules/deferral-tracking.md, ai/rules/integration-completeness.md.
 # --------------------------------------------------------------------------- #
 
@@ -811,14 +813,20 @@ def deferral_destination_problem(repo: Path, dest: str) -> str | None:
 
 
 def deferral_unassigned_problems(repo: Path) -> list[str]:
-    """Live rows in plan/deferrals.md with no usable destination (block).
+    """Live rows in plan/deferrals.md with no usable destination (WARN, advisory).
 
     The six-column table is Date | Source | What | Reason | Destination | Status.
     A row is checked unless its Status is terminal (DEFERRAL_TERMINAL_STATUSES);
-    an unrecognised status is live, so the gate fails closed rather than skipping
-    a row whose vocabulary it does not know. Independent of what this commit
-    touches -- a live deferral without a home blocks every commit until it names
-    one that exists or is cancelled.
+    an unrecognised status is live, so the check still fails closed on a status
+    vocabulary it does not know. Independent of what this commit touches -- it
+    surfaces every live row whose home is missing or is prose, across the whole
+    file.
+
+    Routed through commit_gate_warnings, NOT commit_gate_problems: an unhomed
+    deferral row is harmless to software behaviour, so it is surfaced rather than
+    used to block an otherwise-valid commit (ai/rules/deferral-tracking.md). The
+    returned strings are printed as warnings; homing is still required by the
+    rule, but a missing home no longer blocks the commit.
     """
     path = repo / "plan" / "deferrals.md"
     if not path.is_file():
@@ -843,11 +851,13 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
     problems: list[str] = []
     if unassigned:
         problems.append(
-            "live deferrals without a destination spec:\n"
+            "live deferrals without a destination spec (advisory, does not block):\n"
             + "\n".join(unassigned)
-            + "\n  Each must name an existing plan/spec-*.md (add the work to a spec"
-            "\n  that covers the topic, or create plan/spec-<source>-deferred-<subtask>.md"
-            "\n  from plan/TEMPLATE.md), or be cancelled (ai/rules/deferral-tracking.md)."
+            + "\n  Homing is still required by ai/rules/deferral-tracking.md -- each"
+            "\n  should name an existing plan/spec-*.md (add the work to a spec that"
+            "\n  covers the topic, or create plan/spec-<source>-deferred-<subtask>.md"
+            "\n  from plan/TEMPLATE.md), or be cancelled -- but an unhomed row no"
+            "\n  longer holds the commit back."
         )
     if malformed:
         problems.append(
@@ -1091,15 +1101,29 @@ def commit_gate_problems(
 ) -> list[str]:
     """All BLOCK-severity commit-time gates, in one call for create()."""
     problems: list[str] = []
-    problems += deferral_unassigned_problems(repo)
     problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
     problems += spec_audit_problems(repo, add_paths, claimed_spec(repo))
     return problems
 
 
 def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
-    """All WARN-severity commit-time gates, in one call for create()."""
-    return wiring_warnings(add_paths) + doc_drift_warnings(repo)
+    """All WARN-severity commit-time gates, in one call for create().
+
+    deferral_unassigned is advisory, not blocking. An unhomed live deferral row
+    is a bookkeeping state that is harmless to software behaviour: the worst case
+    is a row committed too early or in the wrong commit. Blocking EVERY commit on
+    it -- including commits that never touched deferrals, and rows another session
+    wrote into the shared working tree -- held real work back for no software
+    reason. It is still surfaced loudly (printed to stderr) so a genuine unhomed
+    deferral stays visible; only the hard block is removed. Homing is still
+    required by ai/rules/deferral-tracking.md; this changes the gate's severity,
+    not the rule.
+    """
+    return (
+        deferral_unassigned_problems(repo)
+        + wiring_warnings(add_paths)
+        + doc_drift_warnings(repo)
+    )
 
 
 _LEARNED_STEM_RE = re.compile(r"^plan/learned/[0-9]{3,}-(?P<stem>.+)\.md$")
