@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-16 |
+| Phase | 6/6 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -118,8 +118,8 @@ Add Go fuzz harnesses for each, seeded with truncated/oversized/zero-length inpu
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The BMP and RADIUS decoders are callable in isolation with a `[]byte` (+ int offsets); the DHCP `handle` needs a constructed `*dhcpHandler` shim | `DecodeTLV(buf,off)`/`DecodeTLVs(buf,off,end)` and `DecodeVSA(data)` are free funcs; `handle` is a method on `*dhcpHandler` built by `newDHCPHandler` (handler.go:81, handler_test.go `newTestServer`) | DHCP harness needs the in-package handler shim, not a bare function call | read each signature; confirmed DHCP shim exists in-package | confirmed (DHCP resolved via in-package `newDHCPHandler` shim; A-1 as written is partially broken for DHCP) |
-| A-2 | The parsers are bounds-safe today (fuzz confirms, not fixes) | code reasoning per function (Current Behavior → Constraint annotations for tlv.go:77/103, attr.go:122, handler.go:100/367/386/456) | A fuzzer finds a live panic (then it becomes a real bug fix under R-1) | run each fuzzer briefly during implement | confirmed by reading each producing function; no reachable panic found |
-| A-3 | New targets are discovered by the gate only if enumerated with an exact package path in `mk/test-fuzz.mk` | `mk/test-fuzz.mk` comment + `./internal/core/bgp/nlri` exact-path precedent; each package has a `yang/` subpackage | `/...` path errors with "matches more than one package"; target silently not run | add each with exact path; run `make ze-fuzz-one` per target | unvalidated (resolve during implement) |
+| A-2 | The parsers are bounds-safe today (fuzz confirms, not fixes) | code reasoning per function (Current Behavior → Constraint annotations for tlv.go:77/103, attr.go:122, handler.go:100/367/386/456) | A fuzzer finds a live panic (then it becomes a real bug fix under R-1) | run each fuzzer briefly during implement | **confirmed (empirical)**: 15s `make ze-fuzz-one` per target executed 0.9M–1.8M inputs each with zero crashes (BMP 921k, RADIUS 1.2M, DHCP 1.79M); seed corpora pass as normal tests. No reachable panic found. |
+| A-3 | New targets are discovered by the gate only if enumerated with an exact package path in `mk/test-fuzz.mk` | `mk/test-fuzz.mk` comment + `./internal/core/bgp/nlri` exact-path precedent; each package has a `yang/` subpackage | `/...` path errors with "matches more than one package"; target silently not run | add each with exact path; run `make ze-fuzz-one` per target | **confirmed**: `go list` shows bmp/yang, radius/yang, dhcpserver/yang siblings; all three registered with exact paths; `make ze-fuzz-one` discovered and ran each (no "matches more than one package"). |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -235,7 +235,80 @@ Test infrastructure only; no user-facing features. Regression fuzz harnesses ver
 - [ ] Tests PASS (paste output)
 - [ ] Boundary seeds (zero-length, truncated, oversized) present
 
+**TDD evidence.** "Tests FAIL first" is N/A for this spec by design: the three parsers are
+verified bounds-safe (A-2), so there is no red state to reach — this is regression protection,
+not a crash fix (Task, R-1). The honest equivalent is recorded instead:
+- Tests written: `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle` with seed corpora +
+  invariant assertions (AC-1..AC-3).
+- Seeds PASS as normal tests: `go test -run 'Fuzz...' ./…/bmp ./…/radius ./…/dhcpserver` → 3× `ok`.
+- Live fuzz PASS: 15s `make ze-fuzz-one` per target executed 0.9M–1.8M inputs, zero crashes.
+- Boundary seeds present: zero-length, truncated (<min), exactly-min, oversized in every corpus
+  (see `bmpTLVSeeds`/`radiusVSASeeds`/`dhcpSeeds`).
+
+## Security Review Checklist
+| Concern | Finding for this spec |
+|---------|----------------------|
+| New attack surface | None. Change is test-only (three `*_test.go` fuzz files + a makefile registration + a doc). No production code path added or altered. |
+| Untrusted-input bounds (the parsers themselves) | These fuzzers ARE the check. BMP TLV, RADIUS VSA, and DHCP `handle`+`logExchange` drive attacker/semi-trusted network bytes; 0.9M–1.8M adversarial inputs each ran without a panic or over-read (A-2). |
+| Injection / path traversal / crypto misuse | N/A — the harnesses decode wire bytes only; no shell, filesystem, or crypto surface. |
+| DoS / unbounded allocation in the harness | Bounded: fresh `*dhcpHandler` per iteration with `defer leases.stop()` (R-2); no goroutine started at construction; no unbounded growth. |
+| Information leakage | `logExchange` is driven with `slogutil.DiscardLogger()`, so fuzz iterations emit nothing. |
+
+## Deliverables Checklist
+| Deliverable | Verification method | Evidence |
+|-------------|---------------------|----------|
+| `FuzzDecodeBMPTLV` harness | `go test` + `ze-fuzz-one` | `internal/component/bgp/plugins/bmp/fuzz_test.go`; seed run `ok`; 921k execs, 0 crash |
+| `FuzzDecodeRADIUSVSA` harness | `go test` + `ze-fuzz-one` | `internal/component/radius/fuzz_test.go`; seed run `ok`; 1.2M execs, 0 crash |
+| `FuzzDHCPHandle` harness | `go test` + `ze-fuzz-one` | `internal/plugins/dhcpserver/fuzz_test.go`; seed run `ok`; 1.79M execs, 0 crash |
+| Gate registration (exact paths) | grep `mk/test-fuzz.mk`; `ze-fuzz-one` discovers each | 3 lines added; no "matches more than one package" |
+| Discovery doc update | `make ze-doc-test` | `docs/functional-tests.md` count 54→57, table row added, 3 source anchors resolve; doc-test PASSED |
+
+## Documentation Update Checklist
+| Category | Update? | File / detail |
+|----------|---------|---------------|
+| Feature list / user guide / config syntax / CLI reference / API-RPC / plugin SDK / wire format / RFC compliance / comparison table | No | No user-facing feature, config, CLI, RPC, wire, or RFC-coverage change — this is internal regression test infrastructure. |
+| Test infrastructure | **Yes** | `docs/functional-tests.md` Fuzz Testing section: headline count 54→57, "Receiver/server parsers" table row (`FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle`), 3 `<!-- source: … -->` anchors. |
+| Architecture design | No | No architectural change; grep of `docs/` for the three changed test files finds no stale anchor. |
+
+## Goal Validation
+| Goal (Task) | Evidence |
+|-------------|----------|
+| BMP receiver TLV parser gains a regression fuzzer | `FuzzDecodeBMPTLV` drives `DecodeTLVs`/`DecodeTLV`, registered in the gate, 921k execs clean |
+| RADIUS reply VSA parser gains a regression fuzzer | `FuzzDecodeRADIUSVSA` drives `DecodeVSA`, registered, 1.2M execs clean |
+| DHCP server packet path gains a regression fuzzer | `FuzzDHCPHandle` drives `handle`+`logExchange` (the two receive-path consumers), registered, 1.79M execs clean |
+| Targets discoverable by the gate + listed for operators | 3 exact-path lines in `mk/test-fuzz.mk`; `docs/functional-tests.md` Fuzz Target Areas updated |
+
+## Pre-Commit Verification
+- **Changed-package tests (green):** `go test ./…/bmp/... ./…/radius/... ./…/dhcpserver/...` → all `ok`.
+- **Fuzz gate (green):** `make ze-fuzz-one` per target ran 0.9M–1.8M inputs, 0 crashes (A-2).
+- **Lint (green):** `make ze-lint-changed` → 0 issues.
+- **Docs (green):** `make ze-doc-test` → PASSED (new source anchors resolve).
+- **Full `make ze-verify-changed` = red, but entirely environmental / known-red** (this is an
+  unprivileged sandbox; per `plan/known-failures.md:280` such reds are NOT structural):
+  `web:unknown` (all ~48 web tests — no browser harness), `ospf/ospfv3` timeouts, `appliance:vpp`
+  timeout, `policy` mismatch, `l2tp session-stopccn-cascade` (documented known-red,
+  `known-failures.md:430`), and `bmp-locrib` (netlink EPERM `operation not permitted` +
+  collector `connection refused`, `known-failures.md:233-281`). NONE is in a package this spec
+  changed in a way that alters runtime; all changes are additive test-only files + a makefile
+  registration + a doc. Verification scoped to changed per `ai/rules/git-safety.md` (Known-Red
+  Full Verify: Scope to Changed).
+
+## Review Gate
+Pre-checks: `make ze-validate` → all checks passed; `python3 scripts/dev/audit-test-relaxation.py`
+→ clean (0 changed test files; all three fuzz files are new additions, no test deleted/weakened).
+
+### Run 1 (initial)
+| Severity | Finding | Location | Action |
+|----------|---------|----------|--------|
+| NOTE | `docs/functional-tests.md` Fuzz Target Areas table sums to 57 while `mk/test-fuzz.mk` enumerates 63 — pre-existing 6-target drift unrelated to this spec (Notes) | `docs/functional-tests.md:1617` | Flagged to user; no change (this spec does not reconcile it) |
+
+Result: **0 BLOCKER, 0 ISSUE, 1 NOTE**. Wiring (fuzz targets reachable via the gate registration),
+logic (all three harness invariants traced + 0.9M–1.8M-exec clean fuzz runs), allocation (fixed
+seed sizes; per-iteration handler is the documented R-2 tradeoff), removed-behavior (pure additions),
+and RFC (no protocol behavior added) all clean. Gate satisfied.
+
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; deepened to design on 2026-07-16 after reading each decoder, its real callers, and the bfd/vrrp model harnesses. All three parsers verified bounds-safe today by code reasoning; this is regression protection. Sibling: `plan/spec-improve-8-fuzz-decode-context.md`.
 - Correctness fix vs skeleton: the fuzz gate target is `make ze-fuzz-test` (mk/test-fuzz.mk:12), not `make ze-fuzz`.
-- Pre-existing drift observed (not in scope to reconcile): `docs/functional-tests.md:1617` says "54 fuzz targets" but `mk/test-fuzz.mk` enumerates 60. Bump by 3 for the new targets and flag the discrepancy to the user.
+- Pre-existing drift observed (not in scope to reconcile): `docs/functional-tests.md` said "54 fuzz targets" (== the sum of its own Fuzz Target Areas table) while `mk/test-fuzz.mk` enumerated 60 — a pre-existing 6-target gap. **Done:** bumped the doc headline + table by 3 (→ 57, table stays internally consistent) and added the three targets; did NOT reconcile the 6-target gap (now table 57 vs makefile 63). Flagged to the user for a follow-up doc-sync fixit if desired.
+- Implementation note (2026-07-17): three fuzz files added, registered with exact package paths (all three packages have a `yang/` sibling, confirmed by `go list`). `handle` sub-parsers (`parseMsgType`/`parseOptionAddr`) are only bounds-safe behind the caller's `len>=244` guard, so the DHCP harness drives `handle`+`logExchange` (both guarded), never the sub-parsers directly. A-2 and A-3 confirmed (see Assumptions).

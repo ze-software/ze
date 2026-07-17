@@ -70,6 +70,9 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=FuzzTacacsEncryptDecrypt -fuzztime=10s -timeout=60s ./internal/component/tacacs
 	$(GO_TEST) -fuzz=FuzzFSMEventSequence -fuzztime=10s -timeout=60s ./internal/component/bgp/fsm
 	$(GO_TEST) -fuzz=FuzzDecode -fuzztime=10s -timeout=60s ./internal/plugins/vrrp/packet/...
+	$(GO_TEST) -fuzz=FuzzDecodeBMPTLV -fuzztime=10s -timeout=60s ./internal/component/bgp/plugins/bmp
+	$(GO_TEST) -fuzz=FuzzDecodeRADIUSVSA -fuzztime=10s -timeout=60s ./internal/component/radius
+	$(GO_TEST) -fuzz=FuzzDHCPHandle -fuzztime=10s -timeout=60s ./internal/plugins/dhcpserver
 
 # Run a single fuzz target for longer (usage: make ze-fuzz-one FUZZ=FuzzParseNLRIs PKG=./internal/component/bgp/wireu/... TIME=30s)
 FUZZ ?= FuzzParseNLRIs

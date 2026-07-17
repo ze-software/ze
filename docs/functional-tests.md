@@ -1614,9 +1614,10 @@ Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using he
 
 ## Fuzz Testing
 
-Ze includes 54 fuzz targets covering all wire parsers, NLRI codecs, config
-parsing, cryptographic operations, and protocol state machines. Fuzz tests
-catch crashes, panics, and memory corruption on malformed input.
+Ze includes 57 fuzz targets covering all wire parsers, NLRI codecs, config
+parsing, cryptographic operations, protocol state machines, and
+receiver/server-facing parsers (BMP, RADIUS, DHCP). Fuzz tests catch crashes,
+panics, and memory corruption on malformed input.
 
 ```bash
 make ze-fuzz-test                                    # All fuzz targets, 10s each
@@ -1640,8 +1641,12 @@ in the traditional sense). Run them periodically or before releases.
 | BFD | 3 | `FuzzParseControl`, `FuzzParseAuth`, `FuzzAuthDigest` |
 | PPP | 6 | `FuzzParseLCPPacket`, `FuzzParseCHAPResponse`, `FuzzParsePAPRequest`, `FuzzParseFrame` |
 | TACACS+ | 2 | `FuzzTacacsPacketUnmarshal`, `FuzzTacacsEncryptDecrypt` |
+| Receiver/server parsers | 3 | `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle` |
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzParseRDString` |
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
+<!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->
+<!-- source: internal/component/radius/fuzz_test.go -- FuzzDecodeRADIUSVSA -->
+<!-- source: internal/plugins/dhcpserver/fuzz_test.go -- FuzzDHCPHandle -->
 <!-- source: internal/core/bgp/attribute/builder_parse_fuzz_test.go -- attribute parser fuzz targets -->
 <!-- source: internal/component/bgp/wireu/prefix_fuzz_test.go -- NLRI prefix fuzz targets -->
 <!-- source: internal/component/config/fuzz_test.go -- config parser fuzz targets -->
