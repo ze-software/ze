@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 609 packages, 606 described, 3 TODO
+Total: 610 packages, 606 described, 4 TODO
 
 
 ## `cmd/ze/`
@@ -389,7 +389,7 @@ Total: 609 packages, 606 described, 3 TODO
 | `internal/component/telemetry/exporter/yang` | embeds the telemetry exporter's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/traceroute/cmd` | owns the entire traceroute feature surface as a dedicated feature module (see ai/rules/plugin-self-containment.md "Dedicated feature modules") |  |
 | `internal/component/traffic` | defines the data model for ze-managed tc (traffic control) qdiscs, classes, and filters | traffic |
-| `internal/component/traffic/cli` | provides the ze traffic-control subcommand for viewing tc qdisc, class, and filter state on network interfaces |  |
+| `internal/component/traffic/cli` | provides the ze traffic control subcommand for viewing tc qdisc, class, and filter state on network interfaces |  |
 | `internal/component/traffic/cmd` | provides traffic control (QoS) CLI command handlers and formatting helpers |  |
 | `internal/component/traffic/yang` | embeds the traffic component's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/trafficfeature` | derives neutral per-source traffic feature signals from the observation feed for detection plugins |  |
@@ -419,6 +419,7 @@ Total: 609 packages, 606 described, 3 TODO
 | `internal/core/bgp/wire` | provides zero-allocation buffer writing for BGP message encoding |  |
 | `internal/core/bufpool` | provides a sync.Pool-seeded-for-peak byte-slice pool for protocol subsystems that share a buffer path across multiple goroutines (TACACS+ AAA, plugin-rpc framing, BGP BMP sender, etc.) |  |
 | `internal/core/callsink` | is the neutral registration seam between the PPPoE access concentrator and the L2TP tunnel engine, letting a PADS-completed PPPoE subscriber be relayed into an L2TP incoming call (the LAC role, RFC... |  |
+| `internal/core/cliio` | TODO |  |
 | `internal/core/clock` | provides injectable abstractions for time operations |  |
 | `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |
@@ -639,7 +640,7 @@ Total: 609 packages, 606 described, 3 TODO
 | `internal/plugins/ntp/events` | defines event constants for the "system" event namespace |  |
 | `internal/plugins/ntp/yang` | embeds and registers the NTP plugin's YANG command and configuration schemas |  |
 | `internal/plugins/ospf` | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | ospf |
-| `internal/plugins/ospf/cli` | Decode a hex OSPFv2 packet from stdin to JSON (offline wire tool) |  |
+| `internal/plugins/ospf/cli` | Offline OSPF wire tools |  |
 | `internal/plugins/ospf/iface` | implements the per-interface OSPF runtime, including the interface state machine, Hello exchange, DR election, and neighbor management |  |
 | `internal/plugins/ospf/lsdb` | implements the per-area OSPF link-state database with LSA flooding, origination, and aging |  |
 | `internal/plugins/ospf/neighbor` | implements the OSPFv2 Neighbor State Machine and database-exchange scaffolding |  |

@@ -179,6 +179,59 @@ func TestCheckSiblings(t *testing.T) { // R9
 	}
 }
 
+func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namespace
+	// The cross-surface namespace set: YANG object containers + YANG verbs.
+	ns := map[string]bool{
+		"traffic": true, "isis": true, "ospf": true, // config/command containers
+		"update": true, "show": true, "set": true, "clear": true, // verbs
+	}
+
+	// Pre-split root set: the feeder MUST flag all four hyphenated roots. A gate
+	// that cannot catch the bug it was written for is not a gate (R-2). This is
+	// the red-then-green that matters most in this spec.
+	pre := []string{"pipe", "traffic-control", "isis-decode", "ospf-decode", "update-serve", "start", "version", "--plugins"}
+	got := CheckRootNamespace(pre, ns)
+	flagged := map[string]bool{}
+	for _, f := range got {
+		flagged[f.Command] = true
+		if f.Rule != "R9" {
+			t.Errorf("finding %q has rule %q, want R9", f.Command, f.Rule)
+		}
+	}
+	for _, want := range []string{"traffic-control", "isis-decode", "ospf-decode", "update-serve"} {
+		if !flagged[want] {
+			t.Errorf("pre-split root %q not flagged by the root-namespace feeder", want)
+		}
+	}
+	// A non-hyphenated root and a flag-shaped root (leading '-') must not fire.
+	for _, ok := range []string{"pipe", "start", "version", "--plugins"} {
+		if flagged[ok] {
+			t.Errorf("root %q wrongly flagged", ok)
+		}
+	}
+	if len(got) != 4 {
+		t.Errorf("pre-split set: expected exactly 4 findings, got %d (%v)", len(got), got)
+	}
+
+	// Post-split root set: zero findings.
+	post := []string{"pipe", "traffic", "isis", "ospf", "start", "version", "--plugins"}
+	if got := CheckRootNamespace(post, ns); len(got) != 0 {
+		t.Errorf("post-split set: expected 0 findings, got %v", got)
+	}
+
+	// A fresh hyphenated-namespace root introduced later is caught (the gate
+	// prevents tomorrow's drift, not just today's four).
+	if got := CheckRootNamespace([]string{"bgp-summary"}, map[string]bool{"bgp": true}); len(got) != 1 || got[0].Command != "bgp-summary" {
+		t.Errorf("fresh namespace-collision root not caught: %v", got)
+	}
+
+	// A genuine compound with no colliding namespace (`as-set` with no `as`
+	// namespace) is never flagged -- low false positive, matching CheckSiblings.
+	if got := CheckRootNamespace([]string{"as-set"}, ns); len(got) != 0 {
+		t.Errorf("genuine compound wrongly flagged: %v", got)
+	}
+}
+
 func TestExemptCategory(t *testing.T) {
 	cases := map[string]string{
 		"ze-bgp:announce":        "bridge",

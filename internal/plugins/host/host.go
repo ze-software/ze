@@ -5,7 +5,7 @@
 // JSON to stdout, the same shape as the daemon `show host *` RPC. There is no
 // `--text` mode: the verb-first daemon grammar has no such flag, so keeping one
 // only offline would be an online/offline inconsistency. For a human-readable
-// view, pipe the JSON through `ze format table` or `jq`.
+// view, pipe the JSON through `ze pipe table` or `jq`.
 //
 // Sibling consumers of the same inventory library:
 //

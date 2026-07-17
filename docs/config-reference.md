@@ -236,7 +236,7 @@ See [guide/self-update.md](guide/self-update.md) for the full guide.
 Ze includes a built-in command to serve the version manifest and binary from build/release infrastructure:
 
 ```
-ze update-serve --listen :8080
+ze update serve --listen :8080
 ```
 
 This starts a minimal HTTP server with three endpoints:

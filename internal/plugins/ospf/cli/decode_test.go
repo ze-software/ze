@@ -1,4 +1,4 @@
-// VALIDATES: spec-ospf-ext-14 AC-20 -- the offline `ze ospf-decode --opaque` path renders
+// VALIDATES: spec-ospf-ext-14 AC-20 -- the offline `ze ospf decode --opaque` path renders
 // an IPv4 opaque LSA's Opaque Type/ID plus its generic (type/length/value-hex) TLVs, with no
 // running engine.
 // PREVENTS: an offline opaque decode that hides the Opaque Type/ID or the TLV breakdown.

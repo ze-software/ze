@@ -1,4 +1,4 @@
-// VALIDATES: spec-ospf-ext-14 AC-21 -- the offline `ze ospf-decode --v3` path renders an
+// VALIDATES: spec-ospf-ext-14 AC-21 -- the offline `ze ospf decode --v3` path renders an
 // OSPFv3 LSA's scope-aware LS Type (U/S2/S1 + function code) plus its typed body, with no
 // running engine.
 // PREVENTS: an offline v3 decode that reports a flat type number or hides the scope.

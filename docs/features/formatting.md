@@ -61,25 +61,25 @@ chain freely.
 
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
 
-### The offline way: `ze format`
+### The offline way: `ze pipe`
 
 Scripts and pipelines outside an interactive session apply the same
-operators to any captured JSON via `ze format`:
+operators to any captured JSON via `ze pipe`:
 
 ```
-ze show host cpu | ze format table
-ze debug show | ze format match reactor
-ze debug show | ze format count
-ze show bgp peer list | ze format yaml
-ze show bgp peer list | ze format first 5
+ze show host cpu | ze pipe table
+ze debug show | ze pipe match reactor
+ze debug show | ze pipe count
+ze show bgp peer list | ze pipe yaml
+ze show bgp peer list | ze pipe first 5
 ```
 
-`ze format` reads stdin (up to 256 MB), applies the pipe chain given as
+`ze pipe` reads stdin (up to 256 MB), applies the pipe chain given as
 arguments, and writes the result to stdout. It's the same operator table
 above, minus the display-only operators that only make sense inside a live
 session (`log`, `no-more`).
 
-<!-- source: cmd/ze/ze_core_format.go -- runFormat, formatUsage -->
+<!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
 
 ### Configuration presentation
 

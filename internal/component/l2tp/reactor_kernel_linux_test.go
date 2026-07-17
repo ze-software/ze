@@ -167,7 +167,7 @@ func TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns(t *testing.T) {
 
 	require.Nil(t, setups, "no kernel worker means no setup events")
 	// test-relax: the old teardowns-nil assertion asserted the pre-e231fbfdd
-	// behaviour and has failed deterministically ever since that commit made the
+	// behavior and has failed deterministically ever since that commit made the
 	// drain unconditional on purpose (see the leading comment on
 	// collectKernelEventsLocked). The assertion was stale, not the code. It is
 	// REPLACED, not dropped, by the stricter equality check below plus the

@@ -193,6 +193,50 @@ func joinPath(parent, tok string) string {
 	return tb.Str(parent).Byte(' ').Str(tok).String()
 }
 
+// CheckRootNamespace applies R9 to the ROOT command namespace across CLI
+// surfaces. CheckSiblings fires only when the colliding namespace is a sibling at
+// the same YANG-tree level; but root handlers never pass through the YANG tree
+// (ai/rules/cli-grammar.md), so their compound-vs-namespace collisions live on a
+// surface CheckSiblings cannot see. This is the feeder that governs them: a root
+// whose left hyphen-segment names a namespace that exists on ANOTHER surface -- a
+// YANG verb or a YANG object container -- is a namespace member masquerading as a
+// compound root. `traffic-control` collides with the `traffic` container,
+// `update-serve` with the `update` verb; both must split into `traffic control` /
+// `update serve` so the object roots the tree and completion can enumerate the
+// members.
+//
+// roots are the registered root command names; namespaces is the set of names
+// that exist as a namespace on another surface (every YANG verb plus every YANG
+// container). A root whose left segment is in that set is the violation. A leading
+// '-' (a flag-shaped root such as `--plugins`) has an empty left segment and is
+// never flagged. The multi-hyphen walk mirrors CheckSiblings so `a-b-c` is tested
+// at each boundary.
+func CheckRootNamespace(roots []string, namespaces map[string]bool) []Finding {
+	var out []Finding
+	for _, n := range roots {
+		b := strings.IndexByte(n, '-')
+		for b > 0 {
+			left := n[:b]
+			if namespaces[left] {
+				out = append(out, Finding{
+					Command: n,
+					Rule:    "R9",
+					Message: msg("root ", n, " collides with the ", left,
+						" namespace on another surface -- split into two tokens (", left, " ", n[b+1:],
+						"); reserve the hyphen for one indivisible name"),
+				})
+				break
+			}
+			next := strings.IndexByte(n[b+1:], '-')
+			if next < 0 {
+				break
+			}
+			b += 1 + next
+		}
+	}
+	return out
+}
+
 // bridgeSurface is the text-bridge compatibility surface: announce/withdraw/peer/help
 // commands that deliberately mirror a legacy line protocol and are the one operator
 // surface intentionally not verb-first (E1). A documented set, not an ad-hoc

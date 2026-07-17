@@ -3,7 +3,7 @@
 //            web servers, hub/start/cli/monitor), via isQuickExitZeCommand.
 // PREVENTS: (1) the race where two un-awaited quick-exit ze steps share the
 //            client stdout/stderr buffers and a later step clobbers an earlier
-//            step's output (isis-config, format-operators); (2) the inverse
+//            step's output (isis-config, pipe-operators); (2) the inverse
 //            regression where a daemon (e.g. `ze --web ... --insecure-web`) is
 //            mis-classified as quick-exit and awaited, hanging the loop forever.
 
@@ -52,7 +52,7 @@ func TestFirstZeSubcommand(t *testing.T) {
 		{"leading flags skipped", []string{"-d", "--color", "doctor", "x.conf"}, "doctor"},
 		{"bare dash is not a verb", []string{"-"}, ""},
 		{"dash then nothing", []string{"--debug", "-"}, ""},
-		{"isis-decode verb", []string{"isis-decode"}, "isis-decode"},
+		{"isis verb", []string{"isis"}, "isis"},
 		{"empty args", nil, ""},
 		{"web daemon", []string{"--web", "8080", "x.conf"}, "8080"},
 	}
@@ -77,12 +77,12 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 		{"show", "bgp", "peer", "list"},
 		{"explain", "doctor-isis-net-missing"},
 		{"doctor", "--json", "isis-mismatch.conf"}, // .conf is an arg to a verb, not the daemon config
-		{"isis-decode"},
+		{"isis", "decode"},
 		{"schema", "tree"},
 		{"version"},
 		{"completion", "bash"},
 		{"bgp", "decode", "deadbeef"}, // offline bgp tool, not a daemon
-		{"format", "json"},            // 14-step format-operators race source
+		{"pipe", "json"},              // pipe-operators race source
 		{"debug"},                     // ze debug help
 		{"env"},
 		{"run", "help"}, // run help is quick-exit, unlike a run daemon

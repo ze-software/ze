@@ -1,8 +1,10 @@
-// Design: docs/architecture/api/commands.md -- ze format: offline pipe formatting
+// Design: docs/architecture/api/commands.md -- ze pipe: offline pipe operators
 //
-// ze format applies the same pipe operators used in the online CLI
-// (json, table, yaml, match, count, first, last) to stdin, so offline
-// commands can be formatted the same way.
+// ze pipe applies the same pipe operators used in the online CLI
+// (json, table, yaml, match, count, first, last, resolve) to stdin, so offline
+// commands can be transformed the same way. `pipe` names the whole operator
+// language (internal/component/command/pipe.go, knownPipeOps), not one clause of
+// it -- `format` is only one operator kind within that language.
 
 //go:build ze_core
 
@@ -19,13 +21,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-func runFormat(args []string) int {
+func runPipe(args []string) int {
 	if len(args) == 0 {
-		formatUsage()
+		pipeUsage()
 		return 1
 	}
 	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" { //nolint:goconst // consistent pattern across cmd files
-		formatUsage()
+		pipeUsage()
 		return 0
 	}
 
@@ -58,11 +60,11 @@ func runFormat(args []string) int {
 	return 0
 }
 
-func formatUsage() {
+func pipeUsage() {
 	p := helpfmt.Page{
-		Command: "ze format",
-		Summary: "Apply pipe formatting to stdin",
-		Usage:   []string{"<command> | ze format <operator> [args]"},
+		Command: "ze pipe",
+		Summary: "Apply pipe operators to stdin",
+		Usage:   []string{"<command> | ze pipe <operator> [args]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Format Operators", Entries: []helpfmt.HelpEntry{
 				{Name: "json [compact]", Desc: "Format as JSON (pretty or compact)"},
@@ -80,12 +82,12 @@ func formatUsage() {
 			}},
 		},
 		Examples: []string{
-			"ze debug show | ze format match reactor",
-			"ze debug show | ze format count",
-			"ze show bgp peer list | ze format json compact",
-			"ze show bgp peer list | ze format yaml",
-			"ze show bgp peer list | ze format first 5",
-			"ze show bgp peer list | ze format resolve",
+			"ze debug show | ze pipe match reactor",
+			"ze debug show | ze pipe count",
+			"ze show bgp peer list | ze pipe json compact",
+			"ze show bgp peer list | ze pipe yaml",
+			"ze show bgp peer list | ze pipe first 5",
+			"ze show bgp peer list | ze pipe resolve",
 		},
 	}
 	p.WriteErr()

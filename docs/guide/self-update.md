@@ -20,12 +20,12 @@ guarantees either the old or new binary is always present.
 
 ## Server Setup
 
-### ze update-serve
+### ze update serve
 
 Ze includes a standalone update server for build infrastructure:
 
 ```
-ze update-serve --listen :8080
+ze update serve --listen :8080
 ```
 
 Endpoints:
@@ -205,7 +205,7 @@ can reach the target release.
 | "waiting for spread" | Spread delay not elapsed; wait or use `update system firmware download` |
 | "waiting for maintenance window" | Outside configured window; wait or use `update system firmware apply` |
 | "paused by server" | Server manifest has `paused: true`; remove pause file or send SIGUSR1 |
-| "checksum mismatch" | Binary changed on server after SHA-256 was computed; restart `ze update-serve` |
+| "checksum mismatch" | Binary changed on server after SHA-256 was computed; restart `ze update serve` |
 | "insufficient disk space" | Need 2x binary size free on the target filesystem |
 | "self-update not supported on read-only filesystem" | Binary is on a read-only mount (gokrazy, squashfs) |
 | "binary and temp directory must be on the same filesystem" | Temp files must be on the same filesystem as the binary for atomic rename |

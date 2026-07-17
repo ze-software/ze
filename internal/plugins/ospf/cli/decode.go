@@ -35,7 +35,7 @@ func cmdDecode(args []string) int {
 	opaque := fs.Bool("opaque", false, "decode an IPv4 opaque LSA (Opaque Type/ID + TLVs)")
 	v3 := fs.Bool("v3", false, "decode an OSPFv3 (IPv6) LSA (scope-aware type + header + body)")
 	fs.Usage = func() {
-		errln("usage: ze ospf-decode [--pretty] [--opaque | --v3] < hex")
+		errln("usage: ze ospf decode [--pretty] [--opaque | --v3] < hex")
 		errln("  reads a hex OSPF packet/LSA from stdin, emits JSON on stdout")
 		errln("  --opaque: interpret input as an IPv4 opaque LSA (RFC 5250)")
 		errln("  --v3:     interpret input as an OSPFv3 LSA (RFC 5340)")
@@ -218,13 +218,17 @@ func v3OfflineTypedBody(l *ospfv3packet.LSA) any {
 	return nil
 }
 
+// scopeArea is the RFC 5340 A.4.2.1 area flooding-scope name (shared with the
+// decode tests, which assert on it).
+const scopeArea = "area"
+
 // v3OfflineScope names the RFC 5340 section A.4.2.1 flooding scope from the S2/S1 bits.
 func v3OfflineScope(t uint16) string {
 	switch t & 0x6000 {
 	case 0x0000:
 		return "link-local"
 	case 0x2000:
-		return "area"
+		return scopeArea
 	case 0x4000:
 		return "as"
 	default:

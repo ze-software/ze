@@ -22,10 +22,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	// Blank imports trigger init() registrations for every command surface.
@@ -52,6 +56,8 @@ type result struct {
 	FlagInYANG   []flagHit         `json:"flag-in-yang"`
 	Exempt       map[string]int    `json:"exempt-by-category"`
 	Checked      int               `json:"commands-checked"`
+	RootsChecked int               `json:"roots-checked"`
+	RootExempt   int               `json:"root-namespace-exempt"`
 	PendingSplit int               `json:"pending-namespace-split"`
 	Valid        bool              `json:"valid"`
 }
@@ -72,6 +78,17 @@ type result struct {
 // migration, list the command path here (value true) so the gate reports it as debt
 // (PendingSplit) without blocking, then delete the entry when the command is renamed.
 var pendingNamespaceSplit = map[string]bool{}
+
+// rootNamespaceExempt is the root feeder's relief valve: a root whose hyphen is a
+// genuine indivisible name even though its left segment happens to match a YANG
+// verb or container (the R9 "as-set with no as sibling" case, applied to roots).
+// It mirrors pendingNamespaceSplit (YANG tree) and grammar.ExemptCategory (wire
+// methods) so the root feeder is not the one enforcement path with no escape.
+// EMPTY today: every hyphenated root was split. Add an entry (value true) ONLY
+// for a demonstrably-indivisible compound, with a one-line reason, so a
+// legitimate future root (route-refresh, prefix-list, next-hop, as-path, ...) is
+// not a hard false positive that forces editing gate source.
+var rootNamespaceExempt = map[string]bool{}
 
 type flagHit struct {
 	File string `json:"file"`
@@ -113,6 +130,30 @@ func run() result {
 	walk(tree, "", &res)
 
 	res.FlagInYANG = flagInYANG()
+
+	// Feeder 4: the root namespace (ai/rules/cli-grammar.md). Root handlers are
+	// registered outside the YANG command tree, so the walk above never sees them;
+	// a hyphenated root whose left segment names a namespace on another surface
+	// (a YANG verb or object container) would sit undetected -- exactly how
+	// traffic-control / isis-decode / ospf-decode / update-serve stayed green for
+	// a whole migration. Enumerate the registered roots from source and check them
+	// against the cross-surface namespace set (verbs + containers).
+	namespaces := map[string]bool{}
+	for verb := range tree.Children {
+		namespaces[verb] = true
+	}
+	for name := range yangContainerNames() {
+		namespaces[name] = true
+	}
+	roots := registeredRootNames()
+	res.RootsChecked = len(roots)
+	for _, f := range grammar.CheckRootNamespace(roots, namespaces) {
+		if rootNamespaceExempt[f.Command] {
+			res.RootExempt++
+			continue
+		}
+		res.Findings = append(res.Findings, f)
+	}
 
 	sort.Slice(res.Findings, func(i, j int) bool {
 		if res.Findings[i].Command != res.Findings[j].Command {
@@ -201,9 +242,117 @@ func flagInYANG() []flagHit {
 	return hits
 }
 
+// registeredRootNames returns the STRING-LITERAL first argument of every
+// registry.RegisterRootHandler / MustRegisterRootHandler / RegisterRoot call
+// across cmd/ze and internal/. Root handlers register in package main (cmd/ze)
+// or in internal owner packages and never reach the YANG-tree walk, so the gate
+// enumerates them from source -- build-tag independent, mirroring
+// scripts/checks/command_ownership.go.
+//
+// LIMITATION (shared with command_ownership.go): this is a static AST scan, so a
+// root registered with a NON-LITERAL name -- e.g. a variable passed through a
+// one-line helper like internal/test/cli's registerRoot(name, ...) -- is not
+// resolved and is not checked. Every real `ze` CLI root is registered with a
+// literal name (grep confirms), so all of them are covered; the invisible cases
+// today are the `ze-test <suite>` roots (SectionTest, a different binary and
+// surface). If a future `ze` root is added through a name-variable wrapper, it
+// escapes this feeder -- a `_test.go` asserting the real roots stay literal, or
+// resolving the wrapper's literal arg, would close that gap.
+//
+// Local metas (RegisterLocalMeta) are deliberately excluded: `update serve` is a
+// two-token local path, not a compound root.
+func registeredRootNames() []string {
+	var names []string
+	for _, dir := range []string{"cmd/ze", "internal"} {
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			forEachRegistryRootName(path, func(name string) { names = append(names, name) })
+			return nil
+		})
+	}
+	return names
+}
+
+// forEachRegistryRootName invokes fn with the first string-literal argument of
+// every registry.RegisterRoot / (Must)RegisterRootHandler call in the file.
+func forEachRegistryRootName(path string, fn func(name string)) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		if !ok || (pkg.Name != "registry" && pkg.Name != "cmdregistry") {
+			return true
+		}
+		switch sel.Sel.Name {
+		case "RegisterRootHandler", "MustRegisterRootHandler", "RegisterRoot":
+		default:
+			return true
+		}
+		if len(call.Args) == 0 {
+			return true
+		}
+		lit, ok := call.Args[0].(*ast.BasicLit)
+		if !ok || lit.Kind != token.STRING {
+			return true
+		}
+		if name, err := strconv.Unquote(lit.Value); err == nil {
+			fn(name)
+		}
+		return true
+	})
+}
+
+// containerRe matches a top-of-line YANG `container <name> {` declaration.
+var containerRe = regexp.MustCompile(`^\s*container\s+([a-z][a-z0-9-]*)\s*\{`)
+
+// yangContainerNames returns every YANG container token name under internal/.
+// These are the object namespaces (traffic, isis, ospf, bgp, ...) that a root
+// command's left hyphen-segment must not silently shadow. Scanning source rather
+// than the built command tree keeps this independent of which feature build tags
+// are on when the gate runs (isis/ospf command modules are feature-gated).
+func yangContainerNames() map[string]bool {
+	names := map[string]bool{}
+	_ = filepath.Walk("internal", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".yang") {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer f.Close()
+		sc := bufio.NewScanner(f)
+		for sc.Scan() {
+			if m := containerRe.FindStringSubmatch(sc.Text()); m != nil {
+				names[m[1]] = true
+			}
+		}
+		_ = sc.Err() // best-effort scan; a read error just yields fewer names
+		return nil
+	})
+	return names
+}
+
 func printResult(r result) {
 	fmt.Fprintf(os.Stdout, "# CLI Grammar Gate\n\n")
 	fmt.Fprintf(os.Stdout, "Commands checked: %d\n", r.Checked)
+	fmt.Fprintf(os.Stdout, "Roots checked: %d\n", r.RootsChecked)
+	if r.RootExempt > 0 {
+		fmt.Fprintf(os.Stdout, "Root namespace-exempt (indivisible compounds): %d\n", r.RootExempt)
+	}
 	cats := make([]string, 0, len(r.Exempt))
 	for c := range r.Exempt {
 		cats = append(cats, c)

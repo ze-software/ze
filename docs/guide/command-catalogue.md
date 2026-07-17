@@ -288,7 +288,7 @@ subsystem lands.
 | Daemon date/time | `show date` | `show system time` | `show system time` | `show clock` | - | `show system date` | shipped | process | |
 | Platform detection | - | - | - | - | - | `show system platform` | shipped | process | Runtime platform type (gokrazy, systemd, container, plain-linux, darwin) and capability flags (read-only root, /perm, reboot, persistent storage). Also in `ze doctor` and `ze support` |
 | Firmware update | - | - | - | - | - | `show system update` | shipped | process | Periodic check against remote version manifest (`{"version":"26.05.17"}`); reports availability via report bus |
-| Update server | - | - | - | - | - | `ze update-serve` | shipped | offline | Minimal HTTP server: `GET /version.json` + `GET /<os>/<arch>` binary download; run on build infra, not on routers |
+| Update server | - | - | - | - | - | `ze update serve` | shipped | offline | Minimal HTTP server: `GET /version.json` + `GET /<os>/<arch>` binary download; run on build infra, not on routers |
 | Daemon version | `show version` | `show version` | `show version` | `show version` | - | `ze show version` | shipped | process | |
 | Host date / time | `show date` | `show system time` | `show system time` | `show clock` | - | | planned | process | |
 | Host hostname | `show system hostname` | `show version` | `show system information` | `show hostname` | - | | scope | - | Read from config |

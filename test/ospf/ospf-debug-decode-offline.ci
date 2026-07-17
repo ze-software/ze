@@ -1,6 +1,6 @@
 # Test: OSPFv2 offline opaque-LSA decode.
 #
-# VALIDATES: spec-ospf-ext-14 -- the offline `ze ospf-decode --opaque` path renders Opaque Type/ID + generic TLVs with no running engine (AC-20).
+# VALIDATES: spec-ospf-ext-14 -- the offline `ze ospf decode --opaque` path renders Opaque Type/ID + generic TLVs with no running engine (AC-20).
 # PREVENTS: a regression in the OSPF debug/introspection surface.
 #
 # Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.

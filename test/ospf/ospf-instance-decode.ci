@@ -1,6 +1,6 @@
 # Test: offline decode of an OSPFv2 packet with a non-zero Instance ID (spec-ospf-ext-12).
 #
-# VALIDATES: `ze ospf-decode` renders the RFC 6549 Instance ID (header offset 14) and the
+# VALIDATES: `ze ospf decode` renders the RFC 6549 Instance ID (header offset 14) and the
 # 8-bit AuType (offset 15) as SEPARATE JSON fields. The input is a 44-octet OSPFv2 Hello
 # with Instance ID 5 (byte 14 = 0x05) and AuType 0 (byte 15 = 0x00).
 # PREVENTS: a regression where the decoder folds the two octets back into a single 16-bit
@@ -12,7 +12,7 @@ stdin=ospf-hello-hex:terminator=EOF_HEX
 0201002c0a00000100000000000005000000000000000000ffffff00000a0201000000280000000000000000
 EOF_HEX
 
-cmd=foreground:seq=1:exec=ze ospf-decode:stdin=ospf-hello-hex
+cmd=foreground:seq=1:exec=ze ospf decode:stdin=ospf-hello-hex
 expect=exit:code=0
 expect=stdout:contains="type":"hello"
 expect=stdout:contains="instance-id":5

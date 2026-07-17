@@ -292,7 +292,7 @@ func firstZeSubcommand(args []string) string {
 // quick-exit (non-daemon) subcommand that must be AWAITED before the next
 // command in the same test starts. Two un-awaited quick-exit ze steps in one
 // .ci file (e.g. a valid then an invalid `ze config validate -`, or the 14
-// `ze format ...` steps in format-operators) otherwise run concurrently and
+// `ze pipe ...` steps in pipe-operators) otherwise run concurrently and
 // race on the shared client stdout/stderr buffers, so a later step's output
 // clobbers (or loses) an earlier step's and the per-test expect=stdout/stderr
 // check sees the wrong text.

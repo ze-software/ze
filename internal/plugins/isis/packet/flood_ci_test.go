@@ -20,7 +20,7 @@ const (
 )
 
 // VALIDATES: spec-isis-7 wiring -- the CSNP/PSNP fixtures the functional test
-// feeds `ze isis-decode` decode through DecodePDU into the expected L2 CSNP/PSNP
+// feeds `ze isis decode` decode through DecodePDU into the expected L2 CSNP/PSNP
 // with the TLV 9 entry isis-7 builds. The .ci runs the same bytes through the
 // CLI; this keeps the fixture and the codec in lock-step.
 // PREVENTS: the functional flooding fixture silently diverging from codec output.

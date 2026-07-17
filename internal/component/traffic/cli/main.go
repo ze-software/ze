@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- Traffic control CLI entry point
 
-// Package tc provides the ze traffic-control subcommand for viewing
+// Package tc provides the ze traffic control subcommand for viewing
 // tc qdisc, class, and filter state on network interfaces.
 package cli
 
@@ -16,7 +16,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 )
 
-// Run executes the traffic-control subcommand. Returns exit code.
+// Run executes the traffic control subcommand. Returns exit code.
 func Run(args []string) int {
 	if len(args) < 1 {
 		usage()
@@ -50,7 +50,7 @@ func Run(args []string) int {
 		return cmdShow(b, args[1:])
 	}
 
-	fmt.Fprintf(os.Stderr, "unknown command: ze traffic-control %s\n", subcmd)
+	fmt.Fprintf(os.Stderr, "unknown command: ze traffic control %s\n", subcmd)
 	usage()
 	return 1
 }
@@ -71,7 +71,7 @@ func cmdShow(b tcpkg.Backend, args []string) int {
 	// For now, require an interface name.
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "No traffic control configured.")
-		fmt.Fprintln(os.Stderr, "Use: ze traffic-control show interface <name>")
+		fmt.Fprintln(os.Stderr, "Use: ze traffic control show interface <name>")
 		return 0
 	}
 
@@ -82,9 +82,9 @@ func cmdShow(b tcpkg.Backend, args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze traffic-control",
+		Command: "ze traffic control",
 		Summary: "Traffic control visibility",
-		Usage:   []string{"ze traffic-control <command> [options]"},
+		Usage:   []string{"ze traffic control <command> [options]"},
 		Sections: []helpfmt.HelpSection{{
 			Title: "Commands",
 			Entries: []helpfmt.HelpEntry{

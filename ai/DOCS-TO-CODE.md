@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 290 design docs, 2992 files
+Total: 292 design docs, 2993 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -44,6 +44,10 @@ Total: 290 design docs, 2992 files
 
 - `internal/plugins/vrrp/packet/packet.go` -- WriteTo(buf, off) int contract
 - `internal/plugins/vrrp/packet/validate.go` -- zero-allocation decode over a lazy VIP view
+
+## `ai/rules/cli-patterns.md`
+
+- `internal/core/cliio/cliio.go` -- "-" means stdin/stdout across every command
 
 ## `ai/rules/config-string-coercion.md`
 
@@ -191,8 +195,8 @@ Total: 290 design docs, 2992 files
 | `cmd/ze/hub/web_completer.go` | plugin command completion injection |
 | `cmd/ze/internal/cmdutil/cmdutil.go` | shared CLI command utilities |
 | `cmd/ze/internal/cmdutil/cmdutil_test.go` | cmdutil tests |
-| `cmd/ze/ze_core_format.go` | ze format: offline pipe formatting |
-| `cmd/ze/ze_core_format_test.go` | ze format tests |
+| `cmd/ze/ze_core_pipe.go` | ze pipe: offline pipe operators |
+| `cmd/ze/ze_core_pipe_test.go` | ze pipe tests |
 | `internal/component/aaa/cmd/show.go` | show aaa accounting handler |
 | `internal/component/aaa/show.go` | show aaa accounting provider |
 | `internal/component/bgp/cli/register.go` | bgp command ownership |
@@ -287,7 +291,7 @@ Total: 290 design docs, 2992 files
 | `internal/component/tacacs/cli/register.go` | tacacs command ownership |
 | `internal/component/traceroute/cmd/monitor.go` | monitor traceroute command handler |
 | `internal/component/traceroute/cmd/stream.go` | streaming traceroute session |
-| `internal/component/traffic/cli/register.go` | traffic-control command ownership |
+| `internal/component/traffic/cli/register.go` | traffic namespace ownership |
 | `internal/component/traffic/cmd/traffic.go` | show verb RPC registration |
 | `internal/core/probe/icmp.go` | shared ICMP probe primitives |
 | `internal/plugins/completion/root_commands.go` | shell root command inventory |
@@ -2522,6 +2526,11 @@ Total: 290 design docs, 2992 files
 | `internal/plugins/vrrp/transport/transport_test.go` | transport orchestrator tests (fake backend) |
 | `internal/plugins/vrrp/vrrp.go` | vrrp plugin package doc, logger, show views |
 
+## `plan/learned/1169-cli-root-namespace-grammar.md`
+
+- `internal/plugins/isis/cli/register.go` -- isis root namespace (decode member)
+- `internal/plugins/ospf/cli/register.go` -- ospf root namespace (decode member)
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -3467,8 +3476,7 @@ Total: 290 design docs, 2992 files
 | File | Topic |
 |------|-------|
 | `internal/plugins/isis/cli/decode.go` | offline IS-IS PDU decode CLI (wiring proof) |
-| `internal/plugins/isis/cli/register.go` | register the offline `isis-decode` root verb |
-| `internal/plugins/isis/cli/run.go` | offline `ze isis-decode` subcommand entry |
+| `internal/plugins/isis/cli/run.go` | offline `ze isis decode` subcommand entry |
 | `internal/plugins/isis/packet/checksum.go` | ISO 8473 Fletcher checksum, two-step adjustment |
 | `internal/plugins/isis/packet/csnp.go` | L1/L2 CSNP body codec (source ID, start/end LSPID) |
 | `internal/plugins/isis/packet/header.go` | common 8-byte header, PDU type constants, dispatch |
@@ -3623,8 +3631,7 @@ Total: 290 design docs, 2992 files
 | File | Topic |
 |------|-------|
 | `internal/plugins/ospf/cli/decode.go` | offline OSPFv2 packet decode CLI. |
-| `internal/plugins/ospf/cli/register.go` | register the offline `ospf-decode` root verb |
-| `internal/plugins/ospf/cli/run.go` | offline `ze ospf-decode` subcommand entry |
+| `internal/plugins/ospf/cli/run.go` | offline `ze ospf decode` subcommand entry |
 | `internal/plugins/ospf/packet/checksum.go` | packet and LSA checksum application |
 | `internal/plugins/ospf/packet/checksum_test.go` | checksum covered-range tests |
 | `internal/plugins/ospf/packet/dbdesc.go` | Database Description packet body codec |

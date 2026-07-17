@@ -464,14 +464,6 @@ func registerLocalCommands() {
 		Section:     registry.SectionSystem,
 		Subs:        "--extended",
 	})
-	registry.MustRegisterRootHandler("update-serve", func(_ *registry.RuntimeContext, args []string) int {
-		return runUpdateServe(args)
-	}, registry.Meta{
-		Description: "Run a local update server for firmware checks",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "--listen <addr>",
-	})
 	registry.MustRegisterRootHandler("help", func(_ *registry.RuntimeContext, args []string) int {
 		return dispatchHelp(args)
 	}, registry.Meta{
@@ -489,10 +481,10 @@ func registerLocalCommands() {
 		Section:     registry.SectionSystem,
 		Subs:        "--json",
 	})
-	registry.MustRegisterRootHandler("format", func(_ *registry.RuntimeContext, args []string) int {
-		return runFormat(args)
+	registry.MustRegisterRootHandler("pipe", func(_ *registry.RuntimeContext, args []string) int {
+		return runPipe(args)
 	}, registry.Meta{
-		Description: "Apply pipe formatting to stdin (json, table, yaml, match, count)",
+		Description: "Apply pipe operators to stdin (format: json/table/yaml; filter: match/count/first/last; resolve)",
 		Mode:        "offline",
 		Section:     registry.SectionSystem,
 		Subs:        "json, table, text, yaml, ndjson, match <pattern>, count, first <n>, last <n>, resolve",
@@ -503,6 +495,15 @@ func registerLocalCommands() {
 	})
 	registry.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
 		Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).",
+		Mode:        "offline",
+	})
+	// `update` is a YANG verb, so a root handler named `update` would be
+	// unreachable behind the isYANGVerb branch in zeDispatch. RunCommand consults
+	// the local-handler registry before the YANG tree (cmdutil.go), so
+	// `update serve` lives here as a local meta -- the same mechanism `show
+	// version` uses to run a local command under a YANG verb.
+	registry.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
+		Description: "Run a local update server for firmware checks",
 		Mode:        "offline",
 	})
 

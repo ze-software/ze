@@ -40,7 +40,6 @@ var noOwnerAllowlist = map[string]string{
 	"help":         "Describes the whole process command surface.",
 	"version":      "Uses binary stamp and process build metadata.",
 	"start":        "Starts the daemon and wires global process dependencies.",
-	"update-serve": "Release/update test infrastructure helper around the running binary.",
 	"install":      "Host installation for the ze binary; no runtime component owns host package installation.",
 	"uninstall":    "Host removal of the ze binary, unit, and config.",
 	"service":      "Host service (systemd) management for the ze binary.",
@@ -52,7 +51,7 @@ var noOwnerAllowlist = map[string]string{
 	"doctor":       "Process readiness aggregator; owner-specific checks register with the doctor registry.",
 	"explain":      "Diagnostic-code lookup tied to the process binary.",
 	"host":         "Offline hardware inventory for the box.",
-	"format":       "Pipe formatting utility for stdin; applies generic text transforms without a runtime component owner.",
+	"pipe":         "Offline carrier for the pipe-operator language over stdin (format/filter/display); applies generic text transforms without a runtime component owner.",
 	"--plugins":    "Process-global flag that dumps the linked plugin inventory.",
 }
 

@@ -15,7 +15,7 @@ const ciFixtureHex = "831b01060f01000003000000000001001e002c40000000000002010104
 
 // VALIDATES: Story 1 wiring -- the captured IS-IS Hello fixture used by the
 // functional test decodes through DecodePDU into the expected LAN L1 IIH with
-// its three TLVs. The .ci runs the same bytes through `ze isis-decode`; this
+// its three TLVs. The .ci runs the same bytes through `ze isis decode`; this
 // keeps the fixture and the codec in lock-step.
 // PREVENTS: the functional fixture silently diverging from codec output.
 func TestISISCIFixtureDecodes(t *testing.T) {

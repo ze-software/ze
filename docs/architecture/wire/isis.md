@@ -386,7 +386,7 @@ the `isis` component (`auth_keystore.go`, `auth_wiring.go`).
 
 ## Offline decode tool
 
-`ze isis-decode` reads one IS-IS PDU from stdin and prints a JSON view on
+`ze isis decode` reads one IS-IS PDU from stdin and prints a JSON view on
 stdout. It accepts both ASCII hex (a pasted/captured `831b...` string) and raw
 PDU bytes (an IS-IS PDU starts with `0x83`, which is not an ASCII hex digit, so
 the two are unambiguous). This is a thin caller over `packet.DecodePDU` +
@@ -394,7 +394,7 @@ the two are unambiguous). This is a thin caller over `packet.DecodePDU` +
 surface (`show isis ...`) is owned by isis-13.
 
 ```
-$ printf '831b01060f...' | ze isis-decode --pretty
+$ printf '831b01060f...' | ze isis decode --pretty
 { "type": "l1-lan-hello", "lan-hello": { "system-id": "0000.0000.0001", ... } }
 ```
 

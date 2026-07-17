@@ -109,11 +109,18 @@ Decision test, in order:
 | `show l2tp session-history` | `show l2tp session history` | `session` is a real container under `l2tp` |
 | `resolve peeringdb as-set` | `resolve peeringdb as-set` (unchanged) | `as-set` is one IRR object; no `as` sibling; keep the hyphen |
 
-**Enforcement (R9).** The static gate flags any child token whose left segment is
-itself a sibling name at the same tree level (`grammar.CheckSiblings`). R9 is the one
-rule that needs sibling context, so ONLY the static gate runs it: per-command
-registration cannot see siblings. It is deliberately conservative and fires only when
-the namespace literally exists as a sibling, so a genuine compound is never flagged.
+**Enforcement (R9).** Inside the YANG command tree, the static gate flags any child
+token whose left segment is itself a sibling name at the same tree level
+(`grammar.CheckSiblings`). R9-by-sibling needs sibling context, so ONLY the static gate
+runs it: per-command registration cannot see siblings. It is deliberately conservative
+and fires only when the namespace literally exists as a sibling, so a genuine compound
+is never flagged. **Root commands are a separate surface:** they register via
+`registry.MustRegisterRootHandler` / `RegisterRoot` and never enter the YANG tree, so
+`CheckSiblings` cannot see them. The root-namespace feeder (`grammar.CheckRootNamespace`,
+the fourth feeder below) governs them with a cross-surface check: a hyphenated root whose
+left segment names a YANG verb or container is the same R9 violation (`traffic-control`
+vs the `traffic` container). Do not assume a root is ungoverned because it is not in the
+tree.
 Shipped commands awaiting the agreed rename are listed in `pendingNamespaceSplit`
 (`scripts/checks/cli_grammar.go`) and reported as tracked debt, so the gate stays green
 while a NEW collision still fails. Migrating one is a dispatch-key change (see
@@ -279,13 +286,14 @@ ruleset is R1-R9 (verb-first, token form, no `--flag`, namespace discipline,
 keyword-before-value, action-before-identifier, config-tree-mutation stays in
 `set`/`delete`, string identifiers, compound-vs-namespace split), implemented once in
 `internal/component/command/grammar` and read from the canonical verb registry
-`internal/component/command` (`Verbs`). Three feeders enforce it:
+`internal/component/command` (`Verbs`). Four feeders enforce it:
 
 | Feeder | What it checks | Run |
 |--------|----------------|-----|
 | Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (in `make ze-verify`) |
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
+| Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `make ze-cli-grammar-check` (same gate); `TestRootNamespaceGrammar` (unit) |
 
 Feeder 3 is an **in-process** guard, not a daemon-boot audit: built-ins are 100%
 YANG-derived (a handler with no YANG path is skipped, `LoadBuiltinsWithAliases`) so

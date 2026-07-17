@@ -1,0 +1,20 @@
+# Test: ze root-command completion offers the split names, not the hyphenated ones
+# VALIDATES: AC-12 -- `ze completion bash` offers `pipe`, `traffic`, `isis`, `ospf`
+#            and none of `traffic-control`, `isis-decode`, `ospf-decode`,
+#            `update-serve`. Completion is derived from registry.ListRoot, so the
+#            renames flow through with no completion-specific edits.
+# Isolated in its own file so the `!contains` negatives check ONLY this command's
+# output (the .ci matcher checks a file's combined output; the removed-name steps
+# in root-namespace.ci emit the hyphenated names, so the negatives cannot live
+# alongside them).
+
+cmd=foreground:seq=1:exec=ze completion bash
+expect=exit:code=0
+expect=stdout:contains=pipe
+expect=stdout:contains=traffic
+expect=stdout:contains=isis
+expect=stdout:contains=ospf
+expect=stdout:!contains=traffic-control
+expect=stdout:!contains=isis-decode
+expect=stdout:!contains=ospf-decode
+expect=stdout:!contains=update-serve

@@ -2,7 +2,7 @@
 #
 # VALIDATES: spec-isis-8-dis-broadcast -- the pseudo-node LSP the elected
 #            Designated IS originates on a broadcast LAN (ISO/IEC 10589 clause
-#            8.4.5) decodes end-to-end through the user-facing `ze isis-decode`
+#            8.4.5) decodes end-to-end through the user-facing `ze isis decode`
 #            CLI: an L1 LSP whose LSP ID carries a NON-ZERO pseudonode octet (the
 #            LAN ID <system-id>.<pseudonode-id>) and whose Extended IS
 #            Reachability TLV 22 lists every router on the segment as a neighbor
@@ -34,13 +34,13 @@
 #   - the QEMU integration tests + the FRR interop scenario isis-lan-dis-frr
 #     (owned by spec-isis-13).
 # This functional test exercises the pseudo-node LSP wire format only: hex PDU ->
-# ze isis-decode -> JSON.
+# ze isis decode -> JSON.
 
 # --- L1 pseudo-node LSP: non-zero pseudonode LAN ID + 3 members at metric 0. ----
 # LAN ID 0000.0000.0001.07 (pseudonode octet 0x07), fragment 0, seq 1, lifetime
 # 1200; TLV 22 lists 0000.0000.0001 / 0000.0000.0002 / 0000.0000.0003 at metric 0.
 stdin=isis-pn:hex=831b010612010000003e04b0000000000001070000000001e3d4011621000000000001000000000000000000000200000000000000000000030000000000
-cmd=foreground:seq=1:exec=ze isis-decode:stdin=isis-pn
+cmd=foreground:seq=1:exec=ze isis decode:stdin=isis-pn
 expect=exit:code=0
 expect=stdout:contains="type":"l1-lsp"
 expect=stdout:contains="lsp-id":"0000.0000.0001.07-00"

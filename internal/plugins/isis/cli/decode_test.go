@@ -12,7 +12,7 @@ import (
 )
 
 // buildLSPHex encodes a minimal L2 LSP and returns its lowercase hex, for the
-// CLI/JSON tests. It mirrors what `ze isis-decode` consumes on stdin.
+// CLI/JSON tests. It mirrors what `ze isis decode` consumes on stdin.
 func buildLSPHex(t *testing.T) string {
 	t.Helper()
 	lsp := &packet.LSP{
@@ -29,7 +29,7 @@ func buildLSPHex(t *testing.T) string {
 
 // VALIDATES: Story 2 wiring -- a hex IS-IS PDU decodes through packet.DecodePDU
 // and renders a JSON view with the right type and a valid checksum. This is the
-// codec the `ze isis-decode` CLI calls; the .ci test exercises the same path
+// codec the `ze isis decode` CLI calls; the .ci test exercises the same path
 // through the real binary.
 // PREVENTS: the decode CLI silently regressing the header parse / dispatch.
 func TestISISDecodeCLIJSON(t *testing.T) {

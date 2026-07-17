@@ -784,27 +784,27 @@ IS-IS protocol tools that run without a daemon, mirroring `ze bgp decode`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `isis-decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
+| `isis decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
 
-`ze isis-decode` runs without a daemon. Input is ASCII hex (whitespace and
+`ze isis decode` runs without a daemon. Input is ASCII hex (whitespace and
 newlines allowed); raw PDU bytes piped straight from a capture also work (an
 IS-IS PDU starts with the protocol discriminator `0x83`, which is not an ASCII
 hex digit, so the two encodings are never confused). Output is the JSON view of
 the decoded PDU (common header, body, and decoded TLVs). Use `--pretty` for
-indented output. The verb is `isis-decode` (a dedicated offline tool), distinct
+indented output. The verb is `isis decode` (a dedicated offline tool), distinct
 from the `show isis` / `clear isis` command tree above.
 
 Example:
 
 ```
-echo 831b0100... | ze isis-decode --pretty
+echo 831b0100... | ze isis decode --pretty
 ```
 
 Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
 a malformed PDU; stderr carries the reason.
 
 <!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
-<!-- source: internal/plugins/isis/cli/register.go -- isis-decode root verb -->
+<!-- source: internal/plugins/isis/cli/register.go -- isis root namespace, decode member -->
 
 ### show pki
 
@@ -1548,29 +1548,29 @@ actual live state, use `show debug` (YANG-dispatched RPC, requires a running dae
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
-### ze format
+### ze pipe
 
 Apply pipe formatting to stdin. Offline commands (like `ze show debug profile`) do not pass
-through the YANG-dispatched pipe infrastructure. `ze format` provides the same
+through the YANG-dispatched pipe infrastructure. `ze pipe` provides the same
 operators as a standalone filter.
 
 ```
-<command> | ze format json [compact]     # Format as JSON (pretty or compact)
-<command> | ze format yaml               # YAML output
-<command> | ze format table              # Box-drawing table
-<command> | ze format text               # Space-aligned columns
-<command> | ze format ndjson             # One compact JSON object per line
-<command> | ze format match <pattern>    # Grep lines (case-insensitive)
-<command> | ze format count              # Count items (JSON-aware)
-<command> | ze format first <n>          # Take first N items
-<command> | ze format last <n>           # Take last N items
-<command> | ze format resolve            # Add reverse DNS for IP values
+<command> | ze pipe json [compact]     # Format as JSON (pretty or compact)
+<command> | ze pipe yaml               # YAML output
+<command> | ze pipe table              # Box-drawing table
+<command> | ze pipe text               # Space-aligned columns
+<command> | ze pipe ndjson             # One compact JSON object per line
+<command> | ze pipe match <pattern>    # Grep lines (case-insensitive)
+<command> | ze pipe count              # Count items (JSON-aware)
+<command> | ze pipe first <n>          # Take first N items
+<command> | ze pipe last <n>           # Take last N items
+<command> | ze pipe resolve            # Add reverse DNS for IP values
 ```
 
 Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
 operators (match, count, first, last) work on both JSON and plain text.
 `resolve` adds a `<key>-name` sibling field for each IP address value in JSON.
-<!-- source: cmd/ze/ze_core_format.go -- runFormat -->
+<!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 
 ### ze data
 

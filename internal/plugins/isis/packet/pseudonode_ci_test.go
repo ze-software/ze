@@ -4,7 +4,7 @@
 // through DecodePDU into an L1 LSP whose LSP ID carries a NON-ZERO pseudonode
 // octet (the LAN ID <system-id>.<pseudonode-id>) and whose TLV 22 lists every
 // segment member at metric 0 (ISO/IEC 10589 clause 8.4.5). The .ci runs the same
-// bytes through `ze isis-decode`; pinning them here keeps the functional fixture
+// bytes through `ze isis decode`; pinning them here keeps the functional fixture
 // and the codec in lock-step (a codec change that alters the bytes fails here too).
 // PREVENTS: the isis-dis.ci pseudo-node fixture silently diverging from the codec.
 

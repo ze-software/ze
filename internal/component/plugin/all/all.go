@@ -202,7 +202,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysctl/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/detect"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/shape"

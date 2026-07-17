@@ -1,4 +1,4 @@
-// VALIDATES: the offline `ze ospf-decode` CLI (run.go + decode.go) end-to-end: help/usage,
+// VALIDATES: the offline `ze ospf decode` CLI (run.go + decode.go) end-to-end: help/usage,
 // the hex-input helpers (isHexString/stripWhitespace/toWire), and the three decode paths
 // (OSPFv2 packet, IPv4 opaque LSA, OSPFv3 LSA) plus their error branches, driven through the
 // real stdin/stdout/exit-code entry point with NO running engine.
@@ -346,7 +346,7 @@ func TestRunHelp(t *testing.T) {
 		if out != "" {
 			t.Fatalf("Run(%q) wrote to stdout: %q", arg, out)
 		}
-		if !strings.Contains(errOut, "usage: ze ospf-decode") {
+		if !strings.Contains(errOut, "usage: ze ospf decode") {
 			t.Fatalf("Run(%q) stderr = %q, want usage line", arg, errOut)
 		}
 	}

@@ -82,7 +82,7 @@ func cmdDecode(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: input exceeds %d bytes (max); likely not a hex L2TPv2 message\n", maxStdinBytes)
 		return 1
 	}
-	// Accept both ASCII hex and raw wire bytes (mirrors isis-decode's toWire:
+	// Accept both ASCII hex and raw wire bytes (mirrors isis decode's toWire:
 	// the .ci runner pre-decodes stdin=<name>:hex= blocks to raw bytes,
 	// internal/test/tmpfs/tmpfs.go:364-368, while humans paste hex text).
 	wire := toWire(raw)
@@ -164,7 +164,7 @@ func stripWhitespace(s string) string {
 }
 
 // toWire turns the stdin bytes into the raw L2TP control message. Mirrors
-// isis-decode (internal/plugins/isis/cli/decode.go toWire): ASCII hex after
+// isis decode (internal/plugins/isis/cli/decode.go toWire): ASCII hex after
 // whitespace stripping is hex-decoded; anything else is treated as raw wire
 // bytes (the .ci runner pre-decodes stdin hex= blocks to raw,
 // internal/test/tmpfs/tmpfs.go:364-368). An L2TPv2 control header starts with

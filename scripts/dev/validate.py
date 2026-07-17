@@ -465,7 +465,14 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
         return []
 
     findings: list[Finding] = []
-    search_dirs = [d for d in ("internal", "cmd", "pkg") if (root / d).is_dir()]
+    # scripts/ is a legitimate caller domain: the //go:build ignore gates under
+    # scripts/checks (cli_grammar.go, command_ownership.go) call exported helpers
+    # (grammar.CheckSiblings/CheckNode/CheckRootNamespace/ExemptCategory). They are
+    # excluded from normal Go builds but are real callers, so a symbol wired only
+    # through a gate must not read as dead.
+    search_dirs = [
+        d for d in ("internal", "cmd", "pkg", "scripts") if (root / d).is_dir()
+    ]
     if not search_dirs:
         return findings
 

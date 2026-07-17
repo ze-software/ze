@@ -1,9 +1,9 @@
 # IS-IS wire decode: truncated input is rejected
-# VALIDATES: spec-isis-2-wire AC-11 -- `ze isis-decode` exits non-zero and
+# VALIDATES: spec-isis-2-wire AC-11 -- `ze isis decode` exits non-zero and
 #            reports a decode error when the hex blob is too short for the
 #            common header (here a lone protocol-discriminator octet 0x83).
 # PREVENTS: silent success on malformed wire input reaching the user.
 stdin=payload:hex=83
-cmd=foreground:seq=1:exec=ze isis-decode:stdin=payload
+cmd=foreground:seq=1:exec=ze isis decode:stdin=payload
 expect=exit:code=1
 expect=stderr:contains=error: decode PDU

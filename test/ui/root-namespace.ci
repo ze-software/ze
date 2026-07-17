@@ -1,0 +1,58 @@
+# Test: ze root namespace grammar — traffic/isis/ospf splits, update serve, removed names
+# VALIDATES: `ze traffic control`, `ze isis decode`, `ze ospf decode`, `ze update serve`
+#            route to their tools; bare `ze traffic|isis|ospf` are discoverable (AC-10);
+#            the five old hyphenated/mis-named roots are gone (AC-9).
+# // test-relax: STRENGTHENING. Per-command exit is now the inline `cmd=...:exit=N`
+# form (standalone `expect=exit:code` is FILE-level/last-wins and was dead for every
+# step but the last), and every `contains` needle is now UNIQUE to its command
+# ("usage: ze traffic <command>", "unknown command: <old-name>") so the runner's
+# cumulative combined-output match cannot satisfy a step vacuously from another step.
+# Discoverability of the member list is additionally proven by the Go unit tests
+# TestTrafficSubDispatch / TestISISSubDispatch / TestOSPFSubDispatch. Real decode/serve
+# behavior: test/isis-wire/, test/ospf-wire/, test/ui/update-serve.ci.
+
+# traffic control routes to the tc/VPP tool (usage line is unique to `traffic control`)
+cmd=foreground:seq=1:exec=ze traffic control --help:exit=0
+expect=stdout:contains=ze traffic control <command>
+
+# bare `ze traffic` enumerates its members (AC-10); the "usage: ze traffic <command>"
+# line is emitted ONLY by the bare-root dispatcher, not by `traffic control`.
+cmd=foreground:seq=2:exec=ze traffic:exit=1
+expect=stderr:contains=usage: ze traffic <command>
+
+# isis decode routes to the offline codec
+cmd=foreground:seq=3:exec=ze isis decode --help:exit=0
+expect=stdout:contains=usage: ze isis decode
+
+# bare `ze isis` enumerates its members (AC-10)
+cmd=foreground:seq=4:exec=ze isis:exit=1
+expect=stderr:contains=usage: ze isis <command>
+
+# ospf decode routes to the offline codec
+cmd=foreground:seq=5:exec=ze ospf decode --help:exit=0
+expect=stdout:contains=usage: ze ospf decode
+
+# bare `ze ospf` enumerates its members (AC-10)
+cmd=foreground:seq=6:exec=ze ospf:exit=1
+expect=stderr:contains=usage: ze ospf <command>
+
+# `ze update serve` routes through the update YANG verb to runUpdateServe with
+# --listen intact: an unbindable port makes the real listener fail fast, and the
+# port value echoed in the output proves the flag propagated (AC-8 routing half;
+# the successful-listen half is test/ui/update-serve.ci).
+cmd=foreground:seq=7:exec=ze update serve --listen 127.0.0.1:65600:exit=1
+expect=stderr:contains=65600
+
+# The five old names are gone, not aliased (AC-9) — each needle names the exact
+# old command so no step can satisfy another's assertion.
+cmd=foreground:seq=8:exec=ze traffic-control:exit=1
+expect=stderr:contains=unknown command: traffic-control
+
+cmd=foreground:seq=9:exec=ze isis-decode:exit=1
+expect=stderr:contains=unknown command: isis-decode
+
+cmd=foreground:seq=10:exec=ze ospf-decode:exit=1
+expect=stderr:contains=unknown command: ospf-decode
+
+cmd=foreground:seq=11:exec=ze update-serve:exit=1
+expect=stderr:contains=unknown command: update-serve

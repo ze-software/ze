@@ -1,0 +1,26 @@
+# Test: ze update serve — the standalone update server binds and serves its manifest
+# VALIDATES: AC-8 -- `ze update serve --listen <addr>` routes through the update YANG
+#            verb to runUpdateServe (now a local handler, not a root) and actually
+#            binds the address and serves /version.json, exactly as the old
+#            `ze update-serve` root did. The --listen flag reaches the listener intact.
+# PREVENTS: the root->local-handler move dropping the server or the --listen flag.
+
+option=timeout:value=20s
+
+tmpfs=update-serve-start.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+# Wrap the server in a script so the runner treats it as a foreground daemon
+# (mirroring test/ui/web-tool-decode.ci) rather than a `ze` subcommand: `update`
+# is not a daemon verb, so a bare foreground `ze update serve` would be awaited
+# and hang on ListenAndServe, and a `cmd=background` ze daemon triggers a BGP
+# peer-exchange check this non-BGP HTTP server cannot satisfy.
+exec ze update serve --listen 127.0.0.1:$PORT
+EOF_SH
+
+cmd=foreground:seq=1:exec=./update-serve-start.sh:timeout=20s
+
+# http=wait polls until the listener is up; http=get is a real check (populates
+# HTTPChecks) so the test is self-validated and the runner does not fall through
+# to the BGP peer-exchange path (isSelfValidated, peer_contract.go).
+http=wait:seq=1:url=http://127.0.0.1:$PORT/version.json:status=200:timeout=10s
+http=get:seq=2:url=http://127.0.0.1:$PORT/version.json:status=200:contains=version

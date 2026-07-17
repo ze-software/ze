@@ -8,7 +8,6 @@ package all
 
 import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/yang"
 )

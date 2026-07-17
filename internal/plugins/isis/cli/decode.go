@@ -40,7 +40,7 @@ func cmdDecode(args []string) int {
 	fs := flag.NewFlagSet("decode", flag.ContinueOnError)
 	pretty := fs.Bool("pretty", false, "indent JSON output")
 	fs.Usage = func() {
-		errln("usage: ze isis-decode [--pretty] < hex")
+		errln("usage: ze isis decode [--pretty] < hex")
 		errln("  reads a hex IS-IS PDU from stdin, emits JSON on stdout")
 	}
 	if err := fs.Parse(args); err != nil {
