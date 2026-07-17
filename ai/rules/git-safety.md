@@ -160,6 +160,16 @@ feature you own (it edits a file your feature owns, or your ACs depend on
 it). Name the inclusion and its origin in the commit body. Out-of-scope
 foreign files stay untouched, always.
 
+Refinement, per owner direction (2026-07-17): the "always" above governs
+CODE. A concurrent session's out-of-scope NON-CODE files -- generated
+discovery indexes, docs, tracking markdown -- MAY be swept into your commit
+when doing so keeps the tree consistent or unblocks you; foreign source and
+test files are never included. Name the inclusion and its origin in the
+commit body. This does not clear the whole-tree closure gates: a spec's
+`git rm` closure still fails while any foreign entry in `plan/deferrals.md`
+lacks a real destination spec, so closure waits on the owning session, not
+on what you commit.
+
 ## Before Any Commit
 
 ### Step 0: Does `ze-verify` apply?
