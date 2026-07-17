@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 )
 
 const showTestConfig = `bgp {
@@ -111,5 +112,46 @@ func TestConfigShowMissingFile(t *testing.T) {
 func TestConfigShowRegistered(t *testing.T) {
 	if _, ok := subcommandHandlers["show"]; !ok {
 		t.Fatalf("`show` not registered in subcommandHandlers")
+	}
+}
+
+// TestShowConfigDash verifies `ze config show -` reads the config from stdin and
+// produces output byte-identical to the on-disk invocation, both for the whole
+// tree (AC-1) and for a path scoped after "-" (AC-2).
+func TestShowConfigDash(t *testing.T) {
+	configPath := writeTestConfig(t, showTestConfig)
+
+	run := func(args []string, stdin string) (int, string) {
+		restore := cliio.SwapStreams(strings.NewReader(stdin), &bytes.Buffer{})
+		defer restore()
+		var buf bytes.Buffer
+		rc := showConfig(&buf, storage.NewFilesystem(), args)
+		return rc, buf.String()
+	}
+
+	// AC-1: whole tree from stdin == whole tree from disk.
+	rcDisk, wantWhole := run([]string{configPath}, "")
+	if rcDisk != exitOK {
+		t.Fatalf("disk whole-tree exit = %d", rcDisk)
+	}
+	rcStdin, gotWhole := run([]string{"-"}, showTestConfig)
+	if rcStdin != exitOK {
+		t.Fatalf("stdin whole-tree exit = %d\n%s", rcStdin, gotWhole)
+	}
+	if gotWhole != wantWhole {
+		t.Fatalf("stdin whole tree != disk whole tree\nstdin:\n%s\ndisk:\n%s", gotWhole, wantWhole)
+	}
+
+	// AC-2: a path after "-" does not disturb positional parsing.
+	_, wantSub := run([]string{configPath, "bgp", "peer", "peer1"}, "")
+	rcSub, gotSub := run([]string{"-", "bgp", "peer", "peer1"}, showTestConfig)
+	if rcSub != exitOK {
+		t.Fatalf("stdin subtree exit = %d\n%s", rcSub, gotSub)
+	}
+	if gotSub != wantSub {
+		t.Fatalf("stdin subtree != disk subtree\nstdin:\n%s\ndisk:\n%s", gotSub, wantSub)
+	}
+	if strings.Contains(gotSub, "router-id") {
+		t.Fatalf("subtree from stdin leaked a sibling:\n%s", gotSub)
 	}
 }

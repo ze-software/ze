@@ -1,0 +1,72 @@
+# Test: ze "-" means stdin (read) / stdout (write) across filename-accepting commands
+# VALIDATES: migrated commands ACCEPT the "-" token and produce correct output.
+# Design: plan/spec-cli-dash-stdio.md
+#
+# HARNESS NOTE (load-bearing): the .ci runner materializes a `stdin=` payload for
+# a `ze <cmd> -` step into a TEMP FILE and rewrites the "-" arg to that path
+# (internal/test/runner/runner_exec.go "ze reads config from file, not stdin"),
+# rather than piping the process's real stdin. 700+ existing steps depend on this
+# (`ze -`, `ze config validate -`, `ze bgp decode -`). So these steps prove the
+# command ACCEPTS "-" and renders correctly (equivalent to the real-path case,
+# AC-13); they do NOT exercise the literal stdin fd. The stdin-fd routing, the
+# stdin-once guard (AC-9), and MRT magic-byte sniffing on stdin (AC-6) are proven
+# by unit tests that inject stdin directly via cliio.SwapStreams:
+#   internal/core/cliio/cliio_test.go, cmd_show_test.go (TestShowConfigDash),
+#   cmd_import_test.go (TestImportSingleStdin/TestImportDoubleStdin).
+
+stdin=cfg:terminator=EOF_CFG
+bgp {
+	router-id 1.2.3.4;
+	session {
+		asn {
+			local 65000;
+		}
+	}
+	peer edge1 {
+		connection {
+			local {
+				ip 2.2.2.2;
+			}
+			remote {
+				ip 1.1.1.1;
+			}
+		}
+		session {
+			asn {
+				remote 65001;
+			}
+		}
+	}
+}
+EOF_CFG
+
+# --- Phase 1: config show - (the reported case, AC-1) ---
+# Whole tree from stdin.
+cmd=foreground:seq=1:exec=ze config show -:stdin=cfg:exit=0
+expect=stdout:contains=router-id 1.2.3.4
+expect=stdout:contains=peer edge1
+expect=stdout:contains=local 65000
+
+# Path-scoped after "-" (AC-2): "-" does not disturb positional parsing.
+cmd=foreground:seq=2:exec=ze config show - bgp peer edge1:stdin=cfg:exit=0
+expect=stdout:contains=1.1.1.1
+expect=stdout:contains=remote 65001
+expect=stdout:not_contains=router-id 1.2.3.4
+
+# --- Phase 2: migrated config/cli readers still accept "-" (AC-4) ---
+# validate - (was an ad-hoc if path=="-" branch, now the shared helper).
+cmd=foreground:seq=3:exec=ze config validate -:stdin=cfg:exit=0
+
+# dump - (was a loadConfigData caller, now the shared helper).
+cmd=foreground:seq=4:exec=ze config dump -:stdin=cfg:exit=0
+expect=stdout:contains=router-id 1.2.3.4
+
+# fmt - (was a loadConfigData caller, now the shared helper): reads the config and
+# prints the reformatted tree to stdout.
+cmd=foreground:seq=5:exec=ze config fmt -:stdin=cfg:exit=0
+expect=stdout:contains=router-id 1.2.3.4
+
+# The double-stdin guard (AC-9) and the literal stdin fd cannot be exercised here
+# (see the HARNESS NOTE at the top of this file): the runner rewrites "-" to a temp
+# file. They are proven by unit tests cmd_import_test.go (TestImportDoubleStdin) and
+# cliio_test.go (TestStdinClaimedOnce).

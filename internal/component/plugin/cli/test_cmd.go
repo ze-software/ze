@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -86,8 +87,8 @@ func cmdPluginTest(args []string) int {
 
 	configPath := fs.Arg(0)
 
-	// Read config
-	data, err := os.ReadFile(configPath) //nolint:gosec // Path from CLI
+	// Read config (or stdin when "-").
+	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading config: %v\n", err)
 		return 1

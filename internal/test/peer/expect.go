@@ -9,10 +9,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 )
 
@@ -62,7 +62,7 @@ func ConsumesLine(line string) bool {
 // LoadExpectFile loads expected messages from a file.
 // Uses format: action:type:key=value:key=value:...
 func LoadExpectFile(path string) ([]string, *Config, error) {
-	f, err := os.Open(path) //nolint:gosec // Path from user input (CLI arg)
+	f, err := cliio.OpenReader(path) // "-" reads stdin
 	if err != nil {
 		return nil, nil, err
 	}

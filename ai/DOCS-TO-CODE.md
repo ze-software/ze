@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 292 design docs, 2993 files
+Total: 292 design docs, 2994 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -638,6 +638,7 @@ Total: 292 design docs, 2993 files
 | `internal/component/config/cli/cmd_set_test.go` | config set tests |
 | `internal/component/config/cli/cmd_show.go` | one-shot config-path inspection |
 | `internal/component/config/cli/cmd_show_test.go` | ze config show tests |
+| `internal/component/config/cli/editor_stdin.go` | stdin ("-") wiring for config editor commands |
 | `internal/component/config/cli/main.go` | config CLI commands |
 | `internal/component/config/constants.go` | config vocabulary constants |
 | `internal/component/config/diff.go` | config parsing and loading |

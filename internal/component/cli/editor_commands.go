@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -918,6 +919,21 @@ func (e *Editor) Save() error {
 	if e.session != nil {
 		return errSaveNotAllowedWithActiveSession
 	}
+
+	// stdin-sourced editor ("-"): emit the working config to the stdout sink
+	// instead of writing a file. Emit even when unchanged so the command stays a
+	// well-formed pipeline stage; no backup, no store write, no reload.
+	if e.stdoutSink != nil {
+		content, err := e.commitContent()
+		if err != nil {
+			return err
+		}
+		if _, err := io.WriteString(e.stdoutSink, content); err != nil {
+			return fmt.Errorf("failed to write config to stdout: %w", err)
+		}
+		return nil
+	}
+
 	if !e.dirty.Load() {
 		return nil
 	}

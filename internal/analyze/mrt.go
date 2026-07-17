@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
+	"codeberg.org/thomas-mangin/ze/internal/mrt"
 )
 
 // MRT types (RFC 6396).
@@ -79,27 +81,41 @@ type mrtHandler struct {
 	OnBGP4MP    func(data []byte, subtype uint16, ts uint32)
 }
 
-// processMRTFile opens a file, reads all MRT records, and dispatches to handler.
+// processMRTFile opens filename (or stdin when "-"), reads all MRT records, and
+// dispatches to handler. It shares "-" resolution with the ze-analyze choke
+// point (mrt.ReadFile / openReader): "-" reads stdin with magic-byte compression
+// sniffing, a real path keeps extension-based sniffing.
 func processMRTFile(filename string, h mrtHandler) error {
-	f, err := os.Open(filename) //nolint:gosec // CLI tool intentionally opens user-provided files
+	rc, err := cliio.OpenReader(filename)
 	if err != nil {
 		return err
 	}
-	defer f.Close() //nolint:errcheck // best-effort close on read-only file
 
+	// Stdin has no filename extension: sniff compression by magic bytes so a
+	// gzipped/bzip2'd pipe is not misread as raw (R-4).
+	if cliio.IsStdin(filename) {
+		dc, derr := mrt.SniffDecompress(rc) // dc owns and closes rc
+		if derr != nil {
+			return derr
+		}
+		defer dc.Close() //nolint:errcheck // best-effort close on decompressor
+		return readMRTRecords(dc, h)
+	}
+
+	defer rc.Close() //nolint:errcheck // best-effort close on read-only file
 	var r io.Reader
 	switch {
 	case strings.HasSuffix(filename, ".gz"):
-		gz, err := gzip.NewReader(f)
-		if err != nil {
-			return fmt.Errorf("gzip: %w", err)
+		gz, gerr := gzip.NewReader(rc)
+		if gerr != nil {
+			return fmt.Errorf("gzip: %w", gerr)
 		}
 		defer gz.Close() //nolint:errcheck // best-effort close on decompressor
 		r = gz
 	case strings.HasSuffix(filename, ".bz2"):
-		r = bzip2.NewReader(f)
+		r = bzip2.NewReader(rc)
 	default:
-		r = f
+		r = rc
 	}
 
 	return readMRTRecords(r, h)

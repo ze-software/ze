@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	hostinv "codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -400,7 +401,7 @@ func collectConfig(opts *CollectOptions) (any, error) {
 	var configName string
 
 	if opts.ConfigPath != "" {
-		configData, err = os.ReadFile(opts.ConfigPath) //nolint:gosec // user-supplied config path
+		configData, err = cliio.ReadFile(opts.ConfigPath) // "-" reads stdin
 		if err != nil {
 			return map[string]any{"available": false, "reason": tb.Reset().Str("config file: ").Err(err).String()}, nil
 		}

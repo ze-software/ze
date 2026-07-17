@@ -5,12 +5,14 @@ package mrt
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -23,11 +25,15 @@ type Writer struct {
 	bufSize  int
 
 	mu       sync.Mutex
-	file     *os.File
+	sink     io.WriteCloser // *os.File for a real path; a nop-close stdout writer for "-"
 	buf      *bufio.Writer
 	curPath  string
 	openedAt time.Time
 }
+
+// isStdout reports whether this Writer emits to stdout ("-") rather than a
+// rotating file. stdout has no rotation and its Close does not close os.Stdout.
+func (w *Writer) isStdout() bool { return cliio.IsStdin(w.pattern) }
 
 // WriterOption configures a Writer.
 type WriterOption func(*Writer)
@@ -106,11 +112,12 @@ func (w *Writer) flushLocked() error {
 
 func (w *Writer) closeLocked() error {
 	err := w.flushLocked()
-	if w.file != nil {
-		if cerr := w.file.Close(); err == nil {
+	if w.sink != nil {
+		// A "-" sink is a nop-close over os.Stdout, so this leaves stdout open.
+		if cerr := w.sink.Close(); err == nil {
 			err = cerr
 		}
-		w.file = nil
+		w.sink = nil
 		w.buf = nil
 		w.curPath = ""
 	}
@@ -125,14 +132,29 @@ func (w *Writer) rotateLocked() error {
 }
 
 func (w *Writer) needsRotation() bool {
-	if w.interval <= 0 || w.file == nil {
+	// stdout never rotates (no filename to re-expand); a strftime pattern with "-"
+	// would be meaningless.
+	if w.interval <= 0 || w.sink == nil || w.isStdout() {
 		return false
 	}
 	return time.Since(w.openedAt) >= w.interval
 }
 
 func (w *Writer) ensureOpenLocked() error {
-	if w.file != nil {
+	if w.sink != nil {
+		return nil
+	}
+	if w.isStdout() {
+		// "-" writes all records to stdout, unrotated. cliio.Create yields a
+		// nop-close writer, so Close never closes os.Stdout.
+		wc, err := cliio.Create(w.pattern)
+		if err != nil {
+			return err
+		}
+		w.sink = wc
+		w.buf = bufio.NewWriterSize(wc, w.bufSize)
+		w.curPath = w.pattern
+		w.openedAt = time.Now()
 		return nil
 	}
 	path := expandPattern(w.pattern, time.Now())
@@ -144,7 +166,7 @@ func (w *Writer) ensureOpenLocked() error {
 	if err != nil {
 		return fmt.Errorf("mrt writer open %s: %w", path, err)
 	}
-	w.file = f
+	w.sink = f
 	w.buf = bufio.NewWriterSize(f, w.bufSize)
 	w.curPath = path
 	w.openedAt = time.Now()

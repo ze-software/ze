@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,6 +41,60 @@ local-as 65000
 func TestEditorLoadNonExistent(t *testing.T) {
 	_, err := NewEditor("/nonexistent/path/config.conf")
 	require.Error(t, err)
+}
+
+// TestEditorFromContent asserts the content constructor (used for a config
+// supplied on stdin, "-") yields a tree identical to the path constructor's for
+// the same bytes, and probes no on-disk ".edit" sibling (A-4).
+func TestEditorFromContent(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	initial := `router-id 1.2.3.4
+local-as 65000
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(initial), 0o600))
+
+	fromPath, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer fromPath.Close() //nolint:errcheck,gosec // best effort
+
+	fromContent, err := NewEditorFromContent([]byte(initial), "-")
+	require.NoError(t, err)
+	defer fromContent.Close() //nolint:errcheck,gosec // best effort
+
+	// Same bytes -> same rendered tree, regardless of source.
+	assert.Equal(t, fromPath.ContentAtPath(nil), fromContent.ContentAtPath(nil))
+	assert.Equal(t, "-", fromContent.OriginalPath())
+	assert.False(t, fromContent.HasPendingEdit())
+}
+
+// TestEditorStdoutSink asserts Save on a stdin-sourced ("-") editor emits the
+// working config to the sink (even with no modification, so it stays a valid
+// pipeline stage) and writes no file, while a real-path editor still writes the
+// file (R-3, AC-13, AC-10).
+func TestEditorStdoutSink(t *testing.T) {
+	content := "router-id 1.2.3.4\nlocal-as 65000\n"
+
+	ed, err := NewEditorFromContent([]byte(content), "-")
+	require.NoError(t, err)
+	var sink bytes.Buffer
+	ed.SetStdoutSink(&sink)
+	// No modification: Save must still emit the config (pipeline coherence).
+	require.NoError(t, ed.Save())
+	assert.Contains(t, sink.String(), "router-id")
+
+	// A real-path editor writes the file, never stdout.
+	tmpDir := t.TempDir()
+	p := filepath.Join(tmpDir, "c.conf")
+	require.NoError(t, os.WriteFile(p, []byte(content), 0o600))
+	ed2, err := NewEditor(p)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // best effort
+	ed2.MarkDirty()
+	require.NoError(t, ed2.Save())
+	got, err := os.ReadFile(p)
+	require.NoError(t, err)
+	assert.Contains(t, string(got), "router-id")
 }
 
 func TestEditorSaveCreatesBackup(t *testing.T) {

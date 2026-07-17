@@ -9,8 +9,6 @@ package bgpconfig
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -26,6 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -146,11 +145,13 @@ func LoadReactorFileStandalone(store storage.Storage, path string) (*reactor.Rea
 }
 
 func loadReactorFile(store storage.Storage, path string, cliPlugins []string, standalone bool) (*reactor.Reactor, error) {
+	// "-" reads stdin (claiming it once); a real path goes through the storage
+	// abstraction, which may be a blob store where path is a key, not a file.
 	var data []byte
 	var err error
 
-	if path == "-" {
-		data, err = io.ReadAll(os.Stdin)
+	if cliio.IsStdin(path) {
+		data, err = cliio.ReadFile(path)
 	} else {
 		data, err = store.ReadFile(path)
 	}

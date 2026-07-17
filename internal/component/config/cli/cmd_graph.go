@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -38,7 +39,7 @@ func cmdGraph(args []string) int {
 		return exitError
 	}
 
-	data, err := loadConfigData(fs.Arg(0))
+	data, err := cliio.ReadFile(fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

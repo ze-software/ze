@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -273,11 +274,11 @@ func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFi
 	keyPath := tb.Reset().Str(TLSDir(baseDir, name)).Str("/key.pem").String()
 
 	if certFile != "" && keyFile != "" {
-		certData, err := os.ReadFile(certFile) //nolint:gosec // user-provided path
+		certData, err := cliio.ReadFile(certFile) // "-" reads stdin
 		if err != nil {
 			return fmt.Errorf("read cert %s: %w", certFile, err)
 		}
-		keyData, err := os.ReadFile(keyFile) //nolint:gosec // user-provided path
+		keyData, err := cliio.ReadFile(keyFile) // "-" reads stdin (once; a second "-" fails closed)
 		if err != nil {
 			return fmt.Errorf("read key %s: %w", keyFile, err)
 		}
@@ -326,7 +327,7 @@ type batchEntry struct {
 }
 
 func runBatchInit(manifestPath string) int {
-	data, err := os.ReadFile(manifestPath) //nolint:gosec // user-provided path
+	data, err := cliio.ReadFile(manifestPath) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read manifest: %v\n", err)
 		return exitError

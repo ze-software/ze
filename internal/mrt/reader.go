@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 )
 
 // Handler receives decoded MRT records. Set callbacks for the record types
@@ -56,27 +57,96 @@ func openReader(filename string) (io.ReadCloser, error) {
 	if strings.HasPrefix(filename, "http://") || strings.HasPrefix(filename, "https://") {
 		return openHTTPReader(filename)
 	}
-	cleaned := filename        // caller-controlled path; no user input
-	f, err := os.Open(cleaned) //nolint:gosec // path is from CLI args, not user input
+	// Both "-" (stdin) and a real path go through cliio: the "-" token is resolved
+	// to stdin and no raw os.Open on a CLI-supplied path escapes the shared helper
+	// (enforced by scripts/checks/cli_dash_stdio.go). filename IS user input.
+	rc, err := cliio.OpenReader(filename)
 	if err != nil {
 		return nil, err
 	}
-	lower := strings.ToLower(filename)
+	if cliio.IsStdin(filename) {
+		// Stdin has no filename extension: sniff compression by leading magic
+		// bytes so a gzipped/bzip2'd pipe is not misread as raw (R-4).
+		return SniffDecompress(rc)
+	}
+	return wrapByExtension(rc, strings.ToLower(filename))
+}
+
+// wrapByExtension decompresses rc according to the filename suffix (.gz, .bz2),
+// preserving the pre-existing real-path behavior. The returned ReadCloser owns
+// rc and closes it.
+func wrapByExtension(rc io.ReadCloser, lower string) (io.ReadCloser, error) {
 	switch {
 	case strings.HasSuffix(lower, ".gz"):
-		gr, err := gzip.NewReader(f)
+		gr, err := gzip.NewReader(rc)
 		if err != nil {
-			if cerr := f.Close(); cerr != nil {
+			if cerr := rc.Close(); cerr != nil {
 				return nil, fmt.Errorf("gzip init: %w (close: %w)", err, cerr)
 			}
 			return nil, err
 		}
-		return &gzipCloser{gz: gr, file: f}, nil
+		return &decompressCloser{r: gr, under: rc, inner: gr}, nil
 	case strings.HasSuffix(lower, ".bz2"):
-		return &readerCloser{r: bzip2.NewReader(f), cls: f}, nil
+		return &readerCloser{r: bzip2.NewReader(rc), cls: rc}, nil
 	default:
-		return f, nil
+		return rc, nil
 	}
+}
+
+// SniffDecompress wraps rc with a gzip or bzip2 decompressor when the stream's
+// leading magic bytes indicate compression (gzip 1f 8b, bzip2 "BZh"), otherwise
+// returns rc reading raw. Only the few peeked bytes are buffered, so the stream
+// stays unbuffered for multi-GB inputs. Used for stdin ("-"), which has no
+// filename extension to sniff. The returned ReadCloser owns rc and closes it.
+func SniffDecompress(rc io.ReadCloser) (io.ReadCloser, error) {
+	br := bufio.NewReaderSize(rc, 64*1024)
+	magic, err := br.Peek(3)
+	// A stream shorter than 3 bytes yields io.EOF/ErrUnexpectedEOF from Peek with
+	// the available bytes intact; that is fine (a tiny stream is not compressed).
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		if cerr := rc.Close(); cerr != nil {
+			return nil, fmt.Errorf("sniff: %w (close: %w)", err, cerr)
+		}
+		return nil, err
+	}
+	switch {
+	case len(magic) >= 2 && magic[0] == 0x1f && magic[1] == 0x8b:
+		gr, gerr := gzip.NewReader(br)
+		if gerr != nil {
+			if cerr := rc.Close(); cerr != nil {
+				return nil, fmt.Errorf("gzip init: %w (close: %w)", gerr, cerr)
+			}
+			return nil, gerr
+		}
+		return &decompressCloser{r: gr, under: rc, inner: gr}, nil
+	case len(magic) >= 3 && magic[0] == 'B' && magic[1] == 'Z' && magic[2] == 'h':
+		return &decompressCloser{r: bzip2.NewReader(br), under: rc}, nil
+	default:
+		return &decompressCloser{r: br, under: rc}, nil
+	}
+}
+
+// decompressCloser reads from r (raw buffered reader or a decompressor over the
+// buffered reader) and closes the inner decompressor (if any) then the
+// underlying source.
+type decompressCloser struct {
+	r     io.Reader
+	under io.Closer
+	inner io.Closer // gzip reader; nil for bzip2/raw
+}
+
+func (d *decompressCloser) Read(p []byte) (int, error) { return d.r.Read(p) }
+func (d *decompressCloser) Close() error {
+	var firstErr error
+	if d.inner != nil {
+		if err := d.inner.Close(); err != nil {
+			firstErr = err
+		}
+	}
+	if err := d.under.Close(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }
 
 func openHTTPReader(url string) (io.ReadCloser, error) {
@@ -121,21 +191,6 @@ func (g *gzipHTTPCloser) Close() error {
 		return gzErr
 	}
 	return bErr
-}
-
-type gzipCloser struct {
-	gz   *gzip.Reader
-	file *os.File
-}
-
-func (g *gzipCloser) Read(p []byte) (int, error) { return g.gz.Read(p) }
-func (g *gzipCloser) Close() error {
-	gzErr := g.gz.Close()
-	fErr := g.file.Close()
-	if gzErr != nil {
-		return gzErr
-	}
-	return fErr
 }
 
 type readerCloser struct {

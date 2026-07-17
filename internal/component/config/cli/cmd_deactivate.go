@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -105,14 +106,14 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 	configPath := fs.Arg(0)
 	path := fs.Args()[1:]
 
-	if !storage.IsBlobStorage(store) {
+	if !cliio.IsStdin(configPath) && !storage.IsBlobStorage(store) {
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "error: config file not found: %s\n", configPath)
 			return exitError
 		}
 	}
 
-	ed, err := cli.NewEditorWithStorage(store, configPath)
+	ed, err := openEditableConfig(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -153,7 +154,8 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 
 	fmt.Fprintf(os.Stderr, "%s %s\n", pastTense, displayPath)
 
-	if !*noReload {
+	// A stdin ("-") pipeline stage has no on-disk config for a daemon to reload.
+	if !*noReload && !cliio.IsStdin(configPath) {
 		creds, credErr := sshclient.LoadCredentialsWithFlags(*user)
 		if credErr == nil {
 			ed.SetReloadNotifier(func() error {

@@ -20,6 +20,7 @@ import (
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	tacacspkg "codeberg.org/thomas-mangin/ze/internal/component/tacacs"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -112,7 +113,7 @@ func cmdShow(args []string) int {
 	}
 	configPath := fs.Arg(0)
 
-	data, err := os.ReadFile(configPath) //nolint:gosec // operator-provided config path
+	data, err := cliio.ReadFile(configPath) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read %s: %v\n", configPath, err)
 		return exitIOOrParse

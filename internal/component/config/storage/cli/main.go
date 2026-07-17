@@ -4,12 +4,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
@@ -125,7 +127,7 @@ func cmdWrite(storePath string, args []string) int {
 	}
 	key, srcPath := args[0], args[1]
 
-	data, err := os.ReadFile(srcPath) //nolint:gosec // user-provided path
+	data, err := cliio.ReadFile(srcPath) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read %s: %v\n", srcPath, err)
 		return 2
@@ -167,10 +169,17 @@ func cmdImport(storePath string, args []string) int {
 	}
 
 	imported := 0
+	stdinConflict := false
 	for _, path := range args {
-		data, readErr := os.ReadFile(path) //nolint:gosec // user-provided path
+		data, readErr := cliio.ReadFile(path)
 		if readErr != nil {
 			fmt.Fprintf(os.Stderr, "error: read %s: %v\n", path, readErr)
+			// stdin can be read once: a second "-" fails closed (mirrors config
+			// import, AC-9). break so the write lock is still released below.
+			if errors.Is(readErr, cliio.ErrStdinClaimed) {
+				stdinConflict = true
+				break
+			}
 			continue
 		}
 
@@ -187,6 +196,9 @@ func cmdImport(storePath string, args []string) int {
 
 	if err := wl.Release(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: flush: %v\n", err)
+		return 2
+	}
+	if stdinConflict {
 		return 2
 	}
 

@@ -5,9 +5,9 @@ package cli
 import (
 	"context"
 	"log/slog"
-	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -33,7 +33,7 @@ func cmdEngineSteps(args []string) int {
 		slog.Error("engine-steps: usage: ze-test engine-steps <steps.json>")
 		return 1
 	}
-	data, err := os.ReadFile(args[0]) //nolint:gosec // runner-materialized tmpfs path
+	data, err := cliio.ReadFile(args[0]) // "-" reads stdin
 	if err != nil {
 		slog.Error("ZE-OBSERVER-FAIL: engine-steps: read steps file", "path", args[0], "error", err)
 		return 1

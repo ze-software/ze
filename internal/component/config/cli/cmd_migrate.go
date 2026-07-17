@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -131,7 +132,7 @@ func printMigrateResult(result *migration.MigrateResult) {
 }
 
 func cmdMigrateDryRun(configPath string) int {
-	data, err := loadConfigData(configPath)
+	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -264,7 +265,7 @@ func checkUnsupportedInPeerTree(path string, tree *config.Tree) []string {
 }
 
 func configMigrateWithWarnings(inputPath, outputPath, outputFormat string) (string, *migration.MigrateResult, []string, error) {
-	data, err := loadConfigData(inputPath)
+	data, err := cliio.ReadFile(inputPath)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -305,7 +306,9 @@ func configMigrateWithWarnings(inputPath, outputPath, outputFormat string) (stri
 	}
 
 	if outputPath != "" {
-		if err := os.WriteFile(outputPath, []byte(output), 0o600); err != nil {
+		// "-o -" writes the migrated config to stdout (result/warnings go to
+		// stderr); an omitted -o already prints to stdout via the caller.
+		if err := cliio.WriteFile(outputPath, []byte(output), 0o600); err != nil {
 			return "", result, warnings, fmt.Errorf("write output: %w", err)
 		}
 		return "", result, warnings, nil

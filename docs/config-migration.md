@@ -165,10 +165,10 @@ $ ze config fmt --diff config.conf
 
 **Flags:**
 - (none) - Print to stdout
-- `-w` - Write result to source file
+- `-w` - Write result to source file (writes to stdout when the input is `-`)
 - `--check` - Exit 1 if changes needed (CI use)
 - `--diff` - Show unified diff
-- `-` - Read from stdin
+- `-` - Read from stdin (and, for `migrate -o -`, write the result to stdout)
 
 **Note:** `fmt` only works on v3 configs. Run `migrate` first for v2 configs.
 

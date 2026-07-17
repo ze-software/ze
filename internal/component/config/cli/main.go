@@ -18,7 +18,6 @@ package cli
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -109,14 +108,6 @@ func RunWithStorage(store storage.Storage, args []string) int {
 	}
 	usage()
 	return 1
-}
-
-// loadConfigData reads config from the given path via storage, or stdin if path is "-".
-func loadConfigData(path string) ([]byte, error) {
-	if path == "-" {
-		return io.ReadAll(os.Stdin)
-	}
-	return os.ReadFile(path) //nolint:gosec // Config path from user CLI
 }
 
 func usage() {

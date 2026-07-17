@@ -53,6 +53,17 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `ze config completion <file>` | Query YANG completion engine (debugging) |
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 
+Every `<file>` above accepts `-` for **stdin**. The read-modify commands
+`ze config set`, `ze config deactivate`, and `ze config activate` become
+pipeline stages when given `-`: they read the config from stdin, apply the
+change, and emit the modified config to **stdout** instead of writing back, so
+they compose (`ze config show - | ze config set - bgp session asn local 65001`).
+`ze config edit -`, `ze config rollback <N> -`, and `ze config history -` are
+rejected with a clear error: an interactive editor needs a TTY, and rollback/history
+need on-disk revision history that a piped config does not have.
+<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
+<!-- source: internal/component/cli/editor.go -- NewEditorFromContent, SetStdoutSink -->
+
 ## Editing Modes
 
 The editor operates in one of two modes depending on the storage backend.

@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -383,7 +384,7 @@ func setupReporting(cfg *OrchestratorConfig, peerCount int) (*reportingResult, e
 	}
 
 	if cfg.EventLog != "" {
-		f, err := os.Create(cfg.EventLog)
+		f, err := cliio.Create(cfg.EventLog) // "-" writes stdout
 		if err != nil {
 			return nil, fmt.Errorf("opening event file %s: %w", cfg.EventLog, err)
 		}

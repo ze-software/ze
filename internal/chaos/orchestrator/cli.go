@@ -34,6 +34,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -111,7 +112,7 @@ func CLIRun(args []string) int {
 	// Output flags (addr:port flags are env-aware)
 	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
-	mrtFile := fs.String("mrt-file", "", "MRT file (BGP4MP records, strftime patterns supported)")
+	mrtFile := fs.String("mrt-file", "", "MRT file (BGP4MP records, strftime patterns supported; \"-\" writes to stdout, no rotation)")
 	metricsDefault, metricsDesc := env.AddrPortDefault("ze.chaos.metrics", "", "Prometheus metrics endpoint (addr:port)")
 	metricsAddr := fs.String("metrics", metricsDefault, metricsDesc)
 	webDefault, webDesc := env.AddrPortDefault("ze.chaos.web", "", "Live web dashboard (addr:port, e.g. :8000)")
@@ -197,7 +198,7 @@ Network:
 Output:
   --config-out <path>        Write Ze config to file instead of stdout
   --event-log <path>         NDJSON event log file (replayable)
-  --mrt-file <path>          MRT file (BGP4MP records, strftime patterns supported)
+  --mrt-file <path>          MRT file (BGP4MP records, strftime patterns supported; "-" writes stdout, no rotation)
   --metrics <addr:port>      Prometheus metrics endpoint
   --web <addr:port>          Live web dashboard (e.g. :8000)
   --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
@@ -549,7 +550,8 @@ Control:
 	// Config-only mode: output config and exit (no orchestrator).
 	if *configOnly {
 		if *configOut != "" {
-			if err := os.WriteFile(*configOut, []byte(daemonConfig), 0o600); err != nil {
+			// "-" writes to stdout, same as omitting --config-out.
+			if err := cliio.WriteFile(*configOut, []byte(daemonConfig), 0o600); err != nil {
 				fmt.Fprintf(os.Stderr, "error: writing config: %v\n", err)
 				return 1
 			}
@@ -877,8 +879,8 @@ Control:
 // the pipe closes and Ze treats the EOF as a shutdown signal.
 func writeConfig(config string, params scenario.ConfigParams, path string, quiet bool) error {
 	if path != "" {
-		// Explicit file: write config there, stdout is unused.
-		if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
+		// Explicit destination: a real file, or stdout when "-".
+		if err := cliio.WriteFile(path, []byte(config), 0o600); err != nil {
 			return err
 		}
 	} else {

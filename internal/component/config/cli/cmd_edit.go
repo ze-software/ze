@@ -26,6 +26,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
@@ -301,8 +302,10 @@ func doPromptCreateConfig(path string, in io.Reader, errw io.Writer, timeout tim
 	}
 
 	// Use O_CREATE|O_EXCL for atomic create — prevents TOCTOU symlink attacks
-	// between the Stat check and file creation.
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // config path from user
+	// between the Stat check and file creation. `-` is rejected upstream in
+	// cmdEditWithStorage, so path is always a real file (never stdin), and cliio
+	// cannot express O_EXCL; keep the raw create.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // cliio:allow config path is a real file; edit rejects "-" upstream, and O_EXCL atomic-create has no cliio form
 	if err != nil {
 		fmt.Fprintf(errw, "error: cannot create file: %v\n", err) //nolint:errcheck // terminal output
 		return false
@@ -440,6 +443,14 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 	}
 
 	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	// The interactive editor needs a real file identity (draft/backup/lock) and a
+	// TTY; a config on stdin ("-") has neither, and stdin is consumed by the pipe.
+	// Reject early, independent of the storage backend.
+	if fs.NArg() >= 1 && cliio.IsStdin(fs.Arg(0)) {
+		fmt.Fprintf(os.Stderr, "error: interactive edit cannot read a config from stdin (\"-\"); use `ze config set - ...` for a pipeline, or edit a file\n")
 		return 1
 	}
 

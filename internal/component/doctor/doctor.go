@@ -20,6 +20,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/resolve"
@@ -88,7 +89,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	baseCtx := doctorCheckContext{Store: store, Platform: platform}
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePreConfig, baseCtx)...)
 
-	configData, configName, err := loadConfigData(store, configPath)
+	configData, configName, err := loadDoctorConfig(store, configPath)
 	if err != nil {
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     "doctor-config-missing",
@@ -176,9 +177,13 @@ func resolveStorageWithDiag() (storage.Storage, []diagnostic.Diagnostic) {
 	return s, nil
 }
 
-func loadConfigData(store storage.Storage, configPath string) ([]byte, string, error) {
+// loadDoctorConfig returns the config bytes for the doctor check: from configPath
+// (or stdin when "-") if given, otherwise from the store's active config. Renamed
+// from loadConfigData to end the name collision with the (now-removed) helper in
+// internal/component/config/cli (AC-18).
+func loadDoctorConfig(store storage.Storage, configPath string) ([]byte, string, error) {
 	if configPath != "" {
-		data, err := os.ReadFile(configPath) //nolint:gosec // user-supplied config path
+		data, err := cliio.ReadFile(configPath) // "-" reads stdin
 		if err != nil {
 			return nil, "", fmt.Errorf("config file: %w", err)
 		}

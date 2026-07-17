@@ -4,9 +4,11 @@ package analyze
 
 import (
 	"encoding/binary"
+	"io"
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/mrt"
@@ -34,7 +36,7 @@ func runConvertPcap(args []string) int {
 	inputFile := args[0]
 	outputFile := args[1]
 
-	out, err := os.Create(outputFile) //nolint:gosec // user-specified output path
+	out, err := cliio.Create(outputFile) // "-" writes stdout
 	if err != nil {
 		os.Stderr.WriteString("convert pcap: " + err.Error() + "\n") //nolint:errcheck // error output
 		return 1
@@ -114,7 +116,7 @@ func runConvertJSON(args []string) int {
 }
 
 // pcap global header: magic, version 2.4, timezone 0, snaplen 65535, link type raw IPv4 (228).
-func writePcapGlobalHeader(f *os.File) error {
+func writePcapGlobalHeader(f io.Writer) error {
 	var hdr [24]byte
 	binary.LittleEndian.PutUint32(hdr[0:], 0xa1b2c3d4) // magic
 	binary.LittleEndian.PutUint16(hdr[4:], 2)          // version major
@@ -128,7 +130,7 @@ func writePcapGlobalHeader(f *os.File) error {
 }
 
 // writePcapBGPPacket writes one pcap record: record header + IPv4 + TCP + BGP payload.
-func writePcapBGPPacket(f *os.File, ts time.Time, srcIP, dstIP, bgpMsg []byte) error {
+func writePcapBGPPacket(f io.Writer, ts time.Time, srcIP, dstIP, bgpMsg []byte) error {
 	src4 := ipTo4(srcIP)
 	dst4 := ipTo4(dstIP)
 

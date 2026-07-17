@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -342,7 +343,7 @@ func validatePort(field, value string) error {
 }
 
 func LoadConfig(path string) (*applianceConfig, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // user-provided path
+	data, err := cliio.ReadFile(path) // "-" reads stdin
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -182,13 +182,7 @@ func cmdValidate(args []string) int {
 	}
 
 	// Read file (or stdin if "-").
-	var data []byte
-	var err error
-	if configPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from CLI args
-	}
+	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		if !*quiet {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)

@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 	"codeberg.org/thomas-mangin/ze/internal/perf/report"
@@ -175,7 +176,7 @@ func cmdRun(args []string) int {
 
 func writeJSONResult(result *perf.Result, outputPath string) int {
 	if outputPath != "" {
-		f, err := os.Create(outputPath) //nolint:gosec // CLI tool writes user-specified output file
+		f, err := cliio.Create(outputPath) // "-" writes stdout
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: creating %s: %v\n", outputPath, err)
 			return 1

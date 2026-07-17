@@ -13,6 +13,7 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -50,7 +51,7 @@ func cmdDump(args []string) int {
 
 	configPath := fs.Arg(0)
 
-	data, err := loadConfigData(configPath)
+	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
 		return 1

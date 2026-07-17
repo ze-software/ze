@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 	"codeberg.org/thomas-mangin/ze/internal/perf/report"
 )
@@ -37,7 +38,7 @@ func cmdReport(args []string) int {
 	var results []perf.Result
 
 	for _, path := range files {
-		data, err := os.ReadFile(path) //nolint:gosec // CLI tool reads user-provided file paths
+		data, err := cliio.ReadFile(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: reading %s: %v\n", path, err)
 			return 1

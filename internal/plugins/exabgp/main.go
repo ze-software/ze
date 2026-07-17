@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -245,8 +246,8 @@ func cmdMigrate(args []string) int {
 
 	configFile := fs.Arg(0)
 
-	// Read config file.
-	data, err := os.ReadFile(configFile) //nolint:gosec // User-specified config file.
+	// Read config file (or stdin when "-"). Output already goes to stdout.
+	data, err := cliio.ReadFile(configFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading config: %v\n", err)
 		return exitError
@@ -294,7 +295,7 @@ func cmdMigrate(args []string) int {
 
 // cmdMigrateEnv migrates an ExaBGP INI environment file to Ze config output.
 func cmdMigrateEnv(envPath string) int {
-	data, err := os.ReadFile(envPath) //nolint:gosec // User-specified env file.
+	data, err := cliio.ReadFile(envPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading env file: %v\n", err)
 		return exitError

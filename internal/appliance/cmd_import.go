@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"golang.org/x/term"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 )
 
 var (
@@ -86,7 +88,7 @@ func resolveImportPassphrase() ([]byte, error) {
 }
 
 func importArchive(archivePath string, passphrase []byte, targetDir string, force bool) ([]string, error) {
-	encrypted, err := os.ReadFile(archivePath) //nolint:gosec // user-provided archive path
+	encrypted, err := cliio.ReadFile(archivePath) // "-" reads stdin
 	if err != nil {
 		return nil, fmt.Errorf("read archive: %w", err)
 	}

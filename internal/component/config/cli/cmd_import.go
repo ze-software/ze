@@ -4,12 +4,14 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -59,9 +61,14 @@ func cmdImportWithStorage(store storage.Storage, args []string) int {
 
 	imported := 0
 	for _, path := range files {
-		data, err := os.ReadFile(path) //nolint:gosec // user-provided config path
+		data, err := cliio.ReadFile(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: read %s: %v\n", path, err)
+			// stdin can be read exactly once: a second "-" is a hard, named
+			// failure (fail-closed), not a skipped file (AC-9).
+			if errors.Is(err, cliio.ErrStdinClaimed) {
+				return exitError
+			}
 			continue
 		}
 

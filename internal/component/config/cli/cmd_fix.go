@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
@@ -42,13 +42,7 @@ func cmdFix(args []string) int {
 	}
 	configPath := fs.Arg(0)
 
-	var data []byte
-	var err error
-	if configPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from CLI args
-	}
+	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2

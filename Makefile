@@ -3,7 +3,7 @@
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
-.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-port-defaults-check ze-platform-vet
+.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
@@ -287,14 +287,14 @@ ze-verify:
 # (plan/learned/1045-plugin-process-boundary.md). A new gate added HERE will
 # NOT run under `make ze-verify`/`ze-verify-changed` or CI -- add it to
 # scripts/status/verify_run.go's stagesForMode() instead, in BOTH branches.
-_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
 
 # See the _ze-verify-impl comment above: not the live path either.
-_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
+_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
@@ -352,6 +352,14 @@ ze-config-coercion-check:
 ze-fs-persistence-check:
 	@$(GO) run scripts/checks/direct_fs_persistence.go --selftest
 	@$(GO) run scripts/checks/direct_fs_persistence.go
+
+# CLI "-" = stdin/stdout gate: a filename-accepting command must read/write a
+# user-supplied path through internal/core/cliio (so "-" works), never a raw os
+# call. --selftest first proves the AST taint detector fires on the pre-migration
+# shapes; then the live scan asserts the tree is clean.
+ze-dash-stdio-check:
+	@$(GO) run scripts/checks/cli_dash_stdio.go --selftest
+	@$(GO) run scripts/checks/cli_dash_stdio.go
 
 # Listener port-default gate (spec-followup-subsystem AC-11): the hand-maintained
 # Go table (internal/component/config/listener_defaults.go) must match each

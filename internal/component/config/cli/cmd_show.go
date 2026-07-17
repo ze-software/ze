@@ -12,9 +12,24 @@ import (
 
 	editor "codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+// openShowEditor builds the read-only editor for `ze config show`, reading the
+// config from stdin when configFile is "-" (via cliio) and otherwise from the
+// store. The stdin form parses the piped bytes directly; no file is touched.
+func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, error) {
+	if cliio.IsStdin(configFile) {
+		data, err := cliio.ReadFile(configFile)
+		if err != nil {
+			return nil, err
+		}
+		return editor.NewEditorFromContent(data, configFile)
+	}
+	return editor.NewEditorWithStorage(store, configFile)
+}
 
 // cmdShow implements `ze config show <file> [path...]`.
 //
@@ -69,7 +84,7 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	configFile := fs.Arg(0)
 	path := fs.Args()[1:]
 
-	ed, err := editor.NewEditorWithStorage(store, configFile)
+	ed, err := openShowEditor(store, configFile)
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "%v", err)
 		return exitError

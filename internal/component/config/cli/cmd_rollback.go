@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -56,6 +57,13 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 	n, err := strconv.Atoi(fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: invalid revision number: %s\n", fs.Arg(0))
+		return exitError
+	}
+
+	// Rollback restores from the rollback/ revision history keyed by the config
+	// file's path; a config read from stdin ("-") has no such history.
+	if cliio.IsStdin(fs.Arg(1)) {
+		fmt.Fprintf(os.Stderr, "error: rollback needs on-disk revision history; a config read from stdin (\"-\") has none\n")
 		return exitError
 	}
 

@@ -11,11 +11,10 @@ package hub
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 )
 
 // HubConfig holds hub orchestrator configuration.
@@ -24,14 +23,7 @@ import (
 // LoadHubConfig loads configuration from a file.
 // If path is "-", reads from stdin.
 func LoadHubConfig(path string) (*HubConfig, error) {
-	var data []byte
-	var err error
-
-	if path == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(path) //nolint:gosec // Config file path from command line
-	}
+	data, err := cliio.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}

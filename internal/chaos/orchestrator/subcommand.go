@@ -15,12 +15,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/replay"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RunReplay opens an event log file and replays it through the validation model.
 func RunReplay(path string) int {
-	f, err := os.Open(path) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	f, err := cliio.OpenReader(path) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening replay file: %v\n", err)
 		return 2
@@ -36,7 +37,7 @@ func RunReplay(path string) int {
 // RunShrink reads a failing event log and minimizes it to the smallest
 // subsequence that still triggers the same property violation.
 func RunShrink(path string, deadline time.Duration, verbose bool) int {
-	f, err := os.Open(path) // #nosec G304 - path is from CLI flag
+	f, err := cliio.OpenReader(path) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening shrink file: %v\n", err)
 		return 2
@@ -84,7 +85,7 @@ func RunShrink(path string, deadline time.Duration, verbose bool) int {
 
 // RunDiff opens two event log files and reports the first divergence.
 func RunDiff(path1, path2 string) int {
-	f1, err := os.Open(path1) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	f1, err := cliio.OpenReader(path1) // "-" reads stdin
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening diff file 1: %v\n", err)
 		return 2
@@ -95,7 +96,7 @@ func RunDiff(path1, path2 string) int {
 		}
 	}()
 
-	f2, err := os.Open(path2) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	f2, err := cliio.OpenReader(path2) // "-" reads stdin (once; a second "-" fails closed)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening diff file 2: %v\n", err)
 		return 2

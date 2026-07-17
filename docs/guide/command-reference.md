@@ -23,6 +23,26 @@ and
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
+## Conventions
+
+Every command that takes a **filename argument** accepts `-` as an alias for
+**stdin** when reading and **stdout** when writing, so configs and data stream
+through pipes without temp files:
+
+```
+generate | ze config show -                 # read a config from stdin
+ssh host cat rib.mrt | ze analyze show -    # analyse an MRT streamed in
+ze config show - | ze config set - bgp session asn local 65001 | ze config validate -
+ze config migrate -o - old.conf             # write the migrated config to stdout
+```
+
+stdin can be consumed once: a second `-` in a single command fails with a clear
+error rather than reading empty. A file literally named `-` is addressed as
+`./-`. Interactive/history-dependent editor commands (`ze config edit`,
+`ze config rollback`, `ze config history`) reject `-` because they need a TTY or
+on-disk revision history that a pipe does not have.
+<!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
+
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,

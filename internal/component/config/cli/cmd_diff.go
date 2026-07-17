@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -119,10 +119,12 @@ func resolveRollbackPath(store storage.Storage, configPath string, n int) (strin
 // loadAndResolve loads a config file via storage, parses it, and resolves the BGP tree.
 // Supports "-" for stdin.
 func loadAndResolve(store storage.Storage, path string) (map[string]any, error) {
+	// "-" reads stdin (claiming it once); a real path goes through the storage
+	// abstraction, which may be a blob store where path is a key, not a file.
 	var data []byte
 	var err error
-	if path == "-" {
-		data, err = io.ReadAll(os.Stdin)
+	if cliio.IsStdin(path) {
+		data, err = cliio.ReadFile(path)
 	} else {
 		data, err = store.ReadFile(path)
 	}

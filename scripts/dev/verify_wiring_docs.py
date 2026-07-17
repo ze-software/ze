@@ -64,6 +64,12 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     # in scripts/, which has_production_reference does not count. See the grammar
     # package doc in checker.go.
     ("internal/component/command/grammar/checker.go", "CheckSiblings"),
+    # Cross-package test seam: cliio's stdin/stdout are unexported package vars,
+    # so command/mrt/analyze/doctor tests in OTHER packages inject in-memory
+    # streams via cliio.SwapStreams to exercise the "-" (stdin/stdout) path. It is
+    # test-only by design (a one-shot `ze` uses the real os.Stdin/os.Stdout); no
+    # production caller. See internal/core/cliio/doc.go.
+    ("internal/core/cliio/cliio.go", "SwapStreams"),
 }
 
 # User-facing area -> functional suite directory expected to change with it

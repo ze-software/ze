@@ -9,6 +9,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -51,6 +52,7 @@ type Editor struct {
 	showColumns       map[string]bool              // In-memory show column preferences (sticky per session)
 	diffGutter        bool                         // Whether diff gutter (+/-) markers are shown (default true)
 	draftSaved        bool                         // True when changes have been persisted to draft (reset on new edits)
+	stdoutSink        io.Writer                    // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
 }
 
 // BackupInfo describes a backup file.
@@ -73,9 +75,23 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %w", err)
 	}
+	return newEditor(store, configPath, string(data), true)
+}
 
-	content := string(data)
+// NewEditorFromContent builds an editor from in-memory content instead of a
+// stored path, for a config supplied on stdin ("-"). identity is a synthetic
+// name (typically "-") used only for display and error context; no on-disk
+// ".edit" sibling is probed, since a stdin source has none. A stdin-sourced
+// editor is shown or emitted to stdout (see SetStdoutSink), never written back
+// to a path derived from identity.
+func NewEditorFromContent(content []byte, identity string) (*Editor, error) {
+	return newEditor(storage.NewFilesystem(), identity, string(content), false)
+}
 
+// newEditor parses content into the tree/meta and assembles the Editor.
+// checkPending probes the on-disk ".edit" sibling (skipped for content-sourced
+// editors, which have no sibling).
+func newEditor(store storage.Storage, identity, content string, checkPending bool) (*Editor, error) {
 	// Parse config into tree using YANG-derived schema
 	schema, err := config.YANGSchema()
 	if err != nil {
@@ -93,16 +109,19 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	}
 	_ = meta // metadata used later by SetSession
 
-	// Check for existing edit file
-	var tb textbuf.Buffer
-	editPath := tb.Str(configPath).Str(".edit").String()
-	hasPending := store.Exists(editPath)
+	// Check for existing edit file (only for path-backed editors).
+	hasPending := false
+	if checkPending {
+		var tb textbuf.Buffer
+		editPath := tb.Str(identity).Str(".edit").String()
+		hasPending = store.Exists(editPath)
+	}
 
 	// Parse succeeded if tree has content (not the empty fallback)
 	treeValid := err == nil
 
 	return &Editor{
-		originalPath:    configPath,
+		originalPath:    identity,
 		store:           store,
 		originalContent: content,
 		workingContent:  content,
@@ -256,6 +275,14 @@ func (e *Editor) LoadPendingEdit() error {
 	e.dirty.Store(true)
 	e.hasPendingEdit = false // Loaded, no longer "pending"
 	return nil
+}
+
+// SetStdoutSink makes Save emit the working config to w instead of writing it
+// back to a stored path. It is set for a config supplied on stdin ("-"), which
+// turns set/deactivate/activate into pipeline stages (read stdin, modify, emit
+// to stdout). A real-path editor leaves this nil and writes the file as before.
+func (e *Editor) SetStdoutSink(w io.Writer) {
+	e.stdoutSink = w
 }
 
 // SetReloadNotifier sets an optional function to notify the daemon after save.

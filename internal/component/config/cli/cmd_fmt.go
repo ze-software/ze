@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -83,7 +84,7 @@ func cmdFmt(args []string) int {
 
 	configPath := fs.Arg(0)
 
-	input, err := loadConfigData(configPath)
+	input, err := cliio.ReadFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -124,12 +125,18 @@ func cmdFmt(args []string) int {
 	}
 
 	if *write {
-		if configPath == "-" {
-			fmt.Fprintf(os.Stderr, "error: cannot use -w with stdin\n")
-			return exitError
+		if cliio.IsStdin(configPath) {
+			// `fmt -w -` emits the formatted config to stdout (a pipeline stage),
+			// always -- even when the input was already formatted. Routed through
+			// cliio (not fmt.Print) so it shares the one stdout sink.
+			if err := cliio.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return exitError
+			}
+			return exitOK
 		}
 		if hasChanges {
-			if err := os.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
+			if err := cliio.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				return exitError
 			}

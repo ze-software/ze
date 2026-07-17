@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -62,12 +63,12 @@ func runReplaceCert(args []string) int {
 	keyPath := tb.Reset().Str(TLSDir(dir, name)).Str("/key.pem").String()
 
 	if *certFile != "" && *keyFile != "" {
-		certData, readErr := os.ReadFile(*certFile) //nolint:gosec // user-provided path
+		certData, readErr := cliio.ReadFile(*certFile) // "-" reads stdin
 		if readErr != nil {
 			fmt.Fprintf(os.Stderr, "error: read cert: %v\n", readErr)
 			return exitError
 		}
-		keyData, readErr := os.ReadFile(*keyFile) //nolint:gosec // user-provided path
+		keyData, readErr := cliio.ReadFile(*keyFile) // "-" reads stdin (once; a second "-" fails closed)
 		if readErr != nil {
 			fmt.Fprintf(os.Stderr, "error: read key: %v\n", readErr)
 			return exitError

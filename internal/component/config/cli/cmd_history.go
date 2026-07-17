@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 )
 
@@ -48,6 +49,13 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "error: requires a config file\n")
 		fs.Usage()
+		return exitError
+	}
+
+	// History lists the rollback/ revisions stored alongside the config file; a
+	// config read from stdin ("-") has no such history.
+	if cliio.IsStdin(fs.Arg(0)) {
+		fmt.Fprintf(os.Stderr, "error: history needs on-disk revision history; a config read from stdin (\"-\") has none\n")
 		return exitError
 	}
 

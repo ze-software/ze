@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 	"codeberg.org/thomas-mangin/ze/internal/perf/report"
 )
@@ -42,7 +43,7 @@ func cmdTrack(args []string) int {
 		return 1
 	}
 
-	f, err := os.Open(files[0])
+	f, err := cliio.OpenReader(files[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: opening %s: %v\n", files[0], err)
 		return 1
