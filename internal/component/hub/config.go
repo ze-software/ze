@@ -14,26 +14,10 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 )
 
 // HubConfig holds hub orchestrator configuration.
 // Note: This extends the existing HubConfig in hub.go with config-related fields.
-
-// LoadHubConfig loads configuration from a file.
-// If path is "-", reads from stdin.
-func LoadHubConfig(path string) (*HubConfig, error) {
-	data, err := cliio.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("loading config: %w", err)
-	}
-	cfg, err := ParseHubConfig(string(data))
-	if err != nil {
-		return nil, err
-	}
-	cfg.ConfigPath = path
-	return cfg, nil
-}
 
 // ParseHubConfig parses hub configuration from a string.
 func ParseHubConfig(input string) (*HubConfig, error) {

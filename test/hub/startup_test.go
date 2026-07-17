@@ -42,9 +42,12 @@ bgp {
 	err := os.WriteFile(configPath, []byte(config), 0o600)
 	require.NoError(t, err)
 
-	// Load config
-	cfg, err := hub.LoadHubConfig(configPath)
+	// Load config (mirrors the production path: read the file, then parse).
+	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
+	cfg, err := hub.ParseHubConfig(string(data))
+	require.NoError(t, err)
+	cfg.ConfigPath = configPath
 
 	// Verify config parsed correctly
 	assert.Equal(t, 1, len(cfg.Plugins))

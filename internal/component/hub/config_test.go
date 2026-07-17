@@ -121,15 +121,11 @@ plugin {
 	assert.Equal(t, "gr", cfg.Plugins[2].Name)
 }
 
-// TestParseHubConfigFile verifies loading from file.
-//
-// VALIDATES: File loading works.
-// PREVENTS: File path handling errors.
-func TestParseHubConfigFile(t *testing.T) {
-	// This test uses a non-existent file to test error handling
-	_, err := LoadHubConfig("/nonexistent/path/config.conf")
-	require.Error(t, err)
-}
+// test-relax: TestParseHubConfigFile removed with its only subject, the dead
+// LoadHubConfig helper (no production caller). File-read error handling is now
+// covered by cliio (internal/core/cliio) and the production path uses
+// store.ReadFile + ParseHubConfig (reload.go); parsing itself is still tested by
+// the TestParseHubConfig* cases here.
 
 // TestParseHubConfigBlocks verifies non-env/plugin blocks are captured.
 //
