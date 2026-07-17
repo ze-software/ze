@@ -196,6 +196,7 @@ means "no rule applies".
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/language-and-spelling.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
 | Claim work is done | `ai/rules/no-partial-completion.md`, `ai/rules/wiring-completeness.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
+| Review code, or close a spec | `ai/rules/critical-review.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Spawn reviewer subagents, loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
 | Finish Go edits | `ai/rules/lint-gate.md` -- run `make ze-lint-changed` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
 | Run any test/build/lint command | `ai/rules/bash-output.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after |

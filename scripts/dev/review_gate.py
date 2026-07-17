@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""Independent-review gate: record and check the review artifact that
+`ai/rules/critical-review.md` requires before a spec may be closed.
+
+The artifact `tmp/review/<spec-stem>.md` is written by INDEPENDENT reviewers
+(subagents / a fresh session, never the author's own inline reasoning) and pins
+the exact content of every code/test file they examined by SHA-256. The commit
+gate (scripts/dev/commit_helper.py) refuses a spec-closure commit unless a
+matching CLEAN artifact exists, so a review cannot be faked by narrating
+"0 issues" into the spec: the artifact must cover the code being committed and
+its hashes must still match (any post-review edit invalidates it, forcing a
+fresh pass).
+
+Content-hashing (not `git diff`) is deliberate: it captures untracked new files
+and deletions, and is independent of staging state.
+
+Usage:
+  review_gate.py hash   --files F...                 # print per-file hashes
+  review_gate.py record --spec STEM --verdict {clean|findings} --files F...
+                        [--reviewers TEXT] [--findings-file PATH]
+  review_gate.py check  --spec STEM --files F...      # exit 0 pass / 3 block
+
+Exit codes: 0 pass; 2 usage error; 3 gate BLOCK (missing/stale/dirty review).
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+ARTIFACT_DIR = Path("tmp/review")
+HEADER_RE = re.compile(
+    r"<!--\s*ze-review\s+spec=(?P<spec>\S+)\s+verdict=(?P<verdict>\S+).*?-->"
+)
+FILE_LINE_RE = re.compile(r"^\s{2}(?P<hash>[0-9a-f]{64}|DELETED)\s+(?P<path>.+)$")
+
+# Files whose correctness a critical review must cover. Prose (.md) and the
+# spec/learned records are reviewed by other gates (doc review, the spec's own
+# Review Gate). Everything logic-bearing is listed, INCLUDING hand-written build
+# and template files (Makefile/.mk/.tmpl/.html) that a suffix-only whitelist once
+# missed. A generated .go (e.g. plugin/all/all.go) is over-required rather than
+# under (fail-closed): record it in the artifact -- covering a generated file is
+# trivial. Note this is a whitelist, so a genuinely-new logic-bearing extension
+# must be added here or it escapes review.
+CODE_SUFFIXES = (
+    ".go",
+    ".ci",
+    ".et",
+    ".py",
+    ".sh",
+    ".yang",
+    ".wb",
+    ".mk",
+    ".tmpl",
+    ".html",
+    ".c",
+    ".rs",
+    ".s",
+    ".rego",
+    ".tac",
+)
+CODE_BASENAMES = ("Makefile",)
+
+
+def file_hash(path: str) -> str:
+    p = Path(path)
+    if not p.exists():
+        return "DELETED"
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def artifact_path(spec: str) -> Path:
+    stem = spec.removeprefix("spec-").removesuffix(".md")
+    return ARTIFACT_DIR / f"{stem}.md"
+
+
+def is_code(path: str) -> bool:
+    return path.endswith(CODE_SUFFIXES) or Path(path).name in CODE_BASENAMES
+
+
+def cmd_hash(files: list[str]) -> int:
+    for f in sorted(files):
+        print(f"  {file_hash(f)}  {f}")
+    return 0
+
+
+def cmd_record(args: argparse.Namespace) -> int:
+    files = sorted(set(args.files))
+    if not files:
+        print("review_gate: record needs --files", file=sys.stderr)
+        return 2
+    verdict = args.verdict.lower()
+    if verdict not in ("clean", "findings"):
+        print("review_gate: --verdict must be clean|findings", file=sys.stderr)
+        return 2
+    findings = ""
+    if args.findings_file:
+        fp = Path(args.findings_file)
+        if fp.exists():
+            findings = fp.read_text(encoding="utf-8").strip()
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    out = artifact_path(args.spec)
+    stem = args.spec.removeprefix("spec-").removesuffix(".md")
+    lines = [
+        f"<!-- ze-review spec={stem} verdict={verdict} reviewers={args.reviewers or 'unspecified'} ts={ts} -->",
+        f"# Independent review — {stem}",
+        "",
+        "files:",
+    ]
+    for f in files:
+        lines.append(f"  {file_hash(f)}  {f}")
+    lines += ["", "## Findings", "", findings or "(none recorded)", ""]
+    out.write_text("\n".join(lines), encoding="utf-8")
+    print(f"review_gate: wrote {out} ({len(files)} files, verdict={verdict})")
+    return 0
+
+
+def _parse_artifact(spec: str) -> tuple[str, dict[str, str]] | None:
+    out = artifact_path(spec)
+    if not out.exists():
+        return None
+    text = out.read_text(encoding="utf-8")
+    header = HEADER_RE.search(text)
+    if not header:
+        return None
+    hashes: dict[str, str] = {}
+    for line in text.splitlines():
+        m = FILE_LINE_RE.match(line)
+        if m:
+            hashes[m.group("path")] = m.group("hash")
+    return header.group("verdict").lower(), hashes
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    parsed = _parse_artifact(args.spec)
+    out = artifact_path(args.spec)
+    if parsed is None:
+        _block(
+            f"no independent-review artifact at {out}",
+            "Run an INDEPENDENT critical review (subagents / fresh session, never "
+            "your own inline reasoning) and record it with review_gate.py record. "
+            "See ai/rules/critical-review.md.",
+        )
+        return 3
+    verdict, hashes = parsed
+    code_files = sorted(f for f in set(args.files) if is_code(f))
+    unreviewed = [f for f in code_files if f not in hashes]
+    stale = [f for f in code_files if f in hashes and hashes[f] != file_hash(f)]
+    if verdict != "clean":
+        _block(
+            f"review artifact {out} verdict is {verdict!r}, not clean",
+            "Fix every BLOCKER/ISSUE, then re-run the independent review to a clean pass.",
+        )
+        return 3
+    if unreviewed:
+        _block(
+            f"{len(unreviewed)} code file(s) in the commit were not covered by the review",
+            "Unreviewed: " + ", ".join(unreviewed) + "\n"
+            "  Re-run the independent review over the FULL changeset and re-record.",
+        )
+        return 3
+    if stale:
+        _block(
+            f"{len(stale)} reviewed file(s) changed AFTER the review (stale review)",
+            "Changed since review: " + ", ".join(stale) + "\n"
+            "  Every fix is new code that needs a fresh review. Re-review and re-record.",
+        )
+        return 3
+    print(f"review_gate: OK ({len(code_files)} code files, clean, hashes match {out})")
+    return 0
+
+
+def _block(headline: str, detail: str) -> None:
+    print(f"review-gate: BLOCKED — {headline}\n  {detail}", file=sys.stderr)
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    h = sub.add_parser("hash")
+    h.add_argument("--files", nargs="+", required=True)
+
+    r = sub.add_parser("record")
+    r.add_argument("--spec", required=True)
+    r.add_argument("--verdict", required=True)
+    r.add_argument("--files", nargs="+", required=True)
+    r.add_argument("--reviewers")
+    r.add_argument("--findings-file")
+
+    c = sub.add_parser("check")
+    c.add_argument("--spec", required=True)
+    # nargs="*": a code-free closure commit still requires a CLEAN artifact to
+    # EXIST (an author cannot commit code in earlier commits then close with a
+    # bare learned summary and no review on record).
+    c.add_argument("--files", nargs="*", default=[])
+
+    args = ap.parse_args(argv)
+    if args.cmd == "hash":
+        return cmd_hash(args.files)
+    if args.cmd == "record":
+        return cmd_record(args)
+    if args.cmd == "check":
+        return cmd_check(args)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

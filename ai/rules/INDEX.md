@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 87 rules
+Total: 88 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -29,6 +29,7 @@ Total: 87 rules
 | Config Naming Conventions | Extends: `ai/rules/naming.md`, `ai/rules/config-design.md` | `ai/rules/config-naming.md` |
 | Config String Coercion | Writing or reviewing a plugin/component `config.go` that reads YANG leaf values out of the delivered config into a typed `Config` struct. | `ai/rules/config-string-coercion.md` |
 | Config Surface: YANG Config vs Env Var | Extends: `ai/rules/config-design.md`, `ai/patterns/config-option.md` Naming: `ai/rules/config-naming.md` | `ai/rules/config-surface.md` |
+| Critical Review Is the Central Deliverable | Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by `commit_helper.py`. | `ai/rules/critical-review.md` |
 | Data Flow Tracing | Trace full data flow before writing or reviewing specs. | `ai/rules/data-flow-tracing.md` |
 | Deferral Tracking | Every decision to not perform in-scope work MUST be recorded AND land in a destination spec. | `ai/rules/deferral-tracking.md` |
 | Derive, Never Hardcode | If enumerated data has a canonical source (registry, map, typed enum, list function), DERIVE every display/help/error/usage/doc string from it. No second hardcoded copy. | `ai/rules/derive-not-hardcode.md` |

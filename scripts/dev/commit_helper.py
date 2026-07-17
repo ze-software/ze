@@ -65,6 +65,11 @@ class CommitBlock:
     remove_paths: tuple[str, ...]
     message_path: str
     lesson_comment: str
+    # A shell line re-run inside the generated script (under `set -e`) before the
+    # git commands, so a spec-closure commit re-verifies the review gate at
+    # commit-RUN time, not only at script-generation time. Closes the edit-after-
+    # generate hole. Empty when not a closure or when the owner overrode the gate.
+    review_check: str = ""
 
 
 class UsageError(Exception):
@@ -407,6 +412,9 @@ def render_block(block: CommitBlock) -> str:
         f"# Commit {block.tag}: {block.subject}",
         f"# {block.lesson_comment}",
     ]
+    if block.review_check:
+        lines.append("# critical-review gate re-check (ai/rules/critical-review.md)")
+        lines.append(block.review_check)
     if block.add_paths:
         lines.append(render_git_add(block.add_paths))
     if block.remove_paths:
@@ -1094,6 +1102,108 @@ def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     return wiring_warnings(add_paths) + doc_drift_warnings(repo)
 
 
+_LEARNED_STEM_RE = re.compile(r"^plan/learned/[0-9]{3,}-(?P<stem>.+)\.md$")
+_SPEC_STEM_RE = re.compile(r"^plan/spec-(?P<stem>.+)\.md$")
+# Kept in sync with review_gate.py CODE_SUFFIXES / CODE_BASENAMES: prose (.md) and
+# the spec/learned records go to other gates; everything logic-bearing (including
+# hand-written build/template files) is reviewable.
+_REVIEW_CODE_SUFFIXES = (
+    ".go",
+    ".ci",
+    ".et",
+    ".py",
+    ".sh",
+    ".yang",
+    ".wb",
+    ".mk",
+    ".tmpl",
+    ".html",
+    ".c",
+    ".rs",
+    ".s",
+    ".rego",
+    ".tac",
+)
+_REVIEW_CODE_BASENAMES = ("Makefile",)
+
+
+def _is_review_code(path: str) -> bool:
+    return (
+        path.endswith(_REVIEW_CODE_SUFFIXES)
+        or Path(path).name in _REVIEW_CODE_BASENAMES
+    )
+
+
+def spec_closure_stem(
+    add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> str | None:
+    """The spec-stem this commit closes, or None if it is not a closure commit.
+
+    Closure = commit A adds plan/learned/NNN-<stem>.md, or commit B removes
+    plan/spec-<stem>.md (ai/rules/planning.md "Spec Closure"). The <stem> is the
+    key the review artifact (tmp/review/<stem>.md) is written under.
+    """
+    for p in add_paths:
+        m = _LEARNED_STEM_RE.match(p)
+        if m:
+            return m.group("stem")
+    for p in remove_paths:
+        m = _SPEC_STEM_RE.match(p)
+        if m:
+            return m.group("stem")
+    return None
+
+
+def review_gate_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """BLOCK a spec-closure commit whose code is not covered by a fresh, CLEAN,
+    INDEPENDENT review (ai/rules/critical-review.md).
+
+    Runs scripts/dev/review_gate.py check over the code/test files in this commit.
+    The artifact is written by INDEPENDENT reviewers (subagents / a fresh
+    session), never the author's own inline reasoning, and pins each reviewed
+    file by hash so a post-review edit re-opens the gate.
+
+    Coverage note: this checks the code in THIS commit. The ze-implement closure
+    commits all of a spec's code in one commit A, so that is full coverage. A
+    workflow that commits code in earlier (feature) commits and then closes with a
+    code-free learned-summary commit is NOT fully covered here -- but a code-free
+    closure still requires a CLEAN artifact to EXIST (below), so a spec cannot
+    close with no review on record at all. Returns [] only when this is not a
+    closure commit or when review_gate.py is absent.
+    """
+    stem = spec_closure_stem(add_paths, remove_paths)
+    if stem is None:
+        return []
+    gate = repo / "scripts" / "dev" / "review_gate.py"
+    if not gate.exists():
+        return []
+    # code_files may be empty (a code-free closure); review_gate.py check then
+    # only requires a CLEAN artifact to exist, closing the "commit code first,
+    # then a bare closure" hole into "at least record a review".
+    code_files = [p for p in add_paths if _is_review_code(p)]
+    proc = subprocess.run(
+        [sys.executable, str(gate), "check", "--spec", stem, "--files", *code_files],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        return []
+    detail = (proc.stderr or proc.stdout or "review gate failed").strip()
+    return [
+        detail + "\n"
+        "  A spec closes only after an INDEPENDENT critical review of its code\n"
+        "  (ai/rules/critical-review.md): spawn reviewer subagents over the diff,\n"
+        "  fix findings, loop to zero, and record with:\n"
+        "    python3 scripts/dev/review_gate.py record --spec "
+        + stem
+        + " --verdict clean --files <code files>\n"
+        '  Owner override: --review-override "<reason>".'
+    ]
+
+
 def create(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     session = session_id(repo, args.session)
@@ -1155,6 +1265,27 @@ def create(args: argparse.Namespace) -> int:
     gate_problems = commit_gate_problems(repo, add_paths, remove_paths)
     if gate_problems:
         raise UsageError("\n\n".join(gate_problems))
+    # Critical-review gate: a spec cannot close without an INDEPENDENT review of
+    # its code that is fresh (hash-pinned) and clean. This makes review the
+    # central, unskippable step -- it cannot be satisfied by narrating "0 issues"
+    # into the spec. See ai/rules/critical-review.md.
+    if not args.review_override:
+        review_problems = review_gate_problems(repo, add_paths, remove_paths)
+        if review_problems:
+            raise UsageError("\n\n".join(review_problems))
+    # For a (non-overridden) spec-closure commit, re-run the review gate inside the
+    # generated script so an edit between `create` and `bash tmp/commit-*.sh` is
+    # caught at commit-RUN time (TOCTOU), not only here at generation time.
+    review_check = ""
+    closure_stem = spec_closure_stem(add_paths, remove_paths)
+    if closure_stem is not None and not args.review_override:
+        rc_code = tuple(p for p in add_paths if _is_review_code(p))
+        review_check = (
+            "python3 scripts/dev/review_gate.py check --spec "
+            + shlex.quote(closure_stem)
+            + " --files"
+            + ("" if not rc_code else " " + quote_paths(rc_code))
+        )
     msg = message_text(args.subject, args.body)
     msg_path = f"tmp/commit-msg-{session}-{tag}.txt"
     comment = lesson_comment(
@@ -1165,7 +1296,13 @@ def create(args: argparse.Namespace) -> int:
         args.lesson_existing,
     )
     block = CommitBlock(
-        tag, args.subject.strip(), add_paths, remove_paths, msg_path, comment
+        tag,
+        args.subject.strip(),
+        add_paths,
+        remove_paths,
+        msg_path,
+        comment,
+        review_check,
     )
     script = write_outputs(
         repo, session, block, msg, args.append, args.replace, args.dry_run
@@ -1179,6 +1316,8 @@ def create(args: argparse.Namespace) -> int:
             print(f"verify=UNVERIFIED ({args.unverified})")
         else:
             print(f"verify={vstate.upper()} ({detail})")
+        if args.review_override and spec_closure_stem(add_paths, remove_paths):
+            print(f"review=OVERRIDDEN ({args.review_override})")
     head_state, head_stale = discovery_index_head_status(repo)
     if head_state == "stale":
         print(
@@ -1334,6 +1473,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="reason to allow a commit when a generated discovery index "
         "(ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) is "
         "stale or omitted (owner override)",
+    )
+    create_cmd.add_argument(
+        "--review-override",
+        help="reason to allow a spec-closure commit when the independent "
+        "critical-review gate (ai/rules/critical-review.md) is missing/stale "
+        "(owner override; a review not performed is never a clean tree)",
     )
     create_cmd.add_argument(
         "--dry-run",
