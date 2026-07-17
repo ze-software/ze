@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -271,8 +271,16 @@ reproduction per lead before any fix lands.
 | D-2: Lead 2 fixed by passing the source-peer string through `MessageCallback` from inside the sender's `writeMu` section | RLock-capture of `peer.session` (forward_pool.go:114-116 pattern): fixes the nil-deref but still reads a possibly different (reconnected) session's `writeMu`-guarded field outside its `writeMu`, and mis-attributes across reconnect | The value originates at the write site that already owns it under `writeMu` (session.go:276-284 contract); the racy re-lookup disappears entirely; compiler enumerates all call sites |
 | D-3: Lead 3 fixed with `p.mu`-guarded write + narrow `Peer` accessors for the three mutable fields; immutable settings fields stay lock-free | (a) `atomic.Pointer[PeerSettings]` copy-on-write: compiler-enforced coverage, but `Session` captures the settings pointer at construction (session.go:394-395), so a swap strands the session on the pre-resolution snapshot (`isIBGP` at session_validation.go:73 would read PeerAS 0 forever) or requires swapping `s.settings` and auditing every session-side unlocked read; (b) `atomic.Uint32` PeerAS: type ripples through config resolution, does not cover the slice fields | Smallest correct surface: exactly three fields mutate post-publication (A-4); accessor conversion is a bounded, greppable reader inventory; `r.mu` -> `p.mu` order already exists |
 | D-4: Lead 4 fixed at the RFC 7606 boundary: validator records duplicates, `enforceRFC7606` rebuilds the body keep-first; `ensureIndexLocked` unchanged | (a) relax `ensureIndexLocked` to skip duplicates: weakens a fail-closed guard for every caller including locally built and forwarded wire; (b) treat-as-withdraw for non-MP duplicates: contradicts rfc/short/rfc7606.md:46 | One policy owner at the protocol boundary; downstream consumers (RIB, filters, re-encode, zero-copy forward) all see a clean single-occurrence payload; rebuild cost only on malformed input, same as the shipped ATTR_DISCARD path |
-| D-4b (open, needs Thomas): should `ze bgp decode` run the same duplicate strip so diagnostics match session behavior? | leave decode erroring at index build (status quo for raw hex) | Recommendation: yes, align decode; the .ci pins whichever is chosen -- if Thomas prefers strict decode, the .ci asserts the explicit duplicate-attribute error instead |
+| D-4b (~~open, needs Thomas~~ → RESOLVED 2026-07-17 = YES, see "Resolved open decisions" below): should `ze bgp decode` run the same duplicate strip so diagnostics match session behavior? | leave decode erroring at index build (status quo for raw hex) | Recommendation: yes, align decode; the .ci pins whichever is chosen -- if Thomas prefers strict decode, the .ci asserts the explicit duplicate-attribute error instead |
 | D-5: fix order 4 -> 2 -> 3 -> 1 | any order | Leads 4 and 2 are independent and lowest risk; lead 3 must land before lead 1 because the transition-queue fix can move the Established callback off the read goroutine in the contended case, widening lead 3's window if its same-goroutine assumptions were still load-bearing |
+
+### Resolved open decisions (append-only)
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: protocol]: **D-4b = YES** -- align `ze bgp decode` with the session keep-first strip so diagnostics match on-session behavior (adopts the D-4b recommendation). Rationale: one duplicate-attribute policy avoids a decode-vs-session divergence that would mislead an operator debugging a malformed peer; the boundary strip is reusable by the decode path (`enforceRFC7606` at session_validation.go:34 → `RebuildUpdateBody` at message/attr_discard.go:295, both re-verified present 2026-07-17), and `test/decode/bgp-update-duplicate-origin.ci` pins the chosen keep-first decode output. Thomas: override if wrong -- revert to strict decode (error at index build); the `.ci` would then assert the explicit duplicate-attribute error instead of keep-first output.
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: arch]: **D-1 trade-off = ACCEPT the recorded design as-is** -- per-FSM ordered non-blocking FIFO transition queue; contended transitions become ordered-async (A-5/R-5), uncontended transitions keep today's synchronous semantics. Rationale: it is the least-blocking correct option and the two alternatives self-deadlock, re-verified against source 2026-07-17 -- the hold-timer callback fires `fsm.Event` while holding `s.mu` (session.go:433-435 calls `logFSMEvent`, session.go:690 calls `s.fsm.Event`), and the to-Established callback needs `s.mu.RLock` via `session.Negotiated()` (peer_run.go:340 → session.go:515-518), so alternative (b) blocking-ticket order deadlocks and alternative (a) holding `f.mu` across the callback self-deadlocks on the non-reentrant RWMutex (fsm.go:139-141). Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: scope]: **D-5 landing order = ACCEPT the recorded order (4 → 2 → 3 → 1)**. Rationale: the conservative scheduling default is the smaller self-contained path; the recorded rationale (leads 4 and 2 independent + lowest risk; lead 3 before lead 1) stands, and R-3's mitigation (re-run the Phase 1 verification pass after any rebase; the compiler enumerates every `MessageCallback` call site) already covers concurrent sibling edits to `fsm/fsm.go`/`reactor/session.go`/`reactor_notify.go` without a scheduling decision from Thomas. Thomas: override if a specific sibling-spec interleave is required.
 
 ## Implementation Steps
 
@@ -323,3 +331,24 @@ reproduction per lead before any fix lands.
 - Open items for Thomas before `ready`: D-4b (decode alignment), D-1 trade-off acceptance
   (contended transitions become ordered-async; A-5/R-5), and the D-5 landing order given
   sibling specs on `fsm/fsm.go`, `reactor/session.go`, `reactor_notify.go`.
+  → RESOLVED (2026-07-17, autonomous defaults): all three answered in "Resolved open
+  decisions" under Key Design Decisions -- D-4b = YES (align decode), D-1 trade-off = ACCEPT
+  the recorded non-blocking-FIFO design, D-5 landing order = ACCEPT the recorded 4→2→3→1
+  order. No open question remains; Thomas may override any of the three.
+- → SOURCE RE-VERIFICATION (2026-07-17): all four leads re-confirmed REAL against current
+  HEAD. Producers verified: lead 1 fsm.go:132-143 (`change` unlocks around the callback),
+  peer_run.go:332-442 (callback closure) + :353-355 (resolveDynamicPeerSettings call) + :505
+  (`session.Run`), session.go:433-435 / :690 (hold-timer fires `fsm.Event` under `s.mu`),
+  session.go:515-518 (`Negotiated` takes `s.mu.RLock`); lead 2 reactor_notify.go:360-363
+  (unlocked sent-path double-read) and :410-414 / :437-441 (received-path, benign, same
+  goroutine), peer_run.go:223-225 / :249-251, forward_pool.go:114-116 (correct pattern),
+  session.go:276-284 (`sentSourcePeerStr` writeMu contract); lead 3 reactor_dynamic.go:316,
+  329,332 (unlocked writes), routerid_unique.go:58 (unlocked `PeerAS` read) + :61-63 (correct
+  session RLock), peer.go:337-339 (`Settings()` raw pointer); lead 4 rib_structured.go:94-96,
+  210-211,240-241 (silent MP skip on index error), wire.go:308-311 (`ensureIndexLocked`
+  duplicate rejection). LINE-CITE DRIFT since 2026-07-16 (recent RFC 7606 5.3 MP-NLRI commit
+  fa244032d): `message/rfc7606.go` shifted ~+35 lines -- the non-MP duplicate `continue` is
+  now :281-283 (Task cites :245-247) and the MP-duplicate session-reset is now near :326+
+  (Task cites :280-285); `reactor/session_validation.go` `isIBGP`'s read of
+  `s.settings.PeerAS` is now :99 (cited :73) and `enforceRFC7606` is at :34 (cited :26).
+  Behaviors are unchanged; per R-3 the implementer MUST re-grep these two files before fixing.

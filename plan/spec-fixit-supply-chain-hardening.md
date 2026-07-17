@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -43,15 +43,15 @@ This is the **absence of a scanner**, not a known CVE. Do not invent CVEs. Wire 
 
 ### Architecture Docs
 - [ ] `scripts/status/verify_run.go` - `stagesForMode(mode, makeCmd)` (:112-158): the live stage list; each stage is a `make <target>` (`mk` helper :113)
-  → Constraint: a new SCA stage is added by inserting one `mk("ze-vulncheck")` line in BOTH the `ze-verify-changed` and default branches; the Makefile comment (`Makefile:282-289`) warns stages live here, not in a Makefile `.PHONY` chain.
-  → Decision: govulncheck is a scheduled/full-verify concern (network fetch of the vuln DB); place it in the default branch, and consider gating it behind availability rather than blocking `ze-verify-changed`.
+  → Constraint: ~~a new SCA stage is added by inserting one `mk("ze-vulncheck")` line in BOTH the `ze-verify-changed` and default branches;~~ (SUPERSEDED 2026-07-17 by the SCHEDULED default: `stagesForMode` is NOT modified for govulncheck; this reading remains the reference for HOW an inline stage WOULD be added, useful if Thomas overrides to inline.) the Makefile comment (`Makefile:282-289`) warns stages live here, not in a Makefile `.PHONY` chain.
+  → Decision: govulncheck is a scheduled/full-verify concern (network fetch of the vuln DB); ~~place it in the default branch, and consider gating it behind availability rather than blocking `ze-verify-changed`.~~ (SUPERSEDED 2026-07-17) run it as a scheduled CI job (`.github/workflows/govulncheck.yml`), NOT in `stagesForMode` at all, so neither `ze-verify` nor `ze-verify-changed` is blocked. See the AUTONOMOUS DEFAULT resolution in Notes.
 - [ ] `.github/workflows/codeql.yml` - manual Go build (:92-95) and default query pack
   → Constraint: replace `go build ./...` with a build across the shipped tag set (`-tags 'ze_core ze_distro ze_appliance ...'`) so feature-gated code is analyzed; enabling `security-extended` (:84 comment) is the SCA-adjacent query knob.
 - [ ] `ai/rules/appliance-dep-bumps.md` - why builddir modules are Dependabot-excluded and bumped by runbook
   → Constraint: do NOT bring builddir modules under Dependabot (a PR would fight the pin); add a **proactive review** cadence instead, not automated bumps.
 
 **Key insights:**
-- The verify gate is a registry of stages (`stagesForMode`), not hardcoded shell — the SCA stage registers there, honoring registration-over-hardcoding.
+- The verify gate is a registry of stages (`stagesForMode`), not hardcoded shell. ~~the SCA stage registers there, honoring registration-over-hardcoding.~~ (SUPERSEDED 2026-07-17: the SCA scan runs as a scheduled workflow, top-level CI config like `codeql.yml`, NOT a `stagesForMode` entry; this is the deliberate placement, not a hardcoding violation.)
 - `reapply-updater-fixes.py` is idempotent and self-documents its four fix markers; a marker-assertion test is the cheap durable guard, upstreaming the PR is the durable fix.
 
 ## Current Behavior (MANDATORY)
@@ -78,20 +78,20 @@ This is the **absence of a scanner**, not a known CVE. Do not invent CVEs. Wire 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- **SCA gate:** `make ze-verify` -> `scripts/status/verify_run.go` -> `stagesForMode` produces the stage list -> a new `ze-vulncheck` stage runs `govulncheck ./...` (the real full-verify path CI invokes at `.woodpecker/verify.yml:19`).
+- **SCA gate:** ~~`make ze-verify` -> `scripts/status/verify_run.go` -> `stagesForMode` produces the stage list -> a new `ze-vulncheck` stage runs `govulncheck ./...` (the real full-verify path CI invokes at `.woodpecker/verify.yml:19`).~~ (SUPERSEDED 2026-07-17 by the SCHEDULED default) A scheduled CI event (`schedule: cron` in `.github/workflows/govulncheck.yml`) -> `make ze-vulncheck` -> `govulncheck ./...` scans the module graph against the vuln DB. This runs OUTSIDE the inline `make ze-verify` / `.woodpecker/verify.yml:19` push path so a transient advisory does not block commits; `make ze-vulncheck` remains runnable on demand.
 - **CodeQL:** `push`/`pull_request`/`schedule` -> `codeql.yml` manual build compiles the module; today `./...` with no tags, changed to the shipped tag set.
 - **Updater fix-marker:** `go mod vendor` rewrites `vendor/.../updater/updater.go`; a package test reads that file and asserts the four markers.
 
 ### Transformation Path
 1. Verify run assembles stages via `stagesForMode`; each stage shells to `make <name>` and its exit code gates the run.
-2. A new `ze-vulncheck` target `go install`s/ runs `govulncheck ./...`, scanning the module's dependency graph against the vuln DB; non-zero exit fails the gate.
+2. A new `ze-vulncheck` target `go install`s/ runs `govulncheck ./...`, scanning the module's dependency graph against the vuln DB; non-zero exit fails ~~the gate~~ the scheduled CI job (`.github/workflows/govulncheck.yml`), NOT the inline `ze-verify` run (SCHEDULED default, 2026-07-17).
 3. CodeQL's manual build compiles the tagged surface, feeding the feature-gated packages into the analysis database.
 4. The fix-marker test parses the vendored updater file and asserts the LimitReader/Body.Close/NoBody markers are present.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| CI ↔ verify gate | `make ze-verify` runs `stagesForMode`; new SCA stage registers there | [ ] |
+| ~~CI ↔ verify gate~~ Scheduled CI ↔ SCA scan (2026-07-17) | ~~`make ze-verify` runs `stagesForMode`; new SCA stage registers there~~ scheduled `.github/workflows/govulncheck.yml` runs `make ze-vulncheck`; NOT wired into `stagesForMode`/inline `ze-verify` | [ ] |
 | Dependency graph ↔ vuln DB | `govulncheck ./...` fetches advisories and reports reachable vulns | [ ] |
 | Re-vendor ↔ hardening | package test asserts the 4 updater fix markers survive `go mod vendor` | [ ] |
 | Source tags ↔ pins | `go.mod` pseudo-versions replaced by tagged releases where published | [ ] |
@@ -100,9 +100,9 @@ This is the **absence of a scanner**, not a known CVE. Do not invent CVEs. Wire 
 - `scripts/status/verify_run.go` (`stagesForMode`), `Makefile` (new `ze-vulncheck` target), `.github/workflows/codeql.yml` (tag set + query pack), the updater package test, `go.mod` (pins), `ai/rules/appliance-dep-bumps.md` (builddir review cadence).
 
 ### Architectural Verification
-- [ ] No bypassed layers (SCA stage runs through `stagesForMode`, the same registry every other stage uses; not an ad-hoc shell step)
-- [ ] No duplicated functionality (reuse the `mk(name)` stage helper and the existing updater test package)
-- [ ] Registration over hardcoding — the SCA stage is registered in `stagesForMode`, discovered by the gate, not spelled inline in a Makefile chain (`ai/rules/discovery-updates.md`)
+- [ ] No bypassed layers (~~SCA stage runs through `stagesForMode`, the same registry every other stage uses; not an ad-hoc shell step~~ SUPERSEDED 2026-07-17: the scheduled workflow calls `make ze-vulncheck`, a real make target, not an inline shell blob duplicated in YAML)
+- [ ] No duplicated functionality (reuse the `mk(name)` stage helper where relevant and the existing updater test package; the scheduled workflow calls the single `make ze-vulncheck` target rather than re-spelling `govulncheck ./...`)
+- [ ] Registration over hardcoding — ~~the SCA stage is registered in `stagesForMode`, discovered by the gate, not spelled inline in a Makefile chain~~ (SUPERSEDED 2026-07-17) the SCA scan is a top-level scheduled CI workflow (`.github/workflows/govulncheck.yml`), the same class of config as `codeql.yml`; it is deliberately NOT a `stagesForMode` entry (so the inline dev loop stays unblocked) and adds no per-feature switch to a core/shared package (`ai/rules/discovery-updates.md`)
 
 ## Risks & Assumptions
 
@@ -125,12 +125,17 @@ This is the **absence of a scanner**, not a known CVE. Do not invent CVEs. Wire 
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `stagesForMode("ze-verify", ...)` | -> | list contains a `ze-vulncheck` stage | `TestStagesForModeIncludesVulncheck` |
+| ~~`stagesForMode("ze-verify", ...)`~~ | ~~->~~ | ~~list contains a `ze-vulncheck` stage~~ | ~~`TestStagesForModeIncludesVulncheck`~~ |
+| `.github/workflows/govulncheck.yml` scheduled job (SCHEDULED default, 2026-07-17) | -> | scheduled workflow invokes `make ze-vulncheck` (`govulncheck ./...`); no `stagesForMode` entry | `TestGovulncheckScheduledWorkflow` (workflow-string assertion) |
 | `go mod vendor` re-vendors updater | -> | vendored file retains the 4 hardening markers | `TestUpdaterHardeningMarkersPresent` |
 | `codeql.yml` manual build | -> | build command carries the shipped `-tags` set | `TestCodeQLBuildUsesShippedTags` (workflow-string assertion) |
 
-Concrete test: `TestStagesForModeIncludesVulncheck` in `scripts/status/verify_run_test.go` asserts the default-mode
-slice returned by `stagesForMode` contains a stage named `ze-vulncheck`; `TestUpdaterHardeningMarkersPresent` in
+~~Concrete test: `TestStagesForModeIncludesVulncheck` in `scripts/status/verify_run_test.go` asserts the default-mode
+slice returned by `stagesForMode` contains a stage named `ze-vulncheck`;~~ (superseded 2026-07-17 by the SCHEDULED
+default) Concrete test: `TestGovulncheckScheduledWorkflow` in `scripts/status/verify_run_test.go` (or a workflow-lint
+test) reads `.github/workflows/govulncheck.yml` and asserts it declares a `schedule:` trigger and invokes the
+govulncheck run (`make ze-vulncheck` / `govulncheck ./...`), and that no `stagesForMode` branch contains a
+`ze-vulncheck` stage (proving the inline dev loop is not blocked); `TestUpdaterHardeningMarkersPresent` in
 `internal/appliance/updater/` reads `vendor/github.com/gokrazy/updater/updater.go` and asserts all four marker
 literals are present (fails the unit gate if a re-vendor drops them).
 
@@ -138,7 +143,7 @@ literals are present (fails the unit gate if a re-vendor drops them).
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `make ze-verify` (or the scheduled CI job) | runs `govulncheck ./...` as a registered stage; a seeded known-vuln fixture makes it exit non-zero; `stagesForMode` lists `ze-vulncheck` |
+| AC-1 | ~~`make ze-verify` (or the scheduled CI job)~~ the SCHEDULED CI job (`.github/workflows/govulncheck.yml`, 2026-07-17 default) | runs `govulncheck ./...` (via `make ze-vulncheck`); a seeded known-vuln fixture makes it exit non-zero; ~~`stagesForMode` lists `ze-vulncheck`~~ `stagesForMode` does NOT list `ze-vulncheck` (inline `ze-verify` stays unblocked) and the scheduled workflow declares a `schedule:` trigger |
 | AC-2 | `codeql.yml` manual Go build | compiles the shipped tag set (`ze_core`/`ze_distro`/`ze_appliance` ...), so feature-gated `cmd/ze`/appliance code enters the CodeQL database |
 | AC-3 | `go mod vendor` drops a hardening marker | `TestUpdaterHardeningMarkersPresent` fails; with all four markers present it passes (or: upstream PR merged, fork+script deleted, dep pinned to the fixed tag) |
 | AC-4 | The six pseudo-version pins | each is moved to a tagged release where upstream publishes one; each remaining pseudo-version is documented with the reason (no tag) |
@@ -150,18 +155,21 @@ literals are present (fails the unit gate if a re-vendor drops them).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestStagesForModeIncludesVulncheck` | `scripts/status/verify_run_test.go` | AC-1 | |
+| ~~`TestStagesForModeIncludesVulncheck`~~ `TestGovulncheckScheduledWorkflow` (SCHEDULED default, 2026-07-17) | `scripts/status/verify_run_test.go` (or workflow lint) | AC-1 | |
 | `TestUpdaterHardeningMarkersPresent` | `internal/appliance/updater/hardening_markers_test.go` | AC-3 | |
 | `TestCodeQLBuildUsesShippedTags` | `scripts/status/verify_run_test.go` (or workflow lint) | AC-2 | |
 
 ### Functional Tests
 Test infrastructure / CI-gate only; no user-facing runtime feature. The SCA gate is exercised by
-`make ze-verify` running the new `ze-vulncheck` stage; CodeQL and Dependabot run in GitHub CI. No `.ci`
+~~`make ze-verify` running the new `ze-vulncheck` stage~~ the scheduled `.github/workflows/govulncheck.yml`
+job running `make ze-vulncheck` (SCHEDULED default, 2026-07-17), with `make ze-vulncheck` also runnable on
+demand; CodeQL and Dependabot run in GitHub CI. No `.ci`
 functional test applies. Opt-out justification: **test infrastructure only** (supply-chain gates, not product behavior).
 
 ## Files to Modify
-- `scripts/status/verify_run.go` - register the `ze-vulncheck` stage in `stagesForMode` (non-test feature file)
-- `Makefile` - add the `ze-vulncheck` target running `govulncheck ./...`
+- ~~`scripts/status/verify_run.go` - register the `ze-vulncheck` stage in `stagesForMode` (non-test feature file)~~
+  (SUPERSEDED 2026-07-17: SCHEDULED default means govulncheck is NOT a `stagesForMode` stage; no change to `stagesForMode`. `scripts/status/verify_run_test.go` still gains `TestGovulncheckScheduledWorkflow`.)
+- `Makefile` - add the `ze-vulncheck` target running `govulncheck ./...` (on-demand target; called by the scheduled workflow, NOT by `ze-verify`)
 - `.github/workflows/codeql.yml` - build with the shipped tag set; optionally enable `security-extended`
 - `go.mod` - move pseudo-version pins to tags where upstream publishes them
 - `ai/rules/appliance-dep-bumps.md` - record the proactive builddir-pin review cadence and GPLv2 source-offer sign-off note
@@ -169,23 +177,24 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 
 ## Files to Create
 - `internal/appliance/updater/hardening_markers_test.go` - asserts the 4 updater fix markers survive re-vendor
+- `.github/workflows/govulncheck.yml` - NEW scheduled (`schedule: cron`) CI workflow that runs `make ze-vulncheck` (`govulncheck ./...`); mirrors the `codeql.yml` cron precedent, does NOT run on push/PR blocking the dev loop (SCHEDULED default, 2026-07-17)
 
 ## Implementation Steps
 
 ### Implementation Phases
-1. **Phase: SCA gate (MANDATORY FIRST)** — add the `ze-vulncheck` Makefile target (`govulncheck ./...`), register it in `stagesForMode` (default branch), add `golang.org/x/vuln` as a tool dep; confirm `make ze-verify` discovers and runs it.
-   - Tests: `TestStagesForModeIncludesVulncheck`
-   - Files: `Makefile`, `scripts/status/verify_run.go`, `go.mod`
+1. **Phase: SCA gate (MANDATORY FIRST)** — add the `ze-vulncheck` Makefile target (`govulncheck ./...`), ~~register it in `stagesForMode` (default branch),~~ (SUPERSEDED 2026-07-17: SCHEDULED default) create `.github/workflows/govulncheck.yml` (`schedule: cron`) that runs `make ze-vulncheck`, add `golang.org/x/vuln` as a tool dep; confirm the scheduled workflow runs govulncheck and that `stagesForMode` is unchanged (inline `ze-verify` not blocked).
+   - Tests: ~~`TestStagesForModeIncludesVulncheck`~~ `TestGovulncheckScheduledWorkflow`
+   - Files: `Makefile`, `.github/workflows/govulncheck.yml`, `scripts/status/verify_run_test.go`, `go.mod`
 2. **Phase: CodeQL tag set** — replace `go build ./...` with the shipped `-tags` build so feature-gated code is analyzed; assert the tag string in the workflow.
    - Tests: `TestCodeQLBuildUsesShippedTags`
-3. **Phase: updater fix-marker guard** — add `TestUpdaterHardeningMarkersPresent`; decide upstream-PR-merge-and-delete vs keep-fork-with-guard.
+3. **Phase: updater fix-marker guard** — add `TestUpdaterHardeningMarkersPresent`; ~~decide upstream-PR-merge-and-delete vs keep-fork-with-guard.~~ RESOLVED 2026-07-17: keep-fork-with-guard (self-contained); upstream merge stays a tracked follow-up (see Notes AUTONOMOUS DEFAULT #2).
 4. **Phase: pin hygiene** — per-dep, check for a tag and move pins; document any that must stay pseudo-versioned; record the builddir review cadence + GPLv2 sign-off note.
-5. **Full verification** — `make ze-test`, then `make ze-verify` (exercises the new SCA stage).
+5. **Full verification** — `make ze-test`, then `make ze-verify` ~~(exercises the new SCA stage)~~ (SCHEDULED default: `ze-verify` does NOT run govulncheck; separately run `make ze-vulncheck` on demand and confirm the scheduled `.github/workflows/govulncheck.yml` invokes it).
 6. **Complete spec** — audit tables, `plan/learned/NNN-<name>.md`, two-commit closure.
 
 ### Discovery-Update Obligation (`ai/rules/discovery-updates.md`)
-- Source of truth: `stagesForMode` in `scripts/status/verify_run.go` — the verify gate registry (registration over hardcoding).
-- New make target `ze-vulncheck` documented where verify targets are listed; `ai/rules/appliance-dep-bumps.md` gains the review cadence.
+- ~~Source of truth: `stagesForMode` in `scripts/status/verify_run.go` — the verify gate registry (registration over hardcoding).~~ (SUPERSEDED 2026-07-17) Source of truth for the SCA scan: the scheduled workflow `.github/workflows/govulncheck.yml` (top-level CI config, sibling of `codeql.yml`); `stagesForMode` stays the registry for the inline gate but gains no govulncheck entry.
+- New make target `ze-vulncheck` documented where verify targets are listed (on-demand target, not an inline `ze-verify` stage); `ai/rules/appliance-dep-bumps.md` gains the review cadence.
 - No new runtime dependency ships in the binary (`golang.org/x/vuln` is a build/CI tool), so no `ai/INDEX.md` component entry.
 
 ## Checklist
@@ -194,8 +203,8 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] SCA stage runs under `make ze-verify`
-- [ ] Registration over hardcoding respected (SCA stage registered in `stagesForMode`)
+- [ ] ~~SCA stage runs under `make ze-verify`~~ (SUPERSEDED 2026-07-17) govulncheck runs in the scheduled CI job (`.github/workflows/govulncheck.yml`), NOT under inline `make ze-verify`; `stagesForMode` unchanged
+- [ ] Registration over hardcoding respected (~~SCA stage registered in `stagesForMode`~~ the scheduled workflow is top-level CI config like `codeql.yml`, not a per-feature switch in a core/shared package; no `stagesForMode` change needed. SCHEDULED default, 2026-07-17)
 - [ ] Discovery update done (`ai/rules/appliance-dep-bumps.md`, verify-target docs)
 
 ### Quality Gates (SHOULD pass — defer with user approval)
@@ -205,7 +214,7 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Boundary cases (missing marker, missing stage, untagged build) present
+- [ ] Boundary cases (missing marker, ~~missing stage~~ missing/mis-triggered scheduled workflow, untagged build) present
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Finding = the **absence** of a dependency-vulnerability
@@ -217,3 +226,26 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 - Open question for /ze-spec deepening: should govulncheck block `ze-verify` inline, or run as a scheduled CI job
   (R-3, A-4)? And should the updater fix be durably resolved by merging `gokrazy-updater-upstream.patch` upstream
   (deleting the fork + script) rather than guarding the fork with a marker test?
+  - → AUTONOMOUS DEFAULT (2026-07-17), resolving BOTH open questions above (APPEND-ONLY; supersedes the
+    `stagesForMode`-stage wiring struck through below in Required Reading, Data Flow, Wiring Test, AC-1, TDD,
+    Files, Implementation Phase 1, and Checklist Goal Gates):
+    1. **govulncheck placement -> SCHEDULED CI JOB, not an inline `ze-verify` stage.** Add govulncheck as an
+       on-demand `make ze-vulncheck` target (`govulncheck ./...`) invoked by a NEW scheduled workflow
+       `.github/workflows/govulncheck.yml` (`schedule: cron`, mirroring the `codeql.yml:19-20` cron precedent),
+       and deliberately do NOT register it in `stagesForMode`. Rationale: it must NOT block the inline
+       `ze-verify` / pre-commit loop (`.woodpecker/verify.yml:19` runs the full `make ze-verify` on every push,
+       so any `stagesForMode` entry gates every commit); the vuln DB is a network fetch (A-4) and a transient or
+       false-positive advisory (R-1, R-3) must not wedge the dev loop. This mirrors the perf-alloc-gate split
+       (`plan/spec-fixit-perf-alloc-ci-gate.md`): deterministic/bounded checks register inline in `stagesForMode`;
+       host/network-dependent checks (Docker there, vuln DB here) run scheduled. Keeping the `ze-vulncheck` make
+       target lets a developer run it on demand and gives the scheduled workflow a single source of truth for the
+       invocation. Thomas: override to inline (add `mk("ze-vulncheck")` to the default `stagesForMode` branch) if
+       you want every full `ze-verify` to fail on a new advisory. [STAKES: scope]
+    2. **updater fix -> KEEP THE FORK + MARKER-GUARD TEST now; upstreaming stays a tracked follow-up.** Adopt the
+       self-contained option: land `TestUpdaterHardeningMarkersPresent` (AC-3 primary path) so a re-vendor that
+       drops a marker fails the unit gate. Do NOT gate this spec on merging `scripts/dev/gokrazy-updater-upstream.patch`
+       upstream: that depends on the gokrazy maintainers and is outside the implementer's control. It remains the
+       durable fix, tracked by the patch plus `scripts/dev/reapply-updater-fixes.py`; when upstream merges, AC-3's
+       alternate path applies (delete fork + script, pin the fixed tag). Rationale: conservative smaller/self-contained
+       default the implementer can complete deterministically today. Thomas: override if you hold upstream commit
+       rights and prefer to delete the fork now. [STAKES: scope]

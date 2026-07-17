@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -65,7 +65,7 @@ attributed to the probe it answers instead of being discarded.
   → Constraint: `streamPing` (:42) does `defer close(out)`; the channel closing is how every consumer detects the end. Any redesign must still close exactly once.
   → Constraint: `conn` is opened at `:55` with `lc.ListenPacket(ctx, network, "")` and closed by `defer` (:59). A receiver goroutine parked in `ReadFrom` is unblocked by that Close; teardown ordering is load-bearing (R-2).
   → Constraint: the loop condition `count <= 0 || seq < count` (:70) and the last-probe early return (:129) implement `count`. Both disappear in a ticker design and must be re-expressed as "all sent AND all resolved-or-expired".
-- [ ] `internal/component/ping/cmd/ping.go` - `doPingCtx` (:230) is the batch engine behind `show ping`.
+- [ ] `internal/component/ping/cmd/ping.go` - `doPingCtx` ~~(:230)~~ (:242 — corrected 2026-07-17, verified against source) is the batch engine behind `show ping`.
   → Decision: SAME serial structure (send :282, block in `ReadFrom` :288-296, next seq). But `doPing` has NO interval at all -- it sends the next probe as soon as the previous resolves. Its worst case is bounded (`count * timeout`), so it is NOT this bug and is OUT OF SCOPE. See Known Limitations.
   → Constraint: `pingPayload` (:229) is shared by both engines. Do not fork it.
 - [ ] `internal/component/ping/cmd/register.go` - `monitorPingLocal` consumes with `for result := range ch`.
@@ -337,7 +337,7 @@ attributed to the probe it answers instead of being discarded.
 | `doPingCtx` out of scope | Fix both engines together | `show ping` has no interval to violate; its worst case is bounded. Different bug, different spec |
 
 ## Known Limitations
-- `doPingCtx` (`ping.go:274`) shares the serial structure and is deliberately NOT
+- `doPingCtx` ~~(`ping.go:274`)~~ (`ping.go:242` — corrected 2026-07-17, verified against source) shares the serial structure and is deliberately NOT
   fixed here. It has no inter-probe pacing at all: it sends the next probe as
   soon as the previous resolves, so `show ping <blackholed> count 100 timeout
   30s` takes ~50 minutes. Bounded and operator-initiated, so it is a separate

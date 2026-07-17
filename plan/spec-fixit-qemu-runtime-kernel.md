@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | spec-fixit-qemu-artifact-cache (land that first: durable kernel cache) |
 | Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 > **DESIGN, 2026-07-16.** Research done, in sequence after the cache spec. Two
 > findings reshape this spec:
@@ -89,6 +89,27 @@ need to find a way to run a 7.+ kernel."
 ## Current Behavior (MANDATORY)
 
 **Source files (cite file:line). Producers read, not inferred from callers.**
+
+> -> CITATION DRIFT NOTE (2026-07-17, readiness pass): since the 2026-07-16 research
+> two files grew and their cited line numbers moved. The cited BEHAVIOR is unchanged
+> and was re-verified at the producer; only the anchors drifted. Corrected anchors:
+> `internal/test/runner/record_parse.go` -- the `ZE_QEMU_LINUX_ONLY` skip producer is
+> now at :235-236 (cited :227-228); the `skip-os` producer at :373-389 (cited
+> :375-381); the `needs-linux` producer at :391-405 (cited :383-397).
+> `scripts/evidence/qemu-run.py` -- `_extract_alpine_initramfs` is now at :130 (cited
+> :118-119); `qemu_args(...)` at :153 (cited :141); the `-kernel`/`-initrd` append
+> block at :199-209 (cited :187-192, :199-210); the `--kernel` CLI flag at :579 (cited
+> :505-509). The commit that moved qemu-run.py is `d86d3fd29` ("key the Alpine extract
+> dir to its ISO"), which also LANDED part of the `spec-fixit-qemu-artifact-cache`
+> dependency (the confirmed stale-initramfs fix, now `_extract_dir_for` at :118-127);
+> the durable-kernel-cache half of that spec is still OPEN. All other citations
+> re-verified unchanged: `internal/appliance/cache.go:110-120`
+> (`kernelCacheVariantFor`), `internal/appliance/kernel.version` (7.1.1), firewall
+> `.ci` counts (0/23 needs-linux, 21/23 skip-os:value=darwin,
+> `test/firewall/flush-crash.ci:11`), `mk/test-integration.mk`, `mk/gokrazy.mk`,
+> `gokrazy/kernel/kernel.config:40,55,57`, `gokrazy/kernel/runtime.config:88,89`,
+> `gokrazy/kernel/Makefile:28`, `tools/kernel-builder/build.py:38,91`,
+> `scripts/evidence/qemu-all-tests.sh:40,89-97`, `ai/rules/qemu-testing.md`.
 
 **How the firewall suite is actually skipped (researched 2026-07-16):**
 - [ ] `internal/test/runner/record_parse.go` lines 227-228 - the producer of the
@@ -357,6 +378,17 @@ work; the change is the harness those `.ci` files run on.
 
 - Does 7.1.1 actually fix the crash? Everything else is downstream of this. Answer it
   first, by hand, before any design.
+  -> RESOLUTION (2026-07-17, readiness pass): this is an EMPIRICAL gate, not a design
+  question, and a readiness pass cannot settle it -- it needs the real ~30-minute build
+  plus QEMU run that Implementation Step 1 mandates. No answer is recorded anywhere
+  in-tree, so AC-1 stays UNVALIDATED and the wiring stays CANDIDATE. Conservative
+  default already baked in: the spec does NOT assume 7.1.1 fixes the crash -- it makes
+  the real run Step 1, R-1 is the fail-closed STOP path if it does not, and AC-4/R-3
+  forbid any silent fallback to stock. Readiness meaning: `ready` = "specified enough
+  for a fresh implementer to start with ZERO questions," whose first two mandatory
+  actions are Step 0 (the `spec-fixit-qemu-artifact-cache` dependency lands) and Step 1
+  (this run). It does NOT assert AC-1 is proven. Thomas: this is the one item a
+  readiness pass structurally cannot close for you.
 - Build cost, caching and eviction are NOT open questions here: they are owned by
   `plan/spec-fixit-qemu-artifact-cache.md`, which covers the kernel, the Alpine ISO
   and its extracted initramfs as one artifact class. It records the user constraints
@@ -376,12 +408,45 @@ work; the change is the harness those `.ci` files run on.
   holds it.
 - Should `ze-qemu-all-test` require `make ze-gokrazy-deps` (`mk/gokrazy.mk:202-205`)?
   That is a new dependency for a target that currently needs only QEMU.
+  -> AUTONOMOUS DEFAULT (2026-07-17): NO new manual step. The cache spec's ensure
+  target (Handoff Contract row 2, `ze-kernel-ensure`) encapsulates the modcache
+  prerequisite: `ze-qemu-all-test` gains a single make prerequisite on that target,
+  which internally satisfies `make ze-gokrazy-deps` on the build path (cache miss) and
+  is a no-op on a hit. The operator still runs one command. Rationale: preserves
+  "`ze-qemu-all-test` must stay runnable without a manual multi-step setup"
+  (Current Behavior / Behavior to preserve); the deps step is a cache-build concern
+  owned by row 2, not re-exposed here. Thomas: override if wrong.
 - Does the runtime kernel need config additions to host the full suite (virtio, fs,
   modules the Alpine userland expects), and does adding them bloat the appliance
   kernel? The runtime profile is shared with the shipped appliance, so test-only
   additions may warrant a separate profile rather than growing `runtime.config`.
+  -> AUTONOMOUS DEFAULT (2026-07-17): EMPIRICAL-FIRST, then FAIL SAFE. Add nothing
+  speculatively: Step 2 must first prove whether the runtime kernel boots the full
+  suite as-is. The three existing labs already boot it under QEMU with Alpine's
+  extracted initramfs (A-2 basis), so the base config may already suffice. IF Step 2
+  finds a gap, the default is a SEPARATE test-only profile fragment
+  (`resolve_profile_fragments`, `tools/kernel-builder/build.py:91-99` resolves
+  `kernel.config` + `<profile>.config`; today only `runtime.config` exists and the
+  Makefile hardcodes `PROFILE := runtime`), selected by the QEMU target via a `PROFILE`
+  override -- NOT growing `runtime.config`. Rationale: `runtime.config` ships in the
+  appliance, so growing it for a test need mutates the shipped artifact; a test-only
+  fragment leaves the shipped kernel byte-for-byte unchanged (fail-safe: never change
+  the shipped image for a test). The nftables/firewall surface under test lives in the
+  SHARED `kernel.config`, so a test profile still exercises the real 7.x firewall
+  behavior and does not weaken AC-3 ("7.x, not stock"). Provisional -- no fragment is
+  added unless Step 2 proves it necessary, and any addition that is genuinely
+  appliance-appropriate (e.g. virtio) may instead go in `runtime.config` at Thomas's
+  call. Thomas: override if wrong.
 - Should the stock-kernel path be retired entirely, or kept for suites that do not
   need 7.x (the isis-frr/ldp-frr/vrrp labs deliberately use it for speed)?
+  -> AUTONOMOUS DEFAULT (2026-07-17): KEEP the stock-kernel path; do NOT retire it.
+  The isis-frr/ldp-frr/vrrp labs deliberately boot stock for speed (no ~30-minute
+  build) and probed clean on it (`mk/test-integration.mk:436-441`,
+  `ai/rules/qemu-testing.md:175-181`); retiring it would impose the kernel build on
+  targets that do not need 7.x. Only the two targets this spec names
+  (`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) move to `--kernel`. Rationale:
+  smaller, reversible, non-regressing; matches R-2's "keep a documented stock-kernel
+  escape hatch." Thomas: override if wrong.
 - ~~Is `ze-qemu-needs-linux-test` running the firewall suite against the crashing stock
   kernel today, and if so why has nobody seen the failures?~~ **ANSWERED 2026-07-16:
   it is not running them at all.** `ZE_QEMU_LINUX_ONLY=1` (`mk/test-integration.mk:261`)

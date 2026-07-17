@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -71,6 +71,34 @@ only the generalizable guard so the next orphaned suite is caught automatically.
 → Decision for the user: confirm deletion (Option D) plus landing `TestCIRootsRegistered`.
 Options A/B/C are recorded for completeness but are not recommended, because the coverage
 they would build already exists.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): **Adopt Option D (delete the 3 stale `test/pppoe/*.ci`)
++ the `TestCIRootsRegistered` guard (C') as the plan of record.** Rationale: the spec's own
+RECOMMEND, and the conservative/self-contained choice (brief decision protocol: scope
+question -> smaller, self-contained option). Repairing (A) is a net-new netns/veth/root
+test-infrastructure project — git history confirms **no `netns` parser case ever existed**
+(`git log -S 'case "netns"'` and `-S "netns:veth" -- internal/test/` both empty on
+2026-07-17), so A is new construction, not restoration; B (re-mark to parse-and-skip) is a
+false green (`ai/rules/no-workarounds-for-missing-behavior.md`); C alone turns silent death
+into a loud CI failure (R-1). Deletion removes NO coverage: RFC 2516 discovery is proven by
+`test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/` and `ze-qemu-pppoe-accel-test`
+(`mk/test-integration.mk:423` -> `scripts/evidence/effective-pppoe-accel.py`), both verified
+present 2026-07-17. Thomas: override if you want the netns lab built instead.
+
+→ [STAKES: scope] DELETION-NEEDS-APPROVAL GATE (2026-07-17): **Readiness records the
+decision + plan; it does NOT delete any file.** The actual removal of `test/pppoe/` is an
+implementation-time action GATED on Thomas's EXPLICIT approval (`ai/rules/never-destroy-work.md`,
+R-2) — the implementer MUST ask before deleting and MUST NOT proceed on inference. This spec
+is `ready` because the decision and sequencing are fixed, not because files are gone.
+
+→ Constraint (guard/deletion coupling, 2026-07-17): `TestCIRootsRegistered` is RED while
+`test/pppoe/` exists unrooted and only goes GREEN once the directory is deleted (Option D) —
+there is no clean way to land the guard green without resolving `test/pppoe/`, and the only
+non-workaround resolution is deletion (C alone would make the netns `.ci` fail loudly). So
+although C' is conceptually independent of D (worth keeping under any option), at
+implementation time the guard and the deletion land together in the same change, both under
+the approval gate above. Implementer sequence: write the guard RED (Phase 2, TDD), obtain
+deletion approval, delete (Phase 3), guard turns GREEN.
 
 → Constraint (`ai/rules/no-workarounds-for-missing-behavior.md`): if the tests are
 repaired, they must actually exercise the PPPoE discovery path. Making them parse and
@@ -210,10 +238,16 @@ peer is covered by the lab below; this spec adds none.
 | PPPoE CHAP IPv4 | `test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/` | `accel-ppp` (Ze `pppoe-client`) | Real RFC 2516 discovery + PPP/CHAP session between Ze and accel-ppp | exists |
 
 ### Future (if deferring any tests)
-- (fill during design)
+- ~~(fill during design)~~
+- Resolved (2026-07-17): None deferred. Under the plan of record (Option D + C'), no PPPoE
+  `.ci` tests are kept or deferred — the 3 stale files are deleted (approval-gated) and RFC
+  2516 discovery coverage remains with the existing accel-ppp labs. The only new test is
+  `TestCIRootsRegistered`, which lands in-scope, not deferred. Should Thomas later choose to
+  build the netns lab (Option A), that is a separate future spec, not a deferral of this one.
 
 ## Files to Modify
 - `internal/test/cli/register_test.go` - add `TestCIRootsRegistered` (recommended; the recurrence guard)
+  → Correction (2026-07-17): this file does NOT exist today (`ls` -> "No such file or directory"); it is a **new file to CREATE** (see Files to Create), not modify. Plain `package cli`, no build tags.
 - `test/pppoe/pppoe-basic.ci`, `test/pppoe/pppoe-vlan.ci`, `test/pppoe/pppoe-concurrent-l2tp.ci` - DELETE (recommended Option D)
 - `internal/test/cli/register.go` - add a `registerCIRoot("pppoe", ...)` row (ONLY under non-recommended options A/B/C)
 - `internal/test/runner/record_parse.go` - add a `netns` case to `parseOption` (ONLY under non-recommended option A)
@@ -233,7 +267,16 @@ peer is covered by the lab below; this spec adds none.
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` — a new option type or suite must be documented |
 
 ## Files to Create
-- (fill during design — depends on the chosen option)
+- ~~(fill during design — depends on the chosen option)~~
+- Resolved (2026-07-17): **`internal/test/cli/register_test.go` — NEW FILE.** Correction to
+  "Files to Modify": that section lists `register_test.go` as if it existed, but
+  `ls internal/test/cli/register_test.go` returns "No such file or directory" on 2026-07-17
+  — the guard's home file does not yet exist and must be CREATED. It is a plain
+  `package cli` test file (no build-tag header; matches the sibling `*_test.go` in that
+  directory, e.g. `build_test.go`, `ci_runner_test.go`), holding `TestCIRootsRegistered`.
+  No other file is created: the 3 `.ci` are deleted, `register.go` is unchanged under Option
+  D. (Options A/B/C, not recommended, would instead edit existing files — a parser case in
+  `record_parse.go` / a suite row in `register.go` / repaired `.ci` — creating no new files.)
 
 ## Implementation Steps
 
@@ -313,7 +356,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - The generalisable guard is `TestCIRootsRegistered`: assert that every `test/` subdirectory containing `.ci` files is rooted. That catches the next orphaned suite without anyone noticing it.
 
 ## Core Insight
-(fill during design)
+~~(fill during design)~~
+
+Resolved (2026-07-17): An orphaned test suite is invisible precisely because two independent
+failures cancel: an unrooted `test/` subdir fails no build (nothing walks it), and an unknown
+option type errors only when something parses the file — neither alone raises a signal, so
+`test/pppoe/` went silent from May to July. The durable fix is not to repair these specific
+files (their coverage already exists in the accel-ppp labs) but to install a structural guard
+— `TestCIRootsRegistered` — that makes "a `.ci` directory no suite roots" a hard test
+failure. That converts a silent whole class of future orphans into a loud one. Deleting the 3
+stale files is the one-off cleanup; the guard is the reusable insight.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

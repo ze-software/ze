@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -291,7 +291,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding. M
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Registry contract is a **lifecycle interface** (`Matches`/`Start(input) tea.Cmd`/`Update(msg)`/`Render()`/`Key(k)`/`Stop`), NOT a `{prefix, factory, renderer}` 3-tuple | the skeleton's literal 3-tuple | A-1: factory signatures are heterogeneous (dashboard is a pull poller with no target; ping/traceroute are streaming channels with different arg lists). Only the lifecycle is common. The `viewSpec` carries the prefix + a set of lifecycle funcs; the factory stays per-view |
-| **Design 1: registrants live in-package** (`model_ping.go`/`model_traceroute.go`/`model_dashboard.go` `init()` call `RegisterView`); render/update/state stay in `cli` | Design 2: move each registrant into its owner `cmd` package so it self-contains fully | A-2: Design 1 is cycle-free with no code move (render touches `Model` internals). Design 2 (owner→`cli`, `cli` imports no engine) is the fuller self-containment the rule ideal describes but requires exposing a stable exported view interface and moving render out of `cli` — larger, riskier. **Recommend Design 1** for a behavior-preserving refactor; note Design 2 as the follow-up ideal. **OPEN for Thomas.** |
+| **Design 1: registrants live in-package** (`model_ping.go`/`model_traceroute.go`/`model_dashboard.go` `init()` call `RegisterView`); render/update/state stay in `cli` | Design 2: move each registrant into its owner `cmd` package so it self-contains fully | A-2: Design 1 is cycle-free with no code move (render touches `Model` internals). Design 2 (owner→`cli`, `cli` imports no engine) is the fuller self-containment the rule ideal describes but requires exposing a stable exported view interface and moving render out of `cli` — larger, riskier. **Recommend Design 1** for a behavior-preserving refactor; note Design 2 as the follow-up ideal. ~~**OPEN for Thomas.**~~ → AUTONOMOUS DEFAULT (2026-07-17): RESOLVED to Design 1 (registrants live in-package: `model_ping.go`/`model_traceroute.go`/`model_dashboard.go` `init()` call `RegisterView`; render/update/state stay in `cli`). Rationale: cycle-free, behavior-preserving, and requires no code move. Verified against source: `internal/component/cli/*.go` imports no ping/traceroute engine (grep empty), so an in-package `RegisterView` adds zero import edge; the mirror registry `RegisterMonitorProvider` plus word-boundary `matchesPrefix` is real at `internal/component/plugin/server/handler.go:31,70-72`; the `PingFactory` inversion comment (cli defines the contract and never imports the ping engine) is at `model_ping.go:31`. Design 2 (full owner-package self-containment) is recorded as the noted follow-up ideal, NOT this spec's scope. Thomas: override if wrong. |
 | `RegisterView` + `viewRegistry` live in **`internal/component/cli`** | `internal/core/*` shared registry | the views are cli-internal (Design 1); the registry is not cross-plugin. If Design 2 is chosen, the `viewSpec` interface + registry move to `internal/component/cli/contract` (leaf) so owner packages can register without importing `cli` |
 | Longest-prefix resolution mirrors **`handler.go:matchesPrefix`** (`internal/component/plugin/server/handler.go:70-75`) | first-match ordered `isXCommand` chain (status quo); exact-match map | the daemon-side monitor-provider registry already solved sibling `monitor *` prefixes this way; reuse the pattern rather than reinvent (design-context "check `internal/core`/existing first") |
 | Generic factory injection: consumers iterate `RegisteredViews()` and inject each factory by name into a keyed store; typed setters become thin wrappers | keep three typed `Set*Factory` methods | removes the per-feature wiring from the consumers (AC-2) while preserving type safety at the wrapper boundary (R-3) |
@@ -301,7 +301,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding. M
 
 ## Known Limitations
 - Migration scope is the three named views. The generic `monitor` view (`monitorFactory`/`monitorSession`, `model_monitor.go`) and any future `traffic` view are NOT migrated here; they are the natural next registrants (monitor's `*MonitorSession` session object is the closest precedent for the contract). Scope reduction below these three requires user approval.
-- Design 1 leaves each view's render/update code physically in the `cli` package; full owner-package self-containment (Design 2) is deferred pending Thomas's decision.
+- Design 1 leaves each view's render/update code physically in the `cli` package; full owner-package self-containment (Design 2) is ~~deferred pending Thomas's decision~~ the noted follow-up ideal, out of scope for this spec (Design 1 adopted 2026-07-17; see the Key Design Decisions resolution).
 
 ## Checklist
 

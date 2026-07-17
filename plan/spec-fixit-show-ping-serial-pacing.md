@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | sibling of spec-fixit-ping-monitor-cadence (shared root cause) |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -65,7 +65,8 @@ rather than `N * timeout`, and a late reply is attributed to its own probe.
 - [ ] `internal/component/ping/cmd/ping.go` - `doPingCtx` (:242). Serial loop `:274-296+`: one probe, block on `ReadFrom` until reply/deadline (`:278,288-289`), then next. Returns a single result map (`replies` array, min/avg/max) at the end.
   → Constraint: bounded by `count`; the fix must keep the same result-map shape (offline.go and the JSON consumers parse it).
   → Constraint: `pingPayload(opts.size)` (`:264`) and the seq stamping (`:275`) are shared with the streaming path; do not fork them.
-- [ ] `internal/component/ping/cmd/ping.go` - `handleShowPing` (:44) and `parsePingArgs` (:56): `show ping` takes `count`/`size`/`timeout`, NO `interval`.
+- [ ] `internal/component/ping/cmd/ping.go` - `handleShowPing` (~~:44~~ **:146**) and `parsePingArgs` (~~:56~~ **:161**): `show ping` takes `count`/`size`/`timeout`, NO `interval`.
+  → Note (2026-07-17): line refs corrected after `parseMonitorPingArgs` (the monitor-cadence sibling) landed and shifted every function below it down; the behavior described is unchanged and confirmed at the new lines.
   → Decision: adding an `interval` arg (iputils `-i` parity, default e.g. 1s) is in scope IF the fix paces sends; the YANG leaf + parser + bounds would follow the `size` precedent from `c00c795cf`.
 - [ ] `internal/component/ping/cmd/offline.go` - `printPingResults` consumes the batch map after it returns.
   → Constraint: with a batch return there is no streaming; incremental per-reply output is a SEPARATE enhancement (see Known Limitations) unless the fix changes the return contract.
@@ -88,7 +89,7 @@ rather than `N * timeout`, and a late reply is attributed to its own probe.
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- `show ping <dest> [count] [size] [timeout] [interval?]` -> `handleShowPing` (`ping.go:44`) -> `doPing` -> `doPingCtx`.
+- `show ping <dest> [count] [size] [timeout]` -> `handleShowPing` (`ping.go:146`) -> `doPing` -> `doPingCtx`. (~~was `[interval?]` / `ping.go:44`~~ — 2026-07-17: no `interval` arg per the A-5 autonomous default below; line ref corrected after `parseMonitorPingArgs` landed.)
 
 ### Transformation Path
 1. `parsePingArgs` -> dest/count/timeout/opts
@@ -98,9 +99,11 @@ rather than `N * timeout`, and a late reply is attributed to its own probe.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Sender ↔ receiver (NEW) | in-flight map keyed by seq, or a bounded send-all-then-collect | [ ] |
+| Sender ↔ receiver (NEW) | ~~in-flight map keyed by seq, or a bounded send-all-then-collect~~ in-flight map keyed by seq with interval-paced sends (see approach default below) | [ ] |
 | Process ↔ kernel | raw ICMP socket; CAP_NET_RAW | [ ] |
 | doPingCtx ↔ consumers | unchanged result-map shape | [ ] |
+
+→ AUTONOMOUS DEFAULT (2026-07-17): resolve the "map keyed by seq **or** send-all-then-collect" fork to the **in-flight map keyed by seq with interval-paced sends** (a shared seq-keyed receiver, structured like `streamPing`), NOT send-all-then-collect. Rationale: R-3 — firing all N probes with zero gap floods the socket at large `count`/`size`; paced sends bound socket pressure. Thomas: override if wrong.
 
 ### Integration Points
 - `probe.BuildICMPEcho`, `pingPayload` (shared with `streamPing`)
@@ -122,7 +125,9 @@ rather than `N * timeout`, and a late reply is attributed to its own probe.
 | A-2 | Late replies are dropped/mis-serialized under the serial model | the inner loop only waits on the current seq (`:288`) | the matching half is unneeded | privileged run inducing a late reply | unvalidated |
 | A-3 | One socket serves concurrent WriteTo + ReadFrom (if a sender/receiver split is used) | Go `net.PacketConn` documented concurrent-safe | need a single owner + queue | `go test -race` with a fake conn | unvalidated |
 | A-4 | The result-map shape can stay identical while the internals change | `doPingCtx` builds the map from collected replies regardless of ordering | a consumer breaks | run `test/plugin/show-ping.ci` + the JSON tests | unvalidated |
-| A-5 | Adding `interval` is desired (iputils parity) vs. just fixing the blow-up without a new arg | user has not specified | scope creep or a missing knob | ask, or default: fix the blow-up with an internal pacing; expose `interval` only if requested | unvalidated |
+| A-5 | Adding `interval` is desired (iputils parity) vs. just fixing the blow-up without a new arg | user has not specified | scope creep or a missing knob | ask, or default: fix the blow-up with an internal pacing; expose `interval` only if requested | ~~unvalidated~~ RESOLVED (see default below) |
+
+→ AUTONOMOUS DEFAULT (2026-07-17): A-5 resolved — do **NOT** add a `show ping` `interval` CLI argument. Fix the `N*timeout` blow-up with internal pacing only (a fixed internal send cadence while a seq-keyed receiver collects replies). Rationale: this is a scope question, so per the decision protocol take the smaller, self-contained option; it also adopts this spec's own Key Design Decisions RECOMMEND ("expose `interval` only if the user wants iputils `-i` parity") and A-5's stated default. Consequence: **AC-7, the `interval` boundary-test row, the `ze-ping-cmd.yang` leaf, the `command-reference.md` update, and every "if `interval` added" integration/doc row are NOT applicable** for this spec — they resolve to N/A, not deferred. Thomas: override if you want iputils `-i` parity in this spec.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

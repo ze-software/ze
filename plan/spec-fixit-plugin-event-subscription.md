@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -58,7 +58,7 @@ resolves it to `events.EventTypeUnknown` (0) and `Subscription.Matches`
 `internal/plugins/exabgp/bridgeplugin/internal.go:93` -- registers a subscription
 that can never match. This is the same choke point as Gap A (`registerSubscriptions`)
 and cannot be fixed without touching it, so it is raised here rather than
-silently left behind. **Scope decision pending Thomas.**
+silently left behind. ~~**Scope decision pending Thomas.**~~ -> RESOLVED (user Decision 2026-07-16, recorded immediately below): the expansion is approved into scope; Gap C is IN.
 
 ### Scope
 
@@ -185,7 +185,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 **Behavior to change:**
 - Gap A: a startup subscription can name a non-bgp namespace.
 - Gap B: delivered events are discriminable by (namespace, event) without breaking raw-payload consumers. The exact mechanism (envelope opt-in, sidecar field, or per-subscription encoding) is a design decision; see Key Design Decisions.
-- Gap C (proposed): `"*"` either expands to the namespace's registered event types or is rejected loudly. Silent no-op is not an option once the code is touched.
+- Gap C (~~proposed~~ **approved 2026-07-16**): `"*"` expands to the namespace's registered event types (rejecting loudly was the alternative and was NOT chosen). Silent no-op is not an option once the code is touched.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -238,7 +238,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 | R-1 | An envelope change breaks the exabgp bridge / existing subscribers | exabgp or flowspec `.ci` red | make the envelope opt-in per process (`Envelope bool`, default false); keep bare-payload the default. Survives design: the opt-in is never set by any of the 16 existing callers. |
 | R-2 | Per-subscription namespace re-marshals on the hot path, hurting BGP throughput | perf regression in stress runs | **Downgraded during design.** BGP events never enter `deliverEvent`/`payloadToJSON` (they use `bgp/server/events.go:184-218` + `formatMessageForSubscription`). The Gap B change cannot touch the BGP hot path as long as the envelope is confined to `deliverEvent`. Residual risk only if the envelope is made uniform across both formatters (see D-4). |
 | R-3 | Namespace threading touches the SDK ABI and breaks external plugins built against pkg/plugin | external plugin build breaks | additive field + NEW method; `SetStartupSubscriptions` keeps its exact signature and its exact wire output (empty namespace = default = bgp). No existing symbol changes. |
-| R-4 | Fixing Gap C turns two shipped no-op subscriptions into live firehoses | exabgp bridge suddenly floods its script; `test/plugin/exabgp-bridge-sdk.ci` timing changes | This is the POINT of the fix, but it is a behavior change on a shipped path, not a no-op cleanup. Gate on Thomas's scope decision; if approved, the `.ci` must assert an event actually reaches the script (A-6 says nothing does today). |
+| R-4 | Fixing Gap C turns two shipped no-op subscriptions into live firehoses | exabgp bridge suddenly floods its script; `test/plugin/exabgp-bridge-sdk.ci` timing changes | This is the POINT of the fix, but it is a behavior change on a shipped path, not a no-op cleanup. Gate on Thomas's scope decision; if approved, the `.ci` must assert an event actually reaches the script (A-6 says nothing does today). -> Scope decision MADE (approved 2026-07-16): the `.ci` event-arrival assertion is REQUIRED, not conditional. |
 | R-5 | Unifying `parseEventString` onto `ParseSubscription` makes previously-silent subscriptions hard errors | any plugin passing an unregistered event string now fails startup | Deliberate (fail-on-unknown is the ze rule), but it converts Gap C from "dead" to "fatal" for exabgp unless `*` expansion lands in the same change. Do not unify the parsers without deciding Gap C first. |
 | R-6 | The reject-fence-observability spec lands a plugin-subscribable event type in `Registration.EventTypes` and it silently registers into the `bgp` namespace (`resolve.go:121`) | a `reload-processed` event shows up under `bgp/` in `show` output or monitor listings | Same root cause, different producer line. Coordinate: either that spec's event stays in an already-bgp-shaped namespace, or this spec's namespace threading must cover `RegisterPluginEventTypes` too. **Needs a joint decision; not resolvable unilaterally.** |
 
@@ -250,7 +250,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 | Engine emits a non-bgp event; subscriber discriminates it | -> | opt-in envelope in `payloadToJSON`/`deliverEvent` | `TestDeliveredEventIsDiscriminable` (unit) |
 | A plugin subscribes to `vpn-ipsec/sa-up` at startup and receives it | -> | end-to-end startup subscribe + deliver | `test/plugin/plugin-startup-subscribe-namespace.ci` |
 | The new SDK method is reachable from an out-of-tree-shaped plugin | -> | `SetStartupSubscriptionsIn` -> `ReadyInput.Subscribe.Namespace` -> engine | `.ci` above uses the SDK method, not a hand-built `Subscription` (a unit test that calls `SubscriptionManager.Add` directly proves nothing about wiring) |
-| Gap C (if approved): `*` reaches the exabgp script | -> | wildcard expansion at registration | extend `test/plugin/exabgp-bridge-sdk.ci` or a sibling: assert an event ARRIVES at the script (nothing asserts this today, A-6) |
+| Gap C (~~if approved~~ **approved 2026-07-16**): `*` reaches the exabgp script | -> | wildcard expansion at registration | extend `test/plugin/exabgp-bridge-sdk.ci` or a sibling: assert an event ARRIVES at the script (nothing asserts this today, A-6) |
 
 ## Acceptance Criteria
 
@@ -263,7 +263,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 | AC-5 | BGP stress path | No throughput regression from the change (R-2) |
 | AC-6 | A startup subscription names an UNREGISTERED namespace | The engine logs a warn naming the plugin and the namespace and skips the subscription. It does NOT resolve to `NamespaceUnknown` and register a silently-dead subscription (the Gap C failure mode, A-5) |
 | AC-7 | An out-of-tree plugin built against the PREVIOUS `pkg/plugin` | Still compiles against the new SDK (no changed signature) and still receives byte-identical deliveries (no changed default). Demonstrated by: no diff to any existing exported signature, and AC-3's byte-identity assertion |
-| AC-8 (Gap C, IF APPROVED) | `SetStartupSubscriptions([]string{"*"}, ...)` in namespace `bgp` | Expands to one subscription per registered `bgp` event type; an emitted `update` reaches the plugin. Today it reaches nothing (A-5, A-6) |
+| AC-8 (Gap C, ~~IF APPROVED~~ **APPROVED 2026-07-16**) | `SetStartupSubscriptions([]string{"*"}, ...)` in namespace `bgp` | Expands to one subscription per registered `bgp` event type; an emitted `update` reaches the plugin. Today it reaches nothing (A-5, A-6) |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -282,7 +282,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 | `TestBgpStartupSubscriptionUnchanged` | `internal/component/plugin/server/*_test.go` | AC-3 regression guard. Assert delivered BYTES, not just delivered count -- a count-only assertion would pass an accidental always-on envelope (mistake-log pattern: count-only assertions) | |
 | `TestStartupSubscriptionUnknownNamespaceWarnsAndSkips` | `internal/component/plugin/server/*_test.go` | AC-6 | |
 | `TestSubscribeEventsInputNamespaceOmittedFromJSON` | `pkg/plugin/rpc/*_test.go` | AC-7 wire compat: marshaling a namespace-less `SubscribeEventsInput` produces byte-identical JSON to pre-change (`omitempty` actually omits) | |
-| `TestStartupWildcardExpandsToNamespaceEvents` (Gap C, if approved) | `internal/component/plugin/server/*_test.go` | AC-8 | |
+| `TestStartupWildcardExpandsToNamespaceEvents` (Gap C, ~~if approved~~ **approved 2026-07-16**) | `internal/component/plugin/server/*_test.go` | AC-8 | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -301,7 +301,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 | N/A - internal plugin protocol, no external peer daemon; existing exabgp/bgp `.ci` cover the regression surface | - | - | - | |
 
 ## Files to Modify
-- `internal/component/plugin/server/dispatch.go` - `registerSubscriptions:148` namespace resolution (Gap A), `parseEventString:125-131` (Gap C, if approved), `deliverEvent:257` + `payloadToJSON:286` delivery identity (Gap B). **NOTE: as of 2026-07-16 a concurrent session is actively editing `internal/component/plugin/server/` for `spec-fixit-reject-fence-observability` (reload generation counter, possibly a new plugin-subscribable event type). Re-read this directory before implementing; the line numbers above WILL drift.**
+- `internal/component/plugin/server/dispatch.go` - `registerSubscriptions:148` namespace resolution (Gap A), `parseEventString:125-131` (Gap C, ~~if approved~~ **approved 2026-07-16**), `deliverEvent:257` + `payloadToJSON:286` delivery identity (Gap B). **NOTE: as of 2026-07-16 a concurrent session is actively editing `internal/component/plugin/server/` for `spec-fixit-reject-fence-observability` (reload generation counter, possibly a new plugin-subscribable event type). Re-read this directory before implementing; the line numbers above WILL drift.**
 - `internal/component/plugin/server/startup.go` - `onReady:610-611`. Likely NO change needed: it forwards `input.Subscribe` wholesale, so the namespace rides along for free once the field exists. Verify at implementation; if unchanged, remove from this list rather than touching it.
 - `internal/component/plugin/server/subscribe.go` - only if D-6 (parser unification) is approved.
 - `internal/component/plugin/process/process.go` - per-process `Envelope` flag (Gap B), alongside the existing `SetFormat`/`SetEncoding` state.
@@ -349,7 +349,7 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
 1. ~~**Phase: Consumer survey (validate A-3)**~~ -- **DONE during design 2026-07-16.** All 16 `SetStartupSubscriptions` callers enumerated in the Current Behavior Consumer survey table; A-3 confirmed with the `*` correction. Do not repeat it; go straight to phase 2.
 2. **Phase: Gap A** - additive `Namespace` field (D-1) + additive SDK method (D-2), defaulting to today's behavior; unregistered namespace warns and skips (AC-6); unit + `.ci`. Assert byte-identity for the default path (AC-3/AC-7) in the SAME phase, not at the end.
 3. **Phase: Gap B** - opt-in envelope (D-4) with per-choice memoized rendering (D-5), preserving bare-payload default and lazy-marshal; unit + `.ci`.
-4. **Phase: Gap C** - ONLY if Thomas approved it into scope. Wildcard expansion at registration time (D-7), then optionally the parser unification (D-6). Requires a `.ci` that proves an event reaches the exabgp script, since A-6 confirmed none exists.
+4. **Phase: Gap C** - ~~ONLY if Thomas approved it into scope.~~ **APPROVED into scope 2026-07-16; this phase is REQUIRED.** Wildcard expansion at registration time (D-7), then optionally the parser unification (D-6). Requires a `.ci` that proves an event reaches the exabgp script, since A-6 confirmed none exists.
 5. **Phase: regression + perf** - bgp startup path byte-unchanged; exabgp/flowspec green; stress path unregressed (R-2 is structurally low: BGP never enters `deliverEvent`).
 6. **Full verification + closure.**
 
@@ -474,6 +474,18 @@ design session -- the 2026-07-10 line numbers for `pkg/plugin/rpc/types.go` and
   `EventTypes` entry hits it silently), not as a live conflict between the two specs.
   Re-check at Phase 0 before implementing.
 
+  -> AUTONOMOUS DEFAULT (2026-07-17), resolving the "Options for Thomas" list
+  above: **option (a).** `spec-fixit-reject-fence-observability` uses the
+  reload-generation COUNTER, not a new plugin-subscribable event type, so this
+  spec's namespace threading is NOT extended to `RegisterPluginEventTypes` and the
+  two specs have no ordering dependency. Rationale: (a) is the smallest,
+  self-contained choice AND has already materialized -- re-verified 2026-07-17,
+  `internal/component/plugin/server/reload_generation.go` declares no
+  `events.Register`, no namespace, and no `Emit`. The collision does not exist; R-6
+  remains only a latent `resolve.go:121` bug for the next plugin that declares a
+  non-bgp `EventTypes` entry (OUT of this spec's scope). Thomas: override if that
+  sibling spec later ships the event type after all.
+
 ## Key Design Decisions
 
 **SDK compatibility is the governing constraint.** `pkg/plugin/` and `pkg/ze/` are
@@ -486,19 +498,19 @@ JSON key changes meaning, no existing default delivery byte changes.
 | ID | Decision | Alternatives Considered | Rationale |
 |----|----------|------------------------|-----------|
 | D-1 | Gap A: add `Namespace string \`json:"namespace,omitempty"\`` to `rpc.SubscribeEventsInput`. `registerSubscriptions` uses it when non-empty, else falls back to `plugin.DefaultEventNamespace()` -- the exact current behavior. Validate a non-empty namespace with `events.IsValidNamespace` and log+skip on unknown (do not silently resolve to `NamespaceUnknown`). | (a) Per-component default namespaces via `RegisterDefaultEventNamespace`: rejected, `resolve.go:95-97` panics on a conflicting registration and a process-global cannot disambiguate two components. (b) Qualify each event string as `<ns>/<event>`: rejected as the primary mechanism, it invents a third grammar next to `parseEventString` and `ParseSubscription`. | The field mirrors the working text path (`ParseSubscription`, A-4). Empty = today's behavior, so all 16 existing callers and every out-of-tree plugin are byte-identical on the wire (R-3). One namespace per subscribe block matches the existing per-process scope of `Format`/`Encoding`. |
-| D-2 | Gap A SDK surface: ADD `SetStartupSubscriptionsIn(namespace string, events, peers []string, format string)` (name pending Thomas). Keep `SetStartupSubscriptions` untouched, delegating to it with `namespace == ""`. | Change `SetStartupSubscriptions` to take a namespace: rejected outright, it breaks every out-of-tree plugin at compile time. Variadic option args: rejected, not a pattern used elsewhere in this SDK. | "Adding a callback = one method, zero changes to the event loop" (`ai/rules/plugin-design.md` SDK Is Generic). Additive method = zero compat impact. |
+| D-2 | Gap A SDK surface: ADD `SetStartupSubscriptionsIn(namespace string, events, peers []string, format string)` (name pending Thomas). Keep `SetStartupSubscriptions` untouched, delegating to it with `namespace == ""`. | Change `SetStartupSubscriptions` to take a namespace: rejected outright, it breaks every out-of-tree plugin at compile time. Variadic option args: rejected, not a pattern used elsewhere in this SDK. | "Adding a callback = one method, zero changes to the event loop" (`ai/rules/plugin-design.md` SDK Is Generic). Additive method = zero compat impact. -> AUTONOMOUS DEFAULT (2026-07-17), resolving "name pending Thomas": use `SetStartupSubscriptionsIn` (this cell's own proposal). Rationale: it mirrors the frozen `SetStartupSubscriptions` with an `In`(namespace) suffix, is purely additive, and changes no existing signature; the rejected alternatives (mutate the existing signature; variadic options) are worse on compat. Thomas: override the name before implementation if you prefer another. |
 | D-3 | Multi-namespace startup: OUT of scope for the first pass. `ReadyInput.Subscribe` stays a single `*SubscribeEventsInput` (one namespace per plugin at startup). A plugin needing two namespaces at startup uses one block + the runtime text path, or we add `Subscriptions []SubscribeEventsInput` later (additive). | Make `ReadyInput.Subscribe` a slice now: rejected, changes an existing JSON key's type (breaking). Add the slice field now: deferred, no in-tree consumer needs it yet and `ai/rules/design-principles.md` abstracts at 2+ use cases. | AC-1 (`vpn-ipsec/sa-up`) needs exactly one namespace. Recorded in Known Limitations so the next session does not rediscover it. |
 | D-4 | Gap B: the identity rides INSIDE the delivered string, as an opt-in envelope: `{"namespace":"vpn-ipsec","event":"sa-up","payload":<bare payload JSON>}`. Opt-in via a new `Envelope bool \`json:"envelope,omitempty"\`` on `SubscribeEventsInput` -> per-process flag (same scope as `Format`/`Encoding`, `dispatch.go:139-142`) -> a new SDK `OnEventEnveloped`-style handler or documented parsing on the existing `OnEvent`. Confined to `deliverEvent`; the BGP formatter path is untouched. | (a) Sidecar fields on `DeliverEventInput`: **rejected, broken by A-7** -- `deliver-batch` elements are JSON strings and batching is the default path, so a sidecar would only reach the single-event path. (b) A new `Encoding: "envelope"` value: rejected, `Encoding` is also consumed by the BGP formatter (`bgp/server/events.go:201`, `formatMessageForSubscription:412`), so an unknown value there would silently mean "not text" and produce inconsistent behavior across the two formatters. (c) Envelope always-on: rejected, breaks all 16 consumers (R-1). | A separate boolean keeps the two formatters' concerns separate. Wire shape is unchanged (still a string in `event` / in the `events` array), so old plugins and the batch path need no protocol change at all. |
 | D-5 | Gap B perf: `deliverEvent` currently marshals once for ALL procs (`dispatch.go:257`). With a per-process opt-in, render at most twice (bare + enveloped), memoized per distinct choice, and build the enveloped form ONLY if some matching proc opted in. | Marshal per proc: rejected, O(procs) on an emit path. | Mirrors the existing `formatCache` precedent (`bgp/server/events.go:196-203`). Preserves lazy-marshal-once for the default case: zero opt-in subscribers = byte-identical work to today. |
 | D-6 | Do NOT unify `parseEventString` onto `ParseSubscription` in this spec unless Gap C is approved in the same pass (R-5). | Unify now for one parser: attractive (`dispatch.go:124` admits the duplication) but it makes `"*"` a hard error and breaks exabgp startup. | Ordering constraint, not a rejection: unification is the right end state, it just cannot land before `*` has a meaning. |
-| D-7 | Gap C (IF approved): `"*"` expands at registration time into one `Subscription` per registered event type of the target namespace, reusing the shape of `event_monitor.go:267-296`. No wildcard branch is added to `Subscription.Matches`. | A wildcard `EventType` sentinel checked in `Matches`: rejected, puts a branch on the per-event matching path for a startup-time concern. | Registration-time expansion keeps the hot path exactly as it is (`ai/rules/buffer-first.md` spirit) and reuses a precedent already in this package. |
+| D-7 | Gap C (~~IF approved~~ **APPROVED 2026-07-16**): `"*"` expands at registration time into one `Subscription` per registered event type of the target namespace, reusing the shape of `event_monitor.go:267-296`. No wildcard branch is added to `Subscription.Matches`. | A wildcard `EventType` sentinel checked in `Matches`: rejected, puts a branch on the per-event matching path for a startup-time concern. | Registration-time expansion keeps the hot path exactly as it is (`ai/rules/buffer-first.md` spirit) and reuses a precedent already in this package. |
 
 ## Known Limitations
 - Gap B is an opt-in envelope, not a per-subscription encoding (D-4). Rationale recorded there: `Encoding` is shared with the BGP formatter and a new value would mean different things on the two paths.
 - **One namespace per plugin per startup** (D-3). `ReadyInput.Subscribe` is a single pointer (`types.go:501`); making it a slice would change an existing key's type. A plugin needing startup subscriptions in two namespaces must add a `Subscriptions []SubscribeEventsInput` field (additive) first. No in-tree consumer needs it today.
 - **`Format`/`Encoding`/`Envelope` are per-PROCESS, not per-subscription** (`dispatch.go:139-142`). Pre-existing; this spec inherits it rather than fixing it. Consequence: a plugin cannot envelope one subscription and not another, and two subscribe RPCs with conflicting flags = last writer wins.
 - **The envelope covers the `deliverEvent` path only.** BGP-namespace events keep their formatter-shaped output (`bgp/server/events.go:393`) and are unaffected by the envelope flag. This is deliberate (R-2: it keeps the BGP hot path untouched) and acceptable because BGP's formatted output already carries a type. It does mean a plugin subscribed across both bgp and non-bgp namespaces sees two shapes. Uniform enveloping across both formatters is a separate, larger change.
-- Gap C's scope (`*` expansion vs explicit rejection vs leave broken) is UNRESOLVED pending Thomas.
+- ~~Gap C's scope (`*` expansion vs explicit rejection vs leave broken) is UNRESOLVED pending Thomas.~~ -> RESOLVED (user 2026-07-16): `*` expansion approved into scope (see Task > Gap C Decision and D-7). No longer an open limitation.
 
 ## RFC Documentation
 - N/A (internal plugin protocol).
@@ -604,9 +616,30 @@ JSON key changes meaning, no existing default delivery byte changes.
   re-verified line by line (two line ranges from the skeleton had drifted and are
   corrected in place). A-1..A-4 validated; A-5..A-7 added and validated; R-4..R-6
   added. Gap C discovered and raised for a scope decision. Key Design Decisions
-  D-1..D-7 recorded. **NOT ready for implementation: needs Thomas on Gap C scope,
+  D-1..D-7 recorded. ~~**NOT ready for implementation: needs Thomas on Gap C scope,
   on the D-2 method name, and on the R-6 collision with
-  `spec-fixit-reject-fence-observability`.**
+  `spec-fixit-reject-fence-observability`.**~~
+- **READINESS RESOLUTION (2026-07-17).** Status design -> ready. All three blockers
+  named in the struck "NOT ready" sentence above are resolved:
+  - **Gap C scope** -- APPROVED into scope by Thomas 2026-07-16 (Task > Gap C
+    "Decision (user, 2026-07-16)": implement the expansion). Consequently every
+    "IF APPROVED"/"if approved" hedge elsewhere in this spec now reads APPROVED and
+    its work is REQUIRED, not optional: the Behavior-to-change Gap C bullet, the R-4
+    mitigation cell, the Wiring Test "Gap C" row, AC-8, the TDD
+    `TestStartupWildcardExpandsToNamespaceEvents` row, the Files-to-Modify
+    `parseEventString` note, Implementation Phase 4, and D-7. A `.ci` proving an
+    event actually reaches the exabgp script is mandatory (A-6: none exists today).
+  - **D-2 method name** -- AUTONOMOUS DEFAULT (2026-07-17): `SetStartupSubscriptionsIn`
+    (the name D-2 itself proposes; recorded at D-2). Override before implementation
+    if another name is preferred.
+  - **R-6 collision** -- AUTONOMOUS DEFAULT (2026-07-17): option (a); resolved and
+    recorded at R-6 in Design Insights. `spec-fixit-reject-fence-observability` uses
+    the reload-generation counter (verified: `reload_generation.go` declares no
+    event type, namespace, or `Emit`), so there is no cross-spec dependency.
+  Phase 0's "re-read `internal/component/plugin/server/`" still stands: the line
+  numbers in Current Behavior may have drifted under concurrent edits, so the
+  implementer re-confirms them before touching code (they verified substantively as
+  of 2026-07-17).
 - No file under `internal/component/plugin/server/` was touched by this design
   session: a concurrent session was implementing `spec-fixit-reject-fence-observability`
   in that package. Reading only.

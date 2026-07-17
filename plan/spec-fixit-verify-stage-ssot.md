@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -39,7 +39,7 @@ feeder mirroring the plugin-imports feeder so `ze-yang-glue-check` rides the alr
 
 - [ ] `scripts/status/verify_run.go` `stagesForMode` (:112-158), `defaultVerifyConfig` (:96-110)
   → Constraint: this function is the ONLY live stage list; both mode branches must stay in sync.
-  → Decision: add `ze-regen-check` here (both branches); the guard's set-equality golden is derived from this function, never hand-maintained in parallel (`ai/rules/derive-not-hardcode.md`).
+  → Decision: ~~add `ze-regen-check` here (both branches)~~ → add the write-safe read-only regen stage (`ze-regen-check-readonly`, R-1 2026-07-17) here (both branches), NOT the mutating `ze-regen-check`; the guard's set-equality golden is derived from this function, never hand-maintained in parallel (`ai/rules/derive-not-hardcode.md`).
 - [ ] `Makefile` :279-298 (invocation + dead `_impl`), :105-106 (`ze-yang-glue-check`), :427 (`ze-regen-check`)
   → Constraint: `ze-verify`/`ze-verify-changed` shell out to `verify_run.go`; the `_impl` targets are unreachable and must be deleted, not repaired.
 - [ ] `scripts/status/verify_run_test.go` `TestStagesForModeIncludesStaticAnalysisGates` (:345-363)
@@ -115,13 +115,15 @@ feeder mirroring the plugin-imports feeder so `ze-yang-glue-check` rides the alr
 | R-1 | `ze-regen-check` mutates the tree (`ze-regen` runs `generate` + index regen) during verify | verify leaves a dirty working tree | run `--check`-style targets only, or confirm `ze-regen-check` fails-without-writing; if it writes, gate on a clean-tree assertion instead (open question) |
 | R-2 | Set-equality golden becomes churny | frequent golden edits | derive golden from `stagesForMode` in-test (single const list) rather than a second hand-kept file |
 
+→ R-1 RESOLVED (AUTONOMOUS DEFAULT 2026-07-17): the mutating `ze-regen-check` (`Makefile:430` → `ze-regen`, `Makefile:427`) is NOT wired into verify; a write-safe read-only `--check` stage (`ze-regen-check-readonly`) is wired instead. Full decision + coverage obligation recorded under the "Open question" resolution in Notes. Thomas: override for the clean-tree-assertion alternative.
+
 ## Wiring Test
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
 | guard recomputes stage list | -> | `stagesForMode` set-equals committed golden (both modes) | `TestStagesForModeMatchesGolden` |
 | unit stage runs | -> | `yang_glue.go --check` passes (no stale `register.go`) | `TestYANGGlueCurrent` |
-| `make ze-verify` runs | -> | `ze-regen-check` present in `stagesForMode` | `TestStagesForModeIncludesRegenCheck` |
+| `make ze-verify` runs | -> | ~~`ze-regen-check`~~ write-safe read-only regen stage (`ze-regen-check-readonly`; R-1) present in `stagesForMode` | `TestStagesForModeIncludesRegenCheck` |
 | commit structural-gate read | -> | STRUCTURAL_GATES ⊆ live stage names | `test_structural_gates_are_live_stages` |
 
 ## Acceptance Criteria
@@ -131,7 +133,7 @@ feeder mirroring the plugin-imports feeder so `ze-yang-glue-check` rides the alr
 | AC-1 | Dead `_ze-verify-impl` / `_ze-verify-changed-impl` targets | deleted from `Makefile`; grep finds no `_impl` verify targets |
 | AC-2 | Guard test for both modes | asserts SET-EQUALITY of `stagesForMode` against a committed golden; fails if any stage added/removed or the two branches diverge from their goldens |
 | AC-3 | A `.yang` edited without `make generate` | `TestYANGGlueCurrent` fails under the unit stage (via `yang_glue.go --check`) |
-| AC-4 | `stagesForMode` for `ze-verify` | includes `ze-regen-check` (and `ze-verify-changed` per R-1 resolution) |
+| AC-4 | `stagesForMode` for both modes | ~~includes `ze-regen-check`~~ → includes the write-safe read-only regen stage (`ze-regen-check-readonly`, NOT the mutating `ze-regen-check`; R-1 resolution 2026-07-17) in BOTH branches |
 | AC-5 | STRUCTURAL_GATES | contains only names present in `stagesForMode`; `ze-cli-grammar-check` removed |
 
 ## 🧪 TDD Test Plan
@@ -148,9 +150,10 @@ feeder mirroring the plugin-imports feeder so `ze-yang-glue-check` rides the alr
 Test infrastructure only; no user-facing feature. The verify gate and its guards are validated by `make ze-verify` and the unit stage; no `.ci` functional suite applies.
 
 ## Files to Modify
-- `scripts/status/verify_run.go` - add `ze-regen-check` to `stagesForMode` (both branches).
+- `scripts/status/verify_run.go` - ~~add `ze-regen-check` to `stagesForMode` (both branches)~~ → add the write-safe read-only regen stage (`ze-regen-check-readonly`, NOT the mutating `ze-regen-check`; R-1 2026-07-17) to `stagesForMode` (both branches).
 - `scripts/status/verify_run_test.go` - strengthen guard to set-equality + committed golden; add regen-check assertion.
 - `Makefile` - delete `_ze-verify-impl` and `_ze-verify-changed-impl` and their stale comment block.
+- `Makefile` - add a write-safe read-only `ze-regen-check-readonly` target (composed of the existing `--check` invocations at `:436-444` plus `ze-plugin-imports-check` and `ze-ai-check`; NO `ze-regen` prerequisite, no tree writes); leave the mutating `ze-regen-check` for manual/regen use (R-1 2026-07-17).
 - `scripts/dev/commit_helper.py` - drop `ze-cli-grammar-check` from STRUCTURAL_GATES.
 
 ## Files to Create
@@ -158,7 +161,7 @@ Test infrastructure only; no user-facing feature. The verify gate and its guards
 
 ## Implementation Steps
 1. **Wiring first**: add `TestStagesForModeMatchesGolden` (set-equality, both modes) and `TestYANGGlueCurrent`; watch them FAIL against the current tree.
-2. Add `ze-regen-check` to both `stagesForMode` branches; resolve R-1 (write-safe vs clean-tree assertion) before committing to `ze-verify-changed`.
+2. Add ~~`ze-regen-check`~~ the write-safe read-only regen stage (`ze-regen-check-readonly`; R-1 resolved 2026-07-17 — see Notes) to both `stagesForMode` branches; do NOT wire the mutating `ze-regen-check` (it runs `ze-regen`).
 3. Delete the dead `_impl` targets and their comment; re-grep to confirm no caller (A-1).
 4. Remove `ze-cli-grammar-check` from STRUCTURAL_GATES; add the Python assertion that STRUCTURAL_GATES ⊆ live stage names.
 5. Run `make ze-verify` (or the unit + guard subset) and confirm green.
@@ -186,3 +189,9 @@ Test infrastructure only; no user-facing feature. The verify gate and its guards
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. All citations verified against source: `stagesForMode` omits `ze-cli-grammar-check`/`ze-regen-check`/`ze-yang-glue-check`; the `_impl` targets have zero callers; the guard is a 4-name subset check; CI runs only `make ze-verify`.
 - Open question for design step: should `ze-regen-check` join both mode branches given it regenerates files (R-1)? Confirm whether it can run write-safe under verify, or gate it behind a clean-tree assertion.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): NO — do not wire the mutating `ze-regen-check` into `stagesForMode`. Grounded finding: `ze-regen-check` (`Makefile:430`) is `ze-regen-check: ze-regen`; its prerequisite `ze-regen` (`Makefile:427`) runs `generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index`, which WRITES generated files (`all.go`, yang `register.go`/`embed.go`, `CLAUDE.md`/`AGENTS.md`, the `ai/*` doc indexes) and only THEN asserts `git diff --quiet` (`Makefile:431-435`). It therefore mutates the working tree before checking cleanliness — putting it in verify makes `make ze-verify` leave a dirty tree whenever anything is stale, violating R-1 (verify must not leave a dirty tree).
+DECISION: wire a WRITE-SAFE, read-only `--check`-style stage instead (proposed target `ze-regen-check-readonly`, implementer's name choice) that NEVER runs `ze-regen`. Compose it only from existing read-only checks that already detect the same staleness without writing: the recipe's own `--check` calls (`Makefile:436-444`: `code_to_docs.py --check`, `rules_index.py --check`, `arch_map.py --check`, `package_map.py --check`, `docs_to_code.py --check`, `learned_index.py --check`, `learned_numbers.py --check`, `skill_sync.sh --check`, `check_doc_links.py --md-only`) plus the standalone codegen checks `ze-plugin-imports-check` (`Makefile:102`, covers `all.go`) and `ze-ai-check` (`Makefile:424`, covers `CLAUDE.md`/`AGENTS.md`/skill mirrors). yang `register.go`/`embed.go` staleness is covered write-safe by the new `TestYANGGlueCurrent` feeder in the already-run unit stage. Wire `ze-regen-check-readonly` into BOTH `stagesForMode` branches; leave the mutating `ze-regen-check` as a manual/regen convenience, never in verify.
+COVERAGE OBLIGATION: before treating the read-only stage as equivalent, the implementer MUST confirm every `generate`/`ze-regen` output that the mutating `git diff` (`Makefile:431-435`) previously covered has a standalone `--check` (or a unit-stage feeder). Any `generate` output lacking one must get a read-only `--check` (or a feeder) — otherwise its staleness is silently unguarded. Fail loud; never silently regenerate under verify.
+Rationale: R-1 — verify must never leave a dirty working tree; the read-only `--check` variants give identical staleness detection without writing. STAKES: scope. Thomas: override if you would instead keep the single mutating `ze-regen-check` and guard verify with a clean-tree assertion that fails loudly when the tree is dirty after regen; the write-safe read-only variant is the conservative default.
+- Citation drift confirmed & corrected on 2026-07-17 (behavior verified real, line numbers re-grounded): `ze-regen-check` is at `Makefile:430` (its `ze-regen` prerequisite is `Makefile:427`), not `:427` as first written; `ze-cli-grammar-check` in `commit_helper.py` STRUCTURAL_GATES is at `:507` (frozenset opens `:500`), not `:499`. All other citations verified exact: `verify_run.go` `stagesForMode` :112-158 (both branches omit `ze-regen-check`/`ze-yang-glue-check`/`ze-cli-grammar-check`), dead `_impl` targets `Makefile:290`/`:297` (both still list `ze-cli-grammar-check`), guard `verify_run_test.go:345-363` (subset-of-4), `all_test.go:170` feeder, `yang_glue.go` `--check` :26, `.woodpecker/verify.yml:19` runs only `make ze-verify`.

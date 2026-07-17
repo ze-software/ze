@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -71,7 +71,7 @@ not by remembering to hand-edit the makefile. This spec fixes ENUMERATION; the s
 - `make ze-fuzz-test` (the fuzz gate, `mk/test-fuzz.mk:12`) is the real entry point. It is what invokes `go test -fuzz=`; a target absent here reaches mutation exploration nowhere in CI. The generator's discovery over `func Fuzz` feeds this gate.
 
 ### Transformation Path
-1. `ze-fuzz-test` invokes the discovery generator (`scripts/dev/fuzz-targets.py`).
+1. ~~`ze-fuzz-test` invokes the discovery generator (`scripts/dev/fuzz-targets.py`).~~ → SUPERSEDED (2026-07-17, checked-in default): `make generate` runs `scripts/dev/fuzz-targets.py`, which writes the committed `mk/test-fuzz-targets.mk`; `ze-fuzz-test` `include`s that fragment (no per-run generator shell-out). `fuzz-targets.py --check` runs in the verify gate (`ze-fuzz-targets-check`) to catch a stale fragment.
 2. The generator walks `internal/` for `func Fuzz<Name>`, mapping each to the exact package directory that contains it.
 3. For each (name, package) it emits `-fuzz=^<Name>$ -fuzztime=10s -timeout=60s <exact-pkg>`, anchoring the name and the package so neither matches "more than one".
 4. Each emitted invocation runs `$(GO_TEST) -fuzz=...`; ISIS/OSPF and any future fuzzer are now included with zero makefile edits.
@@ -94,7 +94,7 @@ not by remembering to hand-edit the makefile. This spec fixes ENUMERATION; the s
 | A-2 | Anchoring `-fuzz=^<Name>$` reproduces today's `$$`-anchored behaviour for prefix-colliding names | `mk/test-fuzz.mk:38,41,44` already anchor `FuzzParseVPN$$`/`FuzzParseFlowSpec$$`/`FuzzParseBGPLS$$` | un-anchored regexp errors "matches more than one fuzz target" |
 | A-3 | ISIS/OSPF parsers are bounds-safe today; discovery gives regression protection, not a live crash fix | code reasoning per decoder (resolve during implement) | R-1: a run finds a reachable panic |
 | R-1 | Enabling mutation on a never-fuzzed ISIS/OSPF target surfaces a real panic | crash on first `ze-fuzz-test` run | treat as a real defect: add the crashing seed to `testdata/fuzz/<Name>/` and fix the parser here |
-| R-2 | Dynamic generation makes the recipe opaque / non-reproducible in CI logs | reviewer cannot see which targets ran | generator echoes each resolved invocation before running; open question below on dynamic vs generated-and-verified fragment |
+| R-2 | Dynamic generation makes the recipe opaque / non-reproducible in CI logs | reviewer cannot see which targets ran | RESOLVED (2026-07-17): checked-in generated-and-verified `mk/test-fuzz-targets.mk` (see open-question default in Implementation Steps) makes the target set a committed, reviewable artifact; the `--check` freshness gate turns drift into a hard red |
 
 ## Wiring Test (MANDATORY)
 
@@ -103,6 +103,7 @@ not by remembering to hand-edit the makefile. This spec fixes ENUMERATION; the s
 | `make ze-fuzz-test` | -> | discovery emits an invocation for every `func Fuzz` incl. all 10 ISIS/OSPF | `TestFuzzDiscoveryCoversAllTargets` |
 | generator on a prefix-colliding name | -> | emits `-fuzz=^<Name>$` (anchored) | `TestFuzzDiscoveryAnchorsNames` |
 | generator on a package with a `yang` sibling | -> | emits the exact packet-package path, never `/...` | `TestFuzzDiscoveryExactPackagePath` |
+| `make ze-fuzz-targets-check` on a stale fragment | -> | `--check` regenerates in memory, diffs the committed `mk/test-fuzz-targets.mk`, exits non-zero | `TestFuzzDiscoveryCheckDetectsStale` |
 
 Concrete test: `TestFuzzDiscoveryCoversAllTargets` (Python `scripts/dev/fuzz_targets_test.py` or a Go test invoking the generator) asserts the emitted set of `Fuzz*` names equals `grep -rl '^func Fuzz' internal/` resolved to names, and specifically contains `FuzzISISDecodePDU`, `FuzzISISTLVIterator`, `FuzzISISRoundTrip`, and the 7 `FuzzOSPF*`.
 
@@ -115,6 +116,7 @@ Concrete test: `TestFuzzDiscoveryCoversAllTargets` (Python `scripts/dev/fuzz_tar
 | AC-3 | A package with a `yang` sibling package | the emitted path is the exact packet package; no "matches more than one package" error |
 | AC-4 | A new `func FuzzX` added to any package | it is picked up with no edit to `mk/test-fuzz.mk` (registration over hardcoding) |
 | AC-5 | `ze-fuzz-test` budget | stays a short-budget stage (10s/target, 60s timeout) fit for scheduled CI; `docs/functional-tests.md` count reconciled |
+| AC-6 | A `func Fuzz` added but `make generate` not run (checked-in default) | `make ze-fuzz-targets-check` (`fuzz-targets.py --check`) exits non-zero with `mk/test-fuzz-targets.mk is stale; run make generate`; after `make generate` it passes — mirrors `plugin_imports.go --check` for `all.go` |
 
 ## 🧪 TDD Test Plan
 
@@ -124,24 +126,30 @@ Concrete test: `TestFuzzDiscoveryCoversAllTargets` (Python `scripts/dev/fuzz_tar
 | `TestFuzzDiscoveryCoversAllTargets` | `scripts/dev/fuzz_targets_test.py` | AC-1, AC-4 | |
 | `TestFuzzDiscoveryAnchorsNames` | `scripts/dev/fuzz_targets_test.py` | AC-2 | |
 | `TestFuzzDiscoveryExactPackagePath` | `scripts/dev/fuzz_targets_test.py` | AC-3 | |
+| `TestFuzzDiscoveryCheckDetectsStale` | `scripts/dev/fuzz_targets_test.py` | AC-6 | |
 
 ### Functional Tests
 Test infrastructure only; no user-facing features. The discovery-driven gate is verified by a bounded `make ze-fuzz-test` run that reaches every ISIS/OSPF target; no `.ci` functional test applies.
 
 ## Files to Modify
-- `mk/test-fuzz.mk` - replace the hand-listed `-fuzz=<Name>` block with a discovery-driven recipe (non-test feature file)
-- `scripts/dev/fuzz-targets.py` - new discovery generator (Python per project convention)
+- ~~`mk/test-fuzz.mk` - replace the hand-listed `-fuzz=<Name>` block with a discovery-driven recipe (non-test feature file)~~ → SUPERSEDED (2026-07-17, checked-in default): `mk/test-fuzz.mk` replaces its hand-list with `include mk/test-fuzz-targets.mk` and keeps only the `ze-fuzz-one` manual target (non-test feature file)
+- `scripts/dev/fuzz-targets.py` - new discovery generator (Python per project convention); write mode (default, via `make generate`) + `--check` mode (freshness gate)
+- `mk/test-fuzz-targets.mk` - NEW generated-and-verified checked-in fragment (`# Code generated by scripts/dev/fuzz-targets.py; DO NOT EDIT.`), one anchored `$(GO_TEST) -fuzz=^<Name>$$ ...` line per discovered target; `include`d by `mk/test-fuzz.mk` (non-test feature file)
+- `Makefile` - add `ze-fuzz-targets-check` target (runs `fuzz-targets.py --check`, sibling of `ze-plugin-imports-check` at `:102-103`) and call the generator from `generate:` (`:98-100`)
+- `scripts/dev/verify_wiring_docs.py` - add the `--check` invocation to the generated-file freshness list (alongside `plugin_imports.go --check` at `:718`) so a stale fragment fails the verify gate
 - `docs/functional-tests.md` - reconcile the Fuzz Target Areas list / count to the discovered set (discovery update)
 - ISIS/OSPF parser sources - only if R-1 fires and a fuzzer finds a defect
 
 ## Implementation Steps
-1. **Wiring first** - write `scripts/dev/fuzz-targets.py`: walk `internal/` for `func Fuzz`, resolve each to its exact package dir, emit `-fuzz=^<Name>$ -fuzztime=10s -timeout=60s <pkg>`. Point `ze-fuzz-test` at it. Confirm all 10 ISIS/OSPF targets appear (AC-1).
+1. **Wiring first** - write `scripts/dev/fuzz-targets.py`: walk `internal/` for `func Fuzz`, resolve each to its exact package dir, emit `-fuzz=^<Name>$ -fuzztime=10s -timeout=60s <pkg>`. ~~Point `ze-fuzz-test` at it.~~ → (2026-07-17 checked-in default) have the generator WRITE `mk/test-fuzz-targets.mk` (with `$$`-escaped anchors) and add `--check`; call it from `make generate`; make `mk/test-fuzz.mk` `include` the fragment; add `ze-fuzz-targets-check` to the verify path (AC-6). Confirm all 10 ISIS/OSPF targets appear (AC-1).
 2. **Anchoring + exact path** - handle prefix-colliding names (A-2) and `yang`-sibling packages (A-3); add the three discovery unit tests.
 3. **Reconcile docs** - update `docs/functional-tests.md` list and count to the discovered set (discovery-updates rule).
 4. **Run + triage** - bounded `make ze-fuzz-test`; if a crash surfaces (R-1), add the seed under `testdata/fuzz/<Name>/` and fix the parser here.
 5. **Verify + close** - `make ze-test`, `plan/learned/NNN-<name>.md`, two-commit closure.
 
 **Open question (resolve in `/ze-spec`):** dynamic run-time discovery (recipe calls the generator each run) versus a generated-and-verified checked-in `.mk` fragment gated for freshness like the composition root. Dynamic auto-includes with zero drift; generated-and-verified keeps CI logs explicit (R-2).
+
+→ AUTONOMOUS DEFAULT (2026-07-17): the **CHECKED-IN generated-and-verified `.mk` fragment**. `scripts/dev/fuzz-targets.py` (a) in write mode (default, invoked from `generate:` at `Makefile:98-100`) emits `mk/test-fuzz-targets.mk` — a committed fragment with header `# Code generated by scripts/dev/fuzz-targets.py; DO NOT EDIT.` and one anchored `$(GO_TEST) -fuzz=^<Name>$$ -fuzztime=10s -timeout=60s <exact-pkg>` line per discovered target (`$$` = make-escaped `$`, as `mk/test-fuzz.mk:38` already does); and (b) in `--check` mode regenerates in memory and diffs the committed fragment, exiting non-zero with `mk/test-fuzz-targets.mk is stale; run make generate` on drift. This mirrors `scripts/codegen/plugin_imports.go --check` for the composition root `internal/component/plugin/all/all.go` exactly (message at `scripts/codegen/plugin_imports.go:583,668`; gate target `ze-plugin-imports-check` at `Makefile:102-103`; freshness wiring at `scripts/dev/verify_wiring_docs.py:718`). `mk/test-fuzz.mk` replaces its hand-list with `include mk/test-fuzz-targets.mk` and keeps only `ze-fuzz-one`; a new `ze-fuzz-targets-check` target (sibling of `ze-plugin-imports-check`) runs `--check` and is added to the verify path. Rationale: reproducible and auditable — the exact target set is a committed, reviewable artifact visible in CI logs (answers R-2), a forgotten `make generate` becomes a hard verify-gate red rather than a silently-skipped fuzzer, and it reuses the repo's established generated-and-verified pattern instead of an opaque per-run shell-out; it is the more conservative/auditable option. Thomas: override to pure dynamic run-time discovery if you prefer zero committed fragment and accept opaque recipe logs. Dependent sections (Data Flow, Wiring, AC, Files, Implementation Steps) reconciled below.
 
 ## Checklist
 
@@ -164,3 +172,4 @@ Test infrastructure only; no user-facing features. The discovery-driven gate is 
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Verified: `mk/test-fuzz.mk` has 0 ISIS/OSPF references; 69 distinct `func Fuzz` names across 26 packages vs ~60 enumerated; `internal/plugins/{isis,ospf}/yang` exist (the `/...` hazard). Siblings `spec-fixit-parser-fuzz-gaps` and `spec-improve-8-fuzz-decode-context` add coverage; this spec fixes enumeration so written fuzzers actually run.
+- 2026-07-17 recount (append-only; the numbers drifted since the 2026-07-16 audit, which is itself the bug this spec fixes): `grep -rhoE '^func Fuzz[A-Za-z0-9_]+' internal/ | sort -u` = 72 distinct names across 29 packages; `mk/test-fuzz.mk` enumerates 63 `$(GO_TEST) -fuzz=` lines; ISIS/OSPF references still 0; the 10 ISIS/OSPF targets are present in source (`internal/plugins/isis/packet/fuzz_test.go`, `internal/plugins/ospf/packet/fuzz_test.go`). `docs/functional-tests.md:1647` still says "57 fuzz targets" — also stale (AC-5 reconciles it). Grounding for the checked-in default: `scripts/codegen/plugin_imports.go --check` (stale message `:583,668`), `Makefile:98-103` (`generate:` / `ze-plugin-imports-check`), gate wiring `scripts/dev/verify_wiring_docs.py:718`.

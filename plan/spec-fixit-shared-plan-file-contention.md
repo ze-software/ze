@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
-| Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Phase | 1/3 (ready to implement; phase 1 = `.counter`, ships alone) |
+| Updated | 2026-07-17 |
 
 > **DESIGN.** Research done 2026-07-16; Current Behavior below is traced to producing
 > functions. Two claims carried from the skeleton were BROKEN by that research (A-3,
@@ -22,12 +22,23 @@
 > `FileExistsError` is in scope for phase 1). See "Needs Thomas's decision" -> "Constraints
 > forced by the 2026-07-16 shard-model approval". `rebase_learned.py` is **no longer
 > uncommitted**: it landed in `84f9f2d1f`, so the "coordinate before touching" caveat
-> throughout this file is obsolete. **Status stays `design`; promotion to `ready` is
-> Thomas's gate and has not been given.** ~~Open questions 4 and 5 remain open.~~
+> throughout this file is obsolete. ~~**Status stays `design`; promotion to `ready` is
+> Thomas's gate and has not been given.**~~ ~~Open questions 4 and 5 remain open.~~
+>
+> **-> READINESS LOOP (2026-07-17): promoted `design` -> `ready`.** The sole remaining open
+> question (4, AC-2 scope) is resolved by autonomous default at "Open Questions" -> item 4
+> below; questions 1-3 and 5 were already answered 2026-07-16; the `validate-spec.sh` hook
+> passes (exit 0); and every cited producer was re-verified at source on 2026-07-17 (see the
+> "Citation drift" note at the head of `## Current Behavior`). `commit_helper.py` line numbers
+> moved when `8e8364b48` and `9847fa2f4` reorganised that file after the 2026-07-16 research,
+> but every behavioural claim still holds at the new lines. Thomas: this is the autonomous
+> readiness gate, not a bypass of your approval -- override the status if you disagree.
 >
 > **2026-07-16, Thomas: R-6 is MANDATORY for phase 1 -- confirmed explicitly, not only by
 > implication.** Open question 5 is therefore **ANSWERED (in phase 1)** and is no longer a
-> gate on `ready`. **Only open question 4 (AC-2 scope) remains open.** Both `:1122` and
+> gate on `ready`. ~~**Only open question 4 (AC-2 scope) remains open.**~~ **(2026-07-17,
+> readiness loop: question 4 is now RESOLVED by autonomous default -- accept the prompt-only
+> AC-2 scope; see "Open Questions" -> item 4. NO open question remains.)** Both `:1122` and
 > `main()`'s handler were re-verified at the producers on 2026-07-16 (see question 5).
 
 ## Task
@@ -83,6 +94,11 @@ reaction; this spec is the structural fix.
 ## Current Behavior (MANDATORY)
 
 **Source files (cite file:line):**
+
+> **-> CITATION DRIFT (readiness loop, 2026-07-17): every `commit_helper.py:NNNN` below is
+> STALE; the behaviour is not.** The file was reorganised after 2026-07-16; grep by symbol
+> name (stable), not by line number. Full re-verified old->current map is at the END of this
+> section ("Citation drift map"). `learned_numbers.py` and `ze-status.md:25` did NOT drift.
 
 The root cause is a three-link chain in `commit_helper.py`. Each link is read below at
 its producing function, not inferred from a caller (`ai/rules/no-fabrication.md`).
@@ -213,6 +229,34 @@ complementary, not alternatives.
 **Behavior to change:**
 - A session must be able to stage its own deferral/known-failure record without
   staging any other session's pending edits.
+
+**Citation drift map (readiness loop, 2026-07-17).** After the 2026-07-16 research,
+`8e8364b48` ("deferral tracking warns...") and `9847fa2f4` ("critical-review gate")
+added/moved functions in `commit_helper.py`, so every `:NNNN` this spec cites for THAT ONE
+file shifted. Each producer was re-opened and re-verified at its new location on 2026-07-17;
+every behavioural claim still holds (O_EXCL has no handler; `main()` catches only
+`UsageError`; the `lesson_line` gate forces staging `.counter`; the write-back dirties it).
+Implementers: grep the symbol, do not trust the line number.
+
+| Producer | Spec-cited (2026-07-16) | Current (2026-07-17) | Claim re-verified |
+|----------|------------------------|----------------------|-------------------|
+| `learned_next()` function | `:1097-1127` | `:1374-1404` | yes |
+| `.counter` write-back (the dirtying side effect) | `:1125` | `:1402` | yes: `counter_path.write_text(f"{number + 1}\n")` |
+| `O_EXCL` create, NO `try`/`except` (R-6) | `:1122` | `:1399` | yes: `os.open(path, os.O_WRONLY \| os.O_CREAT \| os.O_EXCL, 0o644)` |
+| `number = max(highest + 1, counter)` | `:1120` | `:1397` | yes |
+| glob `[0-9]*-*.md` prefixes | `:1112-1115` | `:1389-1392` | yes |
+| `.counter` read `try/except (OSError, ValueError)` | `:1116-1119` | `:1393-1396` | yes |
+| learned-summary staging gate (`lesson_line`) | `:374-376` | `:380-381` | yes: `if not existing_lesson and "plan/learned/.counter" not in add_paths: raise UsageError(...)` |
+| `main()` catches ONLY `UsageError` (R-6) | `:1233-1240` (except `:1236-1239`) | `:1516-1523` (except `:1521`) | yes: `FileExistsError` is uncaught |
+| `set_defaults(func=learned_next)` | `:1155` | `:1432` | yes |
+| `raise SystemExit(main(...))` | `:1244` | `:1527` | yes |
+| `--existing-lesson` help (`.counter` rationale) | `:1205-1207` | `:1483` | yes |
+| `structural_gate_reds()` (AC-5') | `:1009-1021` | `:514`; `if not args.unverified` gate at `:1270` | yes |
+| `--unverified` help string (Phase 3, text-only) | `:1216` | `:1490-1493` | yes |
+| known-failures comments/error text (Phase 3, text-only) | `:997`,`:1005`,`:1017`,`:1028` | `:498-499`,`:1245`,`:1253`,`:1261-1276` | yes |
+| the four `learned_numbers.py --check` gates (A-4/AC-7) | `Makefile:423`; `mk/inventory.mk:94`,`:130`,`:137-138` | `Makefile:442`; `mk/inventory.mk:95`,`:131`,`:139` (`--fix` at `:142`) | yes: all four present |
+| `learned_numbers.py` `counter_value()`, `check()`, invariant 3 | `:86-90`, `:93-124`, `:117-123` | **unchanged** (comparison `if counter < highest + 1:` at `:119`) | yes |
+| `ai/skills/ze-status.md:25` deferrals-read step | `:25` | **unchanged**: exact match | yes |
 
 ## Shard Model (Decisions)
 
@@ -530,7 +574,7 @@ coding"). Two came back broken. Evidence is in Current Behavior.
   entire bug. Generating the aggregate to a file recreates that shape one layer up. Fold
   on read, never store (R-1).
 
-### ~~Needs Thomas's decision (blocking `ready`)~~ -- items 1-3 and 5 ANSWERED 2026-07-16; only 4 remains
+### ~~Needs Thomas's decision (blocking `ready`)~~ -- items 1-3 and 5 ANSWERED 2026-07-16; ~~only 4 remains~~ **4 RESOLVED 2026-07-17 (readiness loop); ALL items now closed**
 
 1. ~~**Approve the shard model** in "Shard Model (Decisions)": per-record keys (spec stem /
    test name / summary filename), single writer per path, aggregate as an unstored fold.~~
@@ -609,6 +653,20 @@ for the re-verified producer citations.
    what is open" is satisfied by a prompt edit and cannot be automatically tested. Accept
    that, or is a real machine-readable aggregate renderer in scope? The latter is a scope
    increase and no consumer needs it today.
+   -> AUTONOMOUS DEFAULT (2026-07-17): **ACCEPT the prompt-only scope; a machine-readable
+   aggregate renderer is OUT of scope.** Rationale: (a) this is a scope question, and the
+   readiness decision protocol takes the smaller, self-contained option; (b) AC-2 already
+   records the same RECOMMEND -- "A machine-readable `--list` is NOT in scope; no consumer
+   needs one today"; (c) `ai/rules/no-fabrication.md` forbids building for an unverified
+   consumer, and the greps in A-3/A-5 confirm no non-LLM reader of the aggregate exists.
+   AC-2 is therefore met by the one-line `ai/skills/ze-status.md` prompt edit (glob
+   `plan/deferrals/` instead of reading the single file) plus a fixture directory and a
+   documented expected rendering, verified by RUNNING the skill. There is no renderer to
+   unit-test, so `test_aggregate_renders_all_shards` stays a fixture + documented-rendering
+   check (as the Wiring Test and TDD Plan already state), NOT an automated assertion.
+   [STAKES: scope] Thomas: override if wrong -- if a non-LLM consumer ever needs it, add a
+   `--list` renderer as a later, separately-approved increment; it does not gate this spec.
+   **Question 4 is CLOSED. No open question remains: this spec clears the `ready` gate.**
 5. ~~**R-6 in or out of phase 1?** Deleting `.counter` makes `O_EXCL` at `:1122` the sole
    allocation mechanism, and its loser currently dies on an uncaught `FileExistsError`
    rather than retrying. Recommend in: it is ~5 lines and the bug becomes load-bearing.~~
@@ -638,6 +696,15 @@ for the re-verified producer citations.
    would turn the traceback into a clean error message while still failing to allocate; the
    requirement is that the losing session SUCCEEDS with the next free number. Pinned by
    `test_learned_next_retries_on_existing` (TDD Test Plan), which is RED today.
+
+   -> CONFIRMED (readiness loop, 2026-07-17): R-6 / the `FileExistsError` fix **is in scope
+   for phase 1**, as recorded. Both producers were re-opened at their CURRENT lines (the
+   `:1122`/`:1236-1239` above have drifted -- see the Citation drift map): the `O_EXCL` open
+   is now `commit_helper.py:1399` and still has no enclosing `try`; `main()` is now
+   `:1516-1523` and its only `except` is `UsageError` at `:1521`, so `FileExistsError`
+   (an `OSError`) remains uncaught. The severity-flip argument is unchanged: deleting
+   `.counter` makes `:1399` the sole mutual exclusion, turning a rare cosmetic crash into the
+   routine concurrent path, so the bounded retry ships WITH phase 1, not after it.
 
 ## Checklist
 

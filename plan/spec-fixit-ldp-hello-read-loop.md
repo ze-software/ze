@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -107,6 +107,7 @@ semantics and clean ctx-cancel shutdown.
 | N Hellos arrive within one `HelloInterval` on one socket | -> | dedicated reader drains all N, `AdjacencyTable.Len() == N` | `TestDiscoveryDrainsBurst` |
 | ctx cancel / socket close while reader is blocked | -> | reader goroutine returns, no leak | `TestDiscoveryReaderExitsOnCancel` |
 | `helloTicker` fires with no inbound traffic | -> | `sendHello` still runs on cadence | `TestDiscoverySendUnaffectedByReads` |
+| N LDP neighbors on a shared segment converge and stay adjacent across full intervals (no flap) | -> | reader drains every neighbor's Hello each interval; `show ldp neighbor` lists all N, none age out | `test/ldp/ldp-convergence.ci` |
 
 Concrete test: `TestDiscoveryDrainsBurst` binds a loopback multicast socket, writes N (e.g. 5) valid
 Hello datagrams back-to-back into it inside a single `HelloInterval`, runs the reader, and asserts

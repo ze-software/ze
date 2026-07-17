@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -231,7 +231,9 @@ names, `:351-404`); (b) all these checks are bind-availability probes
 | AC-7 | Running daemon, SIGHUP reload moves a service built without authentication (e.g. insecure web) to a non-loopback address | `ReloadListeners` refuses that service's migration with an error naming it; daemon continues serving on the previous addresses |
 
 AC-7 was added during design (fail-closed corollary of A-5: a boot-only guard fails open
-on reload). Flagged for Thomas's confirmation; the rest of the spec stands without it.
+on reload). ~~Flagged for Thomas's confirmation; the rest of the spec stands without it.~~
+→ RESOLVED (2026-07-17, AUTONOMOUS DEFAULT): AC-7 stays in this spec (open question 1). A
+reload path a boot-only guard cannot see fails open, so the reload gate is in-scope.
 
 ## 🧪 TDD Test Plan
 
@@ -304,7 +306,7 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 3. **Phase: semantic validation parity** -- `GNMIListenConfig.Validate`, `ValidateSemantics` + `cmd_validate.go` wiring, `config-gnmi-invalid` code registration. Tests: `TestGNMIListenConfigValidate`, `TestValidateSemanticsFlagsGNMI`.
 4. **Phase: doctor** -- "gnmi" listener default, hardcoded fallback entry, doctor functional test. Verify with the doctor coverage tests named in `ai/rules/doctor-checks.md`.
 5. **Phase: LG TLS default + optional auth gate** -- YANG default flip, extraction default, env default on the env-enable path, token leaf + env registration, LG token middleware. Tests: `TestExtractLGConfigTLSDefaultOn`, `TestLGTokenMiddleware`, `lg-tls-default-on.ci`.
-6. **Phase: reload gate (AC-7, pending Thomas's confirmation)** -- classifier check in `ReloadListeners`; `test/reload` .ci.
+6. **Phase: reload gate (AC-7, ~~pending Thomas's confirmation~~ CONFIRMED in-scope 2026-07-17, AUTONOMOUS DEFAULT)** -- classifier check in `ReloadListeners`; `test/reload` .ci.
 7. **Functional + QEMU boot tests** -- run the new .ci suites natively; then `make ze-qemu-all-test` covers them in the Alpine VM, and the appliance boot path gets one QEMU scenario: boot a gokrazy-style config with gNMI exposed (expect refusal message on console) then the remedied config (expect ready) -- see `ai/rules/qemu-testing.md`; no `needs-linux` marks needed since the tests are config/refusal-only.
 8. **Full verification** -- `make ze-verify`.
 9. **Complete spec** -- audit tables, release-notes entry (R-1/R-2), `plan/learned/NNN-<name>.md`, two-commit closure.
@@ -338,12 +340,12 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 | Boot also runs `MCPListenConfig.Validate` (+ new gNMI Validate) | guard-only coverage | Reuses the existing precise error messages; covers inconsistencies beyond the loopback rule (bearer without token, oauth without TLS) that the guard alone would miss |
 | LG exempt from the unauth refusal; gets TLS-default-on + optional token instead | hard-fail LG like gNMI/MCP | A looking glass is an intentionally public, read-only surface (birdwatcher-compatible API); refusing unauthenticated LG would break its primary use case. TLS default + opt-in token addresses the audit finding at its severity (MEDIUM) |
 | Classifier treats unparseable hosts as non-loopback | parse-or-skip | Both existing producers already fail closed (`api.go:30-31`, `loader_extract.go:181-189`); a DNS name must not smuggle remote reachability |
-| Reload migrations gated by the same classifier (AC-7) | boot-only guard | `ReloadListeners` (`listener_migrate.go:77-117`) can move a running unauthenticated listener non-loopback; a guard that a SIGHUP can bypass fails open. Pending Thomas's scope confirmation |
+| Reload migrations gated by the same classifier (AC-7) | boot-only guard | `ReloadListeners` (`listener_migrate.go:77-117`) can move a running unauthenticated listener non-loopback; a guard that a SIGHUP can bypass fails open. ~~Pending Thomas's scope confirmation~~ CONFIRMED in-scope 2026-07-17 (AUTONOMOUS DEFAULT) |
 
 ## Known Limitations
 - Env-var exposure (`ze.mcp.listen`, `ze.gnmi.*`, `ze.web.insecure`) is enforced by the boot guard only; `ze doctor` and `ze config validate` inspect a config file and cannot see another process's environment (R-5).
 - SSH, plugin hub, telemetry/Prometheus, and the managed server are out of the guard's declaration set by design (A-4): SSH authenticates by protocol, hub enforces min-32 secrets (`loader_extract.go:508-527`), Prometheus defaults loopback and is read-only metrics. Doctor bind probes still cover them.
-- gNMI token-over-plaintext (token set, no TLS) still boots: the guard enforces authentication, not transport secrecy. TLS-required-for-token is a possible follow-up, noted for Thomas.
+- gNMI token-over-plaintext (token set, no TLS) still boots: the guard enforces authentication, not transport secrecy. TLS-required-for-token is a possible follow-up (open question 4, resolved 2026-07-17: NOTED FOLLOW-UP, not this spec).
 - Auth-mode changes on SIGHUP reload do not take effect (servers are built once); AC-7 only prevents the address from moving into exposure. Full reload-time auth rebuild is out of scope.
 - `ze start --web-only` paths are unaffected: the flag clamp (`ze_core_start.go:138-150`) already forces loopback for insecure web-only, and `ze.web.insecure` is not consulted on that path (`RunWebOnly` -> `runWebOnly`, `service_web.go:88-115`).
 
@@ -370,5 +372,9 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; verifier V1 corrected both earlier passes (MCP guard exists but does not run at boot; the insecure-web YANG path is clamped, only the env path bypasses). Deepened to design 2026-07-16: all citations re-verified against the working tree; the doctor claim was corrected (MCP is present in the hardcoded fallback at `checks_listener.go:83-87`; the schema path already discovers gNMI; the actual gaps are the missing "gnmi" listener default, the missing gNMI semantic Validate, and bind-probe-vs-exposure semantics).
 - Open questions for Thomas: (1) confirm AC-7 (reload-migration gate) stays in this spec vs a follow-up; (2) confirm LG's exemption from the unauth refusal (public looking glass) plus TLS-default-on is the intended posture for finding 4; (3) whether existing clamp paths (web YANG insecure, MCP no-bind-remote, --insecure-web flag) should eventually converge on hard-fail too -- this spec keeps them clamping, which the guard then passes; (4) gNMI token-over-plaintext follow-up (Known Limitations).
+  - → AUTONOMOUS DEFAULT (2026-07-17): (1) AC-7 (reload-migration gate) STAYS IN THIS SPEC. Rationale: `ReloadListeners` (`cmd/ze/hub/listener_migrate.go:77-117`, verified 2026-07-17 -- extracts new addrs and reconfigures web/lg/mcp/rest/grpc with no auth re-check) can move a running unauthenticated listener non-loopback after boot; a guard a SIGHUP can bypass fails open (`ai/rules/fail-closed-guards.md`). The fail-closed choice keeps the reload gate in-scope. Thomas: override if wrong.
+  - → AUTONOMOUS DEFAULT (2026-07-17): (2) LG STAYS EXEMPT from the unauth refusal (intentionally public, read-only, birdwatcher-compatible surface) and instead gets TLS-default-on + optional bearer token. Rationale: refusing unauthenticated LG would break its primary public use case; TLS-default + opt-in token addresses the MEDIUM finding (Task finding 4, Key Design Decisions row) at its severity, without over-reaching to hard-fail. Thomas: override if wrong.
+  - → AUTONOMOUS DEFAULT (2026-07-17): (3) existing clamp paths (web YANG insecure `loader_extract.go:119-127`, MCP loopback clamp `:323-331`, `--insecure-web` flag `ze_core_start.go:138-140`) KEEP CLAMPING; the guard then sees only loopback and passes them. Converging them on hard-fail is a NOTED FOLLOW-UP, not this spec. Rationale: smaller self-contained scope, and no fail-open gap remains -- the clamps run BEFORE the guard (Behavior to preserve, above) so a clamped path never presents non-loopback. Thomas: override if wrong.
+  - → AUTONOMOUS DEFAULT (2026-07-17): (4) gNMI token-over-plaintext hard-fail (token set, no TLS) is a NOTED FOLLOW-UP (Known Limitations), not this spec. Rationale: this spec's guard enforces authentication, not transport secrecy; no regression vs today (the token still authenticates), and TLS-required-for-token is additive/reversible, deferrable without leaving a fail-open gap. Thomas: override if wrong.
 - Shared-file coordination: the in-flight bcrypt spec also edits `cmd/ze/hub/service_web.go` (R-3). This spec does not modify `startWebServer` internals.
 - Feeds `plan/spec-release-audit-1-surface-inventory.md` as verified evidence for the management-surface inventory.

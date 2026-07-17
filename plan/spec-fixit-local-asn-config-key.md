@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -45,6 +45,23 @@ now `plan/spec-bgp-deferred-confederation-otc.md`). Not previously in any spec's
 | 4 | The YANG declares it at `session/asn/local`; no top-level `local-as` leaf exists | `internal/component/bgp/yang/ze-bgp-conf.yang:85` (the only other `local` leaf, `:446`, is a per-peer override) |
 | 5 | Callers: role at `role.go:155`, gr at `gr.go:175` | both assign the 0 result into live filter state |
 
+**Verified at runtime, 2026-07-17 (readiness pass).** Ran the committed functional
+test that is supposed to guard this behavior and read the raw wire capture:
+`bin/ze-test bgp plugin 390` (`role-otc-egress-stamp`), 3/3 deterministic PASS,
+with `--save` artifacts inspected. Findings that CONFIRM the root cause and resolve
+the Design-Insights contradiction below:
+
+| # | Runtime fact | Evidence |
+|---|--------------|----------|
+| R1 | The OTC attribute is NOT on the wire. The dest ze-peer received the forwarded UPDATE with `ORIGIN, AS_PATH=[65000 65001], NEXT_HOP` and **no** ATTR_35, reporting `Differences: - ATTR_35: 0000fde8 (missing)` | save artifact `peer-stderr.log` for test 390 |
+| R2 | Confirms Consequence 1: `getLocalASN()` returns 0 (top-level `local-as` absent), so `otc.go:430` `localASN > 0` skips the stamp, exactly as the producer analysis predicts | `otc.go:429-436`, corroborated by R1 |
+| R3 | The AS_PATH prepend of the local AS 65000 DOES work on the same UPDATE. Only the role plugin's key read is broken; the reactor forward path parses the per-peer effective local AS correctly. This is why the "populate `PeerFilterInfo.LocalAS`" fix is viable | R1 (AS_PATH shows 65000 prepended); `peer_forward_facts.go:134` (`s.GlobalLocalAS` in scope) |
+| R4 | Test 390 reports PASS anyway (3/3), deterministically. The dest peer detects the mismatch but its failure does not govern the test verdict, so the `.ci` guards nothing today. This is a VACUOUS test in the exit-code-masking defect class (`peer_contract.go:10-17`, overlaps `plan/spec-fixit-redistribute-establishment-stall.md`) | `bin/ze-test bgp plugin 390` exit 0 while R1 holds |
+
+Consequence for implementation: the Wiring-first phase MUST first make test 390 actually
+RED (its dest wire assertion must both run and govern the verdict) BEFORE the reader fix,
+otherwise a green test proves nothing. See AC-2 and Known Limitations.
+
 **Consequence 1: OTC egress stamping never happens (RFC 9234 R008).**
 `getLocalASN` (`internal/component/bgp/plugins/role/role.go:66`) returns 0, and the
 egress stamp is skipped by the `localASN > 0` guard
@@ -69,6 +86,18 @@ whether the helper belongs in one shared place (both plugins reading the same tr
 path) or whether each plugin keeps its own reader, per
 `ai/rules/plugin-self-containment.md`. Deleting one copy in favor of an import across
 plugin boundaries may not be legal here: check the tier rules first.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): Adopt the "Preferred fix" below (populate
+`filterapi.PeerFilterInfo.LocalAS` on the forward path; both plugins read `dest.LocalAS`;
+delete BOTH `extractLocalASN` copies). Do NOT introduce a shared cross-plugin reader and
+do NOT import one plugin's helper into the other. Rationale: (a) it removes the root cause
+rather than renaming a broken key in two places; (b) it needs no cross-plugin import, so it
+sidesteps the tier / self-containment question entirely (each plugin still reads only the
+`filterapi` value the reactor already hands it); (c) R3 above proves the reactor already
+computes the correct per-peer effective local AS, and the forward-path builder already has
+it in scope (`peer_forward_facts.go:134`), so the field can be filled for the forward path
+just as `reactor_api_batch.go:829-833` already fills it for the readvertise path; (d) it is
+the only option that gets the per-peer local-as override case right. Thomas: override if wrong.
 
 ## Key Design Decision
 
@@ -96,6 +125,22 @@ blast radius, but keeps two readers, reimplements inheritance in JSON, and gets 
 per-peer-override case WRONG. Take it only if the forward-path field cannot be populated
 for some peer class; justify against `ai/rules/plugin-self-containment.md` and the tier
 rules first.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): Take the Preferred fix, NOT the Fallback. Rationale:
+the spec already RECOMMENDs it and the readiness-pass runtime evidence (R1-R4) shows it is
+safe and correct: the reactor already parses the effective local AS and already populates
+`PeerFilterInfo.LocalAS` on the readvertise path, so the forward-path builder only needs the
+one-line analogue at `peer_forward_facts.go:123-128` (fill `LocalAS: s.GlobalLocalAS`, or the
+per-peer effective `s.LocalAS` when iBGP detection must honor a per-peer override, decide by
+reading `peersettings.go:236-243`, which distinguishes `GlobalLocalAS` from the effective
+`LocalAS`). Both plugins then drop `extractLocalASN` and read `dest.LocalAS`. The Fallback is
+rejected because it reimplements group/peer inheritance in plugin JSON and mis-detects iBGP
+under a per-peer override. Thomas: override if wrong.
+→ PROVISIONAL sub-choice: for the OTC egress stamp (a single global-scope local AS, RFC 9234
+R008) use `s.GlobalLocalAS`; for LLGR iBGP detection (which compares against the peer's own
+AS) use the effective per-peer `s.LocalAS`. If a single field must serve both, prefer the
+effective `s.LocalAS` and revisit OTC once an override peer is exercised. Reversible in code;
+override before it ships if interop shows otherwise.
 
 **Related spec / ordering.** `plan/spec-bgp-deferred-confederation-otc.md` schedules this
 same role-plugin key fix as its Phase-1 "Prerequisite" (that spec's Implementation step 1
@@ -224,13 +269,22 @@ declare `Depends` on THIS spec, and this one should land first.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| [name] | `test/interop/scenarios/` | FRR or BIRD | OTC is present on egress and accepted | |
+| `role-otc-egress` (extend the existing `20-role-frr`) | `test/interop/scenarios/20-role-frr/` | FRR | With a global local AS set and a Customer/RS-client session, the route Ze advertises to FRR carries OTC = local AS, and FRR accepts it | |
 
 ## Files to Modify
 - `internal/component/bgp/plugins/role/config.go` - read the correct tree path
 - `internal/component/bgp/plugins/gr/gr_llgr.go` - same, or share one reader
 - `internal/component/bgp/plugins/role/config_test.go` - drive from a real tree
 - `internal/component/bgp/plugins/gr/` - egress filter test for the iBGP branch
+
+Added 2026-07-17 for the chosen Preferred approach (populate `PeerFilterInfo.LocalAS`
+on the forward path; both plugins read `dest.LocalAS`; delete both `extractLocalASN`):
+- `internal/component/bgp/reactor/peer_forward_facts.go` - fill `LocalAS` on the forward-path `PeerFilterInfo` (today omitted at `:123-128`; value already in scope as `s.GlobalLocalAS`/`s.LocalAS` at `:134`). No new `filterapi` field: `PeerFilterInfo.LocalAS` already exists (`filterapi.go:36`).
+- `internal/component/bgp/plugins/role/otc.go` - stamp from `dest.LocalAS` (or `src`), not `getLocalASN()`; drop the package-global `filterLocalASN`/`getLocalASN` plumbing (`role.go:52,55-70,155,158`)
+- `internal/component/bgp/plugins/gr/gr_egress.go` + `gr/gr.go` - compare `dest.PeerAS` against `dest.LocalAS`, not the captured `egressFilterState.localAS`
+- `internal/component/bgp/plugins/gr/gr_llgr.go` - delete `extractLocalASN` (root cause removed, not renamed)
+- `test/plugin/role-otc-egress-stamp.ci` - make the dest peer's ATTR_35 wire assertion actually GOVERN the verdict (today it detects the mismatch but the test still reports PASS, R4); this is the Wiring-first failing test for AC-2
+- `test/interop/scenarios/20-role-frr/` - extend to assert OTC on egress to FRR
 
 ## Implementation Steps
 
@@ -241,6 +295,7 @@ declare `Depends` on THIS spec, and this one should land first.
 3. **Phase: Prove the revived paths** - OTC stamping (AC-2) and the LLGR iBGP branch (AC-3)
    - Verify: both paths run for the first time; watch for bugs behind the bug (A-3)
 4. **Phase: De-duplicate or justify** - one reader or two, decided against `ai/rules/plugin-self-containment.md` and the tier rules
+   - → AUTONOMOUS DEFAULT (2026-07-17): DELETE both `extractLocalASN` copies (no shared reader, no cross-plugin import). Each plugin instead reads the `filterapi.PeerFilterInfo.LocalAS` value the reactor hands it. Self-containment is preserved because neither plugin imports the other; both consume the same reactor-provided field. See the resolved Key Design Decision. Thomas: override if wrong.
 5. **Functional + interop tests**
 6. **Full verification** → `make ze-verify`
 
@@ -277,8 +332,35 @@ declare `Depends` on THIS spec, and this one should land first.
      `expect=bgp:...hex=...` wire assertions (not exit-code-only), so vacuity is not
      obvious; resolve which during design BEFORE trusting Consequence 1.
 
+  → RESOLVED (2026-07-17, readiness pass, verified by running the test): Consequence 1
+    STANDS -- OTC is NOT stamped. Ran `bin/ze-test bgp plugin 390` (3/3 PASS) and read the
+    `--save` wire capture: the dest ze-peer received the UPDATE with `AS_PATH=[65000 65001]`
+    but reported `ATTR_35: 0000fde8 (missing)`. So the wire assertion FAILS at the peer, yet
+    the test still reports PASS. The `.ci` therefore passes VACUOUSLY: its `expect=bgp` ATTR_35
+    assertion does not govern the verdict (the check-mode dest peer's failure is not propagated
+    -- the same masking class as `peer_contract.go:10-17`). The root-cause analysis is CORRECT,
+    not incomplete: the AS_PATH prepend works because the reactor forward path uses the per-peer
+    effective local AS, while OTC stays 0 because `getLocalASN()` reads the absent top-level key.
+    Action for the implementer: in the Wiring-first phase, first make test 390 RED (assertion
+    must run AND govern), then land the reader fix so it goes green for the right reason. See
+    Current Behavior "Verified at runtime" rows R1-R4.
+
 ## Known Limitations
-- [To be filled during design]
+- **The committed AC-2 guard is vacuous today.** `test/plugin/role-otc-egress-stamp.ci`
+  reports PASS while the OTC attribute is missing on the wire (verified 2026-07-17, R4).
+  Until its dest-peer wire assertion both runs and governs the verdict, it proves nothing;
+  the fix is not "done" merely because this test stays green. Fixing the masking may overlap
+  `plan/spec-fixit-redistribute-establishment-stall.md`; scope the minimum needed to make
+  THIS test enforce ATTR_35, and note any broader harness gap for that spec.
+- **Reviving two never-run paths may surface further bugs (A-3).** OTC egress stamping and
+  the LLGR iBGP branch have never executed against a real config. Their first real exercise
+  (AC-2, AC-3) may expose a second defect behind this one; treat a green reader fix as
+  necessary, not sufficient, until the functional and interop tests assert the RFC behavior.
+- **`GlobalLocalAS` vs effective `LocalAS` is a per-callsite choice.** OTC (R008) wants the
+  global local AS; LLGR iBGP detection wants the peer's effective AS under a per-peer override.
+  This spec does not unify them into one field; see the PROVISIONAL sub-choice in Key Design
+  Decision. A per-peer local-as override interacting with OTC is out of scope here and left
+  for a follow-up once an override peer is exercised.
 
 ## Checklist
 

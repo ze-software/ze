@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Task
 
@@ -55,6 +55,25 @@ issues the query passes while having no LSP. That mechanism is UNVERIFIED here a
 read at the producer before anything changes. The rule is not blocking anyone; it is lying
 to them, and its table blames them for noticing. Decide whether the rule gains a subagent
 carve-out, or the gate learns to tell a load from a query.
+
+-> AUTONOMOUS DEFAULT (2026-07-17): give the RULE a subagent carve-out in
+`.claude/rules/session-start.md`; do NOT change `block-until-lsp.sh`. Mechanism now
+VERIFIED at the producer (was UNVERIFIED above): `.claude/hooks/block-until-lsp.sh:36`
+lifts the gate whenever the ToolSearch query text matches `LSP` (`grep -qi "LSP"`),
+regardless of whether a tool actually loaded; the comment at `:32-35` makes this
+deliberate ("false-positive unblock is small; false-negative block is a stuck session").
+So the gate ALREADY passes for a subagent that issues the query and gets "No matching
+deferred tools found" — nothing is broken at the gate. The only fix owed is to stop the
+rule's "banned excuses" table from telling subagents they must LOAD a tool that their
+harness does not expose. Rationale: (1) a PreToolUse hook cannot observe ToolSearch
+RESULTS, only the query, so it structurally cannot "tell a load from a query" without new
+post-tool signalling — the larger, riskier option; (2) A-3/R-2 warn LSP absence is a
+harness property that may change without notice, so a doc carve-out is reversible while a
+gate rewrite bakes in today's behaviour; (3) the carve-out weakens no gate (the gate is
+unchanged and still fires for main-session agents who skip the query). This DROPS
+`.claude/hooks/block-until-lsp.sh` from Files to Modify and keeps
+`.claude/rules/session-start.md`. Thomas: override if you want the gate itself to
+distinguish a real load.
 
 ### T-3: the commit gate's remediation does not work
 
@@ -158,6 +177,13 @@ None of the four needs an architectural change. Each is a narrowing or a stale s
 inside an existing, correct gate. If a fix appears to need new architecture, the fix is
 wrong: re-read the gate's intent first.
 
+**Registration over hardcoding**: N/A for this spec — it adds no new command, view,
+family, or handler that a core/shared package would need to discover. Every change edits
+an existing gate (hook or dev script) in place. The one new piece of DATA (T-6's per-index
+source map) belongs inside `scripts/dev/discovery_sources.py`, the module that already owns
+the source-to-index relationship, so it is not a hardcoded switch bolted onto a core
+package — it is the same module gaining the structure its own docstring already describes.
+
 ## Wiring Test (MANDATORY — NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
@@ -166,6 +192,13 @@ wrong: re-read the gate's intent first.
 | A spec citing a shell path is written | → | the validator's Current Behavior check | fixture: shell path ACCEPTED |
 | A spec about a Python file is written after reading it | → | the spec-write staleness check | fixture: Python read SATISFIES the gate |
 | A structural gate refuses a commit | → | the commit gate's refusal text | `commit_helper_test.py`: the named command writes the record |
+| T-5: a tooling spec names its own functional surface | → | `validate-spec.sh` Functional Tests check | fixture: daemon-code spec still requires a `.ci`; tooling spec accepted |
+| T-6: a commit feeds one index while another is dirty | → | `commit_helper.py` per-index staleness gate | `commit_helper_test.py`: unrelated-dirty PASSES, genuine-stale still REFUSES |
+
+-> Wiring opt-out: this is **cosmetic/internal** agent-tooling with **no user-facing**
+daemon feature, so no row references a `.ci` (N/A here — a `.ci` drives the daemon, which
+none of these gates touch; see the Functional Tests opt-out and T-5). Every row names a
+concrete hook-fixture or `commit_helper_test.py` test that DRIVES the real gate.
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -198,6 +231,18 @@ wrong: re-read the gate's intent first.
 |------|----------|-------------------|--------|
 | the hook fixture suite | `scripts/dev/hook-fixture-check.py` | every fixture drives a real hook over a real spec | |
 
+-> AUTONOMOUS DEFAULT (2026-07-17): `.ci` opt-out — this spec has **no user-facing**
+daemon feature; it is **cosmetic/internal** agent-tooling only. All six items (T-1..T-6)
+change hooks (`validate-spec.sh`, `pretool-writeedit.py`, `block-until-lsp.sh`) and dev
+scripts (`commit_helper.py`, `discovery_sources.py`) that the ze daemon never loads. A
+`.ci` drives the ze daemon, so none of these can have one, exactly as T-5 argues. The real
+functional surface is the hook fixture suite above (`scripts/dev/hook-fixture-check.py`),
+which drives each real hook over a real spec — that is a DRIVING test, not a
+reimplementation, so the requirement is honoured, not weakened. Rationale: fabricating a
+`.ci` that cannot exercise anything would be the exact "test that passes for the wrong
+reason" this spec is about. Thomas: override if you want a `.ci` added anyway (there is no
+daemon path for one to touch).
+
 -> Constraint: each new fixture MUST drive a structurally INVALID spec, so that a pass can
 only mean no check ran. A fixture that passes for the wrong reason is the defect this
 whole spec is about.
@@ -206,14 +251,14 @@ whole spec is about.
 
 - `.claude/hooks/validate-spec.sh` - T-1: the Current Behavior regex and the 30-line window
 - `.claude/hooks/pretool-writeedit.py` - T-4: the staleness check's evidence set
-- `.claude/rules/session-start.md` - T-2: the LSP mandate, only if the decision is a carve-out
-- `.claude/hooks/block-until-lsp.sh` - T-2: only if the decision is to make the gate tell a load from a query
+- `.claude/rules/session-start.md` - T-2: the LSP mandate, ~~only if the decision is a carve-out~~ → RESOLVED 2026-07-17: the decision IS a carve-out, so this file IS in scope. Add a subagent carve-out to the "banned excuses" table (a subagent whose harness returns "No matching deferred tools found" to `ToolSearch query="select:LSP"` has satisfied step 1)
+- ~~`.claude/hooks/block-until-lsp.sh` - T-2: only if the decision is to make the gate tell a load from a query~~ → DROPPED 2026-07-17: the decision is the carve-out, not a gate rewrite. The gate already lifts on the query text by design (`:36`, comment `:32-35`) and needs no change; a PreToolUse hook cannot see ToolSearch results anyway. Do NOT modify this file
 - `scripts/dev/commit_helper.py` - T-3: the refusal text; T-6: the index-staleness check, which must consult a per-index source map instead of demanding all three
 - `scripts/dev/discovery_sources.py` - T-6: where the per-index source map must be built. It does NOT exist today: `OUTPUTS` (`:26-29`) is a flat tuple of the three index paths and `is_discovery_source` (`:35`) returns a bare bool, so the gate can only ask "is this a source of ANY index". The knowledge is present as prose in the module docstring (`:13-14`) and nowhere as data
 - `.claude/hooks/validate-spec.sh` - T-5: scope the `.ci` requirement to specs that touch daemon code
 - `scripts/dev/hook-fixture-check.py` - fixtures for T-1, T-4 and T-5
 - `scripts/dev/commit_helper_test.py` - the T-3 case; T-6: a commit feeding one index while another is dirty must pass, and a commit feeding a genuinely stale index must still refuse
-- `ai/rules/error-messages.md` - only if the decision is that a remediation MUST be verified true
+- `ai/rules/error-messages.md` - ~~only if the decision is that a remediation MUST be verified true~~ → RESOLVED 2026-07-17: IN scope. Add the principle that a remediation an error prints MUST be verifiably true (name a command that actually produces the promised effect). Rationale: this is the rule that owns error-message quality, the T-3 constraint flags the gap explicitly ("does not yet require the advice to be TRUE"), and generalising the fix (`ai/rules/discovery-updates.md`) prevents the next false remediation. Low-risk, reversible doc addition. Thomas: override to keep T-3 a one-off string fix in `commit_helper.py` if you prefer minimal scope
 
 ## Implementation Steps
 
@@ -302,6 +347,15 @@ Verified at the producer: `ze-discovery-index` (`Makefile:424` -> the target at
 `internal/component/bgp/message/rfc7606_withdraw.go`. The learned summary appears nowhere
 in it.
 
+-> CITATION NOTE (2026-07-17): re-verified at the producer. The three-generator body is
+real but lives at `mk/inventory.mk:122-125` (`ze-discovery-index:` runs `package_map.py`,
+`docs_to_code.py`, `learned_index.py`), not at ~~`Makefile:424`~~ — `Makefile:424` is the
+`ze-ai-check:` target; the top-level `Makefile` only references `ze-discovery-index` inside
+`ze-regen` at `:427`. The gate code is `discovery_index_problems` /
+`feeds_discovery_index` in `scripts/dev/commit_helper.py:545`, over
+`discovery_sources.OUTPUTS` (`scripts/dev/discovery_sources.py:26-30`). The substance of
+T-6 (three generators, disjoint inputs, gate demands all three) is confirmed.
+
 The gate treats "this commit touches an index-feeding source" as "every index must be
 fresh", rather than "the indexes THIS source feeds must be fresh". The two remediations it
 leaves are both wrong:
@@ -334,3 +388,16 @@ should stay a single flag. An `--stale-index-ok` that means "I checked, this ind
 someone else's" is a different claim from "I know it is stale and am shipping anyway".
 Habitual use of the second spelling for the first reason is how the override stops
 meaning anything.
+
+-> AUTONOMOUS DEFAULT (2026-07-17): keep ONE flag; do NOT add a second spelling. The
+per-index fix (map each index to the sources it reads; demand only those) DELETES the
+"someone else's index is dirty" case at the gate: once `discovery_index_problems`
+(`scripts/dev/commit_helper.py:545` `feeds_discovery_index` -> `:613` the per-source
+loop, over `discovery_sources.OUTPUTS`) demands only the indexes THIS commit feeds, an
+unrelated dirty index no longer triggers a refusal at all, so no override is needed to
+excuse it. That leaves `--stale-index-ok` with its single honest meaning: "I know this
+index is genuinely stale and am shipping anyway." Rationale: this is the smaller,
+self-contained option (no new flag surface); R-4 forbids widening/softening the override,
+and a second flag would be a new place for the escape hatch to erode. AC-9 is satisfied by
+the per-index scoping, not by flag semantics. Thomas: override if you later want the two
+claims spelled separately.

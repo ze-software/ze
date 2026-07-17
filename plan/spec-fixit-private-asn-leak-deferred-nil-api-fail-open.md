@@ -2,10 +2,25 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
+
+> **Readiness pass (2026-07-17, autonomous).** Status advanced `skeleton` → `ready`.
+> Every `file:line` in this spec was re-opened and confirmed against the committed
+> tree; the open design decisions (fail-closed direction, the fused `facts == nil`,
+> the ingress guard, `SetPluginServerAny`) are resolved append-only under
+> "Autonomous Resolutions" after the Acceptance Criteria table. [STAKES: security]
+>
+> **Dependency check (answers "does this need the parent to land first?"): NO.**
+> The shared chain body this spec fixes is already **committed**, not pending:
+> `1bf31e316` ("apply export filters to originated routes") and `afb068cc0` ("stop
+> applying export filters twice") landed the parent's `runEgressPolicyChainASN4` /
+> `exportFilterForBody` delegation. The guard sites (`filter_ordered.go:196,222`,
+> `egress_inject_filter.go:43`, `filter_ordered.go:139`) exist at stable committed
+> line numbers, verified clean in the working tree. This spec edits those functions
+> in place; it does not wait on any unlanded parent work. Not a blocker to readiness.
 
 ## Post-Compaction Recovery
 
@@ -199,18 +214,94 @@ this note as the trigger, not as an exemption.
 | AC-5 | The nil-api unit tests | Each either gets a real api or explicitly asserts the fail-closed behavior |
 | AC-6 | Whole-repo grep for `api == nil` in the reactor package | Every site fails closed or speaks; no silent permissive branch survives |
 
+### Autonomous Resolutions (2026-07-17) -- [STAKES: security]
+
+These resolve the decisions AC-1/AC-3/AC-4 and the fused `facts == nil` left undecided
+above. All are grounded in re-read producers; append-only, superseding no prior text.
+
+**→ AUTONOMOUS DEFAULT (2026-07-17): the direction is FAIL CLOSED, and it is DENY *and*
+Warn, not "or".** AC-1's wording "deny, **or** log loudly" is superseded: when
+`r.api == nil` while the peer HAS export filters (`facts != nil && len(facts.exportFilters) > 0`),
+the egress guards MUST both suppress the route AND emit a `Warn`, exactly as the two
+siblings already do: `filter_chain.go:368-371` (`Warn("policy filter: no API server", ...)`
++ `PolicyReject`) and `peer_initial_sync.go:718-722` (`Warn("... no reactor API -- fail-closed")`
++ `return false`). Concretely: `runEgressPolicyChain`/`runEgressPolicyChainASN4`
+(`filter_ordered.go:196`/`:222`) return `egressStepResult{}` (accept == false) after a Warn;
+`exportFilterForBody` (`egress_inject_filter.go:43`) returns `(true, nil)` (suppress) after a
+Warn. Rationale: an export chain is a guard whose purpose is to reject; `r.api == nil` with
+filters configured is a miss; `accept: true` / `(false, nil)` is the zero-value trap
+(`fail-closed-guards.md`). The house answer for this exact condition already exists twice and
+is deny+Warn; the fix makes the outlier agree, not invent a third behavior. Thomas: override
+if wrong.
+
+**→ AUTONOMOUS DEFAULT (2026-07-17): `facts == nil` and empty-filters are legitimate ACCEPTS,
+not misses; split them OFF the `r.api == nil` branch.** The three conditions fused at
+`egress_inject_filter.go:43` (`facts == nil || len(facts.exportFilters) == 0 || r.api == nil`)
+are not the same case. `peer_forward_facts.go:35` documents the contract verbatim: the facts
+pointer is "Stored via atomic.Pointer on Peer; **nil means not established.**" A not-established
+peer has no session on which a route reaches the wire, and no known export policy to run:
+that is an absent precondition, not a guard miss, so it keeps its accept. `len(exportFilters) == 0`
+is "no export policy configured", also a legitimate accept. Only `r.api == nil` while facts is
+present and filters are non-empty is the miss. The fix gives each its OWN early return so a
+genuine api-miss can never be masked as "not established." This is the spec's own recorded
+insight ("no filters configured is a legitimate accept; filters configured but no API server is
+a miss") applied to all three fused terms. Thomas: override if wrong.
+
+**→ AUTONOMOUS DEFAULT (2026-07-17): the ingress guard (`filter_ordered.go:139`,
+`runIngressPolicyChain`) gets the SAME fail-closed treatment; it does NOT differ.** AC-4's
+"same treatment, or a documented reason it differs" is answered: same. Split the fused
+`len(filters) == 0 || r.api == nil`; on `r.api == nil` with import filters configured, drop the
+route (accept == false) + Warn. Rationale: an import filter is equally a guard (it can be
+security/ACL policy); silently accepting unfiltered inbound routes when the filter engine is
+absent is the identical fail-open, and the sibling `filter_chain.go:368-371` is direction-agnostic
+(it already serves both import and export via `policyFilterFunc`). This is the smaller,
+self-contained option (an identical one-line split), satisfying R-3. Thomas: override if wrong.
+
+**→ AUTONOMOUS DEFAULT (2026-07-17): `SetPluginServerAny` (`reactor.go:574-577`) LOGS LOUDLY on
+a failed type assertion; the signature does NOT change.** AC-3 resolved: on
+`s.(*pluginserver.Server)` failing, emit `reactorLogger().Error(...)` naming the received type
+instead of the silent no-op that leaves `r.api` nil. Rationale: `fail-closed-guards.md` "make the
+miss explicit at the producer": the producer of a nil api is this method, so it must speak here
+rather than rely on the downstream guards (which now also fail closed, giving defense in depth).
+Chosen over changing the method to `error`-returning: that is the larger, caller-touching change
+(the sole caller is `register.go:145`), and logging + the now-fail-closed guards already closes
+the leak. The "make the scrub not depend on `r.api`" alternative from the parent's ruling is
+rejected as out of scope: remove-private-as is an EXTERNAL plugin (`filter_remove_private_as`)
+reached only through the plugin server, so it cannot run with a nil api by construction. Thomas:
+override if wrong (return `error` instead of log if you want the wiring bug to hard-fail startup).
+
+**Test-feasibility note (grounds the TDD table below).** Asserting the "or say something" Warn
+is feasible and has a precedent in this package: `TestSignalPeerAPIReadyUnknownPeerWarns`
+(`api_sync_test.go`) captures logs via `slog.SetDefault(slog.New(rec))` with a `warnRecorder`
+and `t.Cleanup`, because `reactorLogger` is `slogutil.LazyLogger("bgp.reactor")` (`reactor.go:80`)
+and routes through the slog default. The new fail-closed tests mirror that helper.
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| [fill during design] | `internal/component/bgp/reactor/filter_ordered_test.go` | export filters + nil api does not accept | |
-| [fill during design] | `internal/component/bgp/reactor/reactor_test.go` | `SetPluginServerAny` with a wrong type does not leave api nil | |
+| `TestEgressPolicyChainNilAPIWithExportFiltersFailsClosed` | `internal/component/bgp/reactor/filter_ordered_test.go` (new) | `runEgressPolicyChainASN4`/`runEgressPolicyChain` with export filters + nil api return `accept == false` (suppress) and Warn, not `accept: true` (AC-1) | |
+| `TestRunIngressPolicyChainNilAPIWithImportFiltersFailsClosed` | `internal/component/bgp/reactor/filter_ordered_test.go` (new) | `runIngressPolicyChain` with import filters + nil api returns `accept == false` and Warn, not accept (AC-4) | |
+| `TestExportFilterForBodyNilAPIWithExportFiltersSuppresses` | `internal/component/bgp/reactor/egress_inject_filter_test.go` (new) | `exportFilterForBody` with facts present, export filters non-empty, nil api returns `(suppress=true, nil)` and Warn; and returns `(false, nil)` when `facts == nil` (not established) or filters empty (AC-1, AC-2, fused-condition split) | |
+| `TestSetPluginServerAnyWrongTypeLogsAndDoesNotSilentlyLeaveNil` | `internal/component/bgp/reactor/reactor_test.go` | `SetPluginServerAny` handed a non-`*pluginserver.Server` emits an Error log (captured via the `warnRecorder`/`slog.SetDefault` pattern from `api_sync_test.go`) instead of a silent no-op (AC-3) | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| [fill during design] | `test/plugin/*.ci` | a peer with export filters never sends unfiltered | |
+| N/A -- no user-facing surface; `.ci` deferred to a trigger, not skipped | n/a | see justification below | N/A |
+
+**→ AUTONOMOUS DEFAULT (2026-07-17): N/A, and this is the Wiring Test opt-out, not a gap.**
+There is no config/CLI/operator-visible feature to drive from a `.ci`; the subject is an
+internal guard on `r.api == nil`, a state the reachability table shows is not reachable
+through any `.ci` entry point (borrow mode hard-fails at `reactor.go:1165`; standalone is
+closed by the `r.mu` barrier). A `.ci` that cannot construct the precondition would be
+theatre. This inherits the Wiring Test section's standing trigger verbatim: **if design finds
+a real entry point that reaches the nil-api state, this row MUST become a concrete `.ci`**,
+because that discovery would also mean the leak is live and A-1 is broken. Rationale:
+`fail-closed-guards.md` "drive the guard from the entry point that triggers it": here the
+triggering entry point is a Go-level state, so the Go unit tests above ARE that entry point.
+Thomas: override if wrong.
 
 ### Interop Tests
 N/A — no wire protocol change (the point is that routes stop reaching the wire unfiltered). Justify at closure.
@@ -220,6 +311,9 @@ N/A — no wire protocol change (the point is that routes stop reaching the wire
 - `internal/component/bgp/reactor/egress_inject_filter.go` - `:43`: same, plus the fused `facts == nil`
 - `internal/component/bgp/reactor/reactor.go` - `:576`: the silent type-assertion failure
 - `internal/component/bgp/reactor/forward_update_test.go`, `forward_split_test.go` - the nil-api literals (R-1)
+- **(new, 2026-07-17)** `internal/component/bgp/reactor/filter_ordered_test.go` - RED-first fail-closed tests for the egress and ingress guards (file does not exist yet)
+- **(new, 2026-07-17)** `internal/component/bgp/reactor/egress_inject_filter_test.go` - RED-first fail-closed test for `exportFilterForBody`, incl. the `facts == nil`/empty-filters accept split (file does not exist yet)
+- `internal/component/bgp/reactor/reactor_test.go` - **(exists)** add `SetPluginServerAny` wrong-type log assertion (AC-3)
 
 ## Implementation Steps
 

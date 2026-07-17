@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 > **DESIGN, 2026-07-16.** Research done. The skeleton's central premise was WRONG:
 > this is not the first durable cache in the repo. `internal/appliance/cache.go`
@@ -39,7 +39,19 @@
 > before touching `run.py`. At closure, 988 needs an additive correction pointer recording
 > the reversal (not done yet; 988 was out of scope to edit).
 >
-> **Status stays `design`; promotion to `ready` is Thomas's gate and has not been given.**
+> ~~**Status stays `design`; promotion to `ready` is Thomas's gate and has not been given.**~~
+>
+> **PROMOTED TO `ready` 2026-07-17 (readiness pass, Thomas-authorized loop -- no user
+> question permitted).** The pass re-read every load-bearing citation at its producing
+> function (`kernelCacheVariantFor` `cache.go:110-120`; `resolveRuntimeKernel`
+> `cmd_kernel.go:336-366`; `build_host_ze` precedent `effective-install-qemu.py:153-168`;
+> 988's Ze-binary-free decision at `plan/learned/988-kernel-build-consolidation.md:18`; the
+> `test -f` guards `mk/test-integration.mk:410,424,456`; no-eviction confirmed, `cache.go`
+> has no evict path, `copyTree` `RemoveAll`s only the destination `:307`) and confirmed them
+> real. Option C is internally consistent throughout: no Option B assumption is presented as
+> live. The residual open markers (eviction policy, ISO digest pinning, "first durable
+> cache") are resolved by conservative default in Open Questions below. Status -> `ready`,
+> Updated 2026-07-17.
 
 ## Task
 
@@ -160,7 +172,11 @@ function, not inferred from a caller.**
       Ze-binary-free", with a cross-language fixture (`kernel-shared-fragment.ci` +
       `TestResolveSharedInclude`) guarding drift.
       -> Constraint: "just make `ze-kernel` shell out to `ze appliance kernel`"
-      contradicts a recorded decision. See Open Questions; this needs Thomas.
+      contradicts a recorded decision. See Open Questions; ~~this needs Thomas.~~
+      -> RESOLVED 2026-07-17: Thomas chose Option C (Open Questions -> "Decision (user,
+      2026-07-16): Option C"). `run.py` asks `ze-host` for the key rather than shelling out
+      to `ze appliance kernel`, so the make path is no longer Ze-binary-free but never calls
+      the Go build path directly. 988's Ze-binary-free corollary is deliberately reversed.
 - [ ] `gokrazy/kernel/Makefile` lines 19-20 - `OUT := $(REPO_ROOT)/tmp/kernel/build`,
       whose comment justifies `tmp/` on gitignore grounds only. Correct about git,
       silent about durability.
@@ -385,9 +401,9 @@ after the move, plus the unit tests below.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `qemu-run.py` with a cold cache | -> | `ensure_iso()` / cache lookup (CANDIDATE) | `test_cold_cache_downloads_and_verifies` |
-| `qemu-run.py` after `rm -rf tmp/` | -> | durable cache root (CANDIDATE) | `test_tmp_wipe_preserves_artifacts` |
-| `ALPINE_VERSION` bumped | -> | keyed extract + eviction (CANDIDATE) | `test_version_bump_misses_and_evicts` |
+| `qemu-run.py` with a cold cache | -> | verified `ensure_iso()` (`qemu-run.py:99-115`) routed through the durable root, `.sha256` checked as `downloadAndVerify` does (`cache.go:173-230`) | `test_cold_cache_downloads_and_verifies` |
+| `qemu-run.py` after `rm -rf tmp/` | -> | durable cache root resolver `dirname($(git rev-parse --path-format=absolute --git-common-dir))/cache` (Open Questions -> AC-2 decision) | `test_tmp_wipe_preserves_artifacts` |
+| `ALPINE_VERSION` bumped | -> | eviction of the superseded key in the durable cache (new: none today, A-7; extract already keyed by `_extract_dir_for`, `qemu-run.py:118-127`) | `test_version_bump_misses_and_evicts` |
 | `make ze-qemu-l2tp-ppp-test` with no kernel | -> | the `test -f` guard (`mk/test-integration.mk:410`) | `test_missing_kernel_fails_loudly` |
 
 ## 🧪 TDD Test Plan
@@ -400,7 +416,7 @@ after the move, plus the unit tests below.
 | `test_tmp_wipe_preserves_artifacts` (CANDIDATE) | new, `.ci` under `test/install/` beside `kernel-runtime-deps.ci` | AC-1: with a populated cache, wiping `tmp/` then re-materialising costs a copy. Point `XDG_CACHE_HOME` at a temp dir (`cache.go:48`) so the test never touches the developer's real cache. Precedent: `effective-install-scenarios-qemu.py:99-129` already drives `XDG_CACHE_HOME` exactly this way |
 | `test_cold_cache_downloads_and_verifies` (CANDIDATE) | new | AC-5: a checksum mismatch fails loudly and does NOT populate the cache |
 | `test_corrupt_cached_artifact_is_rejected` (CANDIDATE) | new | AC-5: existence is not integrity; a truncated cached file must not be served |
-| `test_make_and_go_paths_share_one_key` (CANDIDATE) | new cross-language fixture | AC-9: ~~the Python key and `kernelCacheVariantFor` (`cache.go:110-120`) agree byte-for-byte. Mandatory under Option B. Model it on the existing anti-drift pair `kernel-shared-fragment.ci` + `TestResolveSharedInclude`~~ **RESHAPED by the Option C decision (user, 2026-07-16): there is no Python key to compare.** `run.py` asks the host ze binary for the key, so the two paths share one implementation by construction and byte-for-byte agreement is structural, not asserted. The anti-drift fixture is NOT needed (that was Option B's mandatory mitigation). What DOES need a test: that `run.py` actually consults `ze-host` and fails loudly when the binary is absent or the key query errors, rather than falling back to a guessed key (AC-6). Rename accordingly during implementation |
+| ~~`test_make_and_go_paths_share_one_key`~~ -> `test_run_py_key_from_ze_host_or_fails_loud` (CANDIDATE, renamed 2026-07-17 per Option C) | new; drive `run.py`'s key query with `ze-host` present, then absent | AC-9: ~~the Python key and `kernelCacheVariantFor` (`cache.go:110-120`) agree byte-for-byte. Mandatory under Option B. Model it on the existing anti-drift pair `kernel-shared-fragment.ci` + `TestResolveSharedInclude`~~ **RESHAPED by the Option C decision (user, 2026-07-16): there is no Python key to compare.** `run.py` asks the host ze binary for the key, so the two paths share one implementation by construction and byte-for-byte agreement is structural, not asserted. The anti-drift fixture is NOT needed (that was Option B's mandatory mitigation). What DOES need a test: that `run.py` actually consults `ze-host` (built `-tags ze_core,ze_setup`, no GOARCH override) and fails loudly when the binary is absent or the key query errors, rather than falling back to a guessed key (AC-6). Test name resolved 2026-07-17: no longer "share one key" (an Option B framing), now "key from ze-host or fail loud" |
 | `test_missing_kernel_fails_loudly` (CANDIDATE) | new | AC-6: no silent fallback when an artifact is absent |
 | `test_kernel_clean_keeps_durable_cache` (CANDIDATE) | new | AC-10: `ze-kernel-clean` (`mk/gokrazy.mk:238`) clears `tmp/kernel` only |
 
@@ -446,7 +462,10 @@ BECAUSE no consumer-facing path moves.
       and how to reclaim. This is the `ai/rules/discovery-updates.md` obligation
 - [ ] `docs/architecture/testing/qemu-integration.md`, `docs/guide/appliance.md`,
       `docs/functional-tests.md` - same claim, three more places
-- [ ] `.gitignore` - ONLY if Thomas chooses the repo-local root (Open Questions)
+- [ ] `.gitignore` - ~~ONLY if Thomas chooses the repo-local root (Open Questions)~~
+      -> RESOLVED 2026-07-17: Thomas chose Option 2 (repo-local `cache/`), so this IS in
+      scope. Add a `cache/` (or `/cache`) ignore entry next to the existing `tmp/*`
+      (`.gitignore:12`) so the durable cache is invisible to git exactly as `tmp/` is
 - [ ] `gokrazy/kernel/Makefile` - `OUT` (`:19-20`) stays. Listed to record the
       decision NOT to touch it
 
@@ -535,11 +554,19 @@ BECAUSE no consumer-facing path moves.
   duplication later proves painful, the smallest change that preserves the decision is
   a repo-local symlink into a shared root, NOT relocating the cache out of the repo.
 
-  Remaining detail, genuinely open: the exact folder name and whether it sits at the
+  Remaining detail, ~~genuinely open~~: the exact folder name and whether it sits at the
   repo root (`cache/`) or under an existing directory. Match whatever naming
   convention the repo already prefers.
+  -> AUTONOMOUS DEFAULT (2026-07-17): **`cache/` at the repo root**, a sibling of `tmp/`.
+  Rationale: it is the name already used everywhere in this spec (line 26 "MAIN checkout's
+  cache", the resolver `dirname(...)/cache`, the Files-to-Modify `.gitignore` entry), it
+  mirrors `tmp/`'s repo-root placement so "durable sibling of the disposable tree" is legible
+  at a glance, and the repo has no competing convention (`~/.cache/ze` is the OTHER root and
+  stays authoritative for the appliance path). Thomas: override if a nested location is
+  preferred.
 
-  **REOPENED BY RESEARCH, 2026-07-16. NEEDS THOMAS.** The decision above was taken on
+  **REOPENED BY RESEARCH, 2026-07-16. ~~NEEDS THOMAS.~~ RESOLVED below (Option 2, user,
+  2026-07-16) -- this heading is answered, not open.** The decision above was taken on
   a premise that is now known false. The spec asked "is this the first durable cache,
   or is there a convention to match?" and answered "if it is the first, it sets the
   precedent, so name it deliberately". It is NOT the first. The repo already has a
@@ -753,11 +780,35 @@ BECAUSE no consumer-facing path moves.
 - Eviction policy: keep-exactly-one (matches "clear old kernel when we update", bounds
   the cache, punishes bisect) versus keep-N. Kernel updates every few weeks make this
   a live tradeoff rather than academic.
+  -> AUTONOMOUS DEFAULT (2026-07-17): **keep-N with N=2, keyed by version/config, never by
+  wall-clock timer.** Rationale: adopts R-2's own recommendation ("Keep-N (2 is probably
+  enough) keyed by version/config, not wall-clock age") -- the spec already records this as
+  the mitigation, so this is the "adopt the RECOMMEND" default, not a new call. N=2 bounds
+  the cache while sparing a bisect across a single version bump the cost R-2 warns about;
+  timer-free, key-change-only eviction is exactly what R-1/AC-8 require so eviction can never
+  race a live QEMU boot. Applies to the whole `~/.cache/ze` tree (installer-kernel,
+  installer-initrd, runtime-kernel) since A-7 confirmed none of them evict today. Thomas:
+  override to keep-exactly-one if the tighter bound is preferred over bisect comfort.
 - Should the ISO be pinned by digest rather than version string, making the key and
   the integrity check the same thing?
+  -> AUTONOMOUS DEFAULT (2026-07-17): **NO -- keep version-string keying plus published
+  `.sha256` verification; do not pin the ISO by digest.** Rationale: the smaller, more
+  reversible option. `downloadAndVerify` (`cache.go:173-230`) already hashes-while-streaming
+  and rejects on mismatch against the published checksum, and A-4 confirmed Alpine's
+  `.sha256` format parses as-is, so integrity is fully covered (AC-5) without coupling the
+  cache key to a digest. Digest-pinning is a later hardening (it defends against a mirror
+  serving a different-but-valid image under the same version), required by no AC here, and
+  can be layered on without reworking the key. Thomas: override if supply-chain pinning is
+  wanted now.
 - Is there a shared cache convention already in this repo worth matching, or is this
   the first durable cache? If it is the first, it sets the precedent, so name it
   deliberately.
+  -> RESOLVED (2026-07-17): already answered by the research above -- this is **NOT** the
+  first durable cache. `~/.cache/ze` is in production (`resolveCacheDir` `cache.go:47-57`;
+  namespaces `installer-kernel`/`runtime-kernel`/`installer-initrd` at `:21-33`). Thomas
+  chose Option 2 (repo-local `cache/`) deliberately anyway, with that fact in hand (see the
+  "Cache root?" decision above). This stale skeleton bullet is superseded by that decision
+  and by the folder-name default (`cache/` at repo root); kept for history, not reopened.
 
 ## Handoff Contract: what `spec-fixit-qemu-runtime-kernel` consumes
 

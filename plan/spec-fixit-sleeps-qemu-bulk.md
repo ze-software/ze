@@ -2,10 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | spec-fixit-migrate-sleeps-infra (QEMU-gated carve-out) |
 | Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
+| Scope | groups A + B (needs-linux + skip-os:darwin blind sleeps); group C ungated is OUT (2026-07-17 autonomous default, see Open Questions → Resolutions) |
 
 ## Task
 
@@ -123,6 +124,9 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 1. Only 9 blind sleeps are actually reachable by `make ze-qemu-needs-linux-test`. The brief's implied scope (~56 raw across those dirs) is roughly 6x the target-reachable blind population.
 2. The policy/firewall/ospf/pppoe bulk (group B, 12 blind) is linux-only but NOT run by the needs-linux target. Verifying it needs `make ze-qemu-all-test`, or those tests need `option=needs-linux` added. Unresolved fork, see Open Questions.
 3. flow-export (4 blind), reload (1 blind), `install/image-resolve-failure.ci` (1 blind) and the 12 ungated traffic vpp-stub sleeps have NO OS gate, so they are host-runnable on darwin and do not belong in a QEMU-gated spec by its own criterion. Either they are misfiled here, or they are missing a gate they should have.
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: This spec is scoped to **groups A + B** — the needs-linux + skip-os:darwin linux-only blind sleeps (A = 9 blind, reachable by `make ze-qemu-needs-linux-test`; B = 12 blind, reachable only by `make ze-qemu-all-test`; measured taxonomy verified 2026-07-17: group A raw 14, group B raw 31, tree total 132). **Group C** (54 blind, ungated, host-runnable on darwin) is OUT OF SCOPE and recorded as a noted follow-up (see Future + Open Questions → Resolutions). Rationale: smaller, self-contained scope per the readiness decision protocol — a QEMU-gated spec should own only the sleeps its QEMU criterion can verify; the ungated group C is host-verifiable and belongs to a host-runnable (or gate-audit) spec that decides per file whether each C test is misfiled or missing a gate. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: Group B verification fork (correction 2) resolves in favour of `make ze-qemu-all-test` as the DEFAULT branch (it already runs the skip-os:darwin group; zero committed change). Adding `option=needs-linux` to the 15 group B files — which would pull the 12 blind into the fast `ze-qemu-needs-linux-test` loop — is the more-reversible alternative, recorded as an OPTIONAL follow-up (a test-metadata change with its own review), adopted only if full-suite turnaround proves impractical during implement. Rationale: the smaller self-contained default mutates zero committed metadata; both branches remain valid "done" states under AC-8. Thomas: override if wrong.
 
 **UNVERIFIED:**
 - That the ORIGINAL (unconverted) tests currently pass under QEMU. Not run: this host does not run QEMU, and this skeleton ran no tests. The confirm-original step is AC-1 precisely because it is unverified.
@@ -245,6 +249,7 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 ### Future (if deferring any tests)
 - Group B (12 blind) may split into its own change if the `option=needs-linux` regating (A-4) is approved separately.
 - Group C (54 blind, ungated) is likely out of scope for this spec entirely; see Open Questions.
+  → AUTONOMOUS DEFAULT (2026-07-17) [scope]: CONFIRMED out of scope. Group C is neither converted nor QEMU-verified by this spec. Follow-up: a separate host-runnable (or gate-audit) spec decides, per file, whether each ungated blind sleep is misfiled into a QEMU context or is missing an `option=needs-linux`/`skip-os` gate it deserves. Thomas: override if wrong.
 
 ## Files to Modify
 
@@ -332,6 +337,21 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 - Do the 3 external-warn files in group A belong to this spec or to `spec-fixit-reject-fence-observability` (R-5)?
 - Does the vpp `WaitConnected` deliberate-timer set (traffic/012, /026) deserve an injectable timeout so the test asserts the behavior without a 5-6s wall-clock wait, or is the real timeout part of what is validated?
 - What did the umbrella's "~150 QEMU-gated" figure count? The measured linux-gated blind population is 21. Reconciling this may reveal work this spec has not scoped.
+
+### Resolutions (2026-07-17, autonomous — APPEND-ONLY, Thomas override any if wrong)
+
+Every open question above is resolved for readiness. Empirical confirmations that can only run under QEMU are deferred to implement-time as the named AC (they are design-settled with a stated fallback, not design-open).
+
+| # | Question | Resolution | Stakes |
+|---|----------|-----------|--------|
+| 1 | Originals pass under QEMU today (A-1)? | Cannot run on this host; settled as AC-1, the first implement action. Failure routing already routes an AC-1 red to "fix/quarantine first, do not convert a red test". Not a readiness blocker — it is the first implement step, not a design gap. | low |
+| 2 | Group B fork: `ze-qemu-all-test` vs add `option=needs-linux`? | Group B is IN SCOPE. Default branch = `make ze-qemu-all-test` (zero committed change). Regating to `option=needs-linux` is an optional follow-up with its own review. Both are valid AC-8 "done" states. | scope |
+| 3 | Group C: misfiled or missing a gate? | OUT OF SCOPE for this spec (host-runnable, not QEMU-gated). The misfiled-vs-missing-gate call is handed to a follow-up host-runnable/gate-audit spec. | scope |
+| 4 | Why no ZE_READY_FILE marker for backgrounded ze (A-2)? Runner-level one-move fix? | Implement-time research (Phase 3). Design-settled: if not fixable once at the runner, AC-2 falls back to a wait on the already-asserted OnConfigure log line (A-5 requires asserting the kernel readback too where possible). Fallback stated → not design-open. | arch |
+| 5 | Reload-completion signal for SIGHUP (A-3)? | Implement-time research (Phase 5). Design-settled: if no signal exists, the reload shape hands to `plan/spec-fixit-reject-fence-observability.md` (Failure Routing) or is recorded infra-gated (AC-3). Fallback stated → not design-open. | arch |
+| 6 | Do the 3 external-warn group A files belong here or to reject-fence (R-5)? | RESOLVED by the 2026-07-16 scope update: handed to `plan/spec-fixit-reject-fence-observability.md`; `ddos-detect-mitigate.ci` handed to `plan/spec-fixit-ddos-test-infra.md` (R-8). This spec does not touch them. Cleanly-owned group A converts: `traffic/022`, `traffic/023`, `install/dhcp-zero-listener`, `install/tftp-zero-listener`, `plugin/ddos-detect-characterize`. | scope |
+| 7 | vpp `WaitConnected` (traffic/012, /026): injectable timeout, or is the real 5s wait validated? | The real timeout IS the behavior under test (012's header: WaitConnected returns an error after the 5s timeout). Kept unchanged as the AC-6 control. An injectable timeout is a separate optimisation, OUT OF SCOPE (ungated group C anyway). | low |
+| 8 | What did the umbrella's "~150" count? | Reconciled: it counted RAW sleeps at an earlier baseline (~246), before the conversions it records. The linux-gated BLIND population (groups A+B) is 21. No hidden in-scope work is revealed; group C's ungated blind sleeps are the difference and are handled as a follow-up (question 3). | low |
 
 ## Checklist
 

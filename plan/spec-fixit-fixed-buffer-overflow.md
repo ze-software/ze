@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -63,6 +63,26 @@ contract -- with two call sites, so they share one file.
 **Open question for design:** whether other fixed-buffer sites exist. This spec was
 created from two known rows; a sweep for the `make([]byte, N)` / `var buf [N]byte`
 followed by `WriteTo` / `buf[:n]` shape is the first design step.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): RESOLVED. Scope stays the two encoder families
+already in the site table -- IKE `Message.WriteTo` (fixed 512/4096) and L2TP
+`BuildDHCPv6Reply`/`BuildDHCPv6StatusReply` (`[512]byte`). Do NOT widen this spec.
+Rationale: the mandatory sweep (evidence table below) was run repo-wide and every
+OTHER fixed-buffer + `WriteTo`/`Build` + `buf[:n]` site is ALREADY guarded, so the two
+tabled families are the ONLY unguarded members of the class. One latent sibling
+(`BuildRA`) is recorded as a noted follow-up, deliberately NOT pulled into scope
+(`ai/rules/no-partial-completion.md`: no silent scope widening). Thomas: override if wrong.
+
+**Sweep evidence** (grep, non-test feature code, 2026-07-17: `make([]byte, N)` / `var buf [N]byte` declarations cross-referenced with `.WriteTo(buf` / `Build…(buf` encoder calls that re-slice `buf[:n]` onto the wire):
+
+| Site / family | Buffer | Encoder & guard state | Disposition |
+|---|---|---|---|
+| IKE `msg.WriteTo` -- `responder.go:244,318`, `initiator.go:84`, `dpd.go:98` | `make([]byte, 512\|4096)` | `ike/wire.Message.WriteTo` has NO `Len()`/`EncodedLen()` (grep `) Len()` in `ike/wire` returns nothing) and indexes `buf` directly (`message.go:36` -> `payload_notify.go:54` `buf[off] = p.ProtocolID`) | UNGUARDED -- IN SCOPE |
+| L2TP DHCPv6 -- `ipv6_service.go:146,182,214,239,251` | `var buf [512]byte` | `BuildDHCPv6Reply`/`BuildDHCPv6StatusReply` return `int`, no capacity check, index `buf[off]` directly (`dhcpv6.go:255` `buf[off]=cfg.Type`, `:269` `PutUint16(buf[off:],…)`) | UNGUARDED -- IN SCOPE |
+| L2TP `BuildRA` -- `ra_linux.go:111` | `var buf [256]byte` | `ra.go:37` returns `int`, no capacity check, indexes `buf[off]` directly, has a VARIABLE-length RDNSS option; the sole caller passes a fixed no-RDNSS `RAConfig` so it cannot overflow today | GUARD-BY-CONVENTION -- NOTED FOLLOW-UP (same unguarded-builder family, same package); NOT widened into this spec |
+| ISIS -- `hello.go:197,214`, `origination.go:499`, `snp.go:480,488`, `auth_sign.go:108-133`, `lsdb/encode.go:122,172` | `make([]byte, EncodedLen())` | buffer sized by the encoder's own `EncodedLen()` before `WriteTo` | ALREADY SAFE -- this IS the `Len()`-first fix the spec recommends |
+| L2TP PPPoE -- `server.go:70,97,110,121,171,250` | `var buf [EthMaxLen]byte` | `BuildPAD*` build via `Builder`; `AddTag*` set `truncated` on overflow, `Finish()` returns `nil` (`discovery.go:291-293`), callers check `frame == nil` ("frame too large") | ALREADY SAFE -- fail-closed nil-return |
+| BFD -- `loop.go:219` | pooled `pb.Data()`, `PoolBufSize = 64` (`bfd/packet/pool.go:26`) | `packet.Control.WriteTo` + `Sign`; pool documented as sized above the max control-packet+auth; fixed-format PDU, not variable-length | ALREADY SAFE -- documented fixed cap |
 
 ## Required Reading
 
@@ -141,7 +161,7 @@ caller (stage 4) is therefore DEAD CODE and NOT a fix; only a `Len()`-first buff
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No live payload can exceed 512 bytes at either site today | Deferral rows 2026-07-13; both say "not reachable with today's payloads" | The class is a live bug, not latent, and the spec becomes urgent | Compute worst-case `Len()` for every notify type and DHCPv6 reply shape | unvalidated |
-| A-2 | These two are the only sites of this shape | ALREADY FALSE: `responder.go:243-245` and `initiator.go:83-85` build a full IKE_SA_INIT into `make([]byte, 4096)` with the same `WriteTo`/`buf[:n]` shape (read 2026-07-16) | The fix is incomplete and the class survives | Repo-wide sweep for fixed-size buffer + `WriteTo`/`buf[:n]` | BROKEN -- at least 4 sites known; a full sweep is mandatory before any fix |
+| A-2 | These two are the only sites of this shape | ALREADY FALSE: `responder.go:243-245` and `initiator.go:83-85` build a full IKE_SA_INIT into `make([]byte, 4096)` with the same `WriteTo`/`buf[:n]` shape (read 2026-07-16) | The fix is incomplete and the class survives | Repo-wide sweep for fixed-size buffer + `WriteTo`/`buf[:n]` | BROKEN -- at least 4 sites known; a full sweep is mandatory before any fix. → SWEEP DONE 2026-07-17: the two tabled families (IKE `Message.WriteTo`, L2TP `BuildDHCPv6*`) are the ONLY unguarded members; every other `WriteTo`/`Build` sibling is already guarded (ISIS `EncodedLen()`-first, PPPoE nil-on-overflow, BFD `PoolBufSize` cap). One latent follow-up: `BuildRA`. Evidence table in the Task "Open question" resolution. |
 | A-3 | `CheckedBufWriter` can be reused outside BGP without a tier violation | `internal/core/bgp/wire/writer.go` is under `internal/core/` | The contract must be moved or duplicated | `make ze-tier-check` after a trial import | unvalidated |
 
 ### Risks
@@ -292,7 +312,9 @@ caller (stage 4) is therefore DEAD CODE and NOT a fix; only a `Len()`-first buff
 - The BGP side of the tree already carries the right contract (`CheckedBufWriter`), and the IKE/L2TP encoders simply never adopted it. This is a contract-adoption gap, not a missing idea.
 
 ## Known Limitations
-- (fill during design)
+- Scope is the two UNGUARDED encoder families only (IKE `Message.WriteTo`, L2TP `BuildDHCPv6*`). The already-safe siblings surfaced by the sweep (ISIS `make([]byte, EncodedLen())`, PPPoE `Builder.truncated`/`Finish()`-nil, BFD `PoolBufSize=64` cap) are out of scope by evidence, not by omission -- they need no fix.
+- `BuildRA` (`internal/component/l2tp/ppp/ra.go:37`, called at `ra_linux.go:111` into `var buf [256]byte`) shares the exact unguarded-builder pattern and has a variable-length RDNSS option; it cannot overflow today only because its sole caller passes a fixed no-RDNSS `RAConfig`. It is a NOTED FOLLOW-UP (should adopt the same bound once this lands), deliberately NOT pulled into this spec per `ai/rules/no-partial-completion.md`.
+- The 512-byte notify/reply sites are not remotely reachable today (A-1); this is latent-class hardening, not a live-bug fix. If the A-1 worst-case `Len()` computation later shows a remotely-influenced payload can exceed the buffer, this becomes an urgent remote-DoS fixit (see Failure Routing).
 
 ## Implementation Summary
 

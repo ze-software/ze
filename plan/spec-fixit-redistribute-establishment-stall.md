@@ -377,6 +377,26 @@ announce expectation reachable so it can be tested honestly. This is a test-infr
 change beyond a single expectation edit, so it is left for Thomas to schedule.
 `bgp-rs-reactor-fastpath.ci` needs the same restructure plus a tightened assertion.
 
+-> AUTONOMOUS DEFAULT (2026-07-17): ADOPT the two-concurrent-`cmd=background`-ze-peer
+restructure above as the PLAN OF RECORD for B2.2 (`bgp-rs-fastpath-ebgp-shared.ci`),
+B2.3/B2.4 (`remove-private-as-{export,replace-peer}.ci`) and `bgp-rs-reactor-fastpath.ci`,
+superseding "left for Thomas to schedule" for planning purposes. It was already the recorded
+RECOMMENDATION and is proven to work (the WITHDRAW vanishes 26/26 with real announces
+produced -- see below and the B2.3/B2.4 measurement, "confirmed to work"), and the pattern is
+a documented, supported harness idiom (`docs/architecture/testing/ci-format.md`
+"Example (Multi-Peer)", re-verified 2026-07-17). Rationale: this is a SCHEDULING / test-infra
+choice, not an irreversible on-wire decision, so the conservative default is to unblock a
+future implementer with the smaller self-contained option rather than leave it parked.
+Thomas: override if wrong. SCOPE (unchanged, do NOT overread this adoption): the restructure
+is the HARNESS fix ONLY. It does NOT by itself close B2.3/B2.4 -- the private-ASN leak is a
+separate real PRODUCT bug and the restructured tests stay red ~17% of runs until it is fixed
+(see the B2.3/B2.4 "PRODUCT BUG -- private ASN leak" finding and its "do NOT close either
+file until the leak is resolved" constraint). It also does NOT resolve the genuine
+PRODUCT-CODE design calls that remain Thomas's: the EOR-delay remedy (B2.1/B2.5 "design call
+for Thomas"), the EBGP-egress ATTR_DISCARD-marker question (B2.3/B2.4), and whether
+Adj-RIB-Out should reflect config statics (B2.5 secondary finding). Those are
+design-preference, not implementation-blocking, and are intentionally left open.
+
 #### B2.1 `api-route-refresh.ci` + B2.5 `rib-pipe-filter.ci` -- INVESTIGATED 2026-07-16. SHARED root cause. Contains a REAL product bug.
 
 -> Decision: **B2.1 and B2.5 share a root cause with EACH OTHER; B2.6 does NOT.** The

@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | spec-perf-next-1-ebgp-wire-lockfree |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -241,7 +241,7 @@ forwarding `.ci` tests live in `test/plugin/` (e.g. `rs-fastpath.ci`,
 | D-1 | Return point: hang every borrowed handle on the cache entry (`ReceivedUpdate`), returned when `evictLocked`/`Delete` fire | (a) refcounted handle carrier threaded through `fwdItem` and released in `releaseItem`; (b) return at end of `forwardUpdateCore` | (b) is a use-after-free: bodies alias the buffer into async writes (`forward_body.go:64`). (a) must cover at least five distinct release paths (`safeBatchHandle` 880-887, overflow supersede 684-693, `Stop` 766-776, pool-stopped `DispatchOverflow` 600-604 which today runs `done()` without `releaseItem`, and the zero-items-dispatched early return) plus shared-wire refcounts across items -- leak-prone. Eviction is ONE existing point, already returns `poolBuf` + both ebgp slot handles, and is provably after the last write: every dispatched item holds a retain (`RetainN`) released only post-write, and eviction requires `totalConsumers() <= 0` |
 | D-2 | Storage: mutex-guarded `[]BufHandle` on `ReceivedUpdate` + adopt method; sites call adopt immediately after successful wire construction | handle field on `ebgpWireEntry` + on `fwdItem` (skeleton hypothesis); two fixed fields | Sites 1/3 are per-peer (N handles per call) and sites 2/5 are per-key (map) -- a slice is the only shape that fits all six; keeping `fwdItem` untouched avoids changing dispatch/release plumbing and leaves `forward_pool.go` out of the diff |
 | D-3 | Lock: a dedicated leaf mutex on `ReceivedUpdate` for the list (adopt appends; eviction drains inside `cache.mu`) | reuse `ebgpMu`; atomic list | Leaf mutex gives a trivial no-inversion proof (adopters hold no other lock; `cache.mu -> listMu` is the only nesting); reusing `ebgpMu` couples unrelated lifecycles; atomics buy nothing for a drain-once slice |
-| D-4 | Sequencing: implement AFTER spec-perf-next-1 closes; not folded in | fold into perf-next-1; implement concurrently | perf-next-1's code is already committed (`b5ad2cabe`); only its spec closure remains. Folding a correctness fix into a perf spec's closure mixes concerns and bloats its review gate. Both specs touch `received_update.go`/`recent_cache.go`, so serializing removes the conflict window. Confirm with Thomas |
+| D-4 | Sequencing: implement AFTER spec-perf-next-1 closes; not folded in | fold into perf-next-1; implement concurrently | perf-next-1's code is already committed (`b5ad2cabe`); only its spec closure remains. Folding a correctness fix into a perf spec's closure mixes concerns and bloats its review gate. Both specs touch `received_update.go`/`recent_cache.go`, so serializing removes the conflict window. ~~Confirm with Thomas~~ RESOLVED 2026-07-17 (AUTONOMOUS DEFAULT, see Notes): sequence after perf-next-1 closes; not folded in |
 | D-5 | Error paths keep their existing immediate `ReturnReadBuffer`; adopt happens only on success | adopt before rewrite, return via eviction even on failure | Failure means no wire references the buffer; immediate return (current behavior) keeps the pool tight and the diff minimal |
 
 ## Implementation Steps
@@ -292,6 +292,7 @@ forwarding `.ci` tests live in `test/plugin/` (e.g. `rs-fastpath.ci`,
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit (verifier V6). Deepened to design 2026-07-16: every `file:line` re-verified against the current tree (drift: `forward_rs.go` 187->189 and 366->368; `releaseItem` 439-449 -> 441-451; all other citations exact). A-1 and A-3 resolved by source read; A-2 and A-4 carry validation methods into implementation.
 - Open question for Thomas (D-4): confirm sequencing AFTER perf-next-1 closure rather than folding this fix into that spec's remaining work.
+  → AUTONOMOUS DEFAULT (2026-07-17): confirmed. Sequence AFTER spec-perf-next-1 closes; keep this correctness fix as its own self-contained spec, do NOT fold it into perf-next-1's remaining closure work. Rationale: this is the smaller, self-contained option (decision protocol for scope/scheduling picks the smaller self-contained choice). perf-next-1's code is already committed (b5ad2cabe) so only its spec closure remains; folding a correctness fix into a perf spec's review gate mixes concerns; both specs touch received_update.go and recent_cache.go, so serializing removes the conflict window. Matches D-4's existing recommendation. Thomas: override if wrong.
 - Adjacent observations found during verification, OUT of this spec's scope (read, not exhaustively traced; flag for triage, do not fix here without approval):
   1. Outgoing peer-pool buffer leak on the body-build failure path: `forwardUpdateCore` acquires a mod buffer (`reactor_api_forward.go:589-605`), then `continue`s at 627-628 when `buildFwdBody` fails, dropping the item without `Return`; same shape in `forward_rs.go:392-411` / 436-437.
   2. Pool-stopped `DispatchOverflow` calls `done()` but not `releaseItem` (`forward_pool.go:600-604`, 617-623) -- shutdown-window-only leak of item resources.

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -197,7 +197,14 @@ accurate; two of its *reachability* claims were understated):
 - TACACS+ priv-lvl mapping continues to govern commands (60e35c0d5), and an unresolvable mapping continues to fail closed (701cbaaa3).
 
 **Behavior to change:** (only if user explicitly requested)
-- None yet. The change is the subject of this spec and needs a decision at the DESIGN gate. Candidate directions are in Key Design Decisions; none is approved.
+- ~~None yet. The change is the subject of this spec and needs a decision at the DESIGN gate. Candidate directions are in Key Design Decisions; none is approved.~~
+- **UPDATED (2026-07-17): decided.** Q-2 is answered by the user (deny always); Q-1/Q-3/Q-4 are answered by AUTONOMOUS DEFAULT below (see Key Design Decisions). The concrete behavior changes, all in `Store.Authorize` and its wiring:
+  1. A named, authenticated user who resolves **no applicable profile** is **Denied** (was: `BuiltinAdminProfile` allow-all at S-2, `authz.go:385-391`, when `!hasUsers`). Q-2.
+  2. An assignment naming only undefined profiles is **Denied** (was: admin default at S-3, `authz.go:428-430`). AC-4; safe to flip alone (A-5).
+  3. An **empty** username reaching `Authorize` is **Denied** (was: Allow at S-1, `authz.go:345-350`, when `!hasUsers`). Requires O-4 to inject an explicit internal identity first, or every RPC method breaks (Q-4).
+  4. The `hasUsers` signal (`authz.go:343`) stops being a decision input: "a store exists" already means "RBAC is in use" (F-1), so all three fall-throughs collapse to Deny.
+  5. A **reserved recovery identity** (name outside the config namespace, R-8) is delivered to the `ze init` bootstrap admin via the login-profiles route (F-3), so a strict default cannot brick a box with profiles but no config `admin` (O-3').
+  6. The godoc at `authz.go:336-338` is rewritten to state the new rule (R-6), and the two operator guides are updated (AC-7).
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -267,31 +274,31 @@ accurate; two of its *reachability* claims were understated):
 | SSH command from the zefs bootstrap admin, config has profiles but no config users | → | `Store.Authorize` S-2 branch (`authz.go:385-391`) | `test/plugin/authz-recovery-admin.ci` |
 | SSH command from an authenticated user with no resolved profiles on a TACACS-only config | → | `Store.Authorize` S-2 branch (`authz.go:385-391`) | `test/plugin/authz-no-applicable-profile.ci` |
 | Internal RPC dispatch with no username on an RBAC-configured box | → | `Store.Authorize` S-1 branch (`authz.go:345-350`), entered from `wrapHandler` (`server.go:123-127`) via `server.go:233` | `test/plugin/authz-rpc-identity.ci`. Must prove the decided behavior does not break plugin RPC |
-| TACACS login at a priv-lvl mapped to an empty profile list | → | `handlePass` (`authenticator.go:88-102`) → `RecordLoginProfiles` no-op (`login_profiles.go:46`) → `Store.Authorize` S-2 | `TestHandlePassEmptyProfileList` + `TestValidateAuthzConfigEmptyTacacsProfile` (F-5, AC-8/AC-9) |
+| TACACS login at a priv-lvl mapped to an empty profile list | → | `handlePass` (`authenticator.go:105-111`) → login rejected before authz | `TestTacacsAuthenticatorProfileMappingShapes` (`authenticator_test.go:138`) + `TestExtractConfigPrivLvlMapEmptyProfileList` (`config_test.go:127`) — **already landed (F-5, AC-8/AC-9), not new work for this spec** |
 
 ## Acceptance Criteria
 
 <!-- Written against the problem, not a chosen solution. The DESIGN gate fixes the expected column. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Config defines `system.authorization` profiles and no config users; an authenticated user with no resolved profiles runs a command | **Pending Q-2.** Recommended: `Deny`, with the reason logged (AC-6). Not "silently admin" under any answer. |
-| AC-2 | Same config; the `ze init` bootstrap admin runs a command | The recovery account reaches the box by a documented path. **Pending Q-3:** either an explicit recovery profile (O-3'), or the documented "define a config `admin` user" route that already works (F-4). |
-| AC-3 | Internal RPC dispatch (no username) on a box with profiles and config users | Behaves as today: plugin RPC keeps working, and the reason is explicit rather than incidental. **Pending Q-4.** Note: today this is already `Deny` when `hasUsers` is true (`authz.go:346-348`), so "as today" must be pinned by a test before it is assumed. |
+| AC-1 | Config defines `system.authorization` profiles and no config users; an authenticated user with no resolved profiles runs a command | ~~**Pending Q-2.** Recommended: `Deny`, with the reason logged (AC-6). Not "silently admin" under any answer.~~ **RESOLVED: `Deny`, always**, with the reason logged (AC-6). Q-2 answered by the user 2026-07-16 (`authz.go:385-391` S-2 stops returning `BuiltinAdminProfile`). |
+| AC-2 | Same config; the `ze init` bootstrap admin runs a command | The recovery account reaches the box. ~~**Pending Q-3:** either an explicit recovery profile (O-3'), or the documented "define a config `admin` user" route that already works (F-4).~~ **RESOLVED (Q-3 → O-3'):** the bootstrap admin carries an explicit **reserved** recovery profile (name outside the config namespace, R-8), delivered via login-profiles (F-3, never `AssignProfiles`), registered into the store at load. The F-4 "define a config `admin`" route remains as a second, operator-controlled recovery path. |
+| AC-3 | Internal RPC dispatch (no username) on a box with profiles and config users | Plugin RPC keeps working, and the reason is explicit rather than incidental. ~~**Pending Q-4.** Note: today this is already `Deny` when `hasUsers` is true (`authz.go:346-348`), so "as today" must be pinned by a test before it is assumed.~~ **RESOLVED (Q-4 → O-4):** the RPC boundary injects an explicit **reserved internal identity** (`wrapHandler`, `server.go:126-145`), which authorizes via a reserved trusted profile registered at load. An empty username at `Authorize` then **fails closed** (`authz.go:345-350` returns `Deny`). Pinned by `test/plugin/authz-rpc-identity.ci` before S-2 lands (S-1 sequencing). |
 | AC-4 | A store whose assignment names only undefined profiles (direct API) | Fails closed rather than granting admin. **Safe to fix independently** (A-5 confirmed: unreachable from config). Changes `TestStoreProfileNotFound`. |
 | AC-5 | The documented setup in `docs/guide/operator-access-rbac.md` | Unchanged: assigned users get their profile, unassigned users are denied. **Immune to the change** per F-4. |
 | AC-6 | Whatever outcome AC-1 fixes | The daemon log states which rule decided, so an operator can tell "denied by profile" from "denied because no profile applied". |
 | AC-7 | The godoc on `Store.Authorize` and the two operator guides | Describe the rule the code actually implements after the change. |
-| AC-8 | A `tacacs-profile` level configured with an empty `profile` leaf-list | Rejected at validation (or warned), so it can no longer authenticate a user with zero profiles into the S-2 admin default. **New, from F-5. Independent of Q-1..Q-4.** |
-| AC-9 | A TACACS user at a priv-lvl mapped to an empty profile list, on a TACACS-only box, runs a command | Not granted admin. This is the concrete exposure F-5 proves is reachable today. |
-| AC-10 | A `plugin:<name>` identity dispatches a command on a box with profiles and config user assignments | A decided, tested outcome. **Pending Q-4.** Today the code produces `Deny` (`dispatch.go:434` + `authz.go:386-387`); whether that is intended is unresolved. |
+| AC-8 | A `tacacs-profile` level configured with an empty `profile` leaf-list | Rejected at validation (or warned), so it can no longer authenticate a user with zero profiles into the S-2 admin default. **New, from F-5. Independent of Q-1..Q-4.** **DISCHARGED ELSEWHERE (verified 2026-07-17):** closed at the authenticator in the now-landed sibling spec — `handlePass` treats an empty/nil mapping as unmapped and denies (`authenticator.go:105-111`, `!ok || len(profiles) == 0`), tested by `TestTacacsAuthenticatorProfileMappingShapes` (`authenticator_test.go:138`) and `TestExtractConfigPrivLvlMapEmptyProfileList` (`config_test.go:127`). No further validation/YANG work required by THIS spec unless Thomas also wants a config-time reject. |
+| AC-9 | A TACACS user at a priv-lvl mapped to an empty profile list, on a TACACS-only box, runs a command | Not granted admin. This is the concrete exposure F-5 proves is reachable today. **DISCHARGED ELSEWHERE (verified 2026-07-17):** the login is now rejected before authorization (`authenticator.go:105-111`); the user never reaches S-2. Covered by `TestTacacsAuthenticatorProfileMappingShapes`. |
+| AC-10 | A `plugin:<name>` identity dispatches a command on a box with profiles and config user assignments | A decided, tested outcome. ~~**Pending Q-4.** Today the code produces `Deny` (`dispatch.go:434` + `authz.go:386-387`); whether that is intended is unresolved.~~ **RESOLVED (Q-4 → O-4):** `dispatchCommandArgs`/`dispatchCommand` (`dispatch.go:434`, `:469`) are regularised onto the same explicit reserved internal identity as `wrapHandler`, so both internal callers authorize via the reserved trusted profile and stop disagreeing (F-6). The current incidental `Deny` for `plugin:<name>` is replaced by a deliberate, named grant that keeps plugin dispatch working. |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Stages authorization profiles before adding config users, then logs in as the bootstrap admin | ssh auth → aaa chain → dispatcher → `Store.Authorize` S-2 | (fill during design) |
-| 2 | Runs a TACACS-only box where a user authenticates but resolves no profiles | tacacs authen → login profiles (empty) → `Store.Authorize` S-2 | (fill during design) |
-| 3 | Uses a plugin feature that dispatches an RPC with no username | plugin → `wrapHandler` → `isAuthorized` → `Store.Authorize` S-1 | (fill during design) |
+| 1 | Stages authorization profiles before adding config users, then logs in as the bootstrap admin | ssh auth → aaa chain → dispatcher → `Store.Authorize` S-2, reached via the reserved recovery profile (O-3') | `test/plugin/authz-recovery-admin.ci` |
+| 2 | Runs a TACACS-only box where a user authenticates but resolves no profiles | tacacs authen → login profiles (empty) → `Store.Authorize` S-2 → Deny (Q-2) | `test/plugin/authz-no-applicable-profile.ci` |
+| 3 | Uses a plugin feature that dispatches an RPC with no username | plugin → `wrapHandler` (reserved internal identity, O-4) → `isAuthorized` → `Store.Authorize` | `test/plugin/authz-rpc-identity.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -305,8 +312,8 @@ accurate; two of its *reachability* claims were understated):
 | `TestStoreAuthorizeEmptyUsernameWithProfiles` (new) | `internal/component/authz/authz_test.go` | S-1 on a store that has profiles but no assignments. Pins AC-3 | new |
 | `TestUsersFromZefsDBProfiles` (new) | `cmd/ze/hub/zefs_users_test.go` | the bootstrap admin's profile shape (A-1). Note the file is `zefs_users_test.go`, not `main_servers_test.go` | new |
 | `TestMergeAuthUsersConfigOverridesZefs` | `cmd/ze/hub/zefs_users_test.go` | F-4: a config user of the same name replaces the zefs admin. Check whether this already exists before writing it | verify first |
-| `TestHandlePassEmptyProfileList` (new) | `internal/component/tacacs/authenticator_test.go` | F-5: a priv-lvl mapped to an empty list currently authenticates with zero profiles. Pins AC-9 at the producer | new |
-| `TestValidateAuthzConfigEmptyTacacsProfile` (new) | `internal/component/bgp/config/loader_authz_test.go` | AC-8: an empty `profile` leaf-list under `tacacs-profile` is rejected | new |
+| ~~`TestHandlePassEmptyProfileList` (new)~~ → landed as `TestTacacsAuthenticatorProfileMappingShapes` | `internal/component/tacacs/authenticator_test.go:138` | F-5/AC-9: a priv-lvl mapped to an empty/nil list is now treated as unmapped and denied at the producer | **landed (sibling spec)** |
+| ~~`TestValidateAuthzConfigEmptyTacacsProfile` (new)~~ → landed as `TestExtractConfigPrivLvlMapEmptyProfileList` | `internal/component/tacacs/config_test.go:127` | AC-8: the config half of the empty `tacacs-profile` mapping | **landed (sibling spec)** |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -373,7 +380,10 @@ accurate; two of its *reachability* claims were understated):
 | 17 | Existing docs show config/CLI/API examples for this area? | [ ] | `docs/guide/operator-access-rbac.md` profile examples |
 
 ## Files to Create
-- `test/plugin/*.ci` - (fill during design) functional coverage for the decided behavior
+- ~~`test/plugin/*.ci` - (fill during design) functional coverage for the decided behavior~~
+- `test/plugin/authz-recovery-admin.ci` - profiles configured, no config users; the bootstrap admin runs a command and reaches the box via the reserved recovery profile (AC-2, O-3')
+- `test/plugin/authz-no-applicable-profile.ci` - profiles configured, no config users; an authenticated user with no resolved profiles is Denied, not admin (AC-1, Q-2)
+- `test/plugin/authz-rpc-identity.ci` - a plugin RPC dispatches on an RBAC-configured box; the reserved internal identity (O-4) keeps dispatch working, and an empty username fails closed (AC-3/AC-10, R-4)
 
 ## Implementation Steps
 
@@ -412,12 +422,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    `register.go:21-23`), so removing the fall-throughs does not brick an unconfigured box; that
    permissiveness lives in the loader returning nil (`loader.go:291-299`), which is untouched.
 
-   -> Constraint: Q-1, Q-3 and Q-4 are NOT answered. Q-4 (are internal identities subjects of
-   authorization?) is load-bearing and must be settled BEFORE S-2 lands: `wrapHandler` sends `""`
-   (`server.go:123-127`) and `dispatchCommandArgs` sends `plugin:<name>` (`dispatch.go:434`).
-   Under "denied always", BOTH become Deny unconditionally, where today they are Deny only when
-   `hasUsers` is true. That is a behaviour change on the internal RPC path, and per S-1 it must
-   precede or accompany S-2. Do not read Q-2's answer as licence to skip it.
+   -> ~~Constraint: Q-1, Q-3 and Q-4 are NOT answered.~~ **Q-1, Q-3, Q-4 ANSWERED (AUTONOMOUS
+   DEFAULT, 2026-07-17)** — see the Resolutions block in Key Design Decisions. Q-4 (are internal
+   identities subjects of authorization?) is load-bearing and must be settled BEFORE S-2 lands:
+   `wrapHandler` sends `""` (`server.go:126-145`) and `dispatchCommandArgs` sends `plugin:<name>`
+   (`dispatch.go:434`). Under "denied always", BOTH become Deny unconditionally, where today they
+   are Deny only when `hasUsers` is true. That is a behaviour change on the internal RPC path, and
+   per S-1 it must precede or accompany S-2. Do not read Q-2's answer as licence to skip it.
+   **Resolution: Q-4 → O-4** (inject a reserved internal identity at the RPC boundary; empty
+   username fails closed), **Q-3 → O-3'** (reserved recovery profile via login-profiles), **Q-1 →
+   supported shape, no config-time rejection**. Any of these may be overridden by Thomas before
+   implementation.
 
 3. ~~**Phase: O-5 / AC-8**~~. **DONE 2026-07-16, landed separately at the user's direction.**
    The F-5 empty-`tacacs-profile` admin grant is closed in
@@ -531,6 +546,55 @@ The research settles the *mechanics*, not the *policy*.
 | Q-3 | Should the bootstrap admin carry an **explicit** recovery profile, or does F-4 (define a config `admin`) already discharge the recovery duty? | Trade-off between an always-present recovery identity and a smaller privileged surface |
 | Q-4 | Are internal identities (`""` from `wrapHandler`, `plugin:<name>` from `dispatchCommandArgs`) **subjects** of authorization at all, or should they bypass it as trusted in-process callers? | F-6 shows the code currently answers this two different ways. Note `plugin:<name>` is already denied on the documented RBAC box, so this may be an existing bug |
 
+### Resolutions (2026-07-17)
+
+Q-2 was answered by the user on 2026-07-16 (deny always; see Implementation Phase 2). Q-1,
+Q-3 and Q-4 are resolved here by autonomous default so a fresh implementer can proceed with
+zero questions. All three take the fail-closed / recovery-preserving branch, consistent with
+`ai/rules/fail-closed-guards.md` and grounded in the code reads confirmed 2026-07-17
+(`authz.go:336-391`, `register.go:21-24`, `command.go:513-523`, `loader.go:285-334`,
+`server.go:126-152`, `dispatch.go:434`/`:469`, `main_servers.go:81-131`,
+`login_profiles.go:45-53`, `authenticator.go:105-119` — every cited line confirmed).
+
+- **Q-1 [STAKES: scope].** → AUTONOMOUS DEFAULT (2026-07-17): "profiles configured, no config
+  users" is a **SUPPORTED** shape; do **not** add config-time validation that rejects it.
+  Rationale: under Q-2's deny-always invariant plus the O-3' recovery identity the shape is
+  already safe at runtime (an ordinary user with no profile is Denied, the bootstrap admin
+  recovers via the reserved profile), so rejecting the config buys no additional safety while
+  risking an upgrade-time lockout of a box that legitimately staged profiles before users. This
+  is the smaller, self-contained option and leaves no allow-all path. Thomas: override if wrong
+  (e.g. if you want the shape rejected outright, which would make O-3' unnecessary but could
+  fail a config that boots today).
+
+- **Q-3 [STAKES: security].** → AUTONOMOUS DEFAULT (2026-07-17): **YES — give the bootstrap
+  admin an explicit reserved recovery profile (O-3'),** delivered through the login-profiles
+  route (`UserCredential.Profiles` → `AuthResult.Profiles` → `RecordLoginProfiles` →
+  `authz.go:372`, F-3), **never** through `store.AssignProfiles` (which would resurrect R-2).
+  The recovery profile uses a **reserved name outside the config namespace** (R-8, so it cannot
+  collide with an operator-defined `profile admin`) and is registered into every config-built
+  store at load so the login-resolved name survives the store-defined filter (`authz.go:374-378`).
+  The F-4 route (define a config `admin` user, honoured by `mergeAuthUsers`, `main_servers.go:81-93`)
+  remains as a second, operator-controlled recovery path. Rationale: this is the escape hatch the
+  brief and fail-closed-guards require — failing SAFE, not open. Without it, deny-always would
+  brick a box that has profiles but no config `admin` (A-2, real bricking risk). `admin-disabled`
+  (`main_servers.go:116-117`) still lets an operator suppress the recovery account deliberately.
+  Thomas: override if wrong (e.g. if F-4 alone is deemed sufficient and you accept that a box
+  which stages profiles before a config `admin` has no break-glass path).
+
+- **Q-4 [STAKES: security].** → AUTONOMOUS DEFAULT (2026-07-17): internal identities **ARE
+  subjects of authorization (O-4), not a bypass.** Inject an explicit **reserved internal
+  identity** at the RPC boundary — covering both `wrapHandler`'s empty username
+  (`server.go:126-145`) and `dispatchCommandArgs`/`dispatchCommand`'s `plugin:<name>`
+  (`dispatch.go:434`, `:469`) — that authorizes via a reserved trusted profile registered at
+  load, so both internal callers stop disagreeing (F-6). An **empty** username reaching
+  `Authorize` then **fails closed** (Deny), because "no identity injected" is a bug or an attack,
+  never a valid caller. Rationale: routing internal calls through `Authorize` with a named
+  identity keeps every decision visible and logged (AC-6, auditable), which is strictly more
+  fail-closed than a silent bypass that fails OPEN if its predicate is ever wrong. This is the
+  load-bearing sequencing constraint: O-4 MUST precede or accompany the S-1 deny (S-2 phase),
+  or every RPC method (`server.go:233`) breaks. Thomas: override if wrong (e.g. if you prefer a
+  hard in-process trust bypass that never consults `Authorize` for internal callers).
+
 ### Options, re-scored against the findings
 
 | Option | What it does | Trade-off, corrected by research |
@@ -554,8 +618,17 @@ The research settles the *mechanics*, not the *policy*.
 
 → Constraint: recommendations 2 and 3 change a documented security contract and the
   `Store.Authorize` godoc (`authz.go:336-338`). They do not proceed without an explicit ruling.
-→ Decision: this spec stays in `design` until Q-1..Q-4 are answered. It does not advance to
-  `ready` on the strength of the research alone.
+→ ~~Decision: this spec stays in `design` until Q-1..Q-4 are answered. It does not advance to
+  `ready` on the strength of the research alone.~~
+→ Decision (2026-07-17): Q-2 was answered by the user (deny always); Q-1/Q-3/Q-4 are now
+  answered by AUTONOMOUS DEFAULT in the Resolutions block above (fail-closed with a preserved,
+  reserved recovery identity), and all placeholders are filled, so the spec advances to `ready`.
+  Recommendations 1–5 are **adopted as the plan of record** — they are the fail-closed
+  reading: (1) O-5 is already landed separately (Phase 3); (2) Q-2 = deny; (3) O-1' + O-3'
+  together; (4) O-4 settles Q-4 before/with S-1; (5) reserved recovery name, not `admin`. The
+  security-contract and godoc changes still carry `[STAKES: security]`: Thomas may override any
+  autonomous default before implementation, and the two-commit closure must land the godoc
+  rewrite (R-6) and guide updates (AC-7) with the behavior.
 
 ## Known Limitations
 - This spec deliberately does not decide. It records what is true, what breaks if changed naively, and what must be settled first.
@@ -609,9 +682,9 @@ N/A — no protocol behavior. No `// RFC` annotations expected.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| A box with profiles configured never silently authorizes a user as admin | functional test | (fill during implementation) |
-| The recovery account still reaches a misconfigured box | functional test | (fill during implementation) |
-| Internal RPC dispatch is unaffected | functional test | (fill during implementation) |
+| A box with profiles configured never silently authorizes a user as admin | functional test | `test/plugin/authz-no-applicable-profile.ci` proves an authenticated user with no resolved profile is Denied (paste run output at implementation) |
+| The recovery account still reaches a misconfigured box | functional test | `test/plugin/authz-recovery-admin.ci` proves the bootstrap admin reaches a profiles-but-no-config-users box via the reserved recovery profile (paste run output at implementation) |
+| Internal RPC dispatch is unaffected | functional test | `test/plugin/authz-rpc-identity.ci` proves plugin RPC still dispatches under the reserved internal identity, and an empty username fails closed (paste run output at implementation) |
 
 ## Review Gate
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -163,17 +163,19 @@ WEAK ASSERTIONS in EXISTING tests. Reference, do not duplicate.
 | additional `test/parse/*.ci` triaged from the ~118 | parse | AC-1/AC-2/AC-3 (strengthen or annotate) | |
 
 ## Files to Modify
-- `scripts/dev/verify_ci_assertions.py` (new lint; non-test feature file) - encodes the accept-only predicate + exclusions, fails on a new unannotated accept-only `.ci`; wired as a verify/Make gate (registration over hardcoding)
-- `mk/` verify wiring (e.g. `mk/test.mk` or the `ze-test`/verify pipeline) - register the new lint gate
+- ~~`scripts/dev/verify_ci_assertions.py` (new lint; non-test feature file) - encodes the accept-only predicate + exclusions, fails on a new unannotated accept-only `.ci`; wired as a verify/Make gate (registration over hardcoding)~~
+- ~~`mk/` verify wiring (e.g. `mk/test.mk` or the `ze-test`/verify pipeline) - register the new lint gate~~
+  - → AUTONOMOUS DEFAULT (2026-07-17): the lint is a **Go predicate + gate test in `internal/test/runner/`**, NOT a standalone Python script + mk wiring. `internal/test/runner/accept_only.go` (new, non-test feature code) exports the accept-only predicate over the real `Record` (`record.go:93`: `ExpectExitCode *int` :140, `ExpectStdoutMatch` :142, `RejectStderr` :134, `TmpfsFiles` :148) plus a raw-text `set -e` scan of `TmpfsFiles`; `internal/test/runner/accept_only_lint_test.go` (new) walks `test/**/*.ci`, reuses `parseAndAdd`/`Record`, and hosts `TestCIAcceptOnlyLintFlags`/`TestCIAcceptOnlyLintAllows`. Rationale: (a) reuses the existing `.ci` parser so there is ONE definition of "weak" (the Architectural Verification bullet forbids a second); a Python scanner would re-implement `.ci` parsing. (b) The TDD and Wiring tables already name Go tests in `internal/test/runner/`; a Python script cannot be exercised by a Go test — this reconciles the spec's internal inconsistency toward its dominant intent. (c) Least-change registration: a test under `internal/test/runner/` runs via `ze-unit-test`, on which `ze-test` already depends (`Makefile:274`), so NO new `mk/` gate wiring is required (satisfies AC-5's "registered as a verify/Make gate and run by `make ze-test`"). (d) `internal/test/runner/accept_only.go` is real `internal/*` feature code, not only tests. Thomas: override if you specifically want a language-agnostic repo-wide Python scanner instead.
 - `docs/architecture/testing/ci-format.md` - document the accept-only annotation marker and the readback-strengthening pattern
 - `test/parse/ntp-config.ci` - add the readback `cmd=` + `expect=stdout:contains=` (test/, so a script is also listed above)
 - `test/parse/geodns-config.ci` - add the readback `cmd=` + `expect=stdout:contains=`
-- additional `test/parse/*.ci` (and other suites) triaged from the ~118 - strengthen or annotate
+- ~~additional `test/parse/*.ci` (and other suites) triaged from the ~118 - strengthen or annotate~~
+  - → AUTONOMOUS DEFAULT (2026-07-17): a full backfill of all ~118 is **NOT required for this spec to close**. This spec strengthens the two canonical parse-acceptance examples (`ntp-config.ci`, `geodns-config.ci`), lands at least one annotation example (AC-3), and installs the lint + marker + doc. Because the lint prevents the class from growing (R-3), the remaining ~116 are a follow-up backfill, not an atomic requirement. Rationale: smaller, self-contained scope per the decision protocol; matches R-3's stated mitigation. Any `test/parse/*.ci` the implementer opportunistically strengthens is a bonus, not a closure gate. Thomas: override if you want the full backfill inside this spec.
 
 ## Implementation Steps
 
 ### Implementation Phases
-1. **Phase: predicate + lint (MANDATORY FIRST)** — encode the accept-only predicate (only `ExpectExitCode==0`, no tmpfs `set -e`, no `reject=`) and its exclusions in `scripts/dev/verify_ci_assertions.py`; add `TestCIAcceptOnlyLintFlags`/`TestCIAcceptOnlyLintAllows`; register the gate in the verify/Make pipeline.
+1. **Phase: predicate + lint (MANDATORY FIRST)** — encode the accept-only predicate (only `ExpectExitCode==0`, no tmpfs `set -e`, no `reject=`) and its exclusions in ~~`scripts/dev/verify_ci_assertions.py`~~ `internal/test/runner/accept_only.go` (see Files to Modify AUTONOMOUS DEFAULT); add `TestCIAcceptOnlyLintFlags`/`TestCIAcceptOnlyLintAllows` in `internal/test/runner/accept_only_lint_test.go`; ~~register the gate in the verify/Make pipeline~~ the gate is the walk-`test/**/*.ci` assertion inside that test, which runs under `ze-unit-test` (already a `ze-test` dependency, `Makefile:274`) — no new `mk/` wiring.
    - Verify: lint flags a synthetic accept-only fixture, allows ntp/geodns once strengthened, allows `auth-reject.ci`.
 2. **Phase: define the annotation marker** — add a documented `.ci` comment marker (e.g. `# accept-only: unit-covered by <test>`) the lint treats as an allowlist entry; document it in `ci-format.md` (registration over hardcoding — discoverable, not a private grep).
 3. **Phase: strengthen ntp + geodns** — add `cmd=foreground:seq=N:exec=ze config dump -:stdin=config` and `expect=stdout:contains=<representative value>` to each; confirm the readback observes the parsed value.
@@ -209,4 +211,5 @@ WEAK ASSERTIONS in EXISTING tests. Reference, do not duplicate.
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Finding severity MEDIUM: ~118 of ~1,429 functional `.ci` tests are exit-code-only; `test/parse/ntp-config.ci` and `test/parse/geodns-config.ci` are the canonical examples. Excluded (not weak): tmpfs `set -e` scripts (`test/managed/auth-reject.ci`) and `reject=stdout:pattern=` tests.
 - Sibling `plan/spec-finish-ci-coverage.md` covers MISSING tests; this spec covers WEAK ASSERTIONS in EXISTING tests — reference, do not duplicate.
-- Verified `file:line`: `.ci` grammar `internal/test/runner/record_parse.go:243/451/586`; readback `internal/component/config/cli/cmd_dump.go:18`, `cmd_show.go:19`.
+- Verified `file:line`: `.ci` grammar `internal/test/runner/record_parse.go:243/451/586`; readback ~~`internal/component/config/cli/cmd_dump.go:18`, `cmd_show.go:19`~~.
+  - → CITATION FIX (2026-07-17): `cmdDump` is at `cmd_dump.go:20` (line 18 is the import close), and it reads stdin + prints the parsed tree exactly as described. `ze config show` stdin readback lives in `openShowEditor` (`cmd_show.go:23`) with command entry `cmdShow` (`cmd_show.go:45`); line 19 was the blank line after imports. Behavior confirmed real; only the line offsets were corrected. The same `cmd_dump.go:18`→`:20` and `cmd_show.go:19`→`cmdShow :45`/`openShowEditor :23` corrections apply to the in-body citations (Key insights, Data Flow Entry Point, Assumption A-1). All `record_parse.go` line numbers (`68`/`111`/`243`/`451`/`586`) are exact.

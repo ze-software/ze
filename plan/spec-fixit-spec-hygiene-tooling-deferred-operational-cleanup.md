@@ -2,10 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-07-17 |
+
+<!-- Status flipped skeleton -> ready on 2026-07-17: all tooling this spec consumes
+     already exists on disk (independent of the parent spec); both items are
+     implementable now. Depends stays "-": this consumes pre-existing tools, not the
+     parent's new ones. See "## Autonomous Readiness Resolutions (2026-07-17)". -->
 
 ## Post-Compaction Recovery
 
@@ -109,6 +114,55 @@ Spec Closure is BLOCKING and the learned summary is part of commit A, not a foll
 |----|------|--------------|----------------------|
 | R-1 | Closing a spec whose work did not land hides unfinished work | Review Gate not clean, or ACs without evidence | read the gate first; `ai/rules/no-partial-completion.md` |
 | R-2 | Pruning a learned file that is referenced, or is the only record of a lesson | `make ze-learned-numbers-check`, grep for references | index instead of prune when in doubt; `ai/rules/never-destroy-work.md` |
+
+## Autonomous Readiness Resolutions (2026-07-17)
+
+Append-only answers to this spec's open assumptions so a fresh implementer starts
+with zero questions. These supersede the `unvalidated` status of A-1 and A-2 above
+(the rows stay for provenance; read these resolutions as their answer).
+
+**Dependency finding (why this can be `ready` now).**
+→ AUTONOMOUS DEFAULT (2026-07-17): This child does NOT depend on the parent
+`spec-fixit-spec-hygiene-tooling` landing. Every tool it consumes already exists on
+disk, predating the parent: `scripts/dev/spec-closure-check.py` (`--list` at `:20`,
+flag registered `:314`, file dated Jul 8), `make ze-regen` / `ze-regen-check`
+(`Makefile:427,430`), `scripts/dev/learned_index.py` + `ai/LEARNED-FULL-INDEX.md`,
+and `make ze-learned-numbers-check` (`mk/inventory.mk:138`). The parent builds
+*different* tooling (`spec-citation-check.py`, the sleep-ratchet delta, the skeleton
+TTL flag) that neither item here uses. Rationale: both items are repo-state chores
+against tools already present, so they are implementable immediately. Thomas: override
+if wrong.
+
+**A-1 resolved — `spec-ipsec-13-rekey-wire` is genuinely complete.**
+→ AUTONOMOUS DEFAULT (2026-07-17): Proceed to two-commit closure (item 1).
+Rationale: its Review Gate at `plan/spec-ipsec-13-rekey-wire.md:475` reads
+"0 BLOCKER, 0 ISSUE. Engine `-race` + `ze-lint-changed` green; interop `05-child-rekey`
+re-verified PASS", and its learned summary `plan/learned/1069-ipsec-13-rekey-wire.md`
+is committed (`0be5a0be0`) while the spec still declares `| Status | in-progress |`
+— i.e. commit A ran, commit B (`git rm`) never did. The implementer must still re-read
+the gate at closure time to guard against drift, but the assumption is validated.
+Thomas: override if wrong.
+
+**A-2 resolved — item 2 is "regenerate + confirm", prune nothing.**
+→ AUTONOMOUS DEFAULT (2026-07-17, smaller/self-contained scope per the decision
+protocol): Define "un-indexed learned file" precisely as *a numbered
+`plan/learned/NNN-*.md` present on disk but absent from the auto-generated
+`ai/LEARNED-FULL-INDEX.md`*. As of 2026-07-17 that set is EMPTY:
+`scripts/dev/learned_index.py --check` reports in sync (1161/1161),
+`make ze-learned-numbers-check` reports numbering unique and consistent, and the
+curated `ai/LEARNED-INDEX.md` references 273 learned paths with 0 dangling. The only
+non-numbered files in `plan/learned/` — `DESIGN-HISTORY.md`, `HOOK-FRICTION.md`,
+`METHODOLOGY.md`, `RECURRING-PATTERNS.md` — are intentional meta-summaries that
+`learned_index.py` excludes by glob (`[0-9]*.md`) and names in its header; they are
+NOT prunable strays and are OUT OF SCOPE. Because `make ze-regen` regenerates the full
+index from every numbered file on disk, item 2 reduces to: run `make ze-regen`, confirm
+`make ze-regen-check` is green, and prune NOTHING. Prune a summary only if it is BOTH
+numbered-orphaned AND independently confirmed stale; when in doubt, index/regenerate
+rather than delete (`ai/rules/never-destroy-work.md`). This satisfies AC-2: "no
+un-indexed learned file remains" holds the moment `ze-regen-check` is green, since the
+4 meta-docs are excluded from the index by design and do not count as un-indexed.
+Rationale: the destroy-nothing path is the smaller, reversible option and matches R-2's
+mitigation. Thomas: override if wrong.
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | spec-fixit-migrate-sleeps-infra (harness-gated carve-out) |
 | Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Task
 
@@ -166,6 +166,13 @@ only 007 carries a sleep, so only 007 affects the ratchet. Whether 005 and 006 b
 sleep-migration spec at all is an open question: fixing them is valuable, but it is not
 sleep-migration work.
 
+→ AUTONOMOUS DEFAULT (2026-07-17): the sleep-migration spec IS warranted (per project
+practice, migrating blind sleeps to real synchronization exposes real races), but `vpp/005`
+and `vpp/006` carry NO blind sleep, so they are RE-SCOPED OUT of this spec into a separate
+vpp-harness spec (AC-6's re-scope path). This spec keeps only `vpp/007` from the vpp bucket.
+Full rationale under "### Autonomous Resolutions (2026-07-17)" in Open Questions. Thomas:
+override if wrong.
+
 **Also noted (drifted citation, pre-existing):** `test/vpp/007-fib-route-lookup.ci:1` cites
 `plan/spec-vpp-fib-query.md` as its Design reference, and that file does not exist.
 
@@ -253,12 +260,12 @@ of the spec.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | `static/004` and `005` are currently RED | `ze cli` needs SSH (`client.go:82`), their configs declare none, `show static` has no offline fallback | if green, the SSH-only analysis is missing a path and the whole premise needs rework before any change | run `bin/ze-test static` | unvalidated |
+| A-1 | `static/004` and `005` are currently RED | `ze cli` needs SSH (`client.go:82`), their configs declare none, `show static` has no offline fallback | if green, the SSH-only analysis is missing a path and the whole premise needs rework before any change | run `bin/ze-test static` | ~~unvalidated~~ CONFIRMED RED (2026-07-17, sibling A-5a) |
 | A-2 | The `firewall/004` recipe transplants to `test/static` | it is the proven working reference for exactly this shape | the harness needs per-suite work (netns, ports, caps) | apply it to 004 first, run it | unvalidated |
-| A-3 | The fixed port 2222 is safe because a per-test netns isolates it | `firewall/004:12-13` says so explicitly | the static suite needs a dynamic port or a log-scrape to find one | check whether the static suite runs under netns like firewall does | unvalidated |
-| A-4 | `static` tests need no `option=skip-os` | they are ungated today and SSH-to-loopback is not linux-specific; `ze_ssh` is default-on (`feature-gates.txt:31`) | adding SSH may force a gate, and the `static` suite is absent from `qemu-all-tests.sh`, so a gated static test would run NOWHERE | run the converted test on darwin | unvalidated |
+| A-3 | The fixed port 2222 is safe because a per-test netns isolates it | `firewall/004:12-13` says so explicitly | the static suite needs a dynamic port or a log-scrape to find one | check whether the static suite runs under netns like firewall does | ~~unvalidated~~ RESOLVED (2026-07-17): no netns in default `ze-static-test`; use distinct ports |
+| A-4 | `static` tests need no `option=skip-os` | they are ungated today and SSH-to-loopback is not linux-specific; `ze_ssh` is default-on (`feature-gates.txt:31`) | adding SSH may force a gate, and the `static` suite is absent from `qemu-all-tests.sh`, so a gated static test would run NOWHERE | run the converted test on darwin | ~~unvalidated~~ RESOLVED (2026-07-17): `needs-linux` required by the backend, not by SSH |
 | A-5 | The vpp backend exposes (or can expose) a channel-acquired signal | the 2.0s hold is described as waiting for exactly that | AC-5 needs a new signal, or 007 stays sleep-bound and is deferred | read the vpp backend's connect path | unvalidated |
-| A-6 | An offline fallback for `show static` is NOT the intended fix | the fallback set is deliberately tiny (2 read-only host-local commands) and would assert the CLI's own view, not the daemon's applied state | a much smaller change exists and the SSH harness is wasted effort | ask; check the offline-fallback design intent | unvalidated |
+| A-6 | An offline fallback for `show static` is NOT the intended fix | the fallback set is deliberately tiny (2 read-only host-local commands) and would assert the CLI's own view, not the daemon's applied state | a much smaller change exists and the SSH harness is wasted effort | ask; check the offline-fallback design intent | ~~unvalidated~~ CONFIRMED (2026-07-17): SSH harness, not fallback |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -403,6 +410,94 @@ Unit tests apply only where research adds Go-side support.
 - Are the reported vpp blockers real and current ("no test data", "needs a real kernel interface", "no peers match selector")? None appear in the files; they were not reproduced here.
 - Given that `vpp/005` and `vpp/006` contain no blind sleeps, do they belong in a sleep-migration spec at all, or should they move to a vpp-harness spec (AC-6)?
 - Should `test/vpp/007-fib-route-lookup.ci:1`'s dead Design reference to `plan/spec-vpp-fib-query.md` be fixed here, and does `check_design_refs` (`scripts/dev/verify_wiring_docs.py`) already flag it?
+
+### Autonomous Resolutions (2026-07-17)
+
+Readiness pass, no user available: every Open Question above is resolved here with the
+conservative default, grounded in source. Append-only; Thomas overrides any line that is wrong.
+
+→ **A-1 — Do `004`/`005` pass today? RESOLVED: NO, both are RED.** Grounded in sibling
+`plan/spec-fixit-static-interface-nexthops.md` A-5a, which ran `make ze-static-test`
+2026-07-16 and observed `005` dying on darwin at the platform guard ("static routes: not
+supported on this platform (Linux required)" x3, `backend_other.go` `unsupportedStaticBackend`),
+`OnConfigure` failing, and the daemon aborting startup before `iface.Resolve`, `tun100`, or any
+`ze cli` call is reached. A-5b records the suite is release-evidence-only
+(`mk/test-functional.mk:20,49`, `mk/test-release.mk:71`), which is why both `004` and `005`
+rotted unnoticed. Independently, Problem A holds on linux: `ze cli` is SSH-only
+(`internal/core/ssh/client/client.go:83 ssh.Dial`) and neither config declares a server, so the
+50x retry exhausts and the driver exits "ze cli never became ready". Conclusion: RED on both
+platforms, different producers. This spec is therefore a test-REPAIR spec first and a
+sleep-migration spec second (R-2 realized). Not re-run here per the readiness instruction; the
+sibling ran it 2026-07-16.
+
+→ **A-6 — SSH harness or offline fallback for `show static`? RESOLVED: SSH harness.**
+Test-infra scope question, so the smaller self-contained option wins: the SSH harness is
+test-only (copies `firewall/004`), whereas an offline fallback adds a NEW production surface (a
+`registry.RegisterOfflineFallback` for `show static`) that needs its own justification. It also
+asserts the wrong thing — the CLI's own view, not the daemon's applied route state, which is the
+whole point of these tests. The offline set is deliberately tiny (two read-only host-local
+commands, `internal/plugins/host/register.go:19`, `internal/plugins/crashes/register.go:19`).
+A-6 confirmed: fallback is NOT the fix.
+
+→ **A-3 — Does fixed port 2222 depend on netns the static suite lacks? RESOLVED: yes, and the
+default static run has NO netns.** `ZE_TEST_NETNS` is armed only in `mk/test-integration.mk:132`
+and `scripts/evidence/netns_qemu.py:107`; `netnsModeActive()` is off by default
+(`internal/test/runner/runner_exec_util.go:29-33`), and netns is a global run-mode env var, not
+a per-`.ci` directive. The normal `ze-static-test` target (`mk/test-functional.mk:157-158`,
+`bin/ze-test static --all`) does NOT set it. `firewall/004`'s fixed 2222 survives the default
+host-netns run only because it is the SOLE firewall test binding an SSH server. Two SSH-binding
+static tests (`004`, `005`) sharing a hardcoded 2222 would collide if the runner schedules them
+concurrently. Default: give `004` and `005` DISTINCT fixed ports (do NOT copy 2222 into both),
+or run the static suite under `ZE_TEST_NETNS`. Provisional — revisit if the runner serializes
+SSH tests.
+
+→ **A-4 — Does adding SSH force a platform gate? RESOLVED: the tests need `option=needs-linux`,
+but because the static BACKEND is linux-only, not because of SSH.**
+`internal/plugins/static/backend_other.go` (`//go:build !linux`) returns "static routes: not
+supported on this platform (Linux required)" for every method, so on darwin the daemon aborts
+before any `show static`. Sibling C-6 already prescribes `option=needs-linux` for `005`; the same
+reasoning applies to `004`. SSH-to-loopback is not platform-specific and `ze_ssh` is default-on
+(`feature-gates.txt:31`), so SSH adds NO new gate. The "gated static test runs NOWHERE" hazard is
+real (static is release-evidence-only and absent from `scripts/evidence/qemu-all-tests.sh`), so
+the implementer must wire the linux-gated static suite into an actually-run linux path
+(discovery/wiring, AC-9), NOT drop the gate. A-4's original "no `skip-os` needed" is superseded:
+a `needs-linux` gate IS needed.
+
+→ **Sibling next-hop decision — make interface-only next-hops work, or reject at config-verify?
+RESOLVED: MAKE THEM WORK.** Thomas decided 2026-07-16 (sibling lines 471-540): config-validate
+the interface reference where possible AND handle runtime resolution failure gracefully (WIDEN
+`WantsConfig` to `["static","interface"]`, C-8; actionable runtime error + doctor check,
+D-2 (a)+(b)). It did NOT resolve as config-verify rejection — A-4a confirms the interface-only
+form is deliberate design intent (`internal/plugins/static/yang/ze-static-conf.yang:121-131`).
+So `005`'s config is VALID; `005` needs a harness transplant plus the sibling's linux fixes
+(C-1 ordering, C-6 `needs-linux` + `interface { backend netlink }` + create `tun100`), NOT a
+rewrite (R-8 retires on the "reject" branch). CAVEAT: the sibling is still `design`, NOT approved
+(its line 30 — promotion is Thomas's gate). So `005` stays BLOCKED on the sibling landing. Per
+R-4: land `004` alone; defer `005` behind the sibling with the block recorded in both specs. This
+spec does NOT re-open the next-hop question — the sibling owns it.
+
+→ **vpp blockers real and current? RESOLVED: UNVERIFIED, reproduce first.** None of "no test
+data" / "needs a real kernel interface" / "no peers match selector" appear in the files; none
+were reproduced. Default: AC-1's "run the suite and record actual failures" is the FIRST vpp
+action; do not design against an unreproduced symptom. Only `vpp/007:51` carries a blind sleep,
+so only 007's blocker is load-bearing for the ratchet.
+
+→ **vpp/005, vpp/006 in a sleep-migration spec? RESOLVED: the spec IS warranted; 005/006 are
+RE-SCOPED OUT.** Migrating blind sleeps to real synchronization is valuable (it exposes real
+races), so the overall spec proceeds. But `vpp/005` (`:95,121,192`) and `vpp/006` (`:33,118`)
+contain NO blind sleep — every one is a bounded poll annotated "bounded wait not a blind sleep" —
+so they add 0 to the ratchet and are NOT sleep-migration work. Smaller/self-contained default:
+move their blocker fixes to a separate vpp-harness spec (AC-6's re-scope path); THIS spec keeps
+only `vpp/007` from the vpp bucket. No bounded poll is converted for ratchet credit (R-6). Net
+scope: exactly 3 blind sleeps (`static/004:22`, `static/005:24`, `vpp/007:51`); baseline
+132 -> 129.
+
+→ **vpp/007:1 dead Design ref — fix here? does `check_design_refs` flag it? RESOLVED: NOT
+gate-flagged; fix opportunistically.** `check_doc_links`/`check_design_refs` matches only
+`// Design:` (Go comment) in `.go` non-test files (`scripts/dev/check_doc_links.py:104`, `:183`);
+the vpp/007 ref is `# Design: plan/spec-vpp-fib-query.md` (Python comment in a `.ci`), invisible
+to the gate. `plan/spec-vpp-fib-query.md` does not exist (confirmed). Since `007` is edited anyway
+for the sleep conversion, repoint or drop the dead ref then — cheap hygiene, not a scope driver.
 
 ## Checklist
 

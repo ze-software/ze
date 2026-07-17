@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -96,6 +96,9 @@ error (`session_handlers.go:43-47`), openValidator rejection (`:98-115`, sends a
 NOTIFICATION but never closes), local-capability parse error (`:121-124`). A
 `defer s.closeConn()` in `Run` (same shape as the defect-2 fix) closes them all. Held as
 proposed AC-7 pending approval; it is NOT silently folded into defect 2.
+**Resolved Q-2 (2026-07-17): AC-7 approved and in scope** (three leak sites above re-verified
+against source: `session_handlers.go:43-47`, `:98-115`, `:121-124`; cancel-goroutine
+`<-s.done` exit at `session.go:733-734`).
 
 ## Required Reading
 
@@ -151,7 +154,7 @@ proposed AC-7 pending approval; it is NOT silently folded into defect 2.
 - Openwait arming (`ze.bgp.openwait`, `session_connection.go:357-359`) borrowing the hold-timer plumbing.
 
 **Behavior to change:**
-- Defects 1-4 above; AC-7 (conn-close on Run exit) only if Thomas approves; nothing else.
+- Defects 1-4 above; AC-7 (conn-close on Run exit) ~~only if Thomas approves~~ (approved 2026-07-17, Q-2; in scope); nothing else.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -226,7 +229,7 @@ proposed AC-7 pending approval; it is NOT silently folded into defect 2.
 | AC-4 | Established peer sends a second OPEN on the same connection | A NOTIFICATION (FSM Error, code 5, subcode 0) is sent and the connection is closed; no zombie Idle-with-open-conn state; peer can then re-establish normally |
 | AC-5 | `FSM.Event` receives an event that lands in a state handler's default arm | Returns a non-nil sentinel; `logFSMEvent` logs the rejection (its warn branch becomes live code) |
 | AC-6 | Import policy filter requests a session teardown | NOTIFICATION sent, `Run` returns a teardown reason promptly (no `conn == nil` spin), peer reconnect class is deliberate (see D-7) |
-| AC-7 | (PROPOSED, needs approval) Any read-loop error return, including ones that skip `closeConn` today | TCP connection is closed by the time `Run` has returned |
+| AC-7 | ~~(PROPOSED, needs approval)~~ (APPROVED 2026-07-17, Q-2) Any read-loop error return, including ones that skip `closeConn` today | TCP connection is closed by the time `Run` has returned |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -287,8 +290,8 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| Prometheus counters/metrics | [ ] | proposed: `ze_bgp_hold_expiry_graced_total`, `ze_bgp_open_in_established_total` (peer-labeled) in `reactor` metrics; decide at implementation with Thomas |
-| YANG schema / env var | [ ] | only if D-2 picks a tunable grace duration; then `ai/rules/config-surface.md` + `ai/rules/config-naming.md` first |
+| Prometheus counters/metrics | [ ] | proposed: `ze_bgp_hold_expiry_graced_total`, `ze_bgp_open_in_established_total` (peer-labeled) in `reactor` metrics; ~~decide at implementation with Thomas~~ RESOLVED 2026-07-17 (Q-5): add both, in `reactor_metrics.go` (peer-labeled) |
+| YANG schema / env var | [ ] | ~~only if D-2 picks a tunable grace duration; then `ai/rules/config-surface.md` + `ai/rules/config-naming.md` first~~ N/A per Q-1 (2026-07-17): grace extension is a fixed 10 s, not tunable; no leaf/env added |
 | Doctor check | [ ] | N/A - no new runtime dependency |
 | CLI grammar | [ ] | N/A - no new commands |
 
@@ -302,13 +305,13 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | D-1: Grace re-arm goes through a NEW generation-checked `Timers` entry point called only by the expiry callback | (a) delete the `!holdRunning` guard from `ResetHoldTimer`; (b) call `StartHoldTimer` from the grace branch | (a) would let late FSM events resurrect timers on a torn-down session (the guard is load-bearing for `StopAll` semantics); (b) `StartHoldTimer` re-arms unconditionally and would equally resurrect after a concurrent `StopAll` (R-3). The expiry closure captures its arming generation; the re-arm proceeds only if the generation is unchanged (i.e., no `Stop*`/re-arm happened since this fire). |
-| D-2: Extension duration -- RECOMMEND bounded 10 s (clamped to holdTime), matching the call-site comment | (a) full `holdTime` re-arm; (b) tunable via env | Full holdTime doubles worst-case dead-peer detection to 2x holdTime and makes the `.ci` slower; the bounded window caps it at holdTime + 10 s while genuine congestion keeps extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via the FSM). The 10 s figure has no decision record (searched `plan/learned/`, none); it exists only in the comment at `session.go:421-424`, so this is a fresh decision for Thomas, not a restoration. Env-tunable only if Thomas wants it (config-surface rules apply). |
+| D-2: Extension duration -- RECOMMEND bounded 10 s (clamped to holdTime), matching the call-site comment | (a) full `holdTime` re-arm; (b) tunable via env | Full holdTime doubles worst-case dead-peer detection to 2x holdTime and makes the `.ci` slower; the bounded window caps it at holdTime + 10 s while genuine congestion keeps extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via the FSM). The 10 s figure has no decision record (searched `plan/learned/`, none); it exists only in the comment at `session.go:421-424`, so this is a fresh decision for Thomas, not a restoration. Env-tunable only if Thomas wants it (config-surface rules apply). **Resolved Q-1 (2026-07-17): fixed 10 s, clamped to holdTime; not env-tunable.** |
 | D-3: Teardown discipline is a single `defer s.timers.StopAll()` in `Session.Run` | per-site `StopAll` at each of the 8+ dirty paths | The defer covers current and future exits (this bug class already recurred 8 times); per-site fixes are exactly the missed-sibling shape that caused the defect. Idempotent by A-3. NOTIFICATION-sending and `closeReason` stay per-site (R-5). |
 | D-4: `FSM.Event` returns a package-level sentinel (e.g. `fsm.ErrFSMError`) when a default arm fires; handled events (including deliberate ignores like ManualStop-in-Idle, which have explicit cases) return nil | boolean return; error per state+event pair | Callers need exactly one bit ("did the FSM treat this as an error transition"); a sentinel keeps `errors.Is` composable and `logFSMEvent` trivial. Explicit-case ignores are RFC-mandated non-errors and must stay nil. |
 | D-5: Defect-3 gate lives in `handleOpen` (reactor), keyed on `s.fsm.State()` | inside the FSM | Ze's FSM deliberately sends no messages (`fsm/fsm.go` header note 3); the NOTIFICATION + close is session I/O. Gate: OpenSent proceeds (normal path); Established (and OpenConfirm, D-6) get NOTIFICATION code 5 subcode 0 + `closeConn` + error return; negotiation is NOT re-run on the rejected path (no live capability rewrite). |
-| D-6: A second OPEN on the SAME connection in OpenConfirm gets the same FSM-error treatment as Established | run RFC 6.8 collision handling | RFC 6.8 collision is about two TCP connections (already handled by `DetectCollision`/`AcceptWithOpen`); a duplicate OPEN on one connection is not a collision. Current behavior (silent zombie Idle) is strictly worse than an explicit FSM error. Flag for Thomas: this is a judgment call on RFC 8.2.2's OpenConfirm Event 19 wording. |
-| D-7: Policy teardown signals a distinct sentinel that takes the BACKOFF reconnect class | reuse `ErrTeardown` (immediate reconnect) | The peer will typically re-offend immediately (its config still violates policy); immediate reconnect makes a NOTIFICATION storm. Needs Thomas's confirmation since it changes observable flap cadence for filter_family tear-down users. |
-| D-8: AC-7 (defer `closeConn` in `Run`) proposed but scope-gated | leave conn-leak paths for a follow-up spec | Same one-defer shape and same file as D-3; but it is new scope found in design, so it ships only with explicit approval (no unilateral scope growth). |
+| D-6: A second OPEN on the SAME connection in OpenConfirm gets the same FSM-error treatment as Established | run RFC 6.8 collision handling | RFC 6.8 collision is about two TCP connections (already handled by `DetectCollision`/`AcceptWithOpen`); a duplicate OPEN on one connection is not a collision. Current behavior (silent zombie Idle) is strictly worse than an explicit FSM error. Flag for Thomas: this is a judgment call on RFC 8.2.2's OpenConfirm Event 19 wording. **Resolved Q-3 (2026-07-17): FSM error (same as Established).** |
+| D-7: Policy teardown signals a distinct sentinel that takes the BACKOFF reconnect class | reuse `ErrTeardown` (immediate reconnect) | The peer will typically re-offend immediately (its config still violates policy); immediate reconnect makes a NOTIFICATION storm. Needs Thomas's confirmation since it changes observable flap cadence for filter_family tear-down users. **Resolved Q-4 (2026-07-17): backoff (distinct sentinel, not `ErrTeardown`).** |
+| D-8: AC-7 (defer `closeConn` in `Run`) proposed but scope-gated | leave conn-leak paths for a follow-up spec | Same one-defer shape and same file as D-3; but it is new scope found in design, so it ships only with explicit approval (no unilateral scope growth). **Resolved Q-2 (2026-07-17): approved, in scope.** |
 
 ## Implementation Steps
 
@@ -420,6 +423,18 @@ Add `// RFC 4271 Section 8.2.2: "<quoted requirement>"` above the OPEN-in-Establ
 | Q-3 | OpenConfirm same-connection second OPEN = FSM error? (D-6) | FSM error / attempt collision semantics | FSM error |
 | Q-4 | Policy-teardown reconnect class (D-7) | backoff / immediate (`ErrTeardown`) | backoff |
 | Q-5 | Graced-expiry / OPEN-in-Established Prometheus counters | add / skip | add both (cheap, peer-labeled) |
+
+### Resolutions (APPEND-ONLY: all five adopt the spec's own recommendation, the conservative choice)
+
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-1 grace extension = fixed 10 s, clamped to holdTime** (adopts D-2). Rationale: a full-holdTime re-arm doubles worst-case dead-peer detection to 2x holdTime and slows the `.ci`; 10 s caps it at holdTime + 10 s while genuine congestion keeps re-extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via FSM Events 26/27). Verified against source: the grace branch at `session.go:425-431` currently calls `ResetHoldTimer()`, which re-arms to FULL `t.holdTime` (`timer.go:223`), contradicting the "extend by 10s" comment at `session.go:421-424`, so the fix must re-arm to the 10 s clamp (min(10 s, holdTime)), not full holdTime. NOT env-tunable, so no YANG/env leaf is added (Integration Checklist YANG row → N/A). Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-2 AC-7 (conn-close on `Run` exit) = IN SCOPE** (adopts D-8). Rationale: same one-defer shape and same file as D-3: a `defer s.closeConn()` beside `defer s.timers.StopAll()` at the top of `Session.Run`. Three leak sites verified returning without `closeConn`: `handleOpen` unpack error (`session_handlers.go:43-47`), openValidator rejection (`session_handlers.go:98-115`, sends a NOTIFICATION but never closes), local-capability parse error (`session_handlers.go:121-124`); the cancel goroutine also exits on `<-s.done` without closing (`session.go:733-734`). AC-7 row below de-gated; "Behavior to change" note updated. Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-3 OpenConfirm same-connection second OPEN = FSM error** (not collision semantics; adopts D-6). **[STAKES: protocol]** Rationale: RFC 6.8 collision handling is about two *TCP connections* (already covered by `DetectCollision`/`AcceptWithOpen`); a duplicate OPEN on ONE connection is not a collision. Verified: `handleOpenConfirm` has no `EventBGPOpen` case and falls to `default -> change(StateIdle)` (`fsm.go:406-408`), producing a silent zombie strictly worse than an explicit FSM error. Treat identically to Established: NOTIFICATION code 5 subcode 0 + `closeConn`. This is a judgment call on RFC 4271 §8.2.2 OpenConfirm Event 19 wording; the conservative default (explicit FSM error over silent zombie) is the more-reversible choice. Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-4 policy-teardown reconnect class = BACKOFF** (not immediate `ErrTeardown`; adopts D-7). **[STAKES: protocol]** Rationale: after a policy tear-down the peer's config still violates policy, so it re-offends immediately; routing through `ErrTeardown`'s immediate-reconnect arm (`peer_run.go:78-84`) would produce a NOTIFICATION storm. A distinct sentinel that is NOT `errors.Is ErrTeardown` falls through to the exponential-backoff arm (`peer_run.go:118-151`), the lower-wire-churn, more-reversible option. This changes observable flap cadence for `filter_family` tear-down users. Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-5 Prometheus counters = ADD BOTH, peer-labeled** (adopts recommendation). `ze_bgp_hold_expiry_graced_total` (incremented in the grace branch, `session.go:425-431`) and `ze_bgp_open_in_established_total` (incremented at the defect-3 gate in `handleOpen`). Home verified: the reactor `rmetrics` struct lives in `reactor_metrics.go` and is already peer-labeled via `peerLabel()` / `.With(peerLabel).Inc()` (`peer_run.go:42-49`); the session reaches it through `session.prefixMetrics = p.reactor.rmetrics` (`peer_run.go:204-206`). Cheap counters, no new runtime dependency. Integration Checklist Prometheus row → resolved (add). Thomas: override if wrong.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Deepened to design 2026-07-16: every `file:line` re-verified against the working tree.

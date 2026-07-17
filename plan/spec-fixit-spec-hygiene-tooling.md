@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Task
 
@@ -191,5 +191,31 @@ these are operational follow-ups, out of scope for this tooling spec.
 - Verified drift: `test/.ci-sleep-baseline` = 132; `spec-fixit-authz-admin-fallthrough.md:424,426`
   cites two deleted specs; `plan/learned/1069-ipsec-13-rekey-wire.md` is committed while
   `spec-ipsec-13-rekey-wire` stays `in-progress`; 65 skeleton specs on disk.
+- Grounding re-verification (2026-07-17, readiness pass): all cited sources confirmed
+  live against source. `test/.ci-sleep-baseline` still `132`; `check_ci_sleep_ratchet`
+  at `verify_wiring_docs.py:196` reads it as a single int and fails at `:217` when the
+  tree count exceeds it (`_sleep_is_justified:239`, `check_ci_sleep_justification:258`
+  also confirmed). `ze-verify-wiring-docs` is at `mk/inventory.mk:70`.
+  `spec-closure-check.py --list` emits the two documented tiers ("Completed but not
+  closed — high confidence" + "Possibly closable — NEEDS VERIFICATION"). `spec_status.go`
+  only sort-orders `skeleton` (statusOrder:48) as one more status row — there is no
+  backlog-vs-idea split yet, confirming the gap AC-3 fills. The two dangling refs
+  persist but the citing lines DRIFTED from `:424,426` to `:439,441` (the authz spec was
+  edited 2026-07-17) — a live demonstration of exactly the `path:line` drift this
+  checker targets. Skeleton stubs on disk are now `75` (was `65` at the 2026-07-16
+  audit); the count only grew, so the triage need is unchanged. Many specs also cite
+  legitimately-closed (git-rm'd) predecessor specs, so AC-1's dangling-file FAIL must
+  grandfather existing drift (R-1) or it reddens broadly on first run.
 - Open question for design: should the citation line-token check be WARN-forever, or
   ratchet to FAIL once the existing drift is cleaned up?
+  → AUTONOMOUS DEFAULT (2026-07-17): WARN-forever initially. Rationale: per
+    `ai/rules/discovery-updates.md` a new ratchet ships as a warning and only hardens
+    once the tree is clean and the check is proven low-false-positive. The line-token
+    heuristic (A-2, still unvalidated) can false-positive on inconsistent quote
+    conventions, whereas path-existence (AC-1) already fails closed on the
+    higher-signal dangling-file case — so the fatal signal stays reserved for the
+    unambiguous check. This keeps AC-2 and R-1 (both already WARN) unchanged; no
+    dependent Wiring/AC/Files row needs to move. Possible future follow-up (OUT OF
+    SCOPE for this spec): after the existing line drift is cleaned up and the WARN
+    pass runs a full cycle at a low false-positive rate, harden the line-token check
+    from WARN to FAIL under a separate ratchet spec. Thomas: override if wrong.

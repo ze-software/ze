@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | spec-release-evidence-gate |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -80,7 +80,7 @@ scheduling itself, this spec folds into it.
 ### Transformation Path
 1. Cron event fires the new `.woodpecker/<name>.yml` pipeline on the default branch.
 2. The step provisions the toolchain (as `verify.yml` does) plus any heavy-suite deps (QEMU, Docker).
-3. The step invokes the evidence make target(s): `ze-integration-test`, `ze-qemu-integration-test`, `ze-fuzz-test` (or the `ze-release-evidence` composite with a CI-appropriate `ZE_RELEASE_SKIP`).
+3. The step invokes the evidence make target(s). First cut (per the resolved open question): `ze-fuzz-test` + the non-QEMU `ze-integration-test`; ~~`ze-qemu-integration-test`~~ is a follow-up (2026-07-17). Later, once a QEMU-capable runner is confirmed, either add `ze-qemu-integration-test` or switch the step to the `ze-release-evidence` composite with a CI-appropriate `ZE_RELEASE_SKIP` (it self-skips QEMU/Docker categories when those tools are absent).
 4. Per-category PASS/FAIL is surfaced; advisory-first means a FAIL is reported but does not block main.
 
 ### Boundaries Crossed
@@ -111,15 +111,20 @@ scheduling itself, this spec folds into it.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| nightly cron event | -> | new `.woodpecker/<name>.yml` pipeline runs the evidence matrix | `evidence-pipeline-dryrun` (config lint + `make -n` shows `ze-integration-test`/`ze-qemu-integration-test`/`ze-fuzz-test`) |
+| ~~nightly cron event~~ | ~~->~~ | ~~new `.woodpecker/<name>.yml` pipeline runs the evidence matrix~~ | ~~`evidence-pipeline-dryrun` (config lint + `make -n` shows `ze-integration-test`/`ze-qemu-integration-test`/`ze-fuzz-test`)~~ `evidence-pipeline-dryrun` (superseded 2026-07-17; QEMU now a follow-up per the resolved open question) |
+| nightly cron event | -> | new `.woodpecker/<name>.yml` pipeline runs the first-cut evidence subset | `evidence-pipeline-dryrun` (config lint + `make -n` shows `ze-fuzz-test` and non-QEMU `ze-integration-test`; asserts `ze-qemu-integration-test` is absent from the first cut) |
 | pipeline step | -> | invokes existing evidence make targets, not re-inlined suites | `evidence-pipeline-dryrun` asserts target names, not copied recipes |
+
+> Internal / test-infrastructure only: this spec adds no user-facing behavior, so no `.ci` functional test is applicable (N/A). Verification is by Woodpecker config lint + `make -n` dry-run of the scheduled command (`evidence-pipeline-dryrun`).
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | New `.woodpecker/<name>.yml` present | Declares a `cron` trigger; `verify.yml` unchanged (push/pull_request -> `make ze-verify`) |
-| AC-2 | Config lint / `make -n` on the pipeline's command | Expands to `ze-integration-test`, `ze-qemu-integration-test`, and `ze-fuzz-test` (or `ze-release-evidence` with CI skip) |
+| ~~AC-2~~ | ~~Config lint / `make -n` on the pipeline's command~~ | ~~Expands to `ze-integration-test`, `ze-qemu-integration-test`, and `ze-fuzz-test` (or `ze-release-evidence` with CI skip)~~ (superseded 2026-07-17 by the resolved open question: QEMU deferred to follow-up) |
+| AC-2 | Config lint / `make -n` on the first pipeline's command | Expands to `ze-fuzz-test` and the non-QEMU `ze-integration-test` (target names, not copied recipes); `ze-qemu-integration-test` is NOT invoked in the first cut |
+| AC-6 | A QEMU-capable runner is later confirmed to exist | Follow-up adds `ze-qemu-integration-test` (or switches the step to the `ze-release-evidence` composite, which self-skips QEMU/Docker when absent); until then AC-2's scope stands |
 | AC-3 | One heavy category fails | Pipeline reports the failing category; advisory-first means main is not blocked; result is visible next-day |
 | AC-4 | Fast gate | `.woodpecker/verify.yml` still runs `make ze-verify` on push/pull_request with no added latency |
 | AC-5 | Discovery | `ai/rules/qemu-testing.md` (and evidence docs) reference the scheduled pipeline as the enforcing gate |
@@ -145,7 +150,7 @@ is added. Verification is by Woodpecker config lint and `make -n` dry-run of the
 
 1. **Wiring (MANDATORY FIRST)** -- add `.woodpecker/<name>.yml` with a `cron` trigger and one step that installs deps and runs the representative evidence targets (or `ze-release-evidence` with a CI `ZE_RELEASE_SKIP`). Confirm via Woodpecker config lint + `make -n` that the target names expand. Resolve A-1/A-3.
 2. **Advisory-first** -- mark the heavy step non-blocking so a known-red suite (R-1) does not wedge main; record the intent to flip to blocking after a green baseline.
-3. **Scope to runner budget** -- start with `ze-fuzz-test` + `ze-integration-test` + one `ze-qemu-integration-test`; expand to interop/mutation once timing is known (R-2).
+3. ~~**Scope to runner budget** -- start with `ze-fuzz-test` + `ze-integration-test` + one `ze-qemu-integration-test`; expand to interop/mutation once timing is known (R-2).~~ (superseded 2026-07-17 by the resolved open question) **Scope to runner budget** -- first cut runs `ze-fuzz-test` + the non-QEMU `ze-integration-test`, advisory. Add `ze-qemu-integration-test`, then interop/mutation, as follow-ups once a QEMU-capable runner is confirmed and timing is known (R-2, A-1).
 4. **Discovery update** -- reference the scheduled pipeline from `ai/rules/qemu-testing.md` and the evidence docs so future agents find the enforcing gate (`ai/rules/discovery-updates.md`).
 5. **Verify** -- `make ze-verify` (fast gate unaffected) plus a config lint / dry-run of the new pipeline; if `spec-release-evidence-gate` lands CI scheduling first, fold this in instead of duplicating.
 6. **Complete spec** -- audit tables, `plan/learned/NNN-<name>.md`, two-commit closure.
@@ -174,3 +179,4 @@ is added. Verification is by Woodpecker config lint and `make -n` dry-run of the
 - Skeleton captured from the 2026-07-16 repository audit. Depends on `spec-release-evidence-gate` for the `ze-release-evidence` target.
 - Citation drift corrected vs the audit note: the depended-on spec is `in-progress` (not `ready`), and its `ze-release-evidence` target already EXISTS at `mk/test-release.mk:83`; what is missing is the scheduler, which this spec supplies.
 - Open question for Thomas: does the Woodpecker runner have QEMU + privileged Docker for a nightly heavy run, or should the first scheduled pipeline be limited to `ze-fuzz-test` + the non-QEMU `ze-integration-test` subset until a capable runner exists?
+  → AUTONOMOUS DEFAULT (2026-07-17): Limit the FIRST scheduled pipeline to `ze-fuzz-test` (pure Go fuzz, no privileges) + the non-QEMU `ze-integration-test` subset (`mk/test-integration.mk:106`), advisory / non-blocking. Do NOT include `ze-qemu-integration-test` (`mk/test-integration.mk:321`) in the first cut. Add the heavy QEMU run as a FOLLOW-UP gated on a QEMU-capable runner being confirmed to exist -- either `ze-qemu-integration-test` directly, or switch the step to the full `ze-release-evidence` composite (`mk/test-release.mk:83`), which already self-skips QEMU/Docker/interop categories via its `has_qemu`/`has_docker` probes (`run_if_qemu`/`run_if_docker`) and `ZE_RELEASE_SKIP`. Rationale: the repo documents no runner capability today (zero cron and zero QEMU config anywhere under `.woodpecker/`); the conservative scope guarantees the pipeline can actually run and start catching heavy-suite regressions next-day immediately, while QEMU (nested virt / KVM) is the single hardest, least-portable requirement and therefore the right thing to defer. GROUNDING NOTE: even the non-QEMU `ze-integration-test` subset requires CAP_NET_ADMIN / CAP_NET_BIND_SERVICE (`mk/test-integration.mk:87-105` recipe comments), so the pipeline step must run with those capabilities granted (privileged container or `cap_add`; this is what A-1 tracks); if the runner cannot grant them either, fall back to `ze-fuzz-test` alone for the first cut. Thomas: override if the runner already has QEMU + privileged Docker and you want the full heavy matrix on night one.

@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -209,7 +209,7 @@ deliberately replace with a stronger assertion (callback fires with a withdraw-o
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `47-rfc7606-treat-as-withdraw` | `test/interop/scenarios/` | exabgp (can emit crafted/raw attributes; FRR and BIRD cannot deliberately send malformed attributes) — daemon choice is an open question for Thomas; if no interop daemon can emit the malformed wire, justify N/A and rely on the ze-peer raw-hex functional test as the conformance driver | Ze withdraws the previously-installed route on a treat-as-withdraw UPDATE from a real speaker | |
+| ~~`47-rfc7606-treat-as-withdraw`~~ **N/A (justified)** | `test/interop/scenarios/` | exabgp (can emit crafted/raw attributes; FRR and BIRD cannot deliberately send malformed attributes) ~~— daemon choice is an open question for Thomas; if no interop daemon can emit the malformed wire, justify N/A and rely on the ze-peer raw-hex functional test as the conformance driver~~ **RESOLVED (OQ2, 2026-07-17): interop harness cannot host exabgp today (FRR/BIRD/GoBGP/keepalived only); no shipped daemon emits malformed attributes. No scenario 47 is created; the ze-peer raw-hex functional test `test/plugin/rfc7606-treat-as-withdraw.ci` is the conformance driver. See the OQ2 AUTONOMOUS DEFAULT note.** | Ze withdraws the previously-installed route on a treat-as-withdraw UPDATE (driven end-to-end by the ze-peer raw-hex `.ci`, not a third-party speaker) | N/A (justified) |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/session_validation.go` - Class B case (`:132-138`): synthesize withdraw-only body/bodies (D-1..D-6); Class A early returns unchanged
@@ -227,7 +227,7 @@ Explicitly NOT modified (verified no change needed):
 - `internal/component/bgp/reactor/session_withdraw_synth.go` (name indicative) - synthesis helper: sections in, withdraw-only UPDATE body/bodies out; reuses `attribute.MPUnreachNLRI` + `attribute.WriteAttrTo`
 - `internal/component/bgp/reactor/session_withdraw_synth_test.go` - `TestSynthesizeWithdraw*` unit tests
 - `test/plugin/rfc7606-treat-as-withdraw.ci` - functional withdrawal test (modelled on `test/plugin/rfc7606-withdraw.ci`, plus `show bgp rib` assertions before/after the malformed re-advertisement)
-- `test/interop/scenarios/47-rfc7606-treat-as-withdraw/` - interop scenario (or documented N/A per the open question)
+- ~~`test/interop/scenarios/47-rfc7606-treat-as-withdraw/` - interop scenario (or documented N/A per the open question)~~ **OQ2 resolved N/A (justified, 2026-07-17): NOT created; the interop harness cannot host exabgp and no shipped daemon emits malformed attributes. The ze-peer raw-hex functional test `test/plugin/rfc7606-treat-as-withdraw.ci` is the conformance driver.**
 
 ## Implementation Steps
 
@@ -237,7 +237,7 @@ Explicitly NOT modified (verified no change needed):
 3. **Phase: classify + dispatch** - `enforceRFC7606` returns the synthesized WireUpdate(s) for Class B (D-2); `processMessage` falls through to normal dispatch for Class B and keeps the drop for Class A; non-negotiated families skipped (D-5).
 4. **Phase: preserve pins deliberately** - rewrite `TestSessionRFC7606TreatAsWithdrawSuppressesCallback` to AC-7; add AC-4/AC-9 drop tests; fix the `rfc7606-withdraw.ci` comment.
 5. **Phase: RIB boundary test** - `TestRIBTreatAsWithdrawRemovesInstalledRoute` proving Adj-RIB-In removal + no spurious event for absent prefixes.
-6. **Functional + interop tests** - `test/plugin/rfc7606-treat-as-withdraw.ci`; interop scenario or justified N/A (open question).
+6. **Functional + interop tests** - `test/plugin/rfc7606-treat-as-withdraw.ci`; ~~interop scenario or justified N/A (open question)~~ **interop = N/A (justified, OQ2 resolved 2026-07-17): the harness cannot host exabgp and no shipped daemon emits malformed attributes; the `.ci` raw-hex test is the conformance driver.**
 7. **Full verification** - `make ze-verify`.
 8. **Complete spec** - audit tables, `plan/learned/NNN-<name>.md`, two-commit closure.
 
@@ -256,7 +256,9 @@ Explicitly NOT modified (verified no change needed):
 ## Open Questions (for Thomas)
 1. ~~Unparseable MP_REACH NLRI inside a Class B treat-as-withdraw UPDATE: escalate now or in a follow-up fixit?~~ **Answered by the code that shipped in `b1f27a3e0`: escalated.** A malformed MP_REACH cannot reach the synthesis path any more, because Section 5.3 makes it "incorrect" and Section 3(j) escalates that to session reset upstream (`message/rfc7606_withdraw.go:127-128` states this at the skip branch). Covered by `rfc7606_test.go:684` (MP_REACH too short to parse escalates to session reset) and `:1282` (same for MP_UNREACH). No follow-up fixit is needed, and the Class A collapses this was to be bundled with are resolved too (see Known Limitations).
 2. Interop daemon: FRR/BIRD cannot deliberately emit malformed attributes; exabgp can emit raw attribute bytes but the interop harness currently ships frr/bird/gobgp scenarios only. Add an exabgp-based scenario, or accept justified N/A with the ze-peer raw-hex functional test as the conformance driver?
+   → AUTONOMOUS DEFAULT (2026-07-17): N/A (justified). Do NOT add an exabgp interop scenario; the ze-peer raw-hex functional test `test/plugin/rfc7606-treat-as-withdraw.ci` is the conformance driver. Rationale: the interop harness (`test/interop/`) hosts only FRR, BIRD, GoBGP and keepalived, started purely by config-file presence in `interop.py` `Scenario.setup()` (`frr.conf`->FRR `:1312-1327`, `bird.conf`->BIRD `:1329-1340`, `gobgp.toml`->GoBGP `:1364-1375`, `keepalived.conf`->keepalived `:1350-1362`); `run.py` builds/pulls only those images (`:31-109`). There is no exabgp Dockerfile, container constant, IP, build step or setup branch (grep for `exabgp` across `test/interop/` returns nothing), and none of the shipped daemons will deliberately emit a malformed attribute. Adding exabgp means new harness infrastructure (Dockerfile + container/IP + run.py build + setup/teardown branch + an exabgp process-API config emitting raw attribute bytes), out of scope for this fixit and the larger, non-self-contained option. The ze-peer harness already emits crafted/raw malformed attribute bytes via `action=send:...:hex=` and asserts on `expect=...:hex=` (proven by the sibling `test/plugin/rfc7606-withdraw.ci`, e.g. its malformed-ORIGIN-length-2 send at Step 3), so the conformance behavior is driven end-to-end without a third-party speaker. Thomas: override if wrong (add exabgp to the harness first, then scenario 47).
 3. `updates-received` will now count treat-as-withdraw UPDATEs (synthesized withdraw traverses the counter at `reactor_notify.go:244-245`). Acceptable operator-visible change?
+   → AUTONOMOUS DEFAULT (2026-07-17): Accept. The `updates-received` counter incrementing for treat-as-withdraw UPDATEs is an acceptable operator-visible change, already documented in Current Behavior "Behavior to change" (`:92`) and the `rfc7606-withdraw.ci` comment fix (`:82`, `:207`). Rationale: after the fix the synthesized withdraw is a real UPDATE that traverses `notifyMessageReceiver`'s counter (`reactor_notify.go:244-245`), so counting it is truthful (a route WAS withdrawn); the alternative (special-casing the counter to skip synthesized withdraws) would hide real RIB activity and push treat-as-withdraw-specific code into the generic delivery path, which D-1 explicitly rejects. Visible in `show bgp peer <x> detail`. Thomas: override if wrong.
 
 ## RFC Documentation
 
@@ -283,4 +285,5 @@ Add `// RFC 7606 Section 2: "MUST be handled as though all of the routes contain
 - [ ] Interop tests for protocol behavior (or N/A with justification)
 
 ## Notes
-- Skeleton captured from the 2026-07-16 repository audit (verifier V3). Deepened to design on 2026-07-16: every citation re-verified against the working tree; the two-class producer split (Class A structural drop vs Class B attribute-semantic withdraw), the synthesis design (D-1..D-8), and assumptions A-1..A-4 resolved with producer evidence. Line-number corrections vs the skeleton: `reactor_notify.go:218-339` -> `:218-579`; `session_validate_test.go:54-116` -> `:56-117`; functional test location `test/bgp/` (nonexistent) -> `test/plugin/`. Not `ready` until Thomas answers the open questions and approves.
+- Skeleton captured from the 2026-07-16 repository audit (verifier V3). Deepened to design on 2026-07-16: every citation re-verified against the working tree; the two-class producer split (Class A structural drop vs Class B attribute-semantic withdraw), the synthesis design (D-1..D-8), and assumptions A-1..A-4 resolved with producer evidence. Line-number corrections vs the skeleton: `reactor_notify.go:218-339` -> `:218-579`; `session_validate_test.go:54-116` -> `:56-117`; functional test location `test/bgp/` (nonexistent) -> `test/plugin/`. ~~Not `ready` until Thomas answers the open questions and approves.~~
+- Readiness pass (2026-07-17): all three Open Questions resolved autonomously so a fresh implementer needs no answer from Thomas. OQ1 already answered by the code shipped in `b1f27a3e0` (left as-is). OQ2 resolved N/A (justified): the interop harness cannot host exabgp and no shipped daemon emits malformed attributes, so no `47-*` scenario is created and `test/plugin/rfc7606-treat-as-withdraw.ci` (ze-peer raw hex) is the conformance driver; dependent Interop/Files-to-Create/Implementation-step rows updated to match. OQ3 resolved Accept (`updates-received` counting synthesized withdraws is an acceptable, documented operator-visible change). Each resolution is recorded APPEND-ONLY at its Open-Questions entry with a Thomas-override line. Status stays `ready`.

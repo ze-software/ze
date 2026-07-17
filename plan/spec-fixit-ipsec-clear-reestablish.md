@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -341,7 +341,7 @@ short to observe recovery, which fully explains "1 accepted of 2".
 | R-3 | Fix changes wire behavior and breaks strongSwan interop | interop scenario red | add/adjust `test/ipsec-interop/` scenario; validate against strongSwan (interop rule). **Assessed 2026-07-16: real for Phase A and required.** The Delete on clear is a message ze has never sent in this context. See TDD Test Plan for the two scenarios and which direction proves what. |
 | R-4 | Phase A's Delete is best-effort UDP; a lost Delete silently reverts to the ~150s DPD path | clear looks fast in tests, slow in the field under loss | Accept: `sendDeleteIKE` is already documented best-effort (`inbound.go:230-231`) and RFC 7296 §1.4 does not require a Delete to be retransmitted for correctness. Phase B is the real backstop (responder accepts the init regardless). **This is the strongest argument that A alone is not sufficient.** |
 | R-5 | Phase B's per-SA routing change touches the single-owner model that spec-ipsec-13 paid for in races | `go test -race` red; flaky rekey/DPD tests | Change `routeInbound` (`register.go:482`) to key the owner-loop decision on the SA identity, not the peer name, and keep every post-establishment mutation on `maintainSA`. Run `-race` on the whole engine package, not just new tests. Do NOT widen `ps.sa` into a slice; add one explicit second slot for the in-flight responder SA. |
-| R-6 | The graceful-close flag makes `ps.Stop()` mean two different things (config-change stop vs operator clear) | a config change starts sending Deletes, or the clear stops sending them | Keep `Stop()` as-is and add a distinct entry point (e.g. a graceful variant) used only by `TerminateAllSAs`/`TerminatePeerSA`. Decide explicitly whether `reconcilePeers`' removal path (`reconcile.go:205-224`) should ALSO send a Delete -- arguably yes (removing a peer from config should say goodbye), but that is a behavior change beyond this spec's scope. **Open question for Thomas.** |
+| R-6 | The graceful-close flag makes `ps.Stop()` mean two different things (config-change stop vs operator clear) | a config change starts sending Deletes, or the clear stops sending them | Keep `Stop()` as-is and add a distinct entry point (e.g. a graceful variant) used only by `TerminateAllSAs`/`TerminatePeerSA`. Decide explicitly whether `reconcilePeers`' removal path (`reconcile.go:205-224`) should ALSO send a Delete -- arguably yes (removing a peer from config should say goodbye), but that is a behavior change beyond this spec's scope. **Open question for Thomas.** -> RESOLVED (Q2, 2026-07-17, readiness pass): NO -- keep `Stop()` unchanged in the removal path; out of scope, noted follow-up. See Open question 2 resolution below. |
 
 ## Wiring Test (MANDATORY - NOT deferrable)
 
@@ -466,7 +466,7 @@ Resolved 2026-07-16 (research complete; each row names the function and phase).
 | `internal/component/ike/engine/register.go` | `TerminateAllSAs` (`:72`) / `TerminatePeerSA` (`:106`): request a graceful close instead of a bare `ps.Stop()`. Phase B: scope the `responderBusy` CAS (`:546`) to half-open SAs; re-key `routeInbound` (`:482-495`) on SA identity, not `sa.PeerName`; stop `tryResponderSAInit` (`:561`) clobbering the established SA via `ps.setSA`. | A, B |
 | `internal/component/ike/engine/fsm.go` | `runResponder` (`:177-242`): re-arm the accept path while established, and adopt/supersede when the parallel SA authenticates. This is where the missing FSM transition lands. | B |
 | `internal/component/ike/engine/responder.go` | `handleAuthRequest` (`:327`): honor a received INITIAL_CONTACT by deleting the peer's other IKE SA (RFC 7296 §2.4). | B |
-| `internal/component/ike/engine/auth.go` | `buildAuthRequest`: emit the INITIAL_CONTACT notify in the first IKE_AUTH request (open question 3 decides conditional vs unconditional). | B |
+| `internal/component/ike/engine/auth.go` | `buildAuthRequest` (`:90`): emit the INITIAL_CONTACT notify in the first IKE_AUTH request. Open question 3 RESOLVED 2026-07-17: **UNCONDITIONAL** -- emit on every first IKE_AUTH request (one-SA-per-peer model; see Open question 3 resolution). | B |
 | `internal/component/ike/cmd/ipsec.go` | **Expected: no change.** JSON result shape is preserved (Behavior to preserve). Listed only to record that it was assessed. | - |
 | `test/ipsec/ipsec-sa-installed.ci` | Update the `// test-relax` note (`:161-171`) that defers this bug here. | A |
 
@@ -671,6 +671,42 @@ still refuses the fresh init and convergence falls back to the ~150-190s DPD pat
 | 2 | **Should `reconcilePeers`' peer-removal path (`reconcile.go:205-224`) also send a Delete?** | Removing a peer from config is also a "say goodbye" moment, and the same owner-loop mechanism would serve it. It is a behavior change outside this spec's stated scope (R-6). Arguably correct, arguably a separate spec. |
 | 3 | **Does Phase B's initiator send INITIAL_CONTACT unconditionally on every first IKE_AUTH?** | RFC 7296 §2.4 says it asserts "this IKE SA is the only IKE SA currently active between the authenticated identities" -- true for ze's one-SA-per-peer model, so unconditional is defensible and is what strongSwan does by default (`uniqueids=yes`). But it changes every ze IKE_AUTH on the wire, which widens the interop surface beyond the clear path. Alternative: send it only on a session started by an operator clear. |
 
+-> AUTONOMOUS DEFAULT (2026-07-17, readiness pass). Question #1 was already
+answered by Thomas above (A and B ship together; all AC-1..AC-7 stay in this
+spec) and is NOT re-touched. Questions #2 and #3 are resolved here so a fresh
+implementer picks this up with zero questions:
+
+- **Q2 -> NO (out of scope for this spec).** `reconcilePeers`' peer-removal path
+  (`reconcile.go:203-224`, `r.ps.Stop()` at `:205`) keeps **bare `ps.Stop()`
+  semantics unchanged**; it does NOT gain a goodbye Delete. Rationale: removing a
+  peer from config sending a Delete is a behavior change beyond the
+  operator-clear fix, and folding it in here would leak R-6's "`Stop()` means two
+  things" hazard into the removal path (a routine config edit would start
+  emitting Deletes). The A+B design already isolates the graceful close to a
+  distinct `StopGraceful`-style entry point used ONLY by
+  `TerminateAllSAs`/`TerminatePeerSA` (Files to Modify, `reconcile.go` row); the
+  removal loop deliberately does not call it. Recorded as a noted follow-up for a
+  separate spec (also note in the closure learned summary). Thomas: override if
+  wrong (i.e. if config-removal should also say goodbye).
+- **Q3 -> UNCONDITIONAL. [STAKES: protocol]** The Phase B initiator emits
+  INITIAL_CONTACT on **every** first IKE_AUTH request (`auth.go:90
+  buildAuthRequest`), not only on operator-clear-originated sessions. Rationale:
+  RFC 7296 §2.4 defines INITIAL_CONTACT as asserting "this IKE SA is the only IKE
+  SA currently active between the authenticated identities". ze is a
+  one-SA-per-configured-peer model (single `ps.sa` slot, `reconcile.go:22`;
+  `setSA`/`getSA` at `:72`/`:78`; no multiple tunnels per identity pair), so on
+  any fresh IKE_AUTH that assertion is truthful, which makes unconditional both
+  correct and the simplest option -- no operator-origin state to thread through
+  the FSM, and rekey never reaches this path (it uses CREATE_CHILD_SA on the
+  existing SA, `handleCreateChildSAOwned` `inbound.go:114`, not a fresh
+  IKE_AUTH). It also matches strongSwan's default (`uniqueids=yes`). **Override
+  caveat (why this is [STAKES: protocol]):** it changes every ze IKE_AUTH on the
+  wire, and its correctness rests on the one-SA-per-identity assumption. If ze
+  ever supports multiple distinct tunnels between the same authenticated
+  identities, unconditional INITIAL_CONTACT would wrongly delete the sibling
+  tunnel and must become conditional (send only on a clear-originated session).
+  Thomas: override before Phase 4 ships if that model is planned.
+
 ### Constraints forced by the 2026-07-16 A+B decision
 
 -> Constraint (user decision, 2026-07-16): **the one-line fix to the
@@ -861,6 +897,19 @@ a summary that does not contain the rule is a dangling citation.
   is the higher-value, non-droppable scenario. **Open questions #2 and #3 remain
   open**; Status stays `design` (promotion to `ready` is Thomas's gate and has not
   been given).
+- **2026-07-17 readiness pass: open questions #2 and #3 resolved by autonomous
+  default; Status `design` -> `ready`.** #2 (peer-removal Delete) -> NO, out of
+  scope, keep `ps.Stop()` unchanged, noted follow-up (avoids R-6's "`Stop()`
+  means two things" leaking into the removal path). #3 (INITIAL_CONTACT
+  conditional vs unconditional) -> UNCONDITIONAL [STAKES: protocol], correct
+  under ze's one-SA-per-identity model and simplest; override caveat recorded if
+  ze ever supports multiple tunnels per identity pair. Both resolutions are
+  recorded APPEND-ONLY under Key Design Decisions -> Open question for Thomas.
+  Q1 (A+B together) was already answered by Thomas 2026-07-16 and is untouched.
+  All code and RFC 7296 §2.4 citations in this spec were re-verified against
+  source during this pass; no fabrication found. The `/ze-rfc` §2.4 summary
+  update remains a prerequisite before implementation writes the enforcing
+  comments (RFC Documentation section).
 - **Prerequisite before implementation writes RFC comments:** `/ze-rfc` for RFC
   7296 §2.4. The summary exists but carries neither normative quote the fix
   enforces, and `rfc/full/rfc7296.txt` is not in the tree.

@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -319,8 +319,11 @@ found except the `CheckPassword` doc comment, which spans `:73-80` not `:74-78`)
 ## Open Questions (for Thomas at approval)
 
 1. **Q-1 unix-socket listener:** accept loopback TCP as the local signal (this design), or also add a dedicated unix-socket SSH listener (per-UID filesystem gating, closes the operator-installed-local-proxy residual R-2) in this spec? It touches client dial, server listen, paths, and packaging; my recommendation is a follow-up spec.
+   → AUTONOMOUS DEFAULT (2026-07-17) [STAKES: security]: Keep loopback TCP as the local signal for THIS fix; do NOT add a dedicated unix-socket SSH listener here. Rationale: this is the design's own recommendation (Key Design Decisions "Local" row); a unix-socket listener touches client dial, server listen, filesystem paths, and packaging, so it is a separate follow-up spec, not smuggled into this fix. Fail-closed stays intact: the transport flag's zero value remains remote (reject hash-as-token), web/API never set it, and A-4 (verified at the pinned charmbracelet/ssh version, forwarding denied by default) shows loopback cannot be forged through ze's own SSH server. R-2's residual proxy risk (an operator-installed local TCP proxy in front of 127.0.0.1:2222, outside ze's control) is DOCUMENTED and ACCEPTED for this fix; the unix-socket-listener follow-up would close it. Thomas: override if wrong.
 2. **Q-2 R-3 blast radius:** confirm that breaking hash-as-token for host-driven provisioned appliances and QEMU install tooling (migrating them to `ze.ssh.password`) is acceptable within this fix; the Phase 2 exit criterion treats the migration as in-scope.
+   → AUTONOMOUS DEFAULT (2026-07-17) [STAKES: security]: Accept in scope. Breaking hash-as-token for host-driven provisioned appliances and QEMU install tooling, and migrating those flows to `ze.ssh.password` (plaintext, which already takes precedence at `internal/core/ssh/client/client.go:409-411`), is accepted within this fix. Rationale: R-3 and the Phase 2 exit criterion already treat the migration as in-scope; carving out an exception would preserve a permissive hash-as-token path over a non-loopback connection, which `ai/rules/fail-closed-guards.md` forbids. The Phase 2 audit of every `KeySSHPassword` writer/consumer plus the QEMU install flow stays a hard exit criterion. Thomas: override if wrong.
 3. **Q-3 `AuthenticateUser`:** it has no non-test caller (grep 2026-07-16). It gets the same restriction here for consistency; flag whether it should instead be deleted (separate cleanup).
+   → AUTONOMOUS DEFAULT (2026-07-17) [STAKES: security]: Apply the SAME transport restriction to `AuthenticateUser` (`internal/component/authz/auth.go:100-118`) for consistency; do NOT delete it in this fix. Rationale: although it has no non-test caller today (grep 2026-07-16), leaving a permissive sibling is a fail-open hazard the moment any future caller wires it, so it must inherit the restriction now; deletion is a separate cleanup and stays out of scope here. Its unwired status remains flagged (R-5 and the Critical Review sibling call-site audit row). Thomas: override if wrong (delete instead).
 
 ## Checklist
 

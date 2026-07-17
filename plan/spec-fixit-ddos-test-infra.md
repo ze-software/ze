@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
-| Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Phase | ~~0/N (research)~~ design complete; impl Phases 1-5 pending (2026-07-17) |
+| Updated | 2026-07-17 |
 
 ## Task
 
@@ -187,7 +187,7 @@ ddos test-infrastructure follow-ups from the same parent spec.
   before the daemon starts (F13)
 - Flood traffic: `driver.py`'s UDP socket toward the victim address
 
-### Transformation Path (per D-1, pending approval)
+### Transformation Path (per D-1, ~~pending approval~~ APPROVED by Thomas 2026-07-16)
 1. Runner awaits `setup.py` (seq=1), which builds the veth topology; then starts `ze -` as
    `cmd=background:seq=2` with the `.ci` config, arming `ZE_READY_FILE` (F1)
 2. The daemon reaches startup-complete and creates `daemon.ready` (F2); the runner sees it and
@@ -429,7 +429,12 @@ approves it before any product code moves.
 
 ## Files to Create
 - `test/plugin/ddos-transit-forward-drop.ci` - the AC-10 transit proof
-- the probe `.run` scripts embedded in those `.ci` files (tmpfs blocks, per the pattern)
+- ~~the probe `.run` scripts embedded in those `.ci` files (tmpfs blocks, per the pattern)~~
+  **CORRECTED (2026-07-17, per D-1):** not in-daemon probe `.run` scripts. Under D-1 the tests
+  keep the `driver.py` model, so the embedded scripts are `tmpfs=` blocks: `driver.py` (flood +
+  root `nft list ruleset` readback) in both `.ci` files, plus `setup.py` (veth pair + forwarding,
+  `cmd=foreground:seq=1`) in `ddos-transit-forward-drop.ci`. Pattern of record:
+  `test/vrrp/vrrp-instance-up.ci` (`tmpfs=driver.py` + setup, not an external-plugin `.run`)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -738,13 +743,25 @@ responder believes (the same intent-vs-kernel distinction D-4 rests on).
 | Is Problem B blocked on the firewall concurrency deadlock (R-1)? | **No, on the recorded trigger.** It needs two concurrent nft drivers; neither test declares a `firewall {}` block, so the component idles (`engine.go:299-303`) and autoload gives the responder a backend as sole driver (`registry.go:104-109`). Root cause is UNVERIFIED, so R-1 stays live as a stop-and-report risk. |
 | Should the two problems stay in one spec (A-6)? | **One spec.** The split rationale ("B blocked, A not") is void, and both now share one harness. |
 
-**Still open (need the QEMU run or the user):**
+**Still open (need the QEMU run ~~or the user~~):**
 
-- **[USER, BLOCKING] D-1: driver.py or in-daemon probe?** The evidence says keep driver.py and
+-> READINESS RECONCILIATION (2026-07-17): the ONLY user item (D-1) is resolved. Everything left
+   below is implementation-phase execution (the QEMU run) or already-defaulted, so NONE of it
+   gates a fresh implementer picking this spec up. Item-by-item resolution follows each bullet.
+
+- ~~**[USER, BLOCKING] D-1: driver.py or in-daemon probe?**~~ **RESOLVED -- D-1 APPROVED by
+  Thomas 2026-07-16.** The evidence says keep driver.py and
   migrate its poll loops to `ze_api.wait_until`. This contradicts AC-2 as written, which is why
-  AC-2 is struck and AC-2a is proposed. Only the user can approve the scope change.
+  AC-2 is struck and AC-2a is proposed. ~~Only the user can approve the scope change.~~
+  -> The user approved: keep `driver.py`, migrate the poll loops to `ze_api.wait_until`, do NOT
+     port to the in-daemon probe. AC-2a governs. No longer open.
 - **Does `ddos-detect-mitigate.ci` actually fail today, and how?** Static evidence says both
   historical blockers are gone. Nobody has run it. AC-1 keeps this BLOCKING before any rewrite.
+  -> READINESS NOTE (2026-07-17): NOT a design/readiness blocker. This is an empirical runtime
+     fact resolvable only by executing the test under QEMU, which is exactly AC-1 and the FIRST
+     implementation action (Phase 1, `bin/ze-test plugin --pattern ddos-detect-mitigate`). A
+     fresh implementer opens the work with this run; it cannot and should not be resolved by
+     reading source, so it does not gate `ready`.
 - Can `internal/test/plugins/fakeddos/` drive a synthetic remote-victim AttackDetected, making
   the FORWARD proof deterministic without a real transit flood? Would that still satisfy the
   parent AC-10, which asks for a functional proof? **Design lean: no.** A synthetic event would
@@ -752,9 +769,19 @@ responder believes (the same intent-vs-kernel distinction D-4 rests on).
   `TestLocalHookByDirection` already covers exhaustively. AC-10 asks for the end-to-end proof.
   Keep fakeddos as a Phase 3 fallback only if the real transit flood proves undrivable, and
   raise it with the user rather than silently substituting a weaker proof.
+  -> AUTONOMOUS DEFAULT (2026-07-17): adopt the design lean. Use the REAL transit flood for
+     AC-4/AC-5; `fakeddos` is a Phase-3 fallback used only if the real flood proves undrivable,
+     and only after raising the substitution with Thomas. Rationale: parent AC-10 asks for an
+     end-to-end functional proof; a synthetic event proves only `hookForDirection`, already
+     covered exhaustively by `TestLocalHookByDirection`, so it is the smaller-scope but weaker
+     option and is not the default. Thomas: override if wrong.
 - **[COORDINATION] R-7:** autoload now programs nft under existing enforce-mode ddos tests
   (`ddos-direction.ci`). Whether that destabilizes them belongs to
   `plan/spec-fixit-firewall-concurrency-deadlock.md`. Flagged, not resolved here.
+  -> READINESS NOTE (2026-07-17): out of scope for this spec and correctly owned by
+     `plan/spec-fixit-firewall-concurrency-deadlock.md`. Not a readiness blocker; it is captured
+     here as R-7 and as the Phase-1 baseline re-run row in `### Functional Tests`. No open
+     decision for this spec.
 
 ## Notes
 - Authored 2026-07-15 as a skeleton from `plan/deferrals.md:54` and `:57`. Every `file:line`

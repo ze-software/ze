@@ -225,6 +225,13 @@ the whole UPDATE, possible today but brittle. Recommend (a): it unblocks
 `TestRewriteASPath_AS4PathWireBytes`, which asserts the **complete** output payload
 byte-for-byte and is mutation-verified.
 
+→ ADOPTED (2026-07-17): recommendation (a) — multi-rule matching per message in
+`checker.go`, where a matched rule does not consume the message so every `contains`
+rule for a `seq` is evaluated against the same UPDATE — is the chosen approach; it
+also unblocks `bgp-rs-asn4-transcode.ci`. The harness change itself stays out of
+scope for this spec (owned by a sibling agent, per above); this only records the
+decision so an implementer need not re-litigate (a) vs (b). Thomas: override if wrong.
+
 ## Files to Modify
 - `internal/component/bgp/wireu/aspath_rewrite.go` - emit AS4_PATH in the insert and full
   paths; guard the fast path

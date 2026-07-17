@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Task
 
@@ -763,6 +763,68 @@ section already admits as IN.
   be checked against it before claiming AC-8.
 - **What is the detector's re-fire interval?** Needed to fix the D-2 deadline default
   (R-8). Read `internal/plugins/ddos/detect/` at implement time.
+
+**Resolved for readiness (autonomous defaults, 2026-07-17 readiness pass).** None of the
+items above is a DESIGN blocker; each is impl-time evidence-gathering. The design proceeds
+on the recorded fixes (D-1 registry serialisation, D-2 bounded `Apply`, D-3/D-4 atomic
+status snapshot). Every load-bearing `file:line` in Current Behavior / Problem / Evidence /
+Findings 1-5 was re-verified against source during this pass and holds (a few trivial
+off-by-ones against the vendored `google/nftables` copy noted below). Resolutions,
+append-only:
+
+→ AUTONOMOUS DEFAULT (2026-07-17): (blocked goroutine stacks) proceed WITHOUT them; capture
+  them when the phase-1 reproduction test runs during implementation (SIGQUIT / pprof during
+  the stall). Rationale: Findings 1-4 are read from the producing code (`conn.go:242-283`,
+  `backend_linux.go:30,74,77,88`, `responder.go:64,136,199`, `show.go:31` — all re-verified
+  this pass) and ship as real defects today, which Scope already admits as IN. The stacks
+  only confirm WHICH of these produced the 2026-07-12 symptom; they do not gate the fixes.
+  AC-1 already accepts "an evidenced statement it cannot be reproduced" as the honest exit
+  (R-9). Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): (which command the 2026-07-12 run dispatched; whether
+  255s was a harness timeout) treat both as phase-1 evidence, NOT gates. Default: read the
+  `spec-ddos-direction-allowlist` `.ci` + its run log first (cheap, no QEMU); if it
+  dispatched a ddos-local command, Finding 3 is corroborated; if not, R-9 fires and the
+  design still fixes real bugs but not the observed one. Rationale: mutex starvation mode
+  rules out contention as the 255s cause (Mistake Log), leaving an unbounded `Receive`
+  (Finding 2) as the only code-supported explanation; a harness timeout on top of it is the
+  leading, unverified hypothesis. Neither answer changes D-1/D-2/D-3/D-4. Thomas: override
+  if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): (vpp backend vs Finding 1) D-1 protects vpp regardless —
+  serialisation lives in `ApplyAll`, above every backend. At implement time, check D-5's
+  single-writer / bounded-`Apply` interface contract against
+  `internal/plugins/firewall/vpp/backend_linux.go` (dir confirmed to exist this pass) before
+  claiming AC-8; do not block the registry fix on it. Rationale: the concurrent-apply
+  corruption lives in the registry, not the backend (Finding 4); vpp inherits the D-1 fix.
+  Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): (D-2 deadline default = 10s; R-8 accepted as a documented
+  consequence) keep the recorded 10s default and the bounded-`Apply` fix. R-8 — bounding
+  `Apply` converts a wedged-kernel HANG into a FAILED MITIGATION, and ddos-local's rollback
+  would `applyAll` a second time — is an ACCEPTED, DOCUMENTED consequence, not an open
+  question. Its mitigation is already recorded in D-3 / Files to Modify ("do not re-`applyAll`
+  on a timed-out rollback", `responder.go:141-142`) plus a log + metric so the operator sees
+  a wedged kernel rather than a silent no-drop (AC-6, AC-10). At implement time verify 2x10s
+  stays inside the detector re-fire interval (`internal/plugins/ddos/detect/`, dir confirmed);
+  if that interval is under 20s, lower the default or drop the rollback retry (R-8's preferred
+  mitigation). Rationale: a crashed kernel wedging the management plane is the worse failure;
+  a failed-then-surfaced mitigation is recoverable and observable. Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): (parent deferral-row citation) the parent row is now at
+  `plan/deferrals.md:63`, NOT `:55`. Line drift in the mutable ledger since 2026-07-15
+  authoring; the row content matches this spec verbatim (it even carries the
+  `firewall/engine.go:274` -> `internal/component/firewall/engine.go:316-324` path
+  correction). Read every `deferrals.md:55` reference in this spec (Origin, A-1, A-2, Known
+  Limitations) as `deferrals.md:63`. Thomas: override if wrong.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): (citation-drift note for the implementer) the vendored
+  `google/nftables@v0.3.0` copy differs from the module-cache copy the author cited by a
+  line or two: `SendMessages` is `conn.go:262` (spec cites `:261`); the per-dial sockOptions
+  loop is `conn.go:315-318` (spec cites `:314-318`); `nftables.New()` is
+  `backend_linux.go:30` (spec cites `:31` in Finding 2 and A-3). All substance holds
+  (shared batch, loser flush returns nil, no netlink deadline, sockOptions applied per dial).
+  Use these corrected lines when writing the D-2 change. Thomas: override if wrong.
 
 ## Notes
 - Authored 2026-07-15 as a skeleton from `plan/deferrals.md:55`. Every `file:line` here was

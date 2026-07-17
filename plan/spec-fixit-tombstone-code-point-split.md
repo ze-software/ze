@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | spec-fixit-tombstone-ebgp-transitive |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -66,7 +66,41 @@ egress Transitive-clear landed in `706b77b7d` and must keep working.
 | ID | Question | Status |
 |----|----------|--------|
 | O-1 | Which code point is correct, 252 or 253? | **The draft does not settle it.** Section 4.1 says "Attribute Code: TBD (see Section 8)". Section 8 requests allocation from the IANA "BGP Path Attributes" registry and states "Any unassigned value is acceptable", excluding only 255 ("Reserved for development" per RFC 2042). Both 252 and 253 are therefore draft-conformant provisional stand-ins. The choice is arbitrary and needs a ruling; pick one and record it. |
-| O-2 | Should the provisional constant live in `internal/core/bgp/attribute` (where 252 is) or in `internal/component/bgp/message` (where 253 is)? Two constants in two tiers is what allowed the drift. | Open |
+| O-2 | Should the provisional constant live in `internal/core/bgp/attribute` (where 252 is) or in `internal/component/bgp/message` (where 253 is)? Two constants in two tiers is what allowed the drift. | ~~Open~~ RESOLVED (see below) |
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: protocol] — O-1: **Unify onto 252
+(`attribute.AttrTombstone`).** PROVISIONAL — override before the draft's single TBD
+IANA code point is allocated (draft Section 8). Rationale: the on-wire risk is
+symmetric — both 252 and 253 are provisional, unallocated stand-ins for the draft's
+one TBD code, and no third-party daemon interops with either (Assumption A-3), so
+neither is "more irreversible" than the other. The tiebreaker is therefore
+least-churn plus canonical placement, and both point to 252:
+1. **Fewer on-wire emitters flip.** Unifying onto 252 changes ONE production
+   on-wire emitter — the receive-time stamp in `attr_discard.go` (253→252). Unifying
+   onto 253 would change TWO — `WriteTombstone`'s output at
+   `internal/component/bgp/wireu/aspath_rewrite.go:515` and
+   `internal/component/bgp/wireu/aspath_transcode.go:246`, both of which emit 252
+   today — plus the exported constant and its display name.
+2. **252 is already the canonical constant.** It is the exported
+   `attribute.AttrTombstone` in the core attribute registry
+   (`internal/core/bgp/attribute/attribute.go:66`), the only one carrying a display
+   name (`ATTR_TOMBSTONE` at `:90`; 253 renders as `UNKNOWN(253)` in decode/dump/BMP),
+   and its symbol matches the CURRENT draft name. 253's symbol
+   `attrCodeAttrDiscard` matches the renamed-away `draft-mangin-idr-attr-discard-00`.
+3. **The codebase already treats 252 as canonical, 253 as legacy.** The sibling's
+   `internal/component/bgp/wireu/tombstone_forward_test.go` names its subtests
+   `/AttrTombstone` (252) and `/AttrDiscardLegacy` (253), and `wireu/tombstone.go:21`
+   names the 253 const `attrTombstoneLegacy`.
+Thomas: override to 253 only if the receive-time value was deliberately chosen.
+
+→ AUTONOMOUS DEFAULT (2026-07-17) — O-2: **The single surviving constant lives in
+`internal/core/bgp/attribute` (252's home).** Rationale: `ai/rules/module-tiers.md`
+— a wire constant shared by two components belongs in the lowest tier both import,
+and `wireu` and `message` already both import `internal/core/bgp/attribute`. Delete
+the message-tier duplicate `attrCodeAttrDiscard` and the wireu shim
+`attrTombstoneLegacy`; message-tier code consumes `attribute.AttrTombstone` directly.
+This permanently closes the two-constants-in-two-tiers drift seam. Follows directly
+from O-1.
 
 ### Blast Radius (MEASURED 2026-07-16, not estimated)
 
@@ -125,6 +159,17 @@ nothing emits 252 into an asserted wire today.
 - [ ] `internal/component/bgp/reactor/session_validation.go` - calls the marker path; logs "RFC 7606 upstream ATTR_DISCARD before merge" at `:119`; comment at `:109` cites draft Section 5.1
 - [ ] `internal/component/bgp/message/rfc7606.go` - `RFC7606ActionAttributeDiscard` (`:25`) is the trigger; builds `DiscardEntry` list at `:166-171`
 
+→ Line-number reconciliation (2026-07-17, verified against HEAD; earlier anchors have
+drifted, the BEHAVIORS are all real): in `reactor/session_validation.go` the
+receive-time apply is `message.ApplyAttrDiscard(pathAttrs, result.DiscardEntries)` at
+`:145` (the spec's Data Flow says `:109`/`:117`); the "RFC 7606 upstream ATTR_DISCARD
+before merge" log is at `:140` (spec says `:119`); the draft-Section-5.1 comment is at
+`:130`. `rfc7606.go` `RFC7606ActionAttributeDiscard` is declared at `:25` (confirmed).
+The two 252 egress emitters are confirmed at `wireu/aspath_rewrite.go:515` and
+`wireu/aspath_transcode.go:246` (`WriteTombstone(dst, n, payload[off],
+attribute.AttrAggregator, ...)`), and the egress recognition + Section 5.3 clear at
+`wireu/aspath_rewrite.go:528` (`isTombstoneCode`) / `:542` (`clearTombstoneTransitive`).
+
 **Behavior to preserve:** (unless user explicitly said to change)
 - The Section 5.3 eBGP Transitive-clear landed in `706b77b7d` (`clearTombstoneTransitive`, reached from `rewriteASPathPrepend`) must keep working.
 - `attrDiscardFlags` derivation `0x80 | (originalFlags & 0x50)` (draft Section 4.2), at `attr_discard.go:60-62`.
@@ -173,8 +218,8 @@ nothing emits 252 into an asserted wire today.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The draft does not mandate 252 or 253 | `rfc/drafts/draft-mangin-idr-attr-tombstone-00.txt` Section 4.1 ("Attribute Code: TBD") and Section 8 ("Any unassigned value is acceptable") | O-1 answers itself and the choice is forced | Re-read draft Sections 4.1 + 8 | unvalidated |
-| A-2 | Exactly one `.ci` asserts a marker byte on the wire | grep for `C0FD` in `test/`: only `remove-private-as-export.ci:49` is an `expect=bgp:...hex=` line | A second test goes red unexpectedly | `grep -rn "C0FD" test/` | unvalidated |
+| A-1 | The draft does not mandate 252 or 253 | `rfc/drafts/draft-mangin-idr-attr-tombstone-00.txt` Section 4.1 ("Attribute Code: TBD") and Section 8 ("Any unassigned value is acceptable") | O-1 answers itself and the choice is forced | Re-read draft Sections 4.1 + 8 | ~~unvalidated~~ validated 2026-07-17: draft Section 4.1 "Attribute Code: TBD (see Section 8)" and Section 8 "Any unassigned value is acceptable" (excl. 255) confirmed by re-reading the draft; the choice is forced, resolved as O-1 |
+| A-2 | Exactly one `.ci` asserts a marker byte on the wire | grep for `C0FD` in `test/`: only `remove-private-as-export.ci:49` is an `expect=bgp:...hex=` line | A second test goes red unexpectedly | `grep -rn "C0FD" test/` | ~~unvalidated~~ validated 2026-07-17: only `test/plugin/remove-private-as-export.ci:49` carries `C0FD` in an `expect=bgp:...hex=` line; the other `C0FD` hits (`bgp-rs-fastpath-ebgp-shared.ci:22`, `remove-private-as-replace-peer.ci:17`, `remove-private-as-export.ci:45`, `bgp-rs-asn4-transcode.ci:32`) are comments only. No `C0FC` fixture exists |
 | A-3 | No external implementation interops with ze's provisional code today | Both values are provisional stand-ins for a TBD allocation | Changing the code breaks a peer | Ask Thomas | unvalidated |
 
 ### Risks
@@ -186,12 +231,51 @@ nothing emits 252 into an asserted wire today.
 | R-4 | **DEPENDS on `spec-fixit-tombstone-ebgp-transitive`.** That in-progress sibling owns an unresolved decision (its lines 58-63) on `test/plugin/remove-private-as-export.ci:49`. Its preferred option (b) removes the invalid LOCAL_PREF from the fixture's source frame, so no marker is produced and the `C0FD0405010000` marker byte is deleted from the fixture. That would strand THIS spec's AC-5, Assumption A-2, Wiring Test row 2, and the `remove-private-as-export` functional-test row — all of which key on the fixture asserting a marker on the wire | Sibling closes with option (b), fixture loses its marker line | Do not update the fixture hex until the sibling resolves its decision; if (b) lands, re-home this spec's fixture-based ACs onto a marker-bearing test the sibling keeps |
 | R-5 | **`C0FD`-vs-clear inconsistency — resolve during design, BEFORE Phase 1.** The fixture asserts `C0FD0405010000` (flags `0xC0`, Transitive SET) on an eBGP wire, yet `706b77b7d` added a Transitive clear at `wireu/aspath_rewrite.go:528-542` (`clearTombstoneTransitive` in `rewriteASPathPrepend`) and did NOT touch the fixture. So either the test is RED at HEAD, or this scenario bypasses `rewriteASPathPrepend` via a second egress funnel. The sibling spec (its lines 55-56) confirms the tension: clearing the bit for an eBGP destination makes `remove-private-as-export.ci:49` go RED. This also contradicts this spec's claim that "only the code-point byte changes" (the flags byte may change too) | Rerunning the fixture at HEAD is RED, or a grep shows a second egress path | Determine during design which funnel this fixture exercises and whether its expected flags are `0xC0` or `0x80`; reconcile with the sibling before editing the fixture hex |
 
+### Open-decision resolutions (2026-07-17)
+
+→ AUTONOMOUS DEFAULT (2026-07-17) — R-4 (fixture coupled to the in-progress sibling):
+**Decouple this spec's on-wire proof from `remove-private-as-export.ci`.** Verified
+against HEAD 2026-07-17: the sibling's Thomas-ruled decision (b) has NOT landed —
+`test/plugin/remove-private-as-export.ci:21` still carries the input LOCAL_PREF
+(`40050400000064`) and `:49` still asserts the marker (`C0FD0405010000`). Because (b)
+is ruled and will land (it deletes that marker by removing the invalid input, so no
+marker is generated), this spec MUST NOT hinge on that fixture asserting a marker.
+Resolution: (i) re-home AC-5's wire-byte proof to a self-contained assertion this
+spec owns — the unified code byte (`0xFC`) is emitted by `WriteTombstone` and stamped
+by `applyInPlace`, asserted in `internal/component/bgp/wireu/tombstone_test.go` and
+`internal/component/bgp/message/attr_discard_test.go`; (ii) the `.ci` edit is
+conditional and append-only — if the marker still exists at implementation time,
+change ONLY the code byte `C0FD`→`C0FC` at `:49` (and the matching comment at
+`:44-45`); if (b) has already removed it, the fixture carries no marker and the unit
+assertion alone satisfies AC-5. Either landing order leaves this spec implementable.
+Thomas: override if you want AC-5 kept pinned on a `.ci` fixture.
+
+→ AUTONOMOUS DEFAULT (2026-07-17) — R-5 (fixture flags `0xC0`-vs-`0x80` / which egress
+funnel): **Out of scope for THIS spec; it belongs to the sibling.** This spec changes
+only the attribute CODE byte (`0xFD`→`0xFC`, at wire offset `dst[n+1]`), never the
+FLAGS byte (`dst[n]`). The `0xC0`-vs-`0x80` question is the sibling's Section 5.3
+Transitive-clear concern and is orthogonal to the code point. Per the R-4 resolution
+this spec no longer asserts a specific marker in `remove-private-as-export.ci`, so
+R-5's "is the fixture RED at HEAD / which funnel does it exercise" tension cannot
+block this spec. The funnel/flags reconciliation stays with
+`spec-fixit-tombstone-ebgp-transitive`.
+→ Constraint corrected: the earlier "only the code-point byte changes" claim is now
+scoped explicitly to the CODE byte; the FLAGS byte is the sibling's to reconcile.
+
 ## Wiring Test (MANDATORY — NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Received UPDATE carrying a marker ze itself wrote | → | `ExtractUpstreamAttrDiscard` finds it and merges per Section 5.1 | `TestExtractUpstreamFindsZeOwnEgressMarker` |
 | eBGP egress of a marker-bearing UPDATE | → | `clearTombstoneTransitive` via `rewriteASPathPrepend` | `test/plugin/remove-private-as-export.ci` (existing; hex updated to the unified code) |
+
+→ AUTONOMOUS DEFAULT (2026-07-17): Wiring Test row 2 is governed by the R-4
+resolution. If the sibling's decision (b) has removed the marker from
+`remove-private-as-export.ci`, this row is satisfied instead by the re-homed
+unified-code-byte assertion in `internal/component/bgp/wireu/tombstone_test.go`. Row 1
+(`TestExtractUpstreamFindsZeOwnEgressMarker`) is unaffected by the sibling and remains
+the primary red-to-green wiring proof for this spec (a `WriteTombstone`-produced 252
+marker is found by the unified merge search).
 
 ## Acceptance Criteria
 
@@ -202,6 +286,15 @@ nothing emits 252 into an asserted wire today.
 | AC-3 | An UPDATE with an upstream marker plus a fresh local discard | `ApplyAttrDiscard` takes the rebuild path and emits ONE merged marker per Section 5.1 |
 | AC-4 | eBGP egress of a transitive marker | Transitive bit cleared per Section 5.3 (behavior from `706b77b7d` preserved) |
 | AC-5 | `test/plugin/remove-private-as-export.ci` | Asserts the marker on the wire with the unified code byte |
+
+→ AUTONOMOUS DEFAULT (2026-07-17) — AC-5 proof re-homed (see R-4 resolution): AC-5's
+on-wire proof is the unified CODE byte (`0xFC` = 252), demonstrated PRIMARILY by a
+self-contained unit assertion (`WriteTombstone`/`applyInPlace` emit/stamp `0xFC`),
+because the sibling's ruled decision (b) removes the marker from
+`remove-private-as-export.ci`. If that marker still exists at implementation time,
+AC-5 is ADDITIONALLY demonstrated by the `.ci` byte change `C0FD`→`C0FC` at `:49`; if
+(b) has landed, the unit assertion alone demonstrates AC-5. The chosen code (252)
+means the target byte is `0xFC`, not `0xFD`.
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -231,10 +324,14 @@ nothing emits 252 into an asserted wire today.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| (fill during design) | `test/interop/scenarios/` | (fill during design) | The code point is provisional and unallocated by IANA, so no third-party daemon recognises it; interop value is limited to "the marker does not break a non-recognizing peer" | |
+| N/A — no interop test | (none) | (none) | Opt-out justified: the code point is provisional and unallocated by IANA (draft Section 8), so no third-party daemon recognises it; interop value is limited to "the marker does not break a non-recognizing peer", already exercised by the sibling's forwarding tests and the unit suite. This spec changes only WHICH provisional byte ze uses (252 vs 253) and adds no interop-observable behavior, so there is nothing new to interop against | N/A |
 
 ### Future (if deferring any tests)
-- (fill during design)
+- None deferred. Every test in this plan (`TestExtractUpstreamFindsZeOwnEgressMarker`,
+  `TestTombstoneCodePointIsUnified`, `TestApplyAttrDiscardMergesUpstream`, plus the
+  re-homed unified-code-byte wire assertion per the R-4 resolution) is implemented
+  within this spec's scope. The interop test is opted out on the provisional-code-point
+  ground above, not deferred.
 
 ## Files to Modify
 - `internal/core/bgp/attribute/attribute.go` - the 252 constant (`:66`)
@@ -262,7 +359,13 @@ nothing emits 252 into an asserted wire today.
 | 16 | Any changed source file is referenced by existing doc source anchors? | [ ] | Grep `docs/` for anchors on the renamed file |
 
 ## Files to Create
-- (fill during design — expected: none beyond tests)
+- None beyond test additions. No new source files: the `attr_discard.go` →
+  tombstone-named file change is a `git mv` (rename), tracked under Files to Modify.
+  Test additions land in existing files: `TestExtractUpstreamFindsZeOwnEgressMarker`
+  and `TestApplyAttrDiscardMergesUpstream` in
+  `internal/component/bgp/message/attr_discard_test.go`;
+  `TestTombstoneCodePointIsUnified` plus the re-homed unified-code-byte wire assertion
+  (per the R-4 resolution) in `internal/component/bgp/wireu/tombstone_test.go`.
 
 ## Implementation Steps
 
@@ -345,7 +448,15 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - `attr_discard.go:27-29` already documented the split in a comment before this spec existed. A comment recording a known defect is not a tracker; the work had no home until this spec.
 
 ## Core Insight
-(fill during design)
+One wire attribute needs exactly one code point, owned at the lowest module tier that
+both producers import. The 252/253 split was never a protocol disagreement — the draft
+leaves the code TBD and accepts any unassigned value (Section 8) — but a rename
+artifact: two internally-consistent halves (`wireu` round-tripped 252, `message`
+round-tripped 253) that never shared a constant, so no test ever crossed the seam.
+Unification is therefore a tier-placement fix — a single `attribute.AttrTombstone` in
+`internal/core/bgp/attribute`, consumed by both tiers — not a behavior change. The only
+behavior that changes as a side effect is the one that was silently broken:
+`ExtractUpstreamAttrDiscard` can finally find a marker ze's own egress path wrote.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

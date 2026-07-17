@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -54,6 +54,30 @@ And (b) the stop primitive itself. Design must settle: how a `.ci` names the
 target process, which signal is sent (SIGKILL vs SIGTERM -- DPD needs a peer that stops
 answering, and SIGTERM may let strongSwan/ze send a DELETE, which defeats the test), and
 whether the runner waits for the process to actually exit before advancing.
+
+→ AUTONOMOUS DEFAULT (2026-07-17): the three "must settle" items are resolved as follows so
+a fresh implementer has zero questions. Thomas: override any of these if wrong.
+- **Signal = SIGKILL by default.** Rationale: SIGTERM lets ze's IKE engine send a peer DELETE
+  (the clean-close path `sa.State == StateDead`, `internal/component/ike/engine/established.go:139`),
+  which tears the SA down via the DELETE branch and NOT via the DPD-timeout branch — defeating
+  AC-4. SIGKILL leaves the responder silent, which is the exact condition DPD detects (A-1,
+  validated below). This is the fail-closed choice toward the test's intent. The directive
+  still exposes the signal explicitly (`signal=kill|term`, default `kill`) per R-1.
+- **Runner waits for exit before advancing.** Rationale: AC-1 requires the process be
+  "terminated at step N, before step N+1 runs"; advancing before the OS has reaped the process
+  is a race that makes AC-1 non-deterministic. The runner reaps (`(*exec.Cmd).Wait`) the killed
+  process, bounded by the step timeout, before the next step. This mirrors the existing
+  `terminateGracefully` reap (`runner_exec_util.go:361-372`).
+- **Naming grammar (provisional syntax, override the spelling before it ships).** Add an
+  optional `:name=NAME` field to the existing `cmd=background:` line (additive, every current
+  `.ci` still parses) and a new `cmd=stop:seq=N:name=NAME[:signal=kill|term]` directive.
+  Rationale: this reuses the established `cmd=` family and its `seq=` ordering
+  (`parseCmd`, `record_parse.go:690-714`; `parseCmdExec`, `:718-761`), so the stop step is
+  ordered relative to other commands exactly as `cmd=foreground`/`cmd=background` already are,
+  and registers as a new `case "stop"` in `parseCmd` rather than a special case in the executor.
+  The `NAME → *exec.Cmd` binding is stored alongside the tracked `*exec.Cmd` at the
+  `modeBackground` append (`runner_exec.go:759-760`). This is the smallest self-contained
+  grammar change; the exact field/directive spelling is provisional and may be renamed.
 
 **Not in scope.** Rewriting `ipsec-dpd-timeout.ci` itself. Once the primitive exists,
 restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
@@ -126,9 +150,25 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A killed responder is indistinguishable from a silent peer, so DPD fires | RFC 7296 liveness: DPD triggers on unanswered retransmits | SIGKILL may cause a TCP/UDP-level error ze treats differently from silence, and DPD never fires | Prototype: kill the responder, observe ze's logs for DPD probe retransmits | unvalidated (BLOCKS AC-4) |
+| A-1 | A killed responder is indistinguishable from a silent peer, so DPD fires | RFC 7296 liveness: DPD triggers on unanswered retransmits | SIGKILL may cause a TCP/UDP-level error ze treats differently from silence, and DPD never fires | Prototype: kill the responder, observe ze's logs for DPD probe retransmits | ~~unvalidated (BLOCKS AC-4)~~ VALIDATED 2026-07-17 from source (see note below table) |
 | A-2 | Naming a background process requires NEW grammar -- no name field exists today | Code-verified 2026-07-16: `modeBackground` (`runner_exec_util.go:113`) at `runner_exec.go:759`; the append `:759-760` stores a bare `proc` with no name | Confirms the naming grammar is a first-class phase (the bulk of the grammar work), not a lookup under an existing scheme | Read of `runner_exec.go:759-760` and `runner_exec_util.go:113` | resolved: new naming grammar required |
 | A-3 | This primitive is the only thing blocking the DPD test | `plan/learned/1107:59-63` says so | Restoring the `.ci` needs more (e.g. the bgp-namespace event-subscription gap, `spec-fixit-plugin-event-subscription`) | Prototype the restored `.ci` end to end | unvalidated (BLOCKS AC-4) |
+
+→ A-1 VALIDATED (2026-07-17, from source — no prototype needed): the IKE transport is an
+*unconnected* UDP socket (`net.ListenUDP`, `internal/component/ike/transport/udp.go:47`), so a
+SIGKILL'd responder delivers no connection-level error to the initiator. The transport read
+loop only logs and `continue`s on any read error and never tears down the SA or clears DPD state
+(`udp.go:88-102`); `sendDPD` swallows send errors yet still sets `awaitReply`
+(`internal/component/ike/engine/dpd.go:101-111`). DPD teardown is driven purely by the ticker +
+timeout: `dpd.timedOut(now)` calls `cleanupChild` and returns `errTimeout`
+(`internal/component/ike/engine/established.go:145-148`); the ONLY thing that clears `awaitReply`
+is a genuine authenticated inbound / message-ID-matched INFORMATIONAL reply (`established.go:118-119`
+→ `handleDPDResponse`, `dpd.go:116-122`). A *clean* close would instead be a peer-sent DELETE
+(`sa.State == StateDead`, `established.go:139-143`) — a DIFFERENT branch that SIGKILL specifically
+prevents. Therefore a killed responder reads exactly as a silent peer and DPD fires after the
+timeout; the "If wrong" scenario (ze treating a UDP-level error differently from silence) is ruled
+out by source. This resolves the A-1 half of AC-4's blocker; AC-4's remaining blocker is A-3, the
+end-to-end event-subscription gap, which must still be prototyped in Phase 4.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -154,6 +194,13 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 | AC-3 | A test that stops a background process then ends | Teardown does not error on the already-dead process; no leaked processes |
 | AC-4 | An IPsec DPD `.ci` kills the responder | The initiator tears the SA down after the DPD interval, observable via `show vpn ipsec sa`. BLOCKED-BY (both unvalidated, must be confirmed first): A-1 (does SIGKILL read as DPD-silence, or a transport error ze handles differently?) and A-3 (`spec-fixit-plugin-event-subscription` may also gate this). AC-4 cannot be claimed until both are validated |
 | AC-5 | Every pre-existing `.ci` | Parses and runs exactly as before |
+
+→ AC-4 UPDATE (2026-07-17): A-1 is now VALIDATED from source (see the Assumptions note), so the
+"does SIGKILL read as DPD-silence" half of AC-4's blocker is cleared. AC-4's only remaining
+blocker is A-3 (`spec-fixit-plugin-event-subscription` may also gate the end-to-end observation).
+Confirm A-3 by prototyping the restored `.ci` in Phase 4; if A-3 is broken, land AC-1..AC-3 and
+route AC-4 to the blocking spec with a new deferral row per the Failure Routing table. AC-4 is
+still not claimable until A-3 is confirmed.
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -265,7 +312,32 @@ restoring that `.ci` is follow-on work that this spec's AC-4 proves is possible.
 - The deferral row that created this spec named a file that was never created, so the commit gate flagged it for months. The skeleton rule exists precisely to stop that; "(new when picked up)" is not a destination.
 
 ## Known Limitations
-- (fill during design)
+- The stop primitive targets only processes the runner itself started and tracked in `bgProcs`
+  (`runner_exec.go:430`); it cannot signal an arbitrary PID. A `.ci`-supplied name that does not
+  match a tracked background process FAILS the test (AC-2), it never signals anything (this is
+  the fail-closed guard called out in the Security Review Checklist).
+- Default signal is SIGKILL, which is deliberately ungraceful: the killed process gets no chance
+  to flush, close sockets, or send a protocol teardown. That is required for the DPD proof (a
+  clean DELETE would defeat AC-4) but means the primitive is not a substitute for a graceful
+  stop; tests wanting graceful shutdown must pass `signal=term`.
+- AC-4 (the DPD end-to-end proof) additionally depends on A-3 (`spec-fixit-plugin-event-subscription`).
+  If that gap is still open when this spec is implemented, the primitive (AC-1..AC-3) still lands;
+  only the AC-4 observation is routed onward per the Failure Routing table.
+- The primitive observes "process is gone", not "process finished cleanly" — SIGKILL'd processes
+  have no exit code worth asserting, so the directive does not expose an expected-exit check for
+  the stopped process.
+
+## RFC Documentation
+
+The unblocked test asserts IKEv2 Dead Peer Detection (liveness), RFC 7296 Section 2.4. This
+spec adds only test infrastructure; it changes no protocol code. The RFC grounding matters
+because it fixes what the killed peer must look like on the wire for the proof to be valid.
+
+| RFC / Section | Requirement | Where enforced in ze | Why it constrains this spec |
+|---------------|-------------|----------------------|-----------------------------|
+| RFC 7296 §2.4 (liveness) | A peer is declared dead only after a liveness probe (empty INFORMATIONAL) goes unanswered past the timeout | `sendDPD` / `dpd.timedOut` / teardown at `internal/component/ike/engine/dpd.go:79-113`, `established.go:145-148` | The responder must go **silent**, so the stop primitive must remove it without letting it answer — SIGKILL, not SIGTERM |
+| RFC 7296 §1.4 / §2.4 (clean close) | A peer that shuts down cleanly SHOULD send a DELETE payload in an INFORMATIONAL exchange | `sa.State == StateDead` branch, `established.go:139-143` | A clean DELETE tears the SA down via a DIFFERENT path than DPD; SIGKILL prevents it so the test proves DPD, not DELETE-handling (R-1) |
+| RFC 7296 §2.3 (message-ID correlation) | Responses are correlated to their request by message ID | `dpdState.matchesProbe`, `dpd.go:30-32`; `established.go:118` | A killed responder sends no message-ID-matched reply, so `awaitReply` never clears and the timeout fires — the mechanism A-1 relies on |
 
 ## Implementation Summary
 

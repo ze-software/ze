@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-07-17 |
 
 ## Post-Compaction Recovery
 
@@ -33,7 +33,8 @@ Two gaps, both verified 2026-07-16:
 Scope: wire the existing `ReportAllocs` hot-path benchmarks into a CI stage that asserts an **allocs/op
 ceiling** (benchstat-style) on the forward / bufmux / EBGPWire benchmarks; and promote a lightweight
 subset of the `--check` threshold logic (already at `internal/perf/cli/cmd_track.go:19-23`) into an
-always-run or scheduled pipeline. Low effort: benchmarks, thresholds, and perf tooling all already exist.
+~~always-run or scheduled~~ **scheduled-only** pipeline. Low effort: benchmarks, thresholds, and perf tooling all already exist.
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: scope/scheduling]: the deterministic allocs/op ceiling gate runs always (in full `ze-verify`/CI); the throughput/convergence/p99 `--check` subset runs **scheduled only**, never on push/PR. Rationale: `internal/perf/regression.go` compares ns-scale timing metrics (convergence-ms, throughput-avg, latency-p99-ms) that are machine-dependent and noise-prone across CI hosts (the Required-Reading Constraint), so gating merges on them would flap; a scheduled ratchet catches drift without blocking the inline/merge path. Thomas: override if wrong.
 
 Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the heavy Docker perf matrix;
 `spec-perf-next-*` are the optimizations this gate protects.
@@ -44,6 +45,7 @@ Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the hea
 - [ ] `scripts/status/verify_run.go` - `stagesForMode` (:112) is the enumerated stage registry the verify runner executes; `.woodpecker/verify.yml:19` runs only `make ze-verify`.
   → Decision: add the alloc-ceiling stage by registering it in `stagesForMode` so every CI push and local `ze-verify` runs it, rather than bolting a separate CI step.
   → Constraint: the allocs/op ceiling must be machine-independent. allocs/op is deterministic across hosts; ns/op and throughput are not, so only the alloc ceiling belongs in the always-run gate.
+  → AUTONOMOUS DEFAULT (2026-07-17) [STAKES: scope/scheduling]: register the alloc-gate stage in the `default` (full `ze-verify`) branch of `stagesForMode` ONLY, NOT in the `ze-verify-changed` branch. `verify_run.go:120-158` has two stage lists: `ze-verify-changed` (line 121, the fast inline per-edit dev loop) and `default`/`ze-verify` (line 138, what `.woodpecker/verify.yml:19` runs on every push/PR). Rationale: CI runs full `ze-verify`, so AC-3 ("runs on every CI push") is satisfied by the `default` branch alone; keeping the microbench stage out of `ze-verify-changed` honors the brief's "do not block the inline dev loop" and pre-adopts A-2's documented fallback ("move to `ze-verify` only (not `-changed`)") as the chosen design rather than a contingency. Thomas: override if wrong; add `mk("ze-alloc-gate")` to the `ze-verify-changed` list too if you want it inline.
 - [ ] `mk/perf.mk`, `mk/test-release.mk` - `ze-perf`, `ze-perf-bench`, `ze-perf-gate` targets.
   → Constraint: `ze-perf-gate` needs Docker (`run_if_docker`) because it runs the throughput/latency matrix; the new alloc gate must NOT require Docker so it can run in the standard CI image.
 - [ ] `internal/perf/regression.go`, `internal/perf/cli/cmd_track.go` - `Thresholds`/`CheckHistory` and `--check`.
@@ -74,7 +76,7 @@ Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the hea
 - `ze-verify` stays the fast pre-commit gate; the new stage must be bounded (short benchtime) so it does not blow the 4-10 min budget.
 
 **Behavior to change:**
-- Add an always-run alloc-ceiling gate over the named hot-path benchmarks, registered in the verify stage set; optionally promote a Docker-free `--check` subset into a scheduled pipeline.
+- Add an always-run alloc-ceiling gate over the named hot-path benchmarks, registered in the verify stage set; ~~optionally~~ **and (AC-5)** promote a Docker-free `--check` subset into a **scheduled-only** pipeline.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -96,7 +98,7 @@ Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the hea
 | Verify stage ↔ failure routing | new stage name classified by `verify_run.go` | [ ] |
 
 ### Integration Points
-- `scripts/status/verify_run.go` (`stagesForMode` registration), a new `mk/` alloc-gate target, the named benchmark set, and optionally a scheduled `.woodpecker/` job for the Docker-free `--check` subset. Registration over hardcoding: a new hot-path benchmark joins the gate by being listed in the gate's benchmark set, not by editing central logic.
+- `scripts/status/verify_run.go` (`stagesForMode` registration), a new `mk/alloc-gate.mk` alloc-gate target, the named benchmark set, and ~~optionally~~ **(AC-5)** a scheduled `.woodpecker/perf-nightly.yml` job for the Docker-free `--check` subset. Registration over hardcoding: a new hot-path benchmark joins the gate by being listed in the gate's benchmark set, not by editing central logic.
 
 ### Architectural Verification
 - [ ] No bypassed layers (gate drives the real `ReportAllocs` benchmarks, not a reimplementation).
@@ -126,6 +128,8 @@ Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the hea
 | a benchmark exceeds its ceiling | -> | gate exits non-zero, stage fails | `TestAllocGateRegressionFails` |
 | `stagesForMode("ze-verify")` includes the stage | -> | `verify_run.go` stage registry | `TestStagesIncludeAllocGate` |
 
+**No `.ci` functional test; internal test-infra opt-out (N/A, no user-facing behavior):** the entry point is `make ze-verify` (a CI/verify stage), not an operator-visible command or wire behavior, so the wiring is proven by the Go unit tests above rather than a `.ci` functional test.
+
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
@@ -134,15 +138,17 @@ Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the hea
 | AC-2 | a benchmark's allocs/op exceeds its registered ceiling | the gate exits non-zero and the verify run fails, naming the benchmark |
 | AC-3 | `stagesForMode("ze-verify")` and CI | the stage is registered and runs on every CI push (no Docker required) |
 | AC-4 | a new hot-path benchmark added to the gate's set | it is gated by adding one list entry (registration), not by editing gate logic |
-| AC-5 | Docker-free `--check` subset | a lightweight regression check is promoted to an always-run or scheduled pipeline, referencing (not duplicating) `ze-perf-gate` |
+| AC-5 | Docker-free `--check` subset | a lightweight regression check is promoted to a ~~always-run or~~ **scheduled** pipeline (`.woodpecker/perf-nightly.yml`, `cron` event), referencing (not duplicating) `ze-perf-gate` |
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: scope/scheduling]: AC-5's promoted `--check` is **scheduled-only** (a new `.woodpecker/perf-nightly.yml` triggered on `cron`, not `push`/`pull_request`). The repo currently has a single CI file, `.woodpecker/verify.yml` (push + pull_request → `make ze-verify`); the scheduled job is additive and Docker-free (it runs the timing `--check` over stored history, not the Docker DUT matrix, which stays in `ze-perf-gate`/`spec-release-evidence-gate`). Thomas: override if wrong.
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAllocGateCeiling` | gate parser test (`scripts/` or `internal/perf`) | AC-1: parses allocs/op, passes within ceiling | |
-| `TestAllocGateRegressionFails` | gate parser test | AC-2: over-ceiling exits non-zero | |
+| `TestAllocGateCeiling` | `internal/perf/allocgate_test.go` | AC-1: parses allocs/op, passes within ceiling | |
+| `TestAllocGateRegressionFails` | `internal/perf/allocgate_test.go` | AC-2: over-ceiling exits non-zero | |
 | `TestStagesIncludeAllocGate` | `scripts/status/verify_run_test.go` | AC-3: stage registered in `stagesForMode` | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -154,19 +160,25 @@ Related (reference, do NOT duplicate): `spec-release-evidence-gate` owns the hea
 Test infrastructure only; no user-facing features. The gate is a CI/verify stage exercised by `make ze-verify`; no `.ci` functional test applies.
 
 ## Files to Modify
-- `scripts/status/verify_run.go` - register the alloc-gate stage in `stagesForMode` (and add a classifier case if useful).
-- `mk/perf.mk` (or a new `mk/alloc-gate.mk`) - add the alloc-ceiling gate target that runs the benchmark set with `-benchmem` and enforces per-benchmark ceilings.
-- `.woodpecker/` - optional scheduled job for the Docker-free `--check` subset (AC-5).
+- `scripts/status/verify_run.go` - register the alloc-gate stage in `stagesForMode` **`default`/`ze-verify` branch (:138) only, not the `ze-verify-changed` branch (:121)** (and add a classifier case if useful).
+- ~~`mk/perf.mk` (or a new `mk/alloc-gate.mk`)~~ **`mk/alloc-gate.mk` (new)** - add the alloc-ceiling gate target (`ze-alloc-gate`) that runs the benchmark set with `-benchmem` and enforces per-benchmark ceilings.
+- `Makefile` - add `include mk/alloc-gate.mk` (the root Makefile uses explicit per-file includes, `Makefile:81-93`).
+- ~~`.woodpecker/` - optional scheduled job~~ **`.woodpecker/perf-nightly.yml` (new) - `cron`-triggered scheduled job** for the Docker-free `--check` subset (AC-5).
 - `docs/functional-tests.md` - document the new gate (discovery update).
 
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: scope/arch]: pin the make target to a **new `mk/alloc-gate.mk`** rather than folding it into `mk/perf.mk`. Rationale: `mk/perf.mk`'s targets (`ze-perf-bench`, `mk/perf.mk:18-20`) require Docker (`test/perf/run.py --build --test`); the alloc gate MUST be Docker-free (Required-Reading Constraint) so keeping it in a dedicated file makes the Docker-free boundary structural and prevents accidental coupling, mirroring `mk/test-fuzz.mk`. Cost: one `include` line in the root `Makefile`. Thomas: override if wrong.
+
 ## Files to Create
-- gate helper (parser + ceiling comparison) under `scripts/status/` or `internal/perf/` plus its `_test.go`.
+- ~~gate helper (parser + ceiling comparison) under `scripts/status/` or `internal/perf/`~~ **`internal/perf/allocgate.go` + `internal/perf/allocgate_test.go`** - the `-benchmem` `allocs/op` parser plus the per-benchmark integer ceiling registry (a map keyed by benchmark name = the registration list) and the compare-against-ceiling check.
+- `.woodpecker/perf-nightly.yml` - the scheduled Docker-free `--check` job (AC-5).
+
+→ AUTONOMOUS DEFAULT (2026-07-17) [STAKES: arch]: locate the parser + ceiling registry in **`internal/perf/`** (not `scripts/status/`). Rationale: it is a perf-domain concern and reuses the existing `internal/perf` regression shape (`regression.go`, per the Required-Reading Decision "do not invent a second regression engine"); `scripts/status/` (`package main`) keeps only the stage registration + `TestStagesIncludeAllocGate` in `verify_run_test.go`. Thomas: override if wrong.
 
 ## Implementation Steps
-1. **Phase: Wiring (MANDATORY FIRST)** - add the alloc-gate make target driving the existing `ReportAllocs` benchmarks (forward/bufmux/EBGPWire) with a bounded `-benchmem`; register the stage in `stagesForMode`. Confirm `make ze-verify` runs it.
+1. **Phase: Wiring (MANDATORY FIRST)** - add the `ze-alloc-gate` make target (in new `mk/alloc-gate.mk`, `include`d from `Makefile`) driving the existing `ReportAllocs` benchmarks (forward/bufmux/EBGPWire) with a bounded `-benchmem`; register the stage in the `default`/`ze-verify` branch of `stagesForMode` **only** (not `ze-verify-changed`). Confirm `make ze-verify` runs it and `make ze-verify-changed` does not.
 2. **Phase: ceilings** - measure current allocs/op for each benchmark, set integer ceilings + small headroom, record each ceiling's source (R-1).
 3. **Phase: regression proof** - a deliberately-allocating variant trips the gate (AC-2); assert the stage names the offending benchmark.
-4. **Phase: promote `--check`** - wire a Docker-free subset of `ze-perf-gate`'s `--check` into an always-run or scheduled pipeline, referencing `spec-release-evidence-gate` (AC-5).
+4. **Phase: promote `--check`** - wire a Docker-free subset of `ze-perf-gate`'s `--check` into a **scheduled-only** pipeline (new `.woodpecker/perf-nightly.yml`, `cron` event), referencing `spec-release-evidence-gate` (AC-5). Do NOT add it to push/pull_request events.
 5. **Discovery update** - `docs/functional-tests.md` documents the gate; note the new stage.
 6. **Full verification** - `make ze-verify`; complete spec (audit tables, `plan/learned/NNN-<name>.md`, two-commit closure).
 
