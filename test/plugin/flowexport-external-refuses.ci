@@ -21,6 +21,16 @@
 # ever gets a chance to run. option=needs-linux below; not executable on the
 # darwin dev host, but confirmed PASSING under
 # `make ze-qemu-needs-linux-test` (real QEMU Linux VM, plan/learned/1045).
+#
+# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# await=stderr fence below. Coverage is REPLACED and STRENGTHENED, not
+# weakened: the WHEN-to-tear-down changes from a fixed sleep to a deterministic
+# wait, and the refuse-message assertion is tightened to a flow-export-SPECIFIC
+# substring (the bare phrase, and even the "interface rate-tracker
+# subscription" tail, are shared with traffic-usage). An observer plugin cannot
+# poll here because flow-export's refusal aborts the daemon's plugin-startup
+# coordinator (StartupCoordinator.PluginFailed), so the relayed stderr line is
+# the only non-plugin signal (see docs/architecture/testing/ci-format.md).
 
 option=needs-linux
 
@@ -75,19 +85,6 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Hold the test open long enough for the external flow-export subprocess to
-start, log its refuse message, and exit -- observable via the daemon's
-relayed stderr (default relay level is WARN; the refuse message logs at
-ERROR, which is always at or above WARN)."""
-import time
-
-# blind hold: waits for the external plugin's refuse/warn on the daemon's own relayed stderr; no queryable signal (reject-fence bucket, see spec-fixit-reject-fence-observability)
-time.sleep(4.0)
-EOF_PY
-
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
-expect=exit:code=0
-expect=stderr:contains=refusing to start as an external plugin process
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=configure flow-export to run internal
+expect=stderr:contains=configure flow-export to run internal
