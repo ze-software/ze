@@ -24,11 +24,15 @@ func TestRFC7606MalformedOriginLength(t *testing.T) {
 
 // TestRFC7606MalformedCommunityLength verifies RFC 7606 Section 7.8.
 //
-// Covers only the "not a multiple of 4" clause. The zero-length clause of §7.8 has no
-// honest test: every zero-length COMMUNITY case is cascade-confounded (see the concession
-// at the extlen/COMMUNITY_deflate_to_0 case below).
+// Covers the "not a multiple of 4" clause of §7.8. The other clause -- length zero -- is
+// covered by TestRFC7606CommunityZeroLength; the two are separate malformations and each
+// has its own isolating negative.
 //
 // RFC requirement: RFC7606-7.8-1 negative — COMMUNITY length 5 is not a multiple of 4, so treat-as-withdraw.
+//
+// rfc-test-change-approved: 2026-07-17 user approved strengthening §7.8-1 with an added
+// assertion pinning the multiple-of-4 clause and a new zero-length negative
+// (TestRFC7606CommunityZeroLength), so both malformation clauses are proven.
 func TestRFC7606MalformedCommunityLength(t *testing.T) {
 	// Valid ORIGIN + AS_PATH + NEXT_HOP, then malformed Community
 	pathAttrs := []byte{
@@ -46,6 +50,81 @@ func TestRFC7606MalformedCommunityLength(t *testing.T) {
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(8), result.AttrCode)
 	require.Contains(t, result.Description, "7.8")
+	require.Contains(t, result.Description, "not a multiple of 4",
+		"must fail on the multiple-of-4 clause, distinct from the zero-length clause")
+}
+
+// TestRFC7606CommunityZeroLength verifies the other half of RFC 7606 Section 7.8: a
+// COMMUNITIES attribute whose length is zero is malformed and treat-as-withdraw.
+//
+// Isolation: ORIGIN, AS_PATH and NEXT_HOP are all well-formed, and the COMMUNITY is a
+// structurally valid attribute (flags, type, length=0, no data), so nothing else in the
+// UPDATE is wrong. The only defect is the zero length, and AttrCode pins it to COMMUNITY.
+// This is the clause a floor-assertion table (extlen/COMMUNITY_deflate_to_0) could not
+// prove, because a floor passes on any action >= treat-as-withdraw.
+//
+// RFC requirement: RFC7606-7.8-1 negative — COMMUNITY length 0 is malformed, so treat-as-withdraw.
+func TestRFC7606CommunityZeroLength(t *testing.T) {
+	pathAttrs := []byte{
+		// ORIGIN = IGP
+		0x40, 0x01, 0x01, 0x00,
+		// AS_PATH (empty)
+		0x40, 0x02, 0x00,
+		// NEXT_HOP = 192.0.2.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
+		// COMMUNITY (optional transitive) with length 0 and no value.
+		0xc0, 0x08, 0x00,
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action,
+		"a zero-length COMMUNITY is malformed: treat-as-withdraw, not none")
+	require.Equal(t, uint8(8), result.AttrCode)
+	require.Contains(t, result.Description, "is zero",
+		"must fail on the zero-length clause, distinct from the multiple-of-4 clause")
+}
+
+// TestRFC7606MPReachAddPathValidNotReset guards the RFC 7911 ADD-PATH case for the Section
+// 5.3 MP NLRI checks. When ADD-PATH is negotiated for a family, each NLRI carries a 4-byte
+// Path Identifier; the validator must skip it, not misread it as a prefix length and
+// session-reset a VALID UPDATE. This pins the fix threaded from session_validation.go.
+func TestRFC7606MPReachAddPathValidNotReset(t *testing.T) {
+	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty
+	// MP_REACH IPv6 unicast, valid 16-octet next hop, then an ADD-PATH NLRI: path id
+	// 0xFF000001 (whose first octet 0xFF would look like prefix length 255 without the
+	// skip), then a valid /64.
+	header := []byte{0x00, 0x02, 0x01, 0x10}
+	header = append(header, make([]byte, 16)...)
+	header = append(header, 0x00) // Reserved
+	valid := append(append([]byte{}, header...),
+		0xFF, 0x00, 0x00, 0x01, // path identifier
+		64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00) // 2001:db8::/64
+	mk := func(value []byte) []byte {
+		return append(append(append([]byte{}, origin...), aspath...),
+			append([]byte{0x80, 0x0E, byte(len(value))}, value...)...)
+	}
+	addPathFor := func(afi uint16, safi uint8) bool { return afi == 2 && safi == 1 }
+
+	// With ADD-PATH awareness the path id is skipped and the /64 is accepted.
+	got := ValidateUpdateRFC7606AddPath(mk(valid), false, false, false, addPathFor)
+	require.Equal(t, RFC7606ActionNone, got.Action,
+		"a valid ADD-PATH MP_REACH must not be session-reset: %s", got.Description)
+
+	// Sanity: the add-path-blind path (nil predicate) still misreads 0xFF as a prefix length
+	// -- that is exactly the bug the plumbing fixes.
+	blind := ValidateUpdateRFC7606(mk(valid), false, false, false)
+	require.Equal(t, RFC7606ActionSessionReset, blind.Action,
+		"the add-path-blind path misreads the path id (the bug being fixed)")
+
+	// Enforcement still holds under ADD-PATH: a prefix length past the family maximum AFTER
+	// the path id is still a session reset.
+	bad := append(append([]byte{}, header...),
+		0x00, 0x00, 0x00, 0x02, // path identifier
+		129, 0x20) // prefix length 129 (> 128 IPv6 maximum)
+	gotBad := ValidateUpdateRFC7606AddPath(mk(bad), false, false, false, addPathFor)
+	require.Equal(t, RFC7606ActionSessionReset, gotBad.Action,
+		"an ADD-PATH NLRI with prefix length > 128 must still session-reset")
 }
 
 // TestRFC7606MissingOrigin verifies RFC 7606 Section 3.d.
@@ -764,28 +843,46 @@ func TestRFC7606NLRIPrefixLengthValidIPv6(t *testing.T) {
 	require.Nil(t, result)
 }
 
-// TestRFC7606NLRIPrefixLengthTooLongIPv6 verifies RFC 7606 Section 5.3.
+// TestRFC7606NLRIPrefixLengthTooLongIPv6 verifies RFC 7606 Section 5.3, driven through the
+// production path: an MP_REACH_NLRI whose IPv6 NLRI declares a prefix length greater than
+// 128 is inconsistent with the AFI/SAFI, so Section 3(j) mandates session reset.
 //
-// VALIDATES: IPv6 NLRI with prefix length > 128 triggers session reset.
-// PREVENTS: Accepting invalid NLRI with impossible prefix length; and silently
-// downgrading the RFC-mandated session reset to treat-as-withdraw.
+// VALIDATES: an over-128 IPv6 NLRI inside an MP_REACH triggers session reset.
+// PREVENTS: silently downgrading the RFC-mandated session reset to treat-as-withdraw; and
+// a version of this test that only exercised ValidateNLRISyntax(isIPv6=true) directly --
+// which was never called on MP attribute contents in production, so it proved nothing about
+// what an UPDATE carrying such an NLRI actually does.
+//
+// Isolation: valid 16-octet next hop and ORIGIN + AS_PATH present, and 17 octets follow the
+// length byte, so the only defect is the 129 > 128 length -- not a next-hop error and not
+// an overrun (which would fail on a different clause).
 //
 // RFC requirement: RFC7606-5.3-3 negative — an NLRI length inconsistent with the AFI/SAFI
-// makes the field incorrect, which Section 3(j) escalates to session reset
+// makes the attribute incorrect, which Section 3(j) escalates to session reset
 // RFC requirement: RFC7606-3.j-1 negative — an unparseable IPv6 NLRI field selects session reset.
 //
 // Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
+// rfc-test-change-approved: 2026-07-17 user approved enforcing §5.3-3 on MP attribute NLRI
+// in the code (validateMPReachAttr now parses the NLRI) and driving this test through
+// ValidateUpdateRFC7606 rather than the internal ValidateNLRISyntax helper.
 func TestRFC7606NLRIPrefixLengthTooLongIPv6(t *testing.T) {
-	// Invalid NLRI: prefix length 129 (> 128)
-	nlri := []byte{
-		64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, // 2001:db8::/64 (valid)
-		129, // prefix length 129 (invalid)
-	}
+	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty
+	// MP_REACH: AFI=2 SAFI=1 NHLen=16 NextHop[16] Reserved=0, then an NLRI claiming prefix
+	// length 129 (> the IPv6 maximum of 128) with 17 octets following, so it is a length
+	// violation, not an overrun.
+	value := []byte{0x00, 0x02, 0x01, 0x10}
+	value = append(value, make([]byte, 16)...)
+	value = append(value, 0x00, 129)
+	value = append(value, make([]byte, 17)...)
+	attrs := append(append(append([]byte{}, origin...), aspath...),
+		append([]byte{0x80, 0x0E, byte(len(value))}, value...)...)
 
-	result := ValidateNLRISyntax(nlri, true)
+	result := ValidateUpdateRFC7606(attrs, false, false, false)
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
-	require.Contains(t, result.Description, "5.3")
+	require.Contains(t, result.Description, "129 > 128",
+		"must fail on the IPv6 length rule, not a neighboring clause")
 }
 
 // TestRFC7606NLRIOverrun verifies RFC 7606 Section 3(j) + Section 5.3.

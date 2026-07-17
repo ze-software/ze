@@ -780,7 +780,7 @@ LSDB, SPF, and FRR interop run as QEMU integration tests (raw L2 needs
 | `isis-config.ci` | A valid `isis { net ... }` block validates through the real YANG schema and the `isis-net` custom validator; a structurally invalid NET is rejected |
 | `isis-adjacency.ci` | The per-interface adjacency leaves (circuit-type, hello-interval, hold-multiplier, priority, level) validate on a point-to-point and a broadcast circuit; a hold-multiplier of 0 is rejected by the YANG range. Live adjacency (two nodes reaching Up) is proven by the `TestISISAdjacencyUp` unit test and the `adjacency_integration_linux_test.go` QEMU integration test |
 | `isis-doctor-raw-socket.ci` | The `isis-raw-socket` doctor check reports the raw-socket / `CAP_NET_RAW` readiness of the transport |
-| `isis-flooding.ci` | The CSNP and PSNP PDUs the flooding child builds for LSDB synchronisation (whole-range CSNP with a TLV 9 LSP-entry; PSNP ack/request TLV 9) decode through `ze isis-decode`. Live reliable flooding (a three-node line converging, the SRM flood timer, CSNP/PSNP request/ack, the P2P initial CSNP, purge re-flood) is proven by the in-memory engine wiring tests (`TestISISLSDBSync`, `TestISISFloodSRMTimer`, `TestISISCSNPGapRequest`, `TestISISPSNPAck`) plus the QEMU integration tests and the FRR interop scenarios (isis-13) |
+| `isis-flooding.ci` | The CSNP and PSNP PDUs the flooding child builds for LSDB synchronisation (whole-range CSNP with a TLV 9 LSP-entry; PSNP ack/request TLV 9) decode through `ze isis decode`. Live reliable flooding (a three-node line converging, the SRM flood timer, CSNP/PSNP request/ack, the P2P initial CSNP, purge re-flood) is proven by the in-memory engine wiring tests (`TestISISLSDBSync`, `TestISISFloodSRMTimer`, `TestISISCSNPGapRequest`, `TestISISPSNPAck`) plus the QEMU integration tests and the FRR interop scenarios (isis-13) |
 | `isis-auth.ci` | The authentication config surface validates through the real YANG schema: named `key-chains` with a `key-id`, an algorithm enum (cleartext / hmac-md5 / hmac-sha-256), a `$9$`-encoded secret, and per-level (area/domain) + per-interface (IIH) `auth-key-chain` references; an invalid algorithm enum is rejected. Live sign-on-send / verify-on-receive, wrong-key rejection, TLV-10-first ordering, the LSP checksum-after-sign interaction, authenticated purges, hitless rotation, and constant-time compare are proven by the unit tests (`TestISISAuthSignVerify*`, `TestISISAuthReject`, `TestISISAuthLSPChecksumAfterSign`, `TestISISAuthPurge`, `TestISISAuthRotation`, `TestISISAuthSecretEncoding`) plus the QEMU integration tests and the `isis-auth-frr` interop scenario (isis-13) |
 | `isis-redist-bgp.ci` | The redistribution config surface validates through the real YANG schema: `redistribute { destination bgp { import isis } }` is accepted (the single source name `isis` is registered with the source registry, so the `redistribute-source` validator/completion accept it), and `redistribute { destination isis { import connected/static/bgp } }` is accepted (`destination isis` is a runtime-validated free-form list key); `destination isis { import isis }` validates but is a runtime no-op (loop prevention). Live route flow (an IS-IS SPF route in the BGP RIB; a connected/static/BGP prefix as a TLV 135 entry in an IS-IS LSP and in a peer's RIB) is proven by the unit tests in `internal/plugins/isis/redistribute` (`TestISISProducerRegistered`, `TestISISRegisterSource`, `TestISISRedistSourceToBGP`, `TestISISRedistSourceWithdrawToBGP`, `TestISISRedistConsumerConnected`/`Static`/`BGP`/`Withdraw`/`UpDownBit`/`Name`/`LogsFailure`, `TestISISConnectedAdvertise`, `TestISISRedistSelfImportRejected`, `TestISISRedistRegistrationOrder`, `TestISISRedistMetricBoundary`) plus the QEMU `isis-redist-frr` interop scenario |
 | `isis-ipv6.ci` | A dual-stack `isis { ... }` config (per-interface `address-family ipv6-unicast`) validates through the real YANG schema, the IPv6 SPF + install pass is wired (a second `BuildRoutesV6` over the shared tree feeding an IPv6-family Loc-RIB Installer), and `show isis route ipv6` returns an empty list with no adjacency (no phantom IPv6 routes). Live dual-stack flow (TLV 232 link-local in the Hello, TLV 236 in the LSP, an fe80:: next-hop IPv6 route in the kernel, IPv6 redistribution both ways) is proven by the unit tests (`TestISISOriginateTLV236`, `TestISISOriginateTLV232Scope`, `TestISISProtocolsSupportedDualStack`, `TestISISIIHTLV232LinkLocal`, `TestISISIPv6SPFNextHop`, `TestISISIPv6LinkLocalNextHop`, `TestISISIPv6RouteLocRIBInsert`, `TestISISIPv6MetricAboveMaxIgnored`, `TestISISRedistConsumerIPv6`, `TestISISRedistSourceIPv6`) plus the QEMU `isis-dualstack-frr` interop scenario (isis-13) |
@@ -1461,6 +1461,36 @@ expect=stderr:regex=peer \d+\.\d+\.\d+\.\d+: route-refresh requires
 The test passes if:
 - `ze bgp validate` exits with code 1
 - Stderr contains the expected substring OR matches the regex pattern
+
+### Tagging tests to an RFC requirement
+
+A test that enforces an RFC MUST can bind itself to the requirement so the coverage
+gate can see it. Add an `RFC requirement:` tag naming the requirement id and the
+polarity it exercises. It works in both test styles:
+
+```go
+// RFC requirement: RFC7606-7.1-1 negative -- ORIGIN length 2 is treated as withdraw
+func TestRFC7606MalformedOriginLength(t *testing.T) { ... }
+```
+
+```
+# test/plugin/rfc7606-withdraw.ci  -- must be a '#' comment at the start of a line
+# RFC requirement: RFC7606-7.1-1 negative
+```
+
+- `polarity` is mandatory and must be `positive` or `negative`; a gated MUST needs
+  both. Text after `--` is an optional note.
+- In `.ci` files the tag is only recognised as a line-start `#` comment; `#` inside a
+  `terminator=` block is file content, not a tag, and is skipped.
+- On a table-driven test, put the tag on the line of the enforcing case, not only on
+  the function, so deleting that case re-opens the coverage.
+- Once tagged, a test's behaviour must not be edited without user approval — the
+  `rfc-tagged-test` hook blocks it. Fix the code, not the test.
+
+`make ze-rfc-check` verifies every enrolled MUST has its pair of tags (or a reasoned
+annotation) and that `ai/RFC-REQUIREMENTS.md` — the generated requirement → test map —
+is fresh. See `docs/contributing/rfc-implementation-guide.md` §9.7 and
+`ai/skills/ze-rfc.md`.
 
 ---
 

@@ -217,16 +217,33 @@ func splitBody(t *testing.T, body []byte) (withdrawn, pathAttrs, nlri []byte) {
 // which §3(j) escalates to session reset.
 // PREVENTS: trusting NLRI boundaries that were never successfully parsed.
 //
+// Isolation: AFI=2/SAFI=1 with a valid 16-octet next hop, so §7.11 passes and ORIGIN +
+// AS_PATH are present, so §3.d passes. The ONLY defect is the overrunning NLRI. The paired
+// positive (TestRFC7606MPReachWellFormedAccepted) uses the same shape with an NLRI that
+// fits, so this test fails on the overrun and not on a neighboring rule.
+//
 // RFC requirement: RFC7606-5.3-4 negative — the last NLRI in the attribute overruns it.
+//
+// rfc-test-change-approved: 2026-07-17 user approved enforcing §5.3-4 in the code
+// (validateMPReachAttr now parses the NLRI) and rewriting this test to isolate the overrun
+// rule; it previously passed via the §7.11 NHLen=0 next-hop rule, proving nothing about §5.3-4.
 func TestRFC7606MPReachNLRIOverrunsAttribute(t *testing.T) {
-	// AFI=2 SAFI=1 NHLen=0 Reserved=0, then NLRI claiming /32 (4 octets) with 1 octet left.
-	value := []byte{0x00, 0x02, 0x01, 0x00, 0x00, 32, 0xAA}
-	attrs := append([]byte{0x80, 0x0E, byte(len(value))}, value...)
+	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty
+	// MP_REACH: AFI=2 SAFI=1 NHLen=16 NextHop[16] Reserved=0, then an IPv6 NLRI claiming
+	// /128 (16 octets) with only 2 octets present -- the last NLRI overruns the attribute.
+	value := []byte{0x00, 0x02, 0x01, 0x10}
+	value = append(value, make([]byte, 16)...)
+	value = append(value, 0x00, 128, 0x20, 0x01)
+	attrs := append(append(append([]byte{}, origin...), aspath...),
+		append([]byte{0x80, 0x0E, byte(len(value))}, value...)...)
 
-	result := ValidateUpdateRFC7606(attrs, true, false, false)
+	result := ValidateUpdateRFC7606(attrs, false, false, false)
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action,
 		"an unparseable MP NLRI cannot be treated as withdraw: §3(j) requires session reset")
+	require.Contains(t, result.Description, "overrun",
+		"must fail on the NLRI overrun, not a neighboring rule")
 }
 
 // VALIDATES: an MP_REACH whose flags contradict RFC 4760 is incorrect (§5.3), which
@@ -235,25 +252,50 @@ func TestRFC7606MPReachNLRIOverrunsAttribute(t *testing.T) {
 // PREVENTS: an MP attribute flag error being downgraded to treat-as-withdraw, which would
 // trust NLRI boundaries read from an attribute whose framing is already in doubt.
 //
+// Isolation: everything except the flags is well-formed — valid 16-octet next hop, a /32
+// NLRI that fits, ORIGIN + AS_PATH present. Only the 0x40 flag byte (well-known/transitive
+// instead of the Optional non-transitive RFC 4760 mandates) differs from the paired
+// positive (TestRFC7606MPReachWellFormedAccepted), so flipping it back to 0x80 makes the
+// UPDATE pass — proving this fails on the flags and nothing else.
+//
 // RFC requirement: RFC7606-5.3-5 negative — MP attribute flags inconsistent with RFC 4760.
+//
+// rfc-test-change-approved: 2026-07-17 user approved enforcing §5.3-5 in the code
+// (validateAttributeFlags now checks MP_REACH/MP_UNREACH flags) and rewriting this test to
+// isolate the flag rule; it previously passed via the §7.11 NHLen=0 next-hop rule.
 func TestRFC7606MPReachFlagsInconsistentWithRFC4760(t *testing.T) {
+	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty
+	// AFI=2 SAFI=1 NHLen=16 NextHop[16] Reserved=0, then a well-formed /32 NLRI. The only
+	// defect is the attribute flags below.
+	value := []byte{0x00, 0x02, 0x01, 0x10}
+	value = append(value, make([]byte, 16)...)
+	value = append(value, 0x00, 32, 0x20, 0x01, 0x0d, 0xb8)
 	// RFC 4760: MP_REACH_NLRI is Optional (0x80). Well-known/transitive (0x40) contradicts it.
-	value := []byte{0x00, 0x02, 0x01, 0x00, 0x00}
-	attrs := append([]byte{0x40, 0x0E, byte(len(value))}, value...)
+	attrs := append(append(append([]byte{}, origin...), aspath...),
+		append([]byte{0x40, 0x0E, byte(len(value))}, value...)...)
 
-	result := ValidateUpdateRFC7606(attrs, true, false, false)
+	result := ValidateUpdateRFC7606(attrs, false, false, false)
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action,
 		"§5.3 makes inconsistent MP flags 'incorrect', and §3(j) escalates that to session "+
 			"reset — the generic §3.c treat-as-withdraw is too weak here")
+	require.Contains(t, result.Description, "RFC 4760",
+		"must fail on the flag inconsistency, not a neighboring rule")
 }
 
 // VALIDATES: a well-formed MP_REACH is accepted — the §5.3 criteria reject only what is
-// actually incorrect.
+// actually incorrect. It is the shared conforming case for all three MP NLRI criteria: a
+// length consistent with the AFI/SAFI (5.3-3), a last NLRI that fits (5.3-4), and RFC
+// 4760-consistent flags (5.3-5).
 // PREVENTS: a validator that rejects everything, which a negative-only test cannot detect.
 //
+// RFC requirement: RFC7606-5.3-3 positive — an NLRI length consistent with the AFI/SAFI is accepted.
 // RFC requirement: RFC7606-5.3-4 positive — NLRI that fits the attribute is accepted.
 // RFC requirement: RFC7606-5.3-5 positive — RFC 4760-consistent flags are accepted.
+//
+// rfc-test-change-approved: 2026-07-17 user approved enforcing the §5.3 MP NLRI checks in
+// the code; this well-formed case now additionally carries the 5.3-3 positive tag.
 func TestRFC7606MPReachWellFormedAccepted(t *testing.T) {
 	// Optional flag (0x80) per RFC 4760; AFI=2 SAFI=1 NHLen=16 NH[16] Reserved=0,
 	// then a /32 prefix with exactly its 4 octets present.

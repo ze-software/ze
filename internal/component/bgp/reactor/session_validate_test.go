@@ -75,19 +75,25 @@ func TestEnforceRFC7606_ShortBody(t *testing.T) {
 
 // TestEnforceRFC7606_InvalidWithdrawnNLRI verifies bad withdrawn NLRI triggers session reset.
 //
-// RFC requirement: RFC7606-5.3-2 negative — a syntactically incorrect Withdrawn Routes
-// field escalates to session reset via Section 3(j)
+// RFC requirement: RFC7606-5.3-2 negative — the last NLRI in the Withdrawn Routes field
+// overruns the field, which Section 3(j) escalates to session reset
 // RFC requirement: RFC7606-3.i-1 negative — the Withdrawn Routes field is checked for
 // syntactic correctness in the same manner as the NLRI field
 //
 // Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
-// RFC 7606 Section 5.3 makes prefix length 33 syntactically incorrect; Section 3(j)
-// mandates session reset because the field cannot be successfully parsed.
+// Isolation: prefix length 24 is well within the family maximum of 32, so the §5.3-1
+// "greater than 32" rule cannot be what fires — the ONLY defect is the overrun, which is
+// exactly the §5.3-2 criterion. The previous version used prefix length 33 and so actually
+// exercised §5.3-1, proving nothing about the overrun rule this line claims.
+//
+// rfc-test-change-approved: 2026-07-17 user approved isolating the §5.3-2 overrun rule from
+// the §5.3-1 length rule in this test.
 func TestEnforceRFC7606_InvalidWithdrawnNLRI(t *testing.T) {
 	s := newValidateSession()
 
-	// Withdrawn with prefix length 33 (invalid for IPv4, max is 32).
-	withdrawn := []byte{33, 0x0A, 0x00, 0x00, 0x00, 0x00}
+	// Withdrawn NLRI declares /24 (needs 3 prefix octets) but only 2 follow, so the last
+	// NLRI overruns the field. 24 <= 32, so this is not the "greater than 32" rule.
+	withdrawn := []byte{24, 0x0A, 0x00}
 	body := makeUpdateBody(withdrawn, nil, nil)
 	wu := wireu.NewWireUpdate(body, 0)
 

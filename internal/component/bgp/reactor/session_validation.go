@@ -15,6 +15,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.
@@ -31,6 +33,25 @@ import (
 // UPDATEs are never delivered to plugins as valid routes.
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	body := wu.Payload()
+
+	// RFC 7911: NLRI in an ADD-PATH family carries a 4-byte Path Identifier before the
+	// prefix. The Section 5.3 NLRI-syntax checks must skip it or they would misread a valid
+	// ADD-PATH UPDATE as malformed and session-reset it. The receive context knows which
+	// families negotiated ADD-PATH; AddPathFor is nil-safe.
+	recvCtx := bgpctx.Registry.Get(s.recvCtxID)
+	addPathFor := func(afi uint16, safi uint8) bool {
+		return recvCtx.AddPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
+	}
+	ipv4AddPath := addPathFor(uint16(family.AFIIPv4), uint8(family.SAFIUnicast))
+	// The IPv4 Withdrawn Routes and NLRI fields are always IPv4 unicast. The common case has
+	// no ADD-PATH there, so use the plain validator; only reach for the add-path-aware one
+	// when RFC 7911 is negotiated for the family.
+	checkIPv4NLRI := func(field []byte) *message.RFC7606ValidationResult {
+		if ipv4AddPath {
+			return message.ValidateNLRISyntaxAddPath(field, false, true)
+		}
+		return message.ValidateNLRISyntax(field, false)
+	}
 
 	// RFC 7606 Section 3 (b): a structural length conflict means the section boundaries
 	// cannot be trusted, so the NLRI field cannot be located at all. Section 3 (j) is
@@ -51,7 +72,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	// reports -- do not flatten every syntax error to treat-as-withdraw.
 	if withdrawnLen > 0 {
 		withdrawn := body[2 : 2+withdrawnLen]
-		if result := message.ValidateNLRISyntax(withdrawn, false); result != nil {
+		if result := checkIPv4NLRI(withdrawn); result != nil {
 			return s.rfc7606NLRISyntaxAction(wu, result, "withdrawn")
 		}
 	}
@@ -69,7 +90,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	// RFC 7606 Section 5.3: Validate NLRI syntax (IPv4)
 	if nlriLen > 0 {
 		nlri := body[offset+attrLen:]
-		if result := message.ValidateNLRISyntax(nlri, false); result != nil {
+		if result := checkIPv4NLRI(nlri); result != nil {
 			return s.rfc7606NLRISyntaxAction(wu, result, "nlri")
 		}
 	}
@@ -80,7 +101,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	if neg := s.Negotiated(); neg != nil {
 		asn4 = neg.ASN4
 	}
-	result := message.ValidateUpdateRFC7606(pathAttrs, hasNLRI, isIBGP, asn4)
+	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor)
 
 	// RFC 8669 Section 4: discard PrefixSID from EBGP unless configured to accept.
 	if !isIBGP && !s.settings.AcceptSRv6PrefixSID {

@@ -1908,7 +1908,10 @@ func TestSessionNonNegotiatedMPFamilyNotification(t *testing.T) {
 // its old entry and going stale.
 //
 // RFC requirement: RFC7606-2-1 negative — the UPDATE is handled as though its routes had been withdrawn
-// RFC requirement: RFC7606-2-5 negative — the affected routes are removed from the Adj-RIB-In
+//
+// RFC7606-2-5 (the route is removed from the Adj-RIB-In) is proven where the Adj-RIB-In can
+// actually be observed, not at this dispatch boundary: see
+// TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute in the adj_rib_in plugin.
 //
 // This test previously asserted the OPPOSITE — that the callback must NOT fire — under the
 // name ...SuppressesCallback. Suppression is not withdrawal: not dispatching leaves a

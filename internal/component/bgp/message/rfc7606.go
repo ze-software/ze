@@ -97,6 +97,25 @@ var wellKnownAttrs = map[uint8]bool{
 //
 // Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
 func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
+	// RFC 7606 Section 5.3: the MP_REACH_NLRI/MP_UNREACH_NLRI attribute is "incorrect" if
+	// its flags are inconsistent with RFC 4760, which defines both as optional (Optional bit
+	// set) and non-transitive (Transitive bit clear). Section 3(j) escalates that to session
+	// reset -- STRONGER than the generic Section 3.c treat-as-withdraw for a well-known flag
+	// conflict -- because an MP attribute whose framing is in doubt cannot have its NLRI
+	// boundaries trusted.
+	if code == attrCodeMPReachNLRI || code == attrCodeMPUnreachNLRI {
+		if flags&attrFlagOptional == 0 || flags&attrFlagTransitive != 0 {
+			var b textbuf.Buffer
+			return &RFC7606ValidationResult{
+				Action:   RFC7606ActionSessionReset,
+				AttrCode: code,
+				Description: b.Reset().Str("RFC 7606 Section 5.3: MP attribute ").Int(int64(code)).
+					Str(" flags inconsistent with RFC 4760 (must be optional, non-transitive)").String(),
+			}
+		}
+		return nil
+	}
+
 	if !wellKnownAttrs[code] {
 		// Optional attribute - flags not restricted
 		return nil
@@ -140,6 +159,18 @@ func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 // Returns:
 //   - ValidationResult with strongest action, error details, and attribute codes to discard
 func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC7606ValidationResult {
+	return ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, nil)
+}
+
+// ValidateUpdateRFC7606AddPath is ValidateUpdateRFC7606 with per-family ADD-PATH awareness.
+// addPathFor reports whether RFC 7911 ADD-PATH is negotiated for an (AFI, SAFI); it is
+// consulted only for the Section 5.3 NLRI-syntax check inside MP attributes, so that a valid
+// ADD-PATH UPDATE (whose NLRI carry a 4-byte path identifier) is not misread as malformed.
+// A nil addPathFor means "no ADD-PATH", which is the correct default for callers that do not
+// have negotiated state (the plain ValidateUpdateRFC7606 wrapper, and unit tests).
+func ValidateUpdateRFC7606AddPath(
+	pathAttrs []byte, hasNLRI, isIBGP, asn4 bool, addPathFor func(afi uint16, safi uint8) bool,
+) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
 		if hasNLRI {
@@ -235,6 +266,11 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 
 		// RFC 7606 Section 3.c: Validate attribute flags
 		if flagsResult := validateAttributeFlags(attrCode, flags); flagsResult != nil {
+			// RFC 7606 Section 3.h: session-reset is immediate -- no point collecting
+			// more (a Section 5.3 MP-attribute flag conflict lands here).
+			if flagsResult.Action == RFC7606ActionSessionReset {
+				return flagsResult
+			}
 			recordError(flagsResult)
 			continue // Collect more errors
 		}
@@ -256,6 +292,19 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 			}
 			recordError(result)
 			// Don't return — continue to collect all errors
+		}
+
+		// RFC 7606 Section 5.3: NLRI syntax inside MP attributes, ADD-PATH aware. Done here
+		// rather than in validateMPReachAttr/validateMPUnreachAttr because it needs the
+		// per-family ADD-PATH state to skip the RFC 7911 path identifier. The MP attribute
+		// has already passed its minimum-length (and, for MP_REACH, next-hop) checks above.
+		if attrCode == attrCodeMPReachNLRI || attrCode == attrCodeMPUnreachNLRI {
+			if r := validateMPNLRIField(attrCode, attrData, addPathFor); r != nil {
+				if r.Action == RFC7606ActionSessionReset {
+					return r
+				}
+				recordError(r)
+			}
 		}
 
 		// Track mandatory attributes and MP attribute counts
@@ -493,12 +542,18 @@ func validateAggregatorAttr(code uint8, length int, _ []byte, _, asn4 bool) *RFC
 
 // RFC 7606 Section 7.8: Community must be non-zero multiple of 4.
 func validateCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	// RFC 7606 Section 7.8: the COMMUNITIES attribute is malformed if its length is zero or
+	// not a non-zero multiple of 4. Name which clause fired so the two are distinguishable.
 	if length == 0 || length%4 != 0 {
+		reason := " not a multiple of 4"
+		if length == 0 {
+			reason = " is zero"
+		}
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: b.Reset().Str("RFC 7606 Section 7.8: Community length ").Int(int64(length)).Str(" not multiple of 4").String(),
+			Description: b.Reset().Str("RFC 7606 Section 7.8: Community length ").Int(int64(length)).Str(reason).String(),
 		}
 	}
 	return nil
@@ -594,6 +649,61 @@ func validateMPUnreachAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606
 			AttrCode:    code,
 			Description: b.Reset().Str("RFC 7606 Section 5.3: MP_UNREACH_NLRI length ").Int(int64(length)).Str(" < 3").String(),
 		}
+	}
+	return nil
+}
+
+// validateMPNLRIField runs the RFC 7606 Section 5.3 NLRI checks on the NLRI carried inside
+// an MP attribute. It lives outside the attrValidators table (it is called from the main
+// loop) because it needs the per-family ADD-PATH state, which validateAttribute's fixed
+// signature cannot carry. The attribute has already passed its minimum-length check
+// (validateMPReachAttr/validateMPUnreachAttr) and, for MP_REACH, its next-hop check, so the
+// AFI/SAFI/NH_LEN bytes are present.
+func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16, safi uint8) bool) *RFC7606ValidationResult {
+	afi := attribute.AFI(binary.BigEndian.Uint16(attrData[0:2]))
+	safi := attribute.SAFI(attrData[2])
+	var nlri []byte
+	if code == attrCodeMPReachNLRI {
+		// NLRI follows AFI(2) SAFI(1) NH_LEN(1) NextHop(nhLen) Reserved(1).
+		nhLen := int(attrData[3])
+		if 4+nhLen+1 > len(attrData) {
+			// A next-hop length past the attribute means the NLRI cannot be located.
+			var b textbuf.Buffer
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionSessionReset,
+				AttrCode:    code,
+				Description: b.Reset().Str("RFC 7606 Section 5.3: MP_REACH_NLRI next-hop length ").Int(int64(nhLen)).Str(" overruns the attribute").String(),
+			}
+		}
+		nlri = attrData[4+nhLen+1:]
+	} else {
+		// MP_UNREACH: withdrawn NLRI follows AFI(2) SAFI(1).
+		nlri = attrData[3:]
+	}
+	addPath := addPathFor != nil && addPathFor(uint16(afi), uint8(safi))
+	return validateMPNLRISyntax(code, afi, safi, nlri, addPath)
+}
+
+// validateMPNLRISyntax runs the RFC 7606 Section 5.3 NLRI checks -- length inconsistent
+// with the AFI/SAFI, and a last NLRI that overruns the attribute -- on the NLRI portion of
+// an MP attribute. Both criteria route via Section 3(j) to session reset, because an NLRI
+// field that cannot be parsed cannot be treated-as-withdraw.
+//
+// The checks apply only to the address families whose NLRI is a plain list of
+// length-prefixed prefixes: IPv4/IPv6 unicast and multicast. Labeled, VPN, EVPN and other
+// typed NLRI encode a label stack, route distinguisher, or type before the prefix, so a
+// plain prefix walk would misread them; for those this returns nil (permissive), matching
+// validateMPReachNextHop, which is permissive for AFI/SAFI whose next-hop length it does
+// not know. `addPath` reflects RFC 7911 negotiation for the family so the walk skips the
+// 4-byte path identifier.
+func validateMPNLRISyntax(code uint8, afi attribute.AFI, safi attribute.SAFI, nlri []byte, addPath bool) *RFC7606ValidationResult {
+	if (afi != attribute.AFIIPv4 && afi != attribute.AFIIPv6) ||
+		(safi != attribute.SAFIUnicast && safi != attribute.SAFIMulticast) {
+		return nil
+	}
+	if r := ValidateNLRISyntaxAddPath(nlri, afi == attribute.AFIIPv6, addPath); r != nil {
+		r.AttrCode = code
+		return r
 	}
 	return nil
 }
@@ -818,18 +928,23 @@ func validateSRv6ServiceTLV(value []byte, tlvType uint8) *RFC7606ValidationResul
 	return nil
 }
 
-// ValidateNLRISyntax validates NLRI field structure per RFC 7606 Section 5.3.
+// ValidateNLRISyntax validates NLRI field structure per RFC 7606 Section 5.3, for a field
+// whose NLRI are NOT ADD-PATH encoded (no 4-byte Path Identifier).
 //
 // An NLRI field is considered syntactically incorrect if:
 // - Any prefix length exceeds the maximum for the address family (32 for IPv4, 128 for IPv6)
 // - Any prefix's byte count exceeds the remaining data in the field (overrun)
 //
-// Parameters:
-//   - nlri: Raw NLRI bytes (prefix-length + prefix-bytes for each prefix)
-//   - isIPv6: True for IPv6 NLRI (max prefix length 128), false for IPv4 (max 32)
-//
-// Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
+// Returns nil if valid, or RFC7606ValidationResult with session-reset action.
 func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
+	return ValidateNLRISyntaxAddPath(nlri, isIPv6, false)
+}
+
+// ValidateNLRISyntaxAddPath is ValidateNLRISyntax for a field whose NLRI may carry the RFC
+// 7911 4-byte Path Identifier. When addPath is true (ADD-PATH negotiated for this family),
+// each NLRI is skipped past its path identifier before the prefix length is read -- without
+// this a path-id byte would be misread as a prefix length and session-reset a VALID UPDATE.
+func ValidateNLRISyntaxAddPath(nlri []byte, isIPv6, addPath bool) *RFC7606ValidationResult {
 	if len(nlri) == 0 {
 		return nil
 	}
@@ -841,8 +956,29 @@ func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
 
 	pos := 0
 	for pos < len(nlri) {
+		// RFC 7911 Section 3: an ADD-PATH NLRI is prefixed with a 4-byte Path Identifier.
+		// Skip it before reading the prefix length. A path id that runs off the end, or one
+		// with no prefix following, means the field cannot be parsed -> session reset (3(j)).
+		if addPath {
+			if pos+4 > len(nlri) {
+				var b textbuf.Buffer
+				return &RFC7606ValidationResult{
+					Action:      RFC7606ActionSessionReset,
+					Description: b.Reset().Str("RFC 7606 Section 5.3/3(j): ADD-PATH identifier overruns the NLRI field").String(),
+				}
+			}
+			pos += 4
+			if pos >= len(nlri) {
+				var b textbuf.Buffer
+				return &RFC7606ValidationResult{
+					Action:      RFC7606ActionSessionReset,
+					Description: b.Reset().Str("RFC 7606 Section 5.3/3(j): ADD-PATH NLRI has a path identifier but no prefix").String(),
+				}
+			}
+		}
+
 		// Each NLRI starts with 1-byte prefix length
-		prefixLen := int(nlri[pos]) //nolint:gosec // pos < len(nlri) guaranteed by loop
+		prefixLen := int(nlri[pos]) //nolint:gosec // pos < len(nlri) guaranteed above
 		pos++
 
 		// RFC 7606 Section 5.3: the field is "syntactically incorrect" if "the length of

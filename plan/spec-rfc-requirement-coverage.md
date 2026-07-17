@@ -647,41 +647,183 @@ not fail -- the audit is sampled, the gate is total.
 
 **Pilot RFC 7606:** re-authored (8 lines corrected, 9 obligations added: §3.a, the six §5.3
 criteria, Adj-RIB-In removal, the strength ordering). 52 gated MUST-level requirements:
-**37 both polarities, 12 annotated, 3 outstanding.** ~130 tags.
+**39 both polarities, 13 annotated, 0 outstanding** (`ai/RFC-REQUIREMENTS.md` Coverage-by-RFC
+rollup, `rfc7606` row). 132 tags. `make ze-rfc-check` exits 0 (AC-19).
+
+**Pilot audit (AC-12).** `rfc/audit/rfc7606.json` records a per-requirement verdict for
+all 52 gated requirements plus `requirement_sha` and per-test `test_sha`, produced by a
+full read of RFC 7606 against every tagged test (fanned out across four readers by
+section). `make ze-rfc-check` re-checks both shas and fails the gate the moment a
+requirement's text or a tagged test changes, so the semantic verdict cannot rot unnoticed
+— demonstrated live: every test edit below re-staled the affected verdicts and the gate
+reported them until the audit was re-issued (AC-13).
+
+**Final verdicts: 44 `enforced`, 8 `unimplemented`, 0 `weak`, 0 `wrong`.** The 8
+`unimplemented` are the honest `{gap}`s already disclosed in `docs/features/rfc-status.md`
+(§5.1-1/2 ordering, §5.4 opaque typed NLRI, §6 logging, §7.13/7.15/7.16 unvalidated
+attribute codes 24/25/128). The audit's FIRST pass found **6 `weak`** verdicts — tests
+that were tagged, green, and counted by the gate but did not actually pin their
+requirement. Per user direction these were fixed at the source rather than recorded as
+tracked debt (see Bugs Found/Fixed). This is the audit layer doing exactly its job: the
+mechanical gate proved the link existed; the semantic audit proved the substance was
+missing; the code and tests were then made honest.
 
 ### Bugs Found/Fixed
-- (fill during implementation)
+- **Ledger render was non-deterministic across environments.** `scan_tree` walked the
+  tree in `os.walk` (filesystem) order and `render_ledger` emitted per-polarity citations
+  in that scan order, so `ai/RFC-REQUIREMENTS.md` churned between machines. Fixed by
+  sorting citations by `(file, line)` and sorting the walk
+  (`scripts/dev/rfc_requirements.py` `render_ledger`, `scan_tree`); new selftest
+  `test_citation_order_independent_of_scan_order`.
+- **AC-20 freshness gate was never wired.** `run_check()` never compared the rendered
+  ledger to the committed file, and the spec had placed the check in `ze-doc-test`, which
+  is NOT one of the `stagesForMode()` verify stages — so a stale ledger passed every gate
+  that runs at commit time. Proof it mattered: commits `55168b268` and `38170a13b`
+  re-tagged RFC 7606 tests after the ledger was committed and it silently drifted. Fixed
+  by adding `check_ledger_fresh` to `run_check` (which IS in both verify branches) and a
+  `--check-fresh` mode wired into `ze-doc-test`; new `TestRFCLedgerFresh` (Go) and
+  `TestLedgerFreshness` (selftest).
+- **Dead code removed.** `load_all()` had no caller after the freshness refactor
+  centralised parsing in `_collect_for_check`; deleted.
+- **§5.3 MP-attribute criteria were falsely green (audit `weak` → code fix).** The pilot
+  gate counted `RFC7606-5.3-3/4/5` as covered, but the audit found the code did not enforce
+  them and the negative tests passed via a neighboring rule (the §7.11 NHLen=0 next-hop
+  check). Verified at the source: `validateMPReachAttr` only checked `length < 5` + next
+  hop and never parsed the NLRI; `validateAttributeFlags` returned `nil` for optional
+  attributes, so MP flags (codes 14/15) were unchecked. Fixed: `validateMPReachAttr` /
+  `validateMPUnreachAttr` now locate the NLRI and run `ValidateNLRISyntax` on it
+  (`validateMPNLRISyntax`, scoped to plain-prefix families IPv4/IPv6 unicast/multicast,
+  permissive for typed/labeled families like the existing next-hop validator), enforcing
+  §5.3-3 (length vs AFI/SAFI) and §5.3-4 (last-NLRI overrun); `validateAttributeFlags` now
+  requires MP attributes to be RFC 4760 optional non-transitive (§5.3-5), session-reset on
+  violation. The three negatives were rewritten to isolate their rule (valid 16-octet next
+  hop so §7.11 passes) and driven through `ValidateUpdateRFC7606` (the production path);
+  the §5.3-3 negative no longer calls the internal `ValidateNLRISyntax` proxy. `§5.3-2`
+  (IPv4 field overrun) was already enforced but its negative used length 33 (the §5.3-1
+  `>32` rule); rewritten to a /24 with 2 octets so it isolates the overrun.
+- **§5.3 NLRI validation was ADD-PATH-blind (found by a review of the fix above).** The
+  NLRI-syntax walk read a bare list of `(len, prefix)` pairs, but under RFC 7911 ADD-PATH
+  each NLRI carries a 4-byte Path Identifier — so a valid ADD-PATH UPDATE would be misread
+  (a path-id octet read as a prefix length) and spuriously **session-reset**, a valid-input
+  reset. The pre-existing IPv4 NLRI check (`session_validation.go`) had the identical
+  blindness. Fixed for both: `ValidateNLRISyntaxAddPath` skips the path id when ADD-PATH is
+  negotiated; `validateMPNLRIField` runs the MP NLRI check in the `ValidateUpdateRFC7606`
+  main loop (where per-family ADD-PATH state is available, threaded from the receive context
+  in `enforceRFC7606`); `ValidateUpdateRFC7606AddPath` is the add-path-aware entry point (the
+  old signature stays as a no-add-path wrapper so the many unit-test callers are unchanged).
+  `TestRFC7606MPReachAddPathValidNotReset` proves a valid ADD-PATH UPDATE is accepted, the
+  blind path still misreads it, and a malformed ADD-PATH NLRI still resets.
+- **§7.8-1 zero-length COMMUNITY clause was untested (audit `weak` → test + message fix).**
+  The code enforced both malformation clauses but only the "not a multiple of 4" clause had
+  a failure-capable test; the zero-length case sat in a severity-floor table.
+  `validateCommunityAttr` now names which clause fired ("is zero" vs "not a multiple of 4");
+  a new isolating negative `TestRFC7606CommunityZeroLength` pins the zero-length clause and
+  the existing negative gained an assertion pinning the multiple-of-4 clause.
+- **§2-5 (removed from the Adj-RIB-In) was proven by a dispatch-shape proxy (audit `weak` →
+  genuine test).** The negative shared the reactor tests that prove §2-1 (dispatched as a
+  withdrawal) and never observed the RIB. New `TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`
+  (`adj_rib_in/rib_test.go`) installs a route, feeds the `message.SynthesizeWithdraw` output
+  for a malformed re-announce, and asserts the entry is gone from `ribIn` — the actual
+  Adj-RIB-In. The proxy §2-5 tags were removed from the reactor session tests (which keep
+  their §2-1 tags). Also: a session-reset from an attribute-flag conflict now returns
+  immediately in `ValidateUpdateRFC7606` (§3.h), matching the `validateAttribute` path.
 
 ### Documentation Updates
-- (fill during implementation)
+- `docs/contributing/rfc-implementation-guide.md` — new §9.7 (requirement coverage tags:
+  polarity pair, inline-on-mega-tests, never-edit-a-tagged-test), plus §10.2 and Final
+  Checklist rows.
+- `docs/functional-tests.md` — "Tagging tests to an RFC requirement" (Go + `.ci`, polarity
+  rule, terminator-block caveat, approval rule).
+- `ai/rules/discovery-updates.md` — `ai/RFC-REQUIREMENTS.md` added to Current Discovery
+  Surfaces.
+- (Committed earlier in the spec's five feature commits: `ai/rules/tdd.md`,
+  `ai/rules/testing.md`, `ai/rules/hook-mapping.md`, `ai/INDEX.md` Dev Tools rows,
+  `docs/features/rfc-status.md` RFC 7606 row with the seven gap disclosures.)
 
 ### Deviations from Plan
-- (fill during implementation)
+- **AC-20 placed in `run_check` as well as `ze-doc-test`.** The spec said "ledger
+  staleness into `ze-doc-test`". `ze-doc-test` is not in `stagesForMode()`, so a
+  ze-doc-test-only check would not fire during commit-time verify — the exact hole that
+  let the ledger drift. The freshness check therefore also runs inside `ze-rfc-check`
+  (both verify branches). Broader than specced, strictly to make the AC effective.
+- **`audit_relaxation_test.py` names.** The TDD plan named
+  `test_shared_detector_imported` / `test_branch_diff_surfaces_rfc_test_change`; the
+  implemented file covers the same AC-17/AC-18 behaviour with six branch-diff tests
+  (`test_committed_weakening_is_reported_against_an_earlier_base`,
+  `test_base_equal_to_head_is_not_reported_clean`, etc.). The shared detector is verified
+  by `audit-test-relaxation.py` importing the hook module directly (`:60`).
+- **`rfc/audit/rfc7606.json` produced by a fanned-out read** of all 52 requirements
+  rather than one interactive `/ze-rfc-audit` pass; identical output format, fingerprints
+  recomputed from the live tree at write time.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Every MUST traceable to enforcing tests or a justified reason | Done | `ai/RFC-REQUIREMENTS.md`, `rfc/enrolled.txt` | RFC 7606 pilot: 52 gated, 39 both-polarity, 13 annotated, 0 outstanding |
+| Two-way link, machine-checked | Done | `RFC requirement:` tags ⋈ `ai/RFC-REQUIREMENTS.md` | `make ze-rfc-check` in both verify branches |
+| MUST-level gated, all levels listed | Done | `rfc_requirements.py` `GATED_LEVELS`; `test_should_and_may_never_gate` | SHOULD/MAY listed, never block |
+| Positive AND negative per gated requirement | Done | `evaluate()`; `test_single_polarity_fails` | `{single-polarity: p; why}` escape, itself gated |
+| Skill re-audits letter and spirit | Done | `ai/skills/ze-rfc-audit.md`; `rfc/audit/rfc7606.json` | 44 enforced / 8 unimplemented / 0 weak |
+| Never change a test's behavior without user approval | Done | `.claude/hooks/pretool-writeedit.py` `rfc-tagged-test` | verified this session: every RFC-tagged edit required the approval token |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `test_parse_checklist_line_with_id`, `test_malformed_line_fails_closed` | all 173 summaries carry IDs |
+| AC-2 | Done | `test_duplicate_id_fails`, `test_id_reuse_after_removal_fails` | high-water per section |
+| AC-3 | Done | `test_go_tag_covers_requirement`, `test_go_inline_case_tag_covers_requirement`, `test_ci_tag_covers_requirement` | ledger rows show file:line + polarity |
+| AC-4 | Done | `test_unknown_id_in_tag_fails` | mirrors `check_doc_links.py` |
+| AC-5 | Done | `test_uncovered_must_fails` | |
+| AC-6 | Done | `test_single_polarity_fails` | positive-only and negative-only both fail |
+| AC-6b | Done | `test_single_polarity_annotation_allows_one` | reason mandatory |
+| AC-6c | Done | `test_stale_single_polarity_annotation_fails` | fails once the other polarity appears |
+| AC-7 | Done | `test_missing_polarity_in_tag_fails`, `test_invalid_polarity_value_fails` | polarity mandatory |
+| AC-8 | Done | `test_disposition_with_reason_passes` | |
+| AC-9 | Done | `test_disposition_without_reason_fails`, `test_stale_disposition_fails` | |
+| AC-10 | Done | `test_gap_must_be_disclosed_in_status_ledger`; `docs/features/rfc-status.md` RFC 7606 row discloses 7 gaps | 8 `unimplemented` verdicts ↔ disclosed gaps |
+| AC-11 | Done | `ai/skills/ze-rfc.md` ID-allocation + registration section; allocation rules tested by `test_new_id_above_high_water_passes`, `test_high_water_is_per_section_not_per_rfc` | new summaries register their IDs; gate then covers them |
+| AC-12 | Done | `rfc/audit/rfc7606.json` (52 verdicts, both polarities, `requirement_sha` + per-test `test_sha`) | produced by fanned-out full read |
+| AC-13 | Done | live: my test edits re-staled 40 verdicts, the gate reported each; `test_fingerprint_detects_requirement_edit`, `test_fingerprint_detects_test_edit` | over-triggers on whole-file sha, by design |
+| AC-14 | Done | `test_empty_enrolled_list_fails`, `test_enrolled_rfc_without_summary_fails` | fail closed |
+| AC-15 | Done | `test_unenrolling_fails` | enrolment monotonic |
+| AC-16 | Done | hook fixtures `rfc-guard-blocks-expectation-swap`, `rfc-guard-relax-token-insufficient` (8/8) | `test-relax:` not accepted |
+| AC-17 | Done | `audit-test-relaxation.py:60` imports the hook module; `audit_relaxation_test.py` | detector shared, not duplicated |
+| AC-18 | Done | `audit_relaxation_test.py` (6 branch-diff tests) | reports unapproved RFC-tagged changes |
+| AC-19 | Done | `make ze-rfc-check` exit 0; 52 gated, 0 outstanding, incl. §5.1 `{gap}` | pilot green |
+| AC-20 | Done (fixed this session) | `check_ledger_fresh` in `run_check` + `--check-fresh` in `ze-doc-test`; `TestRFCLedgerFresh`, `TestLedgerFreshness` | was unimplemented; is why the ledger had drifted |
+| AC-21 | Done | hook fixture `rfc-guard-allows-reformat`, `rfc-guard-allows-comment-edit` | comment/format edits pass |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| unit suite (parse, id, tag, polarity, disposition, ratchet, fingerprint, render) | Done | `scripts/dev/rfc_requirements_test.py` (82 tests) | + `test_citation_order_independent_of_scan_order`, `TestLedgerFreshness` added this session |
+| `TestRFCRequirementsGate` / `TestRFCLedgerFresh` / `TestRFCRequirementsSelftest` / `TestRFCRequirementsFailsClosed` | Done | `scripts/dev/rfc_requirements_gate_test.go` | shells out, asserts exit codes |
+| hook fixtures `rfc-test-guard` (8) | Done | `.claude/hooks/tests/` via `hook-fixture-check.py` | AC-16, AC-21 |
+| branch-diff audit (6) | Done | `scripts/dev/audit_relaxation_test.py` | AC-17, AC-18 |
+| §5.3 / §7.8 / §2-5 isolating tests | Done | `rfc7606_test.go`, `rfc7606_withdraw_test.go`, `rfc7606_structural_test.go`, `session_validate_test.go`, `adj_rib_in/rib_test.go` | audit-driven, this session |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `scripts/dev/rfc_requirements.py` (+ `_test.py`, `_gate_test.go`) | Done | parser/scanner/ledger/gate + freshness + determinism fix |
+| `rfc/enrolled.txt`, `ai/RFC-REQUIREMENTS.md` | Done | enrolment ratchet + generated ledger (deterministic) |
+| `rfc/audit/rfc7606.json` | Done | pilot audit, created this session |
+| `ai/skills/ze-rfc.md`, `ai/skills/ze-rfc-audit.md` (+ mirrors) | Done | `make ze-ai-sync` |
+| `.claude/hooks/pretool-writeedit.py`, `scripts/dev/audit-test-relaxation.py` | Done | shared `rfc-tagged-test` detector |
+| `Makefile`, `scripts/status/verify_run.go`, `mk/inventory.mk` | Done | targets + `stagesForMode` both branches + `ze-doc-test` freshness |
+| `internal/component/bgp/message/rfc7606.go` | Done | §5.3-3/4/5 + §7.8 enforcement (audit-driven) |
+| `rfc/short/rfc7606.md` + `docs/features/rfc-status.md` | Done | re-authored + gap disclosure |
+| docs: `rfc-implementation-guide.md`, `functional-tests.md`, `discovery-updates.md`, `tdd.md`, `testing.md`, `hook-mapping.md`, `ai/INDEX.md` | Done | tag + polarity + approval surfaces |
+| `plan/learned/1168-rfc-requirement-coverage.md` | Done | written at closure |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 21 ACs + 6 task requirements + 5 test groups + file set
+- **Done:** all ACs (AC-1..AC-21); all 6 task requirements; pilot green with a genuine (not proxy) audit
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-20 also wired into `run_check` (not only `ze-doc-test`); `audit_relaxation_test.py` test names differ; audit produced by fanned-out read; 6 audit-`weak` findings fixed at source per user direction (all documented in Deviations / Bugs Found/Fixed)
 
 ## Goal Validation (BLOCKING)
 
@@ -697,21 +839,34 @@ criteria, Adj-RIB-In removal, the strength ordering). 52 gated MUST-level requir
 
 ## Review Gate
 
+Review was done as two adversarial passes (the automated `/ze-review` over the full working
+diff was unreliable: a second concurrent session's uncommitted CLI/ospf work is in the same
+tree — see Deviations). Pass 1: the semantic audit (four readers over RFC 7606). Pass 2: a
+focused correctness review of the `§5.3` validator change.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (filled by /ze-review) | file:line | |
+| 1 | BLOCKER | §5.3-3/4/5 shown green but code did not enforce them; negatives passed via the §7.11 next-hop rule | `rfc7606.go` validateMPReachAttr/validateAttributeFlags | Fixed: implemented the checks + isolated the tests (Bugs Found/Fixed) |
+| 2 | BLOCKER | §7.8-1 zero-length COMMUNITY clause had no failure-capable test | `rfc7606_test.go` | Fixed: added `TestRFC7606CommunityZeroLength` |
+| 3 | BLOCKER | §2-5 (Adj-RIB-In removal) proven only by a dispatch-shape proxy shared with §2-1 | `session_test.go` | Fixed: `TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute` observes the RIB |
+| 4 | BLOCKER | §5.3 NLRI walk was ADD-PATH-blind → valid ADD-PATH UPDATE spuriously session-reset (also pre-existing on the IPv4 path) | `rfc7606.go` validateMPNLRISyntax; `session_validation.go` | Fixed: `ValidateNLRISyntaxAddPath` + `ValidateUpdateRFC7606AddPath`, threaded from the receive context |
+| 5 | NOTE | Ledger render non-deterministic; AC-20 freshness gate unimplemented (found while continuing the spec) | `rfc_requirements.py` | Fixed (Bugs Found/Fixed) |
 
 ### Fixes applied
-- (fill during review)
+- All four BLOCKERs fixed at the source (never by weakening a test). Each RFC-tagged test edit
+  carries the user-approved `// rfc-test-change-approved:` token.
+- Reviewer confirmed clean on bounds/panic, NLRI offset, immediate-return, and pointer-mutation
+  categories; the only finding was the add-path gap (fixed).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| — | — | Re-ran the audit after every fix; final verdicts 44 enforced / 8 unimplemented / 0 weak / 0 wrong | `rfc/audit/rfc7606.json` | Clean |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] Adversarial review (audit + code review) shows 0 BLOCKER, 0 ISSUE outstanding
+- [ ] All NOTEs recorded above (the determinism/freshness NOTE fixed)
 
 ## Pre-Commit Verification
 

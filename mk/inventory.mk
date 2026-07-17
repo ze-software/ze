@@ -89,6 +89,7 @@ ze-doc-test:
 	python3 scripts/dev/package_map.py --check || FAIL=1; \
 	python3 scripts/dev/docs_to_code.py --check || FAIL=1; \
 	python3 scripts/dev/learned_index.py --check || FAIL=1; \
+	python3 scripts/dev/rfc_requirements.py --check-fresh || FAIL=1; \
 	echo ""; \
 	echo "  -> Learned numbering (no duplicate NNN, H1 matches filename)..."; \
 	python3 scripts/dev/learned_numbers.py --check || FAIL=1; \

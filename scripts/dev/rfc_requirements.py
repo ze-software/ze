@@ -28,9 +28,10 @@ NEW violation AND on a baseline row that is no longer true), so the exception se
 only shrink.
 
 Usage:
-    python3 scripts/dev/rfc_requirements.py --check     # gate (exit 2 on violation)
-    python3 scripts/dev/rfc_requirements.py --write     # render ai/RFC-REQUIREMENTS.md
-    python3 scripts/dev/rfc_requirements.py --selftest  # run rfc_requirements_test.py
+    python3 scripts/dev/rfc_requirements.py --check        # gate (exit 2 on violation)
+    python3 scripts/dev/rfc_requirements.py --check-fresh  # ledger staleness only (exit 1)
+    python3 scripts/dev/rfc_requirements.py --write        # render ai/RFC-REQUIREMENTS.md
+    python3 scripts/dev/rfc_requirements.py --selftest     # run rfc_requirements_test.py
 
 Exit 0 = a comparison ran and found nothing wrong.
 Exit 2 = violations found, or the gate could not run (unparseable input, nothing
@@ -44,7 +45,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import Dict, List, NamedTuple, Optional, Sequence, Set
+from typing import Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -543,10 +544,14 @@ def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
         if not os.path.isdir(base):
             continue
         for dirpath, dirnames, filenames in os.walk(base):
-            dirnames[:] = [
+            # Sort in place so the walk is deterministic across filesystems: os.walk
+            # yields entries in directory order, which varies by machine. The render
+            # re-sorts anyway, but a stable scan keeps `tags` order reproducible for
+            # every other consumer too.
+            dirnames[:] = sorted(
                 d for d in dirnames if d not in (".git", "vendor", "testdata")
-            ]
-            for name in filenames:
+            )
+            for name in sorted(filenames):
                 path = os.path.join(dirpath, name)
                 rel = os.path.relpath(path, root)
                 try:
@@ -1056,7 +1061,11 @@ def render_ledger(
         out.append("| Requirement | Level | § | Positive test | Negative test | Note |")
         out.append("|---|---|---|---|---|---|")
         for r in sorted(reqs, key=lambda r: r.rid):
-            found = by_rid.get(r.rid, [])
+            # Sort by (file, line) so the ledger is byte-stable regardless of the
+            # order scan_tree happened to walk the tree in -- os.walk order is
+            # filesystem-dependent, so an unsorted render churns across machines and
+            # defeats the freshness gate (AC-20).
+            found = sorted(by_rid.get(r.rid, []), key=lambda t: (t.file, t.line))
             pos = ", ".join(
                 f"`{t.file}:{t.line}`" for t in found if t.polarity == "positive"
             )
@@ -1106,17 +1115,6 @@ def render_ledger(
 # --------------------------------------------------------------------------
 # Driver
 # --------------------------------------------------------------------------
-def load_all() -> List[Requirement]:
-    reqs: List[Requirement] = []
-    if not os.path.isdir(SUMMARY_DIR):
-        raise ParseError(f"{SUMMARY_DIR} does not exist")
-    for name in sorted(os.listdir(SUMMARY_DIR)):
-        if not name.endswith(".md"):
-            continue
-        reqs.extend(parse_summary_file(os.path.join(SUMMARY_DIR, name)))
-    return reqs
-
-
 def load_enrolled() -> Set[str]:
     if not os.path.exists(ENROLLED_FILE):
         return set()
@@ -1130,34 +1128,67 @@ def summary_stems() -> Set[str]:
     return {n[:-3] for n in os.listdir(SUMMARY_DIR) if n.endswith(".md")}
 
 
+def check_ledger_fresh(
+    requirements: Sequence[Requirement], tags: Sequence[Tag], enrolled: Set[str]
+) -> List[str]:
+    """The generated ledger must match what its sources render to right now.
+
+    `ai/RFC-REQUIREMENTS.md` is derived from the summaries and the `RFC requirement:`
+    tags; a test can be re-tagged, moved, or deleted without touching the ledger, and
+    then the committed ledger lies about which tests enforce which requirement. This is
+    the same staleness `docs_to_code.py --check` guards for `ai/DOCS-TO-CODE.md`
+    (`ai/rules/derive-not-hardcode.md`). It runs inside `ze-rfc-check`, which is in both
+    verify branches, so a stale ledger fails the build rather than rotting silently.
+    """
+    body = render_ledger(requirements, tags, enrolled) + "\n"
+    current = ""
+    if os.path.exists(LEDGER_FILE):
+        with open(LEDGER_FILE, encoding="utf-8") as fh:
+            current = fh.read()
+    if current != body:
+        rel = os.path.relpath(LEDGER_FILE, PROJECT_DIR)
+        return [f"{rel} is stale vs its sources -- run: make ze-rfc-index"]
+    return []
+
+
+def _collect_for_check() -> Tuple[Set[str], List[Requirement], List[str], List[Tag]]:
+    """Parse every summary tolerantly and scan the tree once.
+
+    Shared by run_check and run_check_fresh so both render the ledger from identical
+    inputs -- if they diverged, one could call fresh what the other rebuilds.
+    """
+    enrolled = load_enrolled()
+    stems = summary_stems()
+    reqs: List[Requirement] = []
+    parse_errs: List[str] = []
+    for stem in sorted(stems):
+        path = os.path.join(SUMMARY_DIR, stem + ".md")
+        try:
+            reqs.extend(parse_summary_file(path))
+        except ParseError as exc:
+            if stem in enrolled:
+                parse_errs.append(str(exc))
+    return enrolled, reqs, parse_errs, scan_tree()
+
+
 def run_check() -> int:
     try:
-        enrolled = load_enrolled()
+        enrolled, reqs, parse_errs, tags = _collect_for_check()
         stems = summary_stems()
 
         errs: List[str] = []
         errs.extend(check_enrolment(enrolled, _git_baseline_enrolment(), stems))
-
-        # Only parse summaries for enrolled RFCs plus any that already carry IDs; the
-        # migration to IDs is per-RFC and un-enrolled summaries have not been converted.
-        reqs: List[Requirement] = []
-        parse_errs: List[str] = []
-        for stem in sorted(stems):
-            path = os.path.join(SUMMARY_DIR, stem + ".md")
-            try:
-                reqs.extend(parse_summary_file(path))
-            except ParseError as exc:
-                if stem in enrolled:
-                    parse_errs.append(str(exc))
+        # parse_errs holds only the errors for enrolled summaries; the migration to IDs
+        # is per-RFC and un-enrolled summaries have not been converted, so their parse
+        # failures are expected and not reported.
         errs.extend(parse_errs)
-
-        tags = scan_tree()
         errs.extend(evaluate(reqs, tags, enrolled))
 
         with open(STATUS_FILE, encoding="utf-8") as fh:
             rows = parse_status_ledger(fh.read())
         errs.extend(check_status_agreement(reqs, rows, enrolled))
         errs.extend(check_audit_freshness(reqs, tags, enrolled))
+        errs.extend(check_ledger_fresh(reqs, tags, enrolled))
     except ParseError as exc:
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
         return 2
@@ -1182,24 +1213,31 @@ def run_check() -> int:
 
 
 def run_write() -> int:
-    try:
-        reqs = load_all()
-    except ParseError:
-        reqs = []
-        for name in sorted(os.listdir(SUMMARY_DIR)):
-            if not name.endswith(".md"):
-                continue
-            try:
-                reqs.extend(parse_summary_file(os.path.join(SUMMARY_DIR, name)))
-            except ParseError:
-                continue
-    tags = scan_tree()
-    enrolled = load_enrolled()
+    enrolled, reqs, _, tags = _collect_for_check()
     body = render_ledger(reqs, tags, enrolled)
     os.makedirs(os.path.dirname(LEDGER_FILE), exist_ok=True)
     with open(LEDGER_FILE, "w", encoding="utf-8") as fh:
         fh.write(body + "\n")
     print(f"{GREEN}wrote{RESET} {os.path.relpath(LEDGER_FILE, PROJECT_DIR)}")
+    return 0
+
+
+def run_check_fresh() -> int:
+    """Just the ledger-freshness half of run_check -- what `ze-doc-test` runs so a
+    docs-focused pass catches a stale `ai/RFC-REQUIREMENTS.md` without paying for the
+    full coverage evaluation. The same check also runs inside `run_check` (ze-rfc-check),
+    which is where verify catches it."""
+    try:
+        enrolled, reqs, _, tags = _collect_for_check()
+        errs = check_ledger_fresh(reqs, tags, enrolled)
+    except ParseError as exc:
+        print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+        return 2
+    if errs:
+        for e in errs:
+            print(f"{RED}*{RESET} {e}")
+        return 1
+    print(f"{GREEN}ai/RFC-REQUIREMENTS.md up to date{RESET}")
     return 0
 
 
@@ -1219,6 +1257,8 @@ def main(argv: Sequence[str]) -> int:
         return run_selftest()
     if "--write" in args:
         return run_write()
+    if "--check-fresh" in args:
+        return run_check_fresh()
     if "--check" in args:
         return run_check()
     print(__doc__)

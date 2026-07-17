@@ -10,6 +10,7 @@ Spec: plan/spec-rfc-requirement-coverage.md
 import importlib.util
 import os
 import sys
+import tempfile
 import unittest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -388,7 +389,9 @@ class TestGoTagScan(unittest.TestCase):
         """`godot` requires a Go doc comment's last line to end in a period, so a tag
         placed last reads "... negative." — the lint rule and the tag convention must not
         contradict each other, leaving an author no way to satisfy both."""
-        src = "// RFC requirement: RFC7606-7.1-1 negative.\nfunc TestX(t *testing.T) {}\n"
+        src = (
+            "// RFC requirement: RFC7606-7.1-1 negative.\nfunc TestX(t *testing.T) {}\n"
+        )
         tags = R.scan_go_tags(src, "x_test.go")
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0].rid, "RFC7606-7.1-1")
@@ -659,8 +662,13 @@ class TestAuditFreshness(unittest.TestCase):
 
     def test_missing_verdict_is_not_an_error(self):
         """The audit is sampled; the gate is total. An un-audited requirement is normal --
-        making it fail would force 2162 verdicts before anything could go green."""
-        errs = R.check_audit_freshness([_req("RFC7606-2-1")], [], {"rfc7606"})
+        making it fail would force 2162 verdicts before anything could go green.
+
+        Uses an RFC with no rfc/audit/<stem>.json so the "no verdict" path is exercised
+        regardless of which real audit files exist in the tree (rfc7606 now has one)."""
+        errs = R.check_audit_freshness(
+            [_req("RFC9999-1-1", rfc="rfc9999")], [], {"rfc9999"}
+        )
         self.assertEqual(errs, [])
 
     def test_unenrolled_rfc_is_not_audited(self):
@@ -677,7 +685,9 @@ class TestAuditFreshness(unittest.TestCase):
     def test_requirement_text_edit_stales_the_verdict(self):
         a = R.requirement_sha("MUST discard the attribute")
         b = R.requirement_sha("MUST treat the UPDATE as withdrawn")
-        self.assertNotEqual(a, b, "re-reading the RFC must invalidate the old judgement")
+        self.assertNotEqual(
+            a, b, "re-reading the RFC must invalidate the old judgement"
+        )
 
 
 class TestStatusLedgerCrossCheck(unittest.TestCase):
@@ -732,7 +742,8 @@ class TestCoverageRollup(unittest.TestCase):
             _req("RFC7606-2-5", level="SHOULD"),  # not gated -> excluded entirely
         ]
         tags = [
-            _tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative"),
+            _tag("RFC7606-2-1", "positive"),
+            _tag("RFC7606-2-1", "negative"),
             _tag("RFC7606-2-2", "negative"),
         ]
         cov = R.rfc_coverage(reqs, tags)
@@ -778,6 +789,69 @@ class TestLedgerRender(unittest.TestCase):
         out = R.render_ledger(reqs, tags, {"rfc7606"})
         self.assertIn("p_test.go:7", out)
         self.assertIn("n_test.go:9", out)
+
+    def test_citation_order_independent_of_scan_order(self):
+        """os.walk yields files in filesystem order, so the render must sort citations
+        by (file, line) — otherwise the ledger churns across machines and the freshness
+        gate (AC-20) flags a stale ledger that is not actually wrong."""
+        reqs = [_req("RFC7606-2-1")]
+        tags = [
+            _tag("RFC7606-2-1", "negative", file="a_test.go", line=5),
+            _tag("RFC7606-2-1", "negative", file="a_test.go", line=90),
+            _tag("RFC7606-2-1", "negative", file="z_test.go", line=1),
+        ]
+        forward = R.render_ledger(reqs, list(tags), {"rfc7606"})
+        backward = R.render_ledger(reqs, list(reversed(tags)), {"rfc7606"})
+        self.assertEqual(forward, backward)
+        # sorted by (file, line): a:5 < a:90 (numeric, not lexical) < z:1
+        self.assertLess(forward.index("a_test.go:5"), forward.index("a_test.go:90"))
+        self.assertLess(forward.index("a_test.go:90"), forward.index("z_test.go:1"))
+
+
+class TestLedgerFreshness(unittest.TestCase):
+    """AC-20: a stale ai/RFC-REQUIREMENTS.md must fail the build, not rot silently.
+    This is what let the ledger drift once already — two commits re-tagged tests without
+    regenerating it and nothing caught it."""
+
+    _reqs = [_req("RFC7606-2-1")]
+    _tags = [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")]
+
+    def _with_ledger(self, contents):
+        """Point R.LEDGER_FILE at a temp file holding `contents` (None = absent)."""
+        fd, path = tempfile.mkstemp(suffix=".md")
+        os.close(fd)
+        if contents is None:
+            os.unlink(path)
+        else:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(contents)
+        return path
+
+    def _check(self, contents):
+        path = self._with_ledger(contents)
+        orig = R.LEDGER_FILE
+        try:
+            R.LEDGER_FILE = path
+            return R.check_ledger_fresh(self._reqs, self._tags, {"rfc7606"})
+        finally:
+            R.LEDGER_FILE = orig
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_fresh_when_file_matches_render(self):
+        body = R.render_ledger(self._reqs, self._tags, {"rfc7606"}) + "\n"
+        self.assertEqual(self._check(body), [])
+
+    def test_stale_when_file_differs(self):
+        errs = self._check("not the rendered ledger\n")
+        self.assertEqual(len(errs), 1)
+        self.assertIn("ze-rfc-index", errs[0])
+
+    def test_missing_ledger_reads_as_stale(self):
+        """A missing ledger is '' != body, so it fails closed rather than passing by
+        vacuum (ai/rules/fail-closed-guards.md)."""
+        errs = self._check(None)
+        self.assertEqual(len(errs), 1)
 
 
 # --------------------------------------------------------------------------

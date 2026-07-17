@@ -87,11 +87,12 @@ func TestRFC7606NLRILastPrefixExactlyFitsAccepted(t *testing.T) {
 // VALIDATES: NLRI lengths that ARE consistent with the family are not flagged.
 // PREVENTS: rejecting a legitimate /128 host route.
 //
-// Driven through ValidateNLRISyntax with isIPv6=true, which is the same call the tagged
-// negative (TestRFC7606NLRIPrefixLengthTooLongIPv6, length 129) uses. Pairing at the same
-// level is deliberate: see the DIVERGENCE note on
-// TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted for why neither polarity can be
-// driven through the MP attribute itself today.
+// Driven through ValidateNLRISyntax with isIPv6=true. This is now the same code the
+// production path runs on MP attribute NLRI (validateMPReachAttr -> validateMPNLRISyntax
+// -> ValidateNLRISyntax), so this is a focused unit test of that shared helper; the
+// end-to-end §5.3-3 pair drives it through ValidateUpdateRFC7606
+// (TestRFC7606MPReachWellFormedAccepted positive, TestRFC7606NLRIPrefixLengthTooLongIPv6
+// negative).
 //
 // RFC requirement: RFC7606-5.3-3 positive — lengths 64 and 128 are consistent with IPv6, so the field is correct.
 func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
@@ -111,24 +112,14 @@ func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
 // VALIDATES: an MP_REACH whose NLRI parses cleanly within the attribute is accepted.
 // PREVENTS: rejecting a well-formed multiprotocol announcement.
 //
-// DIVERGENCE — this test is deliberately UNTAGGED in both polarities:
-//
-//	validateMPReachAttr (rfc7606.go:576) checks only the §5.3 minimum length and the
-//	§7.11 next-hop length. It never parses the NLRI carried inside the attribute, and
-//	ValidateNLRISyntax is called only on the Withdrawn Routes field and the trailing IPv4
-//	NLRI (session_validation.go:54 and :72) — never on MP_REACH/MP_UNREACH contents. An
-//	MP_REACH carrying an IPv4 /33, or a last NLRI that overruns the attribute, is
-//	therefore accepted with action "none" instead of the session reset §3(j) mandates.
-//	Writing the negative to match that would assert the bug.
-//
-//	The positive is not tagged either, and that restraint is the point: because nothing
-//	parses the NLRI, this case would pass with ANY NLRI content, well-formed or not. A
-//	tag would claim discrimination the code does not perform — exactly the "positive-only
-//	test passes if it accepts everything" failure the coverage gate warns about. So
-//	RFC7606-5.3-4 stays uncovered and is reported as a gap instead.
-//
-// The test is kept as executable documentation of the conforming shape, and as a guard
-// that a future §5.3 NLRI check does not reject a well-formed MP_REACH.
+// Untagged: this is an IPv4 well-formed guard. validateMPReachAttr (rfc7606.go) now parses
+// the NLRI carried inside the attribute (validateMPNLRISyntax -> ValidateNLRISyntax), so a
+// last NLRI that overruns, or an IPv4 length greater than 32, is a session reset per §3(j).
+// The §5.3-3 and §5.3-4 coverage tags live on the IPv6 production-path pair in
+// rfc7606_withdraw_test.go (TestRFC7606MPReachWellFormedAccepted positive,
+// TestRFC7606MPReachNLRIOverrunsAttribute / TestRFC7606NLRIPrefixLengthTooLongIPv6
+// negatives). This case remains as a guard that the new NLRI check does not reject a
+// well-formed IPv4 MP_REACH, whose /8 fits the attribute exactly.
 func TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted(t *testing.T) {
 	// MP_REACH: AFI=1 SAFI=1 NHLen=4 NH=192.0.2.1 Reserved=0, then 10.0.0.0/8.
 	// The /8 needs 1 prefix octet and exactly 1 remains, so the NLRI ends flush with the
@@ -192,18 +183,13 @@ func TestRFC7606MPMinimumLengthsAccepted(t *testing.T) {
 // VALIDATES: MP_REACH and MP_UNREACH flagged Optional non-transitive (0x80) are accepted.
 // PREVENTS: rejecting the flags RFC 4760 actually mandates.
 //
-// DIVERGENCE — the matching negative is NOT implemented, so this test carries no
-// RFC7606-5.3-5 tag:
-//
-//	RFC 4760 Section 3 and Section 4 define MP_REACH_NLRI and MP_UNREACH_NLRI as optional
-//	non-transitive, so flags 0xC0 (transitive set) or 0x40 (well-known) are inconsistent
-//	with the spec. §5.3 makes such an attribute "incorrect", which §3(j) escalates to
-//	session reset -- strictly stronger than the generic treat-as-withdraw of §3.c.
-//	Ze detects neither. validateAttributeFlags (rfc7606.go:99) returns nil immediately for
-//	any code absent from wellKnownAttrs (rfc7606.go:84), and codes 14 and 15 are absent,
-//	so an MP attribute's flags are never checked at all: 0xC0 and 0x40 both yield action
-//	"none". Not even the weaker §3.c treat-as-withdraw fires. Encoding a weakened
-//	expectation would assert the bug, so the negative is reported instead.
+// Untagged guard: validateAttributeFlags (rfc7606.go) now special-cases codes 14 and 15
+// per RFC 4760 (Optional set, Transitive clear); flags 0xC0 or 0x40 are inconsistent and
+// §3(j) escalates them to session reset, strictly stronger than the generic §3.c
+// treat-as-withdraw. The §5.3-5 coverage tags live on the production-path pair in
+// rfc7606_withdraw_test.go (TestRFC7606MPReachWellFormedAccepted positive,
+// TestRFC7606MPReachFlagsInconsistentWithRFC4760 negative). This case remains as a guard
+// that the new flag check accepts the flags RFC 4760 actually mandates (0x80).
 func TestRFC7606MPAttributeFlagsPerRFC4760Accepted(t *testing.T) {
 	mpReach := []byte{0x00, 0x01, 0x01, 0x04, 0xc0, 0x00, 0x02, 0x01, 0x00, 0x08, 0x0a}
 	mpUnreach := []byte{0x00, 0x01, 0x01, 0x08, 0x0a}

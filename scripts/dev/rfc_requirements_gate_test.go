@@ -48,6 +48,18 @@ func TestRFCRequirementsGate(t *testing.T) {
 	}
 }
 
+// TestRFCLedgerFresh asserts the committed ai/RFC-REQUIREMENTS.md matches what its
+// sources render to right now. A failure means a test was re-tagged, moved, or deleted
+// without `make ze-rfc-index`, so the generated ledger lies about which tests enforce
+// which requirement (AC-20). This is the same staleness that once slipped through: two
+// commits re-tagged RFC 7606 tests and the ledger was not regenerated.
+func TestRFCLedgerFresh(t *testing.T) {
+	code, out := runRFCGate(t, "--check-fresh")
+	if code != 0 {
+		t.Fatalf("ai/RFC-REQUIREMENTS.md is stale (exit %d) -- run: make ze-rfc-index\n%s", code, out)
+	}
+}
+
 // TestRFCRequirementsSelftest runs the gate's own fixture-based unit tests before it is
 // trusted to judge the tree: line parsing, id allocation, tag scanning (including .ci
 // terminator blocks), polarity pairing, annotation staleness, and the enrolment ratchet.

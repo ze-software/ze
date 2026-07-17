@@ -273,7 +273,10 @@ func TestSessionRFC7606ValidUpdateSendsNoNotification(t *testing.T) {
 // requirement is about WHICH message reaches the plugins, not that one did.
 //
 // RFC requirement: RFC7606-2-1 positive — an UPDATE with no error is handled as the announcement it is, not as a withdrawal.
-// RFC requirement: RFC7606-2-5 positive — a valid UPDATE leaves its route in the Adj-RIB-In rather than removing it.
+//
+// RFC7606-2-5 (routes left in / removed from the Adj-RIB-In) is proven where the Adj-RIB-In
+// can actually be observed, not at this dispatch boundary: see
+// TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute in the adj_rib_in plugin.
 func TestSessionRFC7606ValidUpdateDispatchesAnnouncement(t *testing.T) {
 	session, client, _, cleanup := setupEstablishedSessionEBGP(t)
 	defer cleanup()

@@ -239,6 +239,70 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 	assert.Equal(t, 0, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(), "route should be removed after withdrawal")
 }
 
+// TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute proves the Adj-RIB-In consequence of RFC
+// 7606 Section 2: when treat-as-withdraw is used, the affected route is REMOVED from the
+// Adj-RIB-In. It observes the ribIn map directly, not merely that a withdrawal-shaped
+// message was dispatched -- that dispatch is RFC7606-2-1's concern, proven separately in
+// the reactor (TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal).
+//
+// The withdrawal fed here is produced by message.SynthesizeWithdraw -- the exact function
+// the reactor runs to treat a malformed UPDATE as a withdrawal -- so this pins the whole
+// chain: malformed announce -> synthesized withdrawal -> Adj-RIB-In removal. The positive
+// half (a valid UPDATE leaves its route installed) is the same observation before the
+// withdrawal, so removal is measured against a route that was genuinely there.
+//
+// RFC requirement: RFC7606-2-5 positive — a valid UPDATE leaves its route in the Adj-RIB-In.
+// RFC requirement: RFC7606-2-5 negative — treat-as-withdraw removes the route from the Adj-RIB-In.
+func TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute(t *testing.T) {
+	r := newTestManager(t)
+	peer := netip.MustParseAddr("192.0.2.1")
+	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+
+	feed := func(body []byte) {
+		wu := wireu.NewWireUpdate(body, ctxID)
+		attrs, _ := wu.Attrs()
+		r.handleReceivedStructured(&rpc.StructuredEvent{
+			EventType:   rpc.EventKindUpdate,
+			PeerAddress: peer.String(),
+			RawMessage: &bgptypes.RawMessage{
+				Type:       message.TypeUPDATE,
+				WireUpdate: wu,
+				AttrsWire:  attrs,
+			},
+		})
+	}
+
+	// A valid UPDATE announcing 10.0.0.0/8: Withdrawn length 0, 14 octets of well-known
+	// mandatory attributes, then the NLRI.
+	announce := []byte{
+		0x00, 0x00, // Withdrawn Routes length 0
+		0x00, 0x0e, // Total Path Attribute Length 14
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH = empty
+		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
+		0x08, 0x0a, // NLRI 10.0.0.0/8
+	}
+	feed(announce)
+	require.Equal(t, 1, r.ribIn[peer].Len(),
+		"2-5 positive: a valid UPDATE leaves its route in the Adj-RIB-In")
+
+	// The same prefix re-announced with a MALFORMED ORIGIN (length 2), run through the RFC
+	// 7606 treat-as-withdraw synthesis. Feeding that withdrawal must remove 10.0.0.0/8.
+	malformed := []byte{
+		0x00, 0x00, // Withdrawn Routes length 0
+		0x00, 0x0f, // Total Path Attribute Length 15
+		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN with length 2 (invalid)
+		0x40, 0x02, 0x00, // AS_PATH = empty
+		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
+		0x08, 0x0a, // NLRI 10.0.0.0/8
+	}
+	withdrawal, changed := message.SynthesizeWithdraw(malformed)
+	require.True(t, changed, "treat-as-withdraw must produce a withdrawal for an announced route")
+	feed(withdrawal)
+	assert.Equal(t, 0, r.ribIn[peer].Len(),
+		"2-5 negative: treat-as-withdraw must remove the route from the Adj-RIB-In")
+}
+
 // TestReplayAllSources verifies replay sends "update hex" commands from all sources except target.
 //
 // VALIDATES: Replay sends routes from A,B to X, excludes X's own routes.
