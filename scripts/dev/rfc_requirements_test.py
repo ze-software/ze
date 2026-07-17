@@ -649,6 +649,37 @@ class TestFingerprint(unittest.TestCase):
 # --------------------------------------------------------------------------
 # rfc-status.md cross-check (AC-10)
 # --------------------------------------------------------------------------
+class TestAuditFreshness(unittest.TestCase):
+    """The hinge between the mechanical half and the semantic half.
+
+    The gate proves a LINK exists; only a reader can say the test still enforces the
+    requirement's letter and spirit. The fingerprint decides WHEN that reader must look
+    again.
+    """
+
+    def test_missing_verdict_is_not_an_error(self):
+        """The audit is sampled; the gate is total. An un-audited requirement is normal --
+        making it fail would force 2162 verdicts before anything could go green."""
+        errs = R.check_audit_freshness([_req("RFC7606-2-1")], [], {"rfc7606"})
+        self.assertEqual(errs, [])
+
+    def test_unenrolled_rfc_is_not_audited(self):
+        errs = R.check_audit_freshness([_req("RFC7606-2-1")], [], set())
+        self.assertEqual(errs, [])
+
+    def test_verdict_fresh_and_stale(self):
+        """A verdict that no longer matches what it judged is worse than none: it is a
+        stale assurance. That is why it FAILS while a missing one does not."""
+        v = {"requirement_sha": R.requirement_sha("x"), "tests": {}}
+        self.assertTrue(R.verdict_is_fresh(v, R.requirement_sha("x"), {}))
+        self.assertFalse(R.verdict_is_fresh(v, R.requirement_sha("CHANGED"), {}))
+
+    def test_requirement_text_edit_stales_the_verdict(self):
+        a = R.requirement_sha("MUST discard the attribute")
+        b = R.requirement_sha("MUST treat the UPDATE as withdrawn")
+        self.assertNotEqual(a, b, "re-reading the RFC must invalidate the old judgement")
+
+
 class TestStatusLedgerCrossCheck(unittest.TestCase):
     STATUS = (
         "| RFC | Area | Status | Implemented coverage | Remaining if not complete |\n"

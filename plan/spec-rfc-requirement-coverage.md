@@ -628,6 +628,23 @@ never-change-an-RFC-test, coverage self-check.
    `message.SynthesizeWithdraw` rewrites announced routes into withdrawals (IPv4 NLRI =>
    Withdrawn, MP_REACH => MP_UNREACH, other attributes dropped); the UPDATE now dispatches.
 
+**Test protection (user directive 6).** `rfc-tagged-test` in
+`.claude/hooks/pretool-writeedit.py`: any behavior-bearing edit to a test carrying an
+`RFC requirement:` tag blocks. Runs BEFORE `test-weakening` so `// test-relax:` cannot
+pre-empt it -- that token is self-service and is not user approval. Reformat/comment edits
+pass; a rename blocks (an identifier is code, and the check cannot tell a rename from a
+rewrite without parsing Go). Escape: `// rfc-test-change-approved: <date> <what>`.
+`audit-test-relaxation.py` IMPORTS the same detector (AC-17) and reports unapproved
+changes across a branch (AC-18). 8 fixtures in `hook-fixture-check.py --only rfc-test-guard`.
+
+**Audit (user directive 2).** `ai/skills/ze-rfc-audit.md`: read the RFC (not the summary --
+the summary is under audit), read each tagged test, and judge whether it would FAIL if the
+implementation stopped complying. Verdicts `enforced|weak|wrong|unimplemented` land in
+`rfc/audit/<rfc>.json` with `requirement_sha` + per-test `test_sha`.
+`check_audit_freshness` fails the gate when either sha moved: a verdict that no longer
+describes what it judged is a stale assurance wearing a fresh badge. A MISSING verdict does
+not fail -- the audit is sampled, the gate is total.
+
 **Pilot RFC 7606:** re-authored (8 lines corrected, 9 obligations added: §3.a, the six §5.3
 criteria, Adj-RIB-In removal, the strength ordering). 52 gated MUST-level requirements:
 **37 both polarities, 12 annotated, 3 outstanding.** ~130 tags.

@@ -39,6 +39,7 @@ Exit 2 = violations found, or the gate could not run (unparseable input, nothing
 """
 
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -783,6 +784,84 @@ def verdict_is_fresh(verdict: Dict, req_sha: str, test_shas: Dict[str, str]) -> 
     )
 
 
+def load_audit(rfc: str) -> Dict[str, Dict]:
+    """Read rfc/audit/<rfc>.json: /ze-rfc-audit's per-requirement verdicts."""
+    path = os.path.join(AUDIT_DIR, rfc + ".json")
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise ParseError(f"rfc/audit/{rfc}.json: cannot read: {exc}") from exc
+    return data.get("requirements", {})
+
+
+def tagged_unit_shas(tags: Sequence[Tag], root: str = PROJECT_DIR) -> Dict[str, str]:
+    """Fingerprint each tagged test, keyed file:line.
+
+    Coarse on purpose: the whole enclosing file, not the function. Over-triggering costs a
+    re-read; under-triggering ships a verdict for a test that has since changed.
+    """
+    out: Dict[str, str] = {}
+    cache: Dict[str, str] = {}
+    for t in tags:
+        if t.file not in cache:
+            try:
+                with open(
+                    os.path.join(root, t.file), encoding="utf-8", errors="replace"
+                ) as fh:
+                    cache[t.file] = test_sha(fh.read())
+            except OSError:
+                cache[t.file] = ""
+        out[f"{t.file}:{t.line}"] = cache[t.file]
+    return out
+
+
+def check_audit_freshness(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+) -> List[str]:
+    """A recorded verdict must still describe what it judged.
+
+    This is the hinge between the mechanical half and the semantic half. The gate can prove
+    a LINK exists; only a reader can say the test still enforces the requirement's letter
+    and spirit. The fingerprint turns "someone should re-read this" into a signal that
+    fires exactly when it can have gone wrong.
+
+    A MISSING verdict is not an error: the audit is sampled, the gate is total. But a
+    verdict that no longer matches what it judged is worse than none -- it is a stale
+    assurance -- so that fails.
+    """
+    errs: List[str] = []
+    by_rid: Dict[str, List[Tag]] = {}
+    for t in tags:
+        by_rid.setdefault(t.rid, []).append(t)
+
+    audits: Dict[str, Dict[str, Dict]] = {}
+    for rfc in sorted(enrolled):
+        audits[rfc] = load_audit(rfc)
+
+    for req in requirements:
+        if req.rfc not in enrolled:
+            continue
+        verdict = audits.get(req.rfc, {}).get(req.rid)
+        if not verdict:
+            continue
+        found = by_rid.get(req.rid, [])
+        fresh = verdict_is_fresh(
+            verdict, requirement_sha(req.text), tagged_unit_shas(found)
+        )
+        if not fresh:
+            errs.append(
+                f"{req.source}:{req.line}: {req.rid} has a STALE audit verdict -- the "
+                f"requirement text or a tagged test changed since it was judged, so the "
+                f"verdict no longer describes what it judged. Re-run: /ze-rfc-audit {req.rfc}"
+            )
+    return errs
+
+
 # --------------------------------------------------------------------------
 # Ledger render (the generated half of the two-way reference)
 # --------------------------------------------------------------------------
@@ -1078,6 +1157,7 @@ def run_check() -> int:
         with open(STATUS_FILE, encoding="utf-8") as fh:
             rows = parse_status_ledger(fh.read())
         errs.extend(check_status_agreement(reqs, rows, enrolled))
+        errs.extend(check_audit_freshness(reqs, tags, enrolled))
     except ParseError as exc:
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
         return 2
