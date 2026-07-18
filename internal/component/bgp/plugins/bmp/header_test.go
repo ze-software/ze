@@ -204,6 +204,25 @@ func TestBMPPeerHeaderEncode(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8671-x-1 positive -- the O (Adj-RIB-Out) flag occupies bit 4 of the
+// Per-Peer Header Flags field: PeerFlagO equals 1<<4 (0x10) and a flags byte with bit 4 set
+// decodes as Adj-RIB-Out.
+// RFC requirement: RFC8671-x-1 negative -- a flags byte with bit 4 clear does not decode as
+// Adj-RIB-Out, so the O flag is specifically bit 4 and not another position.
+func TestRFC8671OFlagBit4(t *testing.T) {
+	if PeerFlagO != 1<<4 {
+		t.Fatalf("PeerFlagO = %#x, want 0x10 (bit 4)", PeerFlagO)
+	}
+	set := PeerHeader{Flags: 0x10}
+	if !set.IsAdjRIBOut() {
+		t.Error("flags byte 0x10 (bit 4 set) must decode as Adj-RIB-Out")
+	}
+	unset := PeerHeader{Flags: 0x08}
+	if unset.IsAdjRIBOut() {
+		t.Error("flags byte 0x08 (bit 3, not bit 4) must not decode as Adj-RIB-Out")
+	}
+}
+
 func TestBMPPeerHeaderFlags(t *testing.T) {
 	// VALIDATES: AC-3, AC-4 -- V, L, A, O flag interpretation
 	tests := []struct {

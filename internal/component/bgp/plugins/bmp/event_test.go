@@ -52,6 +52,8 @@ func TestPeerHeaderFromEventIPv6(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8671-x-2 positive -- when the O flag (Adj-RIB-Out) is set, the L flag
+// (bit 6, post-policy) is also set: the sent direction sets both O and L.
 func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
 	// VALIDATES: RFC 8671 -- sent direction sets O flag (Adj-RIB-Out) and L flag (post-policy)
 	se := &rpc.StructuredEvent{
@@ -69,6 +71,8 @@ func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8671-x-2 negative -- the O/L coupling is confined to the Adj-RIB-Out (sent)
+// direction: the received direction (Adj-RIB-In) sets neither the O flag nor the L flag.
 func TestPeerHeaderFromEventAdjRIBIn(t *testing.T) {
 	// VALIDATES: received direction does NOT set O or L flags (pre-policy Adj-RIB-In)
 	se := &rpc.StructuredEvent{
