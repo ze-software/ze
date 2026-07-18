@@ -1,8 +1,8 @@
-# `show ping [<count>] [<dest>] [<timeout>]`
+# `show ping [<count>] [<dest>] [<size>] [<timeout>]`
 
 ## Ze command
 
-- Syntax: `show ping [<count>] [<dest>] [<timeout>]`
+- Syntax: `show ping [<count>] [<dest>] [<size>] [<timeout>]`
 - Registry path: `show ping`
 - Mode: Read-only
 - Wire method: `ze-show:ping`

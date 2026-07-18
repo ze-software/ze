@@ -45,7 +45,7 @@ def terminal_demo_fixture(root):
         json.dumps(
             {
                 "gallery_page": "guide/terminal-demonstrations.md",
-                "schema": 1,
+                "schema": 2,
                 "demos": [
                     {
                         "id": "demo",
@@ -53,6 +53,8 @@ def terminal_demo_fixture(root):
                         "description": "Run a checked terminal workflow.",
                         "page": "guide/example.md",
                         "platform": "portable",
+                        "kind": "terminal",
+                        "engine": "VHS 0.11.0",
                         "duration": "12 seconds",
                     }
                 ],
@@ -62,8 +64,13 @@ def terminal_demo_fixture(root):
     (site_assets / "manifest.json").write_text(
         json.dumps(
             {
-                "schema": 1,
-                "renderer": {"name": "vhs", "version": "0.11.0"},
+                "schema": 2,
+                "renderer": {
+                    "image": "test/ze-demo:latest",
+                    "name": "ze-demo",
+                    "platform": "linux/native",
+                    "version": "2",
+                },
                 "demos": {
                     "demo": {
                         "release": "26.07.15",
@@ -164,13 +171,31 @@ class TerminalDemoRenderTest(unittest.TestCase):
             published_video = (site_assets / "demo.webm").read_bytes()
             source_video = paths["video"].read_bytes()
 
+        video_version = hashlib.sha256(b"webm-data").hexdigest()[:10]
+        poster_version = hashlib.sha256(b"png-data").hexdigest()[:10]
+        transcript_version = hashlib.sha256(
+            b"$ ze show version\n<safe output>\n"
+        ).hexdigest()[:10]
         self.assertIn('data-terminal-demo="demo"', rendered_html)
         self.assertIn("<video controls", rendered_html)
-        self.assertIn('poster="../assets/demos/demo.png"', rendered_html)
-        self.assertIn('src="../assets/demos/demo.webm"', rendered_html)
+        self.assertIn(
+            'poster="../assets/demos/demo.png?v=%s"' % poster_version,
+            rendered_html,
+        )
+        self.assertIn(
+            'src="../assets/demos/demo.webm?v=%s"' % video_version,
+            rendered_html,
+        )
         self.assertIn("&lt;safe output&gt;", rendered_html)
-        self.assertIn("### Terminal demo: Inspect live state", rendered_markdown)
-        self.assertIn("../assets/demos/demo.webm", rendered_markdown)
+        self.assertIn(
+            'href="../assets/demos/demo.txt?v=%s"' % transcript_version,
+            rendered_html,
+        )
+        self.assertIn("### Demo: Inspect live state", rendered_markdown)
+        self.assertIn(
+            "../assets/demos/demo.webm?v=%s" % video_version,
+            rendered_markdown,
+        )
         self.assertEqual(published_video, source_video)
 
     def test_gallery_page_can_embed_every_demo(self):

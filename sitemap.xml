@@ -148,16 +148,16 @@
     <loc>https://ze-software.net/command-equivalents/clear-isis-counters/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/command-equivalents/clear-l2tp-session-teardown-all/</loc>
+    <loc>https://ze-software.net/command-equivalents/clear-l2tp-session-all/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/command-equivalents/clear-l2tp-session-teardown/</loc>
+    <loc>https://ze-software.net/command-equivalents/clear-l2tp-session-id/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/command-equivalents/clear-l2tp-tunnel-teardown-all/</loc>
+    <loc>https://ze-software.net/command-equivalents/clear-l2tp-tunnel-all/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/command-equivalents/clear-l2tp-tunnel-teardown/</loc>
+    <loc>https://ze-software.net/command-equivalents/clear-l2tp-tunnel-id/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/clear-ospf-counters/</loc>
@@ -170,6 +170,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/clear-vpn-ipsec-sa/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/clear-vrrp-statistics/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/create-interface-address/</loc>
@@ -386,6 +389,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/request-peer-teardown/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/request-quiesce/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/request-reboot/</loc>
@@ -823,10 +829,10 @@
     <loc>https://ze-software.net/command-equivalents/show-metrics-list/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/command-equivalents/show-metrics-pool/</loc>
+    <loc>https://ze-software.net/command-equivalents/show-metrics-name/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/command-equivalents/show-metrics-query/</loc>
+    <loc>https://ze-software.net/command-equivalents/show-metrics-pool/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-metrics-values/</loc>
@@ -1024,6 +1030,9 @@
     <loc>https://ze-software.net/command-equivalents/show-probe-round/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/command-equivalents/show-reload-status/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/command-equivalents/show-route-lookup/</loc>
   </url>
   <url>
@@ -1046,6 +1055,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-rsvp-te-tunnel/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/show-runtime-memory/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-schema-events/</loc>
@@ -1094,9 +1106,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-system-kernel-log/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/command-equivalents/show-system-memory-map/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-system-memory/</loc>
@@ -1169,6 +1178,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-vpp-trace-start/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/show-vrrp-interface-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/show-vrrp-statistics/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/show-vrrp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/show-warnings/</loc>
@@ -1474,6 +1492,9 @@
     <loc>https://ze-software.net/docs/features/plugins/ddos-detect-flow-source/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/features/plugins/ddos-fake/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/features/plugins/ddos-flowspec/</loc>
   </url>
   <url>
@@ -1609,10 +1630,16 @@
     <loc>https://ze-software.net/docs/features/plugins/vpp/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/features/plugins/vrrp/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/features/rfc-status/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/features/web-interface/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/anomaly/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/appliance/</loc>
@@ -1636,6 +1663,12 @@
     <loc>https://ze-software.net/docs/guide/command-reference/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/config-editor/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/ddos-mitigation/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/firewall/</loc>
   </url>
   <url>
@@ -1646,6 +1679,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/flowspec-route-reflector/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/health-checks/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/ipsec/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/isis/</loc>
@@ -1681,10 +1720,22 @@
     <loc>https://ze-software.net/docs/guide/quickstart/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/radius/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/route-injection/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/rpki/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/static-routes/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/tacacs/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/terminal-demonstrations/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/ubuntu-build-install/</loc>

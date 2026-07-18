@@ -1,9 +1,9 @@
-# `show traffic-stat [<name>]`
+# `show traffic stat [<name>]`
 
 ## Ze command
 
-- Syntax: `show traffic-stat [<name>]`
-- Registry path: `show traffic-stat`
+- Syntax: `show traffic stat [<name>]`
+- Registry path: `show traffic stat`
 - Mode: Read-only
 - Wire method: `ze-show:traffic-stat`
 - Global pipes: yes

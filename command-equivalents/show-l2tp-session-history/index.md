@@ -1,9 +1,9 @@
-# `show l2tp session-history`
+# `show l2tp session history`
 
 ## Ze command
 
-- Syntax: `show l2tp session-history`
-- Registry path: `show l2tp session-history`
+- Syntax: `show l2tp session history`
+- Registry path: `show l2tp session history`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:session-history`
 - Global pipes: yes

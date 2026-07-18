@@ -1266,6 +1266,23 @@
     "doc": {}
   },
   {
+    "name": "vrrp",
+    "description": "Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy",
+    "config_roots": [
+      "interface"
+    ],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/vrrp",
+    "yang_files": [
+      "internal/plugins/vrrp/yang/ze-vrrp-cmd.yang",
+      "internal/plugins/vrrp/yang/ze-vrrp-conf.yang"
+    ],
+    "doc": {}
+  },
+  {
     "name": "fakeas112",
     "description": "Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)",
     "config_roots": [],
@@ -1275,6 +1292,22 @@
     "yang_files": [
       "internal/test/plugins/fakeas112/yang/ze-fakeas112-api.yang",
       "internal/test/plugins/fakeas112/yang/ze-fakeas112-cmd.yang"
+    ],
+    "doc": {}
+  },
+  {
+    "name": "ddos-fake",
+    "description": "Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)",
+    "config_roots": [
+      "ddos/fake"
+    ],
+    "dependencies": [
+      "firewall"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/test/plugins/fakeddos",
+    "yang_files": [
+      "internal/test/plugins/fakeddos/yang/ze-fakeddos-conf.yang"
     ],
     "doc": {}
   },

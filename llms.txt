@@ -14,22 +14,22 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 47 shipped or experimental feature cards, 6 roadmap cards, 380 CLI commands, 36 config sections, 92 plugin registrations, 39 direct Go dependencies, 31 weekly change entries.
-- Test evidence counts: 64,700+ unit tests, 360+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
-- Generated date: 2026-07-13.
+- Current generated counts: 47 shipped or experimental feature cards, 6 roadmap cards, 386 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 31 weekly change entries.
+- Test evidence counts: 121,000+ unit tests, 570+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 8 target implementations.
+- Generated date: 2026-07-18.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 64,700+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 360+ fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 121,000+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 570+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 101 scenarios against 7 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 101 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -120,7 +120,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `environment`: Environment settings for API transports Children: api-server, bgp, bmp, chaos, cli, daemon, exabgp, gnmi, l2tp, log, looking-glass, mcp, ntp, pprof, ....
 - `exabgp`: Top-level container for ExaBGP-compatibility configuration. Children: bridge.
 - `fib`: Forwarding Information Base configuration. Children: kernel, p4, vpp.
-- `firewall`: Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix added by component. Children: backend, global-options, irr, table.
+- `firewall`: Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix added by component. Children: backend, flush-on-shutdown, global-options, irr, table.
 - `flow-export`: Flow export (sFlow, NetFlow v9, IPFIX) configuration Children: collector, conntrack, enrichment, sampling.
 - `interface`: Interface-level class-of-service bindings and inline QoS maps (container-merge with ze-iface-conf). Removing the cos plugin removes all QoS surface from interfaces. Children: backend, bridge, dhcp-auto, dummy, ethernet, loopback, monitor, pppoe-client, tunnel, veth, wireguard, xfrm.
 - `isis`: IS-IS routing instance configuration. Children: hostname, interfaces, key-chains, level, level-1, level-2, lsp-lifetime, lsp-refresh-interval, net, overload, system-id.
@@ -198,6 +198,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `copp-input-chain`: Control-plane policing: rate-limit new TCP connections to BGP listen port Config roots: control-plane-protection. Dependencies: firewall. Optional: none. YANG files: 1. Source: `internal/plugins/copp`.
 - `cos`: 802.1p class-of-service profile definitions Config roots: class-of-service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/cos`.
 - `ddos-detect-flow-source`: Automatic DDoS attack detector with two-stage detection Config roots: ddos/detect. Dependencies: config-loaded. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/detect`.
+- `ddos-fake`: Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) Config roots: ddos/fake. Dependencies: firewall. Optional: none. YANG files: 1. Source: `internal/test/plugins/fakeddos`.
 - `ddos-flowspec`: DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear Config roots: ddos/flowspec. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/flowspec`.
 - `ddos-flowtriq`: DDoS incident reporter for Flowtriq cloud API Config roots: ddos/flowtriq. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/flowtriq`.
 - `ddos-local`: DDoS local responder: on-host nft drop on attack detection Config roots: ddos/local. Dependencies: firewall. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/local`.
@@ -243,16 +244,17 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `traffic`: Traffic control (tc) qdisc, class, and filter management Config roots: traffic/control. Dependencies: none. Optional: vpp. YANG files: 1. Source: `internal/component/traffic`.
 - `traffic-usage`: eBPF TCX per-port and per-IP byte accounting Config roots: traffic/usage. Dependencies: interface. Optional: none. YANG files: 2. Source: `internal/plugins/trafficusage`.
 - `vpp`: VPP data plane lifecycle management Config roots: vpp. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/vpp`.
+- `vrrp`: Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy Config roots: interface. Dependencies: interface. Optional: none. YANG files: 2. Source: `internal/plugins/vrrp`.
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 83 daemon, 17 offline, 280 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 85 daemon, 17 offline, 284 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` means the command supports the shared output pipeline.
 
 ### `announce` commands (1)
 - `announce` (daemon; wire ze-bgp:announce; pipes; args selector): Announce a route on demand to selected peers. Syntax: `announce [tag ] [for ]`.
 
-### `clear` commands (18)
+### `clear` commands (19)
 - `clear bgp rib in` (daemon; wire ze-rib-api:clear-in; pipes): Remove all routes received from a peer. Wipes the Adj-RIB-In for matched peers. They will need to re-advertise everything (or you can send a route-refresh). Selector...
 - `clear bgp rib out` (daemon; wire ze-rib-api:clear-out; pipes): Re-advertise all routes to a peer. Triggers a full Adj-RIB-Out replay to the selected peers. Useful after a policy change to push updated attributes without tearing down...
 - `clear debug` (offline): Clear the default debug profile.
@@ -263,14 +265,15 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `clear interface name counters` (daemon; wire ze-clear:interface-counters; pipes; args name): Zero the Rx/Tx counters for one interface.
 - `clear isis adjacency` (daemon; wire ze-clear:isis-adjacency; pipes): Tear down every IS-IS adjacency so neighbors re-form.
 - `clear isis counters` (daemon; wire ze-clear:isis-counters; pipes): Reset IS-IS observational counters and the SPF log.
-- `clear l2tp session teardown` (daemon; wire ze-l2tp-api:session-teardown; pipes): Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID.
-- `clear l2tp session teardown-all` (daemon; wire ze-l2tp-api:session-teardown-all; pipes): Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care.
-- `clear l2tp tunnel teardown` (daemon; wire ze-l2tp-api:tunnel-teardown; pipes): Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID.
-- `clear l2tp tunnel teardown-all` (daemon; wire ze-l2tp-api:tunnel-teardown-all; pipes): Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance.
+- `clear l2tp session all` (daemon; wire ze-l2tp-api:session-teardown-all; pipes): Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care.
+- `clear l2tp session id` (daemon; wire ze-l2tp-api:session-teardown; pipes): Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id [reason ] [cause ].
+- `clear l2tp tunnel all` (daemon; wire ze-l2tp-api:tunnel-teardown-all; pipes): Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance.
+- `clear l2tp tunnel id` (daemon; wire ze-l2tp-api:tunnel-teardown; pipes): Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID: clear l2tp tunnel id .
 - `clear ospf counters` (daemon; wire ze-clear:ospf-counters; pipes): Reset the OSPF SPF-run history.
 - `clear ospf neighbor` (daemon; wire ze-clear:ospf-neighbor; pipes): Tear down every OSPF adjacency so neighbors re-form.
 - `clear ospf process` (daemon; wire ze-clear:ospf-process; pipes): Full OSPF reset: tear down every adjacency and re-run SPF.
 - `clear vpn ipsec sa` (daemon; wire ze-clear:vpn-ipsec-sa; pipes): Tear down IKE Security Associations. Without arguments, terminates all SAs. Use 'peer ' to clear just one peer. The tunnel will renegotiate automatically if the config...
+- `clear vrrp statistics` (daemon; wire ze-clear:vrrp-statistics; pipes): Reset every VRRP virtual router's counters to zero. Protocol state is untouched: clearing counters never triggers a failover.
 
 ### `create` commands (9)
 - `create interface address` (daemon; wire ze-iface:interface-addr-add; pipes; args name): Add an IP address to an interface.
@@ -318,7 +321,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `monitor ping` (read-only; wire ze-monitor:ping; pipes): Continuous ping with live loss and RTT statistics. Pings until you stop it. Adjust interval and timeout as needed. Shows running min/avg/max RTT and packet loss.
 - `monitor system netlink` (read-only; wire ze-monitor:system-netlink; pipes): Watch kernel networking changes in real time. Streams netlink events: route adds/deletes, link state changes, address assignments. Filter with route, link, address, or...
 - `monitor traceroute` (read-only; wire ze-monitor:traceroute; pipes): Live mtr-style traceroute that updates continuously. Shows each hop with running RTT statistics. Keeps probing so you can watch path changes and latency shifts over time.
-- `monitor traffic-stat` (read-only; wire ze-monitor:traffic-stat; pipes; args name): Start streaming traffic monitor (per-second snapshots). Without arguments, shows all interfaces. With 'name ', filters to one interface.
+- `monitor traffic stat` (read-only; wire ze-monitor:traffic-stat; pipes; args name): Start streaming traffic monitor (per-second snapshots). Without arguments, shows all interfaces. With 'name ', filters to one interface.
 - `monitor vpn ipsec` (read-only; wire ze-monitor:vpn-ipsec; pipes): Watch IPsec SA events as they happen. Streams sa-up, sa-down, child-up, child-down, and child-rekey events. Useful for debugging tunnel flaps or rekey issues.
 
 ### `peer` commands (2)
@@ -337,7 +340,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `plugin session ping` (read-only; wire ze-plugin:session-ping; pipes): Health check (returns PID)
 - `plugin session ready` (read-only; wire ze-plugin:session-ready; pipes): Signal plugin init complete
 
-### `request` commands (32)
+### `request` commands (33)
 - `request as112 healthcheck` (daemon; wire ze-as112:health; pipes; args target): One-shot authoritative query against an anycast service address (or the given target), exit 0 iff the expected AS112 answer comes back. Finding M4: the tool a... Syntax: `request as112 healthcheck [target ]`.
 - `request bgp rib inject` (daemon; wire ze-rib-api:inject; pipes): Inject a synthetic route into the Adj-RIB-In. Behaves as if the route was received from a peer. Use this for testing policy filters or simulating route announcements.
 - `request bgp rib withdraw` (daemon; wire ze-rib-api:withdraw; pipes): Withdraw a route from the Adj-RIB-In. Removes a previously injected or received route from a peer's Adj-RIB-In, triggering best-path recomputation.
@@ -365,6 +368,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request peer refresh` (daemon; wire ze-bgp:peer-refresh; pipes; args selector): Ask a peer to re-send all routes (RFC 2918). Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The peer will re-advertise its entire Adj-RIB-Out.
 - `request peer resume` (daemon; wire ze-bgp:peer-resume; pipes; args selector): Resume reading from a previously paused peer.
 - `request peer teardown` (daemon; wire ze-bgp:peer-teardown; pipes; args selector): Tear down a peer session. Syntax: `request peer teardown [cease-subcode]`.
+- `request quiesce` (daemon; wire ze-system:quiesce; pipes): Block until every subsystem has drained pending async work, then reply. A test/operator barrier that replaces a fixed sleep.
 - `request reboot` (daemon; wire ze-system:daemon-reboot; pipes): Gracefully shutdown then reboot the system.
 - `request reload` (daemon; wire ze-system:daemon-reload; pipes): Reload the configuration without restarting.
 - `request shutdown` (daemon; wire ze-system:daemon-shutdown; pipes): Gracefully shutdown: drain connections, close peers, exit.
@@ -391,7 +395,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set debug timeout` (offline): Set the debug auto-disable timer (e.g. 30m, 1h, 90s; 0 disables).
 - `set system file-descriptors` (daemon; wire ze-set:system-file-descriptors; pipes; args limit): Raise the file descriptor limit for the daemon process. Pass a number or 'max' to go to the hard limit. Takes effect immediately. Check current limits with 'show system...
 
-### `show` commands (244)
+### `show` commands (248)
 - `show aaa accounting` (read-only; wire ze-show:aaa-accounting; pipes): Show AAA accounting counters and any dropped records. Tells you whether TACACS+ accounting is working or if records are being lost due to server unreachability.
 - `show announcements` (read-only; wire ze-bgp:show-announcements; pipes): List active on-demand announcements. Syntax: `show announcements [tag ] [selector ] [family ]`.
 - `show anomaly detect` (read-only; wire ze-show:anomaly; pipes): Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity. The detector...
@@ -405,6 +409,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show bfd sessions` (read-only; wire ze-bfd-api:show-sessions; pipes): List all active BFD sessions. One line per session: peer address, state, negotiated tx/rx intervals, and detect multiplier.
 - `show bgp decode` (read-only; wire ze-show:bgp-decode; pipes): Decode a hex-encoded BGP message into readable JSON. Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and withdrawn prefixes. Handy for reading pcap captures...
 - `show bgp encode` (read-only; wire ze-show:bgp-encode; pipes): Turn a route announcement into wire-format hex. Takes a route in API syntax and returns the BGP UPDATE as a hex string. Useful for building test payloads, feeding to...
+- `show bgp health` (read-only; wire ze-show:bgp-health; pipes): Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer...
 - `show bgp irr` (read-only; wire ze-show:irr-status; pipes): Show IRR filter status per ASN. Lists each enrolled ASN with its resolved AS-SET, prefix counts, last refresh time, and error status. Use this to confirm that IRR...
 - `show bgp irr check` (read-only; wire ze-show:irr-check; pipes; args peer, prefix): Check if a prefix is accepted by the IRR filter.
 - `show bgp irr prefix` (read-only; wire ze-show:irr-prefix; pipes; args peer): Show IRR-resolved prefixes for a peer.
@@ -420,7 +425,6 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show bgp rib rpf` (read-only; wire ze-rib-api:rpf; pipes): Reverse-path forwarding lookup in the Loc-RIB. Performs a longest-prefix-match and returns the best-path entry. Use this to verify RPF checks would pass for a given...
 - `show bgp rib status` (read-only; wire ze-rib-api:status; pipes): Get a quick RIB overview without dumping routes. Shows total peers, received/accepted/advertised route counts, and per-family breakdowns. Use this to confirm convergence...
 - `show bgp summary` (read-only; wire ze-bgp:summary; pipes): Show a one-line-per-peer BGP summary. Lists every peer with state, ASN, prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6, or l2vpn.
-- `show bgp-health` (read-only; wire ze-show:bgp-health; pipes): Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer...
 - `show bmp collectors` (read-only; wire ze-show:bmp-collectors; pipes): Show BMP collector connection status. Lists configured collectors with connection state, sent message counts, and error statistics. Check here if your collector is not...
 - `show bmp peers` (read-only; wire ze-show:bmp-peers; pipes): Show BGP peers as seen through BMP monitoring. Lists peers reported via BMP with their state and route statistics.
 - `show bmp rib` (read-only; wire ze-show:bmp-rib; pipes): Show routes received via BMP monitoring sessions. Returns the BMP RIB content. Use this to verify what your collector is seeing from remote peers.
@@ -465,8 +469,8 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show firewall irr` (read-only; wire ze-show:firewall-irr-status; pipes): Show IRR filter status for all cached ASN/AS-SET entries. Lists each cached entry with prefix counts, last refresh time, and error status. Use this to confirm that IRR...
 - `show firewall irr prefix` (read-only; wire ze-show:firewall-irr-prefix; pipes; args name): Show IRR-resolved prefixes for a cached entry.
 - `show firewall ruleset` (read-only; wire ze-show:firewall-ruleset; pipes): Show the live firewall ruleset with per-term counters.
-- `show flow-export` (read-only; wire ze-show:flow-export; pipes; args name): Show flow export (NetFlow/IPFIX) collector status. Without arguments, lists all configured collectors. With 'name ', shows details for that collector including protocol...
-- `show flow-recent` (read-only; wire ze-show:flow-recent; pipes; args dst): Show recent conntrack flow records from the bounded recent-flow ring. Without arguments, returns every ring record (oldest to newest, up to the configured...
+- `show flow export` (read-only; wire ze-show:flow-export; pipes; args name): Show flow export (NetFlow/IPFIX) collector status. Without arguments, lists all configured collectors. With 'name ', shows details for that collector including protocol...
+- `show flow recent` (read-only; wire ze-show:flow-recent; pipes; args dst): Show recent conntrack flow records from the bounded recent-flow ring. Without arguments, returns every ring record (oldest to newest, up to the configured...
 - `show geodns` (read-only; wire ze-show:geodns; pipes): GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones, nameserver/host-set/source counts, and the current SOA serial.
 - `show gnmi` (read-only; wire ze-show:gnmi; pipes): Show whether the gNMI server is running and how it is configured. Returns listen address, TLS details, authentication mode, and the number of active streaming...
 - `show health` (read-only; wire ze-show:health; pipes): Is this box healthy? One command to find out. Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.) plus an overall status. Each component reports healthy...
@@ -499,26 +503,26 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show l2tp config` (read-only; wire ze-l2tp-api:config; pipes): Show the resolved L2TP configuration. Returns the effective config after defaults and overrides. Confirms what the daemon is actually using.
 - `show l2tp cqm` (read-only; wire ze-l2tp-api:cqm; pipes): Show subscriber line quality (CQM latency buckets). Pass a login name for one subscriber or 'summary' for an overview. Helps diagnose poor subscriber experience.
 - `show l2tp echo` (read-only; wire ze-l2tp-api:echo; pipes): Show LCP echo health for a subscriber session. Returns echo request/reply counters and round-trip times. Rising loss or high RTT indicates a degraded line.
+- `show l2tp health` (read-only; wire ze-show:l2tp-health; pipes): Find your worst L2TP sessions at a glance. Sorts sessions by echo loss ratio (worst first). Shows subscriber login, session state, echo count, average RTT, and CQM...
 - `show l2tp listeners` (read-only; wire ze-l2tp-api:listeners; pipes): Show which UDP sockets are listening for L2TP. Lists each bound address, port, and the number of tunnels on it.
 - `show l2tp observer` (read-only; wire ze-l2tp-api:observer; pipes): Show recent events for a session (debug aid). Returns the event ring buffer for one session ID or 'all'. Useful for understanding why a session failed to establish.
 - `show l2tp reliable` (read-only; wire ze-l2tp-api:reliable; pipes): Show the reliable transport window for a tunnel. Returns send/receive sequence numbers, window size, and retransmit queue depth. Check here when tunnel control messages...
+- `show l2tp session history` (read-only; wire ze-l2tp-api:session-history; pipes): Show state transitions for a session over time. Timestamped FSM entries for session establishment. Use this when a subscriber's session fails to come up.
 - `show l2tp session id` (read-only; wire ze-l2tp-api:session; pipes; args id): Show full detail for one L2TP session. Pass the local session ID. Returns PPP state, assigned addresses, negotiated LCP/NCP options, and traffic counters.
-- `show l2tp session-history` (read-only; wire ze-l2tp-api:session-history; pipes): Show state transitions for a session over time. Timestamped FSM entries for session establishment. Use this when a subscriber's session fails to come up.
-- `show l2tp session-traffic` (read-only; wire ze-l2tp-api:session-traffic; pipes): Show traffic counters for a subscriber's PPP interface. Returns byte and packet counts, error counters, and current rates. Compare with CQM data to get the full picture...
+- `show l2tp session traffic` (read-only; wire ze-l2tp-api:session-traffic; pipes): Show traffic counters for a subscriber's PPP interface. Returns byte and packet counts, error counters, and current rates. Compare with CQM data to get the full picture...
 - `show l2tp sessions` (read-only; wire ze-l2tp-api:sessions; pipes): List all active L2TP sessions. One line per session: local/remote ID, parent tunnel, subscriber login, and uptime.
 - `show l2tp statistics` (read-only; wire ze-l2tp-api:statistics; pipes): Show aggregate L2TP protocol counters. Tunnels and sessions established, control messages sent/received, retransmits, and errors. Your first stop for L2TP health.
+- `show l2tp tunnel history` (read-only; wire ze-l2tp-api:tunnel-history; pipes): Show state transitions for a tunnel over time. Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose tunnel establishment...
 - `show l2tp tunnel id` (read-only; wire ze-l2tp-api:tunnel; pipes; args id): Show full detail for one L2TP tunnel. Pass the local tunnel ID. Returns control channel state, peer endpoint, hello interval, and all assigned sessions.
-- `show l2tp tunnel-history` (read-only; wire ze-l2tp-api:tunnel-history; pipes): Show state transitions for a tunnel over time. Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose tunnel establishment...
 - `show l2tp tunnels` (read-only; wire ze-l2tp-api:tunnels; pipes): List all active L2TP tunnels. One line per tunnel: local/remote ID, peer address, session count, and uptime.
-- `show l2tp-health` (read-only; wire ze-show:l2tp-health; pipes): Find your worst L2TP sessions at a glance. Sorts sessions by echo loss ratio (worst first). Shows subscriber login, session state, echo count, average RTT, and CQM...
 - `show ldp binding` (read-only; wire ze-show:ldp-binding; pipes): Show LDP FEC-to-label bindings. Lists local and remote label bindings for each FEC (prefix). Use this to verify label distribution is working.
 - `show ldp neighbor` (read-only; wire ze-show:ldp-neighbor; pipes): Show LDP neighbors and their session state. Returns peer address, transport address, session state, and hold time for each LDP neighbor.
 - `show log levels` (read-only; wire ze-bgp:log-levels; pipes): Show what log level each subsystem is using. Lists every registered logger with its current level. Use 'request log level' to change a level at runtime without...
 - `show log recent` (read-only; wire ze-bgp:log-recent; pipes; args component, count, level): Show recent log entries from the in-memory ring. Filters (all optional): level , component , count . Newest entries first. Useful when you cannot access the log file...
 - `show metrics list` (read-only; wire ze-bgp:metrics-list; pipes): List all registered metric names (no values). Useful for discovering what metrics exist before querying them.
+- `show metrics name` (read-only; wire ze-show:metrics-query; pipes): Show one Prometheus metric by name. Syntax: `show metrics name [label=value`.
 - `show metrics pool` (read-only; wire ze-bgp:pool-stats; pipes): Show attribute pool memory usage and dedup efficiency. Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate...
 - `show metrics values` (read-only; wire ze-bgp:metrics-values; pipes): Dump all metrics in Prometheus text format. Outputs every registered metric with labels and values. Suitable for feeding into Prometheus, Grafana, or curl-based...
-- `show metrics-query` (read-only; wire ze-show:metrics-query; pipes): Query a specific Prometheus metric by name. Syntax: `show metrics-query [label=value`.
 - `show mpls forwarding` (read-only; wire ze-show:mpls-forwarding; pipes; args limit): Show MPLS forwarding entries installed in the kernel. Each entry shows the incoming label, swap/push/pop operation, and outgoing next-hop. Pass 'limit N' to cap large...
 - `show neighbor` (read-only; wire ze-show:neighbor; pipes; args family): Show the ARP and neighbor discovery table. Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states. Pass ipv4 or ipv6 to filter by address family; no argument...
 - `show ospf` (read-only; wire ze-show:ospf; pipes): OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).
@@ -570,19 +574,20 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show ospf spf detail` (read-only; wire ze-show:ospf-spf-detail; pipes): Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break...
 - `show ospf te-database` (read-only; wire ze-show:ospf-te-database; pipes): Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392): router addresses plus TE links with their Link ID, local/remote address, link type, TE metric...
 - `show ospf virtual-links` (read-only; wire ze-show:ospf-virtual-links; pipes): Show OSPF virtual links (RFC 2328 section 15). Lists each configured virtual link with its transit area, remote router-id, adjacency state, computed cost, and transit...
-- `show ping` (read-only; wire ze-show:ping; pipes; args count, dest, timeout): Ping a target from the router itself. Sends ICMP echo requests to (IP or hostname). Default count is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms...
+- `show ping` (read-only; wire ze-show:ping; pipes; args count, dest, size, timeout): Ping a target from the router itself. Sends ICMP echo requests to (IP or hostname). Default count is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms...
 - `show pki certificate name` (read-only; wire ze-show:pki-certificate; pipes; args name): Inspect a specific certificate in detail. Syntax: `show pki certificate name [pem | bundle pem | fingerprint`.
 - `show pki certificates` (read-only; wire ze-show:pki-certificates; pipes): List all loaded certificates with expiry dates. Shows name, type (CA or device), subject, issuer, expiry, and validity status. Check here to find certificates...
 - `show policy chain peer` (read-only; wire ze-show:policy-chain; pipes): Show the import/export filter chain applied to a peer. Syntax: `show policy chain peer [import|export]`.
 - `show policy list` (read-only; wire ze-show:policy-list; pipes): List all available filter types and named instances. Shows each filter type and its implementing plugin. Check here when building a new policy chain to see what filters...
+- `show policy routes` (read-only; wire ze-show:policy-routes; pipes): Show policy-based routing rules. Lists PBR rules with match criteria and routing actions.
 - `show policy test peer` (read-only; wire ze-show:policy-test; pipes): Test what your policy does to a specific UPDATE. Feed a hex-encoded BGP UPDATE through a peer's filter chain and see the accept/reject result plus attribute... Syntax: `show policy test peer import|export [filter ]`.
-- `show policy-routes` (read-only; wire ze-show:policy-routes; pipes): Show policy-based routing rules. Lists PBR rules with match criteria and routing actions.
 - `show pppoe` (read-only; wire ze-pppoe-api:summary; pipes): PPPoE session and protocol state. Without a subcommand, shows a summary of active sessions.
 - `show pppoe interfaces` (read-only; wire ze-pppoe-api:interfaces; pipes): Show which interfaces are accepting PPPoE sessions. Lists each PPPoE-enabled interface with its service name, session limit, and how many sessions are currently active.
 - `show pppoe session id` (read-only; wire ze-pppoe-api:session; pipes; args id): Show full detail for one PPPoE session. Pass the session ID. Returns discovery tags, LCP/NCP state, assigned addresses, and traffic counters.
 - `show pppoe sessions` (read-only; wire ze-pppoe-api:sessions; pipes): List all active PPPoE sessions. One line per session: session ID, MAC, subscriber login, uptime, and assigned addresses.
 - `show pppoe statistics` (read-only; wire ze-pppoe-api:statistics; pipes): Show PPPoE protocol message counters. Returns PADI, PADO, PADR, PADS, PADT counts, active sessions, and errors. A rising PADI count with flat PADS means sessions are not...
 - `show probe-round` (read-only; wire ze-show:probe-round; pipes; args dest, max-hops, probes, timeout): Run a parallel traceroute probe round to a target. Sends all probes concurrently for faster results than sequential traceroute. Returns per-hop RTT and IP. Use probes...
+- `show reload-status` (read-only; wire ze-show:reload-status; pipes): Show how many config reloads the daemon has processed. Returns a generation counter, the outcome of the most recent reload (applied or failed), and when it finished. The...
 - `show route` (read-only; wire ze-show:route; pipes; args limit, prefix): Show the kernel routing table. Lists installed routes with next-hop, interface, protocol, and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap...
 - `show route lookup` (read-only; wire ze-show:route-lookup; pipes): Look up which route the kernel would use for a given IP. Performs a longest-prefix-match and returns the matching route with gateway, interface, protocol, and metric.
 - `show rr peers` (read-only; wire ze-show:rr-peers; pipes): Show route reflector client peers. Lists each RR client with session state and reflected route counts.
@@ -591,6 +596,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show rsvp-te interface` (read-only; wire ze-show:rsvp-te-interface; pipes): Show RSVP-TE bandwidth allocation per interface. Returns reserved, available, and maximum bandwidth for each TE-enabled interface.
 - `show rsvp-te lsp` (read-only; wire ze-show:rsvp-te-lsp; pipes): Show RSVP-TE label-switched paths. Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out labels for each LSP.
 - `show rsvp-te tunnel` (read-only; wire ze-show:rsvp-te-tunnel; pipes): Show configured RSVP-TE tunnels and their current state. Returns tunnel name, endpoints, signaling state, and active LSP.
+- `show runtime memory` (read-only; wire ze-show:system-memory; pipes): Show the Go runtime allocator memory stats. Returns allocated bytes, heap in-use, total allocations, GC cycles, and last GC pause duration. Compare over time to spot...
 - `show schema events` (read-only; wire ze-show:schema-events; pipes): List all notification types defined in YANG API modules. Shows which events a plugin can subscribe to.
 - `show schema handlers` (read-only; wire ze-show:schema-handlers; pipes): Show which handler serves each YANG module. Maps module names to their implementing Go handler.
 - `show schema list` (read-only; wire ze-show:schema-list; pipes): List all YANG schemas loaded by the daemon. Shows module name, namespace, and revision for each schema.
@@ -607,8 +613,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show system file-descriptors` (read-only; wire ze-show:system-file-descriptors; pipes; args mode): Show how many file descriptors the daemon has open. Summary mode: totals by type (socket, pipe, file). Detail mode: every fd with its path and type. Linux only (reads...
 - `show system goroutines` (read-only; wire ze-show:system-goroutines; pipes; args mode): Dump goroutine stacks for debugging hangs or deadlocks. Modes: summary (groups by state), blocked (only lock/channel waiters), full (all stacks). Default: summary. Share...
 - `show system kernel-log` (read-only; wire ze-show:system-kernel-log; pipes; args count, level): Show kernel log messages (dmesg-style). Reads from /dev/kmsg. Filter by syslog level (emerg through debug) and limit with count. Without count, you get everything...
-- `show system memory` (read-only; wire ze-show:system-memory; pipes): Show how much memory the daemon is using. Returns allocated bytes, heap in-use, total allocations, GC cycles, and last GC pause duration. Compare over time to spot leaks.
-- `show system memory-map` (read-only; wire ze-show:system-memory-map; pipes): Show the process memory footprint from the kernel's view. Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status. Complements 'show system memory' (Go...
+- `show system memory` (read-only; wire ze-show:system-memory-map; pipes): Show how much memory the daemon is using, from the OS's view. Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status (Linux only). This is what the...
 - `show system ntp` (read-only; wire ze-show:system-ntp; pipes): NTP clock synchronization status
 - `show system ntp peers` (read-only; wire ze-show:system-ntp-peers; pipes): Show NTP peers with offset, RTT, stratum, and reachability. Tells you whether your clock is synced and how far off each NTP server thinks you are.
 - `show system platform` (read-only; wire ze-show:system-platform; pipes): Show what kind of platform the daemon is running on. Reports whether this is gokrazy, systemd, container, plain-linux, or darwin, along with platform-specific...
@@ -620,9 +625,9 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show tcp-check` (read-only; wire ze-show:tcp-check; pipes; args host, port, source, timeout): Test TCP connectivity to a remote host and port. Tries to open a TCP connection and reports success or failure with the connection time. Use 'source ' to bind a specific...
 - `show traceroute` (read-only; wire ze-show:traceroute; pipes; args dest, max-hops, probes, timeout): Trace the network path from this router to a target. Shows each hop with its IP and round-trip time. Dest can be an IP or hostname. Defaults: 30 max hops, 3 probes per...
 - `show traffic control` (read-only; wire ze-show:traffic; pipes): Show traffic control (QoS) configuration per interface. Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name...
+- `show traffic feature` (read-only; wire ze-show:traffic-feature; pipes; args name): Show neutral per-source traffic feature signals: fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto...
+- `show traffic stat` (read-only; wire ze-show:traffic-stat; pipes; args name): Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name ', filters to one interface.
 - `show traffic usage` (read-only; wire ze-show:traffic-usage; pipes; args name): Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear...
-- `show traffic-feature` (read-only; wire ze-show:traffic-feature; pipes; args name): Show neutral per-source traffic feature signals: fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto...
-- `show traffic-stat` (read-only; wire ze-show:traffic-stat; pipes; args name): Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name ', filters to one interface.
 - `show uptime` (read-only; wire ze-show:uptime; pipes): Show how long the daemon has been running. Returns the start time and elapsed uptime. Handy after a maintenance window to confirm the process restarted.
 - `show version` (read-only; wire ze-show:version; pipes): Show the running Ze version and build date. You can verify which release is deployed on this box.
 - `show vpn ipsec peer name` (read-only; wire ze-show:vpn-ipsec-peer; pipes; args name): Show full detail for one IPsec peer. Returns IKE SA state, all child SAs with traffic selectors, and byte counts.
@@ -632,6 +637,9 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show vpp trace clear` (read-only; wire ze-show:vpp-trace-clear; pipes): Discard the captured VPP trace buffer. Clears all packets so you can start a fresh trace. Requires the VPP backend.
 - `show vpp trace show` (read-only; wire ze-show:vpp-trace-show; pipes): Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend.
 - `show vpp trace start` (read-only; wire ze-show:vpp-trace-start; pipes): Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve...
+- `show vrrp` (read-only; wire ze-show:vrrp; pipes): Show every VRRP virtual router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the...
+- `show vrrp interface name` (read-only; wire ze-show:vrrp-interface; pipes; args value): Show the VRRP virtual routers on one parent interface. Pass the interface name: show vrrp interface name .
+- `show vrrp statistics` (read-only; wire ze-show:vrrp-statistics; pipes): Show per-virtual-router counters: advertisements sent and received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor advertisement bursts...
 - `show warnings` (read-only; wire ze-show:warnings; pipes): Show active warnings across all subsystems. Displays any conditions that need your attention (degraded peers, resource limits approaching, etc.). Use 'source ' to filter...
 - `show yang completion` (read-only; wire ze-show:yang-completion; pipes): Show YANG paths available for tab completion. Lists every valid completion point in the command tree.
 - `show yang doc` (read-only; wire ze-show:yang-doc; pipes): Generate command reference docs from YANG schemas. Produces structured documentation with descriptions, arguments, and usage patterns for every registered command.
@@ -703,9 +711,9 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - Neighbors: ARP and neighbor cache. Ze: `show arp`, `show neighbor`. VyOS: `show arp` (operational, verified).
 - Firewall: Firewall ruleset and counters. Ze: `show firewall ruleset`.
 - Firewall: Firewall address, network, and port groups. Ze: `show firewall group`.
-- Firewall: Policy-based routing rules. Ze: `show policy-routes`.
+- Firewall: Policy-based routing rules. Ze: `show policy routes`.
 - VPN and access: IPsec security associations. Ze: `show vpn ipsec sa`, `show vpn ipsec status`.
-- VPN and access: L2TP tunnel and session state. Ze: `show l2tp tunnels`, `show l2tp sessions`, `clear l2tp tunnel teardown`, `clear l2tp session teardown`.
+- VPN and access: L2TP tunnel and session state. Ze: `show l2tp tunnels`, `show l2tp sessions`, `clear l2tp tunnel id`, `clear l2tp session id`.
 - VPN and access: PPPoE subscriber sessions. Ze: `show pppoe sessions`, `show pppoe statistics`.
 - Routing protocols: OSPF overview. Ze: `show ospf`, `show ospf ipv6`.
 - Routing protocols: OSPF neighbor state. Ze: `show ospf neighbor`, `show ospf ipv6 neighbor`.
@@ -718,7 +726,7 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - System: CPU, memory, platform, and host health. Ze: `show system cpu`, `show system memory`, `show system platform`, `show health`, `show doctor`. VyOS: `show hardware cpu` (operational, verified); `show system memory` (operational, verified).
 - System: System time and NTP state. Ze: `show system date`, `show system ntp`, `show system ntp peers`. VyOS: `show date` (operational, verified); `show ntp` (operational, verified).
 - Operations: Logs, warnings, and errors. Ze: `show log recent`, `show warnings`, `show errors`. VyOS: `show log` (operational, verified).
-- Operations: Metrics inventory and values. Ze: `show metrics list`, `show metrics values`, `show metrics-query`.
+- Operations: Metrics inventory and values. Ze: `show metrics list`, `show metrics values`, `show metrics name`.
 - Diagnostics: Ping and traceroute diagnostics. Ze: `show ping`, `show traceroute`, `resolve ping`, `resolve traceroute`. SR OS: `ping` (operational, verified). VyOS: `ping` (operational, verified); `traceroute` (operational, verified).
 - Diagnostics: DNS lookup and cache inspection. Ze: `show dns cache list`, `show dns cache record`, `show dns cache stats`, `show dns lookup`, `resolve dns a`, `resolve dns aaaa`, `resolve dns ptr`. VyOS: `show dns` (operational, verified).
 - Configuration: Show running, candidate, and diffed configuration. Ze: `show config dump`, `show config diff`, `show config history`, `show config fmt`. VyOS: `show configuration` (operational, verified); `compare` (configuration, verified).
@@ -811,6 +819,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Features](https://ze-software.net/features/index.md): 47 features, color-coded by category (web: https://ze-software.net/features/)
 - [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
 - [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.net/performance/)
+- [Terminal Demos](https://ze-software.net/docs/guide/terminal-demonstrations/index.md): Reproducible recordings of Ze workflows (web: https://ze-software.net/docs/guide/terminal-demonstrations/)
 ### Trust
 - [Code Quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
@@ -859,7 +868,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Reference
 
 ### Generated references
-- [CLI Reference](https://ze-software.net/cli/index.md): 380 commands, generated from the live binary (web: https://ze-software.net/cli/)
+- [CLI Reference](https://ze-software.net/cli/index.md): 386 commands, generated from the live binary (web: https://ze-software.net/cli/)
 - [Configuration Reference](https://ze-software.net/config-reference/index.md): 36 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
 - [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
 - [RFC Status](https://ze-software.net/docs/features/rfc-status/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/docs/features/rfc-status/)

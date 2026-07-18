@@ -1,9 +1,9 @@
-# `show policy-routes`
+# `show policy routes`
 
 ## Ze command
 
-- Syntax: `show policy-routes`
-- Registry path: `show policy-routes`
+- Syntax: `show policy routes`
+- Registry path: `show policy routes`
 - Mode: Read-only
 - Wire method: `ze-show:policy-routes`
 - Global pipes: yes

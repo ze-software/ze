@@ -1,9 +1,9 @@
-# `show l2tp-health`
+# `show l2tp health`
 
 ## Ze command
 
-- Syntax: `show l2tp-health`
-- Registry path: `show l2tp-health`
+- Syntax: `show l2tp health`
+- Registry path: `show l2tp health`
 - Mode: Read-only
 - Wire method: `ze-show:l2tp-health`
 - Global pipes: yes

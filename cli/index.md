@@ -1,6 +1,6 @@
 # CLI Reference
 
-380 commands across 42 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+386 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `announce` | Daemon | Announce a route on demand to selected peers. Usage: announce <unicast\|blackhole\|flowspec> <args> [tag <key> <value>] [for <duration>] |
 
-## clear (18)
+## clear (19)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -22,14 +22,15 @@
 | `clear interface name counters` | Daemon | Zero the Rx/Tx counters for one interface. Usage: clear interface name <name> counters. |
 | `clear isis adjacency` | Daemon | Tear down every IS-IS adjacency so neighbors re-form. Usage: clear isis adjacency. Adjacencies re-learn from the next Hello; the circuit is not closed and the configuration is unchanged. |
 | `clear isis counters` | Daemon | Reset IS-IS observational counters and the SPF log. Usage: clear isis counters. Monotonic Prometheus series are not reset; the SPF-run history is cleared. |
-| `clear l2tp session teardown` | Daemon | Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID. |
-| `clear l2tp session teardown-all` | Daemon | Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care. |
-| `clear l2tp tunnel teardown` | Daemon | Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID. |
-| `clear l2tp tunnel teardown-all` | Daemon | Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance. |
+| `clear l2tp session all` | Daemon | Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care. |
+| `clear l2tp session id` | Daemon | Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>]. |
+| `clear l2tp tunnel all` | Daemon | Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance. |
+| `clear l2tp tunnel id` | Daemon | Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID: clear l2tp tunnel id <id>. |
 | `clear ospf counters` | Daemon | Reset the OSPF SPF-run history. Usage: clear ospf counters. Monotonic Prometheus series are not reset; the SPF-run log is cleared. |
 | `clear ospf neighbor` | Daemon | Tear down every OSPF adjacency so neighbors re-form. Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello. |
 | `clear ospf process` | Daemon | Full OSPF reset: tear down every adjacency and re-run SPF. Usage: clear ospf process. Adjacencies re-form from the next Hello; the configuration is unchanged. |
 | `clear vpn ipsec sa` | Daemon | Tear down IKE Security Associations. Without arguments, terminates all SAs. Use 'peer <name>' to clear just one peer. The tunnel will renegotiate automatically if the config is still active. |
+| `clear vrrp statistics` | Daemon | Reset every VRRP virtual router's counters to zero. Protocol state is untouched: clearing counters never triggers a failover. |
 
 ## create (9)
 
@@ -101,7 +102,7 @@
 | `monitor ping` | Read-only | Continuous ping with live loss and RTT statistics. Pings <target> until you stop it. Adjust interval and timeout as needed. Shows running min/avg/max RTT and packet loss. |
 | `monitor system netlink` | Read-only | Watch kernel networking changes in real time. Streams netlink events: route adds/deletes, link state changes, address assignments. Filter with route, link, address, or all. |
 | `monitor traceroute` | Read-only | Live mtr-style traceroute that updates continuously. Shows each hop with running RTT statistics. Keeps probing so you can watch path changes and latency shifts over time. |
-| `monitor traffic-stat` | Read-only | Start streaming traffic monitor (per-second snapshots). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
+| `monitor traffic stat` | Read-only | Start streaming traffic monitor (per-second snapshots). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
 | `monitor vpn ipsec` | Read-only | Watch IPsec SA events as they happen. Streams sa-up, sa-down, child-up, child-down, and child-rekey events. Useful for debugging tunnel flaps or rekey issues. |
 
 ## peer (2)
@@ -159,7 +160,7 @@
 | `request peer resume` | Daemon | Resume reading from a previously paused peer. Usage: request peer <selector> resume. |
 | `request peer teardown` | Daemon | Tear down a peer session. Usage: request peer <selector> teardown [cease-subcode]. |
 
-## request (other) (14)
+## request (other) (15)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -172,6 +173,7 @@
 | `request l2tp outgoing-call remote called` | Daemon | Place an LNS-side outgoing call (RFC 2661 S10.4). Usage: request l2tp outgoing-call remote <name> called <number>. Dials the named remote (which must have outgoing-calls enabled), sends OCRQ, and blocks until the call establishes or fails. On failure the cause and RFC 2661 Result Code are reported (auth reject, tie-breaker loss, peer CDN, or timeout). |
 | `request log level` | Daemon | Change a subsystem's log level without restarting. Usage: request log level <logger> <level>. Takes effect immediately. Set to debug when troubleshooting, then back to info when you are done. |
 | `request ospf graceful-restart` | Daemon | Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1). Usage: request ospf graceful-restart. The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured. |
+| `request quiesce` | Daemon | Block until every subsystem has drained pending async work, then reply. A test/operator barrier that replaces a fixed sleep. |
 | `request reboot` | Daemon | Gracefully shutdown then reboot the system. |
 | `request reload` | Daemon | Reload the configuration without restarting. |
 | `request shutdown` | Daemon | Gracefully shutdown: drain connections, close peers, exit. |
@@ -213,12 +215,13 @@
 | `show bfd session address` | Read-only | Show full detail for one BFD session. Pass the peer address. Returns local/remote discriminators, negotiated timers, detection time, and packet counters. |
 | `show bfd sessions` | Read-only | List all active BFD sessions. One line per session: peer address, state, negotiated tx/rx intervals, and detect multiplier. |
 
-## show bgp (17)
+## show bgp (18)
 
 | Command | Mode | Description |
 | --- | --- | --- |
 | `show bgp decode` | Read-only | Decode a hex-encoded BGP message into readable JSON. Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and withdrawn prefixes. Handy for reading pcap captures or debugging wire issues. Also available in the web UI under tools. |
 | `show bgp encode` | Read-only | Turn a route announcement into wire-format hex. Takes a route in API syntax and returns the BGP UPDATE as a hex string. Useful for building test payloads, feeding to ze-test, or verifying that your announcement encodes correctly. |
+| `show bgp health` | Read-only | Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer *' when you just need a status overview. |
 | `show bgp irr` | Read-only | Show IRR filter status per ASN. Lists each enrolled ASN with its resolved AS-SET, prefix counts, last refresh time, and error status. Use this to confirm that IRR prefix-lists are loaded and current. |
 | `show bgp irr check` | Read-only | Check if a prefix is accepted by the IRR filter. Usage: show bgp irr check <peer> <prefix>. Reports whether the prefix would be accepted or rejected, and which entry matches. |
 | `show bgp irr prefix` | Read-only | Show IRR-resolved prefixes for a peer. Usage: show bgp irr prefix <peer>. Lists all IPv4 and IPv6 prefixes in the IRR-resolved prefix-list for the given peer address. |
@@ -323,7 +326,7 @@
 | `show isis route ipv6` | Read-only | Show IS-IS-computed IPv6 routes (RFC 5308). Lists each IPv6 prefix the SPF installed with its metric, level, and next-hops (link-local address and outgoing interface). |
 | `show isis spf-log` | Read-only | Show recent IS-IS SPF runs. Returns the most recent SPF runs with their timestamp, level, trigger, duration, and node count. |
 
-## show l2tp (15)
+## show l2tp (16)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -331,17 +334,27 @@
 | `show l2tp config` | Read-only | Show the resolved L2TP configuration. Returns the effective config after defaults and overrides. Confirms what the daemon is actually using. |
 | `show l2tp cqm` | Read-only | Show subscriber line quality (CQM latency buckets). Pass a login name for one subscriber or 'summary' for an overview. Helps diagnose poor subscriber experience. |
 | `show l2tp echo` | Read-only | Show LCP echo health for a subscriber session. Returns echo request/reply counters and round-trip times. Rising loss or high RTT indicates a degraded line. |
+| `show l2tp health` | Read-only | Find your worst L2TP sessions at a glance. Sorts sessions by echo loss ratio (worst first). Shows subscriber login, session state, echo count, average RTT, and CQM bucket count. Reports how many sessions are degraded. |
 | `show l2tp listeners` | Read-only | Show which UDP sockets are listening for L2TP. Lists each bound address, port, and the number of tunnels on it. |
 | `show l2tp observer` | Read-only | Show recent events for a session (debug aid). Returns the event ring buffer for one session ID or 'all'. Useful for understanding why a session failed to establish. |
 | `show l2tp reliable` | Read-only | Show the reliable transport window for a tunnel. Returns send/receive sequence numbers, window size, and retransmit queue depth. Check here when tunnel control messages seem stuck. |
+| `show l2tp session history` | Read-only | Show state transitions for a session over time. Timestamped FSM entries for session establishment. Use this when a subscriber's session fails to come up. |
 | `show l2tp session id` | Read-only | Show full detail for one L2TP session. Pass the local session ID. Returns PPP state, assigned addresses, negotiated LCP/NCP options, and traffic counters. |
-| `show l2tp session-history` | Read-only | Show state transitions for a session over time. Timestamped FSM entries for session establishment. Use this when a subscriber's session fails to come up. |
-| `show l2tp session-traffic` | Read-only | Show traffic counters for a subscriber's PPP interface. Returns byte and packet counts, error counters, and current rates. Compare with CQM data to get the full picture of subscriber health. |
+| `show l2tp session traffic` | Read-only | Show traffic counters for a subscriber's PPP interface. Returns byte and packet counts, error counters, and current rates. Compare with CQM data to get the full picture of subscriber health. |
 | `show l2tp sessions` | Read-only | List all active L2TP sessions. One line per session: local/remote ID, parent tunnel, subscriber login, and uptime. |
 | `show l2tp statistics` | Read-only | Show aggregate L2TP protocol counters. Tunnels and sessions established, control messages sent/received, retransmits, and errors. Your first stop for L2TP health. |
+| `show l2tp tunnel history` | Read-only | Show state transitions for a tunnel over time. Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose tunnel establishment failures. |
 | `show l2tp tunnel id` | Read-only | Show full detail for one L2TP tunnel. Pass the local tunnel ID. Returns control channel state, peer endpoint, hello interval, and all assigned sessions. |
-| `show l2tp tunnel-history` | Read-only | Show state transitions for a tunnel over time. Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose tunnel establishment failures. |
 | `show l2tp tunnels` | Read-only | List all active L2TP tunnels. One line per tunnel: local/remote ID, peer address, session count, and uptime. |
+
+## show metrics (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `show metrics list` | Read-only | List all registered metric names (no values). Useful for discovering what metrics exist before querying them. |
+| `show metrics name` | Read-only | Show one Prometheus metric by name. Usage: show metrics name <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump. |
+| `show metrics pool` | Read-only | Show attribute pool memory usage and dedup efficiency. Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate to gauge how much memory pooling is saving you. |
+| `show metrics values` | Read-only | Dump all metrics in Prometheus text format. Outputs every registered metric with labels and values. Suitable for feeding into Prometheus, Grafana, or curl-based monitoring. |
 
 ## show ospf (49)
 
@@ -397,6 +410,15 @@
 | `show ospf te-database` | Read-only | Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392): router addresses plus TE links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR. |
 | `show ospf virtual-links` | Read-only | Show OSPF virtual links (RFC 2328 section 15). Lists each configured virtual link with its transit area, remote router-id, adjacency state, computed cost, and transit next hop. |
 
+## show policy (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `show policy chain peer` | Read-only | Show the import/export filter chain applied to a peer. Usage: show policy chain peer <selector> [import\|export]. The selector (IP, name, as<N>) and the optional direction are parsed by the handler. Shows the effective chain after group inheritance is resolved. Without a direction keyword, shows both import and export. |
+| `show policy list` | Read-only | List all available filter types and named instances. Shows each filter type and its implementing plugin. Check here when building a new policy chain to see what filters you can use. |
+| `show policy routes` | Read-only | Show policy-based routing rules. Lists PBR rules with match criteria and routing actions. |
+| `show policy test peer` | Read-only | Test what your policy does to a specific UPDATE. Feed a hex-encoded BGP UPDATE through a peer's filter chain and see the accept/reject result plus attribute modifications at each stage. Read-only: no routes are actually forwarded. Great for validating policy changes before you commit. Usage: show policy test peer <selector> import\|export [filter <name>] update <hex> [source-asn4 true\|false]. The selector and the import/export/filter/update/source-asn4 tokens are parsed by the handler so the peer selector can be a free-form name or address. |
+
 ## show pppoe (5)
 
 | Command | Mode | Description |
@@ -426,7 +448,7 @@
 | `show schema methods` | Read-only | List all RPC methods defined in YANG API modules. Useful for plugin developers to discover available operations. |
 | `show schema protocol` | Read-only | Show the wire protocol version and format details. Useful for checking compatibility between Ze versions. |
 
-## show system (16)
+## show system (15)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -436,8 +458,7 @@
 | `show system file-descriptors` | Read-only | Show how many file descriptors the daemon has open. Summary mode: totals by type (socket, pipe, file). Detail mode: every fd with its path and type. Linux only (reads /proc/self/fd). Check this when you suspect fd exhaustion. |
 | `show system goroutines` | Read-only | Dump goroutine stacks for debugging hangs or deadlocks. Modes: summary (groups by state), blocked (only lock/channel waiters), full (all stacks). Default: summary. Share the output with support when the daemon stops responding. |
 | `show system kernel-log` | Read-only | Show kernel log messages (dmesg-style). Reads from /dev/kmsg. Filter by syslog level (emerg through debug) and limit with count. Without count, you get everything available. Linux only. Useful for spotting NIC errors or OOM events. |
-| `show system memory` | Read-only | Show how much memory the daemon is using. Returns allocated bytes, heap in-use, total allocations, GC cycles, and last GC pause duration. Compare over time to spot leaks. |
-| `show system memory-map` | Read-only | Show the process memory footprint from the kernel's view. Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status. Complements 'show system memory' (Go runtime) with the OS-level picture. |
+| `show system memory` | Read-only | Show how much memory the daemon is using, from the OS's view. Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status (Linux only). This is what the operating system reports the process is using. For the Go runtime allocator view (heap, GC), use 'show runtime memory'. |
 | `show system ntp` | Read-only | NTP clock synchronization status |
 | `show system ntp peers` | Read-only | Show NTP peers with offset, RTT, stratum, and reachability. Tells you whether your clock is synced and how far off each NTP server thinks you are. |
 | `show system platform` | Read-only | Show what kind of platform the daemon is running on. Reports whether this is gokrazy, systemd, container, plain-linux, or darwin, along with platform-specific capabilities. |
@@ -446,6 +467,15 @@
 | `show system subsystem list` | Read-only | List every registered subsystem and whether it is running. Shows you which components (bgp, dns, web, l2tp, etc.) are active, stopped, or failed. |
 | `show system update` | Read-only | Check if a firmware update is available. Shows the running version, latest available version, and when the last check ran. Use 'update system firmware check' to trigger an immediate re-check. |
 | `show system update history` | Read-only | Show recent firmware update activity. Lists the last 20 update events: checks, downloads, installs, and rollbacks with timestamps and outcomes. |
+
+## show traffic (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `show traffic control` | Read-only | Show traffic control (QoS) configuration per interface. Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name, shows the full qdisc and class breakdown. Use this to verify your shaping is applied. |
+| `show traffic feature` | Read-only | Show neutral per-source traffic feature signals: fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing. Without arguments, shows the top source entities. With 'name <address>', filters to one source. |
+| `show traffic stat` | Read-only | Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
+| `show traffic usage` | Read-only | Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface. |
 
 ## show vpp (4)
 
@@ -456,7 +486,7 @@
 | `show vpp trace show` | Read-only | Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend. |
 | `show vpp trace start` | Read-only | Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend. |
 
-## show (other) (77)
+## show (other) (68)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -467,7 +497,6 @@
 | `show arp` | Read-only | Show the IPv4 ARP table (shortcut for 'show neighbor ipv4'). Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only; use 'show neighbor' for both families or 'show neighbor ipv6' for the IPv6 ND table. |
 | `show as112` | Read-only | AS112 node status: enabled, address-family, hostname/ facility/location, allow-from count, served zone count, and the current SOA serial. |
 | `show audit` | Read-only | Show who did what and when on this box. Returns audit log entries with timestamps, actors, and actions. Filters (all optional, combinable): action <type>, actor <name>, surface <name> (cli, web, api), since/until <RFC3339>, count <N>. Actions include config-commit, login, peer-teardown, and more. |
-| `show bgp-health` | Read-only | Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer *' when you just need a status overview. |
 | `show cache` | Read-only | List cached BGP UPDATE message IDs with their retain and consumer state. |
 | `show capture` | Read-only | Show captured control-plane messages. Returns protocol messages you previously enabled capture for. Without a protocol keyword, shows all protocols. Filters: tunnel-id (L2TP), peer (remote address), count (limit entries). Use this to debug session establishment issues. |
 | `show capture interface` | Read-only | Capture live packets on an interface (like tcpdump). Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with count or duration. Output as pcap (for Wireshark) or text. Snap-len controls how many bytes per packet are captured. |
@@ -489,34 +518,27 @@
 | `show event list` | Read-only | List every event type you can subscribe to. Shows event name, category, and payload structure. Use this to discover what events are available before subscribing. |
 | `show event namespaces` | Read-only | List all event namespaces and how many events each has logged. Tells you which subsystems are generating events and how active they are. |
 | `show event recent` | Read-only | Show recent events, newest first. Each event includes timestamp, namespace, and type. Filter with namespace <name> to focus on one area, count <N> to limit output. Useful for reconstructing what happened before an incident. |
-| `show flow-export` | Read-only | Show flow export (NetFlow/IPFIX) collector status. Without arguments, lists all configured collectors. With 'name <name>', shows details for that collector including protocol stats and errors. Returns not-configured when no exporter is active. |
-| `show flow-recent` | Read-only | Show recent conntrack flow records from the bounded recent-flow ring. Without arguments, returns every ring record (oldest to newest, up to the configured recent-flow-ring capacity). With 'dst <prefix>', filters to flows whose destination is inside that prefix. The ring is fed only while conntrack export is enabled; the filter is by destination prefix (conntrack is host-global and carries no ingress interface). |
+| `show flow export` | Read-only | Show flow export (NetFlow/IPFIX) collector status. Without arguments, lists all configured collectors. With 'name <name>', shows details for that collector including protocol stats and errors. Returns not-configured when no exporter is active. |
+| `show flow recent` | Read-only | Show recent conntrack flow records from the bounded recent-flow ring. Without arguments, returns every ring record (oldest to newest, up to the configured recent-flow-ring capacity). With 'dst <prefix>', filters to flows whose destination is inside that prefix. The ring is fed only while conntrack export is enabled; the filter is by destination prefix (conntrack is host-global and carries no ingress interface). |
 | `show geodns` | Read-only | GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones, nameserver/host-set/source counts, and the current SOA serial. |
 | `show gnmi` | Read-only | Show whether the gNMI server is running and how it is configured. Returns listen address, TLS details, authentication mode, and the number of active streaming subscribers. |
 | `show health` | Read-only | Is this box healthy? One command to find out. Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.) plus an overall status. Each component reports healthy, degraded, or unhealthy with a reason. Start here when troubleshooting. |
-| `show l2tp-health` | Read-only | Find your worst L2TP sessions at a glance. Sorts sessions by echo loss ratio (worst first). Shows subscriber login, session state, echo count, average RTT, and CQM bucket count. Reports how many sessions are degraded. |
 | `show ldp binding` | Read-only | Show LDP FEC-to-label bindings. Lists local and remote label bindings for each FEC (prefix). Use this to verify label distribution is working. |
 | `show ldp neighbor` | Read-only | Show LDP neighbors and their session state. Returns peer address, transport address, session state, and hold time for each LDP neighbor. |
 | `show log levels` | Read-only | Show what log level each subsystem is using. Lists every registered logger with its current level. Use 'request log level' to change a level at runtime without restarting. |
 | `show log recent` | Read-only | Show recent log entries from the in-memory ring. Filters (all optional): level <lvl>, component <name>, count <N>. Newest entries first. Useful when you cannot access the log file directly. |
-| `show metrics list` | Read-only | List all registered metric names (no values). Useful for discovering what metrics exist before querying them. |
-| `show metrics pool` | Read-only | Show attribute pool memory usage and dedup efficiency. Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate to gauge how much memory pooling is saving you. |
-| `show metrics values` | Read-only | Dump all metrics in Prometheus text format. Outputs every registered metric with labels and values. Suitable for feeding into Prometheus, Grafana, or curl-based monitoring. |
-| `show metrics-query` | Read-only | Query a specific Prometheus metric by name. Usage: show metrics-query <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump. |
 | `show mpls forwarding` | Read-only | Show MPLS forwarding entries installed in the kernel. Each entry shows the incoming label, swap/push/pop operation, and outgoing next-hop. Pass 'limit N' to cap large tables. Linux only. |
 | `show neighbor` | Read-only | Show the ARP and neighbor discovery table. Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states. Pass ipv4 or ipv6 to filter by address family; no argument shows both. For the IPv4-only view, 'show arp' is a shortcut. |
 | `show ping` | Read-only | Ping a target from the router itself. Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from this box, not from your workstation. |
 | `show pki certificate name` | Read-only | Inspect a specific certificate in detail. Usage: show pki certificate name <name> [pem \| bundle pem \| fingerprint [sha256\|sha384\|sha512]]. Use 'pem' to export for another system, 'fingerprint' to verify identity. |
 | `show pki certificates` | Read-only | List all loaded certificates with expiry dates. Shows name, type (CA or device), subject, issuer, expiry, and validity status. Check here to find certificates approaching expiration. |
-| `show policy chain peer` | Read-only | Show the import/export filter chain applied to a peer. Usage: show policy chain peer <selector> [import\|export]. The selector (IP, name, as<N>) and the optional direction are parsed by the handler. Shows the effective chain after group inheritance is resolved. Without a direction keyword, shows both import and export. |
-| `show policy list` | Read-only | List all available filter types and named instances. Shows each filter type and its implementing plugin. Check here when building a new policy chain to see what filters you can use. |
-| `show policy test peer` | Read-only | Test what your policy does to a specific UPDATE. Feed a hex-encoded BGP UPDATE through a peer's filter chain and see the accept/reject result plus attribute modifications at each stage. Read-only: no routes are actually forwarded. Great for validating policy changes before you commit. Usage: show policy test peer <selector> import\|export [filter <name>] update <hex> [source-asn4 true\|false]. The selector and the import/export/filter/update/source-asn4 tokens are parsed by the handler so the peer selector can be a free-form name or address. |
-| `show policy-routes` | Read-only | Show policy-based routing rules. Lists PBR rules with match criteria and routing actions. |
 | `show probe-round` | Read-only | Run a parallel traceroute probe round to a target. Sends all probes concurrently for faster results than sequential traceroute. Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed. |
+| `show reload-status` | Read-only | Show how many config reloads the daemon has processed. Returns a generation counter, the outcome of the most recent reload (applied or failed), and when it finished. The counter advances on every processed reload, including one that rejected or changed nothing, so you can confirm a SIGHUP was acted on even when it deliberately left the running config alone. |
 | `show route` | Read-only | Show the kernel routing table. Lists installed routes with next-hop, interface, protocol, and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap the output. |
 | `show route lookup` | Read-only | Look up which route the kernel would use for a given IP. Performs a longest-prefix-match and returns the matching route with gateway, interface, protocol, and metric. Usage: show route lookup <ip>. |
 | `show rr peers` | Read-only | Show route reflector client peers. Lists each RR client with session state and reflected route counts. |
 | `show rr status` | Read-only | Show whether the route reflector is active. Returns cluster ID, running state, and summary statistics (reflected routes, client count). |
+| `show runtime memory` | Read-only | Show the Go runtime allocator memory stats. Returns allocated bytes, heap in-use, total allocations, GC cycles, and last GC pause duration. Compare over time to spot leaks. For the OS-level process memory (RSS/VSZ) use 'show system memory'. |
 | `show static` | Read-only | Show static routes defined in the configuration. Lists each static route with its prefix, next-hop, and interface. |
 | `show status` | Read-only | Show process status, uptime, and resource usage. |
 | `show storage smart` | Read-only | Show disk health via SMART data. Returns health status, temperature, power-on hours, and self-test schedule for each block device. Replace drives that report failing health before they cause data loss. |
@@ -524,15 +546,14 @@
 | `show subscriber id detail` | Read-only | Show everything about one subscriber session. Pass the session ID. Returns access type, assigned addresses, authentication state, uptime, and traffic counters. |
 | `show tcp-check` | Read-only | Test TCP connectivity to a remote host and port. Tries to open a TCP connection and reports success or failure with the connection time. Use 'source <IP>' to bind a specific local address. Quick way to verify a peer's BGP port is reachable. |
 | `show traceroute` | Read-only | Trace the network path from this router to a target. Shows each hop with its IP and round-trip time. Dest can be an IP or hostname. Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT measurements. |
-| `show traffic control` | Read-only | Show traffic control (QoS) configuration per interface. Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name, shows the full qdisc and class breakdown. Use this to verify your shaping is applied. |
-| `show traffic usage` | Read-only | Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface. |
-| `show traffic-feature` | Read-only | Show neutral per-source traffic feature signals: fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing. Without arguments, shows the top source entities. With 'name <address>', filters to one source. |
-| `show traffic-stat` | Read-only | Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
 | `show uptime` | Read-only | Show how long the daemon has been running. Returns the start time and elapsed uptime. Handy after a maintenance window to confirm the process restarted. |
 | `show version` | Read-only | Show the running Ze version and build date. You can verify which release is deployed on this box. |
 | `show vpn ipsec peer name` | Read-only | Show full detail for one IPsec peer. Returns IKE SA state, all child SAs with traffic selectors, and byte counts. Usage: show vpn ipsec peer name <name>. |
 | `show vpn ipsec sa` | Read-only | Show all IKE and Child Security Associations. Lists every SA with peer, negotiated algorithms, byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child SA traffic selectors. Your main IPsec status command. |
 | `show vpn ipsec status` | Read-only | Quick IPsec health check. Reports whether the IKE engine is running, how many peers are configured, and how many IKE SAs are Established. |
+| `show vrrp` | Read-only | Show every VRRP virtual router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the macvlan device that carries the virtual MAC. |
+| `show vrrp interface name` | Read-only | Show the VRRP virtual routers on one parent interface. Pass the interface name: show vrrp interface name <interface>. |
+| `show vrrp statistics` | Read-only | Show per-virtual-router counters: advertisements sent and received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor advertisement bursts, receive-validation errors by reason, and the derived skew and master-down timers in microseconds (a VRRPv3 skew is sub-millisecond). |
 | `show warnings` | Read-only | Show active warnings across all subsystems. Displays any conditions that need your attention (degraded peers, resource limits approaching, etc.). Use 'source <name>' to filter to a single subsystem. |
 | `show yang completion` | Read-only | Show YANG paths available for tab completion. Lists every valid completion point in the command tree. |
 | `show yang doc` | Read-only | Generate command reference docs from YANG schemas. Produces structured documentation with descriptions, arguments, and usage patterns for every registered command. |

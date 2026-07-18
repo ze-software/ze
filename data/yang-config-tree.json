@@ -418,6 +418,13 @@
                 "source": "config"
               },
               {
+                "description": "Enable Loc-RIB monitoring (RFC 9069, PeerType=3): stream local RIB best-path changes to collectors as Route Monitoring messages with a Loc-RIB peer header",
+                "kind": "leaf",
+                "name": "loc-rib",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "Enable Route Mirroring (RFC 7854 S4.7): stream verbatim copies of all BGP messages to collectors",
                 "kind": "leaf",
                 "name": "route-mirroring",
@@ -6305,6 +6312,13 @@
         "type": "string"
       },
       {
+        "description": "Remove ze-owned nftables tables from the kernel when the\nze process stops in an orderly way (SIGTERM), default\ntrue, so a stopped daemon leaves no rules behind. Set\nfalse to use ze as a one-shot provisioner: program the\nrules, let the process exit, and leave them running in\nthe kernel (like nft -f). Keys off how the process\nexits; unrelated to BGP graceful restart. A crash never\nruns the shutdown path, so tables always persist across\na crash regardless of this setting. Governs every ze\ntable producer (firewall, control-plane-protection,\npolicy-routes, ddos-local), which share one backend.",
+        "kind": "leaf",
+        "name": "flush-on-shutdown",
+        "source": "config",
+        "type": "boolean"
+      },
+      {
         "children": [
           {
             "description": "Control ICMP echo (ping) responses.\nInverted sysctl: enable sets icmp_echo_ignore_all to 0.",
@@ -7052,7 +7066,7 @@
             "type": "boolean"
           },
           {
-            "description": "Capacity (in flow records) of the recent-flow ring queried by 'show flow-recent'. The ring feeds on-box DDoS characterization; larger values retain more history at higher memory cost. Only allocated when conntrack export is enabled.",
+            "description": "Capacity (in flow records) of the recent-flow ring queried by 'show flow recent'. The ring feeds on-box DDoS characterization; larger values retain more history at higher memory cost. Only allocated when conntrack export is enabled.",
             "kind": "leaf",
             "name": "recent-flow-ring",
             "source": "config",
@@ -7407,6 +7421,78 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds. The native range\nspans both versions; the plugin verifier narrows it per\nversion. v3: multiples of 10 ms within 10..40950 (wire =\ncentiseconds, RFC 9568 erratum 8301). v2: whole seconds\nwithin 1000..255000 (wire = seconds).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority\nBackup takes over from a live lower-priority Active router.",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).\nArmed on the first losing advert while a higher-priority\nlocal router waits; never delays dead-master failover.",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned\nautomatically; it is never operator-set.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Protocol version. Present only for IPv4 groups; IPv6 is\nalways VRRPv3 (RFC 9568).",
+                            "kind": "leaf",
+                            "name": "version",
+                            "source": "config",
+                            "type": "enumeration"
+                          },
+                          {
+                            "description": "Virtual IPv4 addresses, encoded on the wire in\nconfiguration order (RFC 9568 Section 5.2.9).\nAn address equal to a real address on this unit\nmakes this router the owner (priority forced to\n255, accept-mode forced true).",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv4-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv4 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.",
@@ -7487,6 +7573,71 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds, multiples of 10 ms\n(wire = centiseconds, RFC 9568 erratum 8301).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2).",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned automatically.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Virtual IPv6 addresses, encoded on the wire in\nconfiguration order. The FIRST address MUST be an IPv6\nlink-local (fe80::/10) address: it is the advertisement\nsource identity (RFC 9568 Section 5.2.9, erratum 8300),\nenforced by the plugin verifier.",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv6 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.",
@@ -7840,6 +7991,78 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds. The native range\nspans both versions; the plugin verifier narrows it per\nversion. v3: multiples of 10 ms within 10..40950 (wire =\ncentiseconds, RFC 9568 erratum 8301). v2: whole seconds\nwithin 1000..255000 (wire = seconds).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority\nBackup takes over from a live lower-priority Active router.",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).\nArmed on the first losing advert while a higher-priority\nlocal router waits; never delays dead-master failover.",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned\nautomatically; it is never operator-set.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Protocol version. Present only for IPv4 groups; IPv6 is\nalways VRRPv3 (RFC 9568).",
+                            "kind": "leaf",
+                            "name": "version",
+                            "source": "config",
+                            "type": "enumeration"
+                          },
+                          {
+                            "description": "Virtual IPv4 addresses, encoded on the wire in\nconfiguration order (RFC 9568 Section 5.2.9).\nAn address equal to a real address on this unit\nmakes this router the owner (priority forced to\n255, accept-mode forced true).",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv4-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv4 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.",
@@ -7920,6 +8143,71 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds, multiples of 10 ms\n(wire = centiseconds, RFC 9568 erratum 8301).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2).",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned automatically.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Virtual IPv6 addresses, encoded on the wire in\nconfiguration order. The FIRST address MUST be an IPv6\nlink-local (fe80::/10) address: it is the advertisement\nsource identity (RFC 9568 Section 5.2.9, erratum 8300),\nenforced by the plugin verifier.",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv6 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.",
@@ -8266,6 +8554,78 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds. The native range\nspans both versions; the plugin verifier narrows it per\nversion. v3: multiples of 10 ms within 10..40950 (wire =\ncentiseconds, RFC 9568 erratum 8301). v2: whole seconds\nwithin 1000..255000 (wire = seconds).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority\nBackup takes over from a live lower-priority Active router.",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).\nArmed on the first losing advert while a higher-priority\nlocal router waits; never delays dead-master failover.",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned\nautomatically; it is never operator-set.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Protocol version. Present only for IPv4 groups; IPv6 is\nalways VRRPv3 (RFC 9568).",
+                            "kind": "leaf",
+                            "name": "version",
+                            "source": "config",
+                            "type": "enumeration"
+                          },
+                          {
+                            "description": "Virtual IPv4 addresses, encoded on the wire in\nconfiguration order (RFC 9568 Section 5.2.9).\nAn address equal to a real address on this unit\nmakes this router the owner (priority forced to\n255, accept-mode forced true).",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv4-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv4 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.",
@@ -8346,6 +8706,71 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds, multiples of 10 ms\n(wire = centiseconds, RFC 9568 erratum 8301).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2).",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned automatically.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Virtual IPv6 addresses, encoded on the wire in\nconfiguration order. The FIRST address MUST be an IPv6\nlink-local (fe80::/10) address: it is the advertisement\nsource identity (RFC 9568 Section 5.2.9, erratum 8300),\nenforced by the plugin verifier.",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv6 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.",
@@ -10083,6 +10508,78 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds. The native range\nspans both versions; the plugin verifier narrows it per\nversion. v3: multiples of 10 ms within 10..40950 (wire =\ncentiseconds, RFC 9568 erratum 8301). v2: whole seconds\nwithin 1000..255000 (wire = seconds).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority\nBackup takes over from a live lower-priority Active router.",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).\nArmed on the first losing advert while a higher-priority\nlocal router waits; never delays dead-master failover.",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned\nautomatically; it is never operator-set.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Protocol version. Present only for IPv4 groups; IPv6 is\nalways VRRPv3 (RFC 9568).",
+                            "kind": "leaf",
+                            "name": "version",
+                            "source": "config",
+                            "type": "enumeration"
+                          },
+                          {
+                            "description": "Virtual IPv4 addresses, encoded on the wire in\nconfiguration order (RFC 9568 Section 5.2.9).\nAn address equal to a real address on this unit\nmakes this router the owner (priority forced to\n255, accept-mode forced true).",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv4-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv4 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.",
@@ -10163,6 +10660,71 @@
                     "name": "rpf-check",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.",
+                            "kind": "leaf",
+                            "name": "accept-mode",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Advertisement interval in milliseconds, multiples of 10 ms\n(wire = centiseconds, RFC 9568 erratum 8301).",
+                            "kind": "leaf",
+                            "name": "advertise-interval-milliseconds",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Preempt_Mode (RFC 9568 Section 6.4.2).",
+                            "kind": "leaf",
+                            "name": "preempt",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Preemption hold-time (Junos semantics; not in RFC 9568).",
+                            "kind": "leaf",
+                            "name": "preempt-delay-seconds",
+                            "source": "config",
+                            "type": "uint16"
+                          },
+                          {
+                            "description": "Election priority (RFC 9568 Section 5.2.4). 255 is\nreserved for the address owner and assigned automatically.",
+                            "kind": "leaf",
+                            "name": "priority",
+                            "source": "config",
+                            "type": "uint8"
+                          },
+                          {
+                            "description": "Virtual IPv6 addresses, encoded on the wire in\nconfiguration order. The FIRST address MUST be an IPv6\nlink-local (fe80::/10) address: it is the advertisement\nsource identity (RFC 9568 Section 5.2.9, erratum 8300),\nenforced by the plugin verifier.",
+                            "kind": "leaf-list",
+                            "name": "virtual-address",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          },
+                          {
+                            "description": "Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per\ninterface unit and address family; the IPv4 and IPv6 VRID\nspaces are independent.",
+                            "kind": "leaf",
+                            "name": "vrid",
+                            "source": "config",
+                            "type": "uint8"
+                          }
+                        ],
+                        "description": "One virtual router, identified by an operator-assigned name.\nThe name is a config label only and is never sent on the wire;\nthe VRID leaf carries the protocol identity.",
+                        "kind": "list[name]",
+                        "name": "group",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VRRP virtual routers hosted on this IPv6 unit.",
+                    "kind": "container",
+                    "name": "vrrp",
+                    "source": "config"
                   }
                 ],
                 "description": "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.",
@@ -16537,7 +17099,7 @@
           {
             "children": [
               {
-                "description": "Ze authorization profile name(s) assigned when the\nAccess-Accept carries no profile-attribute",
+                "description": "Ze authorization profile name(s) assigned when the\nAccess-Accept carries no profile-attribute.\n\nOptional: leave it unset when the RADIUS server always\nnames a profile via profile-attribute. When the server\ndoes not, and no default is set here, the login names no\nprofile and is denied -- ze never authorizes a user it\ncannot attach a profile to.",
                 "kind": "leaf-list",
                 "name": "default-profile",
                 "source": "config",
@@ -16667,7 +17229,7 @@
           {
             "children": [
               {
-                "description": "Ze authorization profile name(s)",
+                "description": "Ze authorization profile name(s). At least one is\nrequired: a level mapped to no profiles would\nauthenticate the user while granting nothing, and\nauthorization reads an empty profile set as 'no\nopinion' rather than 'deny'. To deny a privilege\nlevel, leave it out of the mapping entirely.",
                 "kind": "leaf-list",
                 "name": "profile",
                 "source": "config",

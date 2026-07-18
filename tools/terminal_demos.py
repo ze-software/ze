@@ -65,10 +65,10 @@ _assert_generated_assets_untracked()
 def _load_catalog():
     source = _load_json(SOURCE_MANIFEST)
     generated = _load_json(ARTIFACT_MANIFEST)
-    if source.get("schema") != 1:
-        raise ValueError("terminal demo source manifest must use schema 1")
-    if generated.get("schema") != 1:
-        raise ValueError("terminal demo artifact manifest must use schema 1")
+    if source.get("schema") != 2:
+        raise ValueError("Ze demo source manifest must use schema 2")
+    if generated.get("schema") != 2:
+        raise ValueError("Ze demo artifact manifest must use schema 2")
 
     source_demos = source.get("demos")
     generated_demos = generated.get("demos")
@@ -90,7 +90,7 @@ def _load_catalog():
         demo_id = demo.get("id")
         if not isinstance(demo_id, str) or not demo_id:
             raise ValueError("terminal demo source entry is missing an id")
-        for field in ("title", "description", "page", "platform", "duration"):
+        for field in ("title", "description", "page", "platform", "duration", "kind", "engine"):
             if not isinstance(demo.get(field), str) or not demo[field]:
                 raise ValueError(
                     "terminal demo %s source field %s is required" % (demo_id, field)
@@ -146,6 +146,15 @@ def _publish_assets(demo_id, artifact):
         published[kind] = source
     return published
 
+def _asset_url(root, demo_id, artifact, kind):
+    metadata = artifact["assets"][kind]
+    return "%sassets/demos/%s%s?v=%s" % (
+        root,
+        demo_id,
+        ASSET_EXTENSIONS[kind],
+        metadata["sha256"][:10],
+    )
+
 
 def _platform_label(platform):
     if platform == "linux":
@@ -169,19 +178,27 @@ def _render_html(demo_id, demo, artifact, renderer, root, transcript):
     release = html.escape(str(artifact.get("release", "unknown")))
     duration = html.escape(demo["duration"])
     platform = html.escape(_platform_label(demo["platform"]))
-    renderer_version = html.escape(str(renderer.get("version", "unknown")))
-    label = html.escape(demo["title"] + " terminal demonstration", quote=True)
-    asset_base = root + "assets/demos/" + demo_id
-    poster_url = html.escape(asset_base + ".png", quote=True)
-    transcript_url = html.escape(asset_base + ".txt", quote=True)
-    video_url = html.escape(asset_base + ".webm", quote=True)
+    engine = html.escape(demo["engine"])
+    kind = demo["kind"]
+    kind_label = "Browser" if kind == "browser" else "Terminal"
+    eyebrow = html.escape("Replayable Ze %s lab" % kind.lower())
+    label = html.escape(demo["title"] + " demonstration", quote=True)
+    poster_url = html.escape(
+        _asset_url(root, demo_id, artifact, "poster"), quote=True
+    )
+    transcript_url = html.escape(
+        _asset_url(root, demo_id, artifact, "transcript"), quote=True
+    )
+    video_url = html.escape(
+        _asset_url(root, demo_id, artifact, "video"), quote=True
+    )
     transcript_html = html.escape(transcript.rstrip())
-    tape_name = html.escape(demo_id + ".tape")
+    recording_name = html.escape(demo_id + "." + kind.lower())
 
     return """<figure class="terminal-demo" data-terminal-demo="%s">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <span class="terminal-demo__eyebrow">%s</span>
       <h3>%s</h3>
       <p>%s</p>
     </div>
@@ -199,18 +216,19 @@ def _render_html(demo_id, demo, artifact, renderer, root, transcript):
     </video>
   </div>
   <figcaption>
-    <span>Ze %s</span><span>%s</span><span>%s</span><span>VHS %s</span>
+    <span>Ze %s</span><span>%s</span><span>%s</span><span>%s</span><span>%s</span>
     <a href="%s">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
-    <summary>Read the terminal transcript</summary>
+    <summary>Read the demonstration transcript</summary>
     <pre><code>%s</code></pre>
   </details>
 </figure>""" % (
         html.escape(demo_id, quote=True),
+        eyebrow,
         title,
         description,
-        tape_name,
+        recording_name,
         poster_url,
         label,
         video_url,
@@ -218,21 +236,24 @@ def _render_html(demo_id, demo, artifact, renderer, root, transcript):
         release,
         duration,
         platform,
-        renderer_version,
+        kind_label,
+        engine,
         transcript_url,
         transcript_html,
     )
 
 
 def _render_markdown(demo_id, demo, artifact, root, transcript):
-    asset_base = root + "assets/demos/" + demo_id
-    return """### Terminal demo: %s
+    video_url = _asset_url(root, demo_id, artifact, "video")
+    poster_url = _asset_url(root, demo_id, artifact, "poster")
+    transcript_url = _asset_url(root, demo_id, artifact, "transcript")
+    return """### Demo: %s
 
 %s
 
-[Play the WebM recording](%s.webm) · [View the poster](%s.png) · [Plain-text transcript](%s.txt)
+[Play the WebM recording](%s) · [View the poster](%s) · [Plain-text transcript](%s)
 
-Recorded with Ze %s %s. Duration: %s.
+Recorded with Ze %s %s using %s. Duration: %s.
 
 ```console
 %s
@@ -240,11 +261,12 @@ Recorded with Ze %s %s. Duration: %s.
 """ % (
         demo["title"],
         demo["description"],
-        asset_base,
-        asset_base,
-        asset_base,
+        video_url,
+        poster_url,
+        transcript_url,
         artifact.get("release", "unknown"),
         _platform_sentence(demo["platform"]),
+        demo["engine"],
         demo["duration"],
         transcript.rstrip(),
     )

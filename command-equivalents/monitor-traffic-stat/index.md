@@ -1,9 +1,9 @@
-# `monitor traffic-stat [<name>]`
+# `monitor traffic stat [<name>]`
 
 ## Ze command
 
-- Syntax: `monitor traffic-stat [<name>]`
-- Registry path: `monitor traffic-stat`
+- Syntax: `monitor traffic stat [<name>]`
+- Registry path: `monitor traffic stat`
 - Mode: Read-only
 - Wire method: `ze-monitor:traffic-stat`
 - Global pipes: yes

@@ -1,9 +1,9 @@
-# `show l2tp tunnel-history`
+# `show l2tp tunnel history`
 
 ## Ze command
 
-- Syntax: `show l2tp tunnel-history`
-- Registry path: `show l2tp tunnel-history`
+- Syntax: `show l2tp tunnel history`
+- Registry path: `show l2tp tunnel history`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:tunnel-history`
 - Global pipes: yes

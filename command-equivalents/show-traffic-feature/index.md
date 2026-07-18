@@ -1,9 +1,9 @@
-# `show traffic-feature [<name>]`
+# `show traffic feature [<name>]`
 
 ## Ze command
 
-- Syntax: `show traffic-feature [<name>]`
-- Registry path: `show traffic-feature`
+- Syntax: `show traffic feature [<name>]`
+- Registry path: `show traffic feature`
 - Mode: Read-only
 - Wire method: `ze-show:traffic-feature`
 - Global pipes: yes

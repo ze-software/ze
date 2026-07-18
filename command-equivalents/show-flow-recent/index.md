@@ -1,9 +1,9 @@
-# `show flow-recent [<dst>]`
+# `show flow recent [<dst>]`
 
 ## Ze command
 
-- Syntax: `show flow-recent [<dst>]`
-- Registry path: `show flow-recent`
+- Syntax: `show flow recent [<dst>]`
+- Registry path: `show flow recent`
 - Mode: Read-only
 - Wire method: `ze-show:flow-recent`
 - Global pipes: yes

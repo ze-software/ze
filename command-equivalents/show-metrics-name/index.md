@@ -1,14 +1,14 @@
-# `show metrics-query <name> [label=value`
+# `show metrics name <name> [label=value`
 
 ## Ze command
 
-- Syntax: `show metrics-query <name> [label=value`
-- Registry path: `show metrics-query`
+- Syntax: `show metrics name <name> [label=value`
+- Registry path: `show metrics name`
 - Mode: Read-only
 - Wire method: `ze-show:metrics-query`
 - Global pipes: yes
 
-Query a specific Prometheus metric by name. Usage: show metrics-query <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump.
+Show one Prometheus metric by name. Usage: show metrics name <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump.
 
 ## Mapping intents
 

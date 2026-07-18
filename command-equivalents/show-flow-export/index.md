@@ -1,9 +1,9 @@
-# `show flow-export [<name>]`
+# `show flow export [<name>]`
 
 ## Ze command
 
-- Syntax: `show flow-export [<name>]`
-- Registry path: `show flow-export`
+- Syntax: `show flow export [<name>]`
+- Registry path: `show flow export`
 - Mode: Read-only
 - Wire method: `ze-show:flow-export`
 - Global pipes: yes

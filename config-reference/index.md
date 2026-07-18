@@ -133,6 +133,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         Collector TCP port
       - **source-address** `ip-address`
         Source IP address for outbound BMP connections
+    - **loc-rib** `boolean`
+      Enable Loc-RIB monitoring (RFC 9069, PeerType=3): stream local RIB best-path changes to collectors as Route Monitoring messages with a Loc-RIB peer header
     - **route-mirroring** `boolean`
       Enable Route Mirroring (RFC 7854 S4.7): stream verbatim copies of all BGP messages to collectors
     - **route-monitoring-policy** `enumeration`
@@ -1788,6 +1790,8 @@ Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix 
 
 - **backend** `string`
   Firewall backend implementation. Default is nft (nftables via libnftnl). Future backends can declare themselves via firewall.RegisterBackend. The ze:backend YANG extension on feature nodes declares per-feature backend support so the commit-time gate rejects configs that try to use unsupported primitives.
+- **flush-on-shutdown** `boolean`
+  Remove ze-owned nftables tables from the kernel when the ze process stops in an orderly way (SIGTERM), default true, so a stopped daemon leaves no rules behind. Set false to use ze as a one-shot provisioner: program the rules, let the process exit, and leave them running in the kernel (like nft -f). Keys off how the process exits; unrelated to BGP graceful restart. A crash never runs the shutdown path, so tables always persist across a crash regardless of this setting. Governs every ze table producer (firewall, control-plane-protection, policy-routes, ddos-local), which share one backend.
 - **global-options** `container`
   Network security defaults mapped to kernel sysctls. Provides VyOS-compatible keyword toggles for common settings. At apply time each keyword translates to a sysctl key/value pair emitted to the sysctl plugin. Explicit sysctl settings always override these.
   - **all-ping** `enumeration`
@@ -2000,7 +2004,7 @@ Flow export (sFlow, NetFlow v9, IPFIX) configuration
   - **enabled** `boolean`
     Export per-flow records from the conntrack table
   - **recent-flow-ring** `uint32`
-    Capacity (in flow records) of the recent-flow ring queried by 'show flow-recent'. The ring feeds on-box DDoS characterization; larger values retain more history at higher memory cost. Only allocated when conntrack export is enabled.
+    Capacity (in flow records) of the recent-flow ring queried by 'show flow recent'. The ring feeds on-box DDoS characterization; larger values retain more history at higher memory cost. Only allocated when conntrack export is enabled.
 - **enrichment** `container`
   Flow record enrichment from the BGP RIB
   - **bgp** `boolean`
@@ -2018,7 +2022,7 @@ Flow export (sFlow, NetFlow v9, IPFIX) configuration
 
 ## interface
 
-*Provided by `interface` ([ze-iface-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-show-cmd.yang))*
+*Provided by `interface` ([ze-iface-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-show-cmd.yang)); `vrrp` ([ze-vrrp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/vrrp/yang/ze-vrrp-cmd.yang), [ze-vrrp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/vrrp/yang/ze-vrrp-conf.yang))*
 
 Interface-level class-of-service bindings and inline QoS maps (container-merge with ze-iface-conf). Removing the cos plugin removes all QoS surface from interfaces.
 
@@ -2106,6 +2110,26 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Answer ARP requests on behalf of other hosts that are reachable via this router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging subnets without L2 connectivity or for unnumbered interfaces.
       - **rpf-check** `enumeration`
         Reverse path filtering mode
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv4 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority Backup takes over from a live lower-priority Active router.
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568). Armed on the first losing advert while a higher-priority local router waits; never delays dead-master failover.
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically; it is never operator-set.
+          - **version** `enumeration`
+            Protocol version. Present only for IPv4 groups; IPv6 is always VRRPv3 (RFC 9568).
+          - **virtual-address** `ipv4-address[]`
+            Virtual IPv4 addresses, encoded on the wire in configuration order (RFC 9568 Section 5.2.9). An address equal to a real address on this unit makes this router the owner (priority forced to 255, accept-mode forced true).
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
@@ -2128,6 +2152,24 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv6 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds, multiples of 10 ms (wire = centiseconds, RFC 9568 erratum 8301).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2).
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568).
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically.
+          - **virtual-address** `ipv6-address[]`
+            Virtual IPv6 addresses, encoded on the wire in configuration order. The FIRST address MUST be an IPv6 link-local (fe80::/10) address: it is the advertisement source identity (RFC 9568 Section 5.2.9, erratum 8300), enforced by the plugin verifier.
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **mirror** `container`
       Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
@@ -2226,6 +2268,26 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Answer ARP requests on behalf of other hosts that are reachable via this router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging subnets without L2 connectivity or for unnumbered interfaces.
       - **rpf-check** `enumeration`
         Reverse path filtering mode
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv4 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority Backup takes over from a live lower-priority Active router.
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568). Armed on the first losing advert while a higher-priority local router waits; never delays dead-master failover.
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically; it is never operator-set.
+          - **version** `enumeration`
+            Protocol version. Present only for IPv4 groups; IPv6 is always VRRPv3 (RFC 9568).
+          - **virtual-address** `ipv4-address[]`
+            Virtual IPv4 addresses, encoded on the wire in configuration order (RFC 9568 Section 5.2.9). An address equal to a real address on this unit makes this router the owner (priority forced to 255, accept-mode forced true).
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
@@ -2248,6 +2310,24 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv6 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds, multiples of 10 ms (wire = centiseconds, RFC 9568 erratum 8301).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2).
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568).
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically.
+          - **virtual-address** `ipv6-address[]`
+            Virtual IPv6 addresses, encoded on the wire in configuration order. The FIRST address MUST be an IPv6 link-local (fe80::/10) address: it is the advertisement source identity (RFC 9568 Section 5.2.9, erratum 8300), enforced by the plugin verifier.
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **mirror** `container`
       Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
@@ -2344,6 +2424,26 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Answer ARP requests on behalf of other hosts that are reachable via this router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging subnets without L2 connectivity or for unnumbered interfaces.
       - **rpf-check** `enumeration`
         Reverse path filtering mode
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv4 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority Backup takes over from a live lower-priority Active router.
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568). Armed on the first losing advert while a higher-priority local router waits; never delays dead-master failover.
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically; it is never operator-set.
+          - **version** `enumeration`
+            Protocol version. Present only for IPv4 groups; IPv6 is always VRRPv3 (RFC 9568).
+          - **virtual-address** `ipv4-address[]`
+            Virtual IPv4 addresses, encoded on the wire in configuration order (RFC 9568 Section 5.2.9). An address equal to a real address on this unit makes this router the owner (priority forced to 255, accept-mode forced true).
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
@@ -2366,6 +2466,24 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv6 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds, multiples of 10 ms (wire = centiseconds, RFC 9568 erratum 8301).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2).
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568).
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically.
+          - **virtual-address** `ipv6-address[]`
+            Virtual IPv6 addresses, encoded on the wire in configuration order. The FIRST address MUST be an IPv6 link-local (fe80::/10) address: it is the advertisement source identity (RFC 9568 Section 5.2.9, erratum 8300), enforced by the plugin verifier.
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **mirror** `container`
       Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
@@ -2842,6 +2960,26 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Answer ARP requests on behalf of other hosts that are reachable via this router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging subnets without L2 connectivity or for unnumbered interfaces.
       - **rpf-check** `enumeration`
         Reverse path filtering mode
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv4 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2): a higher-priority Backup takes over from a live lower-priority Active router.
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568). Armed on the first losing advert while a higher-priority local router waits; never delays dead-master failover.
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically; it is never operator-set.
+          - **version** `enumeration`
+            Protocol version. Present only for IPv4 groups; IPv6 is always VRRPv3 (RFC 9568).
+          - **virtual-address** `ipv4-address[]`
+            Virtual IPv4 addresses, encoded on the wire in configuration order (RFC 9568 Section 5.2.9). An address equal to a real address on this unit makes this router the owner (priority forced to 255, accept-mode forced true).
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
@@ -2864,6 +3002,24 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
+      - **vrrp** `container`
+        VRRP virtual routers hosted on this IPv6 unit.
+        - **group <name>** `list`
+          One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
+          - **accept-mode** `boolean`
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3), v3 semantics.
+          - **advertise-interval-milliseconds** `uint32`
+            Advertisement interval in milliseconds, multiples of 10 ms (wire = centiseconds, RFC 9568 erratum 8301).
+          - **preempt** `boolean`
+            Preempt_Mode (RFC 9568 Section 6.4.2).
+          - **preempt-delay-seconds** `uint16`
+            Preemption hold-time (Junos semantics; not in RFC 9568).
+          - **priority** `uint8`
+            Election priority (RFC 9568 Section 5.2.4). 255 is reserved for the address owner and assigned automatically.
+          - **virtual-address** `ipv6-address[]`
+            Virtual IPv6 addresses, encoded on the wire in configuration order. The FIRST address MUST be an IPv6 link-local (fe80::/10) address: it is the advertisement source identity (RFC 9568 Section 5.2.9, erratum 8300), enforced by the plugin verifier.
+          - **vrid** `uint8`
+            Virtual Router Identifier (RFC 9568 Section 5.2.3). Unique per interface unit and address family; the IPv4 and IPv6 VRID spaces are independent.
     - **mirror** `container`
       Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
@@ -4694,7 +4850,7 @@ System-level settings
   - **radius** `container`
     RADIUS server configuration for operator/admin login (SSH, web, MCP), RFC 2865. Separate from the L2TP subscriber RADIUS path, which lives under the l2tp root.
     - **default-profile** `string[]`
-      Ze authorization profile name(s) assigned when the Access-Accept carries no profile-attribute
+      Ze authorization profile name(s) assigned when the Access-Accept carries no profile-attribute. Optional: leave it unset when the RADIUS server always names a profile via profile-attribute. When the server does not, and no default is set here, the login names no profile and is denied -- ze never authorizes a user it cannot attach a profile to.
     - **profile-attribute** `enumeration`
       Access-Accept reply attribute whose value(s) name the ze authorization profile(s) for the user
     - **retries** `uint8`
@@ -4730,7 +4886,7 @@ System-level settings
   - **tacacs-profile <level>** `list`
     Maps TACACS+ privilege level to ze authorization profile
     - **profile** `string[]`
-      Ze authorization profile name(s)
+      Ze authorization profile name(s). At least one is required: a level mapped to no profiles would authenticate the user while granting nothing, and authorization reads an empty profile set as 'no opinion' rather than 'deny'. To deny a privilege level, leave it out of the mapping entirely.
   - **user <name>** `list`
     Authenticated user (local)
     - **password** `string`

@@ -1,9 +1,9 @@
-# `show l2tp session-traffic`
+# `show l2tp session traffic`
 
 ## Ze command
 
-- Syntax: `show l2tp session-traffic`
-- Registry path: `show l2tp session-traffic`
+- Syntax: `show l2tp session traffic`
+- Registry path: `show l2tp session traffic`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:session-traffic`
 - Global pipes: yes

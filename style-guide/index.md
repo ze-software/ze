@@ -8,7 +8,7 @@ The palette, components, and content rules this site follows -- so new pages sta
 
 Seven candy hues on a calm blush base.
 
-Each hue ships four tones in `assets/site.css?v=482c51956e`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
+Each hue ships four tones in `assets/site.css?v=1211addb1c`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
 
 **Operate**
 

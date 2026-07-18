@@ -1,6 +1,6 @@
 # Command Equivalents
 
-380 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+386 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -41,7 +41,7 @@ These rows have at least one listed vendor command.
 | `show interface name <name> detail` | Read-only | - | - | - | `show interfaces <name>` | [details](show-interface-name-detail/) |
 | `show log recent [<component>] [<count>] [<level>]` | Read-only | - | - | - | `show log` | [details](show-log-recent/) |
 | `show neighbor [<family>]` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
-| `show ping [<count>] [<dest>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
+| `show ping [<count>] [<dest>] [<size>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
 | `show route [<limit>] [<prefix>]` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
 | `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
 | `show system cpu` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-cpu/) |
@@ -81,14 +81,15 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear interface name <name> counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
 | `clear isis adjacency` | Daemon | - | - | - | - | [details](clear-isis-adjacency/) |
 | `clear isis counters` | Daemon | - | - | - | - | [details](clear-isis-counters/) |
-| `clear l2tp session teardown` | Daemon | - | - | - | - | [details](clear-l2tp-session-teardown/) |
-| `clear l2tp session teardown-all` | Daemon | - | - | - | - | [details](clear-l2tp-session-teardown-all/) |
-| `clear l2tp tunnel teardown` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-teardown/) |
-| `clear l2tp tunnel teardown-all` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-teardown-all/) |
+| `clear l2tp session all` | Daemon | - | - | - | - | [details](clear-l2tp-session-all/) |
+| `clear l2tp session id` | Daemon | - | - | - | - | [details](clear-l2tp-session-id/) |
+| `clear l2tp tunnel all` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-all/) |
+| `clear l2tp tunnel id` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-id/) |
 | `clear ospf counters` | Daemon | - | - | - | - | [details](clear-ospf-counters/) |
 | `clear ospf neighbor` | Daemon | - | - | - | - | [details](clear-ospf-neighbor/) |
 | `clear ospf process` | Daemon | - | - | - | - | [details](clear-ospf-process/) |
 | `clear vpn ipsec sa` | Daemon | - | - | - | - | [details](clear-vpn-ipsec-sa/) |
+| `clear vrrp statistics` | Daemon | - | - | - | - | [details](clear-vrrp-statistics/) |
 
 ### create
 
@@ -160,7 +161,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `monitor ping` | Read-only | - | - | - | - | [details](monitor-ping/) |
 | `monitor system netlink` | Read-only | - | - | - | - | [details](monitor-system-netlink/) |
 | `monitor traceroute` | Read-only | - | - | - | - | [details](monitor-traceroute/) |
-| `monitor traffic-stat [<name>]` | Read-only | - | - | - | - | [details](monitor-traffic-stat/) |
+| `monitor traffic stat [<name>]` | Read-only | - | - | - | - | [details](monitor-traffic-stat/) |
 | `monitor vpn ipsec` | Read-only | - | - | - | - | [details](monitor-vpn-ipsec/) |
 
 ### peer
@@ -216,6 +217,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request peer refresh <selector>` | Daemon | `clear bgp neighbor <peer> soft-inbound` | `clear bgp ipv4 unicast <peer> soft in` | - | `reset bgp <peer> soft in` | [details](request-peer-refresh/) |
 | `request peer <selector> resume` | Daemon | - | - | - | - | [details](request-peer-resume/) |
 | `request peer <selector> teardown [cease-subcode]` | Daemon | `clear bgp neighbor <peer>` | `clear bgp ipv4 unicast <peer>` | - | `reset bgp <peer>` | [details](request-peer-teardown/) |
+| `request quiesce` | Daemon | - | - | - | - | [details](request-quiesce/) |
 | `request reboot` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reboot/) |
 | `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
 | `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
@@ -265,6 +267,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bfd sessions` | Read-only | - | - | - | - | [details](show-bfd-sessions/) |
 | `show bgp decode` | Read-only | - | - | - | - | [details](show-bgp-decode/) |
 | `show bgp encode` | Read-only | - | - | - | - | [details](show-bgp-encode/) |
+| `show bgp health` | Read-only | - | - | - | - | [details](show-bgp-health/) |
 | `show bgp irr` | Read-only | - | - | - | - | [details](show-bgp-irr/) |
 | `show bgp irr check <peer> <prefix>` | Read-only | - | - | - | - | [details](show-bgp-irr-check/) |
 | `show bgp irr prefix <peer>` | Read-only | - | - | - | - | [details](show-bgp-irr-prefix/) |
@@ -280,7 +283,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bgp rib rpf` | Read-only | - | - | - | - | [details](show-bgp-rib-rpf/) |
 | `show bgp rib status` | Read-only | - | - | - | - | [details](show-bgp-rib-status/) |
 | `show bgp summary` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp-summary/) |
-| `show bgp-health` | Read-only | - | - | - | - | [details](show-bgp-health/) |
 | `show bmp collectors` | Read-only | - | - | - | - | [details](show-bmp-collectors/) |
 | `show bmp peers` | Read-only | - | - | - | - | [details](show-bmp-peers/) |
 | `show bmp rib` | Read-only | - | - | - | - | [details](show-bmp-rib/) |
@@ -325,8 +327,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show firewall irr` | Read-only | - | - | - | - | [details](show-firewall-irr/) |
 | `show firewall irr prefix <asn-or-as-set>` | Read-only | - | - | - | - | [details](show-firewall-irr-prefix/) |
 | `show firewall ruleset <name>` | Read-only | - | - | - | - | [details](show-firewall-ruleset/) |
-| `show flow-export [<name>]` | Read-only | - | - | - | - | [details](show-flow-export/) |
-| `show flow-recent [<dst>]` | Read-only | - | - | - | - | [details](show-flow-recent/) |
+| `show flow export [<name>]` | Read-only | - | - | - | - | [details](show-flow-export/) |
+| `show flow recent [<dst>]` | Read-only | - | - | - | - | [details](show-flow-recent/) |
 | `show geodns` | Read-only | - | - | - | - | [details](show-geodns/) |
 | `show gnmi` | Read-only | - | - | - | - | [details](show-gnmi/) |
 | `show health` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-health/) |
@@ -359,26 +361,26 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show l2tp config` | Read-only | - | - | - | - | [details](show-l2tp-config/) |
 | `show l2tp cqm` | Read-only | - | - | - | - | [details](show-l2tp-cqm/) |
 | `show l2tp echo` | Read-only | - | - | - | - | [details](show-l2tp-echo/) |
+| `show l2tp health` | Read-only | - | - | - | - | [details](show-l2tp-health/) |
 | `show l2tp listeners` | Read-only | - | - | - | - | [details](show-l2tp-listeners/) |
 | `show l2tp observer` | Read-only | - | - | - | - | [details](show-l2tp-observer/) |
 | `show l2tp reliable` | Read-only | - | - | - | - | [details](show-l2tp-reliable/) |
+| `show l2tp session history` | Read-only | - | - | - | - | [details](show-l2tp-session-history/) |
 | `show l2tp session <id>` | Read-only | - | - | - | - | [details](show-l2tp-session-id/) |
-| `show l2tp session-history` | Read-only | - | - | - | - | [details](show-l2tp-session-history/) |
-| `show l2tp session-traffic` | Read-only | - | - | - | - | [details](show-l2tp-session-traffic/) |
+| `show l2tp session traffic` | Read-only | - | - | - | - | [details](show-l2tp-session-traffic/) |
 | `show l2tp sessions` | Read-only | - | - | - | - | [details](show-l2tp-sessions/) |
 | `show l2tp statistics` | Read-only | - | - | - | - | [details](show-l2tp-statistics/) |
+| `show l2tp tunnel history` | Read-only | - | - | - | - | [details](show-l2tp-tunnel-history/) |
 | `show l2tp tunnel <id>` | Read-only | - | - | - | - | [details](show-l2tp-tunnel-id/) |
-| `show l2tp tunnel-history` | Read-only | - | - | - | - | [details](show-l2tp-tunnel-history/) |
 | `show l2tp tunnels` | Read-only | - | - | - | - | [details](show-l2tp-tunnels/) |
-| `show l2tp-health` | Read-only | - | - | - | - | [details](show-l2tp-health/) |
 | `show ldp binding` | Read-only | - | - | - | - | [details](show-ldp-binding/) |
 | `show ldp neighbor` | Read-only | - | - | - | - | [details](show-ldp-neighbor/) |
 | `show log levels` | Read-only | - | - | - | - | [details](show-log-levels/) |
 | `show log recent [<component>] [<count>] [<level>]` | Read-only | - | - | - | `show log` | [details](show-log-recent/) |
 | `show metrics list` | Read-only | - | - | - | - | [details](show-metrics-list/) |
+| `show metrics name <name> [label=value` | Read-only | - | - | - | - | [details](show-metrics-name/) |
 | `show metrics pool` | Read-only | - | - | - | - | [details](show-metrics-pool/) |
 | `show metrics values` | Read-only | - | - | - | - | [details](show-metrics-values/) |
-| `show metrics-query <name> [label=value` | Read-only | - | - | - | - | [details](show-metrics-query/) |
 | `show mpls forwarding [<limit>]` | Read-only | - | - | - | - | [details](show-mpls-forwarding/) |
 | `show neighbor [<family>]` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
 | `show ospf` | Read-only | - | - | - | - | [details](show-ospf/) |
@@ -430,19 +432,20 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show ospf spf detail` | Read-only | - | - | - | - | [details](show-ospf-spf-detail/) |
 | `show ospf te-database` | Read-only | - | - | - | - | [details](show-ospf-te-database/) |
 | `show ospf virtual-links` | Read-only | - | - | - | - | [details](show-ospf-virtual-links/) |
-| `show ping [<count>] [<dest>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
+| `show ping [<count>] [<dest>] [<size>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
 | `show pki certificate name <name> [pem \| bundle pem \| fingerprint` | Read-only | - | - | - | - | [details](show-pki-certificate-name/) |
 | `show pki certificates` | Read-only | - | - | - | - | [details](show-pki-certificates/) |
 | `show policy chain peer <selector> [import\|export]` | Read-only | - | - | - | - | [details](show-policy-chain-peer/) |
 | `show policy list` | Read-only | - | - | - | - | [details](show-policy-list/) |
+| `show policy routes` | Read-only | - | - | - | - | [details](show-policy-routes/) |
 | `show policy test peer <selector> import\|export [filter <name>]` | Read-only | - | - | - | - | [details](show-policy-test-peer/) |
-| `show policy-routes` | Read-only | - | - | - | - | [details](show-policy-routes/) |
 | `show pppoe` | Read-only | - | - | - | - | [details](show-pppoe/) |
 | `show pppoe interfaces` | Read-only | - | - | - | - | [details](show-pppoe-interfaces/) |
 | `show pppoe session <id>` | Read-only | - | - | - | - | [details](show-pppoe-session-id/) |
 | `show pppoe sessions` | Read-only | - | - | - | - | [details](show-pppoe-sessions/) |
 | `show pppoe statistics` | Read-only | - | - | - | - | [details](show-pppoe-statistics/) |
 | `show probe-round [<dest>] [<max-hops>] [<probes>] [<timeout>]` | Read-only | - | - | - | - | [details](show-probe-round/) |
+| `show reload-status` | Read-only | - | - | - | - | [details](show-reload-status/) |
 | `show route [<limit>] [<prefix>]` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
 | `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
 | `show rr peers` | Read-only | - | - | - | - | [details](show-rr-peers/) |
@@ -451,6 +454,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show rsvp-te interface` | Read-only | - | - | - | - | [details](show-rsvp-te-interface/) |
 | `show rsvp-te lsp` | Read-only | - | - | - | - | [details](show-rsvp-te-lsp/) |
 | `show rsvp-te tunnel` | Read-only | - | - | - | - | [details](show-rsvp-te-tunnel/) |
+| `show runtime memory` | Read-only | - | - | - | - | [details](show-runtime-memory/) |
 | `show schema events` | Read-only | - | - | - | - | [details](show-schema-events/) |
 | `show schema handlers` | Read-only | - | - | - | - | [details](show-schema-handlers/) |
 | `show schema list` | Read-only | - | - | - | - | [details](show-schema-list/) |
@@ -468,7 +472,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show system goroutines [<mode>]` | Read-only | - | - | - | - | [details](show-system-goroutines/) |
 | `show system kernel-log [<count>] [<level>]` | Read-only | - | - | - | - | [details](show-system-kernel-log/) |
 | `show system memory` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-memory/) |
-| `show system memory-map` | Read-only | - | - | - | - | [details](show-system-memory-map/) |
 | `show system ntp` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-ntp/) |
 | `show system ntp peers` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-ntp-peers/) |
 | `show system platform` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-platform/) |
@@ -480,9 +483,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show tcp-check <host> <port> [<source>] [<timeout>]` | Read-only | - | - | - | - | [details](show-tcp-check/) |
 | `show traceroute [<dest>] [<max-hops>] [<probes>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-traceroute/) |
 | `show traffic control` | Read-only | - | - | - | - | [details](show-traffic-control/) |
+| `show traffic feature [<name>]` | Read-only | - | - | - | - | [details](show-traffic-feature/) |
+| `show traffic stat [<name>]` | Read-only | - | - | - | - | [details](show-traffic-stat/) |
 | `show traffic usage [<name>]` | Read-only | - | - | - | - | [details](show-traffic-usage/) |
-| `show traffic-feature [<name>]` | Read-only | - | - | - | - | [details](show-traffic-feature/) |
-| `show traffic-stat [<name>]` | Read-only | - | - | - | - | [details](show-traffic-stat/) |
 | `show uptime` | Read-only | - | - | - | `show system uptime` | [details](show-uptime/) |
 | `show version` | Read-only | - | - | - | `show system uptime` | [details](show-version/) |
 | `show vpn ipsec peer name <name>` | Read-only | - | - | - | - | [details](show-vpn-ipsec-peer-name/) |
@@ -492,6 +495,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show vpp trace clear` | Read-only | - | - | - | - | [details](show-vpp-trace-clear/) |
 | `show vpp trace show` | Read-only | - | - | - | - | [details](show-vpp-trace-show/) |
 | `show vpp trace start` | Read-only | - | - | - | - | [details](show-vpp-trace-start/) |
+| `show vrrp` | Read-only | - | - | - | - | [details](show-vrrp/) |
+| `show vrrp interface name [<value>]` | Read-only | - | - | - | - | [details](show-vrrp-interface-name/) |
+| `show vrrp statistics` | Read-only | - | - | - | - | [details](show-vrrp-statistics/) |
 | `show warnings` | Read-only | - | - | - | `show log` | [details](show-warnings/) |
 | `show yang completion` | Read-only | - | - | - | - | [details](show-yang-completion/) |
 | `show yang doc` | Read-only | - | - | - | - | [details](show-yang-doc/) |

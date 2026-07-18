@@ -3,18 +3,18 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>show system memory-map - Command Equivalents - Ze</title>
-        <meta name="description" content="Command details and vendor equivalents for show system memory-map." />
-        <meta property="og:title" content="show system memory-map - Command Equivalents - Ze" />
-        <meta property="og:description" content="Command details and vendor equivalents for show system memory-map." />
+        <title>show metrics name &lt;name&gt; [label=value - Command Equivalents - Ze</title>
+        <meta name="description" content="Command details and vendor equivalents for show metrics name &lt;name&gt; [label=value." />
+        <meta property="og:title" content="show metrics name &lt;name&gt; [label=value - Command Equivalents - Ze" />
+        <meta property="og:description" content="Command details and vendor equivalents for show metrics name &lt;name&gt; [label=value." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="show system memory-map - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Command details and vendor equivalents for show system memory-map." />
+        <meta name="twitter:title" content="show metrics name &lt;name&gt; [label=value - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Command details and vendor equivalents for show metrics name &lt;name&gt; [label=value." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -35,23 +35,28 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Command map</span>
-                    <h1 id="command-equivalent-detail-title">show system memory-map</h1>
-                    <p>Command details and vendor equivalents for show system memory-map.</p>
+                    <h1 id="command-equivalent-detail-title">show metrics name &lt;name&gt; [label=value</h1>
+                    <p>Command details and vendor equivalents for show metrics name &amp;lt;name&amp;gt; [label=value.</p>
                 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Syntax</dt><dd><code>show system memory-map</code></dd></div>
-<div><dt>Registry path</dt><dd><code>show system memory-map</code></dd></div>
+<div><dt>Syntax</dt><dd><code>show metrics name &lt;name&gt; [label=value</code></dd></div>
+<div><dt>Registry path</dt><dd><code>show metrics name</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-show:system-memory-map</code></dd></div>
+<div><dt>Wire method</dt><dd><code>ze-show:metrics-query</code></dd></div>
 <div><dt>Global pipes</dt><dd>yes</dd></div>
 </dl>
-<h3>Description</h3><p>Show the process memory footprint from the kernel&#x27;s view.<br>Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status.<br>Complements &#x27;show system memory&#x27; (Go runtime) with the OS-level picture.</p>
+<h3>Description</h3><p>Show one Prometheus metric by name.<br>Usage: show metrics name &lt;name&gt; [label=value ...]. Returns matching<br>time series from the internal registry. Multiple label filters are<br>ANDed. More targeted than the full metrics dump.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
-<article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
+<article class="cmd-detail-card"><h2>Mapping intents</h2>
+<section class="cmd-intent"><h3>Metrics inventory and values</h3>
+<p><strong>Category:</strong> Operations</p>
+<p>Ze exposes Prometheus-style metric names and values directly; vendor telemetry is usually a separate subsystem.</p>
+</section>
+</article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
 <p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
 </article>

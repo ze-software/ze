@@ -1,9 +1,9 @@
-# `clear l2tp session teardown-all`
+# `clear l2tp session all`
 
 ## Ze command
 
-- Syntax: `clear l2tp session teardown-all`
-- Registry path: `clear l2tp session teardown-all`
+- Syntax: `clear l2tp session all`
+- Registry path: `clear l2tp session all`
 - Mode: Daemon
 - Wire method: `ze-l2tp-api:session-teardown-all`
 - Global pipes: yes

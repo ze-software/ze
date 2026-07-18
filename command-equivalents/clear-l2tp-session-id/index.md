@@ -1,14 +1,14 @@
-# `clear l2tp session teardown`
+# `clear l2tp session id`
 
 ## Ze command
 
-- Syntax: `clear l2tp session teardown`
-- Registry path: `clear l2tp session teardown`
+- Syntax: `clear l2tp session id`
+- Registry path: `clear l2tp session id`
 - Mode: Daemon
 - Wire method: `ze-l2tp-api:session-teardown`
 - Global pipes: yes
 
-Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID.
+Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>].
 
 ## Mapping intents
 

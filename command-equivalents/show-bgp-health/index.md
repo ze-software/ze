@@ -1,9 +1,9 @@
-# `show bgp-health`
+# `show bgp health`
 
 ## Ze command
 
-- Syntax: `show bgp-health`
-- Registry path: `show bgp-health`
+- Syntax: `show bgp health`
+- Registry path: `show bgp health`
 - Mode: Read-only
 - Wire method: `ze-show:bgp-health`
 - Global pipes: yes
