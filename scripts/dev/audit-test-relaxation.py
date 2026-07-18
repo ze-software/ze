@@ -314,7 +314,19 @@ def report(audit, base):
 
 def selftest():
     work = tempfile.mkdtemp(prefix="ze-relax-audit-")
-    env_name = ["-c", "user.email=t@t", "-c", "user.name=t"]
+    # commit.gpgsign=false keeps this throwaway repo hermetic: without it a
+    # developer whose global config sets commit.gpgsign=true has the baseline
+    # commit fail to sign (no tty for the passphrase), HEAD never resolves, and
+    # the selftest reports "HEAD does not resolve to a commit". The sibling test
+    # fixture (audit_relaxation_test.py) already disables signing the same way.
+    env_name = [
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "-c",
+        "commit.gpgsign=false",
+    ]
     git(["init", "-q"], work)
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     detector = load_detector(repo_root)
