@@ -24,6 +24,12 @@
 #   make ze-l2tp-wire-test     L2TP wire-level (release evidence only)
 #   make ze-isis-wire-test     IS-IS wire-level decode (release evidence only)
 #   make ze-ospf-wire-test     OSPFv2 wire-level decode (release evidence only)
+#
+# Every target here runs against an ISOLATED test binary set by default (built
+# under tmp/testbin-<suffix>/ and removed on exit), so a running suite never
+# touches the dev bin/ze and you can keep building/editing while it runs.
+# ZE_SUFFIX=<name> pins a stable, kept directory; ZE_TEST_CANONICAL=1 opts out.
+# See the isolated-binary block below.
 
 .PHONY: ze-functional-test
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
@@ -43,6 +49,93 @@ ZE_ENCODE_PARALLEL ?= 8
 ZE_PLUGIN_PARALLEL ?= 8
 SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 
+# ─── Isolated test binary set (automatic; the default for every suite) ──────
+# By DEFAULT every functional target in this file builds its OWN throwaway
+# binary set under tmp/testbin-<suffix>/ (ze, ze-test, ze-stripped) and runs
+# frozen against it (ZE_TEST_NO_BUILD=1). This keeps testing and development on
+# separate binaries:
+#   - the legacy path had each bin/ze-test invocation recompile ze + ze-test
+#     from the working tree (internal/test/runner Build), so `make ze` or an
+#     edit made while a suite ran clobbered the dev bin/ze, and half-edited
+#     source leaked into later suites;
+#   - now each target builds the set at the start of its recipe and
+#     ZE_TEST_NO_BUILD=1 stops the runner recompiling mid-run, so bin/ze is
+#     never touched by a test and you can keep building/editing it while a
+#     suite runs.
+# In auto mode the dir is tmp/testbin-pid-<make-PID>-<target>/: unique per make
+# invocation AND per target, so chaining suites on one command line (even under
+# -j) never lets one target's cleanup delete another's binaries. The dir is
+# removed when the target exits (trap). ze-verify inherits this because it just
+# runs `make ze-functional-test`. Each target rebuilds all three binaries
+# (including the full ze), a deliberate cost for a uniform isolated set.
+#
+# .ci tests exec `ze` / `ze-stripped` by bare name; the binaries carry those
+# canonical names inside the dir, ZE_BIN points there, and the runner puts that
+# dir first on PATH (internal/test/runner/runner_exec.go).
+#
+# Overrides:
+#   ZE_SUFFIX=<name>     pin a stable name (tmp/testbin-<name>/), KEPT on exit
+#                        -- run a named suite and keep developing against it.
+#   ZE_TEST_CANONICAL=1  opt out entirely: the runner rebuilds bin/ze +
+#                        bin/ze-test in place (release/CI reproducibility).
+# Shared residue in every mode: tmp/test-timings.json (display baseline) is
+# last-writer-wins, as for any two concurrent ze-test invocations.
+ZE_SUFFIX ?=
+ZE_TEST_CANONICAL ?=
+ifeq ($(ZE_TEST_CANONICAL),)
+  ifeq ($(ZE_SUFFIX),)
+    # Auto: := fixes the PID once (stable within a run); $@ (recursive =) scopes
+    # the dir per target so chaining suites on one command line
+    # (make ze-encode-test ze-plugin-test, even under -j) never lets one
+    # target's cleanup trap delete another target's binaries. Throwaway, rm on
+    # exit.
+    ZE_RUN_SUFFIX := pid-$(shell echo $$PPID)
+    ZE_ALT_DIR = tmp/testbin-$(ZE_RUN_SUFFIX)-$@
+    ZE_ALT_TRAP = rm -rf $(ZE_ALT_DIR)
+  else
+    # Explicit name: stable, shared across this run's targets, KEPT on exit.
+    # The trap is a no-op, so sharing the dir is safe for CLEANUP. Note the
+    # shared name races on the build under `make -j <targetA> <targetB>
+    # ZE_SUFFIX=x` (both write the same bin/ze); run one target at a time, or
+    # omit ZE_SUFFIX to get per-target auto dirs.
+    ZE_RUN_SUFFIX := $(ZE_SUFFIX)
+    ZE_ALT_DIR = tmp/testbin-$(ZE_RUN_SUFFIX)
+    ZE_ALT_TRAP := true
+  endif
+  # The binaries live in a `bin/` SUBDIR of the throwaway root. ze derives its
+  # config/DB directory from its own location and only recognises a parent dir
+  # named bin/sbin (internal/core/paths/paths.go isBinDir); a binary directly in
+  # tmp/testbin-<suffix>/ yields "cannot determine database location" and breaks
+  # commands like `ze config archive` (test/parse/cli-config-archive.ci). With
+  # the bin/ subdir the derived config dir is the throwaway root's etc/ze, so any
+  # DB a test writes is isolated and swept with the dir.
+  ZE_ALT_BIN = $(ZE_ALT_DIR)/bin
+  # Build the isolated set inline at the top of each recipe (NOT via a shared
+  # phony prereq, which would build ONE dir for every target in the invocation
+  # and let the per-recipe cleanup traps collide). The trap is armed before this
+  # runs, so a failed build is cleaned up too; `|| exit 1` aborts the recipe if
+  # any build fails. Canonical names ze/ze-test/ze-stripped are what .ci tests
+  # exec by. The DUT build mirrors runner.TestBuildTags()
+  # (internal/test/runner/runner.go): zetest test plugins + full command surface
+  # (ze_core ze_distro ze_setup) + default feature gates, NO version ldflags so
+  # `ze show version` prints "ze dev" (test/parse/cli-show-version.ci).
+  # ze-stripped tags match the bin/ze-stripped Makefile rule.
+  ZE_ALT_BUILD = { mkdir -p $(ZE_ALT_BIN) && printf 'Building isolated test binaries in %s/ (ze, ze-test, ze-stripped)...\n' '$(ZE_ALT_BIN)' && $(GO) build -tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze ./cmd/ze && $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-stripped ./cmd/ze && $(GO) build -tags 'ze_test $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-test ./cmd/ze ; } || exit 1;
+  ZE_TEST_DEPS :=
+  ZE_TEST_DEPS_STRIPPED :=
+  ZE_TEST_DEPS_ZE :=
+  ZE_TEST_DEPS_ALL :=
+  ZE_TEST_RUN = env ZE_TEST_NO_BUILD=1 ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test $(ZE_ALT_BIN)/ze-test
+else
+  ZE_ALT_TRAP := true
+  ZE_ALT_BUILD :=
+  ZE_TEST_DEPS := bin/ze-test
+  ZE_TEST_DEPS_STRIPPED := bin/ze-test bin/ze-stripped
+  ZE_TEST_DEPS_ZE := bin/ze bin/ze-test
+  ZE_TEST_DEPS_ALL := bin/ze bin/ze-stripped bin/ze-test
+  ZE_TEST_RUN := bin/ze-test
+endif
+
 # Run ze functional tests (all types, continue on failure to show all results)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
 # managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, web, install. Suites
@@ -51,8 +144,9 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
-ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
-	@failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
+ze-functional-test: $(ZE_TEST_DEPS_ALL)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) \
+	failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
 	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
@@ -67,28 +161,28 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 		printf "\n[%d/%d] suite %s\n" "$$suite_index" "$$suite_total" "$$suite"; \
 		"$$@" || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }$$suite"; }; \
 	}; \
-	run_suite encode $(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL); \
-	run_suite plugin $(SUITE_RUN) bin/ze-test bgp plugin --all -p $(ZE_PLUGIN_PARALLEL); \
-	run_suite parse $(SUITE_RUN) bin/ze-test bgp parse --all; \
-	run_suite decode $(SUITE_RUN) bin/ze-test bgp decode --all; \
-	run_suite reload $(SUITE_RUN) bin/ze-test bgp reload --all -p 1; \
-	run_suite ui $(SUITE_RUN) bin/ze-test ui --all; \
-	run_suite editor $(SUITE_RUN) bin/ze-test editor --all; \
-	run_suite managed $(SUITE_RUN) bin/ze-test managed --all -p 1; \
-	run_suite l2tp $(SUITE_RUN) bin/ze-test l2tp --all; \
-	run_suite firewall $(SUITE_RUN) bin/ze-test firewall --all; \
-	run_suite policy $(SUITE_RUN) bin/ze-test policy --all; \
-	run_suite ldp $(SUITE_RUN) bin/ze-test ldp --all; \
-	run_suite rsvpte $(SUITE_RUN) bin/ze-test rsvpte --all; \
-	run_suite isis $(SUITE_RUN) bin/ze-test isis --all; \
-	run_suite ospf $(SUITE_RUN) bin/ze-test ospf --all; \
-	run_suite ospfv3 $(SUITE_RUN) bin/ze-test ospfv3 --all; \
-	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
-	run_suite install $(SUITE_RUN) bin/ze-test install --all; \
-	run_suite appliance $(SUITE_RUN) bin/ze-test appliance --all; \
-	run_suite l2tp-wire $(SUITE_RUN) bin/ze-test l2tp-wire --all; \
-	run_suite isis-wire $(SUITE_RUN) bin/ze-test isis-wire --all; \
-	run_suite ospf-wire $(SUITE_RUN) bin/ze-test ospf-wire --all; \
+	run_suite encode $(SUITE_RUN) $(ZE_TEST_RUN) bgp encode --all -p $(ZE_ENCODE_PARALLEL); \
+	run_suite plugin $(SUITE_RUN) $(ZE_TEST_RUN) bgp plugin --all -p $(ZE_PLUGIN_PARALLEL); \
+	run_suite parse $(SUITE_RUN) $(ZE_TEST_RUN) bgp parse --all; \
+	run_suite decode $(SUITE_RUN) $(ZE_TEST_RUN) bgp decode --all; \
+	run_suite reload $(SUITE_RUN) $(ZE_TEST_RUN) bgp reload --all -p 1; \
+	run_suite ui $(SUITE_RUN) $(ZE_TEST_RUN) ui --all; \
+	run_suite editor $(SUITE_RUN) $(ZE_TEST_RUN) editor --all; \
+	run_suite managed $(SUITE_RUN) $(ZE_TEST_RUN) managed --all -p 1; \
+	run_suite l2tp $(SUITE_RUN) $(ZE_TEST_RUN) l2tp --all; \
+	run_suite firewall $(SUITE_RUN) $(ZE_TEST_RUN) firewall --all; \
+	run_suite policy $(SUITE_RUN) $(ZE_TEST_RUN) policy --all; \
+	run_suite ldp $(SUITE_RUN) $(ZE_TEST_RUN) ldp --all; \
+	run_suite rsvpte $(SUITE_RUN) $(ZE_TEST_RUN) rsvpte --all; \
+	run_suite isis $(SUITE_RUN) $(ZE_TEST_RUN) isis --all; \
+	run_suite ospf $(SUITE_RUN) $(ZE_TEST_RUN) ospf --all; \
+	run_suite ospfv3 $(SUITE_RUN) $(ZE_TEST_RUN) ospfv3 --all; \
+	run_suite web $(SUITE_RUN) $(ZE_TEST_RUN) web --all; \
+	run_suite install $(SUITE_RUN) $(ZE_TEST_RUN) install --all; \
+	run_suite appliance $(SUITE_RUN) $(ZE_TEST_RUN) appliance --all; \
+	run_suite l2tp-wire $(SUITE_RUN) $(ZE_TEST_RUN) l2tp-wire --all; \
+	run_suite isis-wire $(SUITE_RUN) $(ZE_TEST_RUN) isis-wire --all; \
+	run_suite ospf-wire $(SUITE_RUN) $(ZE_TEST_RUN) ospf-wire --all; \
 	if [ -n "$$skipped_names" ]; then \
 		printf "\n\033[33mSKIPPED suites (ZE_SKIP_SUITES): %s\033[0m\n" "$$skipped_names"; \
 	fi; \
@@ -111,82 +205,82 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 # (see ZE_SUITE_TIMEOUT above) so a stuck suite invoked directly from the
 # CLI also gets process-group-killed instead of wedging indefinitely.
 
-ze-encode-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL)
+ze-encode-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp encode --all -p $(ZE_ENCODE_PARALLEL)
 
-ze-plugin-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp plugin --all -p $(ZE_PLUGIN_PARALLEL)
+ze-plugin-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp plugin --all -p $(ZE_PLUGIN_PARALLEL)
 
-ze-decode-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp decode --all
+ze-decode-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp decode --all
 
-ze-parse-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp parse --all
+ze-parse-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp parse --all
 
-ze-reload-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp reload --all -p 1
+ze-reload-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp reload --all -p 1
 
-ze-ui-test: bin/ze-test bin/ze-stripped
-	@$(SUITE_RUN) bin/ze-test ui --all
+ze-ui-test: $(ZE_TEST_DEPS_STRIPPED)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ui --all
 
-ze-editor-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test editor --all
+ze-editor-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) editor --all
 
-ze-web-test: bin/ze bin/ze-test
-	@$(SUITE_RUN) bin/ze-test web --all
+ze-web-test: $(ZE_TEST_DEPS_ZE)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) web --all
 
-ze-managed-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test managed --all -p 1
+ze-managed-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) managed --all -p 1
 
-ze-l2tp-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test l2tp --all
+ze-l2tp-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) l2tp --all
 
-ze-firewall-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test firewall --all
+ze-firewall-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) firewall --all
 
-ze-policy-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test policy --all
+ze-policy-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) policy --all
 
-ze-appliance-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test appliance --all
+ze-appliance-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) appliance --all
 
 # ─── Non-gated functional test suites ───────────────────────────────────────
 # These suites are shipped but not in the default ze-verify gate. They require
 # platform-specific tooling or separate fixture setup.
 
-ze-static-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test static --all
+ze-static-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) static --all
 
-ze-traffic-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test traffic --all
+ze-traffic-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) traffic --all
 
 # Flow export (sFlow v5 / NetFlow v9 / IPFIX). Like static and traffic, this
 # suite needs the Linux daemon and (for packet sampling) CAP_NET_ADMIN +
 # kernel psample, so it is release-evidence-only and not in the gating
 # ze-functional-test run_suite list above.
-ze-flow-export-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test flow-export --all
+ze-flow-export-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) flow-export --all
 
-ze-vpp-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test vpp --all
+ze-vpp-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) vpp --all
 
-ze-l2tp-wire-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test l2tp-wire --all
+ze-l2tp-wire-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) l2tp-wire --all
 
-ze-isis-wire-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test isis-wire --all
+ze-isis-wire-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) isis-wire --all
 
-ze-ospf-wire-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test ospf-wire --all
+ze-ospf-wire-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospf-wire --all
 
-ze-isis-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test isis --all
+ze-isis-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) isis --all
 
-ze-ospf-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test ospf --all
+ze-ospf-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospf --all
 
-ze-ospfv3-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test ospfv3 --all
+ze-ospfv3-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospfv3 --all
 
-ze-vrrp-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test vrrp --all
+ze-vrrp-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) vrrp --all

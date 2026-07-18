@@ -362,6 +362,55 @@ make ze-test-config                                                     # compon
 make ze-verify                                                          # pre-commit gate
 ```
 
+#### Test binaries are isolated from your dev binary (automatic)
+
+Every functional target in `mk/test-functional.mk` — the gating
+`ze-functional-test`, every per-suite target, and therefore the functional stage
+of `make ze-verify` — runs against its **own** binary set by default, so testing
+and development never touch each other's binaries:
+
+```bash
+make ze-parse-test        # builds ze/ze-test/ze-stripped in tmp/testbin-<id>/bin/,
+                          # runs frozen against them, removes the dir on exit
+make ze                   # meanwhile: rebuild bin/ze as much as you like --
+                          # the running suite never sees it
+```
+
+The legacy behavior recompiled `ze` and `ze-test` **into `bin/`** on every run
+(`internal/test/runner` `Build`), so editing source or running `make ze` while a
+long suite ran overwrote your dev `bin/ze` and leaked the half-edited tree into
+later tests. Now each target instead, at the start of its recipe:
+
+- builds `ze`, `ze-test`, and `ze-stripped` into `tmp/testbin-<id>/bin/` with the
+  canonical names the `.ci` tests exec by. The `bin/` subdir is required: `ze`
+  derives its config/DB directory from its own location and only accepts a parent
+  named `bin`/`sbin` (`internal/core/paths/paths.go`), so a binary elsewhere would
+  break commands like `ze config archive`;
+- sets `ZE_TEST_NO_BUILD=1` and `ZE_BIN`/`ZE_TEST_BIN` so the runner uses that
+  set and never recompiles mid-run (`.ci` tests exec `ze` and `ze-stripped` by
+  bare name; the runner puts `ZE_BIN`'s directory first on `PATH`);
+- removes the throwaway directory when the target exits (shell `trap`), including
+  after a failed build.
+
+In auto mode the `<id>` is `pid-<make-PID>-<target>`: unique per invocation
+**and** per target, so chaining suites on one command line (`make ze-encode-test
+ze-plugin-test`, even under `-j`) never lets one target's cleanup delete another's
+binaries. Each target rebuilds all three binaries (a deliberate cost for a
+uniform isolated set). Overrides:
+
+| Variable | Effect |
+|----------|--------|
+| `ZE_SUFFIX=<name>` | Use `tmp/testbin-<name>/` and **keep** it on exit — run a named suite, then keep developing against that named build. |
+| `ZE_TEST_CANONICAL=1` | Opt out entirely: the runner rebuilds `bin/ze` + `bin/ze-test` in place (the legacy path, for release/CI reproducibility). |
+
+The only shared residue in every mode is `tmp/test-timings.json` (the display
+baseline), last-writer-wins as for any two concurrent `ze-test` invocations.
+An interrupted run (SIGKILL) can leave its `tmp/testbin-*` directory behind;
+`make ze-clean-tmp` sweeps directories older than 24h.
+<!-- source: mk/test-functional.mk -- isolated-binary block, inline ZE_ALT_BUILD, per-recipe trap -->
+<!-- source: internal/test/runner/runner.go -- ze.bin/ze.test.bin/ze.test.no.build env, Build/verifyPrebuilt -->
+<!-- source: internal/test/runner/runner_exec.go -- bare-name ze/ze-test resolution, PATH prepend -->
+
 `make ze-verify` is the pre-commit gate. It runs a two-pass strategy:
 1. Cached full pass (all packages, no `-race`; completes quickly when nothing changed)
 2. Race pass on changed groups only (detects data races in what you touched)
@@ -1372,6 +1421,13 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ## Debugging Tests
 
 ### Run a single test
+
+These commands drive `bin/ze-test` directly (build it with `make test`), so
+unlike the `make ze-<suite>-test` targets they do **not** isolate: the runner
+rebuilds `bin/ze` in place. While actively editing, prefer the make targets
+(they build into `tmp/testbin-<id>/bin/` and leave `bin/ze` alone — see
+[Test binaries are isolated from your dev binary](#test-binaries-are-isolated-from-your-dev-binary-automatic)),
+or export `ZE_TEST_NO_BUILD=1 ZE_BIN=<path>` to pin a prebuilt binary.
 
 BGP suites use the `ze-test bgp <suite>` command shape:
 

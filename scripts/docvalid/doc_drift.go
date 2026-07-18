@@ -232,7 +232,12 @@ func readMakefileLines(root, rel string, seen map[string]bool) ([]string, error)
 func zeTestSuiteFromMakeLine(line string) (string, bool) {
 	fields := strings.Fields(line)
 	for i, field := range fields {
-		if field != "bin/ze-test" {
+		// The run-suite lines invoke the test binary either literally
+		// (bin/ze-test) or through the ZE_SUFFIX indirection variable
+		// ($(ZE_TEST_RUN), which expands to bin/ze-test or the suffixed
+		// path). Both name the same suite in the next field, so accept
+		// either token. See mk/test-functional.mk ZE_SUFFIX block.
+		if field != "bin/ze-test" && field != "$(ZE_TEST_RUN)" {
 			continue
 		}
 		if i+1 >= len(fields) {
