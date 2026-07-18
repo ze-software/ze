@@ -23,6 +23,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -74,12 +75,16 @@ def _extract_dir_for(iso: Path) -> Path:
 
 
 def _extract_alpine_initramfs(iso: Path) -> Path:
-    """Extract initramfs-virt from Alpine ISO (needed for custom kernel boot)."""
+    """Extract initramfs-virt from Alpine ISO (needed for custom kernel boot).
+
+    Extraction lands in a sibling staging dir and is renamed into place, so a
+    concurrent boot on the shared per-ISO extract dir sees a complete extract or
+    nothing, never a half-written tree.
+    """
     extract_dir = _extract_dir_for(iso)
     initrd = extract_dir / "boot" / "initramfs-virt"
     if initrd.is_file():
         return initrd
-    extract_dir.mkdir(parents=True, exist_ok=True)
     # p7zip installs `7z`; the official 7-Zip build installs `7zz`. Select by
     # what is actually on PATH rather than exec-ing a name that may not exist:
     # subprocess raises FileNotFoundError (not our SystemExit) for a missing
@@ -90,14 +95,29 @@ def _extract_alpine_initramfs(iso: Path) -> Path:
         raise SystemExit(
             "cannot extract initramfs: install 7z (p7zip) to boot a custom --kernel"
         )
+    extract_dir.parent.mkdir(parents=True, exist_ok=True)
     for extractor in extractors:
-        result = run(
-            [extractor, "x", str(iso), "-y", f"-o{extract_dir}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        staging = Path(
+            tempfile.mkdtemp(prefix=f".{extract_dir.name}.", dir=extract_dir.parent)
         )
-        if result.returncode == 0 and initrd.is_file():
-            return initrd
+        committed = False
+        try:
+            result = run(
+                [extractor, "x", str(iso), "-y", f"-o{staging}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if (
+                result.returncode == 0
+                and (staging / "boot" / "initramfs-virt").is_file()
+            ):
+                shutil.rmtree(extract_dir, ignore_errors=True)
+                os.replace(staging, extract_dir)
+                committed = True
+                return initrd
+        finally:
+            if not committed:
+                shutil.rmtree(staging, ignore_errors=True)
     raise SystemExit(f"failed to extract initramfs from {iso}")
 
 
@@ -448,8 +468,6 @@ def _selftest() -> int:
     ISO filename is version-keyed (see ensure_iso), so its extract must be too,
     or bumping ALPINE_VERSION boots a new ISO with the previous initramfs.
     """
-    import tempfile
-
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
@@ -541,7 +559,9 @@ def main() -> int:
 
     root = repo_root()
     cache_dir(root)  # ensure the tmp/qemu scratch dirs (go caches, gomodcache) exist
-    iso = ensure_iso(ALPINE_ARCH)  # verified ISO from durable cache (~/.cache/ze/alpine-iso)
+    iso = ensure_iso(
+        ALPINE_ARCH
+    )  # verified ISO from durable cache (~/.cache/ze/alpine-iso)
 
     kernel = None
     if args.kernel:

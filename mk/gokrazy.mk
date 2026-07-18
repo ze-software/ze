@@ -202,8 +202,12 @@ ze-host:
 
 # ze-kernel routes the runtime kernel through the durable cache (~/.cache/ze, Option C):
 # it asks ze-host for the arch+config-keyed cache dir, materializes from it on a HIT (no
-# ~30-min rebuild), or builds via run.py then populates the cache on a MISS. The cp -R is
-# the sanctioned equivalent of Go's copyTree (see internal/appliance/cache.go copyTree).
+# ~30-min rebuild), or builds via run.py then populates the cache on a MISS. The copy is
+# staged in a sibling .copytree-* dir and swapped in with a rename -- the sanctioned
+# equivalent of Go's atomic copyTree (internal/appliance/cache.go), so a concurrent reader
+# on the shared cache key never sees a half-written tree. Plain `mv` (not `mv -T`, which
+# macOS lacks) guarded by an existence check: if a concurrent populate already won the key,
+# the loser discards its staging instead of nesting it inside the winner's tree.
 # tmp/kernel/build stays a materialized VIEW, so `rm -rf tmp` costs only a copy.
 ze-kernel: ze-host
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
@@ -211,14 +215,20 @@ ze-kernel: ze-host
 	if [ -z "$$cache_dir" ]; then echo "error: could not resolve runtime kernel cache dir from ze-host"; exit 1; fi; \
 	if [ -f "$$cache_dir/vmlinuz" ] && [ -d "$$cache_dir/lib/modules" ]; then \
 		echo "--- Runtime kernel cache HIT: materializing from $$cache_dir (no ~30-min rebuild) ---"; \
-		rm -rf "$(KERNEL_BUILD_DIR)"; mkdir -p "$(KERNEL_BUILD_DIR)"; \
-		cp -R "$$cache_dir/." "$(KERNEL_BUILD_DIR)/"; \
+		build_parent="$$(dirname "$(KERNEL_BUILD_DIR)")"; mkdir -p "$$build_parent"; \
+		staging="$$(mktemp -d "$$build_parent/.copytree-XXXXXX")" && \
+		cp -R "$$cache_dir/." "$$staging/" && \
+		rm -rf "$(KERNEL_BUILD_DIR)" && \
+		if [ -e "$(KERNEL_BUILD_DIR)" ]; then rm -rf "$$staging"; else mv "$$staging" "$(KERNEL_BUILD_DIR)"; rm -rf "$(KERNEL_BUILD_DIR)/$${staging##*/}"; fi; \
 	else \
 		echo "--- Runtime kernel cache MISS: building ($(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"; \
 		$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH); \
 		echo "--- Populating durable cache: $$cache_dir ---"; \
-		rm -rf "$$cache_dir"; mkdir -p "$$cache_dir"; \
-		cp -R "$(KERNEL_BUILD_DIR)/." "$$cache_dir/"; \
+		cache_parent="$$(dirname "$$cache_dir")"; mkdir -p "$$cache_parent"; \
+		staging="$$(mktemp -d "$$cache_parent/.copytree-XXXXXX")" && \
+		cp -R "$(KERNEL_BUILD_DIR)/." "$$staging/" && \
+		rm -rf "$$cache_dir" && \
+		if [ -e "$$cache_dir" ]; then rm -rf "$$staging"; else mv "$$staging" "$$cache_dir"; rm -rf "$$cache_dir/$${staging##*/}"; fi; \
 		"$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(KERNEL_ARCH) --evict-cache; \
 	fi
 	@echo "--- Staging test kernel to tmp/kernel/vmlinuz (QEMU evidence: ze-qemu-l2tp-ppp-test, ze-qemu-pppoe-accel-test) ---"

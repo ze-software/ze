@@ -309,16 +309,49 @@ func copyToToolsPath(src, dst string) error {
 }
 
 // copyTree copies a directory tree (the runtime kernel: vmlinuz + lib/modules +
-// DTBs + overlays) from src to dst, replacing dst. Directories, regular files,
-// and symlinks are preserved (matching the `cp -R` Make path); other special
-// files (devices, sockets) are skipped.
+// DTBs + overlays) from src to dst, replacing dst. It stages the whole tree in a
+// sibling temp dir and swaps it in with a rename, so a concurrent reader on the
+// shared cache key sees the old complete tree, nothing (a loud miss that
+// rebuilds), or the new complete tree -- never a half-written one -- and a failed
+// copy leaves the existing dst intact (R-1/AC-8). An in-place copy instead
+// exposed the partial tree for the whole copy duration. Directories, regular
+// files, and symlinks are preserved (matching the `cp -R` Make path); other
+// special files (devices, sockets) are skipped.
 func copyTree(src, dst string) error {
+	parent := filepath.Dir(dst)
+	if err := os.MkdirAll(parent, cacheDirPerm); err != nil {
+		return fmt.Errorf("create directory %s: %w", parent, err)
+	}
+	// Stage in a dot-prefixed sibling: on the same filesystem as dst (so the
+	// rename is atomic) and skipped by evictKeepN if a concurrent evict runs.
+	staging, err := os.MkdirTemp(parent, ".copytree-*")
+	if err != nil {
+		return fmt.Errorf("create staging dir in %s: %w", parent, err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			os.RemoveAll(staging) //nolint:errcheck // best-effort cleanup on failure
+		}
+	}()
+
+	if err := walkCopyInto(src, staging); err != nil {
+		return err
+	}
 	if err := os.RemoveAll(dst); err != nil {
 		return fmt.Errorf("clear %s: %w", dst, err)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil {
-		return fmt.Errorf("create directory %s: %w", filepath.Dir(dst), err)
+	if err := os.Rename(staging, dst); err != nil {
+		return fmt.Errorf("move %s to %s: %w", staging, dst, err)
 	}
+	committed = true
+	return nil
+}
+
+// walkCopyInto copies the tree rooted at src into dst (which must already exist),
+// preserving directories, regular files, and symlinks and skipping other special
+// files (devices, sockets).
+func walkCopyInto(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -333,7 +366,12 @@ func copyTree(src, dst string) error {
 			if err != nil {
 				return err
 			}
-			return os.MkdirAll(target, info.Mode().Perm())
+			if err := os.MkdirAll(target, info.Mode().Perm()); err != nil {
+				return err
+			}
+			// MkdirAll leaves an existing dir's perm (the staging root) unchanged,
+			// so set it explicitly to mirror the source.
+			return os.Chmod(target, info.Mode().Perm())
 		}
 		if d.Type()&os.ModeSymlink != 0 {
 			link, err := os.Readlink(path)
@@ -368,6 +406,7 @@ func evictKeepN(nsDir string) {
 		name  string
 		mtime time.Time
 	}
+	cutoff := evictNow().Add(-evictGrace)
 	dirs := make([]ent, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() {
@@ -377,13 +416,21 @@ func evictKeepN(nsDir string) {
 		if err != nil {
 			continue
 		}
+		if strings.HasPrefix(e.Name(), ".") {
+			// Never a cache entry. Reap a staging dir (.copytree-*) orphaned by a
+			// populate that was killed or lost a rename race, but only past the
+			// grace window so a live populate's staging is never removed.
+			if strings.HasPrefix(e.Name(), ".copytree-") && info.ModTime().Before(cutoff) {
+				_ = os.RemoveAll(filepath.Join(nsDir, e.Name())) //nolint:errcheck // best-effort
+			}
+			continue
+		}
 		dirs = append(dirs, ent{e.Name(), info.ModTime()})
 	}
 	if len(dirs) <= evictKeepDefault {
 		return
 	}
 	sort.Slice(dirs, func(i, j int) bool { return dirs[i].mtime.After(dirs[j].mtime) })
-	cutoff := evictNow().Add(-evictGrace)
 	for _, d := range dirs[evictKeepDefault:] {
 		if d.mtime.After(cutoff) {
 			continue // too fresh to be safe: leave garbage over racing a live run

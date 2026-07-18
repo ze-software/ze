@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1167 summaries
+Total: 1168 summaries
 
 ## 000-099
 
@@ -1236,3 +1236,4 @@ Total: 1167 summaries
 | 1173 | Relocate scratch + durable cache out of the repo (symlinks) | `plan/learned/1173-relocate-scratch-and-cache.md` |
 | 1174 | cgo-race-requires-cgo | `plan/learned/1174-cgo-race-requires-cgo.md` |
 | 1175 | ze-suffix-test-isolation | `plan/learned/1175-ze-suffix-test-isolation.md` |
+| 1176 | Durable-cache directory-tree writes must be atomic (stage + rename) | `plan/learned/1176-cache-tree-atomic-stage-rename.md` |
