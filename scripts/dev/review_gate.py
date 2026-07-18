@@ -40,7 +40,7 @@ HEADER_RE = re.compile(
     r"<!--\s*ze-review\s+spec=(?P<spec>\S+)\s+verdict=(?P<verdict>\S+).*?-->"
 )
 FILE_LINE_RE = re.compile(r"^\s{2}(?P<hash>[0-9a-f]{64}|DELETED)\s+(?P<path>.+)$")
-_SID_SAFE = re.compile(r"^[A-Za-z0-9._-]+$")
+_SID_SAFE = re.compile(r"[A-Za-z0-9._-]+")
 
 
 def session_id() -> str:
@@ -60,7 +60,9 @@ def session_id() -> str:
     record/check agreement.
     """
     sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-    return sid if _SID_SAFE.match(sid) else "shared"
+    # fullmatch (not match): reject an id with a trailing newline or any unsafe
+    # char rather than letting it into the artifact filename.
+    return sid if _SID_SAFE.fullmatch(sid) else "shared"
 
 
 # Files whose correctness a critical review must cover. Prose (.md) and the

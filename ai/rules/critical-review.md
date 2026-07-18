@@ -33,7 +33,8 @@ reviewers caught on the same diff minutes later.
 4. **Looped to zero.** Every fix is new code that needs a fresh pass. Re-review
    until a pass finds nothing. No cap on passes.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
-   `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>.md`. It pins the
+   `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>-<session-id>.md`
+   (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the
    SHA-256 of every code/test file the reviewers examined. The spec's Review Gate
    section pastes the reviewers' actual findings and each fix.
 
