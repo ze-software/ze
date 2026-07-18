@@ -367,6 +367,11 @@ func TestBuildShutdownDataBoundary(t *testing.T) {
 // Shutdown) or 4 (Admin Reset) carries a shutdown communication that ShutdownMessage extracts.
 // RFC requirement: RFC8203-2-1 negative -- a Cease NOTIFICATION with any other subcode is not a
 // shutdown communication: ShutdownMessage returns the empty string rather than decoding the data.
+// RFC requirement: RFC9003-2-3 positive -- RFC 9003 §2 (obsoleting RFC 8203) keeps the same
+// constraint: the Error Subcode MUST be one of 2 (Administrative Shutdown) or 4 (Administrative
+// Reset) for a Shutdown Communication; ShutdownMessage extracts the message for exactly those two.
+// RFC requirement: RFC9003-2-3 negative -- any other Cease subcode is not a Shutdown Communication:
+// ShutdownMessage returns the empty string rather than decoding the data.
 func TestRFC8203Subcode(t *testing.T) {
 	for _, sub := range []uint8{NotifyCeaseAdminShutdown, NotifyCeaseAdminReset} {
 		n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: sub, Data: append([]byte{2}, "hi"...)}
@@ -399,6 +404,10 @@ func TestRFC8203LengthCap(t *testing.T) {
 // BuildShutdownData then ShutdownMessage.
 // RFC requirement: RFC8203-2-4 negative -- the "MUST NOT interpret invalid UTF-8" prohibition is
 // confined to invalid input: a valid multibyte message IS interpreted and returned.
+// RFC requirement: RFC9003-2-1 positive -- RFC 9003 §2: the Shutdown Communication field MUST be
+// encoded using UTF-8; a valid UTF-8 message round-trips through BuildShutdownData then ShutdownMessage.
+// RFC requirement: RFC9003-2-4 negative -- the receiver's "MUST NOT interpret invalid UTF-8"
+// prohibition is confined to invalid input: a valid multibyte message IS interpreted and returned.
 func TestRFC8203UTF8Valid(t *testing.T) {
 	data := BuildShutdownData("日本語")
 	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: data}
@@ -413,6 +422,11 @@ func TestRFC8203UTF8Valid(t *testing.T) {
 // rejected (ShutdownMessage returns an error) rather than accepted.
 // RFC requirement: RFC8203-2-4 positive -- the receiver MUST NOT interpret invalid UTF-8: an
 // invalid sequence yields an error and an empty string, never a decoded message.
+// RFC requirement: RFC9003-2-1 negative -- a Shutdown Communication that is not valid UTF-8 is
+// rejected (ShutdownMessage returns an error) rather than accepted as a UTF-8 string.
+// RFC requirement: RFC9003-2-4 positive -- RFC 9003 §2: the receiving BGP speaker MUST NOT
+// interpret invalid UTF-8; an invalid sequence yields an error and an empty string, never a
+// decoded message.
 func TestRFC8203UTF8Invalid(t *testing.T) {
 	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: []byte{3, 0xff, 0xfe, 0xfd}}
 	msg, err := n.ShutdownMessage()
@@ -427,6 +441,10 @@ func TestRFC8203UTF8Invalid(t *testing.T) {
 // RFC requirement: RFC8203-6-1 negative -- a non-shortest-form (overlong) encoding is rejected:
 // the overlong 2-byte encoding of U+002F, 0xC0 0xAF, is not valid UTF-8, so ShutdownMessage
 // rejects it instead of decoding it to '/'.
+// RFC requirement: RFC9003-2-2 positive -- RFC 9003 §2/§6: UTF-8 "Shortest Form" encoding is
+// REQUIRED; a shortest-form encoding (U+00E9 as its canonical 2-byte 0xC3 0xA9) is accepted.
+// RFC requirement: RFC9003-2-2 negative -- a non-shortest-form (overlong) encoding, 0xC0 0xAF for
+// U+002F, is not valid UTF-8, so ShutdownMessage rejects it instead of decoding it to '/'.
 func TestRFC8203ShortestFormUTF8(t *testing.T) {
 	ok := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: []byte{2, 0xC3, 0xA9}}
 	msg, err := ok.ShutdownMessage()
