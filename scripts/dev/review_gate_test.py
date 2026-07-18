@@ -144,6 +144,37 @@ class ReviewGateCase(unittest.TestCase):
         r = run_gate("check", "--spec", "demo", "--files", self.rel(doc), cwd=self.root)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_different_sessions_do_not_share_artifact(self):
+        # F2: the artifact is session-scoped. Session A records clean and A's own
+        # check passes, but a concurrent session B (different CLAUDE_CODE_SESSION_ID)
+        # on the SAME spec has no artifact of its own and is BLOCKED -- so two
+        # agents on one spec can neither clobber nor ride each other's review.
+        def gate(sid, *args):
+            env = {**os.environ, "CLAUDE_CODE_SESSION_ID": sid}
+            return subprocess.run(
+                [sys.executable, str(GATE), *args],
+                cwd=self.root,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+        gate(
+            "sessionA",
+            "record",
+            "--spec",
+            "demo",
+            "--verdict",
+            "clean",
+            "--files",
+            self.rel(self.code),
+        )
+        ra = gate("sessionA", "check", "--spec", "demo", "--files", self.rel(self.code))
+        self.assertEqual(ra.returncode, 0, ra.stderr)
+        rb = gate("sessionB", "check", "--spec", "demo", "--files", self.rel(self.code))
+        self.assertEqual(rb.returncode, 3)
+        self.assertIn("no independent-review artifact", rb.stderr)
+
 
 class CommitHelperIntegrationCase(unittest.TestCase):
     """spec_closure_stem drives which commits the review gate applies to."""

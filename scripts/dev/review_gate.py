@@ -2,8 +2,10 @@
 """Independent-review gate: record and check the review artifact that
 `ai/rules/critical-review.md` requires before a spec may be closed.
 
-The artifact `tmp/review/<spec-stem>.md` is written by INDEPENDENT reviewers
-(subagents / a fresh session, never the author's own inline reasoning) and pins
+The artifact `tmp/review/<spec-stem>-<session-id>.md` is written by INDEPENDENT
+reviewers (subagents / a fresh session, never the author's own inline reasoning)
+and is session-scoped so two agents working the same spec never clobber or ride
+each other's review (see session_id()). It pins
 the exact content of every code/test file they examined by SHA-256. The commit
 gate (scripts/dev/commit_helper.py) refuses a spec-closure commit unless a
 matching CLEAN artifact exists, so a review cannot be faked by narrating
@@ -28,6 +30,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import os
 import re
 import sys
 from pathlib import Path
@@ -37,6 +40,28 @@ HEADER_RE = re.compile(
     r"<!--\s*ze-review\s+spec=(?P<spec>\S+)\s+verdict=(?P<verdict>\S+).*?-->"
 )
 FILE_LINE_RE = re.compile(r"^\s{2}(?P<hash>[0-9a-f]{64}|DELETED)\s+(?P<path>.+)$")
+_SID_SAFE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def session_id() -> str:
+    """Per-session component of the review-artifact filename, so two agents
+    working the SAME spec do not clobber each other's review: each records AND
+    checks its own artifact.
+
+    Mirrors .claude/hooks/lib/session-id.sh strategy 1 -- the CLI exports
+    CLAUDE_CODE_SESSION_ID into every process it spawns, and subagents/forks
+    inherit the parent's value -- so a review this session recorded (including
+    via its reviewer subagents) is found by this same session's commit-gate
+    check (record, the create-time gate, and the generated commit script all run
+    in the session), while a concurrent session on the same spec resolves a
+    different id and can neither ride nor overwrite it. Falls back to a shared
+    constant when the env var is absent (older CLI / non-session context),
+    degrading to the old spec-keyed behaviour rather than breaking the
+    record/check agreement.
+    """
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    return sid if _SID_SAFE.match(sid) else "shared"
+
 
 # Files whose correctness a critical review must cover. Prose (.md) and the
 # spec/learned records are reviewed by other gates (doc review, the spec's own
@@ -75,7 +100,7 @@ def file_hash(path: str) -> str:
 
 def artifact_path(spec: str) -> Path:
     stem = spec.removeprefix("spec-").removesuffix(".md")
-    return ARTIFACT_DIR / f"{stem}.md"
+    return ARTIFACT_DIR / f"{stem}-{session_id()}.md"
 
 
 def is_code(path: str) -> bool:

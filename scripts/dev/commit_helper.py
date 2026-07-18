@@ -1165,7 +1165,7 @@ def spec_closure_stem(
 
     Closure = commit A adds plan/learned/NNN-<stem>.md, or commit B removes
     plan/spec-<stem>.md (ai/rules/planning.md "Spec Closure"). The <stem> is the
-    key the review artifact (tmp/review/<stem>.md) is written under.
+    key the review artifact (tmp/review/<stem>-<session-id>.md) is written under.
     """
     for p in add_paths:
         m = _LEARNED_STEM_RE.match(p)
