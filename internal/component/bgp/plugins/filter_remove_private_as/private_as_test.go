@@ -43,3 +43,22 @@ func TestRewriteASPathText(t *testing.T) {
 		t.Fatalf("public rewrite = (%q,%v), want unchanged false", got, changed)
 	}
 }
+
+// RFC requirement: RFC6996-4-1 positive -- a Private Use ASN present in the AS path
+// is removed before advertisement: strip drops 64512 from [64496 64512 64497].
+func TestRFC6996StripsPrivateUseASN(t *testing.T) {
+	got, changed := rewriteASPathText("[64496 64512 64497]", removeModeStrip, 65001)
+	if !changed || got != "[64496 64497]" {
+		t.Fatalf("strip [64496 64512 64497] = (%q,%v), want ([64496 64497], true)", got, changed)
+	}
+}
+
+// RFC requirement: RFC6996-4-1 negative -- removal is confined to the Private Use
+// range: an AS path of only non-private ASNs is advertised unchanged, so a
+// non-private ASN is never stripped as if it were private.
+func TestRFC6996KeepsPublicASN(t *testing.T) {
+	got, changed := rewriteASPathText("[64496 64497]", removeModeStrip, 65001)
+	if changed || got != "[64496 64497]" {
+		t.Fatalf("strip [64496 64497] = (%q,%v), want unchanged (false)", got, changed)
+	}
+}
