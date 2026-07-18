@@ -12,6 +12,9 @@ import (
 //
 // VALIDATES: Route with matching origin AS and prefix within maxLength is Valid.
 // PREVENTS: Valid routes being classified as Invalid or NotFound.
+//
+// RFC requirement: RFC6811-2-1 positive -- the validation state is set to reflect the result of
+// the lookup: a route whose origin AS and prefix length are authorized by a covering VRP is Valid.
 func TestValidateValid(t *testing.T) {
 	c := NewROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
@@ -24,6 +27,10 @@ func TestValidateValid(t *testing.T) {
 //
 // VALIDATES: Route with wrong origin AS but covered prefix is Invalid.
 // PREVENTS: Invalid routes being accepted.
+//
+// RFC requirement: RFC6811-2-1 negative -- the state reflects the lookup rather than defaulting
+// to Valid: the same prefix with a non-authorized origin AS (covered by a VRP that does not match)
+// is Invalid, not Valid, so the state is derived from the lookup result.
 func TestValidateInvalid(t *testing.T) {
 	c := NewROACache()
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
@@ -78,6 +85,21 @@ func TestValidateOriginNone(t *testing.T) {
 
 	state := c.Validate("10.0.1.0/24", OriginNone)
 	assert.Equal(t, ValidationInvalid, state)
+}
+
+// TestValidateFourOctetAS verifies origin validation compares the full 32-bit AS number.
+//
+// RFC requirement: RFC6811-3-2 positive -- validation supports four-octet AS numbers: a prefix
+// originated by a 32-bit ASN authorized by a VRP carrying the same 32-bit ASN is Valid.
+// RFC requirement: RFC6811-3-2 negative -- a four-octet origin AS that differs only in its high
+// 16 bits (same low 16) is Invalid, so the ASN is compared as a full uint32 and not truncated to
+// 16 bits: 4200000000 (0xFA56EA00) authorizes, 4200065536 (0xFA57EA00, same low 16) does not.
+func TestValidateFourOctetAS(t *testing.T) {
+	c := NewROACache()
+	c.Add(makeVRP("10.0.0.0/8", 24, 4200000000)) // 32-bit ASN authorizes 10.0.0.0/8
+
+	assert.Equal(t, ValidationValid, c.Validate("10.0.1.0/24", 4200000000))
+	assert.Equal(t, ValidationInvalid, c.Validate("10.0.1.0/24", 4200065536))
 }
 
 // TestValidateMultipleVRPsOneMatch verifies Valid when any VRP matches.
