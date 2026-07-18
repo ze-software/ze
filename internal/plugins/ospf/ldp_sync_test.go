@@ -338,6 +338,12 @@ func TestLDPSyncStuckRaisesAlert(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC6138-4-1 positive -- a cut-edge broadcast interface's transit link is NOT
+// withheld by LDP's operational state: ldpSyncWithholdTransit returns false for cutEdge=true even
+// when the interface is not yet synchronized, so the link is advertised immediately.
+// RFC requirement: RFC6138-4-1 negative -- the withhold is confined to non-cut-edges: a
+// not-synchronized non-cut-edge broadcast transit link IS withheld, so the cut-edge exemption is
+// meaningful rather than a blanket no-withhold.
 func TestLDPSyncTECostUntouched(t *testing.T) {
 	// AC-15: the mechanism raises only the IP link cost (RFC 5443 §4), never a TE cost.
 	// Ze originates no TE LSA, so the guarantee holds trivially: the only override is

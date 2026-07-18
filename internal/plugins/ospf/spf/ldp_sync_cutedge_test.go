@@ -54,6 +54,12 @@ func TestLDPSyncBroadcastNonCutEdgeDetected(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC6138-x-1 positive -- a scheduled-but-pending SPF is executed immediately
+// before the cut-edge query reads the graph: IsCutEdge flushes the pending SPF (SPFSnapshot becomes
+// non-empty) and answers from the fresh graph (RFC 6138 Appendix A).
+// RFC requirement: RFC6138-x-1 negative -- the pending SPF is not run prematurely: before IsCutEdge
+// is called the armed SPF has not executed (SPFSnapshot is empty), so it is specifically the
+// cut-edge query that triggers the flush, not a background timer.
 func TestLDPSyncCutEdgeUsesFreshSPF(t *testing.T) {
 	// AC-8 / A-6 / R-8: a scheduled-but-pending SPF MUST be executed before the
 	// cut-edge query reads the graph (RFC 6138 Appendix A).
