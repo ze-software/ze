@@ -131,6 +131,9 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 
 // TestReactorForwardRSBasic verifies the fast path forwards to all peers
 // except the source, using the same egress pipeline.
+// RFC requirement: RFC7947-x-4 negative -- with no per-client export policy configured, each
+// RS client is redistributed to without policy interception: all destination peers (that are
+// not the source) receive the route on the fast path and none are skipped.
 func TestReactorForwardRSBasic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -208,6 +211,12 @@ func TestReactorForwardRSBasic(t *testing.T) {
 
 // TestReactorForwardRSFallback verifies peers with ExportFilters are skipped
 // and returned in the FastPathSkipped list.
+//
+// RFC requirement: RFC7947-x-4 positive -- per-client export policy is applied on each
+// redistribution: a destination RS client that carries an export filter chain is not
+// blind-forwarded by the policy-agnostic fast path but is separated into the skipped list so
+// its per-client export policy governs the redistribution on the plugin path (forwardUpdateCore
+// -> runEgressPolicyChain). A client without filters is forwarded directly.
 func TestReactorForwardRSFallback(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -274,6 +283,11 @@ func TestReactorForwardRSFallback(t *testing.T) {
 
 // TestReactorForwardRSEBGPPrepend verifies EBGP AS-PATH prepend is applied
 // for EBGP destination peers.
+//
+// RFC requirement: RFC7947-x-1 negative -- the "MUST NOT prepend own AS" transparency is
+// confined to RS clients: a plain (non-RS-client) EBGP destination DOES get the local AS
+// prepended (the forwarded body grows), so the no-prepend behavior is specific to RS clients,
+// not a blanket disable of AS-path prepending.
 func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -359,6 +373,98 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	assert.Greater(t, len(item.rawBodies[0]), len(payload),
 		"EBGP wire should have AS_PATH prepended (longer than original)")
 }
+
+// rsTransparencyBody is an UPDATE body carrying AS_PATH [65001] (4-byte ASN), NEXT_HOP
+// 10.0.0.254, MULTI_EXIT_DISC 100, and NLRI 192.0.2.0/24. It is used to prove RS forwarding
+// leaves AS_PATH, NEXT_HOP, and MED untouched.
+func rsTransparencyBody() []byte {
+	return []byte{
+		0, 0, // WithdrawnLen = 0
+		0, 23, // TotalPathAttrLen = 23
+		0x40, 2, 6, 2, 1, 0, 0, 0xFD, 0xE9, // AS_PATH: AS_SEQUENCE[65001] (4-byte ASN)
+		0x40, 3, 4, 10, 0, 0, 254, // NEXT_HOP 10.0.0.254
+		0x80, 4, 4, 0, 0, 0, 100, // MULTI_EXIT_DISC = 100
+		24, 192, 0, 2, // NLRI 192.0.2.0/24
+	}
+}
+
+// TestReactorForwardRSTransparent proves the route server forwards an RS client's route without
+// touching AS_PATH, NEXT_HOP, or MED: the forwarded body is byte-identical to the received body,
+// because an unfiltered RS client queues no attribute modification and the wire is written verbatim.
+//
+// RFC requirement: RFC7947-x-1 positive -- the route server MUST NOT prepend its own AS to
+// AS_PATH for an RS client; the forwarded AS_PATH equals the received AS_PATH.
+// RFC requirement: RFC7947-x-2 positive -- the route server MUST NOT rewrite NEXT_HOP for an RS
+// client under the default (transparent) next-hop mode; the forwarded NEXT_HOP is unchanged.
+// RFC requirement: RFC7947-x-3 positive -- the route server MUST preserve MULTI_EXIT_DISC; the
+// forwarded MED is carried across unchanged.
+func TestReactorForwardRSTransparent(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	payload := rsTransparencyBody()
+	wu := wireu.NewWireUpdate(payload, ctxID)
+	wu.SetMessageID(80)
+
+	update := &ReceivedUpdate{
+		WireUpdate:   wu,
+		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		ReceivedAt:   time.Now(),
+	}
+
+	cache := NewRecentUpdateCache(100)
+	cache.Add(update)
+	cache.Activate(80, 1)
+
+	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
+	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
+	// Mark the destination an RS client: transparent AS-path forwarding (no prepend).
+	dst.settings.RSClient = true
+	dst.refreshForwardFacts()
+
+	var dispatched []fwdItem
+	var mu sync.Mutex
+	done := make(chan struct{})
+	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		mu.Lock()
+		dispatched = append(dispatched, items...)
+		mu.Unlock()
+		close(done)
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer testPool.Stop()
+
+	r := &Reactor{
+		recentUpdates: cache,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			dst.Settings().PeerKey(): dst,
+		},
+		fwdPool: testPool,
+	}
+
+	reactorForwardRS(r, update, 80, netip.MustParseAddr("10.0.0.1"), src)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for dispatch")
+	}
+
+	mu.Lock()
+	require.Len(t, dispatched, 1)
+	item := dispatched[0]
+	mu.Unlock()
+
+	require.NotEmpty(t, item.rawBodies)
+	assert.Equal(t, payload, item.rawBodies[0],
+		"RS-client forward must be byte-identical: no AS prepend, no NEXT_HOP rewrite, MED preserved")
+}
+
+// test-relax: a draft x-2-negative "next-hop rewrite" test was removed before commit. NEXT_HOP
+// transparency is not RS-specific (all forwarded routes preserve it by default), so there is no
+// "confined" negative comparable to the x-1 EBGP-prepend case; the only rewrite is an explicit
+// per-peer override, which tests the override feature, not the RS-transparency MUST-NOT. x-2 is
+// therefore characterized {single-polarity: positive} in rfc/short/rfc7947.md.
 
 // TestReactorForwardRSBufferLifetime verifies Retain/Release lifecycle:
 // RetainN before dispatch, Release in done() callback after worker completes.
