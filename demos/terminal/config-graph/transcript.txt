@@ -1,0 +1,14 @@
+An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.
+
+$ ze config show router.conf bgp group transit
+The scoped configuration shows `upstream-a` and `upstream-b` inside the transit group.
+
+$ ze config validate router.conf
+configuration valid
+
+$ ze config graph router.conf | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe match inherits
+The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+
+No reporting helper creates the displayed relationships. The command filters Ze's graph output directly through Ze's format pipeline.

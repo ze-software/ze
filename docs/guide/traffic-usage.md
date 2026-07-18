@@ -115,6 +115,8 @@ The command produces JSON by default and supports the full set of pipe
 operators.
 <!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage -->
 
+<!-- terminal-demo: traffic-anomaly -->
+
 ## Prometheus Metrics
 
 The plugin registers the following metrics. All are GaugeVec carrying absolute

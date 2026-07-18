@@ -10,7 +10,7 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh traceroute intro"
 Enter
 Show
-Sleep 10s
+Sleep 11s
 
 Hide
 Type "clear"
@@ -19,21 +19,21 @@ Show
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
-Sleep 4s
+Sleep 3s
 Type "run show traceroute 192.0.2.53"
 Enter
 Wait+Screen /192.0.2.53/
-Sleep 6s
+Sleep 7s
 Type "run monitor traceroute 192.0.2.53"
 Enter
 Wait+Screen /Loss/
 Sleep 10s
 Screenshot artifacts/traceroute.png
-Sleep 2s
+Sleep 3s
 Type "q"
 Sleep 3s
 Escape
-Sleep 2s
+Sleep 3s
 Escape
 Sleep 3s
 
@@ -44,4 +44,4 @@ Wait+Screen /terminal demo stopped/
 Type "bash /src/demos/terminal/cards.sh traceroute recap"
 Enter
 Show
-Sleep 8s
+Sleep 9s

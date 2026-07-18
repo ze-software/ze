@@ -345,6 +345,8 @@ scripts can parse the output while the interactive CLI renders them.
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 
+<!-- terminal-demo: bfd-failover -->
+
 ### List all sessions
 
 ```

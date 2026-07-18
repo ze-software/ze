@@ -1,0 +1,7 @@
+$ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
+$ ze cli -c 'show bgp rib best prefix 198.51.100.0/24 | no-more'
+198.51.100.0/24
+$ ip -details route show exact 198.51.100.0/24
+198.51.100.0/24 ... proto 250
+
+The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-independent system RIB, and is programmed into Linux with Ze's route protocol ID. The validator withdraws it and confirms kernel removal.

@@ -26,7 +26,14 @@ chmod 600 "${HOME}/.ssh/config"
 mkdir -p /root/.ssh
 cp "${HOME}/.ssh/config" /root/.ssh/config
 
-vhs "$@"
+case "${1:-}" in
+    *.tape)
+        vhs "$@"
+        ;;
+    *)
+        "$@"
+        ;;
+esac
 status=$?
 
 if [[ -n "${HOST_UID:-}" && -n "${HOST_GID:-}" ]]; then

@@ -406,6 +406,8 @@ ze show host storage               # Block devices + NVMe firmware
 ze show host kernel                # Kernel release, cmdline, microcode, arch flags
 ```
 
+<!-- terminal-demo: host-inventory -->
+
 <!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
 <!-- source: internal/plugins/host/host.go -- RunShow offline fallback (registry.RegisterOfflineFallback) -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->

@@ -10,7 +10,7 @@ Wait+Screen /terminal demo prepared/
 Type "bash /src/demos/terminal/cards.sh zefs-config intro"
 Enter
 Show
-Sleep 10s
+Sleep 11s
 
 Hide
 Type "clear"
@@ -22,10 +22,10 @@ Sleep 4s
 Type "ze config ls"
 Enter
 Wait+Screen /ze.conf/
-Sleep 5s
+Sleep 4s
 Type "ze data check"
 Enter
-Sleep 5s
+Sleep 4s
 
 Hide
 Type "/src/demos/terminal/zefs-config/run.sh start"
@@ -34,7 +34,7 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh zefs-config ssh"
 Enter
 Show
-Sleep 8s
+Sleep 9s
 
 Hide
 Type "clear"
@@ -43,26 +43,32 @@ Show
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
-Sleep 4s
+Sleep 3s
+Type "run show bgp summary"
+Enter
+Sleep 7s
+Escape
+Wait+Screen /ze#/
+Sleep 3s
 Type "set environment cli format default table"
 Enter
 Sleep 4s
 Type "show | compare"
 Enter
-Sleep 5s
+Sleep 6s
 Type "commit"
 Enter
 Wait+Screen /Session committed/
-Sleep 6s
+Sleep 5s
 Type "run show bgp summary"
 Enter
-Sleep 6s
+Sleep 7s
 Screenshot artifacts/zefs-config.png
-Sleep 2s
+Sleep 3s
 Escape
-Sleep 2s
+Sleep 3s
 Escape
-Sleep 2s
+Sleep 3s
 Escape
 Sleep 3s
 
@@ -73,4 +79,4 @@ Wait+Screen /terminal demo stopped/
 Type "bash /src/demos/terminal/cards.sh zefs-config recap"
 Enter
 Show
-Sleep 8s
+Sleep 9s

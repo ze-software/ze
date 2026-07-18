@@ -373,6 +373,8 @@ For cryptographic auth the OSPF common-header Checksum is zero (the appended dig
 Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to `authentication { mode inherit }` uses the area-level default chain. Secrets are stored `$9$`-encoded and never appear in plaintext in `show configuration` or backups.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
 
+## Operational Commands
+
 Operational state is available through the `show ospf` command tree:
 
 ```text
@@ -397,6 +399,8 @@ show ospf border-routers
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
 The runtime can be reset without reconfiguring via `clear ospf process` (tear down adjacencies and re-run SPF), `clear ospf neighbor` (re-form adjacencies), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
+
+<!-- terminal-demo: ospf-adjacency -->
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->
 <!-- source: internal/component/web/handler_ospf.go -- OSPF neighbor/database web views -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- SPFSnapshot -->

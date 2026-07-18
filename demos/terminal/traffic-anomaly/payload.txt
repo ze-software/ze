@@ -1,0 +1,2 @@
+Ze local traffic accounting demonstration payload.
+This file is served only inside the isolated recording container.

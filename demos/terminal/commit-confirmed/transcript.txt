@@ -1,0 +1,22 @@
+$ ze config edit -f ze.conf
+ze# show system host
+host edge-original
+ze# set system host edge-trial
+ze# show | compare
+ze# commit confirmed 8
+Committed. Confirm within 8s or auto-revert. Use 'confirm' or 'confirm abort'.
+ze# show system host
+host edge-trial
+Timeout: configuration automatically rolled back.
+ze# show system host
+host edge-original
+
+ze# set system host edge-confirmed
+ze# commit confirmed 8
+Committed. Confirm within 8s or auto-revert. Use 'confirm' or 'confirm abort'.
+ze# confirm
+Configuration confirmed and saved permanently.
+ze# show system host
+host edge-confirmed
+
+The first change is left unconfirmed and rolls back. The second receives `confirm`; after waiting beyond the same deadline, the editor still reports edge-confirmed.

@@ -10,7 +10,7 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh cli-dashboard intro"
 Enter
 Show
-Sleep 10s
+Sleep 11s
 
 Hide
 Type "clear"
@@ -27,22 +27,22 @@ Sleep 3s
 Type "monitor bgp"
 Enter
 Wait+Screen /connected/
-Sleep 6s
+Sleep 8s
 
 Type "s"
-Sleep 4s
+Sleep 5s
 Down
 Sleep 3s
 Enter
 Wait+Screen /Peer Detail/
-Sleep 6s
+Sleep 7s
 Screenshot artifacts/cli-dashboard.png
 
 Escape
 Sleep 3s
 Type "q"
 Wait+Screen /ze>/
-Sleep 2s
+Sleep 3s
 Type "exit"
 Enter
 Wait+Screen /\$ /
@@ -54,4 +54,4 @@ Wait+Screen /terminal demo stopped/
 Type "bash /src/demos/terminal/cards.sh cli-dashboard recap"
 Enter
 Show
-Sleep 8s
+Sleep 9s

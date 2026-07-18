@@ -1,0 +1,36 @@
+Output artifacts/config-graph.webm
+Source common.tape
+
+Hide
+Type "clear"
+Enter
+Type "bash /src/demos/terminal/cards.sh config-graph intro"
+Enter
+Show
+Sleep 11s
+
+Hide
+Type "clear"
+Enter
+Show
+Type "ze config show /src/demos/terminal/config-graph/router.conf bgp group transit"
+Enter
+Wait+Screen /upstream-b/
+Sleep 6s
+Type "ze config validate /src/demos/terminal/config-graph/router.conf"
+Enter
+Wait+Screen /configuration valid/
+Sleep 4s
+Type "clear"
+Enter
+Type "ze config graph /src/demos/terminal/config-graph/router.conf | ze pipe match peer/upstream"
+Enter
+Sleep 5s
+Type "ze config graph /src/demos/terminal/config-graph/router.conf | ze pipe match group/transit"
+Enter
+Sleep 5s
+Type "ze config graph /src/demos/terminal/config-graph/router.conf | ze pipe match inherits"
+Enter
+Sleep 7s
+Screenshot artifacts/config-graph.png
+Sleep 2s

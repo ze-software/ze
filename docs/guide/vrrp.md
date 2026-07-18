@@ -196,6 +196,8 @@ A few consequences of this mechanism are worth knowing:
 State changes are logged as `vrrp: state change` with `from`, `to`, and a
 `reason`, so a failover leaves a record of what triggered it.
 
+<!-- terminal-demo: vrrp-failover -->
+
 For Prometheus:
 
 | Metric | Meaning |

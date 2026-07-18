@@ -11,7 +11,20 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh rbac intro"
 Enter
 Show
-Sleep 10s
+Sleep 11s
+
+Hide
+Type "clear"
+Enter
+Show
+Type "ze config show /src/demos/terminal/rbac/rbac.conf system authorization profile read-only"
+Enter
+Wait+Screen /match clear/
+Sleep 6s
+Type "ze config show /src/demos/terminal/rbac/rbac.conf system authentication user noc profile"
+Enter
+Wait+Screen /profile read-only/
+Sleep 4s
 
 Hide
 Type "export ZE_SSH_PASSWORD=noc-secret"
@@ -21,13 +34,13 @@ Enter
 Show
 Type "ze cli --user noc -c 'show version'"
 Enter
-Sleep 6s
+Sleep 5s
 
 Hide
 Type "bash /src/demos/terminal/cards.sh rbac deny"
 Enter
 Show
-Sleep 8s
+Sleep 9s
 
 Hide
 Type "clear"
@@ -38,7 +51,7 @@ Enter
 Wait+Screen /restricted by access control/
 Sleep 6s
 Screenshot artifacts/rbac.png
-Sleep 2s
+Sleep 3s
 
 Hide
 Type "/src/demos/terminal/rbac/run.sh stop"
@@ -47,4 +60,4 @@ Wait+Screen /terminal demo stopped/
 Type "bash /src/demos/terminal/cards.sh rbac recap"
 Enter
 Show
-Sleep 8s
+Sleep 9s

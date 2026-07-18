@@ -6,7 +6,7 @@
 # required by the Linux network-namespace traceroute lab.
 
 TERMINAL_DEMO_GOARCH ?= $(shell $(GO) env GOARCH)
-TERMINAL_DEMO_IMAGE := ze-terminal-demos:vhs-0.11.0
+TERMINAL_DEMO_IMAGE := ze-terminal-demos:vhs-0.11.0-playwright-1.55.0
 TERMINAL_DEMO_RELEASE ?= $(ZE_VERSION)
 TERMINAL_DEMO_BIN_DIR := $(CURDIR)/tmp/terminal-demos/bin
 TERMINAL_DEMO_OUTPUT ?= $(CURDIR)/../gh-pages/assets/demos
@@ -14,6 +14,7 @@ TERMINAL_DEMO_TAGS := ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)
 
 .PHONY: ze-terminal-demo ze-terminal-demos ze-terminal-demos-check
 .PHONY: ze-terminal-demo-image ze-terminal-demo-binaries
+.PHONY: ze-terminal-demos-validate
 .PHONY: ze-terminal-demos-release ze-terminal-demos-release-check
 .PHONY: ze-terminal-demo-tools
 .PHONY: ze-release-assets ze-release-assets-check
@@ -43,6 +44,9 @@ ze-terminal-demo: ze-terminal-demo-image ze-terminal-demo-binaries
 
 ze-terminal-demos: ze-terminal-demo-image ze-terminal-demo-binaries
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)"
+
+ze-terminal-demos-validate: ze-terminal-demo-image ze-terminal-demo-binaries
+	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --validate
 
 ze-terminal-demos-check:
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --check

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source /src/demos/terminal/validate-common.sh
+
+state=/src/tmp/terminal-demos/state/rpki
+run=/src/demos/terminal/rpki/run.sh
+export ZE_CONFIG_DIR="${state}/config"
+export ZE_SSH_PASSWORD=secret123
+export SSHPASS=secret123
+export ZE_INIT_INPUT="${state}/init.input"
+
+trap '"${run}" stop >/dev/null 2>&1 || true' EXIT
+"${run}" prepare >/dev/null
+ze init <"${ZE_INIT_INPUT}" >/dev/null
+"${run}" start >/dev/null
+
+status=
+for _ in {1..100}; do
+    status=$(ze cli -c 'show bgp rpki status | no-more' 2>&1 || true)
+    if [[ "${status}" == *'sessions: 1'* ]]; then
+        break
+    fi
+    sleep 0.1
+done
+assert_contains "${status}" 'sessions: 1'
+assert_contains "${status}" 'vrp-count-ipv4: 171'
+
+routes=
+for _ in {1..100}; do
+    routes=$(ze cli -c 'show bgp adj-rib-in | no-more' 2>&1 || true)
+    if [[ "${routes}" == *'9.43.0.0/24'* && "${routes}" == *'11.43.0.0/24'* && "${routes}" != *'10.43.0.0/24'* ]]; then
+        break
+    fi
+    sleep 0.1
+done
+assert_contains "${routes}" '9.43.0.0/24'
+assert_contains "${routes}" '11.43.0.0/24'
+assert_contains "${routes}" 'validation-state'
+assert_not_contains "${routes}" '10.43.0.0/24'
+finish_validation rpki

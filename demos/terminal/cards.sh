@@ -6,24 +6,23 @@ case "${1:-}:${2:-}" in
     launcher:intro)
         cat <<'EOF'
 
-  Ze command launcher
-  ===================
+  Find a Ze command without memorizing the tree
+  =============================================
 
-  Goal: discover Ze commands without memorizing the command tree.
+  You know the task but not the exact command path. Ze's launcher finds
+  it as you type.
 
-  This recording will:
-    1. Open the interactive launcher.
-    2. Filter the Show commands down to traceroute.
-    3. Return to the root and find the doctor command.
+  We will open the launcher, filter the show commands down to traceroute,
+  step back to the root, and find the doctor readiness check.
 
-  Watch the breadcrumb and filter labels as the menu changes.
+  Type to filter. Enter drills down. Escape steps back.
 EOF
         ;;
     launcher:recap)
         cat <<'EOF'
 
-  WHAT THIS PROVED
-  =================
+  GENERATED FROM THE LIVE COMMAND REGISTRY
+  ========================================
 
   Type to filter. Enter drills down. Escape moves back.
 
@@ -36,24 +35,24 @@ EOF
     cli-dashboard:intro)
         cat <<'EOF'
 
-  Ze live BGP dashboard
-  =====================
+  Inspect live BGP sessions from the CLI
+  ======================================
 
-  Goal: inspect active BGP sessions without leaving the CLI.
+  You want to check active BGP sessions without leaving the terminal or
+  standing up a separate monitoring stack.
 
-  This recording will:
-    1. Connect through Ze's SSH management plane.
-    2. Open the continuously refreshed BGP dashboard.
-    3. Sort the peer table and inspect one session in detail.
+  We will connect over Ze's SSH management plane, open the continuously
+  refreshed BGP dashboard, sort the peer table, and open one session in
+  detail.
 
-  Keys used: s sorts, arrows move, Enter opens detail, Escape returns.
+  s sorts. Arrows move. Enter opens detail. Escape returns.
 EOF
         ;;
     cli-dashboard:recap)
         cat <<'EOF'
 
-  WHAT THIS PROVED
-  =================
+  ONE LIVE VIEW OF EVERY SESSION
+  ==============================
 
   One interactive view combines peer state, uptime, message counters,
   update rates, and per-session detail. The data refreshes while you work.
@@ -64,16 +63,15 @@ EOF
     zefs-config:intro)
         cat <<'EOF'
 
-  Create ZeFS, then configure Ze over SSH
-  =======================================
+  Configure Ze from storage to live commit
+  ========================================
 
-  Goal: show the complete configuration path from storage to commit.
+  You are setting up a new router and need the whole path, from creating
+  the configuration store to committing a change on the running daemon.
 
-  This recording will:
-    1. Create a fresh ZeFS database with ze init.
-    2. List and validate the stored configuration.
-    3. Connect to Ze's SSH configuration editor.
-    4. Change a setting, review the diff, commit, and verify it live.
+  We will create a fresh ZeFS database with ze init, list and validate
+  the stored configuration, connect to Ze's SSH editor, change a setting,
+  review the diff, commit, and confirm it live.
 EOF
         ;;
     zefs-config:ssh)
@@ -84,20 +82,179 @@ EOF
 
   ZeFS now contains a valid active configuration.
 
-  Next: connect over SSH, change the default CLI output format, inspect
-  the pending diff, commit it, then run an operational command.
+  Next: connect over SSH and run show bgp summary in its default text
+  format. Then switch the default to table, review and commit the diff,
+  and run the same command again to compare the presentation.
 EOF
         ;;
     zefs-config:recap)
         cat <<'EOF'
 
-  WHAT THIS PROVED
-  =================
+  FROM ZE INIT TO A LIVE COMMIT
+  =============================
 
-  ze init created the ZeFS database. The SSH editor changed a draft,
-  show | compare exposed the exact change, and commit made it active.
+  ze init created the ZeFS database. The same BGP summary changed from
+  text to a box-drawing table after the SSH editor committed the new
+  default. show | compare exposed the exact change.
 
   No configuration file was edited on the running router.
+
+  Recording complete.
+EOF
+        ;;
+    commit-confirmed:intro)
+        cat <<'EOF'
+
+  Protect a remote commit with a safety window
+  ============================================
+
+  You are changing a router you can only reach over the network. A bad
+  commit could lock you out, so you want the change to undo itself unless
+  you confirm it in time.
+
+  Ze starts with hostname edge-original. In one editor we will commit
+  edge-trial and stay silent so it rolls back, verify edge-original
+  returned, then commit edge-confirmed, run confirm, wait past the same
+  deadline, and verify it stayed.
+EOF
+        ;;
+    commit-confirmed:recap)
+        cat <<'EOF'
+
+  UNCONFIRMED ROLLS BACK, CONFIRMED PERSISTS
+  ==========================================
+
+  The unconfirmed edge-trial value became active, then Ze restored
+  edge-original when its deadline expired. The second change received
+  an explicit confirm command and remained edge-confirmed after the
+  same deadline passed. Both outcomes were observed in one editor.
+
+  Recording complete.
+EOF
+        ;;
+    rpki:intro)
+        cat <<'EOF'
+
+  Enforce route origin authorization locally
+  ==========================================
+
+  One local BGP peer announces three prefixes from AS 65001:
+    9.43.0.0/24   Valid      matching ROA
+   10.43.0.0/24   Invalid    ROA names another origin
+   11.43.0.0/24   NotFound   no covering ROA
+
+  Policy accepts Valid and NotFound, and rejects Invalid.
+  A deterministic local RTR cache supplies every VRP.
+EOF
+        ;;
+    rpki:recap)
+        cat <<'EOF'
+
+  VALIDATION RESULT
+  =================
+
+   9.43.0.0/24  Valid      installed with validation-state 1
+  10.43.0.0/24  Invalid    rejected before Adj-RIB-In
+  11.43.0.0/24  NotFound   installed with validation-state 2
+
+  The route table showed only the two policy-accepted routes.
+  No public RPKI cache or route collector was contacted.
+
+  Recording complete.
+EOF
+        ;;
+    rib-fib:intro)
+        cat <<'EOF'
+
+  Follow one route from control plane to Linux
+  ============================================
+
+  You want to see Ze do real routing work, taking a BGP route all the
+  way into the Linux forwarding table.
+
+  We will inject 198.51.100.0/24 into the BGP RIB, inspect best-path
+  selection, and verify the kernel FIB that netlink programmed.
+EOF
+        ;;
+    rib-fib:recap)
+        cat <<'EOF'
+
+  ROUTE INSTALLATION PATH
+  =======================
+
+  request bgp rib inject
+      -> BGP best path
+      -> system RIB
+      -> Linux kernel FIB
+
+  The automated validator also withdrew the prefix and proved kernel removal.
+  Control-plane and kernel state came from the running system.
+
+  Recording complete.
+EOF
+        ;;
+    config-views:intro)
+        cat <<'EOF'
+
+  One configuration model, views for humans and automation
+  ========================================================
+
+  The same YANG-backed configuration can be presented as:
+
+    hierarchical  Compact Junos-style blocks for operators
+    set           One complete path per line for scripts and reviews
+
+  We will render one peer both ways, convert set syntax back to blocks,
+  and prove the round trip produces identical canonical set commands.
+
+  Then ze pipe will filter and count the live plugin registry.
+EOF
+        ;;
+    config-views:recap)
+        cat <<'EOF'
+
+  ONE MODEL, TWO PRESENTATIONS
+  ============================
+
+  Hierarchical config -> set commands -> hierarchical config
+                                |
+                                +-> identical canonical set output
+
+  ze pipe composed match and count without a separate jq dependency.
+  Every frame was generated from Ze's parser and plugin registry.
+
+  Recording complete.
+EOF
+        ;;
+    health-reports:intro)
+        cat <<'EOF'
+
+  Diagnose current conditions and recent events
+  =============================================
+
+  You are triaging a router and need three different answers from one
+  CLI:
+
+    show health    Is every registered component operational?
+    show warnings  What needs attention right now?
+    show errors    What happened recently?
+
+  A deliberately stale prefix-data date creates a live warning. An
+  administrative reset then creates a retained BGP error event.
+EOF
+        ;;
+    health-reports:recap)
+        cat <<'EOF'
+
+  ONE OPERATIONAL VIEW, PRECISE SEMANTICS
+  =======================================
+
+  Health    aggregate component status
+  Warnings  current state, cleared automatically
+  Errors    immutable recent events
+
+  The SSH login banner and filtered commands read the same report bus.
+  Structured codes and details make every signal scriptable.
 
   Recording complete.
 EOF
@@ -105,19 +262,16 @@ EOF
     rbac:intro)
         cat <<'EOF'
 
-  Prove role-based command authorization
-  ======================================
+  Enforce read-only access for a NOC account
+  ==========================================
 
-  Goal: verify that a read-only NOC account can observe but not change state.
+  Your NOC team needs to observe the router but must never change its
+  state, even by mistake. The read-only profile allows run commands
+  except debug and clear, and denies every edit.
 
-  The NOC user holds the read-only profile:
-    run  ... default allow, deny "debug", deny "clear"
-    edit ... default deny
-
-  This recording will:
-    1. Run show version successfully as the NOC user.
-    2. Ask the same user to clear interface counters.
-    3. Observe an explicit access-control denial.
+  We will show the profile and its NOC binding, run show version as the
+  NOC user, then ask the same user to clear interface counters and watch
+  Ze refuse it.
 
   Passwords are injected outside the recording.
 EOF
@@ -138,8 +292,8 @@ EOF
     rbac:recap)
         cat <<'EOF'
 
-  WHAT THIS PROVED
-  =================
+  THE DAEMON ENFORCES THE PROFILE
+  ===============================
 
   The same authenticated user could run show version but could not clear
   interface counters. Authorization is enforced by the daemon, not by
@@ -154,25 +308,188 @@ EOF
   Trace a live path without the Internet
   ======================================
 
-  Goal: show Ze's one-shot and continuously refreshed traceroute views.
+  You need to check reachability and per-hop latency from the router
+  itself, with no dependency on a public looking glass or DNS.
 
-  This recording will:
-    1. Probe 192.0.2.53 through an isolated Linux namespace router.
-    2. Show the path once as an operational command.
-    3. Monitor per-hop loss and latency over several rounds.
+  We will probe 192.0.2.53 through an isolated Linux namespace router,
+  show the path once as an operational command, then monitor per-hop
+  loss and latency over several rounds.
 
-  The lab uses documentation addresses. No public host or DNS is required.
+  The lab uses documentation addresses only.
 EOF
         ;;
     traceroute:recap)
         cat <<'EOF'
 
-  WHAT THIS PROVED
-  =================
+  REAL PROBES THROUGH AN ISOLATED LAB
+  ===================================
 
   Ze sent real ICMP probes through the isolated lab and measured every hop.
   The live view continuously updated loss, latency, and variation without
   contacting any third-party service.
+
+  Recording complete.
+EOF
+        ;;
+    bfd-failover:intro)
+        cat <<'EOF'
+
+  Verify BFD protects an edge session
+  ===================================
+
+  You are about to deploy a BGP peer with a 300-second hold timer. You
+  need proof that a failed link will not leave traffic black-holed for
+  five minutes.
+
+  We will inspect the active config and full live CLI output, cut the
+  kernel link, observe BFD and BGP, then restore the link and verify the
+  peer establishes again.
+EOF
+        ;;
+    bfd-failover:recap)
+        cat <<'EOF'
+
+  BFD TOOK DOWN BGP BEFORE THE HOLD TIMER
+  =======================================
+
+  The kernel link was visibly cut. Within four seconds the live BFD
+  session count was zero and BGP had left Established, despite its
+  negotiated 300-second hold time. Restoring the same link brought the
+  real BGP session back to Established.
+
+  Recording complete.
+EOF
+        ;;
+    ospf-adjacency:intro)
+        cat <<'EOF'
+
+  Diagnose a missing OSPF route from Ze's CLI
+  ===========================================
+
+  You are logged into a router and 10.255.0.3/32 is missing.
+
+  We will inspect the active OSPF configuration, query the running
+  control plane with `ze cli`, verify the FRR neighbor is Full, find its
+  Router-LSA, and confirm SPF installed the loopback route.
+EOF
+        ;;
+    ospf-adjacency:recap)
+        cat <<'EOF'
+
+  HELLO TO ROUTE
+  ==============
+
+  OSPF neighbors reached Full, exchanged Router-LSAs, and Ze computed an
+  intra-area route to FRR's loopback.
+
+  The validator reads all three stages from Ze's running control plane.
+
+  Recording complete.
+EOF
+        ;;
+    traffic-anomaly:intro)
+        cat <<'EOF'
+
+  Attribute a traffic burst without packet capture
+  ================================================
+
+  Users report a slowdown on `traffic0`. You need to identify the source
+  and application without collecting payloads.
+
+  We will inspect the active eBPF accounting configuration, view the full
+  baseline, generate ICMP and HTTP traffic, then read the complete live
+  snapshot from `ze cli`.
+EOF
+        ;;
+    traffic-anomaly:recap)
+        cat <<'EOF'
+
+  TRAFFIC ATTRIBUTION WITHOUT PACKET MODIFICATION
+  ===============================================
+
+  The live snapshot attributed the burst to source 10.77.0.2,
+  protocol ICMP, and TCP destination port 8080.
+
+  Bounded eBPF maps and stale-entry cleanup control metric cardinality.
+
+  Recording complete.
+EOF
+        ;;
+    vrrp-failover:intro)
+        cat <<'EOF'
+
+  Keep the gateway reachable while Ze is stopped
+  ==============================================
+
+  You need to stop the active router for maintenance without changing
+  the default gateway on every host.
+
+  We will inspect the active ZeFS and live VRRP state, verify Ze owns the
+  VIP, stop that node, then prove keepalived owns the same reachable VIP.
+EOF
+        ;;
+    vrrp-failover:recap)
+        cat <<'EOF'
+
+  ONE VIP AND MAC, A DIFFERENT ROUTER
+  ===================================
+
+  Keepalived promoted after Ze stopped. The VIP stayed reachable and
+  retained virtual MAC 00:00:5e:00:01:0a, so hosts need no ARP change.
+
+  Election and failover used real VRRP packets on an isolated segment.
+
+  Recording complete.
+EOF
+        ;;
+    host-inventory:intro)
+        cat <<'EOF'
+
+  Inspect an unfamiliar Linux host before Ze starts
+  =================================================
+
+  You need the kernel, CPU topology, and memory headroom, but the Ze
+  daemon is not running yet.
+
+  We will run the commands directly and keep every field in the output.
+  YAML makes the complete structured inventory readable in the terminal.
+EOF
+        ;;
+    host-inventory:recap)
+        cat <<'EOF'
+
+  STRUCTURED INVENTORY, AVAILABLE OFFLINE
+  =======================================
+
+  The same command surface reported kernel, CPU, and memory inventory.
+  Every field stayed structured data, shown here as YAML and ready to
+  feed fleet automation unchanged.
+
+  Recording complete.
+EOF
+        ;;
+    config-graph:intro)
+        cat <<'EOF'
+
+  Know which peers inherit a group before changing it
+  ===================================================
+
+  You need to change the transit group's remote ASN. Before scheduling
+  maintenance, you need the exact peers that inherit that value.
+
+  We will inspect and validate the config, then filter Ze's machine-readable
+  dependency graph to expose the complete group-to-peer blast radius.
+EOF
+        ;;
+    config-graph:recap)
+        cat <<'EOF'
+
+  CONFIGURATION AS AN EXPLICIT GRAPH
+  ==================================
+
+  The BGP section contained a transit group. Both upstream peers inherited
+  from it. The JSON graph exposed these relationships for operators,
+  automation, and agent impact analysis.
 
   Recording complete.
 EOF

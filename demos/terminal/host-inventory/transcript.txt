@@ -1,0 +1,12 @@
+An operator needs to inspect an unfamiliar Linux host before starting Ze.
+
+$ ze show host kernel | ze pipe yaml
+The complete live kernel inventory is displayed.
+
+$ ze show host cpu | ze pipe yaml
+The complete CPU topology, model, core, and thread inventory is displayed.
+
+$ ze show host memory | ze pipe yaml
+The complete memory capacity, availability, cache, swap, and ECC inventory is displayed.
+
+The commands work without a running Ze daemon. Every field returned by `ze show host` remains visible and machine-readable.

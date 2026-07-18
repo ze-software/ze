@@ -1,6 +1,17 @@
+$ ze config show rbac.conf system authorization profile read-only
+default-action allow
+entry 20 {
+   action deny
+   match clear
+}
+
+$ ze config show rbac.conf system authentication user noc profile
+profile read-only
+
 $ ze cli --user noc -c 'show version'
-version: ze 26.07.15
+version: ze 26.07.18
+
 $ ze cli --user noc -c 'clear interface counters'
 error: command restricted by access control
 
-The read-only NOC profile allows operational show commands and denies every command matching "clear". The daemon resolves the command, finds the profile forbids it, and refuses before running it. The password is supplied outside the recording.
+The recording displays the command restriction and the NOC user's profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.

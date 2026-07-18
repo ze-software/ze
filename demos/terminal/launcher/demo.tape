@@ -5,7 +5,7 @@ Hide
 Type "bash /src/demos/terminal/cards.sh launcher intro"
 Enter
 Show
-Sleep 10s
+Sleep 11s
 
 Hide
 Type "clear"
@@ -14,18 +14,18 @@ Show
 Type "ze"
 Enter
 Wait+Screen /Operations/
-Sleep 4s
+Sleep 5s
 
 Type "show"
 Wait+Screen /filter: show/
 Sleep 4s
 Enter
 Wait+Screen /ze > show/
-Sleep 3s
+Sleep 4s
 
 Type "traceroute"
 Wait+Screen /filter: traceroute/
-Sleep 6s
+Sleep 7s
 Screenshot artifacts/launcher.png
 
 Escape
@@ -34,23 +34,23 @@ Left
 Sleep 3s
 Type "doctor"
 Wait+Screen /filter: doctor/
-Sleep 6s
+Sleep 7s
 Escape
-Sleep 2s
+Sleep 3s
 Escape
-Sleep 2s
+Sleep 3s
 Escape
-Sleep 2s
+Sleep 3s
 Wait+Screen /\$ /
 Hide
 Sleep 2s
 Type " true"
 Enter
-Sleep 1s
+Sleep 2s
 Type "clear"
 Enter
 
 Type "bash /src/demos/terminal/cards.sh launcher recap"
 Enter
 Show
-Sleep 8s
+Sleep 9s

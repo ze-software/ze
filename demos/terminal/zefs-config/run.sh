@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-state=/src/tmp/terminal-demos/state/zefs-config
+demo_id=${ZE_DEMO_ID:-zefs-config}
+config_sources=${ZE_DEMO_CONFIG_SOURCES:-/src/demos/terminal/zefs-config/ze.conf}
+read -r -a config_source_list <<<"${config_sources}"
+state="/src/tmp/terminal-demos/state/${demo_id}"
 config_dir="${state}/config"
 pid_file="${state}/pids"
 log_file="${state}/daemon.log"
@@ -27,7 +30,9 @@ prepare() {
 
 start() {
     ze config cat ze.conf >"${state}/active.conf"
-    cat /src/demos/terminal/zefs-config/ze.conf >>"${state}/active.conf"
+    for config_source in "${config_source_list[@]}"; do
+        cat "${config_source}" >>"${state}/active.conf"
+    done
     ze config import --name ze.conf "${state}/active.conf" \
         >"${state}/import.log" 2>&1
 

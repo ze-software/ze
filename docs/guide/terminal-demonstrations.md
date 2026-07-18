@@ -29,3 +29,51 @@ Each demo also appears beside the documentation for the feature it exercises. Th
 ## Traceroute in an isolated Linux lab
 
 <!-- terminal-demo: traceroute -->
+
+## Web configuration commit
+
+<!-- terminal-demo: web-config -->
+
+## Confirmed commit rollback
+
+<!-- terminal-demo: commit-confirmed -->
+
+## RPKI validation enforcement
+
+<!-- terminal-demo: rpki -->
+
+## Route installation from BGP RIB to Linux FIB
+
+<!-- terminal-demo: rib-fib -->
+
+## Live warnings and retained errors
+
+<!-- terminal-demo: health-reports -->
+
+## Configuration views and formatter pipes
+
+<!-- terminal-demo: config-views -->
+
+## BFD-triggered BGP failover
+
+<!-- terminal-demo: bfd-failover -->
+
+## OSPF adjacency and learned route
+
+<!-- terminal-demo: ospf-adjacency -->
+
+## Live traffic attribution
+
+<!-- terminal-demo: traffic-anomaly -->
+
+## VRRP gateway failover
+
+<!-- terminal-demo: vrrp-failover -->
+
+## Offline Linux host inventory
+
+<!-- terminal-demo: host-inventory -->
+
+## Configuration dependency impact
+
+<!-- terminal-demo: config-graph -->

@@ -152,3 +152,9 @@ External processes receive BGP events and send commands:
 - Text command protocol (route announce/withdraw)
 - Configurable message filtering (receive-update, receive-open, etc.)
 - Neighbor change notifications
+
+## Dependency Graph
+
+`ze config graph <file>` exposes configuration groups, peers, plugin dependencies, and their relationships as machine-readable nodes and edges. Use it to identify which peers inherit a shared value before changing that group.
+
+<!-- terminal-demo: config-graph -->
