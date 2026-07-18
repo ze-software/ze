@@ -219,6 +219,11 @@ func readIPCPUntil(t *testing.T, td *ncpTestDriver, want uint8) LCPPacket {
 // unexercised. Without it ze would keep pushing DNS a peer explicitly refused.
 // The control subtest proves the reject is what causes the difference, so the
 // assertion cannot pass vacuously.
+//
+// RFC requirement: RFC1877-x-1 positive -- the link stays usable for IPv4 whether or
+// not DNS is assigned (RFC 1877 Scope): when the peer Configure-Rejects the DNS
+// options, absorbIPCPReject clears them and the session survives, still negotiating
+// the IPv4 address, so IPv4 connectivity does not depend on DNS assignment.
 func TestIPCPDNSRejectAbsorbed(t *testing.T) {
 	t.Run("control: nak carries dns when nothing was rejected", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
@@ -288,6 +293,11 @@ func TestIPCPDNSRejectAbsorbed(t *testing.T) {
 // VALIDATES: rejecting the mandatory IP-Address option takes the session down
 // instead of absorbing it (fatal=true).
 // PREVENTS: treating IP-Address like DNS and continuing without an address.
+//
+// RFC requirement: RFC1877-x-1 negative -- the "usable with or without DNS" tolerance
+// is specific to DNS, not the IPv4 address: rejecting the IP-Address option is fatal
+// and tears the session down, so it is DNS (not IPv4 reachability) that is optional
+// (RFC 1877 Scope).
 func TestIPCPIPAddressRejectIsFatal(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
