@@ -274,12 +274,37 @@ func TestExtendedCommunities(t *testing.T) {
 	assert.Equal(t, []byte{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}, buf[:n])
 }
 
+// RFC requirement: RFC4360-x-1 positive -- an Extended Communities attribute whose length is a
+// multiple of 8 parses into length/8 eight-octet communities. 8 bytes -> 1 community.
 func TestExtendedCommunitiesParse(t *testing.T) {
 	t.Parallel()
 	data := []byte{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}
 	ecs, err := ParseExtendedCommunities(data)
 	require.NoError(t, err)
 	require.Len(t, ecs, 1)
+}
+
+// RFC requirement: RFC4360-x-1 negative -- an Extended Communities attribute whose length is NOT
+// a multiple of 8 is rejected as malformed (ErrInvalidLength), rather than truncated to the
+// nearest whole community. This is the wire-decode path via wire.go knownAttrParsers.
+func TestExtendedCommunitiesParseRejectsBadLength(t *testing.T) {
+	t.Parallel()
+	// 6 bytes: not a multiple of 8.
+	_, err := ParseExtendedCommunities([]byte{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00})
+	require.ErrorIs(t, err, ErrInvalidLength)
+}
+
+// RFC requirement: RFC4360-2-1 positive -- two extended communities are equal when all 8 octets
+// are equal (ExtendedCommunity is an [8]byte, so Go array equality compares every octet).
+// RFC requirement: RFC4360-2-1 negative -- they are unequal when any single octet differs (here
+// only the last), so equality requires every one of the 8 octets to match, not a prefix.
+func TestExtendedCommunityEquality(t *testing.T) {
+	t.Parallel()
+	a := ExtendedCommunity{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}
+	b := ExtendedCommunity{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}
+	assert.True(t, a == b, "all 8 octets equal must compare equal")
+	c := ExtendedCommunity{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x65} // last octet differs
+	assert.False(t, a == c, "a single differing octet must compare unequal")
 }
 
 // TestIPv6ExtendedCommunities verifies RFC 5701 IPv6 Extended Communities.
