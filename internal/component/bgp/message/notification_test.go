@@ -360,6 +360,84 @@ func TestBuildShutdownDataBoundary(t *testing.T) {
 	assert.Len(t, data, 129) // still 1 + 128
 }
 
+// TestRFC8203Subcode proves the shutdown communication is bound to the Administrative Shutdown
+// (2) and Administrative Reset (4) Cease subcodes, and to no other.
+//
+// RFC requirement: RFC8203-2-1 positive -- a Cease NOTIFICATION whose Error Subcode is 2 (Admin
+// Shutdown) or 4 (Admin Reset) carries a shutdown communication that ShutdownMessage extracts.
+// RFC requirement: RFC8203-2-1 negative -- a Cease NOTIFICATION with any other subcode is not a
+// shutdown communication: ShutdownMessage returns the empty string rather than decoding the data.
+func TestRFC8203Subcode(t *testing.T) {
+	for _, sub := range []uint8{NotifyCeaseAdminShutdown, NotifyCeaseAdminReset} {
+		n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: sub, Data: append([]byte{2}, "hi"...)}
+		msg, err := n.ShutdownMessage()
+		require.NoError(t, err)
+		require.Equal(t, "hi", msg)
+	}
+	// Subcode 3 (Peer De-configured, RFC 4486) is not a shutdown-communication subcode.
+	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: 3, Data: append([]byte{2}, "hi"...)}
+	msg, err := n.ShutdownMessage()
+	require.NoError(t, err)
+	require.Empty(t, msg)
+}
+
+// TestRFC8203LengthCap proves the sender caps the Shutdown Communication length at 128.
+//
+// RFC requirement: RFC8203-2-2 positive -- BuildShutdownData truncates a longer message so the
+// 1-byte Length field never exceeds 128 (the RFC 8203 maximum). The receiver deliberately
+// follows RFC 9003 (which obsoletes RFC 8203 and raised the cap to 255), so there is no
+// over-128 rejection on receive to assert; see the {single-polarity} annotation in rfc8203.md.
+func TestRFC8203LengthCap(t *testing.T) {
+	data := BuildShutdownData(string(make([]byte, 200)))
+	require.Equal(t, byte(128), data[0])
+	require.Len(t, data, 129)
+}
+
+// TestRFC8203UTF8Valid proves a well-formed UTF-8 shutdown communication is carried unchanged.
+//
+// RFC requirement: RFC8203-2-3 positive -- a valid UTF-8 message round-trips through
+// BuildShutdownData then ShutdownMessage.
+// RFC requirement: RFC8203-2-4 negative -- the "MUST NOT interpret invalid UTF-8" prohibition is
+// confined to invalid input: a valid multibyte message IS interpreted and returned.
+func TestRFC8203UTF8Valid(t *testing.T) {
+	data := BuildShutdownData("日本語")
+	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: data}
+	msg, err := n.ShutdownMessage()
+	require.NoError(t, err)
+	require.Equal(t, "日本語", msg)
+}
+
+// TestRFC8203UTF8Invalid proves an ill-formed UTF-8 shutdown communication is rejected on receive.
+//
+// RFC requirement: RFC8203-2-3 negative -- a Shutdown Communication that is not valid UTF-8 is
+// rejected (ShutdownMessage returns an error) rather than accepted.
+// RFC requirement: RFC8203-2-4 positive -- the receiver MUST NOT interpret invalid UTF-8: an
+// invalid sequence yields an error and an empty string, never a decoded message.
+func TestRFC8203UTF8Invalid(t *testing.T) {
+	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: []byte{3, 0xff, 0xfe, 0xfd}}
+	msg, err := n.ShutdownMessage()
+	require.Error(t, err)
+	require.Empty(t, msg)
+}
+
+// TestRFC8203ShortestFormUTF8 proves the UTF-8 must be in shortest (canonical) form.
+//
+// RFC requirement: RFC8203-6-1 positive -- a shortest-form encoding is accepted: U+00E9 as its
+// canonical 2-byte form 0xC3 0xA9 decodes to "é".
+// RFC requirement: RFC8203-6-1 negative -- a non-shortest-form (overlong) encoding is rejected:
+// the overlong 2-byte encoding of U+002F, 0xC0 0xAF, is not valid UTF-8, so ShutdownMessage
+// rejects it instead of decoding it to '/'.
+func TestRFC8203ShortestFormUTF8(t *testing.T) {
+	ok := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: []byte{2, 0xC3, 0xA9}}
+	msg, err := ok.ShutdownMessage()
+	require.NoError(t, err)
+	require.Equal(t, "é", msg)
+
+	bad := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseAdminShutdown, Data: []byte{2, 0xC0, 0xAF}}
+	_, err = bad.ShutdownMessage()
+	require.Error(t, err)
+}
+
 // TestNotificationFSMSubcodes verifies FSM Error subcodes per RFC 6608.
 //
 // RFC 6608 Section 3 defines subcodes for FSM errors:
