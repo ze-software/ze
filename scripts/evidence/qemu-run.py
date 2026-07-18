@@ -80,20 +80,25 @@ def _extract_alpine_initramfs(iso: Path) -> Path:
     if initrd.is_file():
         return initrd
     extract_dir.mkdir(parents=True, exist_ok=True)
-    result = run(
-        ["7z", "x", str(iso), "-y", f"-o{extract_dir}"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
+    # p7zip installs `7z`; the official 7-Zip build installs `7zz`. Select by
+    # what is actually on PATH rather than exec-ing a name that may not exist:
+    # subprocess raises FileNotFoundError (not our SystemExit) for a missing
+    # binary, which would otherwise crash callers -- and the --selftest, which
+    # is documented to run without 7z -- instead of failing loudly here.
+    extractors = [e for e in ("7z", "7zz") if shutil.which(e)]
+    if not extractors:
+        raise SystemExit(
+            "cannot extract initramfs: install 7z (p7zip) to boot a custom --kernel"
+        )
+    for extractor in extractors:
         result = run(
-            ["7zz", "x", str(iso), "-y", f"-o{extract_dir}"],
+            [extractor, "x", str(iso), "-y", f"-o{extract_dir}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-    if result.returncode != 0 or not initrd.is_file():
-        raise SystemExit(f"failed to extract initramfs from {iso}")
-    return initrd
+        if result.returncode == 0 and initrd.is_file():
+            return initrd
+    raise SystemExit(f"failed to extract initramfs from {iso}")
 
 
 def qemu_args(iso: Path, root: Path, kernel: Path | None = None) -> list[str]:
