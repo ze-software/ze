@@ -19,3 +19,4 @@
 # "I compared nothing" (ai/rules/fail-closed-guards.md).
 
 rfc7606	Revised UPDATE error handling: the error-handling contract for every UPDATE Ze parses. Pilot for this system -- ~60 near-1:1 tests already exist and the one real divergence (5.1 MP ordering, docs/architecture/wire/mp-nlri-ordering.md) proves the {gap} path is honest rather than an escape hatch.
+rfc792	ICMP Echo/Echo Reply, the only part of ICMP ze exercises (ping, show ping, ping-monitor). Gated obligations are the echo request's Type/Code/Checksum, which internal/core/probe BuildICMPEcho emits and the probe tests pin; the responder-only obligations (data returned unchanged, reply formation) are {not-applicable} because ze is the echo requester, never the echoer.

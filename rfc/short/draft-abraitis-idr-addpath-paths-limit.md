@@ -65,3 +65,13 @@ Variable length: sequence of 5-byte entries. Each entry specifies the maximum nu
 - Enforcement: `CommitService.enforcePathsLimit()` drops excess routes per prefix before grouping
 - RS fast-path: PATHS-LIMIT capability suppressed for RSFastPath peers (no per-prefix state in forwarding)
 - Config: `session > capability > add-path > family > limit` leaf (YANG range 1..65535)
+
+## Compliance Checklist
+
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1] [MUST] A BGP speaker wishing to indicate support for multiple AFI/SAFIs "MUST do so by including the information in a single instance of the PATHS-LIMIT capability" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2] [MUST] "The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3] [MUST] "An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4] [MUST] When more than one tuple is received for the same AFI/SAFI pair, only the first tuple is considered and "All others MUST be ignored" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5] [SHOULD] "If the received Paths Limit is zero (0), the tuple SHOULD be ignored" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6] [SHOULD] "A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7] [SHOULD] "An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender" (§3)
