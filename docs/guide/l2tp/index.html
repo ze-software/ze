@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -205,24 +205,24 @@ xl2tpd in <code>test/l2tp-interop/scenarios/03-ze-lac-xl2tpd-lns</code>.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>clear l2tp tunnel teardown &lt;id&gt;</code></td>
+<td><code>clear l2tp tunnel id &lt;id&gt;</code></td>
 <td>Sends StopCCN Result Code 6 (administrative) to the named tunnel</td>
 </tr>
 <tr>
-<td><code>clear l2tp tunnel teardown-all</code></td>
+<td><code>clear l2tp tunnel all</code></td>
 <td>Same, for every live tunnel</td>
 </tr>
 <tr>
-<td><code>clear l2tp session teardown &lt;id&gt; [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
+<td><code>clear l2tp session id &lt;id&gt; [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
 <td>Sends CDN Result Code 3 (administrative) to the named session</td>
 </tr>
 <tr>
-<td><code>clear l2tp session teardown-all</code></td>
+<td><code>clear l2tp session all</code></td>
 <td>Same, for every live session (tunnels remain)</td>
 </tr>
 </tbody>
 </table>
-<p>The <code>clear l2tp session teardown</code> command accepts optional keyword arguments:</p>
+<p>The <code>clear l2tp session id</code> command accepts optional keyword arguments:</p>
 <ul>
 <li><code>reason &lt;text...&gt;</code> -- free-text audit reason, recorded in the per-session event ring</li>
 <li><code>cause &lt;code&gt;</code> -- RADIUS Disconnect-Cause value (uint16), recorded alongside the reason</li>
@@ -235,10 +235,11 @@ built-in read-only authz profile.</p>
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 
 <h3 id="offline-dispatcher">Offline dispatcher</h3>
-<p><code>ze l2tp show ...</code> and the <code>ze l2tp tunnel|session teardown[-all]</code> commands
+<p><code>ze l2tp show ...</code> and the <code>ze l2tp tunnel|session {id &lt;id&gt;|all}</code> commands
 forward to the running daemon via SSH. Output is the same JSON the daemon
-handler returns. (Inside the daemon CLI these teardowns dispatch as
-<code>clear l2tp tunnel|session teardown ...</code>, per the grammar note above.)
+handler returns. (Inside the daemon CLI these dispatch as
+<code>clear l2tp tunnel|session {id &lt;id&gt;|all} ...</code>; <code>clear</code> already means tear
+down, so no <code>teardown</code> token is needed.)
 <code>ze l2tp decode</code> is an offline wire-decode tool that does not require a
 running daemon.</p>
 <pre><code>echo c8020044... | ze l2tp decode --pretty
@@ -613,7 +614,7 @@ chart loads 24h of historical data via JSON, then appends new
 <h3 id="disconnect">Disconnect</h3>
 <p>The disconnect button triggers a confirm dialog requiring a free-text
 reason (1-256 characters) and an optional Disconnect-Cause code. The
-POST dispatches through the CLI as <code>clear l2tp session teardown &lt;sid&gt;
+POST dispatches through the CLI as <code>clear l2tp session id &lt;sid&gt;
 reason &lt;text&gt; [cause &lt;code&gt;]</code>, so authz is enforced at the CLI layer.
 Read-only profiles are denied by the existing <code>clear</code> prefix rule.</p>
 <p>The disconnect reason and actor are recorded in the per-session event

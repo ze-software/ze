@@ -361,13 +361,13 @@ appends one line per round and annotates hops with ASN names, useful for
 identifying which network a path change occurs in. `| log | resolve` adds
 reverse DNS hostnames instead.
 
-### Terminal demo: Trace a live path without external services
+### Demo: Trace a live path without external services
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Play the WebM recording](../../../assets/demos/traceroute.webm) · [View the poster](../../../assets/demos/traceroute.png) · [Plain-text transcript](../../../assets/demos/traceroute.txt)
+[Play the WebM recording](../../../assets/demos/traceroute.webm?v=bda9d06121) · [View the poster](../../../assets/demos/traceroute.png?v=ebcd3e247b) · [Plain-text transcript](../../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.07.16 in a Linux namespace lab. Duration: 55 seconds.
+Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 2 seconds.
 
 ```console
 $ ssh ze-demo

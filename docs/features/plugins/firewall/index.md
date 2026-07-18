@@ -22,7 +22,7 @@ Packet filter and NAT rules (nftables on Linux)
 
 ## Used by
 
-- Required dependency for: [`copp-input-chain`](../copp-input-chain/index.md), [`ddos-local`](../ddos-local/index.md), [`firewall-irr`](../firewall-irr/index.md), [`flowspec-firewall`](../flowspec-firewall/index.md), [`policy-routes`](../policy-routes/index.md)
+- Required dependency for: [`copp-input-chain`](../copp-input-chain/index.md), [`ddos-fake`](../ddos-fake/index.md), [`ddos-local`](../ddos-local/index.md), [`firewall-irr`](../firewall-irr/index.md), [`flowspec-firewall`](../flowspec-firewall/index.md), [`policy-routes`](../policy-routes/index.md)
 - Optional dependency for: None
 
 ## Repository artifacts

@@ -152,3 +152,33 @@ External processes receive BGP events and send commands:
 - Text command protocol (route announce/withdraw)
 - Configurable message filtering (receive-update, receive-open, etc.)
 - Neighbor change notifications
+
+## Dependency Graph
+
+`ze config graph <file>` exposes configuration groups, peers, plugin dependencies, and their relationships as machine-readable nodes and edges. Use it to identify which peers inherit a shared value before changing that group.
+
+### Demo: Find every peer affected by a group change
+
+Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
+
+[Play the WebM recording](../../../assets/demos/config-graph.webm?v=551b0249a0) · [View the poster](../../../assets/demos/config-graph.png?v=60a75596e2) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
+
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
+
+```console
+An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.
+
+$ ze config show router.conf bgp group transit
+The scoped configuration shows `upstream-a` and `upstream-b` inside the transit group.
+
+$ ze config validate router.conf
+configuration valid
+
+$ ze config graph router.conf | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe match inherits
+The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+
+No reporting helper creates the displayed relationships. The command filters Ze's graph output directly through Ze's format pipeline.
+```
+

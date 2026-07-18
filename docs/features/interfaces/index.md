@@ -110,8 +110,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Route table isolation | missing | high |
 | | Per-VRF address assignment | missing | high |
 | | VRF-aware DHCP | missing | medium |
-| **Gateway Redundancy** | VRRP / keepalived | missing | medium |
-| | Virtual MAC | missing | medium |
+| **Gateway Redundancy** | VRRP / keepalived | have | |
+| | Virtual MAC | have | |
 | | State monitoring/failover | missing | medium |
 | **Physical Layer** | Speed / duplex / autoneg | missing | medium |
 | | Hardware offload (GRO/GSO/TSO/LRO) | missing | medium |
@@ -458,6 +458,57 @@ material is the original whitepaper
 genetlink spec
 (https://www.kernel.org/doc/html/latest/userspace-api/netlink/specs/wireguard.html),
 and `wg(8)`.
+
+## Plugin-Owned Devices (Macvlan)
+
+Beyond the plugin-owned **address** registry (a plugin declares addresses ze
+should keep on an interface), iface offers a plugin-owned **device** registry
+for bridge-mode macvlan devices. A same-process plugin asks iface to maintain a
+macvlan carrying a caller-chosen unicast MAC on a parent interface; iface
+creates it, keeps it reconciled, and deletes it on release or after a crash. The
+one consumer today is VRRP (one macvlan per group carrying the RFC virtual MAC),
+but the mechanism is generic and carries zero VRRP knowledge.
+
+The API is a small value struct plus three calls (mirroring the address
+registry):
+
+- `MacvlanSpec{Name, Parent, MAC}` -- `Parent` is the parent's OS device name;
+  mode is always bridge (no field).
+- `ComposeOwnedDeviceName(prefix, parentIfindex, id)` -- builds a deterministic,
+  collision-free name `<prefix>-<parentIfindex>-<id>` that fits the 15-char
+  IFNAMSIZ budget, rejecting (never truncating) an over-budget candidate.
+- `RegisterOwnedMacvlan(owner, spec)`, `UnregisterOwnedMacvlan(owner, name)`,
+  `UnregisterOwnedMacvlans(owner)`.
+
+**Ownership marker.** At create, the device's kernel link alias (IFLA_IFALIAS)
+is set to `ze:owned:<owner>`, atomically with the MAC in one RTM_NEWLINK. The
+reconcile pass reads ownership back from the kernel rather than remembering
+history, so orphan cleanup works across restarts and crashes -- the one
+structural difference from the address registry (which must track its own stale
+interfaces because an address carries no owner).
+
+**Reconcile ordering.** The device pass runs inside the same reconcile as
+addresses, BEFORE the address loops: registered devices are created (or
+re-asserted on MAC/parent/MTU drift by delete + recreate) first, so a VIP
+registered on the device name via the address registry lands on an existing
+device in the same pass. Then the orphan scan deletes any macvlan carrying the
+`ze:owned:` alias that has no registration; deletion requires BOTH kind macvlan
+AND the alias, so an operator's own macvlan is never touched. Macvlans are not
+in the Phase 4 prune set (`zeManageable`) -- they are alias-guarded, not
+YANG-managed. A registered device whose parent is absent is retried when the
+parent appears (monitor `interface/created` / `interface/up` re-triggers the
+pass). Non-netlink backends (VPP, non-Linux) reject `CreateMacvlanDevice`
+fail-closed (exact-or-reject).
+
+A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
+(create + delete a throwaway device pair), and the gauge
+`ze_iface_owned_devices{owner}` tracks the registry.
+
+<!-- source: internal/component/iface/macvlan.go -- MacvlanSpec, ComposeOwnedDeviceName -->
+<!-- source: internal/component/iface/device_owner.go -- RegisterOwnedMacvlan, alias marker, gauge -->
+<!-- source: internal/component/iface/config_apply.go -- reconcileOwnedDevices (device pass) -->
+<!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- CreateMacvlanDevice -->
+<!-- source: internal/plugins/iface/netlink/doctor.go -- doctor-iface-macvlan capability check -->
 
 ## Bus Topics
 

@@ -39,6 +39,7 @@
 and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#conventions">Conventions</a></li>
 <li><a href="#shell-commands">Shell Commands</a>
 <ol>
 <li><a href="#ze">ze</a></li>
@@ -108,7 +109,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#-user-u-flag-all-client-clis">--user / -u flag (all client CLIs)</a></li>
 <li><a href="#ze-start-web">ze start --web</a></li>
 <li><a href="#debug-set-delete-show-clear">debug (set / delete / show / clear)</a></li>
-<li><a href="#ze-format">ze format</a></li>
+<li><a href="#ze-pipe">ze pipe</a></li>
 <li><a href="#ze-data">ze data</a></li>
 <li><a href="#ze-plugin">ze plugin</a></li>
 <li><a href="#ze-completion">ze completion</a>
@@ -184,6 +185,22 @@ and
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
+<h2 id="conventions">Conventions</h2>
+<p>Every command that takes a <strong>filename argument</strong> accepts <code>-</code> as an alias for
+<strong>stdin</strong> when reading and <strong>stdout</strong> when writing, so configs and data stream
+through pipes without temp files:</p>
+<pre><code>generate | ze config show -                 # read a config from stdin
+ssh host cat rib.mrt | ze analyze show -    # analyse an MRT streamed in
+ze config show - | ze config set - bgp session asn local 65001 | ze config validate -
+ze config migrate -o - old.conf             # write the migrated config to stdout
+</code></pre>
+<p>stdin can be consumed once: a second <code>-</code> in a single command fails with a clear
+error rather than reading empty. A file literally named <code>-</code> is addressed as
+<code>./-</code>. Interactive/history-dependent editor commands (<code>ze config edit</code>,
+<code>ze config rollback</code>, <code>ze config history</code>) reject <code>-</code> because they need a TTY or
+on-disk revision history that a pipe does not have.</p>
+<!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
+
 <h2 id="shell-commands">Shell Commands</h2>
 <p>Run directly from the terminal. No daemon required (except <code>ze signal</code>, <code>ze status</code>,
 <code>ze cli</code>, and daemon-targeted <code>ze show</code> subcommands).
@@ -202,7 +219,7 @@ ze start                         # Start daemon from database
 <figure class="terminal-demo" data-terminal-demo="launcher">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Discover Ze commands interactively</h3>
       <p>Use type-ahead filtering and drill-down navigation in Ze&#x27;s interactive command launcher.</p>
     </div>
@@ -211,20 +228,20 @@ ze start                         # Start daemon from database
   <div class="terminal-demo__frame">
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-      <span>launcher.tape</span>
+      <span>launcher.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/launcher.png" aria-label="Discover Ze commands interactively terminal demonstration">
-      <source src="../../../assets/demos/launcher.webm" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/launcher.webm">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/launcher.png?v=cae872cf66" aria-label="Discover Ze commands interactively demonstration">
+      <source src="../../../assets/demos/launcher.webm?v=46c97f8572" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/launcher.webm?v=46c97f8572">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.16</span><span>55 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
-    <a href="../../../assets/demos/launcher.txt">Plain-text transcript</a>
+    <span>Ze 26.07.18</span><span>1 minute 5 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/launcher.txt?v=0399dbc59f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
-    <summary>Read the terminal transcript</summary>
+    <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze
 
 Type &quot;show&quot; to filter the command launcher, then press Enter to open the show command tree.
@@ -791,6 +808,47 @@ ze show host thermal               # hwmon sensors + per-CPU throttle counts
 ze show host storage               # Block devices + NVMe firmware
 ze show host kernel                # Kernel release, cmdline, microcode, arch flags
 </code></pre>
+<figure class="terminal-demo" data-terminal-demo="host-inventory">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Inspect a Linux host before Ze starts</h3>
+      <p>Use Ze&#x27;s offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>host-inventory.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/host-inventory.png?v=01c12c6314" aria-label="Inspect a Linux host before Ze starts demonstration">
+      <source src="../../../assets/demos/host-inventory.webm?v=8c89c5019c" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/host-inventory.webm?v=8c89c5019c">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>51 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/host-inventory.txt?v=5b221c4c0f">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>An operator needs to inspect an unfamiliar Linux host before starting Ze.
+
+$ ze show host kernel | ze pipe yaml
+The complete live kernel inventory is displayed.
+
+$ ze show host cpu | ze pipe yaml
+The complete CPU topology, model, core, and thread inventory is displayed.
+
+$ ze show host memory | ze pipe yaml
+The complete memory capacity, availability, cache, swap, and ECC inventory is displayed.
+
+The commands work without a running Ze daemon. Every field returned by `ze show host` remains visible and machine-readable.</code></pre>
+  </details>
+</figure>
+
 <!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
 <!-- source: internal/plugins/host/host.go -- RunShow offline fallback (registry.RegisterOfflineFallback) -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
@@ -1048,7 +1106,7 @@ ze show traffic usage name &lt;interface&gt;# One interface by name
 </code></pre>
 <p>Each entry reports <code>ingress-ports</code>, <code>egress-ports</code>, <code>map-entries</code>, and (only
 when <code>track-ip</code> is enabled) <code>ingress-ips</code> and <code>egress-ips</code>. JSON by default;
-full pipe operators supported. See the <a href="https://github.com/ze-software/ze/blob/main/docs/guide/traffic-usage.md" target="_blank" rel="noopener">Traffic Usage guide</a>.</p>
+full pipe operators supported. See the <a href="../traffic-usage/">Traffic Usage guide</a>.</p>
 <!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
 
 <h3 id="show-route-show-neighbor">show route / show neighbor</h3>
@@ -1188,26 +1246,26 @@ are not reset (resetting them mid-process breaks <code>rate()</code>).</p>
 </thead>
 <tbody>
 <tr>
-<td><code>isis-decode [--pretty]</code></td>
+<td><code>isis decode [--pretty]</code></td>
 <td>offline</td>
 <td>Decode a hex IS-IS PDU on stdin and emit JSON on stdout</td>
 </tr>
 </tbody>
 </table>
-<p><code>ze isis-decode</code> runs without a daemon. Input is ASCII hex (whitespace and
+<p><code>ze isis decode</code> runs without a daemon. Input is ASCII hex (whitespace and
 newlines allowed); raw PDU bytes piped straight from a capture also work (an
 IS-IS PDU starts with the protocol discriminator <code>0x83</code>, which is not an ASCII
 hex digit, so the two encodings are never confused). Output is the JSON view of
 the decoded PDU (common header, body, and decoded TLVs). Use <code>--pretty</code> for
-indented output. The verb is <code>isis-decode</code> (a dedicated offline tool), distinct
+indented output. The verb is <code>isis decode</code> (a dedicated offline tool), distinct
 from the <code>show isis</code> / <code>clear isis</code> command tree above.</p>
 <p>Example:</p>
-<pre><code>echo 831b0100... | ze isis-decode --pretty
+<pre><code>echo 831b0100... | ze isis decode --pretty
 </code></pre>
 <p>Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
 a malformed PDU; stderr carries the reason.</p>
 <!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
-<!-- source: internal/plugins/isis/cli/register.go -- isis-decode root verb -->
+<!-- source: internal/plugins/isis/cli/register.go -- isis root namespace, decode member -->
 
 <h3 id="show-pki">show pki</h3>
 <p>PKI certificate store introspection. Shows certificates loaded from
@@ -1866,6 +1924,16 @@ follows <code>meta/ssh/default</code>, then reads <code>meta/ssh/&lt;host&gt;/&l
 <p>The password for a non-super-admin user must come from <code>ze.ssh.password</code>
 (env) or an interactive prompt. There is intentionally no <code>--password</code>
 flag (passwords in argv leak into shell history and <code>ps</code>).</p>
+<p>The zefs store is one source among these, not a prerequisite. It is created
+<code>0600</code> and owned by whoever installed ze, so an operator who cannot read it can
+still log in by naming themselves with <code>--user</code> and supplying <code>ze.ssh.password</code>:
+resolution falls back to the built-in <code>127.0.0.1:2222</code> target. Set <code>ze.ssh.host</code>
+and <code>ze.ssh.port</code> (or pass <code>--remote</code>) if the daemon listens elsewhere, because
+the <code>meta/ssh/default</code> pointer lives in the store and cannot be read either.
+With no username from flag or env and no readable store, the CLI fails and names
+<code>--user</code> and <code>ze.ssh.password</code> rather than guessing an identity.</p>
+<!-- source: internal/core/ssh/client/client.go -- readCredentials, openStoreIfReadable -->
+
 <p>See <a href="../authentication/">authentication.md</a> for the full multi-user workflow.</p>
 <!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
@@ -1939,25 +2007,25 @@ actual live state, use <code>show debug</code> (YANG-dispatched RPC, requires a 
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
-<h3 id="ze-format">ze format</h3>
+<h3 id="ze-pipe">ze pipe</h3>
 <p>Apply pipe formatting to stdin. Offline commands (like <code>ze show debug profile</code>) do not pass
-through the YANG-dispatched pipe infrastructure. <code>ze format</code> provides the same
+through the YANG-dispatched pipe infrastructure. <code>ze pipe</code> provides the same
 operators as a standalone filter.</p>
-<pre><code>&lt;command&gt; | ze format json [compact]     # Format as JSON (pretty or compact)
-&lt;command&gt; | ze format yaml               # YAML output
-&lt;command&gt; | ze format table              # Box-drawing table
-&lt;command&gt; | ze format text               # Space-aligned columns
-&lt;command&gt; | ze format ndjson             # One compact JSON object per line
-&lt;command&gt; | ze format match &lt;pattern&gt;    # Grep lines (case-insensitive)
-&lt;command&gt; | ze format count              # Count items (JSON-aware)
-&lt;command&gt; | ze format first &lt;n&gt;          # Take first N items
-&lt;command&gt; | ze format last &lt;n&gt;           # Take last N items
-&lt;command&gt; | ze format resolve            # Add reverse DNS for IP values
+<pre><code>&lt;command&gt; | ze pipe json [compact]     # Format as JSON (pretty or compact)
+&lt;command&gt; | ze pipe yaml               # YAML output
+&lt;command&gt; | ze pipe table              # Box-drawing table
+&lt;command&gt; | ze pipe text               # Space-aligned columns
+&lt;command&gt; | ze pipe ndjson             # One compact JSON object per line
+&lt;command&gt; | ze pipe match &lt;pattern&gt;    # Grep lines (case-insensitive)
+&lt;command&gt; | ze pipe count              # Count items (JSON-aware)
+&lt;command&gt; | ze pipe first &lt;n&gt;          # Take first N items
+&lt;command&gt; | ze pipe last &lt;n&gt;           # Take last N items
+&lt;command&gt; | ze pipe resolve            # Add reverse DNS for IP values
 </code></pre>
 <p>Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
 operators (match, count, first, last) work on both JSON and plain text.
 <code>resolve</code> adds a <code>&lt;key&gt;-name</code> sibling field for each IP address value in JSON.</p>
-<!-- source: cmd/ze/ze_core_format.go -- runFormat -->
+<!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 
 <h3 id="ze-data">ze data</h3>
 <p>Low-level blob store management.</p>

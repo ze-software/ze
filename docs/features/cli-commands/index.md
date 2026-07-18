@@ -85,13 +85,13 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 **Live peer dashboard:** `monitor bgp` in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
-### Terminal demo: Operate BGP from the live dashboard
+### Demo: Operate BGP from the live dashboard
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Play the WebM recording](../../../assets/demos/cli-dashboard.webm) · [View the poster](../../../assets/demos/cli-dashboard.png) · [Plain-text transcript](../../../assets/demos/cli-dashboard.txt)
+[Play the WebM recording](../../../assets/demos/cli-dashboard.webm?v=d655c1d08f) · [View the poster](../../../assets/demos/cli-dashboard.png?v=6f3f921d23) · [Plain-text transcript](../../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.07.16 on macOS and Linux. Duration: 50 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 2 seconds.
 
 ```console
 $ ssh ze-demo

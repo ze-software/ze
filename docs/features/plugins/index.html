@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -38,7 +38,7 @@
                     <h1 id="plugin-catalog-title">Plugin catalog</h1>
                     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
                 </div>
-                <p class="plugin-summary">Generated from 92 registry entries: 87 runtime plugins and 5 test fixtures. Among runtime plugins, 67 declare configuration roots, 45 declare dependencies, and 68 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 94 registry entries: 88 runtime plugins and 6 test fixtures. Among runtime plugins, 68 declare configuration roots, 46 declare dependencies, and 69 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -51,9 +51,9 @@
                                     <option value="security" data-label="Policy &amp; security">Policy &amp; security (22)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (7)</option>
-                                    <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (9)</option>
+                                    <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (10)</option>
                                     <option value="telemetry" data-label="Telemetry &amp; operations">Telemetry &amp; operations (4)</option>
-                                    <option value="test" data-label="Test fixtures">Test fixtures (5)</option>
+                                    <option value="test" data-label="Test fixtures">Test fixtures (6)</option>
                                 </select>
                             </label>
                             <label for="plugin-family">Area
@@ -94,7 +94,7 @@
                                     <optgroup label="Interfaces &amp; dataplane">
                                     <option value="bfd" data-category="dataplane" data-label="BFD">BFD (1)</option>
                                     <option value="fib" data-category="dataplane" data-label="FIB">FIB (3)</option>
-                                    <option value="interface" data-category="dataplane" data-label="Interface">Interface (2)</option>
+                                    <option value="interface" data-category="dataplane" data-label="Interface">Interface (3)</option>
                                     <option value="kernel" data-category="dataplane" data-label="Kernel">Kernel (1)</option>
                                     <option value="sysctl" data-category="dataplane" data-label="Sysctl">Sysctl (1)</option>
                                     <option value="vpp" data-category="dataplane" data-label="VPP">VPP (1)</option>
@@ -105,7 +105,7 @@
                                     <option value="traffic" data-category="telemetry" data-label="Traffic">Traffic (2)</option>
                                     </optgroup>
                                     <optgroup label="Test fixtures">
-                                    <option value="test-harness" data-category="test" data-label="Test Harness">Test Harness (5)</option>
+                                    <option value="test-harness" data-category="test" data-label="Test Harness">Test Harness (6)</option>
                                     </optgroup>
                                 </select>
                             </label>
@@ -990,9 +990,9 @@
                 <section class="plugin-group" data-plugin-group data-family="interface" data-category="dataplane" aria-labelledby="plugin-group-interface">
                     <div class="plugin-group-head cat-operate">
                         <h2 id="plugin-group-interface">Interface</h2>
-                        <span>2 plugins</span>
+                        <span>3 plugins</span>
                     </div>
-                    <p>Generated group for registry entries mapped to the Interface area. Config roots: <code>interface</code>. Source area: <code>internal/component/iface</code>, <code>internal/plugins/iface</code>.</p>
+                    <p>Generated group for registry entries mapped to the Interface area. Config roots: <code>interface</code>. Source area: <code>internal/component/iface</code>, <code>internal/plugins/iface</code>, <code>internal/plugins/vrrp</code>.</p>
                     <div class="cards plugin-grid">
 
                     <article class="card plugin-card cat-operate" id="plugin-iface-dhcp" data-plugin-card data-family="interface" data-category="dataplane" data-search="iface-dhcp DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal internal/plugins/iface/dhcp Interface    interface  ">
@@ -1015,6 +1015,18 @@
                             <span class="chip">YANG:6</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>YANG</dt><dd>6 modules</dd></div></dl>
+                    </article>
+
+                    <article class="card plugin-card cat-operate" id="plugin-vrrp" data-plugin-card data-family="interface" data-category="dataplane" data-search="vrrp Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy internal/plugins/vrrp Interface   interface interface  internal/plugins/vrrp/yang/ze-vrrp-cmd.yang internal/plugins/vrrp/yang/ze-vrrp-conf.yang">
+                        <span class="cat">Interface</span>
+                        <h3><a href="vrrp/"><code>vrrp</code></a></h3>
+                        <p class="plugin-desc">Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy</p>
+                        <div class="chips">
+                            <span class="chip mode">config:interface</span>
+                            <span class="chip">needs:interface</span>
+                            <span class="chip">YANG:2</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1435,10 +1447,22 @@
                 <section class="plugin-group" data-plugin-group data-family="test-harness" data-category="test" aria-labelledby="plugin-group-test-harness">
                     <div class="plugin-group-head cat-automate">
                         <h2 id="plugin-group-test-harness">Test Harness</h2>
-                        <span>5 plugins</span>
+                        <span>6 plugins</span>
                     </div>
-                    <p>Generated group for registry entries mapped to the Test Harness area. Source area: <code>internal/test/plugins</code>.</p>
+                    <p>Generated group for registry entries mapped to the Test Harness area. Config roots: <code>ddos</code>. Source area: <code>internal/test/plugins</code>.</p>
                     <div class="cards plugin-grid">
+
+                    <article class="card plugin-card cat-automate" id="plugin-ddos-fake" data-plugin-card data-family="test-harness" data-category="test" data-search="ddos-fake Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) internal/test/plugins/fakeddos Test Harness   ddos/fake firewall  internal/test/plugins/fakeddos/yang/ze-fakeddos-conf.yang" data-test="true">
+                        <span class="cat">Test Harness</span>
+                        <h3><a href="ddos-fake/"><code>ddos-fake</code></a></h3>
+                        <p class="plugin-desc">Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)</p>
+                        <div class="chips">
+                            <span class="chip mode">config:ddos/fake</span>
+                            <span class="chip">needs:firewall</span>
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/fake</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
 
                     <article class="card plugin-card cat-automate" id="plugin-fakeas112" data-plugin-card data-family="test-harness" data-category="test" data-search="fakeas112 Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) internal/test/plugins/fakeas112 Test Harness      internal/test/plugins/fakeas112/yang/ze-fakeas112-api.yang internal/test/plugins/fakeas112/yang/ze-fakeas112-cmd.yang" data-test="true">
                         <span class="cat">Test Harness</span>

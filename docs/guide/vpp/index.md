@@ -72,11 +72,36 @@ independently.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->
 
 BGP sessions themselves still use Linux sockets. VPP's Linux Control
-Plane (LCP) plugin mirrors every VPP interface as a TAP device in a
-`dataplane` network namespace, so ze's BGP reactor can `bind()` and
-`connect()` exactly as it does today. VPP is invisible to the BGP code
-path.
+Plane (LCP) plugin mirrors every VPP interface as a TAP device, so ze's
+BGP reactor `bind()`s and `connect()`s exactly as it does on a kernel
+NIC. VPP is invisible to the BGP code path.
+
+*Which* namespace those TAPs land in is a separate question, and it is
+the one live limitation here. LCP creates them in the namespace named by
+`vpp.lcp.netns`, which defaults to `dataplane`, following the IPng
+production convention that isolates the forwarding plane from the
+management plane. Ze's BGP reactor has **no network-namespace
+awareness**: it binds in whatever namespace the ze process itself runs
+in. So on the shipped default, ze's BGP cannot bind on an LCP-shadowed
+interface unless ze is itself running in the `dataplane` namespace.
+
+Setting `vpp.lcp.netns` to `host` or `root` does **not** work around
+this. To VPP those are ordinary namespace *names*: it resolves the value
+to the path `/var/run/netns/<name>`, and ze passes the same leaf to VPP
+as its global `default netns`, which VPP falls back to for any pair that
+carries no namespace of its own. So `host` asks VPP for a namespace
+literally called `host`, which normally does not exist.
+
+Until BGP learns to bind inside a named namespace (specced, not
+implemented), the remedy is to run ze's BGP in the same namespace as the
+TAPs. `ze doctor` reports `doctor-vpp-lcp-netns` when BGP is configured
+alongside a non-root-reachable LCP netns, and says the same: no
+`vpp.lcp.netns` value fixes it. Run `ze explain doctor-vpp-lcp-netns` for
+the detail.
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
+<!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
+<!-- source: internal/component/vpp/startupconf.go -- linux-cp section: b.kv("default netns", s.LCP.Netns) -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootReachable ("", host, root) -->
 
 ## What ze does for you
 
@@ -185,7 +210,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.lcp.enabled` | boolean | `true` | Whether ze asks VPP to load `linux_cp_plugin.so` and `linux_nl_plugin.so`. Leave on when BGP uses VPP-owned NICs. |
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
-| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear. Must not contain path separators. For BGP to bind on an LCP-shadowed interface, set this to a root-reachable namespace (`host`/`root`) or run BGP in the same namespace; `ze doctor` warns (`doctor-vpp-lcp-netns`) otherwise. |
+| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must not contain path separators. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there; `ze doctor` reports `doctor-vpp-lcp-netns`. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
 | `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. |
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->
@@ -276,6 +301,8 @@ telemetry are in the tree. The remaining phases:
 <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->
 <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->
 | vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with `spec-followup-vpp-iface`.) |
+| (netns) | Netns-aware BGP listening: BGP binds inside a named network namespace | **Not in tree.** `RealListenerFactory.Listen` binds via `net.ListenConfig` in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default `vpp.lcp.netns` of `dataplane`, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; `ze doctor` reports `doctor-vpp-lcp-netns` meanwhile. |
+<!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness -->
 
 The three-strategy framing in
 [`docs/research/ze-vpp-analysis.md`](https://github.com/ze-software/ze/blob/main/docs/research/ze-vpp-analysis.md)

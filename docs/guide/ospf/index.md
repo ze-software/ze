@@ -373,6 +373,8 @@ For cryptographic auth the OSPF common-header Checksum is zero (the appended dig
 Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to `authentication { mode inherit }` uses the area-level default chain. Secrets are stored `$9$`-encoded and never appear in plaintext in `show configuration` or backups.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
 
+## Operational Commands
+
 Operational state is available through the `show ospf` command tree:
 
 ```text
@@ -397,6 +399,33 @@ show ospf border-routers
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
 The runtime can be reset without reconfiguring via `clear ospf process` (tear down adjacencies and re-run SPF), `clear ospf neighbor` (re-form adjacencies), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
+
+### Demo: Diagnose a missing OSPF route
+
+Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
+
+[Play the WebM recording](../../../assets/demos/ospf-adjacency.webm?v=f3471a25e9) · [View the poster](../../../assets/demos/ospf-adjacency.png?v=ba7b8934e0) · [Plain-text transcript](../../../assets/demos/ospf-adjacency.txt?v=d82925c752)
+
+Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 4 seconds.
+
+```console
+An operator is investigating why 10.255.0.3/32 is missing.
+
+$ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
+The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
+
+$ ze cli -c "show ospf neighbor detail"
+The live FRR neighbor at 172.31.0.3 is Full.
+
+$ ze cli -c "show ospf database router"
+The live link-state database contains FRR's Router-LSA.
+
+$ ze cli -c "show ospf route"
+The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
+
+The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.
+```
+
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->
 <!-- source: internal/component/web/handler_ospf.go -- OSPF neighbor/database web views -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- SPFSnapshot -->

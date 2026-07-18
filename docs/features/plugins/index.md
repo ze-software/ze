@@ -1,6 +1,6 @@
 # Plugin catalog
 
-87 runtime plugins generated from `data/plugin-registry.json`, plus 5 test fixtures. 67 runtime plugins declare configuration roots and 68 ship YANG modules.
+88 runtime plugins generated from `data/plugin-registry.json`, plus 6 test fixtures. 68 runtime plugins declare configuration roots and 69 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -187,12 +187,13 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 ## Interface
 
-Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/iface`.
+Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/iface`, `internal/plugins/vrrp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`iface-dhcp`](iface-dhcp/index.md) | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | None | `interface` | `internal/plugins/iface/dhcp` |
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
+| [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 
 ## Kernel
 
@@ -324,10 +325,11 @@ Generated group for registry entries mapped to the VPP area. Config roots: `vpp`
 
 ## Test Harness
 
-Generated group for registry entries mapped to the Test Harness area. Source area: `internal/test/plugins`.
+Generated group for registry entries mapped to the Test Harness area. Config roots: `ddos`. Source area: `internal/test/plugins`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
+| [`ddos-fake`](ddos-fake/index.md) | Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) | `ddos/fake` | `firewall` | `internal/test/plugins/fakeddos` |
 | [`fakeas112`](fakeas112/index.md) | Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) | None | None | `internal/test/plugins/fakeas112` |
 | [`fakeenrich`](fakeenrich/index.md) | Test-only in-process enricher (harmless when not invoked) | None | None | `internal/test/plugins/fakeenrich` |
 | [`fakefib`](fakefib/index.md) | Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) | None | None | `internal/test/plugins/fakefib` |

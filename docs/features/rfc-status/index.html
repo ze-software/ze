@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -42,6 +42,7 @@
 <li><a href="#bgp-attributes-families-policy-and-nlri">BGP attributes, families, policy, and NLRI</a></li>
 <li><a href="#bgp-operations-telemetry-rpki-and-bfd-adjacent-standards">BGP operations, telemetry, RPKI, and BFD-adjacent standards</a></li>
 <li><a href="#is-is-ospf-mpls-and-traffic-engineering">IS-IS, OSPF, MPLS, and traffic engineering</a></li>
+<li><a href="#first-hop-redundancy">First-hop redundancy</a></li>
 <li><a href="#access-aaa-ppp-and-subscriber-services">Access, AAA, PPP, and subscriber services</a></li>
 <li><a href="#ipsec-ike-eap-and-kernel-security-associations">IPsec, IKE, EAP, and kernel security associations</a></li>
 <li><a href="#dns-provisioning-mrt-and-flow-telemetry">DNS, provisioning, MRT, and flow telemetry</a></li>
@@ -190,8 +191,8 @@
 <td>RFC 7606</td>
 <td>Revised UPDATE error handling</td>
 <td class="cell-partial">∿</td>
-<td>Structural UPDATE validation, treat-as-withdraw decisions, attribute-discard decisions, tests.</td>
-<td>Ze intentionally emits MP_UNREACH first and MP_REACH last, which is not fully compliant with Section 5.1 ordering guidance.</td>
+<td>Structural UPDATE validation, treat-as-withdraw (routes are synthesized into withdrawals and removed from the Adj-RIB-In), attribute-discard decisions, session-reset with NOTIFICATION UPDATE Message Error, per-attribute validation for 15 attribute codes, inner MP_REACH/MP_UNREACH NLRI overrun and RFC 4760 flag-consistency validation (§5.3, session reset via §3.j) for IPv4/IPv6 unicast and multicast (ADD-PATH aware, RFC 7911 path-ids skipped when negotiated), tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Seven MUST-level gaps, each annotated in and gated by <code>make ze-rfc-check</code>: (1) §5.1 — Ze intentionally emits MP_UNREACH first and MP_REACH last; (2) §5.4 — unrecognized typed NLRI (EVPN/MVPN) is retained as an opaque route and re-advertised rather than discarded; (3) §7.13, (4) §7.15, (5) §7.16 — attribute codes 24, 25 and 128 have no RFC 7606 validator, so malformed lengths are accepted; (6) §7.15's unrecognized-type tolerance is met only by that same omission; (7) §6 — error logs carry a description only, without the NLRI or the malformed UPDATE bytes. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7606.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 8203</td>
@@ -816,6 +817,48 @@
 <!-- source: plan/learned/920-mpls-ldp.md -- LDP learned closure -->
 <!-- source: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE learned closure -->
 <!-- source: plan/learned/925-mpls-rsvp-te-fast-reroute.md -- RSVP-TE FRR learned closure -->
+
+<h2 id="first-hop-redundancy">First-hop redundancy</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 9568</td>
+<td>VRRPv3 (IPv4 and IPv6)</td>
+<td>Experimental</td>
+<td>Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (Backup/Master, Master_Down_Timer, skew time), priority and preemption (including preempt-delay), the address-owner priority 255 rule, centisecond Max_Advert_Int, virtual MAC 00:00:5e:00:01:{vrid} (IPv4) / 00:00:5e:00:02:{vrid} (IPv6) on a per-group macvlan, 224.0.0.18 / ff02::12 multicast, IP protocol 112, GTSM TTL/hop-limit 255 on TX and RX, gratuitous ARP and unsolicited NA on Master transition.</td>
+<td>One gap: Accept_Mode (Section 6.4.3) is not enforced on the dataplane -- the leaf is parsed, validated and reported, but no filtering is installed, so an Active router answers traffic addressed to the virtual address whichever way it is set. Interoperability IS proven: ze exchanges adverts with keepalived 2.3.1 under QEMU and passes election, node-death failover, and graceful-stop scenarios, including virtual-MAC ownership of the virtual IP (a foreign host resolves the VIP to 00:00:5e:00:01:{vrid}). Experimental pending deployment hardening.</td>
+</tr>
+<tr>
+<td>RFC 3768</td>
+<td>VRRPv2 (IPv4 only)</td>
+<td>Experimental</td>
+<td>Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding, v2 advert format, and the v2 rejection rules (no accept-mode, no IPv6).</td>
+<td>Same VRRP experimental status. RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security.</td>
+</tr>
+<tr>
+<td>RFC 5798</td>
+<td>VRRPv3 (obsoleted by RFC 9568)</td>
+<td>Supported</td>
+<td>For IPv4, ze transmits the RFC 5798 pseudo-header checksum form, because that is what keepalived (proven on the wire: its own adverts use it) and the rest of the deployed base compute and require; a message-only advert is rejected by them as "Invalid VRRPv3 checksum". On receive, ze dual-accepts both this form and the RFC 9568 message-only form.</td>
+<td>RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-header); ze diverges from that clarification on transmit for interoperability, and counts message-only senders (<code>checksum-rfc9568-message-only</code>) so the strict-RFC-9568 population is visible. When that population dominates, the transmit form can be revisited.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/vrrp/packet -- advert encode/decode, checksum forms -->
+<!-- source: internal/plugins/vrrp/fsm -- RFC 9568 Section 6.4 state machine -->
+<!-- source: internal/plugins/vrrp/transport -- proto 112 sockets, multicast joins, GTSM, GARP/NA -->
+<!-- source: internal/component/iface/macvlan.go -- per-group macvlan carrying the virtual MAC -->
+<!-- source: rfc/short/rfc9568.md -- VRRPv3 summary -->
+<!-- source: rfc/short/rfc3768.md -- VRRPv2 summary -->
 
 <h2 id="access-aaa-ppp-and-subscriber-services">Access, AAA, PPP, and subscriber services</h2>
 <table>

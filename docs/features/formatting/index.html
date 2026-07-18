@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -43,7 +43,8 @@ offline to already-captured output.</p>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#the-simple-way-set-a-default-once">The simple way: set a default once</a></li>
 <li><a href="#piping-inline">Piping inline</a></li>
-<li><a href="#the-offline-way-ze-format">The offline way: ze format</a></li>
+<li><a href="#the-offline-way-ze-pipe">The offline way: ze pipe</a></li>
+<li><a href="#configuration-presentation">Configuration presentation</a></li>
 <li><a href="#command-specific-filters">Command-specific filters</a></li>
 </ol></nav>
 <h3 id="the-simple-way-set-a-default-once">The simple way: set a default once</h3>
@@ -170,20 +171,87 @@ chain freely.</p>
 </table>
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
 
-<h3 id="the-offline-way-ze-format">The offline way: <code>ze format</code></h3>
+<h3 id="the-offline-way-ze-pipe">The offline way: <code>ze pipe</code></h3>
 <p>Scripts and pipelines outside an interactive session apply the same
-operators to any captured JSON via <code>ze format</code>:</p>
-<pre><code>ze show host cpu | ze format table
-ze debug show | ze format match reactor
-ze debug show | ze format count
-ze show bgp peer list | ze format yaml
-ze show bgp peer list | ze format first 5
+operators to any captured JSON via <code>ze pipe</code>:</p>
+<pre><code>ze show host cpu | ze pipe table
+ze debug show | ze pipe match reactor
+ze debug show | ze pipe count
+ze show bgp peer list | ze pipe yaml
+ze show bgp peer list | ze pipe first 5
 </code></pre>
-<p><code>ze format</code> reads stdin (up to 256 MB), applies the pipe chain given as
+<p><code>ze pipe</code> reads stdin (up to 256 MB), applies the pipe chain given as
 arguments, and writes the result to stdout. It's the same operator table
 above, minus the display-only operators that only make sense inside a live
 session (<code>log</code>, <code>no-more</code>).</p>
-<!-- source: cmd/ze/ze_core_format.go -- runFormat, formatUsage -->
+<!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
+
+<h3 id="configuration-presentation">Configuration presentation</h3>
+<p>Configuration uses the same separation between data and presentation. Operators
+can inspect compact hierarchical blocks, while automation can consume one complete
+<code>set</code> path per line:</p>
+<pre><code class="language-bash">ze config show router.conf bgp peer transit-a
+ze config migrate --format set router.conf
+</code></pre>
+<p><code>ze config migrate --format hierarchical</code> converts set syntax back to blocks.
+Rendering both forms back to canonical set syntax provides a presentation-neutral
+comparison.</p>
+<!-- source: internal/component/config/cli/cmd_show.go -- path-scoped hierarchical view -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- set and hierarchical rendering -->
+
+<figure class="terminal-demo" data-terminal-demo="config-views">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Render one configuration for humans and automation</h3>
+      <p>Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze&#x27;s plugin registry.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>config-views.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/config-views.png?v=e7acb6271c" aria-label="Render one configuration for humans and automation demonstration">
+      <source src="../../../assets/demos/config-views.webm?v=414a2e496b" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/config-views.webm?v=414a2e496b">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/config-views.txt?v=0f968daa34">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ze config show router.conf bgp peer transit-a
+connection {
+    local ip 192.0.2.1
+    remote ip 192.0.2.2
+}
+session {
+    asn { local 65000; remote 65001; }
+    family ipv4/unicast { prefix maximum 1000000; }
+}
+$ ze config migrate --format set router.conf | ze pipe match &#x27;bgp peer transit-a&#x27;
+set bgp peer transit-a connection local ip 192.0.2.1
+set bgp peer transit-a connection remote ip 192.0.2.2
+set bgp peer transit-a session asn local 65000
+set bgp peer transit-a session asn remote 65001
+...
+$ cmp -s router.set roundtrip.set &amp;&amp; echo &#x27;canonical output: identical&#x27;
+canonical output: identical
+$ ze --plugins | ze pipe match flowspec
+bgp-nlri-flowspec
+flowspec-firewall
+...
+$ ze --plugins | ze pipe match flowspec | ze pipe count
+{&quot;count&quot;:3,&quot;pipe&quot;:{&quot;count&quot;:true}}
+
+Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.</code></pre>
+  </details>
+</figure>
 
 <h3 id="command-specific-filters">Command-specific filters</h3>
 <p>Some commands extend the generic set with their own filter vocabulary,

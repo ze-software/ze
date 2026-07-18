@@ -119,8 +119,8 @@ for responsive characterization (it still governs NetFlow/IPFIX export cadence).
 Inspect the ring directly:
 
 ```
-show flow-recent                     # all recent conntrack flows (bounded to recent-flow-ring)
-show flow-recent dst 203.0.113.42    # flows to a destination prefix or address
+show flow recent                     # all recent conntrack flows (bounded to recent-flow-ring)
+show flow recent dst 203.0.113.42    # flows to a destination prefix or address
 ```
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowRecent -->
 

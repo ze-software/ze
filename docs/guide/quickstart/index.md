@@ -48,13 +48,13 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 ```
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
 
-### Terminal demo: Create ZeFS and commit over SSH
+### Demo: Create ZeFS and commit over SSH
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../../assets/demos/zefs-config.webm) · [View the poster](../../../assets/demos/zefs-config.png) · [Plain-text transcript](../../../assets/demos/zefs-config.txt)
+[Play the WebM recording](../../../assets/demos/zefs-config.webm?v=644b96eda1) · [View the poster](../../../assets/demos/zefs-config.png?v=26fc4f1939) · [Plain-text transcript](../../../assets/demos/zefs-config.txt?v=4253c65985)
 
-Recorded with Ze 26.07.16 on macOS and Linux. Duration: 85 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 55 seconds.
 
 ```console
 $ ze init < "$ZE_INIT_INPUT"
@@ -63,13 +63,14 @@ ze.conf
 $ ze data check
 
 $ ssh ze-demo
+ze# run show bgp summary
 ze# set environment cli format default table
 ze# show | compare
 ze# commit
 Session committed
 ze# run show bgp summary
 
-`ze init` creates `database.zefs`. The SSH editor then commits the table-format setting back to ZeFS, not to a second flat file. The operational command uses the new default immediately.
+`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the table-format setting back to ZeFS, not to a second flat file, and the same operational command immediately renders as a box-drawing table.
 ```
 
 

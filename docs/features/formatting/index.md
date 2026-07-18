@@ -61,25 +61,80 @@ chain freely.
 
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
 
-### The offline way: `ze format`
+### The offline way: `ze pipe`
 
 Scripts and pipelines outside an interactive session apply the same
-operators to any captured JSON via `ze format`:
+operators to any captured JSON via `ze pipe`:
 
 ```
-ze show host cpu | ze format table
-ze debug show | ze format match reactor
-ze debug show | ze format count
-ze show bgp peer list | ze format yaml
-ze show bgp peer list | ze format first 5
+ze show host cpu | ze pipe table
+ze debug show | ze pipe match reactor
+ze debug show | ze pipe count
+ze show bgp peer list | ze pipe yaml
+ze show bgp peer list | ze pipe first 5
 ```
 
-`ze format` reads stdin (up to 256 MB), applies the pipe chain given as
+`ze pipe` reads stdin (up to 256 MB), applies the pipe chain given as
 arguments, and writes the result to stdout. It's the same operator table
 above, minus the display-only operators that only make sense inside a live
 session (`log`, `no-more`).
 
-<!-- source: cmd/ze/ze_core_format.go -- runFormat, formatUsage -->
+<!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
+
+### Configuration presentation
+
+Configuration uses the same separation between data and presentation. Operators
+can inspect compact hierarchical blocks, while automation can consume one complete
+`set` path per line:
+
+```bash
+ze config show router.conf bgp peer transit-a
+ze config migrate --format set router.conf
+```
+
+`ze config migrate --format hierarchical` converts set syntax back to blocks.
+Rendering both forms back to canonical set syntax provides a presentation-neutral
+comparison.
+
+<!-- source: internal/component/config/cli/cmd_show.go -- path-scoped hierarchical view -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- set and hierarchical rendering -->
+
+### Demo: Render one configuration for humans and automation
+
+Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
+
+[Play the WebM recording](../../../assets/demos/config-views.webm?v=414a2e496b) · [View the poster](../../../assets/demos/config-views.png?v=e7acb6271c) · [Plain-text transcript](../../../assets/demos/config-views.txt?v=0f968daa34)
+
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 34 seconds.
+
+```console
+$ ze config show router.conf bgp peer transit-a
+connection {
+    local ip 192.0.2.1
+    remote ip 192.0.2.2
+}
+session {
+    asn { local 65000; remote 65001; }
+    family ipv4/unicast { prefix maximum 1000000; }
+}
+$ ze config migrate --format set router.conf | ze pipe match 'bgp peer transit-a'
+set bgp peer transit-a connection local ip 192.0.2.1
+set bgp peer transit-a connection remote ip 192.0.2.2
+set bgp peer transit-a session asn local 65000
+set bgp peer transit-a session asn remote 65001
+...
+$ cmp -s router.set roundtrip.set && echo 'canonical output: identical'
+canonical output: identical
+$ ze --plugins | ze pipe match flowspec
+bgp-nlri-flowspec
+flowspec-firewall
+...
+$ ze --plugins | ze pipe match flowspec | ze pipe count
+{"count":3,"pipe":{"count":true}}
+
+Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.
+```
+
 
 ### Command-specific filters
 

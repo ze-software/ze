@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -53,6 +53,7 @@
 <li><a href="#graceful-restart-rfc-3623-rfc-5187">Graceful Restart (RFC 3623, RFC 5187)</a></li>
 <li><a href="#multi-instance-rfc-6549">Multi-Instance (RFC 6549)</a></li>
 <li><a href="#authentication">Authentication</a></li>
+<li><a href="#operational-commands">Operational Commands</a></li>
 </ol></nav>
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf config root -->
@@ -370,6 +371,7 @@ ipv6</code> lists each running AF instance with its address family and Instance 
 <p>Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to <code>authentication { mode inherit }</code> uses the area-level default chain. Secrets are stored <code>$9$</code>-encoded and never appear in plaintext in <code>show configuration</code> or backups.</p>
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
 
+<h2 id="operational-commands">Operational Commands</h2>
 <p>Operational state is available through the <code>show ospf</code> command tree:</p>
 <pre><code class="language-text">show ospf
 show ospf instance
@@ -390,6 +392,49 @@ show ospf border-routers
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
 <p>The runtime can be reset without reconfiguring via <code>clear ospf process</code> (tear down adjacencies and re-run SPF), <code>clear ospf neighbor</code> (re-form adjacencies), and <code>clear ospf counters</code> (reset the SPF-run log). The neighbor and database views are also available in the web UI at <code>/ospf</code> and <code>/ospf/database</code>, with live updates over SSE.</p>
+<figure class="terminal-demo" data-terminal-demo="ospf-adjacency">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Diagnose a missing OSPF route</h3>
+      <p>Inspect the active OSPF configuration, query the running control plane with Ze&#x27;s CLI, trace a Full neighbor through the LSDB, and confirm the expected route.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>ospf-adjacency.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/ospf-adjacency.png?v=ba7b8934e0" aria-label="Diagnose a missing OSPF route demonstration">
+      <source src="../../../assets/demos/ospf-adjacency.webm?v=f3471a25e9" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/ospf-adjacency.webm?v=f3471a25e9">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 4 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/ospf-adjacency.txt?v=d82925c752">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>An operator is investigating why 10.255.0.3/32 is missing.
+
+$ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
+The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
+
+$ ze cli -c &quot;show ospf neighbor detail&quot;
+The live FRR neighbor at 172.31.0.3 is Full.
+
+$ ze cli -c &quot;show ospf database router&quot;
+The live link-state database contains FRR&#x27;s Router-LSA.
+
+$ ze cli -c &quot;show ospf route&quot;
+The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
+
+The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.</code></pre>
+  </details>
+</figure>
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->
 <!-- source: internal/component/web/handler_ospf.go -- OSPF neighbor/database web views -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- SPFSnapshot -->

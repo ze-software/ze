@@ -21,6 +21,36 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 | YANG decorators | Leaves with `ze:decorate` extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS) |
 | Workbench UI (default) | RouterOS-style operator workbench (default since Phase 2); row-level related-tool buttons declared via `ze:related` YANG extension dispatch through the standard CommandDispatcher; CLI available as separate `/cli` tab |
 
+## Browser Configuration Workflow
+
+The recording below signs in to a local Ze instance, edits a YANG-backed value,
+reviews the generated diff, commits the browser session's draft, and verifies
+the active value. The daemon and browser run locally during generation.
+
+### Demo: Edit and commit configuration in the browser
+
+Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.
+
+[Play the WebM recording](../../../assets/demos/web-config.webm?v=27c8c574fd) · [View the poster](../../../assets/demos/web-config.png?v=3ec85c3acd) · [Plain-text transcript](../../../assets/demos/web-config.txt?v=a614767cf2)
+
+Recorded with Ze 26.07.18 on macOS and Linux using Playwright 1.55.0. Duration: 47 seconds.
+
+```console
+Ze web configuration demo
+
+1. Open the local Ze HTTPS interface.
+2. Sign in as the local administrator.
+3. Open System / Identity in configuration mode.
+4. Change the hostname from ze-demo to edge-demo.
+5. Save the draft and open Review & Commit.
+6. Verify the diff contains `host edge-demo`.
+7. Confirm the commit.
+8. Reload the setting and verify the active hostname is edge-demo.
+
+Expected result: Ze commits the browser user's isolated draft and the active YANG-backed hostname reads `edge-demo`.
+```
+
+
 <!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->

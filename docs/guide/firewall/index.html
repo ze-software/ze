@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -40,7 +40,10 @@ section. The abstract data model describes matches (from) and actions (then);
 the nft backend lowers them to nftables kernel expressions.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#backend">Backend</a></li>
+<li><a href="#backend">Backend</a>
+<ol>
+<li><a href="#clean-shutdown-teardown">Clean-shutdown teardown</a></li>
+</ol></li>
 <li><a href="#tables-and-chains">Tables and Chains</a>
 <ol>
 <li><a href="#table-families">Table Families</a></li>
@@ -97,6 +100,28 @@ the nft backend lowers them to nftables kernel expressions.</p>
     backend nft;
 }
 </code></pre>
+<h3 id="clean-shutdown-teardown">Clean-shutdown teardown</h3>
+<p><code>flush-on-shutdown</code> controls whether stopping the <code>ze</code> process removes ze-owned
+tables from the kernel. It defaults to <code>true</code>: an orderly stop (SIGTERM, e.g.
+<code>systemctl stop ze</code>) tears the tables down so a stopped daemon leaves no rules
+behind. It keys off how the process exits, and is unrelated to BGP graceful
+restart -- that concerns only RIB/FIB route retention while a peer re-establishes
+and never restarts the daemon, so it never reaches this path.</p>
+<p>Set it to <code>false</code> to use <code>ze</code> as a <strong>one-shot provisioner</strong>: apply the firewall
+(and interface) configuration, let the process exit, and leave the rules running
+in the kernel -- the way <code>nft -f</code> programs a ruleset and returns. Nothing is torn
+down when <code>ze</code> quits.</p>
+<pre><code>firewall {
+    backend nft;
+    flush-on-shutdown false;   # one-shot: program the rules, exit, leave them running
+}
+</code></pre>
+<p>A crash (SIGKILL, panic, power loss) never runs the shutdown path, so ze-owned
+tables <strong>always</strong> persist across a crash regardless of this setting. The option
+governs every ze table producer that shares the backend -- the firewall
+component, <code>control-plane-protection</code>, <code>policy-routes</code>, and <code>ddos-local</code> -- and
+the firewall component performs the teardown as a single ordered actor so
+plugin table removal never races the backend close.</p>
 <h2 id="tables-and-chains">Tables and Chains</h2>
 <p>Ze owns all tables whose kernel name starts with <code>ze_</code>. A table contains one or
 more chains; a base chain has a type, hook, priority, and default policy.</p>
@@ -623,6 +648,13 @@ on the next apply.</p>
 On boot and config reload, the reactor parses the <code>firewall { }</code> section,
 loads the selected backend, and calls <code>Apply([]Table)</code>. On failure,
 <code>sdk.Journal</code> triggers a rollback to the previous state.</p>
+<p>On a <strong>clean</strong> shutdown the component removes every ze-owned table (unless
+<code>flush-on-shutdown false</code>; see <a href="#clean-shutdown-teardown">Clean-shutdown teardown</a>),
+then closes the backend. Because the firewall component owns the shared backend,
+it is the single actor that performs this teardown -- plugins that register
+tables (<code>control-plane-protection</code>, <code>policy-routes</code>, <code>ddos-local</code>) do not run
+their own shutdown withdrawal, so table removal never races the backend close.
+A crash bypasses this path entirely, leaving tables in place.</p>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>

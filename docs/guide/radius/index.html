@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -198,12 +198,19 @@ mapped to one or more locally-defined <code>system.authorization.profile</code> 
   supplies one profile name; multiple Filter-Id attributes yield multiple
   profiles. <code>class</code> reads the Class attribute (§5.25) the same way.</li>
 <li>When the Access-Accept carries no such attribute, the <code>default-profile</code>
-  leaf-list applies. If neither is present the user is authenticated with no
-  profiles (and RBAC denies privileged actions).</li>
+  leaf-list applies.</li>
+<li>When neither is present the login resolves to no profile and is <strong>rejected</strong>,
+  with a <code>RADIUS admin auth rejected: no profiles resolved</code> warning naming the
+  user. Ze never authorizes a user it cannot attach a profile to: an
+  authenticated login always carries at least one profile name. The rejection
+  stops the chain, exactly as an Access-Reject does, because the server did
+  answer -- this is not the unreachable-server case that falls through to local.</li>
 </ul>
 <p>Configure your RADIUS server to return <code>Filter-Id = admin</code> (or your profile
-name) for operators, and define a matching <code>system.authorization.profile</code>.</p>
-<!-- source: internal/component/radius/authenticator.go -- mapProfiles -->
+name) for operators, and define a matching <code>system.authorization.profile</code>. If
+your server does not send a profile attribute, set <code>default-profile</code> instead;
+otherwise no RADIUS user can log in.</p>
+<!-- source: internal/component/radius/authenticator.go -- mapProfiles, Authenticate Access-Accept branch -->
 
 <h2 id="chain-order-with-tacacs-and-local">Chain order with TACACS+ and local</h2>
 <p>When RADIUS, TACACS+, and local users are all configured, the chain is tried in

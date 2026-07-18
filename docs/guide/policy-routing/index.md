@@ -192,7 +192,7 @@ validation time.
 ## CLI
 
 ```
-ze> show policy-routes
+ze> show policy routes
 ```
 
 Returns JSON with all configured policy routes, their interface

@@ -84,7 +84,7 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 <figure class="terminal-demo" data-terminal-demo="zefs-config">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Create ZeFS and commit over SSH</h3>
       <p>Create the ZeFS database, edit the active configuration through Ze&#x27;s SSH management plane, and verify the committed setting.</p>
     </div>
@@ -93,33 +93,34 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
   <div class="terminal-demo__frame">
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-      <span>zefs-config.tape</span>
+      <span>zefs-config.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/zefs-config.png" aria-label="Create ZeFS and commit over SSH terminal demonstration">
-      <source src="../../../assets/demos/zefs-config.webm" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/zefs-config.webm">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/zefs-config.png?v=26fc4f1939" aria-label="Create ZeFS and commit over SSH demonstration">
+      <source src="../../../assets/demos/zefs-config.webm?v=644b96eda1" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/zefs-config.webm?v=644b96eda1">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.16</span><span>85 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
-    <a href="../../../assets/demos/zefs-config.txt">Plain-text transcript</a>
+    <span>Ze 26.07.18</span><span>1 minute 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/zefs-config.txt?v=4253c65985">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
-    <summary>Read the terminal transcript</summary>
+    <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
 $ ze config ls
 ze.conf
 $ ze data check
 
 $ ssh ze-demo
+ze# run show bgp summary
 ze# set environment cli format default table
 ze# show | compare
 ze# commit
 Session committed
 ze# run show bgp summary
 
-`ze init` creates `database.zefs`. The SSH editor then commits the table-format setting back to ZeFS, not to a second flat file. The operational command uses the new default immediately.</code></pre>
+`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the table-format setting back to ZeFS, not to a second flat file, and the same operational command immediately renders as a box-drawing table.</code></pre>
   </details>
 </figure>
 

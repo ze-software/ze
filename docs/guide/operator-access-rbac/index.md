@@ -141,21 +141,32 @@ journalctl -u ze.service -n 100 --no-pager
 
 Pick a real command the profile denies when you write your own check. A command Ze does not have reports `unknown command` and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. `configure` is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so `ze cli -c "configure"` is never an authorization test. To check the edit path, run a command that writes, such as `set system ...`, or log in and try `configure` interactively.
 
-### Terminal demo: Prove read-only RBAC enforcement
+### Demo: Prove read-only RBAC enforcement
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Play the WebM recording](../../../assets/demos/rbac.webm) · [View the poster](../../../assets/demos/rbac.png) · [Plain-text transcript](../../../assets/demos/rbac.txt)
+[Play the WebM recording](../../../assets/demos/rbac.webm?v=aaa447ec07) · [View the poster](../../../assets/demos/rbac.png?v=3a7f101f5d) · [Plain-text transcript](../../../assets/demos/rbac.txt?v=939addc51a)
 
-Recorded with Ze 26.07.16 on macOS and Linux. Duration: 45 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 30 seconds.
 
 ```console
+$ ze config show rbac.conf system authorization profile read-only
+default-action allow
+entry 20 {
+   action deny
+   match clear
+}
+
+$ ze config show rbac.conf system authentication user noc profile
+profile read-only
+
 $ ze cli --user noc -c 'show version'
-version: ze 26.07.15
+version: ze 26.07.18
+
 $ ze cli --user noc -c 'clear interface counters'
 error: command restricted by access control
 
-The read-only NOC profile allows operational show commands and denies every command matching "clear". The daemon resolves the command, finds the profile forbids it, and refuses before running it. The password is supplied outside the recording.
+The recording displays the command restriction and the NOC user's profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.
 ```
 
 

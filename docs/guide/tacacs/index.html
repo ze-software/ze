@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -44,7 +44,10 @@ device.</p>
 <li><a href="#what-it-does">What it does</a></li>
 <li><a href="#minimal-config">Minimal config</a></li>
 <li><a href="#authentication-flow">Authentication flow</a></li>
-<li><a href="#privilege-level-mapping">Privilege level mapping</a></li>
+<li><a href="#privilege-level-mapping">Privilege level mapping</a>
+<ol>
+<li><a href="#what-the-mapped-profiles-govern">What the mapped profiles govern</a></li>
+</ol></li>
 <li><a href="#accounting">Accounting</a></li>
 <li><a href="#verification">Verification</a></li>
 <li><a href="#operational-notes">Operational notes</a></li>
@@ -233,6 +236,31 @@ entries.</p>
 <p>Levels not present in <code>tacacs-profile</code> reject the login. Look for
 <code>TACACS+ unmapped privilege level</code> in the daemon log when extending the
 upstream config.</p>
+<h3 id="what-the-mapped-profiles-govern">What the mapped profiles govern</h3>
+<p>The mapped profiles decide every command the session may run, not just whether
+the login succeeds. Ze resolves them once at authentication and authorizes each
+command against them, so <code>tacacs-profile 1 { profile [ read-only ]; }</code> gives that
+session exactly what the local <code>read-only</code> profile allows and refuses the rest
+with <code>command restricted by access control</code>.</p>
+<p>Only the profile <em>names</em> are fixed at login. Each command is evaluated against
+the profile as it is defined at that moment, so editing <code>read-only</code> and
+committing applies to sessions already open, without a reconnect.</p>
+<p>A local <code>system.authentication.user</code> block with the same username takes
+precedence over the mapped profiles: an explicit local assignment is a stated
+intent for that name, so it is not widened or narrowed by how the user logged in.</p>
+<p>Verify the mapping with a command the profile denies, not with one Ze does not
+have. A command that does not exist reports <code>unknown command</code> and exits non-zero
+for everyone, so it passes whatever the mapping says and proves nothing.</p>
+<!-- source: internal/component/aaa/login_profiles.go -- login-resolved profiles reaching authorization -->
+<!-- source: internal/component/authz/authz.go -- Store.Authorize, config assignment precedence -->
+<!-- source: test/plugin/tacacs-readonly.ci -- priv-lvl 1 allowed a read, refused a write -->
+<!-- source: test/plugin/tacacs-author.ci -- per-command AUTHOR REQUEST, FAIL blocks the command -->
+<!-- source: internal/component/tacacs/authorizer.go -- per-command authorization when `authorization true` -->
+
+<p>Setting <code>authorization true</code> moves the per-command decision to the TACACS+ server
+itself: Ze sends an AUTHOR REQUEST per command, and the profiles above apply only
+as the fallback when the server is unreachable, unless <code>strict-fallback true</code>
+makes that case deny.</p>
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
 
 <h2 id="accounting">Accounting</h2>

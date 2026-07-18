@@ -26,7 +26,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 | RFC 4486 | BGP Cease subcodes and prefix maximum | Supported | Cease subcode catalog, max-prefix teardown, backoff, and operator reset paths. | No tracked gap in current source anchors. |
 | RFC 7607 | Prefix-limit enforcement context | Supported | Prefix-limit enforcement is called before route admission and documented with RFC 4486. | No separate gap tracked beyond RFC 4486 behavior. |
 | RFC 9687 | Send Hold Timer | Supported | Send Hold Timer, auto duration `max(8min, 2x hold-time)`, NOTIFICATION code 8 on expiry. | No tracked gap in current source anchors. |
-| RFC 7606 | Revised UPDATE error handling | Partial | Structural UPDATE validation, treat-as-withdraw decisions, attribute-discard decisions, tests. | Ze intentionally emits MP_UNREACH first and MP_REACH last, which is not fully compliant with Section 5.1 ordering guidance. |
+| RFC 7606 | Revised UPDATE error handling | Partial | Structural UPDATE validation, treat-as-withdraw (routes are synthesized into withdrawals and removed from the Adj-RIB-In), attribute-discard decisions, session-reset with NOTIFICATION UPDATE Message Error, per-attribute validation for 15 attribute codes, inner MP_REACH/MP_UNREACH NLRI overrun and RFC 4760 flag-consistency validation (§5.3, session reset via §3.j) for IPv4/IPv6 unicast and multicast (ADD-PATH aware, RFC 7911 path-ids skipped when negotiated), tests bound per requirement in `ai/RFC-REQUIREMENTS.md`. | Seven MUST-level gaps, each annotated in `rfc/short/rfc7606.md` and gated by `make ze-rfc-check`: (1) §5.1 — Ze intentionally emits MP_UNREACH first and MP_REACH last; (2) §5.4 — unrecognized typed NLRI (EVPN/MVPN) is retained as an opaque route and re-advertised rather than discarded; (3) §7.13, (4) §7.15, (5) §7.16 — attribute codes 24, 25 and 128 have no RFC 7606 validator, so malformed lengths are accepted; (6) §7.15's unrecognized-type tolerance is met only by that same omission; (7) §6 — error logs carry a description only, without the NLRI or the malformed UPDATE bytes. |
 | RFC 8203 | Administrative Shutdown Communication | Supported | UTF-8 shutdown message for Cease/Admin Shutdown and Cease/Admin Reset. | Sender keeps the conservative 128-byte RFC 8203 limit. |
 | RFC 9003 | Administrative Shutdown Communication update | Supported | Receiver accepts the updated UTF-8 format and 255-byte length field; invalid UTF-8 is stripped on send. | Sender remains conservative at 128 bytes for interoperability. |
 | RFC 8538 | Notification GR | Unsupported | Cease Hard Reset subcode (9) name is known. | The GR N-bit is decoded but not acted upon; routes are dropped on any NOTIFICATION, so RFC 8538 route retention is not implemented. |
@@ -154,6 +154,21 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 <!-- source: plan/learned/920-mpls-ldp.md -- LDP learned closure -->
 <!-- source: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE learned closure -->
 <!-- source: plan/learned/925-mpls-rsvp-te-fast-reroute.md -- RSVP-TE FRR learned closure -->
+
+## First-hop redundancy
+
+| RFC | Area | Status | Implemented coverage | Remaining if not complete |
+|-----|------|--------|----------------------|---------------------------|
+| RFC 9568 | VRRPv3 (IPv4 and IPv6) | Experimental | Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (Backup/Master, Master_Down_Timer, skew time), priority and preemption (including preempt-delay), the address-owner priority 255 rule, centisecond Max_Advert_Int, virtual MAC 00:00:5e:00:01:{vrid} (IPv4) / 00:00:5e:00:02:{vrid} (IPv6) on a per-group macvlan, 224.0.0.18 / ff02::12 multicast, IP protocol 112, GTSM TTL/hop-limit 255 on TX and RX, gratuitous ARP and unsolicited NA on Master transition. | One gap: Accept_Mode (Section 6.4.3) is not enforced on the dataplane -- the leaf is parsed, validated and reported, but no filtering is installed, so an Active router answers traffic addressed to the virtual address whichever way it is set. Interoperability IS proven: ze exchanges adverts with keepalived 2.3.1 under QEMU and passes election, node-death failover, and graceful-stop scenarios, including virtual-MAC ownership of the virtual IP (a foreign host resolves the VIP to 00:00:5e:00:01:{vrid}). Experimental pending deployment hardening. |
+| RFC 3768 | VRRPv2 (IPv4 only) | Experimental | Opt-in via `version 2`. Whole-second Advertisement_Interval encoding, v2 advert format, and the v2 rejection rules (no accept-mode, no IPv6). | Same VRRP experimental status. RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. |
+| RFC 5798 | VRRPv3 (obsoleted by RFC 9568) | Supported | For IPv4, ze transmits the RFC 5798 pseudo-header checksum form, because that is what keepalived (proven on the wire: its own adverts use it) and the rest of the deployed base compute and require; a message-only advert is rejected by them as "Invalid VRRPv3 checksum". On receive, ze dual-accepts both this form and the RFC 9568 message-only form. | RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-header); ze diverges from that clarification on transmit for interoperability, and counts message-only senders (`checksum-rfc9568-message-only`) so the strict-RFC-9568 population is visible. When that population dominates, the transmit form can be revisited. |
+
+<!-- source: internal/plugins/vrrp/packet -- advert encode/decode, checksum forms -->
+<!-- source: internal/plugins/vrrp/fsm -- RFC 9568 Section 6.4 state machine -->
+<!-- source: internal/plugins/vrrp/transport -- proto 112 sockets, multicast joins, GTSM, GARP/NA -->
+<!-- source: internal/component/iface/macvlan.go -- per-group macvlan carrying the virtual MAC -->
+<!-- source: rfc/short/rfc9568.md -- VRRPv3 summary -->
+<!-- source: rfc/short/rfc3768.md -- VRRPv2 summary -->
 
 ## Access, AAA, PPP, and subscriber services
 

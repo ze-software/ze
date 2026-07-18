@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -52,6 +52,7 @@ straight from each plugin's own YANG module.</p>
 <li><a href="#capabilities-configuration">Capabilities Configuration</a></li>
 <li><a href="#route-configuration">Route Configuration</a></li>
 <li><a href="#process-bindings">Process Bindings</a></li>
+<li><a href="#dependency-graph">Dependency Graph</a></li>
 </ol></nav>
 <h3 id="peer-settings">Peer Settings</h3>
 <p>Peers are keyed by name (<code>peer &lt;name&gt; { }</code>) with IP and AS in nested containers:</p>
@@ -377,6 +378,50 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
 <li>Configurable message filtering (receive-update, receive-open, etc.)</li>
 <li>Neighbor change notifications</li>
 </ul>
+<h2 id="dependency-graph">Dependency Graph</h2>
+<p><code>ze config graph &lt;file&gt;</code> exposes configuration groups, peers, plugin dependencies, and their relationships as machine-readable nodes and edges. Use it to identify which peers inherit a shared value before changing that group.</p>
+<figure class="terminal-demo" data-terminal-demo="config-graph">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Find every peer affected by a group change</h3>
+      <p>Inspect and validate a BGP group, then use Ze&#x27;s dependency graph to prove which peers inherit the value before scheduling maintenance.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>config-graph.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/config-graph.png?v=60a75596e2" aria-label="Find every peer affected by a group change demonstration">
+      <source src="../../../assets/demos/config-graph.webm?v=551b0249a0" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/config-graph.webm?v=551b0249a0">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 41 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/config-graph.txt?v=1708ee2fac">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>An operator needs to change the transit group&#x27;s remote ASN and identify every peer that inherits it before scheduling maintenance.
+
+$ ze config show router.conf bgp group transit
+The scoped configuration shows `upstream-a` and `upstream-b` inside the transit group.
+
+$ ze config validate router.conf
+configuration valid
+
+$ ze config graph router.conf | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe match inherits
+The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+
+No reporting helper creates the displayed relationships. The command filters Ze&#x27;s graph output directly through Ze&#x27;s format pipeline.</code></pre>
+  </details>
+</figure>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>

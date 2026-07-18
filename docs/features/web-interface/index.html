@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -37,6 +37,9 @@
     <h1 id="web-interface">Web Interface</h1>
     <p>Ze includes an HTTPS web interface for configuration viewing, editing, and runtime command execution through a browser.</p>
 </div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#browser-configuration-workflow">Browser Configuration Workflow</a></li>
+</ol></nav>
 <table>
 <thead>
 <tr>
@@ -111,6 +114,51 @@
 </tr>
 </tbody>
 </table>
+<h2 id="browser-configuration-workflow">Browser Configuration Workflow</h2>
+<p>The recording below signs in to a local Ze instance, edits a YANG-backed value,
+reviews the generated diff, commits the browser session's draft, and verifies
+the active value. The daemon and browser run locally during generation.</p>
+<figure class="terminal-demo" data-terminal-demo="web-config">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze browser lab</span>
+      <h3>Edit and commit configuration in the browser</h3>
+      <p>Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>web-config.browser</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/web-config.png?v=3ec85c3acd" aria-label="Edit and commit configuration in the browser demonstration">
+      <source src="../../../assets/demos/web-config.webm?v=27c8c574fd" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/web-config.webm?v=27c8c574fd">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>47 seconds</span><span>macOS and Linux</span><span>Browser</span><span>Playwright 1.55.0</span>
+    <a href="../../../assets/demos/web-config.txt?v=a614767cf2">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>Ze web configuration demo
+
+1. Open the local Ze HTTPS interface.
+2. Sign in as the local administrator.
+3. Open System / Identity in configuration mode.
+4. Change the hostname from ze-demo to edge-demo.
+5. Save the draft and open Review &amp; Commit.
+6. Verify the diff contains `host edge-demo`.
+7. Confirm the commit.
+8. Reload the setting and verify the active hostname is edge-demo.
+
+Expected result: Ze commits the browser user&#x27;s isolated draft and the active YANG-backed hostname reads `edge-demo`.</code></pre>
+  </details>
+</figure>
+
 <!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->

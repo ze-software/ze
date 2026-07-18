@@ -23,6 +23,26 @@ and
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
+## Conventions
+
+Every command that takes a **filename argument** accepts `-` as an alias for
+**stdin** when reading and **stdout** when writing, so configs and data stream
+through pipes without temp files:
+
+```
+generate | ze config show -                 # read a config from stdin
+ssh host cat rib.mrt | ze analyze show -    # analyse an MRT streamed in
+ze config show - | ze config set - bgp session asn local 65001 | ze config validate -
+ze config migrate -o - old.conf             # write the migrated config to stdout
+```
+
+stdin can be consumed once: a second `-` in a single command fails with a clear
+error rather than reading empty. A file literally named `-` is addressed as
+`./-`. Interactive/history-dependent editor commands (`ze config edit`,
+`ze config rollback`, `ze config history`) reject `-` because they need a TTY or
+on-disk revision history that a pipe does not have.
+<!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
+
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,
@@ -43,13 +63,13 @@ ze <config-file>                 # Start daemon with config
 ze start                         # Start daemon from database
 ```
 
-### Terminal demo: Discover Ze commands interactively
+### Demo: Discover Ze commands interactively
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../../assets/demos/launcher.webm) · [View the poster](../../../assets/demos/launcher.png) · [Plain-text transcript](../../../assets/demos/launcher.txt)
+[Play the WebM recording](../../../assets/demos/launcher.webm?v=46c97f8572) · [View the poster](../../../assets/demos/launcher.png?v=cae872cf66) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.07.16 on macOS and Linux. Duration: 55 seconds.
+Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
 
 ```console
 $ ze
@@ -402,6 +422,30 @@ ze show host storage               # Block devices + NVMe firmware
 ze show host kernel                # Kernel release, cmdline, microcode, arch flags
 ```
 
+### Demo: Inspect a Linux host before Ze starts
+
+Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
+
+[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=8c89c5019c) · [View the poster](../../../assets/demos/host-inventory.png?v=01c12c6314) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+
+Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
+
+```console
+An operator needs to inspect an unfamiliar Linux host before starting Ze.
+
+$ ze show host kernel | ze pipe yaml
+The complete live kernel inventory is displayed.
+
+$ ze show host cpu | ze pipe yaml
+The complete CPU topology, model, core, and thread inventory is displayed.
+
+$ ze show host memory | ze pipe yaml
+The complete memory capacity, availability, cache, swap, and ECC inventory is displayed.
+
+The commands work without a running Ze daemon. Every field returned by `ze show host` remains visible and machine-readable.
+```
+
+
 <!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
 <!-- source: internal/plugins/host/host.go -- RunShow offline fallback (registry.RegisterOfflineFallback) -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
@@ -637,7 +681,7 @@ ze show traffic usage name <interface># One interface by name
 
 Each entry reports `ingress-ports`, `egress-ports`, `map-entries`, and (only
 when `track-ip` is enabled) `ingress-ips` and `egress-ips`. JSON by default;
-full pipe operators supported. See the [Traffic Usage guide](https://github.com/ze-software/ze/blob/main/docs/guide/traffic-usage.md).
+full pipe operators supported. See the [Traffic Usage guide](../traffic-usage/index.md).
 
 <!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
 
@@ -800,27 +844,27 @@ IS-IS protocol tools that run without a daemon, mirroring `ze bgp decode`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `isis-decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
+| `isis decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
 
-`ze isis-decode` runs without a daemon. Input is ASCII hex (whitespace and
+`ze isis decode` runs without a daemon. Input is ASCII hex (whitespace and
 newlines allowed); raw PDU bytes piped straight from a capture also work (an
 IS-IS PDU starts with the protocol discriminator `0x83`, which is not an ASCII
 hex digit, so the two encodings are never confused). Output is the JSON view of
 the decoded PDU (common header, body, and decoded TLVs). Use `--pretty` for
-indented output. The verb is `isis-decode` (a dedicated offline tool), distinct
+indented output. The verb is `isis decode` (a dedicated offline tool), distinct
 from the `show isis` / `clear isis` command tree above.
 
 Example:
 
 ```
-echo 831b0100... | ze isis-decode --pretty
+echo 831b0100... | ze isis decode --pretty
 ```
 
 Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
 a malformed PDU; stderr carries the reason.
 
 <!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
-<!-- source: internal/plugins/isis/cli/register.go -- isis-decode root verb -->
+<!-- source: internal/plugins/isis/cli/register.go -- isis root namespace, decode member -->
 
 ### show pki
 
@@ -1490,6 +1534,16 @@ The password for a non-super-admin user must come from `ze.ssh.password`
 (env) or an interactive prompt. There is intentionally no `--password`
 flag (passwords in argv leak into shell history and `ps`).
 
+The zefs store is one source among these, not a prerequisite. It is created
+`0600` and owned by whoever installed ze, so an operator who cannot read it can
+still log in by naming themselves with `--user` and supplying `ze.ssh.password`:
+resolution falls back to the built-in `127.0.0.1:2222` target. Set `ze.ssh.host`
+and `ze.ssh.port` (or pass `--remote`) if the daemon listens elsewhere, because
+the `meta/ssh/default` pointer lives in the store and cannot be read either.
+With no username from flag or env and no readable store, the CLI fails and names
+`--user` and `ze.ssh.password` rather than guessing an identity.
+<!-- source: internal/core/ssh/client/client.go -- readCredentials, openStoreIfReadable -->
+
 See [authentication.md](../authentication/index.md) for the full multi-user workflow.
 <!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
@@ -1554,29 +1608,29 @@ actual live state, use `show debug` (YANG-dispatched RPC, requires a running dae
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
-### ze format
+### ze pipe
 
 Apply pipe formatting to stdin. Offline commands (like `ze show debug profile`) do not pass
-through the YANG-dispatched pipe infrastructure. `ze format` provides the same
+through the YANG-dispatched pipe infrastructure. `ze pipe` provides the same
 operators as a standalone filter.
 
 ```
-<command> | ze format json [compact]     # Format as JSON (pretty or compact)
-<command> | ze format yaml               # YAML output
-<command> | ze format table              # Box-drawing table
-<command> | ze format text               # Space-aligned columns
-<command> | ze format ndjson             # One compact JSON object per line
-<command> | ze format match <pattern>    # Grep lines (case-insensitive)
-<command> | ze format count              # Count items (JSON-aware)
-<command> | ze format first <n>          # Take first N items
-<command> | ze format last <n>           # Take last N items
-<command> | ze format resolve            # Add reverse DNS for IP values
+<command> | ze pipe json [compact]     # Format as JSON (pretty or compact)
+<command> | ze pipe yaml               # YAML output
+<command> | ze pipe table              # Box-drawing table
+<command> | ze pipe text               # Space-aligned columns
+<command> | ze pipe ndjson             # One compact JSON object per line
+<command> | ze pipe match <pattern>    # Grep lines (case-insensitive)
+<command> | ze pipe count              # Count items (JSON-aware)
+<command> | ze pipe first <n>          # Take first N items
+<command> | ze pipe last <n>           # Take last N items
+<command> | ze pipe resolve            # Add reverse DNS for IP values
 ```
 
 Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
 operators (match, count, first, last) work on both JSON and plain text.
 `resolve` adds a `<key>-name` sibling field for each IP address value in JSON.
-<!-- source: cmd/ze/ze_core_format.go -- runFormat -->
+<!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 
 ### ze data
 

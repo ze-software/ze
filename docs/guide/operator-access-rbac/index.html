@@ -205,7 +205,7 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
 <figure class="terminal-demo" data-terminal-demo="rbac">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze lab</span>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Prove read-only RBAC enforcement</h3>
       <p>Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.</p>
     </div>
@@ -214,26 +214,37 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
   <div class="terminal-demo__frame">
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-      <span>rbac.tape</span>
+      <span>rbac.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/rbac.png" aria-label="Prove read-only RBAC enforcement terminal demonstration">
-      <source src="../../../assets/demos/rbac.webm" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/rbac.webm">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/rbac.png?v=3a7f101f5d" aria-label="Prove read-only RBAC enforcement demonstration">
+      <source src="../../../assets/demos/rbac.webm?v=aaa447ec07" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/rbac.webm?v=aaa447ec07">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.16</span><span>45 seconds</span><span>macOS and Linux</span><span>VHS 0.11.0</span>
-    <a href="../../../assets/demos/rbac.txt">Plain-text transcript</a>
+    <span>Ze 26.07.18</span><span>1 minute 30 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
-    <summary>Read the terminal transcript</summary>
-    <pre><code>$ ze cli --user noc -c &#x27;show version&#x27;
-version: ze 26.07.15
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ze config show rbac.conf system authorization profile read-only
+default-action allow
+entry 20 {
+   action deny
+   match clear
+}
+
+$ ze config show rbac.conf system authentication user noc profile
+profile read-only
+
+$ ze cli --user noc -c &#x27;show version&#x27;
+version: ze 26.07.18
+
 $ ze cli --user noc -c &#x27;clear interface counters&#x27;
 error: command restricted by access control
 
-The read-only NOC profile allows operational show commands and denies every command matching &quot;clear&quot;. The daemon resolves the command, finds the profile forbids it, and refuses before running it. The password is supplied outside the recording.</code></pre>
+The recording displays the command restriction and the NOC user&#x27;s profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.</code></pre>
   </details>
 </figure>
 

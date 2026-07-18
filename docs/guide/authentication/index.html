@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -178,11 +178,20 @@ ze cli -u alice -c &quot;show version&quot;
 <code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
 <h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
 <p>Tab completion runs silently in the shell and does not accept flags. To
-have completions resolve as a non-super-admin user, set the env var in
+have completions resolve as a non-super-admin user, set the env vars in
 your shell profile:</p>
 <pre><code>export ZE_SSH_USERNAME=alice
-export ZE_SSH_PASSWORD=...   # or use a key-locked secret store
+export ZE_SSH_PASSWORD=...
 </code></pre>
+<p>Set <strong>both</strong>, or neither. Completion never prompts for a password: it runs while
+you are typing, so a prompt would block the shell instead of asking a question
+you could answer. With a username but no password there is no usable credential,
+so completion stays silent and you simply get no peer completions. Everything
+else keeps working; only dynamic peer names are missing.</p>
+<p>If you would rather not keep a password in the environment, leave both unset and
+completion resolves as the zefs super-admin, which needs no password.</p>
+<!-- source: internal/core/ssh/client/client.go -- LoadCredentialsNoPrompt -->
+
 <h2 id="ssh-public-key-authentication">SSH public key authentication</h2>
 <p>Users can authenticate to the SSH server with public keys instead of (or in
 addition to) passwords. Each user can have multiple named keys.</p>

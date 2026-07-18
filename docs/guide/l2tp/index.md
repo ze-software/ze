@@ -113,12 +113,12 @@ xl2tpd in `test/l2tp-interop/scenarios/03-ze-lac-xl2tpd-lns`.
 
 | Command | Effect |
 |---------|--------|
-| `clear l2tp tunnel teardown <id>` | Sends StopCCN Result Code 6 (administrative) to the named tunnel |
-| `clear l2tp tunnel teardown-all` | Same, for every live tunnel |
-| `clear l2tp session teardown <id> [reason <text...>] [cause <code>]` | Sends CDN Result Code 3 (administrative) to the named session |
-| `clear l2tp session teardown-all` | Same, for every live session (tunnels remain) |
+| `clear l2tp tunnel id <id>` | Sends StopCCN Result Code 6 (administrative) to the named tunnel |
+| `clear l2tp tunnel all` | Same, for every live tunnel |
+| `clear l2tp session id <id> [reason <text...>] [cause <code>]` | Sends CDN Result Code 3 (administrative) to the named session |
+| `clear l2tp session all` | Same, for every live session (tunnels remain) |
 
-The `clear l2tp session teardown` command accepts optional keyword arguments:
+The `clear l2tp session id` command accepts optional keyword arguments:
 
 - `reason <text...>` -- free-text audit reason, recorded in the per-session event ring
 - `cause <code>` -- RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
@@ -134,10 +134,11 @@ built-in read-only authz profile.
 
 ### Offline dispatcher
 
-`ze l2tp show ...` and the `ze l2tp tunnel|session teardown[-all]` commands
+`ze l2tp show ...` and the `ze l2tp tunnel|session {id <id>|all}` commands
 forward to the running daemon via SSH. Output is the same JSON the daemon
-handler returns. (Inside the daemon CLI these teardowns dispatch as
-`clear l2tp tunnel|session teardown ...`, per the grammar note above.)
+handler returns. (Inside the daemon CLI these dispatch as
+`clear l2tp tunnel|session {id <id>|all} ...`; `clear` already means tear
+down, so no `teardown` token is needed.)
 `ze l2tp decode` is an offline wire-decode tool that does not require a
 running daemon.
 
@@ -438,7 +439,7 @@ Chart colors are CSS custom properties (configurable via theme):
 
 The disconnect button triggers a confirm dialog requiring a free-text
 reason (1-256 characters) and an optional Disconnect-Cause code. The
-POST dispatches through the CLI as `clear l2tp session teardown <sid>
+POST dispatches through the CLI as `clear l2tp session id <sid>
 reason <text> [cause <code>]`, so authz is enforced at the CLI layer.
 Read-only profiles are denied by the existing `clear` prefix rule.
 
