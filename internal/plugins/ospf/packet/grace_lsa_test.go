@@ -9,6 +9,13 @@ package packet
 
 import "testing"
 
+// RFC requirement: RFC5187-2.2-1 positive -- the Grace Period TLV (Type 1) always
+// appears in a grace-LSA (RFC 5187 sec 2.2, same format as RFC 3623): EncodeGraceLSA
+// always emits it (internal/plugins/ospf/packet/grace_lsa.go:47-49) and the body
+// round-trips its GracePeriod through DecodeGraceLSA.
+// RFC requirement: RFC5187-2.2-2 positive -- the Graceful Restart Reason TLV (Type 2)
+// always appears in a grace-LSA (RFC 5187 sec 2.2): EncodeGraceLSA always emits it and
+// the body round-trips its Reason.
 func TestGraceLSARoundTrip(t *testing.T) {
 	in := GraceLSA{GracePeriod: 120, Reason: 2, HasInterfaceAddr: true, InterfaceAddr: [4]byte{192, 0, 2, 1}}
 	body := EncodeGraceLSA(in)
@@ -48,14 +55,27 @@ func TestGraceLSANoInterfaceAddr(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5187-2.2-1 negative -- a grace-LSA body that OMITS the Grace
+// Period TLV is malformed and rejected (RFC 5187 sec 2.2 requires it to always appear):
+// DecodeGraceLSA returns an error rather than accepting a Reason-only body
+// (internal/plugins/ospf/packet/grace_lsa.go:94 requires hasPeriod).
+// RFC requirement: RFC5187-2.2-2 negative -- a grace-LSA body that OMITS the Reason TLV
+// is likewise malformed and rejected (grace_lsa.go:94 requires hasReason).
 func TestGraceLSADecodeMissingMandatory(t *testing.T) {
 	// A body carrying only the Grace Period TLV (no mandatory Reason TLV) is malformed.
 	var period [4]byte
 	writeUint32(period[:], 0, 120)
-	body := make([]byte, opaqueTLVsLen([]opaqueTLV{{Type: GraceTLVPeriod, Value: period[:]}}))
-	writeOpaqueTLVs(body, []opaqueTLV{{Type: GraceTLVPeriod, Value: period[:]}})
-	if _, err := DecodeGraceLSA(body); err == nil {
+	periodOnly := make([]byte, opaqueTLVsLen([]opaqueTLV{{Type: GraceTLVPeriod, Value: period[:]}}))
+	writeOpaqueTLVs(periodOnly, []opaqueTLV{{Type: GraceTLVPeriod, Value: period[:]}})
+	if _, err := DecodeGraceLSA(periodOnly); err == nil {
 		t.Fatalf("expected error for Grace-LSA missing the Reason TLV, got nil")
+	}
+
+	// A body carrying only the Reason TLV (no mandatory Grace Period TLV) is also malformed.
+	reasonOnly := make([]byte, opaqueTLVsLen([]opaqueTLV{{Type: GraceTLVReason, Value: []byte{2}}}))
+	writeOpaqueTLVs(reasonOnly, []opaqueTLV{{Type: GraceTLVReason, Value: []byte{2}}})
+	if _, err := DecodeGraceLSA(reasonOnly); err == nil {
+		t.Fatalf("expected error for Grace-LSA missing the Grace Period TLV, got nil")
 	}
 }
 

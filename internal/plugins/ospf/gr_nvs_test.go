@@ -39,6 +39,13 @@ func (s *fakeGRStore) WriteFile(name string, data []byte, _ fs.FileMode) error {
 
 // TestRestartFactPersistsAcrossRestart (AC-6, A-11): a restart fact written before a restart
 // is read back intact on resume, including the IPv6 sec 3.1 / sec 3.2 preservation maps.
+//
+// RFC requirement: RFC5187-3.1-1 positive -- the restarting router preserves the LSA-ID to
+// prefix correspondence across a graceful restart (RFC 5187 sec 3.1): the PrefixLSIDs map
+// (internal/plugins/ospf/gr_nvs.go:43-45) written before the restart is read back intact.
+// RFC requirement: RFC5187-3.2-1 positive -- the OSPFv3 Interface ID is preserved across
+// restarts (RFC 5187 sec 3.2): the InterfaceIDs map (gr_nvs.go:41-42) survives the
+// save/restore round-trip with its per-interface values intact.
 func TestRestartFactPersistsAcrossRestart(t *testing.T) {
 	store := newFakeGRStore()
 	const key = grRestartFactKeyPrefix + "v6-ipv6-unicast"
@@ -80,6 +87,14 @@ func TestRestartFactPersistsAcrossRestart(t *testing.T) {
 // TestStaleRestartFactIgnored (AC-6, R-10): a fact whose grace window has already closed is
 // treated as inactive on resume, so a process that restarted for an unrelated reason after
 // the window boots normally instead of wrongly suppressing origination.
+// RFC requirement: RFC5187-3.1-1 negative -- preservation is conditioned on a valid
+// (active) restart fact, not applied unconditionally: an expired/cleared restart fact is
+// inactive, so its preserved LSA-ID->prefix (PrefixLSIDs) map is NOT restored and the router
+// boots normally rather than reusing stale correspondences (RFC 5187 sec 3.1).
+// RFC requirement: RFC5187-3.2-1 negative -- likewise the preserved OSPFv3 Interface IDs are
+// not restored from a stale/cleared restart fact: an expired fact is inactive, so the
+// Interface-ID preservation (RFC 5187 sec 3.2) does not apply to a router that is not
+// actually in a graceful restart.
 func TestStaleRestartFactIgnored(t *testing.T) {
 	store := newFakeGRStore()
 	const key = grRestartFactKeyPrefix + "v4"
