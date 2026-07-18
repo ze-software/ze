@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 292 design docs, 2995 files
+Total: 292 design docs, 2994 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3198,7 +3198,6 @@ Total: 292 design docs, 2995 files
 
 - `internal/appliance/cmd_push.go` -- OTA push via vendored gokrazy updater
 - `internal/appliance/cmd_push_test.go` -- push tests with updater protocol
-- `internal/appliance/updater/updater.go` -- vendored gokrazy updater library
 
 ## `plan/learned/818-flow-export-1-counter-export.md`
 

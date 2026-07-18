@@ -21,7 +21,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/appliance/updater"
+	"github.com/gokrazy/updater"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
