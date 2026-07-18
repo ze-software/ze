@@ -9,6 +9,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## User Profile
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
+- [user_profile_expertise.md](user_profile_expertise.md) - 20+yr director/engineer, real-time high-perf (asm/C, Python), ExaBGP author. Requests are expert judgment, not "instinct": no praise, no second-guessing.
 
 ## Reference
 
