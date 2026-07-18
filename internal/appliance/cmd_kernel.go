@@ -175,6 +175,8 @@ func runKernel(args []string) int {
 	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
 	targetFlag := fs.String("target", defaultKernelTarget, "Kernel target: installer (default) or runtime")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
+	printCacheDirFlag := fs.Bool("print-cache-dir", false, "Print the durable cache path for this kernel (key = target+arch+config) and exit, without downloading or building. Used by the make kernel path to route through the cache (Option C).")
+	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries and exit (the make path calls this after populating). Evicts, does not build.")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -260,6 +262,25 @@ func runKernel(args []string) int {
 		return exitError
 	}
 
+	if *printCacheDirFlag {
+		dir, err := kernelCachePathFor(*versionFlag, arch, profile, target)
+		if err != nil {
+			cliErrorf("%v", err)
+			return exitError
+		}
+		fmt.Fprintln(os.Stdout, dir) //nolint:errcheck // CLI output
+		return exitOK
+	}
+
+	if *evictCacheFlag {
+		ns := kernelCacheDir
+		if td.isTree {
+			ns = runtimeKernelCacheDir
+		}
+		evictKeepN(filepath.Join(resolveCacheDir(), ns))
+		return exitOK
+	}
+
 	path, err := resolveKernel(*versionFlag, arch, profile, builder, target)
 	if err != nil {
 		cliErrorf("%v", err)
@@ -284,6 +305,27 @@ func resolveKernel(version, arch, profile, builder, target string) (string, erro
 		return resolveRuntimeKernel(version, arch, profile, builder, td, resolved, variant)
 	}
 	return resolveInstallerKernel(version, arch, profile, builder, td, resolved, variant)
+}
+
+// kernelCachePathFor returns the durable cache DIRECTORY for the given kernel, using the
+// SAME key as resolveKernel (kernelCacheVariantFor), so the make kernel path (Option C)
+// consumes exactly the entry `ze appliance kernel` would populate. No download, no build.
+// For the runtime (tree) target it is the tree directory; for the installer (single Image)
+// target it is the directory containing the cached Image.
+func kernelCachePathFor(version, arch, profile, target string) (string, error) {
+	td, err := kernelTargetFor(target)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := resolveKernelProfile(td.configDir, profile)
+	if err != nil {
+		return "", err
+	}
+	variant := kernelCacheVariantFor(target, arch, resolved)
+	if td.isTree {
+		return kernelTreeCachePath(version, variant), nil
+	}
+	return filepath.Dir(kernelCachePath(version, variant)), nil
 }
 
 func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
@@ -330,6 +372,7 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 	if err := copyToToolsPath(cached, toolsDst); err != nil {
 		fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, err) //nolint:errcheck // CLI warning
 	}
+	evictKeepN(filepath.Join(resolveCacheDir(), kernelCacheDir))
 	return cached, nil
 }
 
@@ -362,6 +405,7 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	if err := copyTree(td.outputDir, cachedDir); err != nil {
 		return "", fmt.Errorf("cache runtime kernel tree: %w", err)
 	}
+	evictKeepN(filepath.Join(resolveCacheDir(), runtimeKernelCacheDir))
 	return cachedDir, nil
 }
 

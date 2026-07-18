@@ -12,7 +12,7 @@
 .PHONY: ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest
 
-ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest: $(TMP_SENTINEL)
+ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest: ze-ensure-links
 
 # Component groups for scoped testing (ze-test-<group>).
 # "rest" = everything in ZE_PACKAGES not covered by a named group.

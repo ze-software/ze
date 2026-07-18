@@ -33,8 +33,10 @@ sys.dont_write_bytecode = True
 
 import ksource  # noqa: E402
 
-ALPINE_VERSION = "3.21"
-ALPINE_MINOR = "3"
+# The Alpine ISO (version pin + verified, durable download) has ONE implementation, shared
+# with scripts/evidence/qemu-run.py, so the two producers cannot drift.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "evidence"))
+from alpine_iso import ALPINE_MINOR, ALPINE_VERSION, ensure_iso  # noqa: E402,F401
 
 VM_MEMORY_MIN = 9216
 VM_MEMORY_MAX = 12288
@@ -61,13 +63,6 @@ def repo_root() -> Path:
         if (parent / "go.mod").is_file():
             return parent
     raise SystemExit("cannot locate repository root (no go.mod found)")
-
-
-def cache_dir() -> Path:
-    root = repo_root()
-    d = root / "tmp" / "qemu" / "iso"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
 
 
 def ccache_dir() -> Path:
@@ -150,27 +145,6 @@ def _alpine_arch(target_arch: str) -> str:
     if target_arch in ("arm64", "aarch64"):
         return "aarch64"
     return "x86_64"
-
-
-def ensure_iso(target_arch: str) -> Path:
-    arch = _alpine_arch(target_arch)
-    name = f"alpine-virt-{ALPINE_VERSION}.{ALPINE_MINOR}-{arch}.iso"
-    iso = cache_dir() / name
-    if iso.is_file():
-        return iso
-    url = (
-        f"https://dl-cdn.alpinelinux.org/alpine/v{ALPINE_VERSION}/releases"
-        f"/{arch}/{name}"
-    )
-    print(f">>> downloading Alpine virt ISO ({arch})...", file=sys.stderr)
-    result = subprocess.run(
-        ["curl", "-fSL", "--progress-bar", "-o", str(iso), url],
-        check=False,
-    )
-    if result.returncode != 0:
-        iso.unlink(missing_ok=True)
-        raise SystemExit(f"download failed: {url}")
-    return iso
 
 
 def _find_aarch64_firmware() -> Path | None:
@@ -661,7 +635,7 @@ def main() -> int:
     qemu = qemu_binary(arch)
     if shutil.which(qemu) is None:
         raise SystemExit(f"missing: {qemu} (install: brew install qemu)")
-    iso = ensure_iso(arch)
+    iso = ensure_iso(_alpine_arch(arch))  # shared, verified, durable-cached ISO
     return _run_build(
         iso,
         root,

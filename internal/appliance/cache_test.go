@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestResolveCacheDir(t *testing.T) {
@@ -63,5 +64,51 @@ func TestCopyTreePreservesSymlinkAndFiles(t *testing.T) {
 	}
 	if target, err := os.Readlink(linkPath); err != nil || target != "modules.dep" {
 		t.Errorf("symlink target = %q (err %v), want modules.dep", target, err)
+	}
+}
+
+func TestEvictKeepN(t *testing.T) {
+	// VALIDATES AC-4 (a namespace is bounded to keep-N most-recent entries; older ones are
+	// reclaimed on a key change) and R-1/AC-8 (an entry touched within the grace window is
+	// never removed, so eviction cannot race a concurrent materialize/boot).
+	ns := t.TempDir()
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+
+	mk := func(name string, ageMin int) {
+		dir := filepath.Join(ns, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(-time.Duration(ageMin) * time.Minute)
+		if err := os.Chtimes(dir, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("newest2", 2)   // rank 1 -> kept by keep-N
+	mk("newest1", 4)   // rank 2 -> kept by keep-N
+	mk("fresh_old", 6) // rank 3 (beyond keep-2) BUT within grace -> protected
+	mk("stale", 60)    // rank 4, beyond keep-2 and beyond grace -> evicted
+
+	origNow, origGrace := evictNow, evictGrace
+	t.Cleanup(func() { evictNow, evictGrace = origNow, origGrace })
+	evictNow = func() time.Time { return now }
+	evictGrace = 10 * time.Minute
+
+	evictKeepN(ns)
+
+	exists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(ns, name))
+		return err == nil
+	}
+	for _, keep := range []string{"newest2", "newest1"} {
+		if !exists(keep) {
+			t.Errorf("keep-N should retain %q", keep)
+		}
+	}
+	if !exists("fresh_old") {
+		t.Error("entry within grace must be protected even beyond keep-N (R-1/AC-8)")
+	}
+	if exists("stale") {
+		t.Error("stale entry beyond keep-N and grace must be evicted (AC-4)")
 	}
 }

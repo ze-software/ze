@@ -30,9 +30,18 @@ const (
 	cacheDirPerm          = 0o755
 	checksumHexLen        = 64
 	minArtifactBytes      = 1
+	evictKeepDefault      = 2
 )
 
 var httpGetFn = defaultHTTPGet
+
+// Eviction tunables (overridable in tests). evictGrace protects entries touched recently,
+// which a concurrent run may be materializing or booting (R-1/AC-8): leaving garbage is
+// preferred over deleting an in-use artifact.
+var (
+	evictGrace = 10 * time.Minute
+	evictNow   = time.Now
+)
 
 func defaultHTTPGet(url string) (*http.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
@@ -342,6 +351,45 @@ func copyTree(src, dst string) error {
 		}
 		return copyRegularFile(path, target)
 	})
+}
+
+// evictKeepN bounds a cache namespace directory to the evictKeepDefault most-recently-
+// modified entries, removing older ones so a version/config bump reclaims what it supersedes
+// (AC-4). It is called ONLY after a new entry is populated (key-change-only, never on a
+// wall-clock timer), and it never removes an entry modified within evictGrace, since a
+// concurrent run may be materializing or booting it (R-1/AC-8). Errors are swallowed:
+// eviction is a best-effort space bound, never a correctness gate.
+func evictKeepN(nsDir string) {
+	entries, err := os.ReadDir(nsDir)
+	if err != nil {
+		return
+	}
+	type ent struct {
+		name  string
+		mtime time.Time
+	}
+	dirs := make([]ent, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		dirs = append(dirs, ent{e.Name(), info.ModTime()})
+	}
+	if len(dirs) <= evictKeepDefault {
+		return
+	}
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i].mtime.After(dirs[j].mtime) })
+	cutoff := evictNow().Add(-evictGrace)
+	for _, d := range dirs[evictKeepDefault:] {
+		if d.mtime.After(cutoff) {
+			continue // too fresh to be safe: leave garbage over racing a live run
+		}
+		_ = os.RemoveAll(filepath.Join(nsDir, d.name)) //nolint:errcheck // best-effort
+	}
 }
 
 func copyRegularFile(src, dst string) error {

@@ -6,9 +6,12 @@
 /ze
 /ze-*
 /functional
-# Ignore the scratch dir, but track the tmp/go.mod sentinel: it marks tmp/ as a
-# nested module so `go list ./...` skips QEMU/Docker Go caches stored under tmp/
-# (otherwise `make ze-verify` fails). See scripts/evidence/qemu-run.py.
+# cache/ is a SYMLINK to the durable cache (~/.cache/ze), created by
+# scripts/dev/ensure-links.py. tmp/ is a real scratch dir by default; the tracked tmp/go.mod
+# sentinel keeps `go list ./...` from descending into the Go/QEMU caches under it. After the
+# opt-in `make ze-migrate-scratch`, tmp/ becomes a symlink to $TMPDIR/ze/<checkout-id>, which
+# `go list` skips without a sentinel. See plan/spec-relocate-scratch-and-cache.md.
+/cache
 tmp/*
 !tmp/go.mod
 

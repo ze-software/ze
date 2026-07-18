@@ -2,10 +2,16 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | superseded |
+| Superseded-by | spec-relocate-scratch-and-cache |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-18 |
+
+> **SUPERSEDED 2026-07-18 by `plan/spec-relocate-scratch-and-cache.md`.** Its durable-cache
+> research and ACs are absorbed there, with the cache root reversed to `~/.cache/ze` (user
+> decision) and a parallel `tmp` relocation added. Kept for its research history; do not
+> implement from this file.
 
 > **DESIGN, 2026-07-16.** Research done. The skeleton's central premise was WRONG:
 > this is not the first durable cache in the repo. `internal/appliance/cache.go`

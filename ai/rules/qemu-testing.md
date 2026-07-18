@@ -157,9 +157,16 @@ The pattern (do all four in the same change):
    the stock Alpine VM kernel, run with `--kernel tmp/kernel/vmlinuz`, add the
    `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to
    `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as
-   L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel` builds and stages the kernel to
-   `tmp/kernel/vmlinuz` (gitignored scratch) and rebuilds when `runtime.config`
-   changes, so the new module is picked up.
+   L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel` stages the kernel to
+   `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it
+   asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and
+   materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only
+   on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and
+   a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and
+   `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains
+   the repo `cache` symlink (and, after the opt-in `make ze-migrate-scratch`, the `tmp`
+   symlink) so the expensive artifacts live outside the disposable scratch tree. See
+   `plan/spec-relocate-scratch-and-cache.md`.
 4. **`ze-qemu-<feature>-test` target** in `mk/test-integration.mk` calling
    `qemu-run.py --kernel ... --packages ... --run 'python3 scripts/evidence/effective-<feature>.py'`,
    added to `.PHONY` and the `Makefile` help block.

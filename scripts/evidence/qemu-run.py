@@ -26,8 +26,8 @@ import sys
 import time
 from pathlib import Path
 
-ALPINE_VERSION = "3.21"
-ALPINE_MINOR = "3"
+from alpine_iso import ALPINE_MINOR, ALPINE_VERSION, ensure_iso
+
 ALPINE_ARCH = "aarch64" if platform.machine() == "arm64" else "x86_64"
 QEMU_BIN = f"qemu-system-{ALPINE_ARCH}"
 GO_VERSION = "1.25.9"
@@ -46,46 +46,11 @@ def repo_root() -> Path:
     raise SystemExit("cannot locate repository root")
 
 
-TMP_SENTINEL = """\
-// Sentinel module: marks tmp/ as a separate (nested) module so that
-// `go list ./...` and `go test ./...` skip everything under tmp/.
-//
-// QEMU and Docker test runs store Go build/module caches under tmp/
-// (e.g. tmp/qemu/gomodcache, tmp/linux-gomodcache). Without this sentinel,
-// `go list ./...` descends into those caches and fails with
-// "directory ... outside main module or its selected dependencies", which
-// breaks `make ze-verify`.
-//
-// This file is committed (tracked) so it is always present, including on a
-// fresh checkout before any QEMU/Docker run; everything else under tmp/ is
-// .gitignored. `make clean` wipes tmp/ and then recreates this file
-// byte-identically, and qemu-run.py's ensure_tmp_sentinel() recreates it
-// too, so clearing tmp/ never shows up as a git change. Keep this content
-// in sync with TMP_SENTINEL in scripts/evidence/qemu-run.py.
-module ze-tmp-scratch
-
-go 1.25
-"""
-
-
-def ensure_tmp_sentinel(root: Path) -> None:
-    """Keep tmp/ out of `go list ./...` (see TMP_SENTINEL).
-
-    The VM populates a Go module cache under tmp/qemu/ on the 9p-shared repo;
-    without this, the host's `go list ./...` walks into it and `make ze-verify`
-    fails. Idempotent: only writes when missing so a hand-edited file is kept.
-    """
-    sentinel = root / "tmp" / "go.mod"
-    sentinel.parent.mkdir(parents=True, exist_ok=True)
-    if not sentinel.is_file():
-        sentinel.write_text(TMP_SENTINEL)
-
-
 def cache_dir(root: Path) -> Path:
+    # tmp/ is a symlink to an out-of-tree scratch dir (scripts/dev/ensure-links.py); a
+    # symlinked tmp/ is skipped by `go list ./...`, so no tmp/go.mod sentinel is needed.
     d = root / "tmp" / "qemu"
     d.mkdir(parents=True, exist_ok=True)
-    ensure_tmp_sentinel(root)
-    (d / "iso").mkdir(exist_ok=True)
     (d / "go-dl").mkdir(exist_ok=True)
     (d / "go-cache").mkdir(exist_ok=True)
     (d / "gomodcache").mkdir(exist_ok=True)
@@ -94,25 +59,6 @@ def cache_dir(root: Path) -> Path:
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, check=False, **kwargs)
-
-
-def ensure_iso(cdir: Path) -> Path:
-    """Download Alpine virt ISO if not cached."""
-    name = f"alpine-virt-{ALPINE_VERSION}.{ALPINE_MINOR}-{ALPINE_ARCH}.iso"
-    iso = cdir / "iso" / name
-    if iso.is_file():
-        return iso
-
-    print("Downloading Alpine virt ISO...", file=sys.stderr)
-    url = (
-        f"https://dl-cdn.alpinelinux.org/alpine/v{ALPINE_VERSION}/releases"
-        f"/{ALPINE_ARCH}/{name}"
-    )
-    result = run(["curl", "-fSL", "--progress-bar", "-o", str(iso), url])
-    if result.returncode != 0:
-        iso.unlink(missing_ok=True)
-        raise SystemExit(f"download failed: {url}")
-    return iso
 
 
 def _extract_dir_for(iso: Path) -> Path:
@@ -589,8 +535,8 @@ def main() -> int:
         raise SystemExit(f"missing: {QEMU_BIN} (brew install qemu)")
 
     root = repo_root()
-    cdir = cache_dir(root)
-    iso = ensure_iso(cdir)
+    cache_dir(root)  # ensure the tmp/qemu scratch dirs (go caches, gomodcache) exist
+    iso = ensure_iso(ALPINE_ARCH)  # verified ISO from durable cache (~/.cache/ze/alpine-iso)
 
     kernel = None
     if args.kernel:

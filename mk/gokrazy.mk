@@ -30,7 +30,7 @@
 #   make ze-gokrazy ZEFS=/path/to/db.zefs   -- rebuild: use external database
 #   make ze-gokrazy-run                     -- boot image in QEMU
 
-.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean
+.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean ze-host
 
 GOKRAZY_INSTANCE   := ze
 GOKRAZY_DIR        := gokrazy
@@ -191,10 +191,36 @@ KERNEL_PKG_REPLACE    := ../../../../../../$(KERNEL_PKG_DIR)
 # whose modcache was overlaid by the old ze-kernel.
 KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 
-ze-kernel:
+# ze-host: the HOST ze binary that owns the cache KEY (Option C). Built with
+# -tags ze_core,ze_setup and NO GOOS/GOARCH override so it runs on the build host; the
+# target arch is passed as --arch, never applied to this build (CLAUDE.md "Binary naming
+# convention"). Go stays the single source of truth for the key (kernelCacheVariantFor),
+# so the make path can never drift from `ze appliance kernel`.
+ze-host:
+	@echo "--- Building host ze binary (ze-host: -tags ze_core,ze_setup, NO GOARCH override) ---"
+	@$(GO) build -tags 'ze_core ze_setup' -o "$(CURDIR)/ze-host" ./cmd/ze
+
+# ze-kernel routes the runtime kernel through the durable cache (~/.cache/ze, Option C):
+# it asks ze-host for the arch+config-keyed cache dir, materializes from it on a HIT (no
+# ~30-min rebuild), or builds via run.py then populates the cache on a MISS. The cp -R is
+# the sanctioned equivalent of Go's copyTree (see internal/appliance/cache.go copyTree).
+# tmp/kernel/build stays a materialized VIEW, so `rm -rf tmp` costs only a copy.
+ze-kernel: ze-host
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
-	@echo "--- Building runtime kernel ($(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"
-	@$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH)
+	@cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(KERNEL_ARCH) --print-cache-dir)"; \
+	if [ -z "$$cache_dir" ]; then echo "error: could not resolve runtime kernel cache dir from ze-host"; exit 1; fi; \
+	if [ -f "$$cache_dir/vmlinuz" ] && [ -d "$$cache_dir/lib/modules" ]; then \
+		echo "--- Runtime kernel cache HIT: materializing from $$cache_dir (no ~30-min rebuild) ---"; \
+		rm -rf "$(KERNEL_BUILD_DIR)"; mkdir -p "$(KERNEL_BUILD_DIR)"; \
+		cp -R "$$cache_dir/." "$(KERNEL_BUILD_DIR)/"; \
+	else \
+		echo "--- Runtime kernel cache MISS: building ($(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"; \
+		$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH); \
+		echo "--- Populating durable cache: $$cache_dir ---"; \
+		rm -rf "$$cache_dir"; mkdir -p "$$cache_dir"; \
+		cp -R "$(KERNEL_BUILD_DIR)/." "$$cache_dir/"; \
+		"$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(KERNEL_ARCH) --evict-cache; \
+	fi
 	@echo "--- Staging test kernel to tmp/kernel/vmlinuz (QEMU evidence: ze-qemu-l2tp-ppp-test, ze-qemu-pppoe-accel-test) ---"
 	@mkdir -p tmp/kernel
 	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" tmp/kernel/vmlinuz

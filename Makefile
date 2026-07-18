@@ -15,14 +15,16 @@ export GOCACHE := $(CURDIR)/tmp/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 export CGO_ENABLED := 0
 
-# Keep project scratch Go files out of module package discovery. The file target
-# is intentionally local and only created when missing, so hand-edited tmp/go.mod
-# files are never overwritten.
-TMP_SENTINEL := $(CURDIR)/tmp/go.mod
+# Ensure the tmp/ and cache/ symlinks point at their out-of-tree targets before any target
+# writes scratch. This replaces the old tmp/go.mod nested-module sentinel: `go list ./...`
+# skips a directory SYMLINK named tmp/ (verified), so no marker file is needed.
+# See scripts/dev/ensure-links.py and plan/spec-relocate-scratch-and-cache.md.
+.PHONY: ze-ensure-links ze-migrate-scratch
+ze-ensure-links:
+	@python3 scripts/dev/ensure-links.py --quiet
 
-$(TMP_SENTINEL):
-	@mkdir -p $(dir $@)
-	@printf '%s\n' '// Sentinel module: marks tmp/ as a nested module so go list ./... skips scratch files.' 'module ze-tmp-scratch' '' 'go 1.25' > $@
+ze-migrate-scratch:
+	@python3 scripts/dev/ensure-links.py --migrate
 
 # Go compiler: override with GO=tinygo for smaller binaries
 # TinyGo finds go via PATH, so we prepend Go 1.26 when GO=tinygo
@@ -246,7 +248,7 @@ ze-lint-changed:
 	echo "Linting changed packages: $$pkgs"; \
 	golangci-lint run $$pkgs
 
-ze-unit-test-changed: $(TMP_SENTINEL)
+ze-unit-test-changed: ze-ensure-links
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
 	echo "Testing changed packages: $$pkgs"; \
@@ -455,23 +457,22 @@ ze-regen-check: ze-regen
 ze-doc-links:
 	@python3 scripts/dev/check_doc_links.py
 
-# clean wipes bin/ and tmp/, then restores the tmp/ sentinel module
-# (tmp/go.mod) byte-identically from git so clearing scratch never shows up
-# as a phantom "deleted tmp/go.mod" in git status. See tmp/go.mod.
-# Write to a temp then mv: a redirect straight to tmp/go.mod would truncate it
-# to an empty (invalid) module before git show runs, so a git-show failure must
-# leave tmp/go.mod untouched rather than half-written.
+# clean wipes bin/ and the SCRATCH contents (the tmp/ symlink target, which includes the Go
+# build caches), then re-ensures the symlinks. It clears tmp/'s CONTENTS via the symlink
+# rather than removing the link, and it NEVER touches the durable cache/ (that is not
+# scratch). `find tmp/ ...` follows the symlink, so this works whether tmp/ is a symlink or
+# (pre-migration) still a real dir. See plan/spec-relocate-scratch-and-cache.md.
 clean:
 	@echo "Cleaning..."
-	rm -rf bin/ tmp/
+	rm -rf bin/
 	rm -f coverage.out coverage.html
-	@mkdir -p tmp && git show HEAD:tmp/go.mod > tmp/go.mod.new 2>/dev/null && mv tmp/go.mod.new tmp/go.mod || rm -f tmp/go.mod.new
+	@if [ -e tmp ]; then find tmp/ -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true; fi
+	@python3 scripts/dev/ensure-links.py --quiet
 
 ze-clean-tmp:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
-	@find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
-	@find tmp/ -maxdepth 1 -type d -not -name tmp -not -name session \
-		-not -name go-cache -not -name golangci-lint-cache -not -name kernel \
+	@find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+	@find tmp/ -maxdepth 1 -type d -not -name session -not -name kernel \
 		-mmin +1440 -exec rm -rf {} + 2>/dev/null || true
 	@find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 	@echo "Done. $$(ls -1 tmp/ 2>/dev/null | wc -l | tr -d ' ') entries remain."
