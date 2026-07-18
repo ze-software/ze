@@ -6,7 +6,7 @@
 .PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
-.PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
+.PHONY: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -106,12 +106,16 @@ all: ze-lint ze-unit-test build
 generate:
 	@go run scripts/codegen/yang_glue.go
 	@go run scripts/codegen/plugin_imports.go
+	@go run scripts/codegen/feature_tags.go
 
 ze-plugin-imports-check:
 	@go run scripts/codegen/plugin_imports.go --check
 
 ze-yang-glue-check:
 	@go run scripts/codegen/yang_glue.go --check
+
+ze-feature-tags-check:
+	@go run scripts/codegen/feature_tags.go --check
 
 # Regenerate plugin/all registry snapshots (testdata/*.snapshot) from the live
 # registry after adding or removing a plugin. ze-unit-test fails with a clear
@@ -444,9 +448,9 @@ ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-
 	@echo "All generated files updated"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check

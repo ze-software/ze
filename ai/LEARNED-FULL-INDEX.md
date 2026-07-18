@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1168 summaries
+Total: 1169 summaries
 
 ## 000-099
 
@@ -1237,3 +1237,4 @@ Total: 1168 summaries
 | 1174 | cgo-race-requires-cgo | `plan/learned/1174-cgo-race-requires-cgo.md` |
 | 1175 | ze-suffix-test-isolation | `plan/learned/1175-ze-suffix-test-isolation.md` |
 | 1176 | Durable-cache directory-tree writes must be atomic (stage + rename) | `plan/learned/1176-cache-tree-atomic-stage-rename.md` |
+| 1177 | feature-gate child 9: VRRP compile-out (ze_vrrp) | `plan/learned/1177-feature-gate-9-vrrp.md` |

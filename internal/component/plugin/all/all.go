@@ -145,7 +145,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic-cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/update-cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/yang"
 
 	// Plugin packages — plugin + schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd"
@@ -249,8 +248,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/update-cmd/cmd"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/vrrp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/transport"
 
 	// Event namespace packages -- events.RegisterNamespace registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"

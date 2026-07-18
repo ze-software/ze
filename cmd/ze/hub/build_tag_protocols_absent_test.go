@@ -1,14 +1,16 @@
 // Design: ai/rules/feature-gate-registration.md -- protocols absent symbol-drop proof
 //
-//go:build !ze_isis && !ze_ldp && !ze_ospf && !ze_rsvpte
+//go:build !ze_isis && !ze_ldp && !ze_ospf && !ze_rsvpte && !ze_vrrp
 
 package hub
 
-// VALIDATES: a bare ze_core build (all routing protocols off) contains zero
-// symbols for any of isis/ldp/ospf/rsvpte -- the binary-level compile-out proof
-// across BOTH composition roots (generated all.go and the dispatch_*.go
-// companions). One build covers all four (cheaper than four per-protocol builds).
-// PREVENTS: a regression where a protocol leaks into a hardened build via an
+// VALIDATES: a bare ze_core build (all gated plugins off) contains zero symbols
+// for any of isis/ldp/ospf/rsvpte (routing protocols) or vrrp (first-hop
+// redundancy) -- the binary-level compile-out proof across BOTH composition
+// roots (generated all.go and the dispatch_*.go companions; vrrp has no dispatch
+// companion, it registers CLI via the plugin registry). One build covers all
+// five gated plugins (cheaper than one build per plugin).
+// PREVENTS: a regression where a gated plugin leaks into a hardened build via an
 // always-on import or a missed composition root (R-2).
 
 import (
@@ -42,11 +44,12 @@ func TestBuildTag_Protocols_AbsentBinaryDropsSymbols(t *testing.T) {
 		"internal/plugins/ldp.", "internal/plugins/ldp/",
 		"internal/plugins/ospf.", "internal/plugins/ospf/",
 		"internal/plugins/rsvpte.", "internal/plugins/rsvpte/",
+		"internal/plugins/vrrp.", "internal/plugins/vrrp/",
 	}
 	for line := range strings.SplitSeq(string(out), "\n") {
 		for _, needle := range needles {
 			if strings.Contains(line, needle) {
-				t.Fatalf("ze_core binary retained protocol symbol %q matching %q", line, needle)
+				t.Fatalf("ze_core binary retained gated-plugin symbol %q matching %q", line, needle)
 			}
 		}
 	}

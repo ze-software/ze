@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 292 design docs, 2995 files
+Total: 292 design docs, 2997 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -100,6 +100,8 @@ Total: 292 design docs, 2995 files
 | `cmd/ze/hub/build_tag_ssh_present_test.go` | ze_ssh present build validation |
 | `cmd/ze/hub/build_tag_telemetry_absent_test.go` | ze_telemetry absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_telemetry_present_test.go` | ze_telemetry present build validation |
+| `cmd/ze/hub/build_tag_vrrp_absent_test.go` | ze_vrrp absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_vrrp_present_test.go` | ze_vrrp present build validation |
 | `cmd/ze/hub/build_tag_web_absent_test.go` | ze_web absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_web_present_test.go` | ze_web present build validation |
 | `cmd/ze/hub/command_meta.go` | always-on command metadata |

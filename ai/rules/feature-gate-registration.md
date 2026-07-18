@@ -5,7 +5,7 @@ dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
 for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
 `ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, REST API `ze_rest`, gRPC
 API `ze_grpc`, Prometheus exporter `ze_telemetry`, routing protocols `ze_isis` /
-`ze_ldp` / `ze_ospf` / `ze_rsvpte`, ...).
+`ze_ldp` / `ze_ospf` / `ze_rsvpte`, first-hop redundancy `ze_vrrp`, ...).
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the
@@ -48,16 +48,26 @@ discovered. The direct package covers RPC/registration side effects, and the
 YANG package covers config or command schema. **Every other consumer
 DERIVES from this file**. Do NOT hand-edit a parallel list:
 
-| Consumer | Derives | Mechanism |
-|----------|---------|-----------|
-| `Makefile` `ZE_FEATURES` | default-on tags for `ze` / `ze-appliance` | `$(shell awk ...)` |
-| `internal/test/runner` `TestBuildTags` | tags for the functional-test `ze` | reads the file |
-| `scripts/codegen/plugin_imports.go` `featureTags` | gates `<pkg>` and `<pkg>/yang` into `all_<tag>.go` | `loadFeatureTags` |
-| `scripts/dev/dep_audit.py` `DISABLEABLE` | no always-on import of `<pkg>` | `load_feature_gates` |
+| Consumer | Role | Mechanism |
+|----------|------|-----------|
+| `Makefile` `ZE_FEATURES` | default-on tags for `ze` / `ze-appliance` | derives: `$(shell awk ...)` |
+| `internal/test/runner` `TestBuildTags` | tags for the functional-test `ze` | derives: reads the file |
+| `scripts/codegen/plugin_imports.go` `featureTags` | gates `<pkg>` and `<pkg>/yang` into `all_<tag>.go` | derives: `loadFeatureTags` |
+| `scripts/dev/dep_audit.py` `DISABLEABLE` | no always-on import of `<pkg>` | derives: `load_feature_gates` |
+| `scripts/dev/stress-repro.py` `race_tags` | full-feature race build | derives: `_feature_gate_tags()` |
+| `.golangci.yml` `build-tags` | lint the feature-on build | **generated** by `feature_tags.go` |
+| `gokrazy/ze/config.json` `GoBuildTags` | appliance image build tags | **generated** by `feature_tags.go` |
+| `docs/guide/quickstart.md` `go install` cmd | install without cloning the repo | **generated** by `feature_tags.go` |
 
-The ONE consumer that cannot self-derive is `.golangci.yml` `build-tags` (static
-YAML). It must equal `ze_core` + every gate tag; `dep_audit.py --check` fails on
-drift and tells you exactly which tag to add.
+**No consumer is hand-maintained.** The three static files that cannot read the
+manifest at runtime (`.golangci.yml` `build-tags`, `gokrazy/ze/config.json`
+`GoBuildTags`, `docs/guide/quickstart.md`'s `go install -tags '...'` command) are
+GENERATED from it by `scripts/codegen/feature_tags.go` (run by `make generate`,
+surgical byte-stable edits). Do NOT hand-edit their tag lists -- add the gate to
+`feature-gates.txt` and run `make generate`. Three gates catch drift: the
+`scripts/codegen` unit test `feature_tags.go --check`, `dep_audit.py --check`
+(golangci), and `internal/appliance` `TestGokrazyConfigMatchesApplianceBuildTags`
+(gokrazy).
 
 ## Procedure: add a feature gate
 
@@ -73,16 +83,19 @@ drift and tells you exactly which tag to add.
    or an `*_infra.go` seam + gated registration). All carry `//go:build ze_<x>`.
    Feature-only helpers live INSIDE a gated file, or a no-feature build flags them
    U1000-unused.
-5. **Add the tag to `.golangci.yml` `build-tags`** (the one non-deriving consumer).
-6. `make generate` (emits `all_ze_<x>.go`), then `make ze-verify-changed`.
-7. Write present/absent build-tag tests:
+5. `make generate`. This emits `all_ze_<x>.go` (plugin_imports) AND regenerates the
+   three static tag lists from the manifest (`feature_tags.go`: `.golangci.yml`
+   `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`).
+   Do NOT hand-edit those files' tag lists. Then `make ze-verify-changed`.
+6. Write present/absent build-tag tests:
    `cmd/ze/hub/build_tag_<x>_present_test.go` (`//go:build ze_<x>`) and
    `_absent_test.go` (`//go:build !ze_<x>`); an absent test asserts via
    `go tool nm` that zero feature symbols are linked.
 
-That is the whole list. Step 3 is the only manifest declaration point; step 5 is
-the only static non-deriving consumer. The Makefile, the runner, the generator,
-and dep_audit all follow from step 3.
+That is the whole list. Step 3 (edit `feature-gates.txt`) is the ONLY manifest
+declaration point. Everything else follows: the Makefile, the runner, the generators,
+dep_audit, and stress-repro all derive from it, and `feature_tags.go` (via
+`make generate`) regenerates the three static tag lists. There is nothing to hand-sync.
 
 ## Two registration shapes
 
@@ -143,7 +156,12 @@ packages when the tag is off (A-1: nothing always-on imports a protocol). Mind t
 `cmd/ze/ze_core_dispatch.go` (CLI). Protocols with a programmatic `cli` package
 (isis, ospf) move their dispatch-root CLI blank import into a per-protocol gated
 companion `cmd/ze/dispatch_<proto>.go` (`//go:build ze_core && ze_<proto>`); miss
-that root and the package stays linked. Routing protocols are also the first gated
+that root and the package stays linked. A plugin that registers its CLI through the
+plugin registry's `CLIHandler` (not a programmatic `cli` package) has only the ONE
+root -- the generated `all.go` -- and needs NO dispatch companion. The shape is not
+protocol-specific: `ze_vrrp` (first-hop redundancy; the `vrrp` plugin + its `transport`
+sidecar, two manifest lines, no `cli` package) is that single-plugin case, gated purely
+by blank-import partitioning like ldp/rsvpte. Routing protocols are also the first gated
 packages that are `sdk.NewWithConn` *engines* and multi-package features whose
 sub-packages import each other, so `dep_audit.py` (a) counts the generated
 `all_<tag>.go` as a registration importer (an engine's blank import there is not a

@@ -28,6 +28,7 @@ run:
     - ze_ldp
     - ze_ospf
     - ze_rsvpte
+    - ze_vrrp
 
 linters:
   exclusions:

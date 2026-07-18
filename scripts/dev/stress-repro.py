@@ -48,6 +48,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Process
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _feature_gate_tags():
+    """Sorted ze_<feature> build tags from feature-gates.txt (the single source of
+    truth). Derived, not hardcoded, so a race build tracks ZE_FEATURES automatically
+    when a gate is added -- see ai/rules/feature-gate-registration.md."""
+    tags = set()
+    with open(os.path.join(REPO, "feature-gates.txt"), encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            tags.add(line.split()[0])
+    return sorted(tags)
+
+
 # Signatures that mean "the daemon (or runner) crashed", not a normal assert.
 CRASH_SIGNATURES = (
     "slice bounds out of range",
@@ -184,11 +200,11 @@ def main():
     test_bin = os.path.join(REPO, "bin", "ze-test")
 
     if args.race:
-        # Mirror the runner's full-feature tag set so the command registry
-        # (hence the boot dump size) matches a real functional run.
-        race_tags = (
-            "ze_core ze_distro ze_setup ze_gnmi ze_grpc ze_isis ze_ldp "
-            "ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_web"
+        # Mirror the runner's full-feature tag set (ze_core/ze_distro/ze_setup base +
+        # ZE_FEATURES, derived from feature-gates.txt) so the command registry (hence
+        # the boot dump size) matches a real functional run.
+        race_tags = " ".join(
+            ["ze_core", "ze_distro", "ze_setup"] + _feature_gate_tags()
         )
         if args.tags:
             race_tags += " " + args.tags
