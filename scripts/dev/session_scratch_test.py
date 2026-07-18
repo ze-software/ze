@@ -128,6 +128,26 @@ class TestSessionScratchHelper(unittest.TestCase):
             # Nothing created above tmp/s (e.g. no tmp/ materialized via '..').
             self.assertFalse((root / "tmp" / "s").exists())
 
+    def test_clean_removes_only_own_dir(self):
+        # `make clean` runs --clean: it removes THIS session's dir and nothing
+        # else (no shared caches, no sibling sessions), and prints nothing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            mine = root / "tmp" / "s" / "sid-CLEAN"
+            other = root / "tmp" / "s" / "other"
+            shared_cache = root / "tmp" / "go-cache"  # outside tmp/s -> must survive
+            mine.mkdir(parents=True)
+            other.mkdir(parents=True)
+            shared_cache.mkdir(parents=True)
+            (mine / "x.log").write_text("scratch")
+            (shared_cache / "c").write_text("cached")
+            proc = _run_helper(root, "sid-CLEAN", "--clean")
+            self.assertEqual(proc.stdout.strip(), "")
+            self.assertFalse(mine.exists())
+            self.assertTrue(other.exists())
+            self.assertTrue(shared_cache.exists())
+
 
 class TestSessionScratchReap(unittest.TestCase):
     def test_reap_removes_inactive_and_keeps_active(self):

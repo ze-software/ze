@@ -143,7 +143,7 @@ def ensure_sentinel(root: Path) -> None:
     """Keep `go list ./...` out of the caches when tmp/ is a REAL directory.
 
     A symlinked tmp/ is skipped by `go list` with no sentinel, so this only writes when tmp/
-    is a real dir and the file is missing (e.g. just cleared by `make clean`).
+    is a real dir and the file is missing (e.g. just cleared by `make clean-all`).
     """
     tmp = root / "tmp"
     if tmp.is_symlink() or not tmp.is_dir():

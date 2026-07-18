@@ -22,6 +22,7 @@
 #   make ze-unit-test-changed > "$dir/unit.log" 2>&1
 #   scripts/dev/session-scratch.sh --path          # print the path WITHOUT creating it
 #   scripts/dev/session-scratch.sh --reap          # remove dead sessions' dirs (backstop)
+#   scripts/dev/session-scratch.sh --clean         # remove THIS session's dir (`make clean`)
 #
 # No `set -u`: session-id.sh reads $CLAUDE_CODE_SESSION_ID and
 # $CLAUDE_CODE_SESSION_ACCESS_TOKEN without defaults (matches spec-session.sh).
@@ -77,9 +78,10 @@ esac
 dir="tmp/s/${sid}"
 
 case "${1:-}" in
-    --path) ;; # print only, do not create
+    --clean) rm -rf "$dir"; exit 0 ;; # remove THIS session's scratch, print nothing
+    --path) ;;                        # print only, do not create
     "") mkdir -p "$dir" || { echo "session-scratch: cannot create $dir" >&2; exit 1; } ;;
-    *) echo "usage: session-scratch.sh [--path|--reap]" >&2; exit 2 ;;
+    *) echo "usage: session-scratch.sh [--path|--reap|--clean]" >&2; exit 2 ;;
 esac
 
 printf '%s\n' "$dir"

@@ -1,4 +1,4 @@
-.PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean fmt vet tidy generate help
+.PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean clean-all fmt vet tidy generate help
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
@@ -463,13 +463,26 @@ ze-regen-check: ze-regen
 ze-doc-links:
 	@python3 scripts/dev/check_doc_links.py
 
-# clean wipes bin/ and the SCRATCH contents (the tmp/ symlink target, which includes the Go
-# build caches), then re-ensures the symlinks. It clears tmp/'s CONTENTS via the symlink
-# rather than removing the link, and it NEVER touches the durable cache/ (that is not
-# scratch). `find tmp/ ...` follows the symlink, so this works whether tmp/ is a symlink or
-# (pre-migration) still a real dir. See plan/spec-relocate-scratch-and-cache.md.
+# clean removes bin/, coverage, and THIS session's scratch (tmp/s/<session-id>/, via
+# scripts/dev/session-scratch.sh --clean), leaving the shared Go build caches and every
+# other concurrent session's scratch/state intact, so a sibling session keeps its work --
+# though bin/ and coverage are shared, rebuildable build outputs it does remove. For the
+# full per-checkout wipe (bin/ + ALL of tmp/, shared caches
+# included) use `make clean-all`. See plan/spec-relocate-scratch-and-cache.md.
 clean:
-	@echo "Cleaning..."
+	@echo "Cleaning this session (bin/, coverage, tmp/s/<session>)..."
+	rm -rf bin/
+	rm -f coverage.out coverage.html
+	@scripts/dev/session-scratch.sh --clean 2>/dev/null || true
+	@python3 scripts/dev/ensure-links.py --quiet
+
+# clean-all is the full per-checkout wipe: bin/ + the SCRATCH contents (the tmp/ symlink
+# target, which includes the shared Go build caches AND every session's state), then
+# re-ensures the symlinks. It NEVER touches the durable cache/ (not scratch). Destructive
+# under concurrency: it removes sibling sessions' scratch and the shared caches -- use
+# `make clean` for the everyday, session-safe clean.
+clean-all:
+	@echo "Cleaning EVERYTHING (bin/ + all of tmp/, shared caches included)..."
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 	@if [ -e tmp ]; then find tmp/ -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true; fi
@@ -719,5 +732,6 @@ help-dev:
 	@echo "    ze-check-vendor-web      Check for newer web asset versions"
 	@echo ""
 	@echo "  Cleanup:"
-	@echo "    clean                    Remove bin/ and tmp/"
+	@echo "    clean                    Session-safe: bin/, coverage, tmp/s/<session> only"
+	@echo "    clean-all                Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions)"
 	@echo "    ze-clean-tmp             Remove tmp/ scratch files older than 24h"
