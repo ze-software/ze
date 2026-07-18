@@ -218,6 +218,9 @@ func TestLargeCommunity(t *testing.T) {
 	assert.Equal(t, "65001:100:200", lc.String())
 }
 
+// RFC requirement: RFC8092-3-1 negative -- the "duplicate values MUST NOT be transmitted" rule
+// is confined to actual duplicates: a list of distinct large communities is transmitted in full
+// (WriteTo emits all 12 bytes here), so deduplication is not a blanket drop.
 func TestLargeCommunities(t *testing.T) {
 	t.Parallel()
 	lcs := LargeCommunities{
@@ -239,6 +242,9 @@ func TestLargeCommunities(t *testing.T) {
 	assert.Equal(t, expected, buf[:n])
 }
 
+// RFC requirement: RFC8092-3-2 negative -- the "silently remove redundant values" rule is
+// confined to duplicates: parsing distinct large communities retains every one of them (no
+// over-removal), so deduplication does not discard legitimate values.
 func TestLargeCommunitiesParse(t *testing.T) {
 	t.Parallel()
 	data := []byte{
@@ -368,6 +374,12 @@ func TestIPv6ExtendedCommunitiesParseInvalid(t *testing.T) {
 // VALIDATES: Duplicates are removed on parse and pack.
 //
 // PREVENTS: Transmitting or storing redundant communities.
+//
+// RFC requirement: RFC8092-3-2 positive -- a receiving speaker silently removes redundant
+// BGP Large Community values: parsing [65001:100:200, 65001:100:200, 65002:1:2] yields the two
+// distinct values.
+// RFC requirement: RFC8092-6-3 positive -- the presence of duplicate values does not make the
+// attribute malformed: ParseLargeCommunities returns no error, it deduplicates silently.
 func TestLargeCommunitiesDeduplication(t *testing.T) {
 	t.Parallel()
 	// Test data with duplicates: [65001:100:200, 65001:100:200, 65002:1:2]
@@ -389,6 +401,10 @@ func TestLargeCommunitiesDeduplication(t *testing.T) {
 // RFC 8092 Section 5: "Duplicate BGP Large Community values MUST NOT be transmitted."
 //
 // VALIDATES: Even if struct contains duplicates, WriteTo outputs unique.
+//
+// RFC requirement: RFC8092-3-1 positive -- duplicate BGP Large Community values are not
+// transmitted: WriteTo of a list containing a duplicate emits only the unique values (24 bytes
+// for two distinct communities, not 36).
 func TestLargeCommunitiesWriteToNoDuplicates(t *testing.T) {
 	t.Parallel()
 	// Create with intentional duplicates (shouldn't happen normally, but defensive)

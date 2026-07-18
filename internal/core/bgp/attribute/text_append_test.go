@@ -35,6 +35,11 @@ func TestAppendText_AggregatorElement(t *testing.T) {
 
 // VALIDATES: LargeCommunity.AppendText emits "<ga>:<ld1>:<ld2>" using strconv.AppendUint.
 // PREVENTS: regressions in filter-text "large-community" rendering.
+//
+// RFC requirement: RFC8092-5-1 positive -- the canonical representation contains no leading
+// zeros and renders a zero value as a single "0": {0,0,0} -> "0:0:0" and the max value renders
+// its full decimal digits. strconv.AppendUint never emits leading zeros, so every value is
+// canonical (see the {single-polarity} annotation in rfc8092.md).
 func TestAppendText_LargeCommunityElement(t *testing.T) {
 	tests := []struct {
 		name string
