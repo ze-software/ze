@@ -24,11 +24,16 @@ STAGED=$(git diff --cached --name-only 2>/dev/null | head -20)
 RECENT_COMMIT=$(git log -1 --oneline 2>/dev/null)
 BRANCH=$(git branch --show-current 2>/dev/null)
 
-# Skip if clean tree and no spec selected
+# Skip the snapshot on a clean tree with no spec -- but do NOT remove the state
+# file. A Stop hook fires between EVERY turn, and a clean-tree pause mid-session
+# (e.g. right after a commit) is not session end: deleting the state file here
+# deadlocked the next edit against the pretool session-state gate, which requires
+# the file after a compaction. The 24h orphan sweep (lib/state-file.sh
+# _cleanup_stale_markers) reclaims it once its marker is gone; true end-of-session
+# cleanup belongs in a SessionEnd hook, not here.
 HAS_CHANGES=$(git status --porcelain 2>/dev/null | head -1)
 if [ -z "$HAS_CHANGES" ] && [ -z "$SELECTED_SPEC" ]; then
     _release_session
-    rm -f "$STATE_FILE"
     exit 0
 fi
 
