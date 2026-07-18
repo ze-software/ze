@@ -377,5 +377,71 @@ class TestDeferralGateSeverity(unittest.TestCase):
             )
 
 
+class TestStagingGuard(unittest.TestCase):
+    """render_staging_guard aborts a generated commit script when the shared index
+    holds files this commit did not stage (concurrent-session cross-commit guard)."""
+
+    def _run_guard(self, root: Path, paths: tuple[str, ...]):
+        script = (
+            "#!/bin/bash\nset -euo pipefail\n" + ch.render_staging_guard(paths) + "\n"
+        )
+        return subprocess.run(
+            ["bash", "-c", script], cwd=root, capture_output=True, text=True
+        )
+
+    def test_aborts_on_foreign_staged_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git(root, "init")
+            (root / "mine.txt").write_text("mine")
+            (root / "foreign.txt").write_text("foreign")
+            _git(
+                root, "add", "mine.txt", "foreign.txt"
+            )  # a sibling's file is also staged
+            r = self._run_guard(root, ("mine.txt",))
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("foreign.txt", r.stderr)
+
+    def test_passes_when_only_own_files_staged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git(root, "init")
+            (root / "mine.txt").write_text("mine")
+            _git(root, "add", "mine.txt")
+            r = self._run_guard(root, ("mine.txt",))
+            self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_no_false_abort_on_non_ascii_own_file(self):
+        # git quotePath would C-quote a non-ASCII path; the guard disables it so a
+        # legitimate commit of café.txt is not mis-flagged as a foreign staged file.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git(root, "init")
+            (root / "café.txt").write_text("x")
+            _git(root, "add", "café.txt")
+            r = self._run_guard(root, ("café.txt",))
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_no_false_abort_when_expected_file_unchanged(self):
+        # An expected path with no staged diff must NOT trigger a false abort.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git(root, "init")
+            (root / "a.txt").write_text("a")
+            _git(root, "add", "a.txt")
+            _git(
+                root,
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-m",
+                "init",
+            )
+            r = self._run_guard(root, ("a.txt",))
+            self.assertEqual(r.returncode, 0, r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

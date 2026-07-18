@@ -407,6 +407,34 @@ def render_git_add(paths: tuple[str, ...]) -> str:
     return "\n".join(lines)
 
 
+def render_staging_guard(paths: tuple[str, ...]) -> str:
+    """Guard for the generated commit script: abort if the shared git index holds
+    staged paths this commit did not stage.
+
+    Concurrent Claude sessions share one working tree AND one git index, so a
+    sibling's leftover `git add` (e.g. a commit that failed at gpg signing) would
+    otherwise be swept into THIS commit. The guard runs after this commit's own
+    add/rm, so any remaining staged-but-unexpected path is foreign -> abort.
+    """
+    if not paths:
+        return ""
+    expected = " ".join("-e " + shlex.quote(p) for p in sorted(set(paths)))
+    return "\n".join(
+        [
+            "# Concurrency guard: refuse to sweep a concurrent session's staged files",
+            "# into this commit (sessions share one working tree + git index).",
+            # core.quotePath=false: git otherwise C-quotes non-ASCII paths (café ->
+            # "caf\303\251"), which the raw grep pattern would miss -> false abort.
+            f"_ze_foreign=$(git -c core.quotePath=false diff --cached --name-only | grep -vxF {expected} || true)",
+            'if [ -n "$_ze_foreign" ]; then',
+            '  echo "ABORT: index has staged files not in this commit (concurrent session?):" >&2',
+            '  echo "$_ze_foreign" >&2',
+            "  exit 1",
+            "fi",
+        ]
+    )
+
+
 def render_block(block: CommitBlock) -> str:
     lines = [
         f"# Commit {block.tag}: {block.subject}",
@@ -419,6 +447,9 @@ def render_block(block: CommitBlock) -> str:
         lines.append(render_git_add(block.add_paths))
     if block.remove_paths:
         lines.append("git rm -- " + quote_paths(block.remove_paths))
+    guard = render_staging_guard(block.add_paths + block.remove_paths)
+    if guard:
+        lines.append(guard)
     lines.append("git commit -F " + shlex.quote(block.message_path))
     return "\n".join(lines) + "\n"
 
