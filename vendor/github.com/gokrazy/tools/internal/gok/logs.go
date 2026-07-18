@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/donovanhide/eventsource"
@@ -32,26 +31,23 @@ and any new lines the gokrazy service produces (cancel any time with Ctrl-C)`,
 		},
 	}
 	cmd.Flags().StringVarP(&logsImpl.service, "service", "s", "", "gokrazy service to fetch logs for")
-	instanceflag.RegisterPflags(cmd.Flags())
+	logsImpl.inst = instanceflag.RegisterPflags(cmd.Flags())
 	return cmd
 }
 
 type logsImplConfig struct {
+	inst    *instanceflag.Flags
 	service string
 }
 
 var logsImpl logsImplConfig
 
 func (l *logsImplConfig) run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	cfg, err := config.ApplyInstanceFlag()
+	cfg, err := config.ReadFromFile(l.inst.InstanceConfigPath(), l.inst.Name)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// best-effort compatibility for old setups
-			cfg = config.NewStruct(instanceflag.Instance())
-		} else {
-			return err
-		}
+		return err
 	}
+	cfg.ApplyEnvironment()
 
 	if l.service == "" {
 		return fmt.Errorf("the -service flag is empty, but required")
@@ -103,11 +99,17 @@ func (r *logsImplConfig) streamLog(ctx context.Context, w io.Writer, url string,
 	}
 	req = req.WithContext(ctx)
 
-	stream, err := eventsource.SubscribeWith("", httpClient, req)
+	// Clone the client because eventsource.SubscribeWith mutates
+	// client.CheckRedirect, and streamLog is called concurrently.
+	c := *httpClient
+	stream, err := eventsource.SubscribeWith("", &c, req)
 	if err != nil {
 		return err
 	}
-	defer stream.Close()
+	// Do not defer stream.Close() — it races with the library's
+	// background goroutine and panics (send on closed channel).
+	// The context cancellation will abort the HTTP request, which
+	// makes the library goroutine exit on its own.
 
 	for {
 		select {

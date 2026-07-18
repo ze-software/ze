@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -32,7 +31,7 @@ func GetTLSHttpClientByTLSFlag(tlsFlag string, tlsInsecure bool, baseUrl *url.UR
 	// Append user specified certificate(s)
 	if tlsFlag != "self-signed" && tlsFlag != "" {
 		usrCert := strings.Split(tlsFlag, ",")[0]
-		certBytes, err := ioutil.ReadFile(usrCert)
+		certBytes, err := os.ReadFile(usrCert)
 		if err != nil {
 			return nil, false, fmt.Errorf("reading user specified certificate %s: %v", usrCert, err)
 		}
@@ -44,7 +43,7 @@ func GetTLSHttpClientByTLSFlag(tlsFlag string, tlsInsecure bool, baseUrl *url.UR
 		if _, err := os.Stat(certPath); !os.IsNotExist(err) {
 			foundMatchingCertificate = true
 			log.Printf("Using certificate %s", certPath)
-			certBytes, err := ioutil.ReadFile(certPath)
+			certBytes, err := os.ReadFile(certPath)
 			if err != nil {
 				return nil, false, fmt.Errorf("reading certificate %s: %v", certPath, err)
 			}
@@ -83,23 +82,4 @@ func getTLSHTTPClient(trustStore *x509.CertPool, tlsInsecure bool) *http.Client 
 			return nil
 		},
 	}
-}
-
-func GetRemoteScheme(baseUrl *url.URL) (string, error) {
-	// probe for https redirect, before sending credentials via http
-	probeClient := &http.Client{
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse // do not follow redirects
-		},
-	}
-	probeResp, err := probeClient.Get("http://" + baseUrl.Host)
-	if err != nil {
-		return "", fmt.Errorf("probing url for https: %v", err)
-	}
-	probeLocation, err := probeResp.Location()
-	if err != nil {
-		// remote did not upgrade us to HTTPS
-		return "http", nil
-	}
-	return probeLocation.Scheme, nil
 }

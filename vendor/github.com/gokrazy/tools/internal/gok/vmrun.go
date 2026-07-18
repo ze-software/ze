@@ -48,11 +48,12 @@ Examples:
 	cmd.Flags().BoolVarP(&vmRunImpl.keep, "keep", "", false, "keep ephemeral disk images around instead of deleting them when QEMU exits")
 	cmd.Flags().BoolVarP(&vmRunImpl.dry, "dryrun", "", false, "Whether to actually run QEMU or merely print the command")
 	cmd.Flags().BoolVarP(&vmRunImpl.graphic, "graphic", "", true, "Run QEMU in graphical mode?")
-	instanceflag.RegisterPflags(cmd.Flags())
+	vmRunImpl.inst = instanceflag.RegisterPflags(cmd.Flags())
 	return cmd
 }
 
 type vmRunConfig struct {
+	inst               *instanceflag.Flags
 	dry                bool
 	keep               bool
 	graphic            bool
@@ -78,7 +79,7 @@ func (r *vmRunConfig) buildFullDiskImage(ctx context.Context, dest string, fileC
 		os.Setenv("GOARCH", r.arch)
 	}
 
-	cfg, err := config.ReadFromFile(fileCfg.Meta.Path)
+	cfg, err := config.ReadFromFile(fileCfg.Meta.Path, fileCfg.Meta.Instance)
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func (r *vmRunConfig) buildFullDiskImage(ctx context.Context, dest string, fileC
 		cfg.InternalCompatibilityFlags.TargetStorageBytes = r.targetStorageBytes
 	}
 
-	if err := os.Chdir(config.InstancePath()); err != nil {
+	if err := os.Chdir(r.inst.InstancePath()); err != nil {
 		return err
 	}
 
@@ -164,7 +165,7 @@ func (r *vmRunConfig) runQEMU(ctx context.Context, fullDiskImage string, extraAr
 
 	qemu := exec.CommandContext(ctx, qemuBin,
 		append([]string{
-			"-name", instanceflag.Instance(),
+			"-name", r.inst.Name,
 			"-boot", "order=d",
 			"-drive", "file=" + fullDiskImage + ",format=raw",
 			"-device", "i6300esb,id=watchdog0",
@@ -175,13 +176,24 @@ func (r *vmRunConfig) runQEMU(ctx context.Context, fullDiskImage string, extraAr
 			"-m", "1024",
 		}, extraArgs...)...)
 
+	// Hardware acceleration is only available for the native architecture,
+	// e.g. arm64 for M1 MacBooks.
+	useHVF := goarch == runtime.GOARCH && runtime.GOOS == "darwin"
+	useKVM := goarch == runtime.GOARCH && runtime.GOOS == "linux"
+
 	// Start in EFI mode (not legacy BIOS) so that we get a frame buffer (for
 	// gokrazy’s fbstatus program) and serial console.
 	switch goarch {
 	case "arm64":
+		cpu := "cortex-a72"
+		if useHVF {
+			// macOS Hypervisor.framework does not support named CPU
+			// models like cortex-a72; only host and max are valid.
+			cpu = "host"
+		}
 		qemu.Args = append(qemu.Args,
 			"-machine", "virt,highmem=off",
-			"-cpu", "cortex-a72",
+			"-cpu", cpu,
 			"-bios", arm64EFI)
 
 	case "amd64":
@@ -195,15 +207,10 @@ func (r *vmRunConfig) runQEMU(ctx context.Context, fullDiskImage string, extraAr
 		)
 	}
 
-	if goarch == runtime.GOARCH {
-		// Hardware acceleration (in both cases) is only available for the
-		// native architecture, e.g. arm64 for M1 MacBooks.
-		switch runtime.GOOS {
-		case "linux":
-			qemu.Args = append(qemu.Args, "-accel", "kvm")
-		case "darwin":
-			qemu.Args = append(qemu.Args, "-accel", "hvf")
-		}
+	if useKVM {
+		qemu.Args = append(qemu.Args, "-accel", "kvm")
+	} else if useHVF {
+		qemu.Args = append(qemu.Args, "-accel", "hvf")
 	}
 
 	if !r.graphic {
@@ -223,10 +230,11 @@ func (r *vmRunConfig) runQEMU(ctx context.Context, fullDiskImage string, extraAr
 }
 
 func (r *vmRunConfig) run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	fileCfg, err := config.ApplyInstanceFlag()
+	fileCfg, err := config.ReadFromFile(r.inst.InstanceConfigPath(), r.inst.Name)
 	if err != nil {
 		return err
 	}
+	fileCfg.ApplyEnvironment()
 
 	if fileCfg.SerialConsole == "disabled" {
 		// The serial console is disabled by default:

@@ -35,8 +35,8 @@ require (
 
 require (
 	github.com/cilium/ebpf v0.19.0
-	github.com/gokrazy/tools v0.0.0-20260406155313-5861e2403dc8
-	github.com/gokrazy/updater v0.0.0-20250705135802-db129c40879c
+	github.com/gokrazy/tools v0.0.0-20260703063348-3fe400c13246
+	github.com/gokrazy/updater v0.0.0-20260620140544-0a84d8ab3878
 	github.com/openconfig/gnmi v0.14.1
 	github.com/sivchari/gomu v0.2.1
 )
@@ -45,14 +45,15 @@ require (
 	github.com/antihax/optional v1.0.0 // indirect
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0 // indirect
 	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4 // indirect
-	github.com/gokrazy/internal v0.0.0-20251208203110-3c1aa9087c82 // indirect
-	github.com/google/renameio/v2 v2.0.0 // indirect
+	github.com/gokrazy/internal v0.0.0-20260625065634-6994f9152c44 // indirect
+	github.com/google/renameio/v2 v2.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/spf13/cobra v1.10.1 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/crypto/x509roots/fallback v0.0.0-20250911151450-96dc232fbd79 // indirect
-	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/crypto/x509roots/fallback v0.0.0-20260630172432-7626c5025624 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 )
 
 require (
@@ -98,7 +99,7 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/mod v0.36.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect
 	golang.org/x/text v0.38.0 // indirect

@@ -39,11 +39,12 @@ Examples:
 		},
 	}
 	cmd.Flags().BoolVarP(&getImpl.updateAll, "update_all", "u", false, "update all installed packages and gokrazy system packages")
-	instanceflag.RegisterPflags(cmd.Flags())
+	getImpl.inst = instanceflag.RegisterPflags(cmd.Flags())
 	return cmd
 }
 
 type getImplConfig struct {
+	inst      *instanceflag.Flags
 	updateAll bool
 }
 
@@ -63,17 +64,13 @@ func getGokrazySystemPackages(cfg *config.Struct) []string {
 }
 
 func (r *getImplConfig) run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	cfg, err := config.ApplyInstanceFlag()
+	cfg, err := config.ReadFromFile(r.inst.InstanceConfigPath(), r.inst.Name)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// best-effort compatibility for old setups
-			cfg = config.NewStruct(instanceflag.Instance())
-		} else {
-			return err
-		}
+		return err
 	}
+	cfg.ApplyEnvironment()
 
-	if err := os.Chdir(config.InstancePath()); err != nil {
+	if err := os.Chdir(r.inst.InstancePath()); err != nil {
 		return err
 	}
 
@@ -109,7 +106,7 @@ func (r *getImplConfig) run(ctx context.Context, args []string, stdout, stderr i
 			wd, _ := os.Getwd()
 			os.Stderr.WriteString("\n")
 			log.Printf("Error: build directory %q does not exist in %q", buildDir, wd)
-			log.Printf("Try 'gok -i %s add %s' followed by an update.", instanceflag.Instance(), pkg)
+			log.Printf("Try 'gok -i %s add %s' followed by an update.", r.inst.Name, pkg)
 			log.Printf("Afterwards, your 'gok get' command should work")
 			return nil
 		}

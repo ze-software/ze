@@ -50,11 +50,13 @@ Examples:
 	}
 	cmd.Flags().BoolVarP(&runImpl.keep, "keep", "k", false, "keep temporary binary")
 	cmd.Flags().DurationVarP(&runImpl.watch, "watch", "w", 999999*time.Hour /* indefinite */, "how long to watch the remote process")
-	instanceflag.RegisterPflags(cmd.Flags())
+	runImpl.inst = instanceflag.RegisterPflags(cmd.Flags())
 	return cmd
 }
 
 type runImplConfig struct {
+	inst *instanceflag.Flags
+
 	keep  bool
 	watch time.Duration
 }
@@ -62,15 +64,11 @@ type runImplConfig struct {
 var runImpl runImplConfig
 
 func (r *runImplConfig) run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	cfg, err := config.ApplyInstanceFlag()
+	cfg, err := config.ReadFromFile(r.inst.InstanceConfigPath(), r.inst.Name)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// best-effort compatibility for old setups
-			cfg = config.NewStruct(instanceflag.Instance())
-		} else {
-			return err
-		}
+		return err
 	}
+	cfg.ApplyEnvironment()
 
 	var tmp string
 	if r.keep {
@@ -191,6 +189,7 @@ func (r *runImplConfig) run(ctx context.Context, args []string, stdout, stderr i
 	log.Printf("Watching remote service logs for -watch=%v", r.watch)
 	logsCfg := &logsImplConfig{
 		service: basename,
+		inst:    r.inst,
 	}
 	err = logsCfg.run(ctx, nil, stdout, stderr)
 	if err == context.DeadlineExceeded {

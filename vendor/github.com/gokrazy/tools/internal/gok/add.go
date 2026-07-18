@@ -55,11 +55,13 @@ Examples:
 			return addImpl.run(cmd.Context(), args[0], cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
-	instanceflag.RegisterPflags(cmd.Flags())
+	addImpl.inst = instanceflag.RegisterPflags(cmd.Flags())
 	return cmd
 }
 
-type addImplConfig struct{}
+type addImplConfig struct {
+	inst *instanceflag.Flags
+}
 
 var addImpl addImplConfig
 
@@ -154,9 +156,9 @@ func (r *addImplConfig) addLocal(ctx context.Context, abs string, stdout, stderr
 	log.Printf(`Adding the following package to gokrazy instance %q:
   Go package  : %s
   in Go module: %s
-  in local dir: %s`, instanceflag.Instance(), pkg.ImportPath, pkg.Module.Path, pkg.Dir)
+  in local dir: %s`, r.inst.Name, pkg.ImportPath, pkg.Module.Path, pkg.Dir)
 
-	buildDir := filepath.Join(config.InstancePath(), "builddir", pkg.ImportPath)
+	buildDir := filepath.Join(r.inst.InstancePath(), "builddir", pkg.ImportPath)
 	if _, err := os.Stat(buildDir); err != nil {
 		log.Printf("Creating gokrazy builddir for package %s", pkg.ImportPath)
 		if err := os.MkdirAll(buildDir, 0755); err != nil {
@@ -205,12 +207,13 @@ func (r *addImplConfig) addLocal(ctx context.Context, abs string, stdout, stderr
 }
 
 func (r *addImplConfig) addPackageToConfig(importPath string) error {
-	cfg, err := config.ApplyInstanceFlag()
+	cfg, err := config.ReadFromFile(r.inst.InstanceConfigPath(), r.inst.Name)
 	if err != nil {
 		return err
 	}
+	cfg.ApplyEnvironment()
 	if slices.Contains(cfg.Packages, importPath) || slices.Contains(cfg.GokrazyPackagesOrDefault(), importPath) {
-		log.Printf("Package already configured (see 'gok -i %s edit')", instanceflag.Instance())
+		log.Printf("Package already configured (see 'gok -i %s edit')", r.inst.Name)
 		return nil
 	}
 	log.Printf("Adding package to gokrazy config")
@@ -219,14 +222,14 @@ func (r *addImplConfig) addPackageToConfig(importPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := replaceFile(config.InstanceConfigPath(), b, 0600); err != nil {
+	if err := replaceFile(r.inst.InstanceConfigPath(), b, 0600); err != nil {
 		return fmt.Errorf("updating config.json: %v", err)
 	}
 	return nil
 }
 
 func (r *addImplConfig) addNonLocal(ctx context.Context, arg string, stdout, stderr io.Writer) error {
-	log.Printf("Adding %s as a (non-local) package to gokrazy instance %s", arg, instanceflag.Instance())
+	log.Printf("Adding %s as a (non-local) package to gokrazy instance %s", arg, r.inst.Name)
 	importPath := arg
 	version := "latest"
 	if idx := strings.IndexByte(importPath, '@'); idx > -1 {
@@ -240,9 +243,9 @@ func (r *addImplConfig) addNonLocal(ctx context.Context, arg string, stdout, std
 	}
 	log.Printf(`Adding the following package to gokrazy instance %q:
   Go package  : %s
-  in Go module: %s`, instanceflag.Instance(), importPath, resolved.module)
+  in Go module: %s`, r.inst.Name, importPath, resolved.module)
 
-	buildDir := filepath.Join(config.InstancePath(), "builddir", resolved.module)
+	buildDir := filepath.Join(r.inst.InstancePath(), "builddir", resolved.module)
 	if _, err := os.Stat(buildDir); err != nil {
 		log.Printf("Creating gokrazy builddir for module %s", resolved.module)
 		if err := os.MkdirAll(buildDir, 0755); err != nil {
@@ -290,11 +293,8 @@ func (r *addImplConfig) addNonLocal(ctx context.Context, arg string, stdout, std
 }
 
 func (r *addImplConfig) run(ctx context.Context, arg string, stdout, stderr io.Writer) error {
-	parentDir := instanceflag.ParentDir()
-	instance := instanceflag.Instance()
-
-	if _, err := os.Stat(filepath.Join(parentDir, instance)); err != nil {
-		return fmt.Errorf("instance %q does not exist (%v), create it using 'gok -i %s new'", instance, err, instance)
+	if _, err := os.Stat(r.inst.InstancePath()); err != nil {
+		return fmt.Errorf("instance %q does not exist (%v), create it using 'gok -i %s new'", r.inst.Name, err, r.inst.Name)
 	}
 
 	// Clear cases: an absolute path on the local disk

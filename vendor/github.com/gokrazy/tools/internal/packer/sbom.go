@@ -98,7 +98,7 @@ func generateSBOM(cfg *config.Struct, foundBins []foundBin) ([]byte, SBOMWithHas
 
 	result := SBOM{
 		ConfigHash: FileHash{
-			Path: config.InstanceConfigPath(),
+			Path: cfg.Meta.Path,
 			Hash: fmt.Sprintf("%x", sha256.Sum256([]byte(string(formattedCfg)))),
 		},
 	}

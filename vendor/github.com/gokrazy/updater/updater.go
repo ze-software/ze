@@ -117,6 +117,7 @@ func (t *Target) StreamTo(ctx context.Context, dest string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected HTTP status code: got %v, want %v (body %q)", resp.Status, want, string(body))
@@ -151,6 +152,7 @@ func (t *Target) Put(ctx context.Context, dest string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		if resp.StatusCode == http.StatusNotFound {
 			return fmt.Errorf("/uploadtemp/ handler not found, is your gokrazy installation too old?")
@@ -172,6 +174,7 @@ func (t *Target) Switch(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected HTTP status code: got %d, want %d (body %q)", got, want, string(body))
@@ -190,6 +193,7 @@ func (t *Target) Testboot(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected HTTP status code: got %d, want %d (body %q)", got, want, string(body))
@@ -253,6 +257,7 @@ func (t *Target) Reboot(ctx context.Context, opts ...RebootOption) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected HTTP status code: got %d, want %d (body %q)", got, want, string(body))
@@ -298,6 +303,7 @@ func (t *Target) Divert(ctx context.Context, path, diversion string, serviceFlag
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusBadRequest {
 		// A BadRequest could indicate that the server is running an older
 		// version of gokrazy which took diversion options as query
@@ -317,6 +323,7 @@ func (t *Target) Divert(ctx context.Context, path, diversion string, serviceFlag
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		body, _ := io.ReadAll(resp.Body)
@@ -341,6 +348,7 @@ func (t *Target) requestFeatures(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// Target device does not support /features handler yet, so no features
@@ -410,6 +418,7 @@ func (t *Target) getEEPROMFromStatus(ctx context.Context) (*EEPROMVersion, error
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d (body %q)", got, want, strings.TrimSpace(string(body)))

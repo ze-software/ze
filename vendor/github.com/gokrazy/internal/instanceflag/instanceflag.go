@@ -5,35 +5,37 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
+	"github.com/gokrazy/internal/config"
 	"github.com/spf13/pflag"
 )
 
-var (
-	parentDir = func() string {
-		def := os.Getenv("GOKRAZY_PARENT_DIR")
-		if def == "" {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				homeDir = fmt.Sprintf("os.UserHomeDir failed: %v", err)
-			}
-			def = filepath.Join(homeDir, "gokrazy")
+// ParentDirDefault returns the default value for the --parent_dir flag,
+// i.e. $GOKRAZY_PARENT_DIR or os.UserHomeDir/gokrazy.
+func ParentDirDefault() string {
+	def := os.Getenv("GOKRAZY_PARENT_DIR")
+	if def == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			homeDir = fmt.Sprintf("os.UserHomeDir failed: %v", err)
 		}
-		return def
-	}()
+		def = filepath.Join(homeDir, "gokrazy")
+	}
+	return def
+}
 
-	instance = func() string {
-		def := os.Getenv("GOKRAZY_INSTANCE")
-		if def == "" {
-			def = instanceFromPWD()
-		}
-		if def == "" {
-			def = "hello"
-		}
-		return def
-	}()
-)
+// InstanceDefault returns the default value for the -i flag,
+// i.e. "hello" or the name of the gokrazy instance in $PWD, if any.
+func InstanceDefault() string {
+	def := os.Getenv("GOKRAZY_INSTANCE")
+	if def == "" {
+		def = instanceFromPWD()
+	}
+	if def == "" {
+		def = "hello"
+	}
+	return def
+}
 
 func instanceFromPWD() string {
 	wd, err := os.Getwd()
@@ -45,63 +47,60 @@ func instanceFromPWD() string {
 		return ""
 	}
 
-	parentAbs, err := filepath.Abs(parentDir)
+	instanceName := filepath.Base(wdAbs)
+	cfg, err := config.ReadFromFile(filepath.Join(wdAbs, "config.json"), instanceName)
 	if err != nil {
 		return ""
 	}
-
-	if !strings.HasPrefix(wdAbs, parentAbs+"/") {
-		return ""
+	if cfg.Hostname != "" && len(cfg.Packages) > 0 {
+		return wdAbs
 	}
 
-	// Process is running in an instance directory (a
-	// subdirectory of the parent dir), so default the instance
-	// flag to that same subdirectory.
-	instance := strings.TrimPrefix(wdAbs, parentAbs+"/")
-	if idx := strings.IndexRune(instance, '/'); idx > -1 {
-		instance = instance[:idx]
-	}
-	return instance
+	return ""
 }
 
-func RegisterPflags(fs *pflag.FlagSet) {
-	fs.StringVarP(&instance,
+// Flags contains command-line flag values related to the gokrazy instance.
+type Flags struct {
+	Name   string // --instance / -i
+	Parent string // --parent_dir
+}
+
+func (f *Flags) InstanceName() string {
+	return filepath.Base(f.Name)
+}
+
+// InstancePath returns the name of the directory
+// containing the gokrazy config.json,
+// e.g. /home/michael/gokrazy/scan2drive/config.json
+func (f *Flags) InstancePath() string {
+	if strings.ContainsRune(f.Name, os.PathSeparator) {
+		// Relative or absolute instance path, return as-is.
+		return f.Name
+	}
+	return filepath.Join(f.Parent, f.Name)
+}
+
+// InstanceConfigPath returns the full path to config.json.
+func (f *Flags) InstanceConfigPath() string {
+	return filepath.Join(f.InstancePath(), "config.json")
+}
+
+func RegisterPflags(fs *pflag.FlagSet) *Flags {
+	f := &Flags{
+		Parent: ParentDirDefault(),
+		Name:   InstanceDefault(),
+	}
+
+	fs.StringVarP(&f.Name,
 		"instance",
 		"i",
-		instance,
+		f.Name,
 		`instance, identified by hostname`)
 
-	fs.StringVar(&parentDir,
+	fs.StringVar(&f.Parent,
 		"parent_dir",
-		parentDir,
+		f.Parent,
 		`parent directory: contains one subdirectory per instance`)
 
-}
-
-func SetInstance(i string) {
-	instance = i
-}
-
-func SetParentDir(p string) {
-	parentDir = p
-}
-
-func Instance() string {
-	return instance
-}
-
-var parentDirOnce sync.Once
-
-func ParentDir() string {
-	parentDirOnce.Do(func() {
-		if !strings.Contains(parentDir, "./") &&
-			!strings.Contains(parentDir, "../") &&
-			!strings.Contains(parentDir, "/..") {
-			return
-		}
-		if abs, err := filepath.Abs(parentDir); err == nil {
-			parentDir = abs
-		}
-	})
-	return parentDir
+	return f
 }
