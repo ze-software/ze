@@ -294,7 +294,7 @@ func (n *LiteNode[V]) Delete(pfx netip.Prefix) (exists bool) {
 
 	// find the trie node
 	for depth, octet := range octets {
-		depth = depth & DepthMask // BCE, Delete must be fast
+		depth &= DepthMask // BCE, Delete must be fast
 
 		// push current node on stack for path recording
 		stack[depth] = n
@@ -536,7 +536,7 @@ func (n *LiteNode[V]) Modify(pfx netip.Prefix, cb func(val V, found bool) (_ V, 
 
 	// find the proper trie node to update prefix
 	for depth, octet := range octets {
-		depth = depth & DepthMask // BCE
+		depth &= DepthMask // BCE
 
 		// push current node on stack for path recording
 		stack[depth] = n
@@ -1654,9 +1654,7 @@ func (n *LiteNode[V]) AllRecSorted(path StridePath, depth int, is4 bool, yield f
 				}
 			case *FringeNode[V]:
 				fringePfx := CidrForFringe(path[:], depth, is4, childAddr)
-				// callback for this fringe
 				if !yield(fringePfx, kid.Value) {
-					// early exit
 					return false
 				}
 
@@ -1691,9 +1689,7 @@ func (n *LiteNode[V]) AllRecSorted(path StridePath, depth int, is4 bool, yield f
 			}
 		case *FringeNode[V]:
 			fringePfx := CidrForFringe(path[:], depth, is4, addr)
-			// callback for this fringe
 			if !yield(fringePfx, kid.Value) {
-				// early exit
 				return false
 			}
 

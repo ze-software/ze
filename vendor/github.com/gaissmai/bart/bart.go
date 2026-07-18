@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Karl Gaissmaier
+// Copyright (c) 2026 Karl Gaissmaier
 // SPDX-License-Identifier: MIT
 
 package bart
@@ -16,12 +16,13 @@ import (
 //
 // The zero value is ready to use.
 //
+// A Table must not be copied by value; always pass by pointer.
+// Nil pointers as receivers or arguments are forbidden and will panic.
+//
 // The Table is safe for concurrent reads, but concurrent reads and writes
 // must be externally synchronized. Mutation via Insert/Delete requires locks,
 // or alternatively, use ...Persist methods which return a modified copy
 // without altering the original table (copy-on-write).
-//
-// A Table must not be copied by value; always pass by pointer.
 //
 // Performance note: Do not pass IPv4-in-IPv6 addresses (e.g., ::ffff:192.0.2.1)
 // as input. The methods do not perform automatic unmapping to avoid unnecessary
@@ -191,7 +192,7 @@ func (t *Table[V]) Lookup(ip netip.Addr) (val V, ok bool) {
 LOOP:
 	// find leaf node
 	for depth, octet = range octets {
-		depth = depth & nodes.DepthMask // BCE, Lookup must be fast
+		depth &= nodes.DepthMask // BCE, Lookup must be fast
 
 		// push current node on stack for fast backtracking
 		stack[depth] = n
@@ -224,7 +225,7 @@ LOOP:
 
 	// start backtracking, unwind the stack, bounds check eliminated
 	for ; depth >= 0; depth-- {
-		depth = depth & nodes.DepthMask // BCE
+		depth &= nodes.DepthMask // BCE
 
 		n = stack[depth]
 
@@ -260,7 +261,7 @@ func (t *Table[V]) LookupPrefix(pfx netip.Prefix) (val V, ok bool) {
 // match any address in the provided prefix range.
 //
 // This is functionally identical to LookupPrefix but additionally returns the
-// matching prefix (lpmPfx) itself along with the value.
+// matching LPM prefix itself along with the value.
 //
 // This method is slower than LookupPrefix and should only be used if the
 // matching lpm entry is also required for other reasons.
@@ -296,7 +297,7 @@ func (t *Table[V]) lookupPrefixLPM(pfx netip.Prefix, withLPM bool) (lpmPfx netip
 LOOP:
 	// find the last node on the octets path in the trie,
 	for depth, octet = range octets {
-		depth = depth & nodes.DepthMask // BCE
+		depth &= nodes.DepthMask // BCE
 
 		// stepped one past the last stride of interest; back up to last and break
 		if depth > lastOctetPlusOne {
@@ -347,7 +348,7 @@ LOOP:
 
 	// start backtracking, unwind the stack
 	for ; depth >= 0; depth-- {
-		depth = depth & nodes.DepthMask // BCE
+		depth &= nodes.DepthMask // BCE
 
 		n = stack[depth]
 

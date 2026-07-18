@@ -9,13 +9,9 @@
 // # Zero-Sized Type (ZST) Detection
 //
 // IsZST[V] detects whether a type parameter V is a zero-sized type (such as
-// struct{} or [0]byte). This serves two purposes:
-//   - Runtime validation: Fast[V] cannot work correctly with zero-sized types
-//     and must reject them. PanicOnZST enables a safety check that panics
-//     during Fast.Insert and Fast.InsertPersist operations.
-//   - Debug output clarity: Zero-sized types carry no information in their
-//     values. Omitting them from dumps and prints reduces line noise and
-//     improves readability.
+// struct{} or [0]byte). Zero-sized types carry no information in their
+// values. Omitting them from dumps and prints reduces line noise and
+// improves readability.
 //
 // # Value Equality
 //
@@ -34,7 +30,6 @@
 package value
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -66,14 +61,6 @@ func IsZST[V any]() bool {
 //go:noinline
 func escapeToHeap[V any]() (*V, *V) {
 	return new(V), new(V)
-}
-
-// PanicOnZST panics if V is a zero sized type.
-// bart.Fast must reject zero-sized types as payload.
-func PanicOnZST[V any]() {
-	if IsZST[V]() {
-		panic(fmt.Errorf("%T is a zero-sized type, not allowed as payload for bart.Fast", *new(V)))
-	}
 }
 
 // Equaler is a generic interface for types that can decide their own
