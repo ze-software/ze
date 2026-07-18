@@ -110,7 +110,10 @@ type RPKIPlugin struct {
 	aspaEnabled       atomic.Bool
 	aspaInvalidAction atomic.Uint32
 	aspaUnknownAction atomic.Uint32
-	mu                sync.RWMutex
+	// originInvalidAction is the RFC 6811 operator-configured action for the Invalid state
+	// (ASPAPolicyReject/LogOnly/Accept); only Reject excludes the route (RFC 6811 Section 2/3).
+	originInvalidAction atomic.Uint32
+	mu                  sync.RWMutex
 
 	// sessions holds active RTR sessions to cache servers.
 	sessions []*RTRSession
@@ -264,6 +267,7 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	rp.aspaEnabled.Store(cfg.ASPAValidation)
 	rp.aspaInvalidAction.Store(uint32(cfg.ASPAInvalidAction))
 	rp.aspaUnknownAction.Store(uint32(cfg.ASPAUnknownAction))
+	rp.originInvalidAction.Store(uint32(cfg.OriginInvalidAction))
 
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
@@ -629,6 +633,11 @@ func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 	decisions := make([]rpc.ValidationDecision, len(batch))
 	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8, fits
 	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8, fits
+	// RFC 6811 Section 2/3: excluding an Invalid origin-validation route is an operator policy
+	// choice, not an automatic side effect. Only originInvalidAction == ASPAPolicyReject excludes
+	// it; LogOnly and Accept keep the route (still marked with its Invalid state) in the
+	// Adj-RIB-In and the decision process.
+	originInvalidAction := uint8(rp.originInvalidAction.Load()) //nolint:gosec // stored as uint8, fits
 
 	for i := range batch {
 		req := &batch[i]
@@ -640,7 +649,11 @@ func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 			}
 		}
 
-		reject := req.state == ValidationInvalid
+		reject := req.state == ValidationInvalid && originInvalidAction == ASPAPolicyReject
+		if req.state == ValidationInvalid && originInvalidAction == ASPAPolicyLogOnly {
+			logger().Warn("rpki: Invalid origin retained under log-only policy",
+				"prefix", req.prefix, "peer", req.peerAddr)
+		}
 		if !reject && req.aspaState != aspaStateNone {
 			reject = aspaOverridesAccept(req.aspaState, invalidAction, unknownAction)
 		}

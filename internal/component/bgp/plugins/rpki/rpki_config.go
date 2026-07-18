@@ -47,6 +47,13 @@ type rpkiConfig struct {
 	ASPAValidation    bool   // enable/disable ASPA path verification (default false)
 	ASPAInvalidAction uint8  // action for ASPA Invalid routes (default: log-only)
 	ASPAUnknownAction uint8  // action for ASPA Unknown routes (default: accept)
+	// OriginInvalidAction is the RFC 6811 Section 3 operator-configurable action for the Invalid
+	// origin-validation state (default: reject). It is what makes the exclusion of Invalid routes
+	// an explicitly configured policy choice (RFC 6811 Section 2) rather than an unconditional
+	// side effect: only OriginInvalidAction == ASPAPolicyReject excludes the route.
+	OriginInvalidAction uint8
+	// OriginNotFoundAction is the action for the NotFound origin-validation state (default: accept).
+	OriginNotFoundAction uint8
 }
 
 // parseRPKIConfig extracts RPKI configuration from a BGP config JSON string.
@@ -59,9 +66,11 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	}
 
 	cfg := &rpkiConfig{
-		ASPAValidation:    false,
-		ASPAInvalidAction: ASPAPolicyLogOnly,
-		ASPAUnknownAction: ASPAPolicyAccept,
+		ASPAValidation:       false,
+		ASPAInvalidAction:    ASPAPolicyLogOnly,
+		ASPAUnknownAction:    ASPAPolicyAccept,
+		OriginInvalidAction:  ASPAPolicyReject, // RFC 6811: default reject Invalid (matches YANG default)
+		OriginNotFoundAction: ASPAPolicyAccept, // default accept NotFound (matches YANG default)
 	}
 
 	rpkiMap, ok := bgpTree["rpki"].(map[string]any)
@@ -74,6 +83,22 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		vt, err := strconv.ParseUint(vtStr, 10, 16)
 		if err == nil {
 			cfg.ValidationTimeout = uint16(vt) //nolint:gosec // range checked by ParseUint
+		}
+	}
+
+	// Parse origin-validation policy from rpki/policy container. RFC 6811 Section 3: the action
+	// for each validation state is operator-configurable. The YANG defaults are
+	// invalid-action=reject and not-found-action=accept.
+	if policyMap, ok := rpkiMap["policy"].(map[string]any); ok {
+		if actionStr, ok := policyMap["invalid-action"].(string); ok {
+			if action, valid := aspaActionFromString(actionStr); valid {
+				cfg.OriginInvalidAction = action
+			}
+		}
+		if actionStr, ok := policyMap["not-found-action"].(string); ok {
+			if action, valid := aspaActionFromString(actionStr); valid {
+				cfg.OriginNotFoundAction = action
+			}
 		}
 	}
 

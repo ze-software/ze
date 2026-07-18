@@ -15,7 +15,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `rfc1997` | 5 | 1 | 0 | 4 | 0 | 0 | **enrolled** |
 | `rfc4360` | 6 | 2 | 0 | 4 | 0 | 0 | **enrolled** |
 | `rfc6549` | 1 | 1 | 0 | 0 | 0 | 0 | **enrolled** |
-| `rfc6811` | 5 | 2 | 0 | 3 | 0 | 0 | **enrolled** |
+| `rfc6811` | 5 | 4 | 0 | 1 | 0 | 0 | **enrolled** |
 | `rfc6996` | 1 | 1 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc7606` | 52 | 39 | 0 | 13 | 0 | 0 | **enrolled** |
 | `rfc792` | 6 | 1 | 0 | 5 | 0 | 0 | **enrolled** |
@@ -3095,12 +3095,12 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
 | `RFC6811-2-1` | MUST | 2 | `internal/component/bgp/plugins/rpki/validate_test.go:16` | `internal/component/bgp/plugins/rpki/validate_test.go:31` |  |
-| `RFC6811-2-2` | MUST NOT | 2 | -- | -- | {gap} when RPKI validation is active ze auto-rejects Invalid routes unconditionally -- buildDecisions computes `reject := req.state == ValidationInvalid` (internal/component/bgp/plugins/rpki/rpki.go:643) and dispatches a reject to adj-rib-in, with no configuration to retain Invalid routes for policy-based handling (unlike ASPA, which offers reject/log-only/accept, rpki_config.go:24-32). RFC 6811 requires exclusion to be explicitly configured via policy rather than an automatic side effect of the Invalid state. Disclosed in the docs/features/rfc-status.md RFC 6811 row |
+| `RFC6811-2-2` | MUST NOT | 2 | `internal/component/bgp/plugins/rpki/rpki_batch_test.go:105` | `internal/component/bgp/plugins/rpki/rpki_batch_test.go:107` |  |
 | `RFC6811-2-3` | SHOULD | 2 | -- | -- |  |
 | `RFC6811-2-4` | SHOULD | 2 | -- | -- |  |
 | `RFC6811-2-5` | SHOULD | 2 | -- | -- |  |
 | `RFC6811-2-6` | MAY | 2 | -- | -- |  |
-| `RFC6811-3-1` | MUST | 3 | -- | -- | {gap} the validation state (Valid/Invalid/NotFound) is internal Adj-RIB-In metadata (internal/component/bgp/plugins/adj_rib_in/rib_validation.go:15-21) and is not exposed to the route-policy language -- the filter-chain attribute vocabulary (internal/component/bgp/reactor/filter_chain.go:30-68) has no validation-state key to match on, and no filter/modify setter assigns it, so an operator cannot match or set the validation state in policy. Disclosed in the docs/features/rfc-status.md RFC 6811 row |
+| `RFC6811-3-1` | MUST | 3 | `internal/component/bgp/plugins/rpki/rpki_batch_test.go:110` | `internal/component/bgp/plugins/rpki/rpki_batch_test.go:113` |  |
 | `RFC6811-3-2` | MUST | 3 | `internal/component/bgp/plugins/rpki/validate_test.go:92` | `internal/component/bgp/plugins/rpki/validate_test.go:94` |  |
 | `RFC6811-4-1` | MUST | 4 | -- | -- | {gap} when the RTR cache delivers a VRP mapping change, ROACache.ApplyDelta (internal/component/bgp/plugins/rpki/roa_cache.go:172) mutates silently with no change-set and no callback; the End-of-Data handler re-validates only ASPA-affected routes (onASPAChange, internal/component/bgp/plugins/rpki/rtr_session.go:322) and never re-runs origin Validate() over installed routes -- there is no origin route tracker or onROAChange trigger. Installed routes keep their pre-change validation state until an operator manually issues `request bgp adj-rib-in revalidate`. Disclosed in the docs/features/rfc-status.md RFC 6811 row |
 

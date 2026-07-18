@@ -99,6 +99,44 @@ func TestBuildDecisionsASPAOverride(t *testing.T) {
 	assert.False(t, decisions[3].Accept, "origin invalid -> reject regardless of ASPA")
 }
 
+// TestBuildDecisionsOriginInvalidAction verifies the RFC 6811 origin-validation disposition is an
+// operator-configurable, per-state policy choice rather than an automatic side effect.
+//
+// RFC requirement: RFC6811-2-2 positive -- exclusion of an Invalid route is explicitly configured:
+// with invalid-action=reject the Invalid route is excluded (Accept=false).
+// RFC requirement: RFC6811-2-2 negative -- absent that configuration the route is NOT excluded as
+// a side effect of its state: with invalid-action=accept the Invalid route stays in the
+// Adj-RIB-In (Accept=true), still marked with its Invalid validation state.
+// RFC requirement: RFC6811-3-1 positive -- the operator can match a validation state and set its
+// disposition: the configured invalid-action determines whether the Invalid route is rejected or
+// accepted, and the accepted route retains its Invalid state marker.
+// RFC requirement: RFC6811-3-1 negative -- the action is state-specific, not a blanket rule: a
+// Valid route is accepted regardless of the invalid-action, so the policy is keyed on the state.
+func TestBuildDecisionsOriginInvalidAction(t *testing.T) {
+	newRP := func(action uint8) *RPKIPlugin {
+		rp := &RPKIPlugin{cache: NewROACache(), aspaCache: NewASPACache(), stopCh: make(chan struct{})}
+		rp.originInvalidAction.Store(uint32(action))
+		return rp
+	}
+	batch := []validationRequest{
+		{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24",
+			pathID: 0, state: ValidationInvalid, aspaState: aspaStateNone},
+		{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.1.0/24",
+			pathID: 1, state: ValidationValid, aspaState: aspaStateNone},
+	}
+
+	// invalid-action=reject: the Invalid route is excluded; the Valid route is unaffected.
+	rej := newRP(ASPAPolicyReject).buildDecisions(batch)
+	assert.False(t, rej[0].Accept, "invalid-action=reject excludes the Invalid route")
+	assert.True(t, rej[1].Accept, "Valid route is accepted regardless of invalid-action")
+
+	// invalid-action=accept: the Invalid route is retained and still marked Invalid.
+	acc := newRP(ASPAPolicyAccept).buildDecisions(batch)
+	assert.True(t, acc[0].Accept, "invalid-action=accept keeps the Invalid route in the Adj-RIB-In")
+	assert.Equal(t, ValidationInvalid, acc[0].ValState, "accepted Invalid route retains its Invalid state marker")
+	assert.True(t, acc[1].Accept, "Valid route is accepted under either policy")
+}
+
 // TestBatchSizeBound verifies maxBatchSize is explicit and bounded.
 func TestBatchSizeBound(t *testing.T) {
 	assert.Equal(t, 128, maxBatchSize, "maxBatchSize should be 128")

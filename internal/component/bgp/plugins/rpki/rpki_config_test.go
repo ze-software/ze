@@ -90,6 +90,26 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 	assert.Equal(t, uint16(323), cs.Port)             // RTR default
 	assert.Equal(t, uint8(100), cs.Preference)        // YANG default
 	assert.Equal(t, uint16(0), cfg.ValidationTimeout) // not set
+
+	// RFC 6811 origin-validation policy defaults (the YANG leaf defaults): the exclusion of
+	// Invalid routes defaults to reject, NotFound defaults to accept.
+	assert.Equal(t, ASPAPolicyReject, cfg.OriginInvalidAction, "default invalid-action is reject")
+	assert.Equal(t, ASPAPolicyAccept, cfg.OriginNotFoundAction, "default not-found-action is accept")
+}
+
+// TestParseRPKIConfigOriginPolicy verifies the rpki/policy container (RFC 6811 origin-validation
+// action) is parsed. The YANG leaf existed but was never read before this wiring, so the
+// operator-facing action was a no-op.
+func TestParseRPKIConfigOriginPolicy(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {
+			"policy": {"invalid-action": "accept", "not-found-action": "reject"},
+			"cache-server": {"10.0.0.1": {}}
+		}
+	}`)
+	require.NoError(t, err)
+	assert.Equal(t, ASPAPolicyAccept, cfg.OriginInvalidAction, "invalid-action=accept is parsed")
+	assert.Equal(t, ASPAPolicyReject, cfg.OriginNotFoundAction, "not-found-action=reject is parsed")
 }
 
 func TestParseRPKIConfigMultipleServers(t *testing.T) {
