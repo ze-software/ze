@@ -96,6 +96,40 @@ func TestTimingSaveLoad(t *testing.T) {
 	}
 }
 
+func TestTimingSaveMergesConcurrent(t *testing.T) {
+	// Save merges with the on-disk baseline instead of clobbering it: a
+	// concurrent run's samples for a different test survive, and the
+	// higher-sample entry wins for a shared test.
+	dir := t.TempDir()
+
+	// Session A saves a well-established "ipv4" baseline (5 samples).
+	a := make(Timings)
+	for range 5 {
+		a.Record("encode", "ipv4", 1000*time.Millisecond)
+	}
+	if err := a.Save(dir); err != nil {
+		t.Fatalf("save a: %v", err)
+	}
+
+	// Session B loaded before A, ran only "ipv6", then saves -- must NOT drop ipv4.
+	b := make(Timings)
+	b.Record("encode", "ipv6", 500*time.Millisecond)
+	if err := b.Save(dir); err != nil {
+		t.Fatalf("save b: %v", err)
+	}
+
+	loaded := LoadTimings(dir)
+	if _, ok := loaded["encode"]["ipv4"]; !ok {
+		t.Error("ipv4 baseline was clobbered by a concurrent save (last-writer-wins)")
+	}
+	if _, ok := loaded["encode"]["ipv6"]; !ok {
+		t.Error("ipv6 (this run's test) was not saved")
+	}
+	if got := loaded["encode"]["ipv4"].Samples; got != 5 {
+		t.Errorf("ipv4 samples = %d, want 5 (higher-sample entry kept)", got)
+	}
+}
+
 func TestTimingIsSlowBoundary(t *testing.T) {
 	timings := make(Timings)
 	// 3 identical samples: avg = exactly 1000ms

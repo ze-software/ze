@@ -79,7 +79,9 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 #   ZE_TEST_CANONICAL=1  opt out entirely: the runner rebuilds bin/ze +
 #                        bin/ze-test in place (release/CI reproducibility).
 # Shared residue in every mode: tmp/test-timings.json (display baseline) is
-# last-writer-wins, as for any two concurrent ze-test invocations.
+# merged by sample count on save (internal/test/runner/timing.go Save), with a
+# residual reload->rename race, so a concurrent ze-test invocation's samples are
+# no longer clobbered wholesale.
 ZE_SUFFIX ?=
 ZE_TEST_CANONICAL ?=
 ifeq ($(ZE_TEST_CANONICAL),)
@@ -94,10 +96,16 @@ ifeq ($(ZE_TEST_CANONICAL),)
     ZE_ALT_TRAP = rm -rf $(ZE_ALT_DIR)
   else
     # Explicit name: stable, shared across this run's targets, KEPT on exit.
-    # The trap is a no-op, so sharing the dir is safe for CLEANUP. Note the
-    # shared name races on the build under `make -j <targetA> <targetB>
-    # ZE_SUFFIX=x` (both write the same bin/ze); run one target at a time, or
-    # omit ZE_SUFFIX to get per-target auto dirs.
+    # The trap is a no-op, so sharing the dir is safe for CLEANUP.
+    #
+    # CONCURRENCY: an explicit ZE_SUFFIX is NOT isolated. Two runs that pick the
+    # same name -- `make -j <A> <B> ZE_SUFFIX=x`, OR two concurrent sessions in the
+    # same checkout -- share one tmp/testbin-<name>/, so they race on the build AND
+    # (worse) share the throwaway root's etc/ze: one run's test DB/config writes
+    # then corrupt the other's. The default (omit ZE_SUFFIX) gives per-invocation
+    # auto dirs, pid-<make-PID>-<target>, that never collide -- prefer it for
+    # concurrent work, and reserve ZE_SUFFIX=<name> for a single serial run you want
+    # kept for inspection.
     ZE_RUN_SUFFIX := $(ZE_SUFFIX)
     ZE_ALT_DIR = tmp/testbin-$(ZE_RUN_SUFFIX)
     ZE_ALT_TRAP := true

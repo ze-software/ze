@@ -65,13 +65,32 @@ func LoadTimings(baseDir string) Timings {
 }
 
 // Save writes timings to the baseline file atomically (temp file + rename).
+//
+// It first MERGES with the current on-disk baseline so a concurrent test run's
+// samples are not clobbered: the file is shared across all sessions in a checkout,
+// and the previous plain overwrite was last-writer-wins. Per test it keeps the
+// entry with more samples -- the more-established rolling average. A tiny
+// reload->rename race remains (two runs saving within the same instant), which is
+// acceptable for a display/timeout heuristic; the atomic rename still guarantees
+// no partial/corrupt file.
 func (t Timings) Save(baseDir string) error {
 	path := filepath.Join(baseDir, timingsFile)
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(t, "", "  ")
+	merged := LoadTimings(baseDir)
+	for suite, tests := range t {
+		if merged[suite] == nil {
+			merged[suite] = make(map[string]TimingEntry)
+		}
+		for name, entry := range tests {
+			if cur, ok := merged[suite][name]; !ok || entry.Samples >= cur.Samples {
+				merged[suite][name] = entry
+			}
+		}
+	}
+	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {
 		return err
 	}
