@@ -409,7 +409,9 @@ func TestDispatchDropsMismatchedInstance(t *testing.T) {
 	mismatches := 0
 	d.onInstanceMismatch = func(transport.RawPacket) { mismatches++ }
 
-	// Instance IDs that do not match 5 are discarded (before the handler).
+	// RFC requirement: RFC6549-2-1 positive -- a received packet whose Instance ID does not
+	// match one configured for the receiving interface MUST be discarded (§2, §3.1): each of
+	// {0,1,4,6,255} != the engine's Instance 5 is dropped by dispatch() before any handler runs.
 	for _, id := range []uint8{0, 1, 4, 6, 255} {
 		d.dispatch(transport.RawPacket{IfIndex: 1, Payload: minimalOSPFInstancePacket(t, packet.PacketTypeHello, "0", id)})
 	}
@@ -420,7 +422,9 @@ func TestDispatchDropsMismatchedInstance(t *testing.T) {
 		t.Fatalf("instance-mismatch hook fired %d times, want 5", mismatches)
 	}
 
-	// The matching Instance ID (5) is delivered to the handler.
+	// RFC requirement: RFC6549-2-1 negative -- the discard is confined to mismatches: a packet
+	// carrying the engine's own Instance ID (5) is NOT discarded but delivered to the handler,
+	// so the demux is not a blanket drop of every packet.
 	d.dispatch(transport.RawPacket{IfIndex: 1, Payload: minimalOSPFInstancePacket(t, packet.PacketTypeHello, "0", 5)})
 	if handled != 1 {
 		t.Fatalf("handler ran %d times for the matching Instance ID, want 1", handled)
