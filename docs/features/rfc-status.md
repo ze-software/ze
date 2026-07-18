@@ -48,7 +48,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 
 | RFC | Area | Status | Implemented coverage | Remaining if not complete |
 |-----|------|--------|----------------------|---------------------------|
-| RFC 1997 | Standard communities | Supported | COMMUNITY attribute parsing, encoding, JSON, and well-known names. | No tracked gap in current source anchors. |
+| RFC 1997 | Standard communities | Partial | COMMUNITY attribute parsing (multiple-of-4 length enforced), encoding, JSON, well-known names, and operator community-match policy. | The well-known egress semantics are not auto-enforced: a received NO_EXPORT / NO_ADVERTISE / NO_EXPORT_SUBCONFED is honored only through an operator-configured community-match reject list, never automatically. Gated per requirement in `rfc/short/rfc1997.md` via `make ze-rfc-check`. |
 | RFC 3765 | NOPEER community | Supported | NOPEER well-known community parsing and text output. | No tracked gap in current source anchors. |
 | RFC 4360 | Extended communities | Supported | Extended community attribute parsing, encoding, JSON, and policy use. | No tracked gap in current source anchors. |
 | RFC 5701 | IPv6 extended communities | Supported | IPv6 extended community attribute support. | No tracked gap in current source anchors. |

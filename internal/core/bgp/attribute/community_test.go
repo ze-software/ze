@@ -41,12 +41,24 @@ func TestCommunities(t *testing.T) {
 	assert.Equal(t, []byte{0xFD, 0xE9, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01}, buf[:n])
 }
 
+// RFC requirement: RFC1997-Encoding-1 positive -- a COMMUNITIES attribute whose length is a
+// multiple of 4 parses into exactly length/4 four-octet communities. 8 bytes -> 2 communities.
 func TestCommunitiesParse(t *testing.T) {
 	t.Parallel()
 	data := []byte{0xFD, 0xE9, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01}
 	comms, err := ParseCommunities(data)
 	require.NoError(t, err)
 	assert.Equal(t, Communities{Community(0xFDE90064), CommunityNoExport}, comms)
+}
+
+// RFC requirement: RFC1997-Encoding-1 negative -- a COMMUNITIES attribute whose length is NOT a
+// multiple of 4 is malformed and rejected (ErrInvalidLength), rather than silently truncated to
+// the nearest whole community. This is the wire-decode path via wire.go knownAttrParsers.
+func TestCommunitiesParseRejectsNonMultipleOf4(t *testing.T) {
+	t.Parallel()
+	// 6 bytes: one full 4-octet community plus a 2-octet remainder -> not a multiple of 4.
+	_, err := ParseCommunities([]byte{0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x64})
+	require.ErrorIs(t, err, ErrInvalidLength)
 }
 
 // VALIDATES: LLGR_STALE well-known community constant value (RFC 9494).
