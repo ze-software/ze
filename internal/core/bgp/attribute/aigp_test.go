@@ -17,6 +17,9 @@ func makeAIGPMetricTLV(metric uint64) []byte {
 	return buf
 }
 
+// RFC requirement: RFC7311-3-1 positive -- an AIGP TLV of type 1 (AIGP metric)
+// with length 11 (3-octet header + 8-octet metric) is accepted and its metric is
+// decoded (RFC 7311 sec 3; producer ParseAIGP internal/core/bgp/attribute/aigp.go:118).
 func TestParseAIGP(t *testing.T) {
 	data := makeAIGPMetricTLV(100)
 	aigp, err := ParseAIGP(data)
@@ -46,6 +49,14 @@ func TestParseAIGPMaxMetric(t *testing.T) {
 	assert.Equal(t, uint64(0xFFFFFFFFFFFFFFFF), metric)
 }
 
+// RFC requirement: RFC7311-3-2 positive -- the total AIGP attribute length is
+// consistent with its contained TLVs: a buffer of a length-11 metric TLV followed
+// by a length-7 unknown TLV parses into exactly those two TLVs, each consuming its
+// declared length with no leftover or overrun (RFC 7311 sec 3; ParseAIGP walks
+// off += tlvLen and requires off+tlvLen <= len(data), aigp.go:98-131).
+// RFC requirement: RFC7311-3-3 positive -- an unknown AIGP TLV type is PRESERVED,
+// not discarded: the type-2 TLV is retained with its exact 4-octet value while the
+// type-1 metric is still interpreted (RFC 7311 sec 3, aigp.go:122-128).
 func TestParseAIGPMultipleTLVs(t *testing.T) {
 	// metric TLV + unknown TLV type 2 with 4 bytes of data
 	data := makeAIGPMetricTLV(200)
@@ -75,6 +86,11 @@ func TestParseAIGPMalformedTruncatedHeader(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// RFC requirement: RFC7311-3-2 negative -- an attribute length inconsistent with
+// its contained TLV is rejected: a type-1 TLV declaring length 11 but with the
+// buffer only 8 octets long (5 value octets, not 8) overruns the attribute, so
+// ParseAIGP returns an error instead of reading past the end (RFC 7311 sec 3;
+// aigp.go:111 off+tlvLen > len(data)).
 func TestParseAIGPMalformedTruncatedValue(t *testing.T) {
 	// type=1, length=11, but only 5 bytes of value instead of 8
 	data := []byte{1, 0, 11, 0, 0, 0, 0, 0}
@@ -82,6 +98,10 @@ func TestParseAIGPMalformedTruncatedValue(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// RFC requirement: RFC7311-3-1 negative -- a type-1 (AIGP metric) TLV whose
+// length is not 11 (here 8) is rejected: ParseAIGP returns an error rather than
+// accepting a malformed metric TLV (RFC 7311 sec 3; aigp.go:118 tlvType == 1 &&
+// tlvLen != aigpTLVMetricLen).
 func TestParseAIGPMalformedMetricWrongLength(t *testing.T) {
 	// type=1 but length=8 instead of 11
 	data := []byte{1, 0, 8, 0, 0, 0, 0, 0}
@@ -119,6 +139,11 @@ func TestAIGPWriteToRoundTrip(t *testing.T) {
 	assert.Equal(t, uint64(42), metric)
 }
 
+// RFC requirement: RFC7311-3-3 negative -- preservation is not discarded on
+// RE-ENCODE either: an AIGP carrying an unknown type-2 TLV is written by WriteTo
+// and re-parsed with the unknown TLV still present and its data intact, so the
+// codec never drops unknown TLVs on the way back out (RFC 7311 sec 3; WriteTo
+// aigp.go:50-61 emits every TLV regardless of type).
 func TestAIGPWriteToMultipleTLVs(t *testing.T) {
 	aigp := &AIGP{
 		TLVs: []AIGPTLV{
