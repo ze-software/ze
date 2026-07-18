@@ -72,6 +72,20 @@ Useful as a CI preflight check.
 The script prints `sudo apt-get install ...` commands but never runs `sudo`
 automatically. Copy and run the printed commands to install.
 
+**Unprivileged user namespaces.** Ubuntu 23.10+ ships
+`kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
+Chrome relies on and makes the `agent-browser` web functional tests fail to
+launch Chrome (`No usable sandbox!`). Setup checks this tunable as
+`userns-unrestricted`; when it is restricted the script prints the commands to
+lift it globally:
+
+```bash
+echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d/60-ze-userns.conf
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+The `/etc/sysctl.d` drop-in makes the change survive reboots.
+
 ## After Setup
 
 Verify everything works:

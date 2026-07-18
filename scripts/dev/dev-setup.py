@@ -154,6 +154,42 @@ OPTIONAL_TOOLS: list[Tool] = [
 ]
 
 
+# --- Linux system tunable: unprivileged user namespaces -------------------
+#
+# Ubuntu 23.10+ ships kernel.apparmor_restrict_unprivileged_userns=1, which
+# blocks the user-namespace sandbox Chrome relies on. The agent-browser web
+# functional tests then cannot launch Chrome ("No usable sandbox!"), so the
+# restriction must be lifted globally. This is a kernel tunable, not a binary,
+# so it lives outside the Tool machinery.
+USERNS_SYSCTL = "kernel.apparmor_restrict_unprivileged_userns"
+USERNS_PROC = Path("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
+USERNS_CONF = "/etc/sysctl.d/60-ze-userns.conf"
+
+
+def userns_status() -> str:
+    """Report the unprivileged-userns restriction state.
+
+    Returns "ok" (allowed, value 0), "restricted" (blocked, value 1), or
+    "na" (kernel has no such knob -- nothing to do, e.g. non-AppArmor host).
+    """
+    if not USERNS_PROC.exists():
+        return "na"
+    try:
+        return "restricted" if USERNS_PROC.read_text().strip() == "1" else "ok"
+    except OSError:
+        return "na"
+
+
+def print_userns_fix() -> None:
+    """Print the commands that lift the restriction persistently.
+
+    Mirrors the apt path: dev-setup never runs sudo itself, it prints the
+    command for the operator to run.
+    """
+    print(f'  Run: echo "{USERNS_SYSCTL} = 0" | sudo tee {USERNS_CONF}')
+    print(f"  Run: sudo sysctl -w {USERNS_SYSCTL}=0")
+
+
 def detect_os() -> str | None:
     if platform.system() == "Darwin":
         if shutil.which("brew"):
@@ -352,6 +388,21 @@ def main() -> int:
             else:
                 skipped.append(tool.name)
                 print(f"  [skipped]   {tool.name} (optional)")
+
+    # Linux kernel tunable (not a binary): unprivileged user namespaces must be
+    # allowed or Chrome's sandbox fails, breaking the agent-browser web tests.
+    if platform.system() == "Linux":
+        status = userns_status()
+        if status == "ok" or status == "na":
+            note = "" if status == "ok" else " (n/a: no apparmor userns knob)"
+            print(f"  [present]   userns-unrestricted{note}")
+        elif args.check:
+            print("  [missing]   userns-unrestricted (REQUIRED)")
+            missing_required.append("userns-unrestricted")
+        else:
+            print("  [missing]   userns-unrestricted (REQUIRED) -- run:")
+            print_userns_fix()
+            pending_manual.append("userns-unrestricted")
 
     if not args.check:
         print()
