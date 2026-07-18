@@ -25,16 +25,25 @@ const (
 	RouteExternalType2
 )
 
+// Display names for each RouteType, shared by String() and the tests and
+// renderers that compare against them.
+const (
+	routeNameIntraArea     = "intra-area"
+	routeNameInterArea     = "inter-area"
+	routeNameExternalType1 = "external-type-1"
+	routeNameExternalType2 = "external-type-2"
+)
+
 func (t RouteType) String() string {
 	switch t {
 	case RouteIntraArea:
-		return "intra-area"
+		return routeNameIntraArea
 	case RouteInterArea:
-		return "inter-area"
+		return routeNameInterArea
 	case RouteExternalType1:
-		return "external-type-1"
+		return routeNameExternalType1
 	case RouteExternalType2:
-		return "external-type-2"
+		return routeNameExternalType2
 	default:
 		return "unknown"
 	}

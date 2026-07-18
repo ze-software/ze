@@ -168,12 +168,12 @@ func MigrateInterface(cfg MigrateConfig, eb ze.EventBus, timeout time.Duration) 
 // createByType creates an interface of the given type via the backend.
 func createByType(b Backend, name, ifaceType string) error {
 	switch ifaceType {
-	case "dummy":
+	case zeTypeDummy:
 		return b.CreateDummy(name)
-	case "veth":
+	case zeTypeVeth:
 		// Veth requires a peer name; use "<name>-peer" by convention.
 		return b.CreateVeth(name, name+"-peer")
-	case "bridge":
+	case zeTypeBridge:
 		return b.CreateBridge(name)
 	default: // unreachable after validateMigrateConfig, but defensive
 		return fmt.Errorf("migrate: unknown interface type %q", ifaceType)
