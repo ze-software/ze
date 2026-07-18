@@ -919,8 +919,10 @@ func TestParsePXEArch(t *testing.T) {
 		want uint16
 	}{
 		{"BIOS", []byte{0, 0}, 0},
+		// RFC requirement: RFC4578-2.1-2 positive -- an option 93 whose Len is an even number greater than zero (2 bytes, one architecture type) is accepted and the type is parsed.
 		{"UEFI x64", []byte{0, 7}, 7},
 		{"too short", []byte{7}, 0},
+		// RFC requirement: RFC4578-2.1-2 negative -- an option 93 whose Len is not "an even number greater than zero" (3, odd) is rejected: the option is ignored and parsePXEArch returns 0 (BIOS default).
 		{"too long", []byte{0, 7, 0}, 0},
 		{"missing", nil, 0},
 	}
