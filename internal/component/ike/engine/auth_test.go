@@ -1,11 +1,19 @@
 package engine
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"testing"
+	"time"
 
 	ikecrypto "codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
+	"codeberg.org/thomas-mangin/ze/internal/component/pki"
 )
 
 func testSAWithKeys(t *testing.T) *SA {
@@ -57,6 +65,81 @@ func testSAWithKeys(t *testing.T) *SA {
 	return sa
 }
 
+// TestAuthX509UsesMethod14 proves ze's certificate (signature) authentication uses RFC 7427
+// AUTH method 14 (Digital Signature) -- the method used when both peers exchange
+// SIGNATURE_HASH_ALGORITHMS, which ze always sends (buildSignatureHashAlgosNotify).
+//
+// RFC requirement: RFC7427-4-1 positive -- signature (certificate) authentication produces an
+// AUTH payload with method 14 (Digital Signature), not a legacy RSA/DSA method.
+func TestAuthX509UsesMethod14(t *testing.T) {
+	// A CA and a device certificate signed by it (pki.Load validates the chain).
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caTmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "rfc7427-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTmpl, caTmpl, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	devKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	devTmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "rfc7427-dev"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	devDER, err := x509.CreateCertificate(rand.Reader, devTmpl, caCert, &devKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	devCert, err := x509.ParseCertificate(devDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := pki.Load(&pki.PKIConfig{
+		CACerts: map[string]*pki.CACertEntry{
+			"rfc7427-ca": {Name: "rfc7427-ca", Certificate: caCert, Raw: caDER},
+		},
+		Certificates: map[string]*pki.CertificateEntry{
+			"rfc7427-dev": {Name: "rfc7427-dev", Certificate: devCert, Raw: devDER, PrivateKey: devKey},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	sa := testSAWithKeys(t)
+	sa.PeerCfg.Auth.Mode = ipsec.AuthX509
+	sa.PeerCfg.Auth.Certificate = "rfc7427-dev"
+
+	auth, err := computeX509Auth(sa)
+	if err != nil {
+		t.Fatalf("computeX509Auth: %v", err)
+	}
+	if auth.AuthMethod != wire.AuthMethodDigitalSig {
+		t.Fatalf("expected AUTH method 14 (Digital Signature), got %d", auth.AuthMethod)
+	}
+}
+
+// RFC requirement: RFC7427-4-1 negative -- method 14 is specific to signature authentication:
+// pre-shared-key authentication uses AUTH method 2 (Shared Key Message Integrity Code), not 14.
 func TestAuthPSKCompute(t *testing.T) {
 	sa := testSAWithKeys(t)
 	sa.PeerCfg.Auth.Mode = ipsec.AuthPreSharedSecret
