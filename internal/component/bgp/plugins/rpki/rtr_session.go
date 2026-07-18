@@ -62,6 +62,10 @@ type RTRSession struct {
 	// onASPAChange is called after ASPA data changes at End of Data.
 	// The argument is the set of customer ASNs that were modified.
 	onASPAChange func([]uint32)
+
+	// onROAChange is called after the ROA cache (VRP set) changes at End of Data, so tracked
+	// routes can be re-validated for RFC 6811 Section 4 origin re-validation.
+	onROAChange func()
 }
 
 // NewRTRSession creates a new RTR session for the given cache server.
@@ -322,6 +326,12 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		// Notify ASPA change callback (re-validation trigger).
 		if len(aspaChanged) > 0 && s.onASPAChange != nil {
 			s.onASPAChange(aspaChanged)
+		}
+
+		// Notify ROA change callback (RFC 6811 Section 4: re-validate installed routes when the
+		// VRP set changes). Any announce or withdraw can flip a covering prefix's state.
+		if (announced > 0 || withdrawn > 0) && s.onROAChange != nil {
+			s.onROAChange()
 		}
 
 		if m := rpkiMetricsPtr.Load(); m != nil {

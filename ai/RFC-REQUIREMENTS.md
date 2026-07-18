@@ -15,7 +15,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `rfc1997` | 5 | 1 | 0 | 4 | 0 | 0 | **enrolled** |
 | `rfc4360` | 6 | 2 | 0 | 4 | 0 | 0 | **enrolled** |
 | `rfc6549` | 1 | 1 | 0 | 0 | 0 | 0 | **enrolled** |
-| `rfc6811` | 5 | 4 | 0 | 1 | 0 | 0 | **enrolled** |
+| `rfc6811` | 5 | 5 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc6996` | 1 | 1 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc7606` | 52 | 39 | 0 | 13 | 0 | 0 | **enrolled** |
 | `rfc792` | 6 | 1 | 0 | 5 | 0 | 0 | **enrolled** |
@@ -3102,7 +3102,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC6811-2-6` | MAY | 2 | -- | -- |  |
 | `RFC6811-3-1` | MUST | 3 | `internal/component/bgp/plugins/rpki/rpki_batch_test.go:110` | `internal/component/bgp/plugins/rpki/rpki_batch_test.go:113` |  |
 | `RFC6811-3-2` | MUST | 3 | `internal/component/bgp/plugins/rpki/validate_test.go:92` | `internal/component/bgp/plugins/rpki/validate_test.go:94` |  |
-| `RFC6811-4-1` | MUST | 4 | -- | -- | {gap} when the RTR cache delivers a VRP mapping change, ROACache.ApplyDelta (internal/component/bgp/plugins/rpki/roa_cache.go:172) mutates silently with no change-set and no callback; the End-of-Data handler re-validates only ASPA-affected routes (onASPAChange, internal/component/bgp/plugins/rpki/rtr_session.go:322) and never re-runs origin Validate() over installed routes -- there is no origin route tracker or onROAChange trigger. Installed routes keep their pre-change validation state until an operator manually issues `request bgp adj-rib-in revalidate`. Disclosed in the docs/features/rfc-status.md RFC 6811 row |
+| `RFC6811-4-1` | MUST | 4 | `internal/component/bgp/plugins/rpki/origin_tracker_test.go:42` | `internal/component/bgp/plugins/rpki/origin_tracker_test.go:45` |  |
 
 ## RFC6996 -- enrolled (gated)
 

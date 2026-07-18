@@ -103,10 +103,13 @@ func aspaOverridesAccept(aspaState, invalidAction, unknownAction uint8) bool {
 // It manages RTR sessions to RPKI cache servers, maintains the ROA cache,
 // and validates received routes against VRPs.
 type RPKIPlugin struct {
-	plugin            *sdk.Plugin
-	cache             *ROACache
-	aspaCache         *ASPACache
-	aspaTracker       *ASPATracker
+	plugin      *sdk.Plugin
+	cache       *ROACache
+	aspaCache   *ASPACache
+	aspaTracker *ASPATracker
+	// originTracker records active routes for RFC 6811 Section 4 re-validation when the ROA
+	// cache (VRP set) changes. Populated whenever origin validation runs (independent of ASPA).
+	originTracker     *OriginTracker
 	aspaEnabled       atomic.Bool
 	aspaInvalidAction atomic.Uint32
 	aspaUnknownAction atomic.Uint32
@@ -142,12 +145,13 @@ func RunRPKIPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rp := &RPKIPlugin{
-		plugin:      p,
-		cache:       NewROACache(),
-		aspaCache:   NewASPACache(),
-		aspaTracker: NewASPATracker(),
-		validateCh:  make(chan validationRequest, 4096),
-		stopCh:      make(chan struct{}),
+		plugin:        p,
+		cache:         NewROACache(),
+		aspaCache:     NewASPACache(),
+		aspaTracker:   NewASPATracker(),
+		originTracker: NewOriginTracker(),
+		validateCh:    make(chan validationRequest, 4096),
+		stopCh:        make(chan struct{}),
 	}
 
 	// Start async validation worker (long-lived goroutine per Ze rules).
@@ -275,6 +279,7 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	for _, cs := range cfg.CacheServers {
 		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, rp.stopCh)
 		session.onASPAChange = rp.handleASPAChange
+		session.onROAChange = rp.handleROAChange
 		rp.sessions = append(rp.sessions, session)
 		rp.sessionWg.Go(session.Run)
 		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
@@ -357,10 +362,10 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		}
 	}
 
-	// Remove withdrawn routes from ASPA tracker.
-	if rp.aspaEnabled.Load() {
-		rp.removeWithdrawnFromTracker(peerAddr, wu, ctx)
-	}
+	// Remove withdrawn routes from the ASPA and origin trackers. Unconditional: the origin
+	// tracker is populated whenever RPKI is active, so it must be pruned on withdrawal even when
+	// ASPA is disabled (the ASPA tracker is empty then, so its removal is a no-op).
+	rp.removeWithdrawnFromTracker(peerAddr, wu, ctx)
 }
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
@@ -419,6 +424,11 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 		case <-rp.stopCh:
 			return
 		}
+
+		// Track the route for RFC 6811 Section 4 origin re-validation when the ROA cache (VRP set)
+		// changes. Independent of ASPA: origin validation runs whenever RPKI is active.
+		rp.originTracker.Track(routeKey{peerAddr: peerAddr, family: family, prefix: prefix, pathID: pathID},
+			originAS, state, aspaState)
 	}
 
 	if len(familyResults) > 0 || cacheEmpty {
@@ -798,8 +808,37 @@ func (rp *RPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, 
 		}
 		prefix := netip.PrefixFrom(addr, prefixLen).String()
 
-		rp.aspaTracker.Remove(routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID})
+		key := routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID}
+		rp.aspaTracker.Remove(key)
+		rp.originTracker.Remove(key)
 	}
+}
+
+// handleROAChange is called by RTR sessions when the ROA cache (VRP set) changes at End of Data.
+// RFC 6811 Section 4: it re-validates every tracked route's origin state against the updated cache
+// and re-dispatches an accept/reject decision for each route whose state changed, so the
+// Adj-RIB-In and the decision process reflect the new VRPs. buildDecisions applies the configured
+// invalid-action to the re-dispatched decisions, exactly as it does for freshly received routes.
+func (rp *RPKIPlugin) handleROAChange() {
+	changed := rp.originTracker.Revalidate(rp.cache)
+	if len(changed) == 0 {
+		return
+	}
+	for _, c := range changed {
+		select {
+		case rp.validateCh <- validationRequest{
+			peerAddr:  c.key.peerAddr,
+			family:    c.key.family,
+			prefix:    c.key.prefix,
+			pathID:    c.key.pathID,
+			state:     c.state,
+			aspaState: c.aspaState,
+		}:
+		case <-rp.stopCh:
+			return
+		}
+	}
+	logger().Info("rpki: re-validated routes after VRP change", "changed", len(changed))
 }
 
 // handleASPAChange is called by RTR sessions when ASPA cache data changes.

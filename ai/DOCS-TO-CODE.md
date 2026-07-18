@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 292 design docs, 2994 files
+Total: 292 design docs, 2995 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1291,6 +1291,7 @@ Total: 292 design docs, 2994 files
 | `internal/component/bgp/plugins/rpki/aspa_tracker.go` | ASPA route tracker for re-validation |
 | `internal/component/bgp/plugins/rpki/aspa_verify.go` | ASPA upstream path verification |
 | `internal/component/bgp/plugins/rpki/emit.go` | RPKI validation event emission |
+| `internal/component/bgp/plugins/rpki/origin_tracker.go` | RFC 6811 Section 4 origin re-validation |
 | `internal/component/bgp/plugins/rpki/roa_cache.go` | ROA cache for RPKI validation |
 | `internal/component/bgp/plugins/rpki/rpki.go` | RPKI origin validation plugin |
 | `internal/component/bgp/plugins/rpki/rpki_config.go` | RPKI config parsing |
