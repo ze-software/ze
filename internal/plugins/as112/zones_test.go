@@ -39,6 +39,14 @@ func TestServedZones_CompleteList(t *testing.T) {
 
 // VALIDATES: AC-2 -- a query for a name within a Direct-Delegation reverse
 // zone gets NOERROR, empty Answer, zone SOA in Authority (RFC 1035 NODATA).
+//
+// RFC requirement: RFC7534-3.5-1 positive -- the AS112 nameserver answers authoritatively for a
+// zone delegated to it: a query within 10.in-addr.arpa. is answered from that zone (NOERROR, the
+// zone's own SOA in Authority).
+// RFC requirement: RFC7534-3.5-2 positive -- a Direct-Delegation zone contains no records beyond
+// SOA and NS: a PTR query returns NODATA (empty Answer, SOA in Authority), never a PTR record.
+// RFC requirement: RFC7534-3.5-3 positive -- records for RFC 1918 resources are not hosted on the
+// nameserver: the RFC 1918 reverse name 1.0.10.in-addr.arpa. yields NODATA, not a hosted PTR.
 func TestZoneAnswer_ReverseZoneNoData(t *testing.T) {
 	r := new(dns.Msg)
 	r.SetQuestion("1.0.10.in-addr.arpa.", dns.TypePTR)
@@ -113,6 +121,10 @@ func TestZoneAnswer_HostnameTXTIncludesHostname(t *testing.T) {
 }
 
 // VALIDATES: AC-5 -- a name outside every served zone is NXDOMAIN.
+//
+// RFC requirement: RFC7534-3.5-1 negative -- authoritative answering is confined to the delegated
+// zones: a name outside every served zone (example.com.) is not answered with authoritative data
+// (NXDOMAIN), so the nameserver answers only for the zones delegated to it.
 func TestZoneAnswer_OutOfZoneNXDOMAIN(t *testing.T) {
 	r := new(dns.Msg)
 	r.SetQuestion("example.com.", dns.TypeA)
@@ -155,6 +167,10 @@ func TestZoneAnswer_SiblingNameNotInZone_NXDOMAIN(t *testing.T) {
 // VALIDATES: AC-13 / finding M1 -- SOA timers match the RFC 7534 db.dd-empty
 // / db.dr-empty example zone files exactly (refresh 1W, retry 1M=60s,
 // expire 1W, minimum 1W), and MNAME/NS match the canonical names per kind.
+//
+// RFC requirement: RFC7534-3.5-2 negative -- a Direct-Delegation zone does contain SOA and NS (the
+// "no records beyond SOA and NS" rule is not "no records at all"): the zone has an SOA with the
+// RFC-mandated parameters and exactly the two blackhole-{1,2}.iana.org. NS records.
 func TestSOA_RFCMandatedParameters(t *testing.T) {
 	dd := buildSOA("10.in-addr.arpa.", kindDirectDelegation, 42)
 	if dd.Refresh != 604800 || dd.Retry != 60 || dd.Expire != 604800 || dd.Minttl != 604800 {
