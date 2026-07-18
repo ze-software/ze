@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate ai/CODE-TO-DOCS.md: reverse index from source anchors in docs/.
 
-Scans all markdown files under docs/ for <!-- source: path -- description -->
-anchors and inverts the mapping to produce a code-path -> doc-files index.
+Scans markdown files under docs/ (skipping gitignored research output) for
+<!-- source: path -- description --> anchors and inverts the mapping to produce
+a code-path -> doc-files index.
 
 Output is grouped by package directory for fast lookup when editing code.
 
@@ -11,8 +12,8 @@ Usage:
     python3 scripts/dev/code_to_docs.py --check  # also report stale references
 """
 
-import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -20,7 +21,17 @@ from pathlib import Path
 
 ANCHOR_RE = re.compile(r"<!--\s*source:\s*(.+?)\s*-->")
 
-PATH_PREFIX = ("Makefile", "go.mod", "internal/", "cmd/", "pkg/", "test/", "scripts/", "rfc/", "mk/")
+PATH_PREFIX = (
+    "Makefile",
+    "go.mod",
+    "internal/",
+    "cmd/",
+    "pkg/",
+    "test/",
+    "scripts/",
+    "rfc/",
+    "mk/",
+)
 DESC_SEP = re.compile(r"\s+(?:--|-|\u2014)\s+")
 
 
@@ -75,6 +86,39 @@ def package_dir(path: str) -> str:
     return path
 
 
+def filter_gitignored(root: Path, paths: list[Path]) -> list[Path]:
+    """Drop paths that git ignores, preserving order.
+
+    ai/CODE-TO-DOCS.md is a tracked, committed index, but docs/ also holds
+    gitignored research output (docs/research/comparison/, see .gitignore) that
+    is present only on machines carrying the local research files. Indexing it
+    makes the generated file non-reproducible -- e.g. 1439 code paths on a host
+    that has the research docs vs 1438 on a clean checkout. Filtering through
+    `git check-ignore` keeps the output identical on every checkout.
+
+    Falls back to the unfiltered list when git is unavailable or the tree is not
+    a repository, so the generator still runs outside a git checkout.
+    """
+    if not paths:
+        return paths
+    rels = [str(p.relative_to(root)) for p in paths]
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "check-ignore", "--stdin"],
+            input="\n".join(rels),
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return paths
+    # git check-ignore exits 0 when some paths are ignored, 1 when none are, and
+    # 128 on error (e.g. not a git repository). Only 0/1 are trustworthy.
+    if proc.returncode not in (0, 1):
+        return paths
+    ignored = {line for line in proc.stdout.splitlines() if line}
+    return [path for path, rel in zip(paths, rels) if rel not in ignored]
+
+
 def main():
     root = Path(__file__).resolve().parents[2]
     docs_dir = root / "docs"
@@ -88,7 +132,7 @@ def main():
     # code_path -> set of (doc_file, line_number)
     index: dict[str, set[tuple[str, int]]] = defaultdict(set)
 
-    for md_file in sorted(docs_dir.rglob("*.md")):
+    for md_file in filter_gitignored(root, sorted(docs_dir.rglob("*.md"))):
         rel_doc = str(md_file.relative_to(root))
         with open(md_file, encoding="utf-8", errors="replace") as f:
             for line_no, line in enumerate(f, 1):
@@ -166,7 +210,9 @@ def main():
         print(f"checked {len(index)} code paths, {len(pkg_index)} packages")
     else:
         output_file.write_text(content, encoding="utf-8")
-        print(f"wrote {output_file} ({len(index)} code paths, {len(pkg_index)} packages)")
+        print(
+            f"wrote {output_file} ({len(index)} code paths, {len(pkg_index)} packages)"
+        )
     if check_mode:
         if n_stale:
             print(f"WARNING: {n_stale} stale references (code path no longer exists)")
