@@ -49,6 +49,79 @@ func TestISISUnknownTLVPassthrough(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC3787-x-1 positive -- TLV 131 (Inter-Domain Routing
+// Protocol Information) and TLV 133 (old Authentication, replaced by TLV 10)
+// are IGNORED on receipt (RFC 3787 sec 3.1, 3.2): neither is a recognized codec
+// type constant, so both fall through the opaque-unknown path (retained for
+// verbatim re-flood, never interpreted). In particular TLV 133 is NOT treated
+// as authentication -- the auth path recognizes only TLV 10, so AuthTLVIndex
+// does not select the obsolete auth TLV.
+// RFC requirement: RFC3787-x-1 negative -- ignoring is specific to the obsolete
+// unrecognized types, not a blanket drop of everything in the region: a
+// recognized TLV 129 in the same PDU is still interpreted
+// (DecodeProtocolsSupportedTLV yields its NLPIDs).
+func TestISISIgnoreObsoleteTLVs131And133(t *testing.T) {
+	region := []byte{
+		131, 2, 0x00, 0x00, // TLV 131 Inter-Domain Routing Protocol Info -- ignored
+		133, 3, 0x01, 0x02, 0x03, // TLV 133 old Authentication -- ignored (replaced by TLV 10)
+		TLVProtocolsSupported, 1, NLPIDIPv4, // TLV 129 -- recognized, interpreted
+	}
+	tlvs, err := DecodeTLVs(region)
+	if err != nil {
+		t.Fatalf("DecodeTLVs: %v", err)
+	}
+
+	// positive: the obsolete auth TLV 133 must NOT be treated as authentication;
+	// only TLV 10 is (RFC 3787 sec 3.2 -- TLV 133 replaced by the TLV 10 codec).
+	if got := AuthTLVIndex(tlvs); got != -1 {
+		t.Fatalf("TLV 133 treated as authentication (AuthTLVIndex = %d); only TLV 10 is auth", got)
+	}
+	// positive: both obsolete TLVs are retained opaquely (ignored, not dropped),
+	// so the LSDB can still re-flood the PDU verbatim (ISO/IEC 10589 clause 7.3.14).
+	var got131, got133 bool
+	for _, tv := range tlvs {
+		switch tv.Type {
+		case 131:
+			got131 = true
+		case 133:
+			got133 = true
+		}
+	}
+	if !got131 || !got133 {
+		t.Fatalf("obsolete TLV dropped rather than retained: 131=%v 133=%v", got131, got133)
+	}
+	// positive: neither obsolete type is a recognized codec constant -- the codec
+	// has no decoder for 131/133, which is precisely why they are ignored.
+	recognized := []uint8{
+		TLVAreaAddresses, TLVISReachabilityNarrow, TLVISNeighbors, TLVPadding,
+		TLVLSPEntries, TLVAuthentication, TLVExtendedISReach, TLVProtocolsSupported,
+		TLVIPInterfaceAddress, TLVExtendedIPReach, TLVDynamicHostname,
+		TLVIPv6InterfaceAddress, TLVIPv6Reachability, TLVP2PThreeWay,
+	}
+	for _, c := range recognized {
+		if c == 131 || c == 133 {
+			t.Fatalf("obsolete TLV %d is a recognized codec constant; RFC 3787 requires it be ignored", c)
+		}
+	}
+
+	// negative: a recognized TLV 129 in the SAME region is not ignored -- it is
+	// decoded to its NLPID list, proving the ignore is scoped to unrecognized types.
+	var found129 bool
+	for _, tv := range tlvs {
+		if tv.Type != TLVProtocolsSupported {
+			continue
+		}
+		found129 = true
+		ps := DecodeProtocolsSupportedTLV(tv.Value)
+		if len(ps.NLPIDs) != 1 || ps.NLPIDs[0] != NLPIDIPv4 {
+			t.Fatalf("recognized TLV 129 not interpreted (NLPIDs = % x), want [%#02x]", ps.NLPIDs, NLPIDIPv4)
+		}
+	}
+	if !found129 {
+		t.Fatal("recognized TLV 129 missing from the decoded region")
+	}
+}
+
 // VALIDATES: the opaque carrier copies its value on demand so retained TLVs do
 // not dangle when the source buffer is recycled (decode lifetime contract).
 // PREVENTS: a use-after-recycle bug in the LSDB.

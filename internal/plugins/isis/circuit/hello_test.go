@@ -132,6 +132,12 @@ func hasTLV(tlvs []packet.TLV, typ uint8) bool {
 
 // TestISISIIHOriginationTLVs: the originated LAN IIH carries TLV 1/129/132/6 and
 // the P2P IIH carries TLV 1/129/132/240.
+//
+// RFC requirement: RFC3787-x-2 positive -- the originated IIH (both the LAN and
+// the P2P form) carries a Protocols Supported TLV (129) and an IP Interface
+// Address TLV (132), the mixed-environment interoperability TLVs RFC 3787 sec
+// 9/10 (RFC 1195) require in every Hello. The 129 value advertising the IPv4
+// NLPID is asserted by TestISISHelloTLV132RequiresInterfaceAddr.
 func TestISISIIHOriginationTLVs(t *testing.T) {
 	t.Run("LAN", func(t *testing.T) {
 		s := &fakeSender{mtu: 1500}
@@ -175,6 +181,34 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 			t.Error("P2P Hello should be sent to both level groups")
 		}
 	})
+}
+
+// RFC requirement: RFC3787-x-2 negative -- the origination of the IP Interface
+// Address TLV (132) is bounded to a REAL interface address: a circuit with no
+// IPv4 address omits TLV 132 (returns a zero Type-0 TLV the caller drops) rather
+// than emitting a garbage/zero one, while the Protocols Supported TLV (129) still
+// advertises the IPv4 NLPID (0xCC). This pins that the mixed-environment TLVs are
+// generated from live interface state, not fabricated (RFC 3787 sec 9/10, RFC 1195).
+func TestISISHelloTLV132RequiresInterfaceAddr(t *testing.T) {
+	c := &Circuit{} // no IPv4 interface address configured
+
+	if tlv := c.ipv4InterfaceAddrTLV(); tlv.Type != 0 {
+		t.Fatalf("TLV 132 emitted without an interface address: type=%d value=% x", tlv.Type, tlv.Value)
+	}
+
+	ps := c.protocolsSupportedTLV()
+	if ps.Type != packet.TLVProtocolsSupported {
+		t.Fatalf("Protocols Supported TLV type = %d, want %d", ps.Type, packet.TLVProtocolsSupported)
+	}
+	var hasIPv4 bool
+	for _, nlpid := range ps.Value {
+		if nlpid == packet.NLPIDIPv4 {
+			hasIPv4 = true
+		}
+	}
+	if !hasIPv4 {
+		t.Fatalf("TLV 129 does not advertise the IPv4 NLPID %#02x: % x", packet.NLPIDIPv4, ps.Value)
+	}
 }
 
 // TestISISAreaAddressesTLVManyAreasNoPanic: a circuit configured with far more
