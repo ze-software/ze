@@ -363,6 +363,13 @@ func TestTFTPReadRequest(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2348-x-4 positive -- a data block shorter than the negotiated
+// blocksize signals the end of the transfer: a 1500-byte file over the 512-byte
+// blocksize ends after exactly three blocks (512+512+476), the last one short
+// (RFC 2348; producer serveFile stops after n < blksize, internal/plugins/tftpserver/handler.go:379).
+// RFC requirement: RFC2348-x-5 negative -- when the transfer size is NOT an exact
+// multiple of the blocksize (1500 vs 512), NO extra zero-length data packet is sent:
+// the short final block itself ends the transfer (only three blocks total).
 func TestTFTPReadLargeFile(t *testing.T) {
 	t.Parallel()
 
@@ -427,6 +434,13 @@ func TestTFTPReadLargeFile(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2348-x-5 positive -- when the transfer size is an exact multiple
+// of the blocksize (512 bytes over the 512-byte block), an extra zero-length data packet
+// is sent to end the transfer: block 1 carries 512 bytes and block 2 carries 0 bytes
+// (RFC 2348; producer serveFile keeps reading until a short/zero block, internal/plugins/tftpserver/handler.go:379).
+// RFC requirement: RFC2348-x-4 negative -- a FULL block (exactly the blocksize) does NOT
+// signal end of transfer: block 1 is 512 bytes and the transfer continues to block 2, so
+// only a shorter-than-blocksize block ends it.
 func TestTFTPReadExact512(t *testing.T) {
 	t.Parallel()
 
