@@ -183,11 +183,45 @@ def userns_status() -> str:
 def print_userns_fix() -> None:
     """Print the commands that lift the restriction persistently.
 
-    Mirrors the apt path: dev-setup never runs sudo itself, it prints the
-    command for the operator to run.
+    Used as the manual fallback when the automatic apply cannot run sudo.
     """
     print(f'  Run: echo "{USERNS_SYSCTL} = 0" | sudo tee {USERNS_CONF}')
     print(f"  Run: sudo sysctl -w {USERNS_SYSCTL}=0")
+
+
+def apply_userns_fix() -> bool:
+    """Print, then run, the commands that lift the restriction persistently.
+
+    Writes the /etc/sysctl.d drop-in (survives reboot) and applies the value
+    live, via sudo. Each command is echoed before it runs. Returns True only
+    when the restriction is actually cleared; on any failure (e.g. sudo needs
+    a password and none is available) it returns False so the caller can fall
+    back to printing the manual commands.
+    """
+    steps = [
+        (
+            f'echo "{USERNS_SYSCTL} = 0" | sudo tee {USERNS_CONF}',
+            ["sudo", "tee", USERNS_CONF],
+            f"{USERNS_SYSCTL} = 0\n".encode(),
+        ),
+        (
+            f"sudo sysctl -w {USERNS_SYSCTL}=0",
+            ["sudo", "sysctl", "-w", f"{USERNS_SYSCTL}=0"],
+            None,
+        ),
+    ]
+    for shown, argv, stdin in steps:
+        print(f"  Run: {shown}")
+        r = subprocess.run(
+            argv,
+            input=stdin,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        if r.returncode != 0:
+            print(f"  FAIL: {shown}: {r.stderr.decode().strip()}")
+            return False
+    return userns_status() == "ok"
 
 
 def detect_os() -> str | None:
@@ -399,8 +433,11 @@ def main() -> int:
         elif args.check:
             print("  [missing]   userns-unrestricted (REQUIRED)")
             missing_required.append("userns-unrestricted")
+        elif apply_userns_fix():
+            print("  [installed] userns-unrestricted")
+            installed.append("userns-unrestricted")
         else:
-            print("  [missing]   userns-unrestricted (REQUIRED) -- run:")
+            print("  Could not apply automatically; run manually:")
             print_userns_fix()
             pending_manual.append("userns-unrestricted")
 

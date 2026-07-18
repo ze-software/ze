@@ -76,15 +76,18 @@ automatically. Copy and run the printed commands to install.
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
 Chrome relies on and makes the `agent-browser` web functional tests fail to
 launch Chrome (`No usable sandbox!`). Setup checks this tunable as
-`userns-unrestricted`; when it is restricted the script prints the commands to
-lift it globally:
+`userns-unrestricted`. When it is restricted, `make ze-setup` (install mode)
+echoes and then runs these commands via `sudo` to lift it globally:
 
 ```bash
 echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 ```
 
-The `/etc/sysctl.d` drop-in makes the change survive reboots.
+The `/etc/sysctl.d` drop-in makes the change survive reboots. This is the one
+place setup runs `sudo`; if `sudo` is unavailable it prints the commands to run
+by hand instead. `make ze-setup CHECK=1` only reports the state, never changes
+it.
 
 ## After Setup
 
