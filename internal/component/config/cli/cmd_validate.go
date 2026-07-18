@@ -243,15 +243,30 @@ func runValidation(input, path string) *validationResult {
 		result.addError("config-parse", "YANG schema: "+err.Error())
 		return result
 	}
-	p := config.NewParser(schema)
-	tree, err := p.Parse(input)
+	// Match the loader's format detection (ParseTreeWithYANG): a config file may
+	// be hierarchical (block) or the flat set-command form the first-boot
+	// bootstrap writes via EmitSetConfigWithDHCP. Validating only the block
+	// grammar rejected every set-command file with "unknown top-level keyword:
+	// set", so `ze config validate` disagreed with what `ze start` actually loads.
+	var tree *config.Tree
+	var warnings []string
+	switch config.DetectFormat(input) {
+	case config.FormatSet, config.FormatSetMeta:
+		tree, err = config.ParseTreeForValidation(input)
+	default:
+		p := config.NewParser(schema)
+		tree, err = p.Parse(input)
+		if err == nil {
+			warnings = p.Warnings()
+		}
+	}
 	if err != nil {
 		result.addErrorLine("config-parse", err.Error(), extractLine(err.Error()))
 		return result
 	}
 
 	// Surface parser warnings (e.g., inactive: prefix on leaf nodes).
-	for _, w := range p.Warnings() {
+	for _, w := range warnings {
 		result.addWarning("config-warning", w)
 	}
 

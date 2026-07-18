@@ -81,3 +81,32 @@ func TestCheckCardinalityNilListAttr(t *testing.T) {
 	checkCardinality("test/path", entry, 5, &errs)
 	assert.Empty(t, errs)
 }
+
+// TestLeafListItems covers every shape a leaf-list takes in the tree map.
+//
+// VALIDATES: a multi-member leaf-list (Tree.ToMap stores it as []string) is
+// flattened to its members so cardinality and per-item validation run on it.
+// PREVENTS: the regression where only the single-member string shape was
+// handled, so a []string leaf-list silently skipped max-elements enforcement.
+func TestLeafListItems(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  []string
+	}{
+		{"single member string", "a1", []string{"a1"}},
+		{"space-separated string", "a1 a2 a3", []string{"a1", "a2", "a3"}},
+		{"empty string", "", nil},
+		{"string slice (multi-member)", []string{"a1", "a2"}, []string{"a1", "a2"}},
+		{"empty string slice", []string{}, []string{}},
+		{"any slice of strings", []any{"a1", "a2"}, []string{"a1", "a2"}},
+		{"any slice with non-string", []any{"a1", 2}, []string{"a1", "2"}},
+		{"unsupported type", 42, nil},
+		{"nil", nil, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, leafListItems(tt.value))
+		})
+	}
+}

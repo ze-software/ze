@@ -663,11 +663,15 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 			continue
 		}
 
-		// Leaf-list: validate cardinality and each item individually.
-		// Bracket leaf-lists are stored as space-separated strings.
+		// Leaf-list: validate cardinality and each item individually. A leaf-list
+		// reaches us in one of three shapes (see leafListItems): a bare string for
+		// a single active member, a []string for several, or a space-separated
+		// string. Handling only the string shape silently skipped cardinality and
+		// per-item checks for any multi-member leaf-list -- exactly the case a
+		// max-elements bound must catch.
 		if child.IsLeafList() {
-			if str, ok := value.(string); ok && str != "" {
-				items := strings.Fields(str)
+			items := leafListItems(value)
+			if len(items) > 0 {
 				checkCardinality(childPath, child, uint64(len(items)), errs)
 				for _, item := range items {
 					if leafErr := v.validateEntry(childPath, child, item); leafErr != nil {
@@ -774,6 +778,35 @@ func (v *Validator) applyCustomValidators(path string, child *yang.Entry, value 
 			Type:    ErrTypeType,
 			Message: lastErr.Error(),
 		})
+	}
+}
+
+// leafListItems flattens the shapes a leaf-list takes in the config tree map
+// into individual members. Tree.ToMap stores a single active member as a bare
+// string and two-or-more members as a []string; a raw parsed value can also be
+// a space-separated string or a []any. Returning nil for anything else lets the
+// caller skip a leaf-list it cannot interpret rather than miscount it.
+func leafListItems(value any) []string {
+	switch vv := value.(type) {
+	case string:
+		if vv == "" {
+			return nil
+		}
+		return strings.Fields(vv)
+	case []string:
+		return vv
+	case []any:
+		items := make([]string, 0, len(vv))
+		for _, e := range vv {
+			if s, ok := e.(string); ok {
+				items = append(items, s)
+			} else {
+				items = append(items, fmt.Sprint(e))
+			}
+		}
+		return items
+	default:
+		return nil
 	}
 }
 
