@@ -63,7 +63,7 @@ ze-stress-profile: bin/ze
 # Evidence-tier concurrency stress tests (build-tagged, out of ze-verify per R-6).
 ze-stress-web-test:
 	@echo "Running web concurrent-edit stress test (>=50 editor sessions, -race)..."
-	$(GO) test -tags 'ze_core stress' -race -count=1 -timeout 300s ./internal/component/web/ -run TestWebConcurrentEditStress -v
+	CGO_ENABLED=1 $(GO) test -tags 'ze_core stress' -race -count=1 -timeout 300s ./internal/component/web/ -run TestWebConcurrentEditStress -v
 
 ze-stress-fleet-test:
 	@echo "Running fleet many-clients perf test (128 managed clients, real hub listener)..."
@@ -81,27 +81,27 @@ ze-live-rpki-test:
 
 ze-integration-iface-test:
 	@echo "Running iface integration tests (requires CAP_NET_ADMIN)..."
-	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/component/iface/...
+	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/component/iface/...
 
 ze-integration-fib-test:
 	@echo "Running FIB kernel integration tests (requires CAP_NET_ADMIN)..."
-	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fib/kernel/...
+	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fib/kernel/...
 
 ze-integration-firewall-test:
 	@echo "Running firewall nft integration tests (requires CAP_NET_ADMIN)..."
-	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/firewall/nft/...
+	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/firewall/nft/...
 
 ze-integration-traffic-test:
 	@echo "Running traffic-control netlink integration tests (requires CAP_NET_ADMIN)..."
-	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/traffic/netlink/...
+	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/traffic/netlink/...
 
 ze-integration-gtsm-test:
 	@echo "Running BGP GTSM / TTL-security socket-option integration tests (linux)..."
-	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/core/network/... ./internal/component/bgp/reactor/...
+	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/core/network/... ./internal/component/bgp/reactor/...
 
 ze-integration-as112-test:
 	@echo "Running AS112 privileged-port-53 DNS-serving integration tests (requires CAP_NET_BIND_SERVICE/root)..."
-	$(GO) test -tags integration -count=1 -race -timeout 60s ./internal/plugins/as112/...
+	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 60s ./internal/plugins/as112/...
 
 ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
 

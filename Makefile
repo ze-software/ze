@@ -68,6 +68,12 @@ GO_TEST_TAGS = ze_core $(ZE_FEATURES) $(ZE_TAGS)
 GO_TEST_CORE_TAGS = ze_core $(ZE_TAGS)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_TAGS)'
 GO_TEST_CORE = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_CORE_TAGS)'
+# `go test -race` links the race runtime through cgo, so the global CGO_ENABLED=0
+# (kept so release binaries stay static) has to be overridden on race targets or
+# every -race run aborts with "-race requires cgo". Non-race test runs stay
+# CGO-free. Use these for any -race invocation instead of `$(GO_TEST) -race`.
+GO_TEST_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -tags '$(GO_TEST_TAGS)' -race
+GO_TEST_CORE_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -tags '$(GO_TEST_CORE_TAGS)' -race
 ZE_EXABGP_TIMEOUT ?= 180
 ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
@@ -217,7 +223,7 @@ ze-vet-evidence:
 
 ze-race-reactor:
 	@echo "Stress race-test reactor (count=20)..."
-	$(GO_TEST) -race -count=20 ./internal/component/bgp/reactor/...
+	$(GO_TEST_RACE) -count=20 ./internal/component/bgp/reactor/...
 
 ze-linux-test:
 	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
@@ -252,9 +258,9 @@ ze-unit-test-changed: ze-ensure-links
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
 	echo "Testing changed packages: $$pkgs"; \
-	$(GO_TEST) -race $$pkgs
+	$(GO_TEST_RACE) $$pkgs
 	@echo "Unit tests: bare ze_core compile-out checks..."
-	$(GO_TEST_CORE) -race ./cmd/ze/hub
+	$(GO_TEST_CORE_RACE) ./cmd/ze/hub
 
 # ─── Agent-guard hook tests ────────────────────────────────────────────────
 
@@ -550,6 +556,12 @@ help-test:
 	@echo "    ze-l2tp-wire-test         L2TP wire-level (release evidence only)"
 	@echo "    ze-isis-wire-test         IS-IS wire-level decode (release evidence only)"
 	@echo "    ze-ospf-wire-test         OSPFv2 wire-level decode (release evidence only)"
+	@echo ""
+	@echo "  Functional tests run against an ISOLATED binary set by default"
+	@echo "  (tmp/testbin-<pid>/, removed on exit), so a running suite never touches"
+	@echo "  bin/ze and you can keep building/editing while it runs."
+	@echo "    ZE_SUFFIX=<name>          Pin a stable, kept dir (tmp/testbin-<name>/)"
+	@echo "    ZE_TEST_CANONICAL=1       Opt out: rebuild bin/ze + bin/ze-test in place"
 	@echo ""
 	@echo "  Fuzz:"
 	@echo "    ze-fuzz-test              All fuzz targets (10s each)"

@@ -31,14 +31,14 @@ ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 # Run ze unit tests with race detector (default-on features plus bare-core compile-out checks).
 ze-unit-test:
 	@echo "Running ze unit tests..."
-	$(GO_TEST) -race $(ZE_PACKAGES)
+	$(GO_TEST_RACE) $(ZE_PACKAGES)
 	@echo "Unit tests: bare ze_core compile-out checks..."
-	$(GO_TEST_CORE) -race ./cmd/ze/hub
+	$(GO_TEST_CORE_RACE) ./cmd/ze/hub
 
 # Run ze unit tests with coverage.
 ze-unit-test-cover:
 	@echo "Running ze unit tests with coverage..."
-	$(GO_TEST) -race -coverprofile=coverage.out $(ZE_PACKAGES)
+	$(GO_TEST_RACE) -coverprofile=coverage.out $(ZE_PACKAGES)
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
@@ -58,9 +58,9 @@ ze-unit-test-race-changed:
 		echo "No changed .go files -- skipping -race pass"; \
 	else \
 		echo "Unit tests: -race on changed groups: $$groups"; \
-		$(GO_TEST) -race $$groups; \
+		$(GO_TEST_RACE) $$groups; \
 		echo "Unit tests: bare ze_core compile-out checks..."; \
-		$(GO_TEST_CORE) -race ./cmd/ze/hub; \
+		$(GO_TEST_CORE_RACE) ./cmd/ze/hub; \
 	fi
 
 # ─── Component-group unit tests ─────────────────────────────────────────────
@@ -69,24 +69,24 @@ ze-unit-test-race-changed:
 
 ze-test-bgp:
 	@echo "Unit tests: bgp group..."
-	$(GO_TEST) -race $(ZE_GROUP_BGP)
+	$(GO_TEST_RACE) $(ZE_GROUP_BGP)
 
 ze-test-core:
 	@echo "Unit tests: core group..."
-	$(GO_TEST) -race $(ZE_GROUP_CORE)
+	$(GO_TEST_RACE) $(ZE_GROUP_CORE)
 
 ze-test-plugins:
 	@echo "Unit tests: plugins group..."
-	$(GO_TEST) -race $(ZE_GROUP_PLUGINS)
+	$(GO_TEST_RACE) $(ZE_GROUP_PLUGINS)
 
 ze-test-config:
 	@echo "Unit tests: config group..."
-	$(GO_TEST) -race $(ZE_GROUP_CONFIG)
+	$(GO_TEST_RACE) $(ZE_GROUP_CONFIG)
 
 ze-test-cli:
 	@echo "Unit tests: cli group..."
-	$(GO_TEST) -race $(ZE_GROUP_CLI)
+	$(GO_TEST_RACE) $(ZE_GROUP_CLI)
 
 ze-test-rest:
 	@echo "Unit tests: rest group (everything not in a named group)..."
-	$(GO_TEST) -race $(ZE_GROUP_REST)
+	$(GO_TEST_RACE) $(ZE_GROUP_REST)

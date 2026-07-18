@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1165 summaries
+Total: 1166 summaries
 
 ## 000-099
 
@@ -1234,3 +1234,4 @@ Total: 1165 summaries
 | 1171 | fixit-reject-fence-observability-deferred-external-plugin-signals | `plan/learned/1171-fixit-reject-fence-observability-deferred-external-plugin-signals.md` |
 | 1172 | rfc-requirement-coverage | `plan/learned/1172-rfc-requirement-coverage.md` |
 | 1173 | Relocate scratch + durable cache out of the repo (symlinks) | `plan/learned/1173-relocate-scratch-and-cache.md` |
+| 1173 | cgo-race-requires-cgo | `plan/learned/1173-cgo-race-requires-cgo.md` |

@@ -25,7 +25,7 @@ ze-chaos-lint:
 
 ze-chaos-unit-test:
 	@echo "Running chaos unit tests..."
-	$(GO_TEST) -race $(CHAOS_PACKAGES)
+	$(GO_TEST_RACE) $(CHAOS_PACKAGES)
 
 ze-chaos-functional-test: bin/ze-chaos
 	@bin/ze-chaos --in-process --duration $(CHAOS_DURATION) \
