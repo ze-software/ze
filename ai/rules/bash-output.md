@@ -51,6 +51,27 @@ summary) by default. Override with `ZE_VERIFY_LOG=tmp/ze-verify-$$.log`
 to avoid collisions between concurrent sessions. Read logs with the
 Read tool, with `offset`/`limit` for paging.
 
+## Write Ad-Hoc Scratch Under Your Per-Session Dir
+
+`tmp/` is shared by every concurrent session in this checkout (it is keyed
+per-checkout, not per-session -- `scripts/dev/ensure-links.py`). A fixed name at
+the `tmp/` root -- `tmp/out.log`, `tmp/stdout`, `tmp/gotest.log` -- collides with
+a sibling session writing the same name, and is never cleaned when your session
+ends.
+
+Write ad-hoc scratch under this session's private directory instead:
+
+```
+dir=$(scripts/dev/session-scratch.sh)          # tmp/s/<session-id>/, created for you
+make ze-unit-test-changed > "$dir/unit.log" 2>&1
+```
+
+The whole directory is removed at session end (`.claude/hooks/session-end-scratch.sh`,
+with a 24h backstop in `session-start.sh`), so your scratch is self-contained and
+disposable. Do NOT relocate artifacts that are already session-keyed (commit
+scripts `tmp/commit-<sid>.sh`, session state `tmp/session/*-<SID>*`) or shared by
+design (`tmp/go-cache`, `tmp/ze-verify.*`, the durable `cache/`) -- those stay put.
+
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 
 `.claude/hooks/pretool-bash.py` blocks the banned git verbs by matching the

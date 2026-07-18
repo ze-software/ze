@@ -1,0 +1,49 @@
+#!/bin/bash
+# SessionEnd hook: remove THIS session's private scratch dir, tmp/s/<session-id>/.
+#
+# Pairs with scripts/dev/session-scratch.sh (which creates it). Removes only this
+# session's own dir, so it is safe while sibling sessions run in the same checkout.
+# `scripts/dev/session-scratch.sh --reap` (run from session-start.sh) is the
+# backstop for sessions that crashed or were killed before SessionEnd fired.
+#
+# The session id and the end reason arrive in the JSON on stdin -- SessionEnd
+# does NOT export CLAUDE_CODE_SESSION_ID. In normal operation this session_id
+# equals the id the helper resolved during the session (both derive from the
+# session UUID); if the CLI ever fails to export it mid-session the two can
+# differ, and --reap is the safety net.
+
+# Resolve our own dir first (absolute), so sourcing works regardless of cwd.
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$HOOK_DIR/../.." || exit 0
+# shellcheck source=lib/session-id.sh
+source "$HOOK_DIR/lib/session-id.sh"
+
+input=$(cat)
+{
+    read -r sid
+    read -r reason
+} < <(printf '%s' "$input" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+# Collapse any newline in the id to "/" so a multi-line value is rejected
+# whole by _sid_safe below (read -r would otherwise keep only its first line).
+print(d.get("session_id", "").replace("\n", "/").replace("\r", "/"))
+print(d.get("reason", ""))
+' 2>/dev/null)
+
+# A session ending only to be resumed is not done; keep its scratch.
+[ "$reason" = "resume" ] && exit 0
+
+# Only a filename-safe id may name the dir we delete (mirrors the helper via the
+# shared _sid_safe). Refuse empty or path-bearing ids so we can never rm outside
+# tmp/s/.
+sid=$(_sid_safe "$sid")
+case "$sid" in
+    "" | */* | . | ..) exit 0 ;;
+esac
+
+rm -rf "tmp/s/${sid}"
+exit 0

@@ -4,7 +4,7 @@ Automated enforcement of `ai/rules/` requirements.
 
 ## Summary
 
-**Total: 37 hooks** (26 blocking, 11 advisory)
+**Total: 38 hooks** (26 blocking, 12 advisory)
 
 ## All Hooks
 
@@ -16,6 +16,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
 | `block-premature-stop.sh` | Stop | - | **Blocking** |
 | `session-end-summary.sh` | Stop | - | Advisory |
+| `session-end-scratch.sh` | SessionEnd | bash-output.md | Advisory |
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
 | `block-claude-plans.sh` | PreToolUse:Write | documentation.md | **Blocking** |
 | `pre-write-go.sh` | PreToolUse:Write\|Edit | post-compaction.md | **Blocking** |

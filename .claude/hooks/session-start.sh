@@ -14,6 +14,12 @@ _cleanup_stale_markers
 find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 
+# Backstop: reap per-session scratch dirs (tmp/s/<sid>/) from sessions that
+# ended without firing SessionEnd (crash/kill). SessionEnd is the primary
+# cleanup; --reap removes only dirs with no file activity in the last 24h, so a
+# live long-running session is never reaped. See scripts/dev/session-scratch.sh.
+scripts/dev/session-scratch.sh --reap 2>/dev/null || true
+
 # --- Read this session's claimed spec (set via scripts/dev/spec-session.sh) ---
 # Each session records its spec in its OWN marker; there is no shared file, so
 # many agents editing main concurrently never collide. The marker is written
