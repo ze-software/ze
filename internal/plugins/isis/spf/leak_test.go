@@ -48,6 +48,20 @@ func leakNode(level Level, root types.SystemID, to types.SourceID, metric uint64
 // TestISISLeakOriginationL1L2 is the mixed-L1L2 origination-leak regression: it
 // proves an L1L2 router re-originates the OTHER level's reachable prefixes with
 // the correct RFC 2966 up/down state and never re-leaks a down-bit prefix.
+//
+// RFC requirement: RFC2966-2-1 positive -- an L2-derived prefix advertised DOWN
+// into L1 is stamped with the up/down bit set (leakInto setDownBit=true for the
+// L2->L1 direction, internal/plugins/isis/spf/leak.go): assertion 2 requires
+// hasLeak(IntoL1, l2Derived, true).
+// RFC requirement: RFC2966-2-1 negative -- a prefix leaked in any OTHER direction
+// has the up/down bit CLEAR: the L1-native prefix leaked UP into L2 carries
+// up/down=false (assertion 1, hasLeak(IntoL2, l1Only, false)).
+// RFC requirement: RFC2966-2-2 positive -- a prefix that already carries the
+// up/down (down) bit is NEVER re-advertised back up into L2 (leak.go leakInto
+// skips p.UpDown): assertion 3 requires alreadyDown be absent from IntoL2.
+// RFC requirement: RFC2966-2-2 negative -- the down-bit suppression is scoped, not
+// a blanket drop: a clear-bit L1-native prefix IS still leaked up into L2
+// (assertion 1), so ordinary L1 prefixes are not withheld.
 func TestISISLeakOriginationL1L2(t *testing.T) {
 	root := sysID(1)
 	rootPfx := netip.MustParsePrefix("10.0.1.0/24") // root's own connected prefix
@@ -111,6 +125,15 @@ func TestISISLeakOriginationL1L2(t *testing.T) {
 // DOWN prefix back in as an L1 advertisement (with the up/down bit, exactly as the
 // engine would re-originate it) yields NO further leak of that prefix. This is the
 // loop-termination guarantee for the engine's SPF->re-originate->SPF feedback.
+//
+// RFC requirement: RFC2966-2-3 positive -- an L1L2 router never advertises an
+// L2->L1 inter-area route (a re-originated prefix carrying the up/down/down bit in
+// L1) back into L2: round 2 requires the re-originated down-bit l2Derived be absent
+// from IntoL2 (leak.go leakInto skips p.UpDown).
+// RFC requirement: RFC2966-2-3 negative -- the block is specific to down-bit
+// re-advertisement, not a suppression of legitimate leaking: round 1 (the same
+// L2-derived prefix WITHOUT the down bit) DOES leak down into L1
+// (hasLeak(r1.IntoL1, l2Derived, true)).
 func TestISISLeakFixpoint(t *testing.T) {
 	root := sysID(1)
 	l2Derived := netip.MustParsePrefix("10.2.0.0/24")
