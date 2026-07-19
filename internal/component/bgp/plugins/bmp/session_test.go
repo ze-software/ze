@@ -70,6 +70,8 @@ func TestBMPSessionAccepts(t *testing.T) {
 	bp.sessions.Wait()
 }
 
+// RFC requirement: RFC7854-x-1 negative -- the receiver drops a session whose
+// common header carries version 2: it closes the connection instead of parsing.
 func TestBMPMalformedHeaderDrops(t *testing.T) {
 	// VALIDATES: AC-19 -- Malformed header closes session without panic
 	// PREVENTS: panic on garbage input
@@ -123,6 +125,68 @@ func TestBMPMalformedHeaderDrops(t *testing.T) {
 	close(bp.stopCh)
 	bp.stopListeners()
 	bp.sessions.Wait()
+}
+
+// RFC requirement: RFC7854-x-12 positive -- BMP is unidirectional (monitored
+// router -> collector): driven with a valid Initiation+Termination stream, the
+// receiver session loop writes nothing back, so the router end reads zero bytes.
+func TestBMPReceiverUnidirectional(t *testing.T) {
+	// VALIDATES: RFC 7854 -- the receiver never writes toward the monitored router.
+	// PREVENTS: a receiver that replies on the session, breaking unidirectionality.
+
+	server, client := net.Pipe()
+
+	bp := &BMPPlugin{
+		state:  newBMPState(),
+		stopCh: make(chan struct{}),
+	}
+
+	// Run the receiver session loop against the collector end of the pipe.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		bp.handleSession(server)
+	}()
+
+	// Reader on the monitored-router end: capture any bytes the receiver writes
+	// back. A correct unidirectional receiver never writes, so this Read blocks
+	// until the receiver closes its end and then returns zero bytes.
+	gotBytes := make(chan int, 1)
+	go func() {
+		buf := make([]byte, 64)
+		n, _ := client.Read(buf)
+		gotBytes <- n
+	}()
+
+	// Feed a valid BMP stream from the monitored router's side.
+	buf := make([]byte, 256)
+	init := &Initiation{TLVs: []TLV{MakeStringTLV(InitTLVSysName, "test-router")}}
+	n := WriteInitiation(buf, 0, init)
+	if _, err := client.Write(buf[:n]); err != nil {
+		t.Fatalf("write initiation: %v", err)
+	}
+	term := &Termination{TLVs: []TLV{MakeStringTLV(TermTLVString, "done")}}
+	n = WriteTermination(buf, 0, term)
+	if _, err := client.Write(buf[:n]); err != nil {
+		t.Fatalf("write termination: %v", err)
+	}
+
+	// Close the router end so the receiver's next read returns EOF and its
+	// session loop exits.
+	if err := client.Close(); err != nil {
+		t.Logf("close client: %v", err)
+	}
+
+	select {
+	case got := <-gotBytes:
+		if got != 0 {
+			t.Fatalf("receiver wrote %d bytes toward the monitored router; BMP MUST be unidirectional", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for router-side read")
+	}
+
+	<-done
 }
 
 func TestBMPMaxSessionsRejects(t *testing.T) {

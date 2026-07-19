@@ -142,6 +142,10 @@ func failReply() func(PacketHeader, []byte) []byte {
 
 // VALIDATES: AC-1 -- TACACS+ auth with valid credentials succeeds.
 // PREVENTS: client unable to authenticate against a working server.
+//
+// RFC requirement: RFC8907-4-1 positive -- a reply whose major nibble is 0xC is accepted (validateResponseHeader, client.go:405-407).
+// RFC requirement: RFC8907-4-2 positive -- client sends seq 1 and accepts the seq 2 reply (client.go:408-411).
+// RFC requirement: RFC8907-4-4 positive -- a reply carrying the same session_id generated at client.go:209 is accepted end to end (mismatch guard client.go:354-358).
 func TestTacacsClientAuthenticatePass(t *testing.T) {
 	key := []byte("test-key")
 	srv := newTestServer(t, key, passReply())
@@ -234,6 +238,7 @@ func TestTacacsClientRejectsBadResponseHeader(t *testing.T) {
 			want: "type mismatch",
 		},
 		{
+			// RFC requirement: RFC8907-4-1 negative -- a reply whose major nibble is 0xD (0xD0) is rejected as a major version mismatch.
 			name: "wrong major version",
 			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
 				reply.Version = 0xD0
@@ -242,6 +247,7 @@ func TestTacacsClientRejectsBadResponseHeader(t *testing.T) {
 			want: "major version mismatch",
 		},
 		{
+			// RFC requirement: RFC8907-4-2 negative -- a reply with seq 7 (not request seq+1) is rejected as a sequence mismatch.
 			name: "wrong sequence",
 			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
 				reply.SeqNo = 7
@@ -316,4 +322,31 @@ func TestTacacsClientTimeout(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, reply)
 	assert.Less(t, elapsed, 2*time.Second, "should timeout quickly, not wait 5s")
+}
+
+// VALIDATES: session_id is drawn from a cryptographic RNG -- distinct and
+// non-zero across sessions (cross-session uniqueness).
+// PREVENTS: a fixed, zero, or predictable session_id that would let an
+// attacker forge or correlate TACACS+ sessions.
+//
+// RFC requirement: RFC8907-4-3 positive -- randomSessionID yields distinct non-zero session IDs across sessions (crypto/rand, client.go:497-503).
+func TestRandomSessionIDDistinct(t *testing.T) {
+	const iterations = 1000
+
+	seen := make(map[uint32]struct{}, iterations)
+	for range iterations {
+		id, err := randomSessionID()
+		require.NoError(t, err)
+		require.NotZero(t, id, "session ID must be non-zero")
+		seen[id] = struct{}{}
+	}
+
+	// A crypto/rand source produces distinct 4-byte IDs across sessions; a
+	// constant or short-cycle source would collapse the set. Tolerate at most
+	// one birthday collision so a healthy RNG never flakes -- with 1000 draws
+	// from 2^32 the expected collision count is ~1.2e-4, so P(>=2) is ~7e-9,
+	// while a constant/degenerate source still fails hard.
+	require.GreaterOrEqual(t, len(seen), iterations-1,
+		"session IDs must be cross-session unique (crypto/rand); got %d distinct of %d",
+		len(seen), iterations)
 }

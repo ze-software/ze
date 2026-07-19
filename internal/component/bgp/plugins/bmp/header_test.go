@@ -15,6 +15,8 @@ func TestBMPCommonHeaderDecode(t *testing.T) {
 		wantTyp uint8
 		wantErr bool
 	}{
+		// RFC requirement: RFC7854-x-1 positive -- version 3 in the common header
+		// is accepted: DecodeCommonHeader returns Version==3 with no error.
 		{
 			name:    "valid initiation",
 			buf:     []byte{3, 0, 0, 0, 20, MsgInitiation},
@@ -25,11 +27,15 @@ func TestBMPCommonHeaderDecode(t *testing.T) {
 			buf:     []byte{3, 0, 0, 1, 0, MsgRouteMonitoring},
 			wantVer: 3, wantLen: 256, wantTyp: MsgRouteMonitoring,
 		},
+		// RFC requirement: RFC7854-x-2 negative -- a buffer shorter than the 6-octet
+		// common header is rejected: DecodeCommonHeader returns errShortHeader.
 		{
 			name:    "too short",
 			buf:     []byte{3, 0, 0},
 			wantErr: true,
 		},
+		// RFC requirement: RFC7854-x-1 negative -- version 2 in the common header is
+		// rejected: DecodeCommonHeader returns errBadVersion, not a decoded header.
 		{
 			name:    "bad version 2",
 			buf:     []byte{2, 0, 0, 0, 6, MsgInitiation},
@@ -74,6 +80,8 @@ func TestBMPCommonHeaderDecode(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-2 positive -- the common header is 6 octets:
+// WriteCommonHeader writes exactly CommonHeaderSize (6) bytes.
 func TestBMPCommonHeaderEncode(t *testing.T) {
 	// VALIDATES: AC-9 -- Common Header serialization
 	buf := make([]byte, CommonHeaderSize)
@@ -105,6 +113,8 @@ func TestBMPCommonHeaderRoundTrip(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-4 positive -- the Peer AS is a 4-octet field:
+// DecodePeerHeader reads bytes 26..30 and yields the full 32-bit AS 65001.
 func TestBMPPeerHeaderDecode(t *testing.T) {
 	// VALIDATES: AC-2 -- Per-Peer Header decoded correctly
 	buf := make([]byte, PeerHeaderSize)
@@ -160,6 +170,8 @@ func TestBMPPeerHeaderDecode(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-4 positive -- the Peer AS is a 4-octet field:
+// WritePeerHeader emits the 32-bit AS and it round-trips through DecodePeerHeader.
 func TestBMPPeerHeaderEncode(t *testing.T) {
 	// VALIDATES: AC-9 -- Per-Peer Header serialization
 	p := PeerHeader{
@@ -297,6 +309,10 @@ func TestBMPPeerHeaderTooShort(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-3 positive -- message types 0,1,2,3,6 carry a
+// per-peer header: HasPeerHeader returns true for each.
+// RFC requirement: RFC7854-x-3 negative -- Initiation (4) and Termination (5)
+// carry no per-peer header: HasPeerHeader returns false for both.
 func TestHasPeerHeader(t *testing.T) {
 	// VALIDATES: RFC 7854 -- Initiation and Termination have no per-peer header
 	if HasPeerHeader(MsgInitiation) {

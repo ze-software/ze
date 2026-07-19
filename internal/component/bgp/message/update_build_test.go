@@ -1495,6 +1495,9 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 //
 // VALIDATES: BuildUnicastWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for unicast.
+//
+// RFC requirement: RFC8654-4-2 negative -- BuildUnicastWithMaxSize refuses to build an UPDATE that
+// would exceed the negotiated maximum, returning ErrUpdateTooLarge (update_build_grouped.go:220,226-227).
 func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
 
 	ub := NewUpdateBuilder(65001, true, true, false)
@@ -1520,6 +1523,9 @@ func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
 //
 // VALIDATES: BuildUnicastWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid unicast routes.
+//
+// RFC requirement: RFC8654-4-2 positive -- BuildUnicastWithMaxSize builds the UPDATE when it fits
+// within the negotiated maximum (update_build_grouped.go:220,226-230).
 func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
 
 	ub := NewUpdateBuilder(65001, true, true, false)

@@ -193,7 +193,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 | RFC 2866 | RADIUS accounting | Supported for subscriber access | Start, Stop, and Interim-Update accounting records. | Admin/operator RADIUS accounting is not wired; the admin backend is authentication-only. |
 | RFC 2869 | RADIUS extensions | Supported for subscriber access | Gigaword counters and selected accounting extensions. | Scoped to subscriber access. |
 | RFC 5176 | RADIUS CoA and Disconnect Message | Supported for subscriber access | CoA/DM listener for RADIUS-initiated changes and disconnects. | Scoped to subscriber access. |
-| RFC 8907 | TACACS+ | Partial | SSH login PAP auth, ordered failover, MD5 pseudo-pad encryption, command accounting, optional authorization, single-connect mode. | Feature inventory still marks TACACS+ Partial while learned notes record several closed gaps. |
+| RFC 8907 | TACACS+ | Partial | SSH login PAP auth, ordered failover, MD5 pseudo-pad encryption, command accounting, optional authorization, single-connect mode; tests bound per requirement in `ai/RFC-REQUIREMENTS.md`. | Two MUST gaps gated in `rfc/short/rfc8907.md`: RFC8907-4.6-1 -- no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected (ErrBadSecret is defined but unused); and RFC8907-6-1 -- authorization is decided on the response Status alone, and mandatory response arguments (=/*) are never parsed or enforced. |
 
 <!-- source: docs/guide/l2tp.md -- L2TP, PPP, IPCP, IPv6CP, RADIUS scope -->
 <!-- source: docs/guide/pppoe.md -- PPPoE access concentrator behavior -->

@@ -26,6 +26,8 @@ func TestCapabilityCodeConstants(t *testing.T) {
 		{CodeMultiprotocol, 1, "Multiprotocol"},
 		{CodeRouteRefresh, 2, "Route Refresh"},
 		{CodeExtendedNextHop, 5, "Extended Next Hop"},
+		// RFC requirement: RFC8654-3-2 positive -- the Extended Message capability is bound to
+		// code 6: this case asserts uint8(CodeExtendedMessage) == 6 (internal/core/bgp/capability/capability.go:71).
 		{CodeExtendedMessage, 6, "Extended Message"},
 		{CodeGracefulRestart, 64, "Graceful Restart"},
 		{CodeASN4, 65, "4-Byte AS"},
@@ -414,6 +416,9 @@ func TestCapabilityRoundTrip(t *testing.T) {
 		{"Multiprotocol", &Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast}},
 		{"ASN4", &ASN4{ASN: 4200000001}},
 		{"RouteRefresh", &RouteRefresh{}},
+		// RFC requirement: RFC8654-3-3 positive -- the Extended Message capability carries a
+		// zero-length value: Len() is 2 (header only) and WriteTo emits Cap Len 0
+		// (capability.go:383,385-387); this case round-trips that zero-length value through Parse.
 		{"ExtendedMessage", &ExtendedMessage{}},
 		{"AddPath", &AddPath{Families: []AddPathFamily{
 			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},

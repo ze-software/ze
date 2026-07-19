@@ -9,6 +9,9 @@ import (
 
 // VALIDATES: AcctRequest marshal produces correct wire format for START/STOP.
 // PREVENTS: wrong field layout in accounting REQUEST body.
+//
+// RFC requirement: RFC8907-7-1 positive -- the accounting body's flags byte carries only the Start/Stop flag; the deprecated MORE bit (0x01) is clear (acct_test body[0] assertion).
+// RFC requirement: RFC8907-7-2 positive -- Start marshals to flags 0x02 and Stop to 0x04 as separate cases, never combined.
 func TestAcctRequestMarshalStartStop(t *testing.T) {
 	tests := []struct {
 		name  string

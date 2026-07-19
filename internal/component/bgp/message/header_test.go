@@ -236,16 +236,37 @@ func TestValidateLengthWithMax(t *testing.T) {
 		{"OPEN at 4096", TypeOPEN, 4096, false, false},
 		{"OPEN at 4096 with extended", TypeOPEN, 4096, true, false},
 		{"OPEN over 4096", TypeOPEN, 4097, false, true},
+		// RFC requirement: RFC8654-4-3 negative -- an OPEN of 4097 octets is rejected even with
+		// the Extended Message capability negotiated; the extension never raises the OPEN/KEEPALIVE
+		// cap above 4096 (internal/component/bgp/message/header.go:197-199).
 		{"OPEN over 4096 with extended", TypeOPEN, 4097, true, true},
 
 		// KEEPALIVE: exactly 19
 		{"KEEPALIVE exact", TypeKEEPALIVE, 19, false, false},
+		// RFC requirement: RFC8654-6-1 negative -- a KEEPALIVE of 20 octets violates its per-type
+		// length and is rejected by ValidateLengthWithMax (internal/component/bgp/message/header.go:187,155-162).
 		{"KEEPALIVE too long", TypeKEEPALIVE, 20, false, true},
 
 		// UPDATE: 4096 or 65535
+		// RFC requirement: RFC8654-6-1 positive -- an UPDATE at exactly the 4096-octet per-type
+		// maximum passes ValidateLengthWithMax (internal/component/bgp/message/header.go:200-207).
 		{"UPDATE at 4096", TypeUPDATE, 4096, false, false},
+		// RFC requirement: RFC8654-4-1 negative -- without the Extended Message capability an UPDATE
+		// above 4096 is rejected, so the up-to-65535 receive capacity is conditioned on advertising
+		// the capability (internal/component/bgp/message/header.go:200-213).
+		// RFC requirement: RFC8654-5-1 negative -- an over-4096 UPDATE received while extended is NOT
+		// negotiated is rejected, never accepted (internal/component/bgp/message/header.go:200-213).
+		// RFC requirement: RFC8654-5-2 negative -- there is no liberal-acceptance bypass: the same
+		// length gate rejects the over-4096 UPDATE when extended is not negotiated (header.go:200-213).
 		{"UPDATE over 4096 without extended", TypeUPDATE, 4097, false, true},
 		{"UPDATE over 4096 with extended", TypeUPDATE, 4097, true, false},
+		// RFC requirement: RFC8654-4-1 positive -- with the Extended Message capability negotiated an
+		// UPDATE of 65535 octets is accepted (internal/component/bgp/message/header.go:200-205).
+		// RFC requirement: RFC8654-5-1 positive -- when extended IS negotiated the over-4096 (65535)
+		// UPDATE is accepted, the behavior 5-1 forbids only when unnegotiated (header.go:200-205).
+		// RFC requirement: RFC8654-5-2 positive -- the length gate accepts the large UPDATE exactly
+		// when the capability is negotiated, so the policy is no more liberal than negotiation allows
+		// (internal/component/bgp/message/header.go:200-205).
 		{"UPDATE at 65535 with extended", TypeUPDATE, 65535, true, false},
 
 		// NOTIFICATION: 4096 or 65535
@@ -264,12 +285,16 @@ func TestValidateLengthWithMax(t *testing.T) {
 			h := Header{Length: tt.length, Type: tt.msgType}
 			err := h.ValidateLengthWithMax(tt.extended)
 			if tt.wantErr {
+				// RFC requirement: RFC8654-5-4 negative -- a bad message length yields a NOTIFICATION
+				// with Message Header Error / Bad Message Length (header.go:207-213).
 				require.Error(t, err)
 				var notif *Notification
 				require.ErrorAs(t, err, &notif)
 				assert.Equal(t, NotifyMessageHeader, notif.ErrorCode)
 				assert.Equal(t, NotifyHeaderBadLength, notif.ErrorSubcode)
 			} else {
+				// RFC requirement: RFC8654-5-4 positive -- a within-limit length produces no error and
+				// thus no NOTIFICATION (internal/component/bgp/message/header.go:207-215).
 				assert.NoError(t, err)
 			}
 		})
@@ -291,6 +316,8 @@ func TestMaxMessageLength(t *testing.T) {
 		want     uint16
 	}{
 		{"OPEN without extended", TypeOPEN, false, 4096},
+		// RFC requirement: RFC8654-4-3 positive -- MaxMessageLength for OPEN stays 4096 even when
+		// extended is true, confirming OPEN/KEEPALIVE are never extended (header.go:234-235).
 		{"OPEN with extended", TypeOPEN, true, 4096},
 		{"KEEPALIVE without extended", TypeKEEPALIVE, false, 4096},
 		{"KEEPALIVE with extended", TypeKEEPALIVE, true, 4096},

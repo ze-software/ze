@@ -114,6 +114,8 @@ func TestPeerDownReasonMapping(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-8 positive -- Peer Up carries the sent and received
+// OPENs: the emitted PeerUp echoes the cached sent/received OPEN PDUs.
 func TestHandleSenderStatePeerUp(t *testing.T) {
 	// VALIDATES: AC-1 -- peer up with real cached OPENs from OPEN events
 
@@ -245,6 +247,8 @@ func TestBMPOpenCacheClearedOnPeerDown(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-8 negative -- with no cached OPENs the sender emits
+// no Peer Up at all rather than one missing its required OPEN PDUs.
 func TestBMPPeerUpSkippedOnCacheMiss(t *testing.T) {
 	// VALIDATES: AC-3 edge case -- no cached OPENs -> Peer Up skipped (not crash)
 
@@ -272,6 +276,8 @@ func TestBMPPeerUpSkippedOnCacheMiss(t *testing.T) {
 	bp.handleStructuredEvent(se)
 }
 
+// RFC requirement: RFC7854-x-10 positive -- Peer Down carries a Reason code:
+// the emitted PeerDown maps the close cause to PeerDownLocalNotify.
 func TestHandleSenderStatePeerDown(t *testing.T) {
 	// VALIDATES: AC-27 -- peer down event triggers BMP Peer Down to collectors
 
@@ -333,6 +339,8 @@ func TestHandleSenderNoSenders(t *testing.T) {
 	bp.handleStructuredEvent(se)
 }
 
+// RFC requirement: RFC7854-x-5 positive -- an IPv4 peer address is stored as an
+// IPv4-mapped IPv6 address (::ffff:x.x.x.x) in the 16-octet field.
 func TestParseIPIntoIPv4(t *testing.T) {
 	var addr [16]byte
 	parseIPInto("192.168.1.1", &addr)
@@ -346,6 +354,8 @@ func TestParseIPIntoIPv4(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-5 negative -- a native IPv6 peer address is NOT
+// stored with the ::ffff IPv4-mapped prefix, so the mapping is specific to IPv4.
 func TestParseIPIntoIPv6(t *testing.T) {
 	var addr [16]byte
 	parseIPInto("2001:db8::1", &addr)

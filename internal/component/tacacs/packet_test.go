@@ -10,6 +10,8 @@ import (
 
 // VALIDATES: TACACS+ packet header encoding matches RFC 8907 Section 4.1.
 // PREVENTS: wrong byte order or field placement in header.
+//
+// RFC requirement: RFC8907-4-5 positive -- multi-octet header fields (session_id, length) round-trip through network byte order via binary.BigEndian (packet.go:75-76, 90-91).
 func TestPacketHeaderMarshalRoundTrip(t *testing.T) {
 	hdr := PacketHeader{
 		Version:   0xC0,
@@ -121,6 +123,8 @@ func TestEncryptWrongSecret(t *testing.T) {
 
 // VALIDATES: full packet marshal/unmarshal round-trip.
 // PREVENTS: header/body misalignment or corruption.
+//
+// RFC requirement: RFC8907-10-1 positive -- with a key configured the body is encrypted (no Unencrypted flag set) and round-trips (packet.go:183-185).
 func TestPacketMarshalRoundTrip(t *testing.T) {
 	original := &Packet{
 		Header: PacketHeader{

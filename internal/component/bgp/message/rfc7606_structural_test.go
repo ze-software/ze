@@ -120,6 +120,10 @@ func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
 // TestRFC7606MPReachNLRIOverrunsAttribute / TestRFC7606NLRIPrefixLengthTooLongIPv6
 // negatives). This case remains as a guard that the new NLRI check does not reject a
 // well-formed IPv4 MP_REACH, whose /8 fits the attribute exactly.
+//
+// RFC requirement: RFC8654-3-1 positive -- extended-message peers require RFC 7606 UPDATE error
+// handling; ze runs every UPDATE through ValidateUpdateRFC7606, and a well-formed UPDATE is accepted
+// with action None (rfc7606.go ValidateUpdateRFC7606).
 func TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted(t *testing.T) {
 	// MP_REACH: AFI=1 SAFI=1 NHLen=4 NH=192.0.2.1 Reserved=0, then 10.0.0.0/8.
 	// The /8 needs 1 prefix octet and exactly 1 remains, so the NLRI ends flush with the
@@ -231,6 +235,9 @@ func TestRFC7606MPAttributeFlagsPerRFC4760Accepted(t *testing.T) {
 // cannot fail on escalation; this asserts the action exactly.
 //
 // RFC requirement: RFC7606-4-1 negative — an attribute length exceeding the data remaining is treat-as-withdraw, not a session reset.
+// RFC requirement: RFC8654-3-1 negative -- the same RFC 7606 machinery treats a malformed UPDATE
+// attribute as withdraw rather than resetting the session, the revised error handling 8654 requires
+// of extended-message peers (rfc7606.go ValidateUpdateRFC7606).
 func TestRFC7606AttributeLengthConflictTreatAsWithdraw(t *testing.T) {
 	pathAttrs := sJoin(sOrigin, sASPath, sNextHop,
 		// COMMUNITY declares 8 octets but only 4 follow: §4's "attribute length ...

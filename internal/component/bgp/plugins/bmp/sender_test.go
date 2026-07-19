@@ -13,6 +13,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
+// RFC requirement: RFC7854-x-6 positive -- the first message the sender writes
+// immediately after connecting is the Initiation message.
 func TestBMPSenderConnects(t *testing.T) {
 	// VALIDATES: AC-23 -- sender connects outbound TCP to collector
 	// PREVENTS: sender goroutine crash on startup
@@ -76,6 +78,8 @@ func TestBMPSenderConnects(t *testing.T) {
 	closeLog(collectorConn, "test-collector")
 }
 
+// RFC requirement: RFC7854-x-7 positive -- the Initiation message carries the
+// sysName TLV (type 2).
 func TestBMPSenderInitiation(t *testing.T) {
 	// VALIDATES: AC-25 -- Initiation sent with sysName and sysDescr
 
@@ -197,6 +201,8 @@ func asyncRead(conn net.Conn) <-chan pipeResult {
 	return ch
 }
 
+// RFC requirement: RFC7854-x-8 positive -- Peer Up carries both the sent and the
+// received OPEN messages, echoed byte-for-byte in the emitted PeerUp.
 func TestBMPSenderPeerUp(t *testing.T) {
 	// VALIDATES: AC-26 -- Peer Up sent with OPEN messages
 
@@ -232,6 +238,8 @@ func TestBMPSenderPeerUp(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-10 positive -- Peer Down carries a Reason code:
+// WritePeerDown emits the reason byte and the decoded PeerDown reports it.
 func TestBMPSenderPeerDown(t *testing.T) {
 	// VALIDATES: AC-27 -- Peer Down with correct reason code
 
@@ -261,6 +269,8 @@ func TestBMPSenderPeerDown(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-9 positive -- a Route Monitoring message wraps a
+// complete BGP UPDATE PDU (RFC 4271 header + body, type UPDATE).
 func TestBMPSenderRouteMonitoring(t *testing.T) {
 	// VALIDATES: AC-28 -- Route Monitoring wraps BGP UPDATE with a
 	// synthesized RFC 4271 §4.1 header (marker + length + type=UPDATE).
@@ -343,6 +353,8 @@ func TestBMPSenderStatistics(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-11 positive -- a Termination message is produced
+// when the session is being closed on shutdown.
 func TestBMPSenderTermination(t *testing.T) {
 	// VALIDATES: AC-34 -- Termination sent on shutdown
 
