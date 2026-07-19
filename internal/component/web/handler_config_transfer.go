@@ -31,10 +31,12 @@ const (
 )
 
 // HandleConfigDownload returns a GET handler that streams the committed
-// configuration to the client as a downloadable text attachment (AC-3). It is a
-// read path: any authenticated session may download (config viewing is already
-// available to read-only users); the download is audit-logged. Gate it at the
-// route with the standard auth wrapper.
+// configuration to the client as a downloadable text attachment. The stream is
+// RAW and unmasked: it carries the real ze:bcrypt password hashes so the
+// download can round-trip (download -> edit -> upload) byte-exactly. Because the
+// raw hash is a credential over the local CLI path, this route MUST be gated
+// behind edit-authz (editWrap in service_web.go); read-only sessions get 403.
+// Do not relax to authWrap. The download is audit-logged.
 func HandleConfigDownload(mgr *EditorManager, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

@@ -7,20 +7,19 @@ package config
 import (
 	"errors"
 	"fmt"
-	"regexp"
 
 	"golang.org/x/crypto/bcrypt"
-)
 
-// bcryptFormat matches a canonical bcrypt hash:
-// $2[aby]$<cost>$<22-char salt + 31-char hash, base64url> (60 chars total).
-var bcryptFormat = regexp.MustCompile(`^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$`)
+	"codeberg.org/thomas-mangin/ze/internal/core/redact"
+)
 
 // IsBcryptHash reports whether s is a syntactically valid bcrypt hash.
 // Used by the validator to warn when a ze:bcrypt canonical leaf holds
 // a non-hash value (typically literal plaintext from hand-edited config).
+// It delegates to redact.IsBcryptHash so the bcrypt-shape regex has a single
+// home shared with the log-redaction path.
 func IsBcryptHash(s string) bool {
-	return bcryptFormat.MatchString(s)
+	return redact.IsBcryptHash(s)
 }
 
 // CheckBcryptLeaves walks the tree and returns a warning string for each

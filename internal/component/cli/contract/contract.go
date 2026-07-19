@@ -152,6 +152,10 @@ type Editor interface {
 	// Returned as any to avoid contract importing config.
 	Tree() any
 	ContentAtPath(path []string) string
+	// DisplayContentAtPath is ContentAtPath with ze:bcrypt leaves masked for
+	// display. Use it on read/display surfaces (e.g. the web CLI show verb);
+	// ContentAtPath stays unmasked for validation/persistence.
+	DisplayContentAtPath(path []string) string
 	OriginalContentAtPath(path []string) string
 	Dirty() bool
 	SessionChanges(sessionID string) []SessionChange

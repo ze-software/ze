@@ -445,6 +445,11 @@ func populateFragmentFields(data *FragmentData, provider childLister, subtree *c
 
 // buildFieldMeta creates a FieldMeta from a LeafNode with full YANG metadata.
 func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, parentPath string) FieldMeta {
+	// Never prefill the form input with a stored ze:bcrypt hash: mask it for
+	// display. A resubmitted placeholder is filtered on the write path.
+	if leaf.Bcrypt && value != "" {
+		value = config.SecretDataPlaceholder
+	}
 	meta := FieldMeta{
 		Leaf:          name,
 		Path:          parentPath,

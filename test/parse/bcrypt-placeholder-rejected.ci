@@ -1,0 +1,24 @@
+# Test: committing/validating a config whose ze:bcrypt leaf holds the display
+# placeholder is rejected.
+#
+# VALIDATES: spec-fixit-bcrypt-hash-credential AC-8 -- a masked `show config`
+#            pasted back into a config file fails validation with an error that
+#            names the leaf and the placeholder, so the stored hash can never be
+#            clobbered by the mask.
+# PREVENTS: an operator who copies masked output into a config silently wiping
+#           the password with "/* SECRET-DATA */".
+
+stdin=config:terminator=EOF_CONF
+system {
+	authentication {
+		user alice {
+			password "/* SECRET-DATA */";
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=placeholder
+expect=stdout:contains=password

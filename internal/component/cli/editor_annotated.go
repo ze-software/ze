@@ -33,6 +33,10 @@ func (e *Editor) annotatedViewOf(tree *config.Tree, path []string, columns confi
 		meta = config.NewMetaTree()
 	}
 
+	// Mask ze:bcrypt leaf values for display. MaskBcrypt clones, leaving the
+	// working tree (and the metadata tree, keyed by node not value) untouched.
+	tree = config.MaskBcrypt(tree, schema)
+
 	// Walk to sub-path if needed
 	if len(path) > 0 && e.treeValid {
 		subtree, schemaNode := e.walkPathWithSchemaFrom(tree, path)

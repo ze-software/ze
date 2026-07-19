@@ -32,7 +32,15 @@ func (m *Model) searchConfig(query string) []Completion {
 		return nil
 	}
 
-	sensitiveKeys := m.editor.SensitiveKeys()
+	// Mask both ze:sensitive and ze:bcrypt leaf values in search results; both
+	// render as the same placeholder, so a single combined key set suffices.
+	maskedKeys := m.editor.SensitiveKeys()
+	if maskedKeys == nil {
+		maskedKeys = map[string]bool{}
+	}
+	for k := range m.editor.BcryptKeys() {
+		maskedKeys[k] = true
+	}
 	tokens := strings.Fields(query)
 	var results []Completion
 	for line := range strings.SplitSeq(m.searchCache, "\n") {
@@ -45,7 +53,7 @@ func (m *Model) searchConfig(query string) []Completion {
 			if len(words) < 2 {
 				continue
 			}
-			line = maskSensitiveLine(words, sensitiveKeys)
+			line = maskSensitiveLine(words, maskedKeys)
 			results = append(results, Completion{
 				Text:        line,
 				Description: textbuf.Join(words[1:], " "),

@@ -30,6 +30,12 @@ func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 func buildLeafField(name string, leaf *config.LeafNode, value string, configured bool) LeafField {
 	info := leafInputType(leaf.Type)
 	info.Name = name
+	// Never prefill the form input with a stored ze:bcrypt hash: mask it. A new
+	// password is set via the plaintext-<name> sibling; a resubmitted placeholder
+	// is filtered on the write path (EditorManager.SetValue).
+	if leaf.Bcrypt && value != "" {
+		value = config.SecretDataPlaceholder
+	}
 	info.Value = value
 	info.Default = leaf.Default
 	info.IsConfigured = configured

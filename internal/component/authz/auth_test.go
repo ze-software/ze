@@ -173,7 +173,9 @@ func TestCheckPassword(t *testing.T) {
 		t.Fatalf("generate hash: %v", err)
 	}
 
-	assert.True(t, CheckPassword(string(hash), "secret123"), "correct password should pass")
+	// Plaintext succeeds regardless of transport (both local and remote).
+	assert.True(t, CheckPassword(string(hash), "secret123", true), "correct password should pass (local)")
+	assert.True(t, CheckPassword(string(hash), "secret123", false), "correct password should pass (remote)")
 }
 
 func TestCheckPasswordWrongPassword(t *testing.T) {
@@ -182,11 +184,11 @@ func TestCheckPasswordWrongPassword(t *testing.T) {
 		t.Fatalf("generate hash: %v", err)
 	}
 
-	assert.False(t, CheckPassword(string(hash), "wrong"), "wrong password should fail")
+	assert.False(t, CheckPassword(string(hash), "wrong", true), "wrong password should fail")
 }
 
 func TestCheckPasswordEmptyHash(t *testing.T) {
-	assert.False(t, CheckPassword("", "secret123"), "empty hash should fail")
+	assert.False(t, CheckPassword("", "secret123", true), "empty hash should fail")
 }
 
 func TestCheckPasswordEmptyPassword(t *testing.T) {
@@ -195,7 +197,7 @@ func TestCheckPasswordEmptyPassword(t *testing.T) {
 		t.Fatalf("generate hash: %v", err)
 	}
 
-	assert.False(t, CheckPassword(string(hash), ""), "empty password should fail")
+	assert.False(t, CheckPassword(string(hash), "", true), "empty password should fail")
 }
 
 func TestAuthenticateUser(t *testing.T) {
@@ -224,7 +226,8 @@ func TestAuthenticateUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := AuthenticateUser(users, tt.username, tt.password)
+			// Plaintext path; local flag false (remote) still authenticates plaintext.
+			got := AuthenticateUser(users, tt.username, tt.password, false)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -234,9 +237,9 @@ func TestAuthenticateUser(t *testing.T) {
 // PREVENTS: unauthenticated SSH access when authentication block is omitted.
 func TestAuthenticateUserNoUsersRejectsAll(t *testing.T) {
 	var users []UserConfig // no users configured
-	assert.False(t, AuthenticateUser(users, "admin", "password"), "should reject when no users configured")
-	assert.False(t, AuthenticateUser(users, "root", "root"), "should reject any credentials")
-	assert.False(t, AuthenticateUser(users, "", ""), "should reject empty credentials")
+	assert.False(t, AuthenticateUser(users, "admin", "password", true), "should reject when no users configured")
+	assert.False(t, AuthenticateUser(users, "root", "root", true), "should reject any credentials")
+	assert.False(t, AuthenticateUser(users, "", "", true), "should reject empty credentials")
 }
 
 // VALIDATES: hash-as-token — sending the bcrypt hash itself authenticates.
@@ -247,8 +250,64 @@ func TestCheckPasswordHashAsToken(t *testing.T) {
 		t.Fatalf("generate hash: %v", err)
 	}
 
-	// Sending the hash itself should succeed (constant-time comparison).
-	assert.True(t, CheckPassword(string(hash), string(hash)), "hash-as-token should pass")
+	// Sending the hash itself succeeds over a local transport (constant-time comparison).
+	assert.True(t, CheckPassword(string(hash), string(hash), true), "hash-as-token should pass when local")
+}
+
+// VALIDATES: AC-1 — the stored bcrypt hash is NOT a credential over a remote
+// transport; plaintext still authenticates.
+// PREVENTS: a leaked config backup being replayed as a password from another machine.
+func TestCheckPasswordRejectsHashOverRemote(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	// Remote (allowHashToken=false): the hash-as-token branch is off.
+	assert.False(t, CheckPassword(string(hash), string(hash), false),
+		"hash-as-token MUST be rejected over a remote transport")
+	// Plaintext still works over the same remote transport.
+	assert.True(t, CheckPassword(string(hash), "secret123", false),
+		"plaintext password MUST still authenticate over a remote transport")
+}
+
+// VALIDATES: AC-2 — the local CLI presenting the zefs hash over loopback still works.
+// PREVENTS: breaking the on-box operator CLI login.
+func TestCheckPasswordAcceptsHashOverLocal(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	assert.True(t, CheckPassword(string(hash), string(hash), true),
+		"hash-as-token MUST be accepted over a local transport")
+	assert.True(t, CheckPassword(string(hash), "secret123", true),
+		"plaintext also authenticates over a local transport")
+}
+
+// VALIDATES: fail-closed default — an AuthRequest with a zero-value Local field
+// (the state for web/API and any caller that forgets to set it) rejects
+// hash-as-token while still accepting the plaintext password.
+// PREVENTS: a future surface fail-open by omission.
+func TestAuthenticateDefaultsToRemote(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	local := &LocalAuthenticator{
+		Users: []UserConfig{{Name: "admin", Hash: string(hash), Profiles: []string{"admin"}}},
+	}
+
+	// Zero-value request (Local unset => remote): hash-as-token rejected.
+	result, err := local.Authenticate(AuthRequest{Username: "admin", Password: string(hash)})
+	assert.ErrorIs(t, err, ErrAuthRejected, "hash-as-token must be rejected when Local is unset")
+	assert.False(t, result.Authenticated)
+
+	// Same zero-value request with the real plaintext still authenticates.
+	result, err = local.Authenticate(AuthRequest{Username: "admin", Password: "secret123"})
+	assert.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, []string{"admin"}, result.Profiles)
+
+	// Explicit Local=true accepts the hash-as-token (the loopback CLI path).
+	result, err = local.Authenticate(AuthRequest{Username: "admin", Password: string(hash), Local: true})
+	assert.NoError(t, err)
+	assert.True(t, result.Authenticated)
 }
 
 // VALIDATES: duplicate user entries — auth tries all matching entries.
@@ -271,14 +330,14 @@ func TestAuthenticateUserDuplicateEntries(t *testing.T) {
 		{Name: "admin", Hash: string(hash2)}, // config entry
 	}
 
-	// Sending hash1 as token should match the first entry.
-	assert.True(t, AuthenticateUser(users, "admin", string(hash1)), "hash1 as token should match first entry")
+	// Sending hash1 as token should match the first entry (local transport).
+	assert.True(t, AuthenticateUser(users, "admin", string(hash1), true), "hash1 as token should match first entry")
 
-	// Sending hash2 as token should match the second entry.
-	assert.True(t, AuthenticateUser(users, "admin", string(hash2)), "hash2 as token should match second entry")
+	// Sending hash2 as token should match the second entry (local transport).
+	assert.True(t, AuthenticateUser(users, "admin", string(hash2), true), "hash2 as token should match second entry")
 
 	// Plaintext should match via bcrypt on either entry.
-	assert.True(t, AuthenticateUser(users, "admin", "pass"), "plaintext should match via bcrypt")
+	assert.True(t, AuthenticateUser(users, "admin", "pass", true), "plaintext should match via bcrypt")
 }
 
 // VALIDATES: Bug 5 — timing-safe auth prevents username enumeration.
@@ -295,12 +354,12 @@ func TestAuthenticateUserTimingSafe(t *testing.T) {
 
 	// Time an unknown user auth attempt — should still invoke bcrypt (>10ms).
 	start := time.Now()
-	AuthenticateUser(users, "nonexistent", "anypassword")
+	AuthenticateUser(users, "nonexistent", "anypassword", false)
 	unknownDuration := time.Since(start)
 
 	// Time a known user auth attempt with wrong password.
 	start = time.Now()
-	AuthenticateUser(users, "admin", "wrongpassword")
+	AuthenticateUser(users, "admin", "wrongpassword", false)
 	knownDuration := time.Since(start)
 
 	// Both should take a meaningful amount of time (bcrypt was invoked).

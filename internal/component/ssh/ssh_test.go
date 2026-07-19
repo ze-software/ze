@@ -844,3 +844,56 @@ func TestTruncateForLog(t *testing.T) {
 		t.Errorf("utf8 command not truncated: %q", gotUTF)
 	}
 }
+
+// bcryptHashLiteral is a syntactically valid bcrypt hash used to drive the
+// exec-log redaction tests without pulling in the bcrypt package.
+const bcryptHashLiteral = "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
+
+// VALIDATES: AC-7 — the SSH exec log line scrubs credential tokens (bcrypt
+// hashes and password-key values) while still logging the command shape.
+// PREVENTS: a one-shot `ze config set ... password <hash>` writing the secret
+// verbatim to the operational log. Drives loggedCommand, the seam the exec
+// middleware logs through.
+func TestExecLogRedactsPasswordToken(t *testing.T) {
+	// bcrypt hash presented as the value.
+	hashed := loggedCommand("config set system authentication user alice password " + bcryptHashLiteral)
+	if strings.Contains(hashed, bcryptHashLiteral) {
+		t.Errorf("bcrypt hash leaked into the log line: %q", hashed)
+	}
+	if !strings.Contains(hashed, "<redacted>") {
+		t.Errorf("expected a redaction marker: %q", hashed)
+	}
+
+	// plaintext password value.
+	plain := loggedCommand("config set system authentication user alice plaintext-password hunter2")
+	if strings.Contains(plain, "hunter2") {
+		t.Errorf("plaintext password leaked into the log line: %q", plain)
+	}
+
+	// non-credential command is logged unchanged.
+	benign := "show bgp summary"
+	if got := loggedCommand(benign); got != benign {
+		t.Errorf("benign command altered: got %q want %q", got, benign)
+	}
+}
+
+// VALIDATES: redaction runs BEFORE truncation so a hash sitting on the 256-byte
+// truncation boundary cannot half-leak.
+// PREVENTS: the tail of a bcrypt hash surviving in the truncated prefix.
+func TestExecLogRedactsBeforeTruncation(t *testing.T) {
+	// Pad so the hash straddles the 256-byte cut, then trail more so the whole
+	// command exceeds the truncation limit.
+	padding := strings.Repeat("x", 230)
+	cmd := "config set " + padding + " password " + bcryptHashLiteral + " " + strings.Repeat("y", 100)
+	got := loggedCommand(cmd)
+	if strings.Contains(got, bcryptHashLiteral) {
+		t.Errorf("full hash survived: %q", got)
+	}
+	// Even a 20-char prefix of the hash must not appear (no half-leak at the cut).
+	if strings.Contains(got, bcryptHashLiteral[:20]) {
+		t.Errorf("hash prefix half-leaked past truncation: %q", got)
+	}
+	if !strings.Contains(got, "bytes total") {
+		t.Errorf("expected truncation of an over-long command: %q", got)
+	}
+}

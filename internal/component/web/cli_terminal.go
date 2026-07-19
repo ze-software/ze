@@ -749,6 +749,9 @@ func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string
 	if tree == nil || schema == nil {
 		return ""
 	}
+	// Mask ze:bcrypt leaves for display (web CLI terminal show/nav/compare).
+	// MaskBcrypt clones, so the working/committed tree keeps the real hash.
+	tree = config.MaskBcrypt(tree, schema)
 	if len(path) == 0 {
 		return config.Serialize(tree, schema)
 	}
@@ -767,6 +770,8 @@ func serializeSetAtPath(tree *config.Tree, schema *config.Schema, path []string)
 	if tree == nil || schema == nil {
 		return ""
 	}
+	// Mask ze:bcrypt leaves for display; MaskBcrypt clones the tree.
+	tree = config.MaskBcrypt(tree, schema)
 	return config.FilterSetByPath(config.SerializeSet(tree, schema), path)
 }
 

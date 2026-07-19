@@ -54,7 +54,7 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 	for _, u := range a.Users {
 		if u.Name == username {
 			found = true
-			if CheckPassword(u.Hash, password) {
+			if CheckPassword(u.Hash, password, request.Local) {
 				return AuthResult{
 					Authenticated: true,
 					Profiles:      u.Profiles,
@@ -73,20 +73,28 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 // CheckPassword validates a credential against a stored bcrypt hash.
 // Supports two modes:
 //   - Hash-as-token: credential is the bcrypt hash itself (ze cli sends the hash
-//     stored in zefs). Matched by constant-time string comparison.
-//   - Plaintext: credential is the user's password (interactive SSH terminal).
-//     Matched by bcrypt comparison.
+//     stored in zefs). Matched by constant-time string comparison. Only tried
+//     when allowHashToken is true — i.e. the connection is trusted-local
+//     (loopback TCP or unix socket). Over any remote transport the hash is NOT a
+//     credential, so a leaked config backup cannot be replayed as a password.
+//   - Plaintext: credential is the user's password (interactive SSH terminal,
+//     web login, API bearer). Matched by bcrypt comparison. Always tried,
+//     regardless of transport.
 //
-// Returns false for empty hash or empty credential.
-func CheckPassword(hash, credential string) bool {
+// Returns false for empty hash or empty credential. allowHashToken defaults to
+// the restrictive value at every call site because it is threaded from
+// AuthRequest.Local, whose zero value is remote (fail-closed).
+func CheckPassword(hash, credential string, allowHashToken bool) bool {
 	if hash == "" || credential == "" {
 		return false
 	}
-	// Hash-as-token: ze cli sends the bcrypt hash read from zefs.
-	gotHash := sha256.Sum256([]byte(hash))
-	credHash := sha256.Sum256([]byte(credential))
-	if subtle.ConstantTimeCompare(gotHash[:], credHash[:]) == 1 {
-		return true
+	if allowHashToken {
+		// Hash-as-token: the local ze cli sends the bcrypt hash read from zefs.
+		gotHash := sha256.Sum256([]byte(hash))
+		credHash := sha256.Sum256([]byte(credential))
+		if subtle.ConstantTimeCompare(gotHash[:], credHash[:]) == 1 {
+			return true
+		}
 	}
 	// Plaintext: interactive user typed their password.
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(credential)) == nil
@@ -97,7 +105,13 @@ func CheckPassword(hash, credential string) bool {
 // different bcrypt hashes). Returns true on first match.
 // When no username matches, bcrypt is still invoked against a dummy hash
 // to prevent timing side-channel attacks on username enumeration.
-func AuthenticateUser(users []UserConfig, username, credential string) bool {
+//
+// allowHashToken threads the same trusted-local gate as CheckPassword: the
+// bcrypt-hash-as-token credential path is tried only when true. It has no
+// non-test caller today, but carries the restriction so a future caller that
+// wires it cannot fail open (the parameter is not optional; a caller must state
+// the transport class explicitly).
+func AuthenticateUser(users []UserConfig, username, credential string, allowHashToken bool) bool {
 	if username == "" {
 		return false
 	}
@@ -105,7 +119,7 @@ func AuthenticateUser(users []UserConfig, username, credential string) bool {
 	for _, u := range users {
 		if u.Name == username {
 			found = true
-			if CheckPassword(u.Hash, credential) {
+			if CheckPassword(u.Hash, credential, allowHashToken) {
 				return true
 			}
 		}

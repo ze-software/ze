@@ -165,13 +165,17 @@ func (m *Model) renderShowContent(columns config.ShowColumns, format string) str
 	if format == fmtConfig {
 		return m.renderTreeAtPath(m.editor.tree, m.contextPath, fmtConfig)
 	}
-	return m.editor.ContentAtPath(m.contextPath)
+	return m.editor.DisplayContentAtPath(m.contextPath)
 }
 
 func (m *Model) renderTreeAtPath(tree *config.Tree, path []string, format string) string {
 	if tree == nil || m.editor == nil || m.editor.schema == nil {
 		return ""
 	}
+	// Mask ze:bcrypt leaf values for display. MaskBcrypt clones, so the editor's
+	// working tree keeps the real hash for validation and persistence. Masking is
+	// value-only and line-preserving, so validation line numbers still align.
+	tree = config.MaskBcrypt(tree, m.editor.schema)
 	if format == fmtConfig {
 		return config.FilterSetByPath(config.SerializeSet(tree, m.editor.schema), path)
 	}

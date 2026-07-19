@@ -111,6 +111,9 @@ func (a *testEditorAdapter) ListBackups() ([]contract.BackupInfo, error) {
 func (a *testEditorAdapter) Rollback(backupPath string) error   { return a.ed.Rollback(backupPath) }
 func (a *testEditorAdapter) Tree() any                          { return a.ed.Tree() }
 func (a *testEditorAdapter) ContentAtPath(path []string) string { return a.ed.ContentAtPath(path) }
+func (a *testEditorAdapter) DisplayContentAtPath(path []string) string {
+	return a.ed.DisplayContentAtPath(path)
+}
 func (a *testEditorAdapter) OriginalContentAtPath(path []string) string {
 	return a.ed.OriginalContentAtPath(path)
 }

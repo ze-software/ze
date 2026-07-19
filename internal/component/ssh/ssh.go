@@ -431,25 +431,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			return false
 		}),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
-			username := ctx.User()
-			remote := ctx.RemoteAddr().String()
-
-			result, err := authenticator.Authenticate(authz.AuthRequest{
-				Username:   username,
-				Password:   pass,
-				RemoteAddr: remote,
-				Service:    "ssh",
-			})
-			if err == nil && result.Authenticated {
-				s.logger.Info("SSH auth success",
-					"username", username, "remote", remote,
-					"source", result.Source,
-					"profiles", truncateProfiles(result.Profiles))
-				return true
-			}
-			s.logger.Warn("SSH auth failure", "username", username, "remote", remote)
-			s.recordAuthFailure(username, remote)
-			return false
+			return s.authenticatePassword(authenticator, ctx.User(), pass, ctx.RemoteAddr())
 		}),
 	}
 
@@ -676,10 +658,9 @@ func (s *Server) execMiddleware() wish.Middleware {
 			}
 
 			input := textbuf.Join(cmd, " ")
-			// Truncate the logged form: commands like `show policy test ... update <HEX>`
-			// carry a large hex payload that would bloat the operational log and dump
-			// route data into it. The full command still flows to the executor.
-			s.logger.Info("SSH exec command", "user", sess.User(), "command", truncateForLog(input), "remote", sess.RemoteAddr().String())
+			// The full (unredacted) command still flows to the executor below; only
+			// the logged form is sanitized via loggedCommand.
+			s.logger.Info("SSH exec command", "user", sess.User(), "command", loggedCommand(input), "remote", sess.RemoteAddr().String())
 
 			// Handle lifecycle commands. Authorization is checked via the
 			// command executor; only explicit ErrUnauthorized blocks the

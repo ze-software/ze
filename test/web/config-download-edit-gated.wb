@@ -1,0 +1,25 @@
+# Test: a read-only web user is denied GET /config/download (403).
+#
+# VALIDATES: spec-fixit-bcrypt-hash-credential AC-4 -- GET /config/download is
+#            gated by RequireEditAuthz (editWrap), so a read-only session cannot
+#            fetch the raw committed config (which carries the real bcrypt hash).
+#            An edit-authorized user still gets the byte-exact raw file (AC-6).
+# PREVENTS: a read-only web user exfiltrating the raw config and its password
+#           hash through the download endpoint.
+#
+# SKIP RATIONALE: same limitation as web-rbac-readonly.wb -- the runner seeds a
+# single zefs local admin, so a *distinct* read-only web login needs config-file
+# authz users + profile assignments the --web-only appliance does not provision.
+# The gate itself is proven at the Go tier:
+#   internal/component/web/handler_config_transfer_test.go
+#     TestConfigDownloadRouteGatedByEditAuthz (read-only 403, edit 200 raw)
+#   internal/component/web/rbac_test.go
+#     TestRouteGateDeniesReadOnly / TestRouteGateAllowsAdmin
+
+option=skip:reason=needs a config-file read-only web user; zefs seeds only the single local admin (see web-rbac-readonly.wb). Gate proven at Go tier: TestConfigDownloadRouteGatedByEditAuthz
+option=timeout:value=30s
+option=auth:user=noc:password=ze-web-noc:role=read-only
+
+action=login:user=noc:password=ze-web-noc
+action=open:path=/config/download
+expect=element:text=forbidden

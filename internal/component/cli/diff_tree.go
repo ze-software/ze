@@ -40,6 +40,12 @@ func computeTreeAnnotatedDiff(original, modified string, schema *config.Schema) 
 		return nil, err
 	}
 
+	// Mask ze:bcrypt leaves on both sides so the diff renders the placeholder,
+	// never the raw hash, and an unchanged hash is not flagged as changed.
+	// Idempotent when the inputs were already masked upstream.
+	origTree = config.MaskBcrypt(origTree, schema)
+	modTree = config.MaskBcrypt(modTree, schema)
+
 	var lines []diffLine
 	diffWalkChildren(&lines, origTree, modTree, schema, 0)
 	return lines, nil

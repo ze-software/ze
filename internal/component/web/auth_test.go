@@ -241,6 +241,59 @@ func TestAuthMiddlewarePassesRemoteAddrToAuthenticator(t *testing.T) {
 	assert.Equal(t, "198.51.100.10:4444", authenticator.request.RemoteAddr)
 }
 
+// VALIDATES: the web Basic-auth path never sets AuthRequest.Local, so the shared
+// authenticator always treats web logins as remote (hash-as-token disabled).
+// PREVENTS: a loopback reverse-proxy web request accidentally enabling
+// hash-as-token.
+func TestWebBasicAuthNeverSetsLocal(t *testing.T) {
+	store := NewSessionStore()
+	authenticator := &recordingAuthenticator{
+		result: authz.AuthResult{Authenticated: true, Source: "test"},
+	}
+	handler := AuthMiddleware(store, authenticator, noopRenderer, okHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+	req.RemoteAddr = "127.0.0.1:5555" // even from loopback, web must stay remote
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Basic "+
+		base64.StdEncoding.EncodeToString([]byte("alice:testpass")))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.False(t, authenticator.request.Local,
+		"web auth must never set Local (hash-as-token must stay disabled for web)")
+}
+
+// VALIDATES: AC-1 — presenting a user's stored bcrypt hash as the Basic-auth
+// password over web is rejected; the real plaintext still authenticates.
+// PREVENTS: a leaked config backup being replayed as a web credential.
+func TestWebBasicAuthRejectsHashAsToken(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
+	require.NoError(t, err)
+	users := []authz.UserConfig{{Name: "alice", Hash: string(hash)}}
+
+	store := NewSessionStore()
+	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
+
+	basic := func(user, pass string) int {
+		req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+		req.RemoteAddr = "127.0.0.1:5555"
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Authorization", "Basic "+
+			base64.StdEncoding.EncodeToString([]byte(user+":"+pass)))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	assert.Equal(t, http.StatusUnauthorized, basic("alice", string(hash)),
+		"the stored hash must be rejected as a web credential")
+	assert.Equal(t, http.StatusOK, basic("alice", "testpass"),
+		"the real plaintext password must still authenticate over web")
+}
+
 // TestSecurityHeaders verifies that authenticated responses include all required
 // security headers.
 // VALIDATES: AC-13 (security headers)

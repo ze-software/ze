@@ -148,8 +148,12 @@ func (m *Model) setViewportData(data viewportData) {
 // configViewAtPath builds a viewportData for the config at the given path,
 // including original content for diff gutter annotation.
 func (m *Model) configViewAtPath(path []string) *viewportData {
-	content := m.editor.ContentAtPath(path)
-	original := m.editor.OriginalContentAtPath(path)
+	// Display-masked: ze:bcrypt hashes are hidden in the config view. Both sides
+	// are masked so the diff gutter compares masked-against-masked. Validation
+	// still runs on the unmasked ContentAtPath elsewhere; masking is
+	// line-preserving so validation highlight line numbers still align.
+	content := m.editor.DisplayContentAtPath(path)
+	original := m.editor.DisplayOriginalContentAtPath(path)
 	return &viewportData{
 		content:         content,
 		originalContent: original,

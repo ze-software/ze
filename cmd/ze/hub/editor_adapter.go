@@ -73,6 +73,9 @@ func (a *editorAdapter) ListBackups() ([]contract.BackupInfo, error) {
 func (a *editorAdapter) Rollback(backupPath string) error   { return a.ed.Rollback(backupPath) }
 func (a *editorAdapter) Tree() any                          { return a.ed.Tree() }
 func (a *editorAdapter) ContentAtPath(path []string) string { return a.ed.ContentAtPath(path) }
+func (a *editorAdapter) DisplayContentAtPath(path []string) string {
+	return a.ed.DisplayContentAtPath(path)
+}
 func (a *editorAdapter) OriginalContentAtPath(path []string) string {
 	return a.ed.OriginalContentAtPath(path)
 }

@@ -126,6 +126,17 @@ func (m *EditorManager) CreateEntry(username string, path []string) error {
 
 // SetValue sets a leaf value at the given path in the user's working tree.
 func (m *EditorManager) SetValue(username string, path []string, key, value string) error {
+	// Never write the display placeholder back onto a ze:bcrypt leaf: the web
+	// form prefills a masked hash with SecretDataPlaceholder, so submitting a
+	// bcrypt field unchanged must be a no-op, not a clobber of the stored hash.
+	// A new password is set through the plaintext-<name> sibling instead. The
+	// commit-time guard (config.RejectMaskedBcryptLeaves) is the backstop.
+	if value == config.SecretDataPlaceholder && m.schema != nil {
+		if leaf := findLeafNode(m.schema, path, key); leaf != nil && leaf.Bcrypt {
+			return nil
+		}
+	}
+
 	us, err := m.GetOrCreate(username)
 	if err != nil {
 		return err
@@ -421,7 +432,10 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 }
 
 // ContentAtPath returns the serialized config content at the given context path
-// for the user's working tree. Returns an empty string if no session exists.
+// for the user's working tree, with ze:bcrypt leaves masked for display.
+// Returns an empty string if no session exists. This is a DISPLAY path (the web
+// CLI-bar `show` verb), so it uses the masked DisplayContentAtPath: the raw hash
+// must never reach the browser, and this route is not edit-authz gated.
 func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
@@ -434,7 +448,7 @@ func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.ContentAtPath(path)
+	return us.editor.DisplayContentAtPath(path)
 }
 
 // CopyListEntry copies a list entry in the user's working tree.

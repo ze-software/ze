@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-17 |
+| Phase | 1/9 |
+| Updated | 2026-07-18 |
 
 ## Post-Compaction Recovery
 
@@ -345,6 +345,46 @@ found except the `CheckPassword` doc comment, which spans `:73-80` not `:74-78`)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for transport class and redaction/truncation interplay
 - [ ] Functional `.ci`/`.wb`/`.et` tests for remote-hash-reject, download-gate, mask, placeholder-reject
+
+## Implementation Result (2026-07-19)
+
+All AC-1..AC-8 implemented with code + test:
+
+| AC | Evidence |
+|----|----------|
+| AC-1 remote hash rejected | `authz.TestCheckPasswordRejectsHashOverRemote`, `ssh.TestSSHPasswordCallbackRejectsHashFromRemotePeer`, `web.TestWebBasicAuthRejectsHashAsToken`, `authz.TestAuthenticateDefaultsToRemote`; functional `test/plugin/ssh-remote-hash-rejected.ci` (written; daemon-based, not run under the no-server constraint) |
+| AC-2 local hash accepted | `authz.TestCheckPasswordAcceptsHashOverLocal`, `ssh.TestSSHPasswordCallbackAcceptsHashFromLoopback` (loopback v4/v6 + unix) |
+| AC-3 plaintext everywhere | `authz.TestCheckPassword` (local+remote), `web.TestWebBasicAuthRejectsHashAsToken` (plaintext branch) |
+| AC-4 download edit-gated | `web.TestConfigDownloadRouteGatedByEditAuthz` (read-only 403, edit 200 raw); `service_web.go` `authWrap`->`editWrap` |
+| AC-5 display masked | `config.TestMaskBcryptLeavesForDisplay`, `cli.TestDisplayContentAtPathMasksBcrypt`, functional `test/parse/config-dump-masks-bcrypt.ci` (placeholder, never hash, never $9$) |
+| AC-6 round-trip byte-exact | `web.TestConfigDownloadRouteGatedByEditAuthz` (edit download == raw committed config); download handler streams unmasked |
+| AC-7 exec log redacted | `redact.TestCommandRedacts*`, `ssh.TestExecLogRedactsPasswordToken`, `ssh.TestExecLogRedactsBeforeTruncation` |
+| AC-8 placeholder rejected | `config.TestRejectMaskedBcryptLeaves`, functional `test/parse/bcrypt-placeholder-rejected.ci`; guard wired at all commit/validate entry points |
+
+Assumptions A-1..A-4 all confirmed (transport knowable at decision point; masking preserves
+round-trip via raw gated download + reject guard; local CLI is loopback; forwarding disabled).
+R-3 audit: NO existing flow breaks (see learned 1181 / DECISION.md).
+
+### Review Gate
+
+Independent reviewer (subagent, read-only diff review) run 2026-07-19:
+- **HIGH**: web `/cli` show verb (`handleCLIShow` -> `EditorManager.ContentAtPath`) rendered
+  config UNMASKED and was reachable by any authenticated (incl. read-only) session, leaking the
+  raw hash. **FIXED**: `EditorManager.ContentAtPath` now routes through the masked
+  `DisplayContentAtPath` (added to `contract.Editor` + all implementers); regression
+  `cli.TestDisplayContentAtPathMasksBcrypt`. Web serialize sweep confirms no other unmasked
+  display path.
+- NOTE (documented residual, not fixed here): gNMI `Get` returns raw leaf values (separate
+  component, own auth); redaction scoped to password-family+bcrypt to avoid false-positives on
+  BGP community / host-key path tokens; `cmd_dump` resolves BGP before masking (safe: no bcrypt
+  leaf under bgp). Recorded in DECISION.md / learned 1181.
+
+Verification: scoped unit tests green for `authz`, `ssh`, `web`, `config` (core), `config/cli`
+(dump), `aaa`, `core/redact`. Three pre-existing `config/cli` failures (listener-conflict,
+fix-plan repair IDs) are in the shared BGP/web validation pipeline, caused by concurrent agents'
+uncommitted rpki/vrrp schema changes (my `cmd_validate.go` change is additive and inert for
+those non-bcrypt configs). Full `make ze-verify` intentionally NOT run (would kill live servers
+per operator instruction).
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; hash-as-token remote reachability and the unmasked export chain were verified by verifier V2. Resolution direction (restrict + mask) chosen by Thomas.

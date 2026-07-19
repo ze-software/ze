@@ -56,6 +56,42 @@ func TestConfigDownloadRequiresAuth(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
+// VALIDATES: AC-4 (spec-fixit-bcrypt-hash-credential) -- GET /config/download is
+// gated by RequireEditAuthz: a read-only session gets 403, an edit-authorized
+// session gets the RAW (unmasked) committed config. The raw stream proves AC-6:
+// the download is byte-exact so a real password hash round-trips.
+// PREVENTS: a read-only web user exfiltrating the raw config (and its bcrypt
+// hash) via the download endpoint.
+func TestConfigDownloadRouteGatedByEditAuthz(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	// Matches the production wiring: editWrap = auth + RequireEditAuthz.
+	download := HandleConfigDownload(mgr, recorder)
+
+	newReq := func() *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/config/download", http.NoBody)
+		req.RemoteAddr = "192.0.2.5:1111"
+		return req.WithContext(withUsername(req.Context(), "bob"))
+	}
+
+	// Read-only user: RequireEditAuthz returns 403 before the handler runs.
+	roGate := RequireEditAuthz(fakeAuthorizer{allowEdit: false}, download)
+	roRec := httptest.NewRecorder()
+	roGate.ServeHTTP(roRec, newReq())
+	assert.Equal(t, http.StatusForbidden, roRec.Code, "read-only user must be denied the download")
+
+	// Edit-authorized user: gets the raw committed config verbatim (unmasked).
+	editGate := RequireEditAuthz(fakeAuthorizer{allowEdit: true}, download)
+	editRec := httptest.NewRecorder()
+	editGate.ServeHTTP(editRec, newReq())
+	require.Equal(t, http.StatusOK, editRec.Code, "edit-authorized user must get the download")
+	raw, readErr := mgr.CommittedConfig()
+	require.NoError(t, readErr)
+	assert.Equal(t, string(raw), editRec.Body.String(),
+		"download must be the byte-exact raw committed config (unmasked round-trip)")
+}
+
 // VALIDATES: AC-4 -- a valid uploaded config is validated, written, and the
 // reload hook fires; an audit entry is recorded.
 // PREVENTS: silent upload that never reaches the daemon.

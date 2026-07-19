@@ -270,6 +270,14 @@ func runValidation(input, path string) *validationResult {
 		result.addWarning("config-warning", w)
 	}
 
+	// Fail closed if a ze:bcrypt leaf carries the display placeholder: a masked
+	// `show config` pasted into a file (or a web upload) must not clobber the
+	// stored hash with the placeholder. This guards the web upload path
+	// (ValidateContent) and `ze config validate` at once.
+	if maskErr := config.RejectMaskedBcryptLeaves(tree, schema); maskErr != nil {
+		result.addError("config-bcrypt-masked", maskErr.Error())
+	}
+
 	// Prune inactive nodes before resolution so the validation summary
 	// reflects only active config (inactive peers are not started).
 	config.PruneInactive(tree, schema)

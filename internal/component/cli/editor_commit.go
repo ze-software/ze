@@ -144,6 +144,12 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("backup: %w", err)
 	}
 
+	// Fail closed if a ze:bcrypt leaf holds the display placeholder: a masked
+	// `show config` pasted back must never clobber the stored hash.
+	if err := config.RejectMaskedBcryptLeaves(committedTree, e.schema); err != nil {
+		return nil, err
+	}
+
 	// Hash any plaintext-password siblings of ze:bcrypt leaves into their
 	// canonical form and remove the plaintext. Junos-style one-way commit
 	// so the serialized config never carries plaintext. Drop the matching
@@ -309,6 +315,9 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 		}
 	}
 
+	if err := config.RejectMaskedBcryptLeaves(committedTree, e.schema); err != nil {
+		return nil, "", err
+	}
 	if err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
 		return nil, "", fmt.Errorf("hash password: %w", err)
 	}

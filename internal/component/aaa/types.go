@@ -97,6 +97,20 @@ type AuthRequest struct {
 	Password   string //nolint:gosec // Transient in-memory auth input passed to backends; never logged or persisted.
 	RemoteAddr string
 	Service    string
+
+	// Local reports whether the connection originated from a trusted-local
+	// transport: a unix-socket peer or a loopback TCP peer, classified from the
+	// accepted socket address at the transport entry point (never from
+	// client-supplied data such as headers). It gates the bcrypt-hash-as-token
+	// credential path in the local authenticator: the ze CLI presents the
+	// zefs-stored hash over loopback, which must be accepted, but the same hash
+	// presented over any remote transport (non-loopback SSH, all web, all API)
+	// must be rejected so a leaked config backup is not itself a credential.
+	//
+	// Fail-closed by construction: the zero value (false) means remote, so a
+	// surface that never sets it (web, API) — or a future caller that forgets
+	// to — gets hash-as-token rejected, never accepted.
+	Local bool
 }
 
 // ChainAuthenticator tries backends in order and distinguishes two failure modes:

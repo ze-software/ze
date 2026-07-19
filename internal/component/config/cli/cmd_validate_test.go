@@ -176,6 +176,15 @@ func TestValidateContentReturnsAggregatedError(t *testing.T) {
 	assert.Contains(t, err.Error(), "router-id")
 }
 
+// test-relax: AC-8 validation-entry-point coverage for the masked-bcrypt guard
+// moved to real-binary functional tests test/parse/bcrypt-placeholder-rejected.ci
+// and test/parse/config-dump-masks-bcrypt.ci. A Go test here needed a blank
+// import of internal/component/ssh/yang (the only ze:bcrypt config leaf lives in
+// ze-ssh-conf.yang), which registers into the package-global YANG module list
+// and polluted the schema for unrelated tests in this package (listener-conflict
+// and fix-plan diagnostics). The guard itself is unit-tested in
+// internal/component/config: config.TestRejectMaskedBcryptLeaves.
+
 // TestValidateRunsPluginConfigVerifier verifies `ze config validate` rejects
 // errors from registered side-effect-free plugin verify hooks.
 //

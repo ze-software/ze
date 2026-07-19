@@ -539,9 +539,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", mutationWrap(commitHandler))
 	srv.Handle("/config/commit/", mutationWrap(commitHandler))
-	// Config export (read, any authenticated session) and import (edit-gated,
-	// read-only sessions denied; same-origin enforced) (AC-3/AC-4).
-	srv.Handle("GET /config/download", authWrap(downloadHandler))
+	// Config export and import are BOTH edit-gated: the raw download streams the
+	// committed config verbatim, including the real bcrypt password hash, so a
+	// read-only session must not fetch it (an unmasked hash is a credential over
+	// the local CLI path). editWrap denies read-only sessions (403); upload adds
+	// same-origin on top (spec-fixit-bcrypt-hash-credential AC-4).
+	srv.Handle("GET /config/download", editWrap(downloadHandler))
 	srv.Handle("POST /config/upload", editMutationWrap(uploadHandler))
 	srv.Handle("POST /config/discard", mutationWrap(discardHandler))
 	srv.Handle("POST /config/discard/", mutationWrap(discardHandler))

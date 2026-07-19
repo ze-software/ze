@@ -1,0 +1,43 @@
+# Test: `ze config dump` masks a ze:bcrypt password with the placeholder.
+#
+# VALIDATES: spec-fixit-bcrypt-hash-credential AC-5 -- a ze:bcrypt leaf value is
+#            displayed as the SecretDataPlaceholder ("/* SECRET-DATA */") on the
+#            dump path, never the raw hash and never $9$-encoded (bcrypt is
+#            one-way; $9$ is reversible obfuscation).
+# PREVENTS: `ze config dump` (JSON) leaking the stored bcrypt hash, which is a
+#           credential over the local CLI path.
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user alice {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config dump --json -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=/* SECRET-DATA */
+expect=stdout:not=UlwuiuH82Unfsq

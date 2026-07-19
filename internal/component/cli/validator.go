@@ -163,6 +163,15 @@ func (v *ConfigValidator) validateCore(content string) (ConfigValidationResult, 
 		})
 	}
 
+	// Fail closed on a masked bcrypt leaf: the display placeholder must never be
+	// accepted as a real hash on commit.
+	if maskErr := config.RejectMaskedBcryptLeaves(tree, v.schema); maskErr != nil {
+		result.Errors = append(result.Errors, ConfigValidationError{
+			Message:  maskErr.Error(),
+			Severity: severityError,
+		})
+	}
+
 	return result, tree, parseErr
 }
 

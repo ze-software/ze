@@ -416,6 +416,7 @@ func (e *Editor) ActiveContentAtPath(path []string) string {
 	}
 	clone := e.tree.Clone()
 	config.PruneInactive(clone, e.schema)
+	config.MaskBcryptInPlace(clone, e.schema) // display-only; hides ze:bcrypt hashes
 	if len(path) == 0 {
 		return config.Serialize(clone, e.schema)
 	}
@@ -434,6 +435,7 @@ func (e *Editor) InactiveContentAtPath(path []string) string {
 	}
 	clone := e.tree.Clone()
 	config.PruneActive(clone, e.schema)
+	config.MaskBcryptInPlace(clone, e.schema) // display-only; hides ze:bcrypt hashes
 	if len(path) == 0 {
 		return config.Serialize(clone, e.schema)
 	}
@@ -775,6 +777,11 @@ func (e *Editor) SensitiveKeys() map[string]bool {
 		return nil
 	}
 	return config.SensitiveKeys(e.schema)
+}
+
+// BcryptKeys returns the set of leaf names marked ze:bcrypt in the schema.
+func (e *Editor) BcryptKeys() map[string]bool {
+	return config.BcryptKeys(e.schema)
 }
 
 // SessionChanges returns the changes for a specific session, or all sessions.

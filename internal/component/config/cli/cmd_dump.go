@@ -89,6 +89,14 @@ func cmdDump(args []string) int {
 	}
 	sensitiveKeys := config.SensitiveKeys(schema)
 
+	// Mask ze:bcrypt leaves with the placeholder BEFORE dumping. Bcrypt is
+	// one-way, so it is always the strip placeholder, never $9$ (reversible; the
+	// parser also refuses $9$ on a bcrypt leaf). MaskBcrypt clones, so the on-disk
+	// config is untouched. The sensitive/$9$ masking below skips a value that is
+	// already the placeholder, so a bcrypt leaf whose name also happens to be
+	// ze:sensitive in another module is not re-encoded as $9$.
+	tree = config.MaskBcrypt(tree, schema)
+
 	if *jsonOutput {
 		// Build full dump with resolved BGP section.
 		dumpMap := tree.ToMap()
@@ -107,7 +115,9 @@ func cmdDump(args []string) int {
 	return 0
 }
 
-// maskMapValues recursively replaces sensitive values in a map.
+// maskMapValues recursively replaces sensitive values in a map. A value already
+// equal to SecretDataPlaceholder (e.g. a ze:bcrypt leaf masked by MaskBcrypt) is
+// left as-is, never re-encoded as $9$.
 func maskMapValues(m map[string]any, sensitiveKeys map[string]bool, mode config.DisplayMode) {
 	if mode == config.DisplayPlain {
 		return
@@ -117,7 +127,7 @@ func maskMapValues(m map[string]any, sensitiveKeys map[string]bool, mode config.
 		case map[string]any:
 			maskMapValues(val, sensitiveKeys, mode)
 		case string:
-			if sensitiveKeys[k] {
+			if sensitiveKeys[k] && val != config.SecretDataPlaceholder {
 				m[k] = maskValue(val, mode)
 			}
 		}
