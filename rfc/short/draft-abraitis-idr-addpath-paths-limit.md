@@ -68,7 +68,7 @@ Variable length: sequence of 5-byte entries. Each entry specifies the maximum nu
 
 ## Compliance Checklist
 
-- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1] [MUST] A BGP speaker wishing to indicate support for multiple AFI/SAFIs "MUST do so by including the information in a single instance of the PATHS-LIMIT capability" (§3)
+- [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1] [MUST] A BGP speaker wishing to indicate support for multiple AFI/SAFIs "MUST do so by including the information in a single instance of the PATHS-LIMIT capability" (§3) {single-polarity: positive; the encoder appends exactly one capability.PathsLimit holding all families at internal/component/bgp/reactor/config_capabilities.go:388-391, so no code path can emit a second instance and a two-instance negative case cannot be constructed}
 - [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2] [MUST] "The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present" (§3)
 - [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3] [MUST] "An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability" (§3)
 - [ ] [DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4] [MUST] When more than one tuple is received for the same AFI/SAFI pair, only the first tuple is considered and "All others MUST be ignored" (§3)

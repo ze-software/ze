@@ -61,6 +61,9 @@ func findTLV232Addrs(t *testing.T, lsp packet.LSP) []netip.Addr {
 
 // TestISISOriginateTLV236 -- own LSP carries TLV 236 for non-link-local IPv6
 // prefixes and excludes a fe80::/10 link-local prefix (RFC 5308 sec 2, AC-1).
+//
+// RFC requirement: RFC5308-2-1 positive -- the routable non-link-local prefixes 2001:db8:1::/64 and 2001:db8:2::/48 appear in TLV 236.
+// RFC requirement: RFC5308-2-1 negative -- the fe80::/64 link-local prefix is excluded from TLV 236.
 func TestISISOriginateTLV236(t *testing.T) {
 	d := New(nil)
 	o := NewOriginator(d, nil)
@@ -103,6 +106,9 @@ func TestISISOriginateTLV236(t *testing.T) {
 // TestISISOriginateTLV232Scope -- TLV 232 in the LSP carries ONLY non-link-local
 // addresses (RFC 5308 sec 3, AC-4). The link-local addresses belong in the IIH
 // (circuit layer), never in the LSP.
+//
+// RFC requirement: RFC5308-3-2 positive -- the non-link-local address 2001:db8::1 is carried in the LSP TLV 232.
+// RFC requirement: RFC5308-3-2 negative -- the fe80::1 link-local address is excluded from the LSP TLV 232.
 func TestISISOriginateTLV232Scope(t *testing.T) {
 	d := New(nil)
 	o := NewOriginator(d, nil)
@@ -138,6 +144,9 @@ func TestISISOriginateTLV232Scope(t *testing.T) {
 
 // TestISISProtocolsSupportedDualStack -- TLV 129 lists 0x8E + 0xCC when
 // dual-stack and only 0xCC when IPv4-only (RFC 5308 sec 4, AC-1).
+//
+// RFC requirement: RFC5308-4-1 positive -- the dual-stack LSP lists NLPID 0x8E in the Protocols Supported TLV (129).
+// RFC requirement: RFC5308-4-1 negative -- the IPv4-only LSP omits NLPID 0x8E from the Protocols Supported TLV (129).
 func TestISISProtocolsSupportedDualStack(t *testing.T) {
 	cases := []struct {
 		name      string

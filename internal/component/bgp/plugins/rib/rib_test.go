@@ -938,6 +938,11 @@ func TestRIBPluginHandleCommandRejectsOldNames(t *testing.T) {
 //
 // VALIDATES: Refresh handler filters routes by family correctly.
 // PREVENTS: Wrong family routes being included in refresh response.
+//
+// RFC requirement: RFC2918-4-3 positive -- on a valid ROUTE-REFRESH from an up peer,
+// the speaker re-advertises the Adj-RIB-Out of the requested <AFI, SAFI>:
+// handleRefresh (rib.go) collects the peer's ribOut routes for that family and
+// dispatches them (BoRR, routes, EoRR) while leaving stored state intact.
 func TestHandleRefresh_InternalState(t *testing.T) {
 	r := newTestRIBManager(t)
 
@@ -976,6 +981,11 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 //
 // VALIDATES: Refresh request ignored if peer is not up.
 // PREVENTS: Sending routes to disconnected peer.
+//
+// RFC requirement: RFC2918-4-3 negative -- the re-advertisement is conditional, not
+// unconditional: when the peer is not up, handleRefresh (rib.go) returns early and
+// no Adj-RIB-Out is re-advertised, even though routes exist for the family. Proves
+// the re-advertise path is gated on peer state, not a blanket send.
 func TestHandleRefresh_PeerNotUp(t *testing.T) {
 	r := newTestRIBManager(t)
 

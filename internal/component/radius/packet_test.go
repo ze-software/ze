@@ -333,10 +333,13 @@ func TestVerifyCoARequestAuth(t *testing.T) {
 	auth := AccountingRequestAuth(buf, n, secret)
 	copy(buf[4:4+AuthenticatorLen], auth[:])
 
+	// RFC requirement: RFC5176-3.5-4 positive -- a Request Authenticator computed as
+	// MD5(Code+Id+Length+16-zero-octets+Attrs+Secret) verifies for a correctly signed packet.
 	if !VerifyCoARequestAuth(buf[:n], secret) {
 		t.Error("valid CoA auth should verify")
 	}
 
+	// RFC requirement: RFC5176-3.5-4 negative -- a tampered authenticator (wrong MD5) is rejected.
 	// Corrupt one byte.
 	buf[4]++
 	if VerifyCoARequestAuth(buf[:n], secret) {

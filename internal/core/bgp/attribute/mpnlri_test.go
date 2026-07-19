@@ -1,6 +1,7 @@
 package attribute
 
 import (
+	"errors"
 	"net/netip"
 	"slices"
 	"testing"
@@ -315,6 +316,10 @@ func TestParseMPUnreachNLRI(t *testing.T) {
 //
 // PREVENTS: Parsing failures when receiving IPv4 routes with IPv6 next-hops
 // over IPv6-only infrastructure.
+//
+// RFC requirement: RFC8950-3-1 positive -- an IPv4 NLRI (AFI=1) advertisement with a 16-byte
+// next-hop is parsed as an IPv6 next-hop: parseNextHops keys off the Next Hop Length (16 -> IPv6)
+// regardless of the NLRI AFI (internal/core/bgp/attribute/mpnlri.go:342-349).
 func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
 	t.Parallel()
 	// RFC 5549 Section 3: IPv4 NLRI with 16-byte (IPv6) next-hop
@@ -407,6 +412,10 @@ func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
 // VALIDATES: 32-byte next-hop (global+link-local) parses as two IPv6 addresses.
 //
 // PREVENTS: Incorrect parsing of dual-stack next-hop announcements.
+//
+// RFC requirement: RFC8950-3-1 positive -- an IPv4 NLRI advertisement with a 32-byte next-hop is
+// parsed as two IPv6 addresses (global + link-local): parseNextHops selects the family from the
+// Next Hop Length (32 -> dual IPv6) regardless of NLRI AFI (internal/core/bgp/attribute/mpnlri.go:351-358).
 func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 	t.Parallel()
 	// RFC 5549 Section 3 + RFC 2545: 32-byte next-hop = global + link-local
@@ -435,6 +444,38 @@ func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 	}
 	if !m.NextHops.Slice()[1].Is6() {
 		t.Errorf("NextHops[1] is not IPv6: %v", m.NextHops.Slice()[1])
+	}
+}
+
+// TestParseMPReachNLRI_InvalidNextHopLength verifies that a next-hop length which maps to no
+// valid network-layer protocol encoding is rejected.
+//
+// VALIDATES: RFC 8950 Section 3 -- the Next Hop Length field is authoritative and validated.
+//
+// PREVENTS: Silently mis-parsing an IPv4 NLRI next-hop whose length is neither a valid IPv4
+// (multiple of 4) nor IPv6 (16 or 32) length.
+//
+// RFC requirement: RFC8950-3-1 negative -- for IPv4 NLRI a 5-byte next-hop is neither a valid
+// IPv6 length (16/32) nor a multiple of 4, so parseNextHops rejects it with ErrInvalidNextHopLen
+// (internal/core/bgp/attribute/mpnlri.go:342,366). The length field determines the protocol and
+// an unsupported length is not defaulted or ignored.
+func TestParseMPReachNLRI_InvalidNextHopLength(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x00, 0x01, // AFI IPv4
+		0x01,                         // SAFI unicast
+		0x05,                         // NH len = 5 (invalid: not 16/32, not a multiple of 4)
+		0xAA, 0xBB, 0xCC, 0xDD, 0xEE, // 5 next-hop bytes
+		0x00,                   // reserved
+		0x18, 0xc0, 0x00, 0x02, // NLRI 192.0.2.0/24
+	}
+
+	m, err := ParseMPReachNLRI(data)
+	if !errors.Is(err, ErrInvalidNextHopLen) {
+		t.Fatalf("ParseMPReachNLRI() error = %v, want ErrInvalidNextHopLen", err)
+	}
+	if m != nil {
+		t.Errorf("expected nil MPReachNLRI on invalid next-hop length, got %v", m)
 	}
 }
 
@@ -491,6 +532,10 @@ func TestParseMPReachNLRI_VPNIPv4NextHop(t *testing.T) {
 // Both use RD(8) + IPv6(16) = 24 bytes.
 //
 // PREVENTS: Incorrect parsing of VPN routes with IPv6 next-hop.
+//
+// RFC requirement: RFC8950-3-2 positive -- a VPN next-hop of 24 bytes is decoded as an 8-byte
+// Route Distinguisher (all zeros here) followed by a 16-byte IPv6 address; parseVPNNextHops skips
+// the RD prefix and returns the IPv6 next-hop (internal/core/bgp/attribute/mpnlri.go:438-443).
 func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -585,6 +630,10 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 //
 // VALIDATES: RFC 4364 Section 4.3.4 VPN next-hop encoding round-trips correctly.
 // PREVENTS: VPN routes rejected by GoBGP due to incorrect next-hop length.
+//
+// RFC requirement: RFC8950-3-2 positive -- WriteTo prefixes a VPN next-hop with an 8-byte
+// all-zero Route Distinguisher (wire NH_Len = 12 = RD(8) + IPv4(4)), and ParseMPReachNLRI strips
+// the RD back to the address; the RD is always written as zero (internal/core/bgp/attribute/mpnlri.go:170-176).
 func TestMPReachNLRI_RoundTrip_VPN(t *testing.T) {
 	t.Parallel()
 	original := &MPReachNLRI{

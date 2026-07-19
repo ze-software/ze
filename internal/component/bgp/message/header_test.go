@@ -33,6 +33,11 @@ func TestParseHeaderValid(t *testing.T) {
 // VALIDATES: Type byte correctly mapped to MessageType.
 //
 // PREVENTS: Wrong message type causing incorrect parsing.
+//
+// RFC requirement: RFC2918-3-1 negative -- a header whose type byte is not 5
+// (1..4) decodes to OPEN/UPDATE/NOTIFICATION/KEEPALIVE, never ROUTE-REFRESH; only
+// type byte 5 yields TypeROUTEREFRESH. Proves the type-5 assignment is exclusive,
+// so a non-5 message is not mistaken for a ROUTE-REFRESH.
 func TestParseHeaderAllTypes(t *testing.T) {
 	tests := []struct {
 		typeByte byte

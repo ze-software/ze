@@ -244,6 +244,9 @@ func TestISISSPFLANPseudonodeFirstHop(t *testing.T) {
 // TestISISMetricWidth verifies the 32-bit prefix metric is read in full (not
 // capped at 24-bit) and that a path whose accumulated cost reaches
 // MAX_PATH_METRIC is treated as unreachable without wrapping.
+//
+// RFC requirement: RFC5308-5-2 positive -- clampMetric returns the exact sum when it stays below MAX_PATH_METRIC (0xFE000000 == MAX_V6_PATH_METRIC).
+// RFC requirement: RFC5308-5-2 negative -- clampMetric saturates to MAX_PATH_METRIC when the sum would exceed it.
 func TestISISMetricWidth(t *testing.T) {
 	// clampMetric: a sum below the ceiling is exact; a sum at/over saturates.
 	if got := clampMetric(1000, 2000); got != 3000 {

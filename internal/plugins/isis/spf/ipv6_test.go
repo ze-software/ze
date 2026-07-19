@@ -87,6 +87,8 @@ func TestISISIPv6SPFNextHop(t *testing.T) {
 // TestISISIPv6LevelArbitration -- when the same IPv6 prefix is reachable at both
 // L1 (up) and L2 (up), the shared RFC 5308 sec 5 preference picks L1 (the IPv6
 // route builder reuses candidate.better/preferenceRank, exactly like IPv4).
+//
+// RFC requirement: RFC5308-5-1 positive -- an IPv6 prefix reachable at L1-up and L2-up is arbitrated to L1-up through BuildRoutesV6.
 func TestISISIPv6LevelArbitration(t *testing.T) {
 	root := sysV6(1)
 	to := types.NewSourceID(sysV6(2), 0)
@@ -200,6 +202,9 @@ func TestISISIPv6RouteLocRIBInsert(t *testing.T) {
 // greater than MAX_V6_PATH_METRIC is decoded but excluded from normal SPF, while
 // a prefix with metric exactly MAX_V6_PATH_METRIC is also excluded only by the
 // accumulated-cost ceiling; a low-metric sibling is still routed (AC-8, boundary).
+//
+// RFC requirement: RFC5308-2-2 negative -- a TLV 236 prefix with metric > MAX_V6_PATH_METRIC (0xFE000000) is excluded from normal SPF.
+// RFC requirement: RFC5308-2-2 positive -- a sibling prefix with an in-range metric is still routed, so the filter rejects only over-max metrics.
 func TestISISIPv6MetricAboveMaxIgnored(t *testing.T) {
 	root := sysV6(1)
 	to := types.NewSourceID(sysV6(2), 0)

@@ -1,6 +1,21 @@
+// RSVP-TE wire codec round-trips and RFC 2205 common-header/object obligations.
+//
+// VALIDATES: the wire.go/build.go encoders and DecodeMessage against RFC 2205 --
+// the common header carries Version 1 (Section 3.1), the reserved octet is zero
+// on send (Section 3.1), and every emitted object length is a multiple of 4
+// (Section 3.1.2) -- plus per-object encode/decode round-trips and the ERO/RRO
+// bounds guards.
+// PREVENTS: encoding a header with the wrong version or a nonzero reserved octet,
+// accepting a non-version-1 header on decode, and emitting an object whose length
+// is not a multiple of 4 (which would desynchronise a conformant peer's object walk).
+//
+// Producers exercised: encodeHeader / DecodeHeader (wire.go), the per-object
+// encoders (wire.go), and buildPath / buildResv / buildPathErr (build.go).
+
 package rsvpte
 
 import (
+	"encoding/binary"
 	"net/netip"
 	"testing"
 )
@@ -313,6 +328,9 @@ func TestRSVPLabelObject(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2205-3.1-1 positive -- the common header encodes Version
+// rsvpVersion (1) via encodeHeader (wire.go:172) and DecodeHeader accepts it, so a
+// Version-1 header round-trips with Version == 1 (the version guard is wire.go:194).
 func TestRSVPHeaderRoundTrip(t *testing.T) {
 	hdr := Header{
 		Version:  rsvpVersion,
@@ -344,6 +362,9 @@ func TestRSVPHeaderRoundTrip(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2205-3.1-1 negative -- a common header carrying Version 2
+// (buf[0] high nibble 0x2) is rejected by DecodeHeader with errBadVersion
+// (wire.go:194); only Version 1 is accepted.
 func TestRSVPDecodeHeaderBadVersion(t *testing.T) {
 	buf := make([]byte, rsvpHdrLen)
 	buf[0] = 0x20
@@ -480,5 +501,90 @@ func TestTransitRelayLargeERONoPanic(t *testing.T) {
 	}
 	if _, err := DecodeMessage(raw); err != nil {
 		t.Fatalf("DecodeMessage of a worst-case PATH: %v", err)
+	}
+}
+
+// RFC requirement: RFC2205-3.1-2 positive -- the reserved octet of the common
+// header (byte 5) is zero on every message ze sends. buildPath composes a real
+// PATH through encodeMessage -> encodeHeader (wire.go:177 writes buf[5] = 0), and
+// the encoded byte must read back as 0. The receive path does not reject a nonzero
+// reserved octet (the RFC does not require it), so this obligation is send-only.
+func TestRSVPReservedByteZeroOnSend(t *testing.T) {
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.2"), TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+	}
+	raw := buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
+	if len(raw) < rsvpHdrLen {
+		t.Fatalf("PATH shorter than the common header: %d bytes", len(raw))
+	}
+	if raw[5] != 0 {
+		t.Fatalf("common-header reserved byte = 0x%02x, want 0x00", raw[5])
+	}
+}
+
+// RFC requirement: RFC2205-3.1.2-1 positive -- every RSVP object ze encodes carries
+// a Length that is a multiple of 4. The whole-message builders compose the wire.go
+// object encoders (SESSION, RSVP_HOP, TIME_VALUES, ERO, LABEL_REQUEST,
+// SENDER_TEMPLATE, SENDER_TSPEC, STYLE, FLOWSPEC, LABEL, RRO, ERROR_SPEC); walking
+// every object header in the built PATH/RESV/PathErr and checking Length %4 == 0
+// pins the invariant across the full object set. Decode does not enforce %4, so this
+// obligation is send-only.
+func TestRSVPObjectLengthMultipleOfFour(t *testing.T) {
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.2"), TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		ERO: []eroHop{
+			{Address: netip.MustParsePrefix("10.0.0.2/32")},
+			{Loose: true, Address: netip.MustParsePrefix("2001:db8::1/128")},
+		},
+		SenderTSpec:  FlowSpec{TokenRate: 1e8},
+		LabelRequest: labelRequest{L3PID: 0x0800},
+	}
+	rsb := &resvStateBlock{
+		Session:  sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.2"), TunnelID: 1},
+		FlowSpec: FlowSpec{TokenRate: 1e8},
+		Label:    labelObject{Label: 1000},
+		Style:    StyleSharedExplicit,
+		RRO: []rroEntry{
+			{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.2")},
+			{Type: RROSubLabel, Label: 1000},
+			{Type: RROSubIPv6, Address: netip.MustParseAddr("2001:db8::1")},
+		},
+	}
+	filter := senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1}
+	es := errorSpec{ErrorNode: netip.MustParseAddr("10.0.0.5"), ErrorCode: 24, ErrorValue: 1}
+
+	msgs := map[string][]byte{
+		"PATH":    buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64),
+		"RESV":    buildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.2")),
+		"PathErr": buildPathErr(psb.Session, filter, psb.SenderTSpec, es, netip.MustParseAddr("10.0.0.1")),
+	}
+
+	for name, raw := range msgs {
+		hdr, err := DecodeHeader(raw)
+		if err != nil {
+			t.Fatalf("%s: DecodeHeader: %v", name, err)
+		}
+		objs := 0
+		for off := rsvpHdrLen; off < int(hdr.Length); {
+			if off+objHdrLen > len(raw) {
+				t.Fatalf("%s: object header at offset %d runs past the %d-byte message", name, off, len(raw))
+			}
+			objLen := int(binary.BigEndian.Uint16(raw[off : off+2]))
+			if objLen < objHdrLen {
+				t.Fatalf("%s: object at offset %d has length %d, below the %d-byte header", name, off, objLen, objHdrLen)
+			}
+			if objLen%4 != 0 {
+				t.Errorf("%s: object at offset %d (class %d) length %d is not a multiple of 4", name, off, raw[off+2], objLen)
+			}
+			off += objLen
+			objs++
+		}
+		if objs == 0 {
+			t.Fatalf("%s: walked zero objects", name)
+		}
 	}
 }

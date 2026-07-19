@@ -42,6 +42,9 @@ func oneLevelRoute(level Level, root types.SystemID, to types.SourceID, metric u
 // TestISISLeakUpDownBit verifies the RFC 5308 sec 5 / RFC 5302 up/down-aware
 // preference order when the same prefix is reachable at multiple levels/up-down
 // states. The order best-to-worst is L1-up > L2-up > L2-down > L1-down.
+//
+// RFC requirement: RFC5308-5-1 positive -- L1-up outranks L2-up in the up/down-aware preference order.
+// RFC requirement: RFC5308-5-1 negative -- an L1-down leaked prefix loses to an L2 prefix, refuting a flat L1-over-L2 order.
 func TestISISLeakUpDownBit(t *testing.T) {
 	root := sysID(1)
 	to := srcID(2)

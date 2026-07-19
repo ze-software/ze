@@ -578,6 +578,49 @@ func TestParsePeerCapabilityPathsLimit(t *testing.T) {
 	assert.Equal(t, uint16(10), pathsLimit.Entries[0].Limit)
 }
 
+// TestParsePeerCapabilityPathsLimitSingleInstance verifies that multiple AFI/SAFIs
+// with limits collapse into one PATHS-LIMIT capability instance holding all families.
+//
+// VALIDATES: add-path with two families each carrying a limit yields exactly one
+// *capability.PathsLimit whose Entries hold both tuples.
+// PREVENTS: Emitting a separate PATHS-LIMIT capability per family.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 positive -- multiple AFI/SAFIs are advertised in a single instance of the PATHS-LIMIT capability.
+func TestParsePeerCapabilityPathsLimitSingleInstance(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65001"},
+			"capability": map[string]any{"add-path": map[string]any{
+				"direction": "send/receive",
+				"family": map[string]any{
+					"ipv4/unicast": map[string]any{"limit": "10"},
+					"ipv6/unicast": map[string]any{"limit": "20"},
+				},
+			}},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+
+	var pathsLimits []*capability.PathsLimit
+	for _, c := range ps.Capabilities {
+		if pl, ok := c.(*capability.PathsLimit); ok {
+			pathsLimits = append(pathsLimits, pl)
+		}
+	}
+	require.Len(t, pathsLimits, 1, "exactly one PathsLimit capability must carry all families")
+	require.Len(t, pathsLimits[0].Entries, 2, "the single PathsLimit instance holds both family tuples")
+
+	limits := make(map[capability.Family]uint16)
+	for _, e := range pathsLimits[0].Entries {
+		limits[capability.Family{AFI: e.AFI, SAFI: e.SAFI}] = e.Limit
+	}
+	assert.Equal(t, uint16(10), limits[capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}])
+	assert.Equal(t, uint16(20), limits[capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}])
+}
+
 // TestParsePeerCapabilityExtendedNextHop verifies RFC 8950 extended next-hop parsing.
 //
 // VALIDATES: nexthop { ipv4/unicast ipv6; } creates ExtendedNextHop capability.

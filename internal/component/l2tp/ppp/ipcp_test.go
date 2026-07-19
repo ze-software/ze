@@ -10,6 +10,11 @@ import (
 // VALIDATES: ParseIPCPOptions decodes IP-Address (type 3) plus both DNS
 //
 //	options (RFC 1877 types 129/131) into the struct.
+//
+// RFC requirement: RFC1332-3-1 positive -- IPCP configuration options follow the RFC 1661
+// Type/Length/Data format: a well-formed option list (each option Type, Length=6, 4-byte
+// value) is decoded by ParseIPCPOptions (internal/component/l2tp/ppp/ipcp.go) into the
+// right fields, so ze reads options that obey the RFC 1661 TLV shape.
 func TestIPCPParseOptions(t *testing.T) {
 	// IP-Address=192.168.1.10 + Primary-DNS=1.1.1.1 + Secondary-DNS=8.8.8.8.
 	buf := []byte{
@@ -62,6 +67,12 @@ func TestIPCPRoundtrip(t *testing.T) {
 //
 //	(short option, wrong length, truncated buffer). PREVENTS:
 //	out-of-bounds reads on hostile input.
+//
+// RFC requirement: RFC1332-3-1 negative -- an option list that violates the RFC 1661
+// Type/Length/Data format (Length below the 2-byte header, Length past the buffer, or a
+// wrong per-option size) is rejected by ParseIPCPOptions
+// (internal/component/l2tp/ppp/ipcp.go) rather than silently accepted, so ze does not
+// treat malformed bytes as valid options.
 func TestIPCPParseRejects(t *testing.T) {
 	cases := []struct {
 		name    string

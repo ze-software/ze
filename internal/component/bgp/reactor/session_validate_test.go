@@ -250,6 +250,10 @@ func TestValidateUpdateFamilies_IgnoreMode(t *testing.T) {
 
 // TestBuildUnsupportedCapabilityData verifies NOTIFICATION data for Multiprotocol families.
 // RFC 5492 Section 3: each family encoded as code(1) + length(1) + AFI(2) + Reserved(1) + SAFI(1).
+// RFC requirement: RFC5492-3-1 positive -- buildUnsupportedCapabilityData encodes each
+// offending family into the NOTIFICATION Data as a Multiprotocol capability TLV
+// (code 1, len 4, AFI, reserved, SAFI), so the message contains the capabilities that
+// caused the speaker to send it (internal/component/bgp/reactor/session_validation.go:396).
 func TestBuildUnsupportedCapabilityData(t *testing.T) {
 	families := []capability.Family{
 		{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -275,6 +279,10 @@ func TestBuildUnsupportedCapabilityData(t *testing.T) {
 
 // TestBuildUnsupportedCapabilityDataCodes_MultipleCodes verifies NOTIFICATION data for non-family codes.
 // RFC 5492 Section 3: each code encoded as code(1) + length(1).
+//
+// RFC requirement: RFC5492-5-1 positive -- buildUnsupportedCapabilityDataCodes lists each
+// offending capability code in the NOTIFICATION Data encoded exactly as in an OPEN message
+// (code(1)+length(1), length 0 for non-family codes) (internal/component/bgp/reactor/session_validation.go:415).
 func TestBuildUnsupportedCapabilityDataCodes_MultipleCodes(t *testing.T) {
 	codes := []capability.Code{
 		capability.CodeExtendedMessage,
@@ -293,6 +301,10 @@ func TestBuildUnsupportedCapabilityDataCodes_MultipleCodes(t *testing.T) {
 }
 
 // TestBuildUnsupportedCapabilityDataCodes_Empty verifies nil for empty input.
+//
+// RFC requirement: RFC5492-5-1 negative -- with no offending capabilities the builder
+// produces nil Data: no capability tuples are listed in a NOTIFICATION when none caused it
+// (internal/component/bgp/reactor/session_validation.go:416-418).
 func TestBuildUnsupportedCapabilityDataCodes_Empty(t *testing.T) {
 	data := buildUnsupportedCapabilityDataCodes(nil)
 	assert.Nil(t, data)

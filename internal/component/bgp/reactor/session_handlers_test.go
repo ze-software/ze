@@ -81,6 +81,27 @@ func validOpenBody() []byte {
 // VALIDATES: AC-1 malformed known capabilities reject OPEN before negotiation.
 //
 // PREVENTS: Session establishment with malformed Route Refresh capability data.
+//
+// RFC requirement: RFC2918-2-1 negative -- a Route Refresh capability whose Length
+// is not 0 (here 1) is rejected: parseZeroLengthCapability (capability.go) returns
+// ErrInvalidLength, so the OPEN is refused with an Unsupported Capability
+// NOTIFICATION instead of establishing. Proves the Length-0 constraint is enforced,
+// not merely emitted.
+//
+// RFC requirement: RFC5492-3-1 positive -- when the Unsupported Capability NOTIFICATION
+// is sent, its Data field carries the offending capability TLV {CodeRouteRefresh, 0x01,
+// 0x00}; buildUnsupportedCapabilityData/ErrorData place the capability that caused the
+// message into the NOTIFICATION (internal/component/bgp/reactor/session_validation.go:396,
+// session_handlers.go:190-197).
+// RFC requirement: RFC5492-3-3 negative -- the session IS torn down here, but only because
+// the capability is a KNOWN one with a malformed length (ErrInvalidLength), not because it
+// is unsupported; this bounds the MUST-NOT-terminate rule to reject malformed input only.
+// RFC requirement: RFC5492-3-4 negative -- an Unsupported Capability NOTIFICATION IS
+// generated here for a malformed known capability, showing the notification path is reached
+// only on malformed input, never for a merely unrecognized capability.
+// RFC requirement: RFC5492-5-2 negative -- rejection with an Unsupported Capability
+// NOTIFICATION occurs only for a malformed known capability, distinguishing it from a
+// not-understood capability, which MUST be ignored rather than rejected.
 func TestOpenRejectsMalformedKnownCapability(t *testing.T) {
 	s, client := newOpenSentSessionWithClient(t)
 
@@ -349,6 +370,11 @@ func TestHandleNotification_Malformed(t *testing.T) {
 
 // TestHandleRouteRefresh_InvalidLength verifies ROUTE-REFRESH with wrong body length.
 // RFC 7313 Section 5: body must be exactly 4 bytes.
+//
+// RFC requirement: RFC2918-3-2 negative -- on receive, a ROUTE-REFRESH body whose
+// length is not exactly 4 (too short, too long, or empty) is rejected by
+// validateRouteRefreshLength (session_handlers.go) with ErrInvalidMessage before any
+// <AFI, SAFI> is acted upon.
 func TestHandleRouteRefresh_InvalidLength(t *testing.T) {
 	tests := []struct {
 		name string
@@ -425,6 +451,11 @@ func TestHandleRouteRefresh_NoCapability(t *testing.T) {
 // TestHandleRouteRefresh_NonNegotiatedFamily verifies ROUTE-REFRESH for a non-negotiated
 // address family is ignored.
 // RFC 2918 Section 4: SHOULD ignore for AFI/SAFI not advertised.
+//
+// RFC requirement: RFC2918-4-2 positive -- a ROUTE-REFRESH for an <AFI, SAFI> the
+// speaker did not advertise (IPv6 unicast, with only IPv4 unicast negotiated) is
+// ignored: handleRouteRefresh takes the !SupportsFamily branch (session_handlers.go)
+// and returns without acting on the request.
 func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
 	s := newOpenSentSession(t)
 

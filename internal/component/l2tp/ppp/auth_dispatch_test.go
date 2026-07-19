@@ -140,6 +140,13 @@ func authProtoReplyPeer(
 //	keeps configuredAuthMethod in force, the session reaches
 //	Opened advertising an auth method the peer refused, and
 //	times out on the authentication phase.
+//
+// RFC requirement: RFC1334-1-1 negative -- when auth is no longer desired
+// (the peer Configure-Rejects Auth-Protocol so configuredAuthMethod becomes
+// None), the resent CONFREQ omits the Auth-Protocol option. This exercises the
+// AuthProto == 0 branch of BuildLocalConfigRequest
+// (internal/component/l2tp/ppp/lcp_options.go:263), proving the option is
+// emitted conditionally rather than unconditionally.
 func TestAuthProtoRejectClearsMethod(t *testing.T) {
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
@@ -648,6 +655,13 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 //
 //	CONFREQ still carries no Auth-Protocol option -- peers
 //	would never authenticate.
+//
+// RFC requirement: RFC1334-1-1 positive -- a configured AuthMethod makes
+// sendConfigureRequest advertise the LCP Auth-Protocol option in ze's CONFREQ
+// (producer sendConfigureRequest internal/component/l2tp/ppp/session_run.go:906
+// -> authMethodToLCPOptions auth.go:168 -> BuildLocalConfigRequest
+// lcp_options.go:263, which emits the option only when AuthProto != 0). Each
+// case here asserts the CONFREQ carries Auth-Protocol for PAP/CHAP/MS-CHAPv2.
 func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 	cases := []struct {
 		name      string

@@ -123,6 +123,11 @@ func TestParseTruncated(t *testing.T) {
 // VALIDATES: Forward compatibility with new capabilities.
 //
 // PREVENTS: Connection failures when peer sends unknown capability.
+//
+// RFC requirement: RFC5492-3-2 positive -- an unrecognized capability code (254) is
+// preserved as *Unknown with its value bytes and Parse returns no error, so the parser
+// ignores the unknown code rather than rejecting it, per parseCapability's default arm
+// (internal/core/bgp/capability/capability.go:239-242).
 func TestParseUnknownCapability(t *testing.T) {
 	t.Parallel()
 	data := []byte{
@@ -147,6 +152,12 @@ func TestParseUnknownCapability(t *testing.T) {
 // VALIDATES: AC-1 malformed Route Refresh, Extended Message, and Enhanced Route Refresh capabilities fail.
 //
 // PREVENTS: Negotiating malformed known capabilities that should be rejected before OPEN acceptance.
+//
+// RFC requirement: RFC5492-3-2 negative -- a KNOWN capability (Route Refresh, Extended
+// Message, Enhanced Route Refresh) carrying a non-zero length is rejected with
+// ErrInvalidLength. This proves the "ignore unrecognized code" rule is scoped to unknown
+// codes only: a malformed known capability is not silently ignored (capability.go:245-252
+// parseZeroLengthCapability).
 func TestParseRejectsMalformedKnownCapabilityLength(t *testing.T) {
 	t.Parallel()
 
@@ -175,6 +186,11 @@ func TestParseRejectsMalformedKnownCapabilityLength(t *testing.T) {
 // VALIDATES: AC-2 truncated capability TLVs return an error.
 //
 // PREVENTS: Silently dropping malformed Type 2 optional parameters during OPEN parsing.
+//
+// RFC requirement: RFC5492-4-2 negative -- a Type-2 Capabilities Optional Parameter whose
+// inner capability TLV is truncated is rejected with ErrShortRead. Acceptance of Type-2
+// parameters is bounded: ParseFromOptionalParams validates each parameter's TLVs rather
+// than blindly accepting them (internal/core/bgp/capability/capability.go:847).
 func TestOptionalParamRejectsTruncatedCapabilityTLV(t *testing.T) {
 	t.Parallel()
 
@@ -191,6 +207,16 @@ func TestOptionalParamRejectsTruncatedCapabilityTLV(t *testing.T) {
 // VALIDATES: AC-3 syntactically valid unknown capabilities are preserved.
 //
 // PREVENTS: Treating ignorable unknown capabilities as malformed OPEN input.
+//
+// RFC requirement: RFC5492-3-3 positive -- an unknown capability inside an OPEN Type-2
+// parameter is parsed without error, so the OPEN parse path yields no error for the
+// session layer to reject on; the session is not terminated (capability.go:847 ->
+// capability.go:239-242, terminate path in internal/component/bgp/reactor/session_handlers.go:190-197
+// fires only on ErrInvalidLength/ErrShortRead).
+// RFC requirement: RFC5492-3-4 positive -- the same unknown capability is preserved with
+// no error, so no Unsupported Capability NOTIFICATION is generated for it.
+// RFC requirement: RFC5492-5-2 positive -- a not-understood capability is preserved and
+// ignored, never rejected, on the OPEN optional-parameter parse path.
 func TestOptionalParamPreservesUnknownCapability(t *testing.T) {
 	t.Parallel()
 
@@ -205,6 +231,72 @@ func TestOptionalParamPreservesUnknownCapability(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, Code(254), unknown.Code())
 	assert.Equal(t, []byte{0xAB, 0xCD}, unknown.Data)
+}
+
+// TestParseAcceptsMultipleIdenticalCapabilityInstances verifies that two identical
+// capability TLVs in one Capabilities parameter are both parsed and accepted.
+//
+// VALIDATES: RFC 5492 Section 4 duplicate-instance acceptance.
+//
+// PREVENTS: Rejecting or de-duplicating an OPEN that repeats a capability.
+//
+// RFC requirement: RFC5492-4-1 positive -- two identical Multiprotocol IPv4/Unicast
+// capability TLVs are both returned by Parse with no error. Parse appends every TLV it
+// reads (internal/core/bgp/capability/capability.go:177) with no dedup or reject path, so
+// multiple identical instances of the same Capability Code+Length+Value are all accepted.
+func TestParseAcceptsMultipleIdenticalCapabilityInstances(t *testing.T) {
+	t.Parallel()
+	// Two identical Multiprotocol IPv4/Unicast capability TLVs.
+	data := []byte{
+		0x01, 0x04, 0x00, 0x01, 0x00, 0x01, // Multiprotocol IPv4/Unicast
+		0x01, 0x04, 0x00, 0x01, 0x00, 0x01, // identical duplicate
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 2, "both identical capability instances must be accepted")
+
+	for i, c := range caps {
+		mp, ok := c.(*Multiprotocol)
+		require.Truef(t, ok, "instance %d should be Multiprotocol", i)
+		assert.Equal(t, AFIIPv4, mp.AFI)
+		assert.Equal(t, SAFIUnicast, mp.SAFI)
+	}
+}
+
+// TestParseFromOptionalParamsMultipleCapabilitiesParameters verifies that an OPEN
+// carrying two separate Type-2 Capabilities Optional Parameters has both processed.
+//
+// VALIDATES: RFC 5492 Section 4 multiple-Capabilities-Parameter acceptance.
+//
+// PREVENTS: Dropping capabilities carried in a second Capabilities Optional Parameter.
+//
+// RFC requirement: RFC5492-4-2 positive -- two distinct Type-2 optional parameters, one
+// carrying Multiprotocol and one carrying ASN4, both contribute their capabilities.
+// ParseFromOptionalParams loops over every optional parameter and parses each Type-2
+// (internal/core/bgp/capability/capability.go:847), so capabilities split across multiple
+// Capabilities Optional Parameters are all accepted.
+func TestParseFromOptionalParamsMultipleCapabilitiesParameters(t *testing.T) {
+	t.Parallel()
+	optParams := []byte{
+		// Parameter 1: type=2 (Capabilities), len=6 -- Multiprotocol IPv4/Unicast
+		0x02, 0x06, 0x01, 0x04, 0x00, 0x01, 0x00, 0x01,
+		// Parameter 2: type=2 (Capabilities), len=6 -- ASN4 (AS 65002)
+		0x02, 0x06, 0x41, 0x04, 0x00, 0x00, 0xFD, 0xEA,
+	}
+
+	caps, err := ParseFromOptionalParams(optParams)
+	require.NoError(t, err)
+	require.Len(t, caps, 2, "capabilities from both Capabilities Optional Parameters must be parsed")
+
+	mp, ok := caps[0].(*Multiprotocol)
+	require.True(t, ok, "first parameter should yield Multiprotocol")
+	assert.Equal(t, AFIIPv4, mp.AFI)
+	assert.Equal(t, SAFIUnicast, mp.SAFI)
+
+	asn4, ok := caps[1].(*ASN4)
+	require.True(t, ok, "second parameter should yield ASN4")
+	assert.Equal(t, uint32(65002), asn4.ASN)
 }
 
 // TestAddPathCapability verifies ADD-PATH parsing and packing (RFC 7911).
@@ -342,6 +434,10 @@ func TestCapabilityRoundTrip(t *testing.T) {
 // VALIDATES: IPv4 NLRI with IPv6 next-hop capability.
 //
 // PREVENTS: Routing failures on IPv6-only networks.
+//
+// RFC requirement: RFC8950-4-3 positive -- a capability TLV with code 0x05 parses as an
+// ExtendedNextHop capability; ze binds the Extended Next Hop Encoding capability to code 5
+// (CodeExtendedNextHop = 5, internal/core/bgp/capability/capability.go:70).
 func TestExtendedNextHopCapability(t *testing.T) {
 	t.Parallel()
 	data := []byte{
@@ -365,6 +461,10 @@ func TestExtendedNextHopCapability(t *testing.T) {
 }
 
 // TestExtendedNextHopRoundTrip verifies Extended Next Hop pack/parse.
+//
+// RFC requirement: RFC8950-4-3 positive -- WriteTo emits the capability with code 5
+// (writeCapabilityTo(..., CodeExtendedNextHop, ...) at internal/core/bgp/capability/capability.go:644)
+// and Parse reads it back as an ExtendedNextHop, so the on-wire Capability Code is 5 in both directions.
 func TestExtendedNextHopRoundTrip(t *testing.T) {
 	t.Parallel()
 	original := &ExtendedNextHop{
@@ -470,6 +570,9 @@ func TestCapabilityWriteTo(t *testing.T) {
 		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIEVPN},
 		&ASN4{ASN: 65533},
 		&ASN4{ASN: 4200000000},
+		// RFC requirement: RFC2918-2-1 positive -- RouteRefresh.WriteTo emits the
+		// capability with Code 2 and Length 0 (capability.go RouteRefresh.Code/Len/WriteTo),
+		// and the bytes parse back to the same capability code.
 		&RouteRefresh{},
 		&ExtendedMessage{},
 		&EnhancedRouteRefresh{},
@@ -682,6 +785,9 @@ func TestParsePathsLimitSkipZero(t *testing.T) {
 // VALIDATES: draft-abraitis-idr-addpath-paths-limit duplicate handling.
 //
 // PREVENTS: Later duplicates overwriting the first valid entry.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4 positive -- for a repeated AFI/SAFI pair only the first tuple is considered (limit 10 kept).
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4 negative -- all other duplicate tuples for that pair are ignored (the limit-20 duplicate is dropped, one entry remains).
 func TestParsePathsLimitDuplicateFirstWins(t *testing.T) {
 	t.Parallel()
 	data := []byte{

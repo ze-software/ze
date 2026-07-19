@@ -25,6 +25,9 @@ func dualStackLAN(t *testing.T, s Sender) *Circuit {
 
 // TestISISIIHTLV232LinkLocal: a dual-stack IIH advertises NLPID 0x8E and carries
 // ONLY the link-local address in TLV 232 (RFC 5308 sec 3).
+//
+// RFC requirement: RFC5308-3-1 positive -- the dual-stack Hello TLV 232 carries exactly one address and it is link-local.
+// RFC requirement: RFC5308-4-1 positive -- the dual-stack Hello lists NLPID 0x8E in the Protocols Supported TLV (129).
 func TestISISIIHTLV232LinkLocal(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := dualStackLAN(t, s)
@@ -70,6 +73,8 @@ func TestISISIIHTLV232LinkLocal(t *testing.T) {
 
 // TestISISIIHNoTLV232WhenIPv4Only: an IPv4-only circuit emits neither NLPID 0x8E
 // nor TLV 232 (AC-7: IPv6 disabled originates nothing IPv6).
+//
+// RFC requirement: RFC5308-4-1 negative -- an IPv4-only Hello omits NLPID 0x8E from the Protocols Supported TLV (129).
 func TestISISIIHNoTLV232WhenIPv4Only(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := lanCircuit(t, s) // IPv6 not advertised
@@ -93,6 +98,8 @@ func TestISISIIHNoTLV232WhenIPv4Only(t *testing.T) {
 
 // TestISISIIHTLV232OmittedNoLinkLocal: IPv6 enabled but no link-local address ->
 // TLV 232 omitted (the codec never emits an empty/invalid address).
+//
+// RFC requirement: RFC5308-3-1 negative -- with IPv6 enabled but no link-local address the Hello omits TLV 232 (never emits a non-link-local or empty address).
 func TestISISIIHTLV232OmittedNoLinkLocal(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := lanCircuit(t, s)

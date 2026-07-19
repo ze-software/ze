@@ -12,6 +12,11 @@ import (
 // codec depends on (spec A-1, R-1).
 // PREVENTS: shipping LSPs every peer rejects because the checksum field was
 // computed with only one direction (encode) correct.
+//
+// RFC requirement: RFC905-x-2 positive -- generation pass 1 zeroes the two checksum octets and runs C0/C1 over the region (Checksum, checksum.go:67-76).
+// RFC requirement: RFC905-x-3 positive -- generation pass 2 places the closed-form X,Y at checkOff/checkOff+1 so re-summing yields zero (Checksum, checksum.go:98-105).
+// RFC requirement: RFC905-x-4 positive -- verification re-sums the region with the field in place and both C0,C1 are zero (VerifyChecksum, checksum.go:114-121).
+// RFC requirement: RFC905-x-7 positive -- exercises encode (X,Y placement) then decode (verify-to-zero) across a range of lengths and offsets (Checksum + VerifyChecksum).
 func TestISISChecksumVectors(t *testing.T) {
 	// The checksum field sits at a fixed offset inside the checksummed region.
 	// For an IS-IS LSP the region begins at the octet after Remaining Lifetime
@@ -60,6 +65,9 @@ func TestISISChecksumVectors(t *testing.T) {
 // must produce octets that verify to zero, and the result must be stable
 // across runs (a regression pin on the arithmetic, not just the property).
 // PREVENTS: a refactor silently changing the modular arithmetic.
+//
+// RFC requirement: RFC905-x-3 positive -- pins the exact closed-form X,Y (0x0b,0xed) for [00 00 03 04] with the field at offset 0 (Checksum, checksum.go:98-105).
+// RFC requirement: RFC905-x-1 positive -- pins the exact mod-255 arithmetic result; a mod-256 change would alter the stored octets (checksum.go:74-75).
 func TestISISChecksumFixedVector(t *testing.T) {
 	data := []byte{0x00, 0x00, 0x03, 0x04}
 	high, low := Checksum(data, 0)
@@ -82,6 +90,11 @@ func TestISISChecksumFixedVector(t *testing.T) {
 // from accepting a corrupted LSP.
 // PREVENTS: a checksum that passes regardless of content (e.g. an all-zero or
 // constant implementation).
+//
+// RFC requirement: RFC905-x-4 negative -- flipping any octet leaves a running sum non-zero so VerifyChecksum rejects the region (VerifyChecksum, checksum.go:114-121).
+// RFC requirement: RFC905-x-1 negative -- the two mod-255 running sums reject every single-octet corruption; a single sum or mod-256 would miss classes of it (checksum.go:117-118).
+// RFC requirement: RFC905-x-2 negative -- proves the generation pipeline is discriminating, not constant: corrupting any covered octet is rejected (checksum.go:67-76).
+// RFC requirement: RFC905-x-3 negative -- guards against a blanket-accept pass-2 result: no corrupted region verifies to zero (checksum.go:98-105).
 func TestISISChecksumDetectsCorruption(t *testing.T) {
 	rng := rand.New(rand.NewSource(99))
 	data := make([]byte, 64)
@@ -115,6 +128,8 @@ func TestISISChecksumDetectsCorruption(t *testing.T) {
 // single octet of 0xFF folds correctly and does not produce a stored 0.
 // PREVENTS: an off-by-one modulus (mod 256) that would silently disagree with
 // every other IS-IS implementation.
+//
+// RFC requirement: RFC905-x-1 positive -- a 0xFF-filled region verifies only under mod-255; mod-256 would fold the sums differently (checksum.go:74-75).
 func TestISISChecksumModulus(t *testing.T) {
 	// A region full of 0xFF is a good modulus probe: under mod 256 the sums
 	// would wrap differently than under mod 255.

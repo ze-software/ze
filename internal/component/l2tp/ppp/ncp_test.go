@@ -101,6 +101,12 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 //
 //	Opened; ze programs pppN (AddAddressP2P + AddRoute + SetAdminUp)
 //	and emits EventSessionIPAssigned{ipv4}.
+//
+// RFC requirement: RFC1332-2.1-1 positive -- IP is communicated only once IPCP has
+// reached the Opened state: completeIPCP drives IPCP to Opened, and only then does ze
+// program the pppN address (AddAddressP2P) and emit EventSessionIPAssigned. onNCPOpened
+// (internal/component/l2tp/ppp/ncp.go), the sole AddAddressP2P caller, runs on the
+// transition into Opened.
 func TestIPResponseConfiguresInterface(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
@@ -130,6 +136,50 @@ func TestIPResponseConfiguresInterface(t *testing.T) {
 	up := td.backend.UpCalls()
 	if len(up) < 1 {
 		t.Errorf("SetAdminUp calls = %v, want at least 1", up)
+	}
+}
+
+// TestIPCPNoAddressBeforeOpened is the negative half of RFC 1332 Section 2.1: ze must not
+// communicate IP -- program the pppN address or announce it via EventSessionIPAssigned --
+// until IPCP reaches the Opened state.
+//
+// VALIDATES: with the IPCP exchange stalled short of Opened (ze's Configure-Request Acked,
+// driving it to AckRcvd, but ze has not yet Acked the peer's Configure-Request because the
+// peer never sends one), the backend AddAddressP2P is never called and no
+// EventSessionIPAssigned is emitted.
+// PREVENTS: programming the interface address at Configure-Request-sent or at AckRcvd,
+// which would put IPv4 on the wire before IPCP Opened. onNCPOpened (ncp.go) is the only
+// AddAddressP2P caller and runs only on the transition into Opened, so a regression that
+// moved the programming earlier is exactly what this pins.
+//
+// RFC requirement: RFC1332-2.1-1 negative -- before IPCP reaches Opened, ze programs no
+// address and emits no EventSessionIPAssigned, so no IP is communicated pre-Opened; the
+// sole AddAddressP2P caller onNCPOpened (internal/component/l2tp/ppp/ncp.go) fires only on
+// the transition into Opened.
+func TestIPCPNoAddressBeforeOpened(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+	defer td.cleanup()
+
+	// ze has sent its initial Configure-Request but is not Opened.
+	cr := td.readPeerNCPPacket(t, ProtoIPCP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("got code %d, want Configure-Request", cr.Code)
+	}
+	if calls := td.backend.P2PCalls(); len(calls) != 0 {
+		t.Fatalf("AddAddressP2P called at Configure-Request-sent, before Opened: %+v", calls)
+	}
+
+	// Ack ze's Configure-Request -> AckRcvd. Still not Opened: ze has not Acked
+	// the peer's Configure-Request (the peer never sends one), so the exchange
+	// stalls one step short of Opened.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureAck, cr.Identifier, cr.Data)
+
+	// No IP may be communicated while short of Opened.
+	if _, ok := waitForEventOfType[EventSessionIPAssigned](t, td.driver.EventsOut(), 300*time.Millisecond); ok {
+		t.Fatal("EventSessionIPAssigned emitted before IPCP reached Opened")
+	}
+	if calls := td.backend.P2PCalls(); len(calls) != 0 {
+		t.Errorf("AddAddressP2P called before IPCP reached Opened: %+v", calls)
 	}
 }
 

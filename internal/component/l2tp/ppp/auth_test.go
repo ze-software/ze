@@ -107,6 +107,12 @@ func TestAuthMethodRoundTrip(t *testing.T) {
 //	peer's choice silently permits the rejected method, and
 //	regression where a matched suggestion is rewritten to the
 //	first list entry instead of returned verbatim.
+//
+// RFC requirement: RFC1334-x-1 negative -- a CHAP-capable authenticator refuses
+// to downgrade to PAP: with order [CHAP-MD5] a peer suggesting PAP yields
+// AuthMethodNone, never PAP (producer selectAuthFallback
+// internal/component/l2tp/ppp/auth.go:148; the "peer suggests PAP, CHAP-only
+// order" case below returns None).
 func TestSelectAuthFallback(t *testing.T) {
 	full := []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP}
 	cases := []struct {
@@ -256,6 +262,11 @@ func TestAdjustAuthOnNakOrReject(t *testing.T) {
 // PREVENTS: regression where the default order is silently reshuffled
 //
 //	to put PAP (cleartext on wire) before CHAP.
+//
+// RFC requirement: RFC1334-x-1 positive -- ze's default auth preference offers
+// CHAP before PAP: defaultAuthFallbackOrder returns [CHAP-MD5, MS-CHAPv2, PAP]
+// with PAP last (producer internal/component/l2tp/ppp/auth.go:120), so a
+// stronger method is always advertised ahead of PAP.
 func TestDefaultAuthFallbackOrder(t *testing.T) {
 	a := defaultAuthFallbackOrder()
 	want := []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP}

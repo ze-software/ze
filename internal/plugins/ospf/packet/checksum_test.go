@@ -61,6 +61,9 @@ func TestOSPFPacketChecksumZeroForAuType2(t *testing.T) {
 
 // VALIDATES: AC-5 - LSA Fletcher is backfilled and verifies over LSA minus LS Age.
 // PREVENTS: peers rejecting LSAs due to wrong Fletcher application.
+//
+// RFC requirement: RFC905-x-6 positive -- LSA Fletcher applied over lsa[2:] (LS Age excluded) and verifies (FinalizeLSAChecksum/VerifyLSAChecksum, checksum.go:37-56).
+// RFC requirement: RFC905-x-7 positive -- encode (FinalizeLSAChecksum backfills X,Y) then decode (VerifyLSAChecksum accepts) round trip (checksum.go:37-56).
 func TestOSPFLSAChecksum(t *testing.T) {
 	wire := encodeLSA(t, sampleRouterLSA(t))
 	if readUint16(wire, lsaChecksumOff) == 0 {
@@ -73,6 +76,10 @@ func TestOSPFLSAChecksum(t *testing.T) {
 
 // VALIDATES: AC-5 - LS Age bytes are excluded from LSA Fletcher coverage.
 // PREVENTS: ordinary age increments invalidating flooded LSAs.
+//
+// RFC requirement: RFC905-x-6 negative -- mutating a covered octet (Options) makes VerifyLSAChecksum reject the LSA (VerifyLSAChecksum, checksum.go:47-56).
+// RFC requirement: RFC905-x-4 negative -- the verification re-sum rejects a corrupted covered region (FletcherVerify, types/checksum.go:61-68).
+// RFC requirement: RFC905-x-7 negative -- decode rejects a wrong vector, guarding against the encode-correct/verify-always-true bug (VerifyLSAChecksum, checksum.go:47-56).
 func TestOSPFLSAChecksumExcludesAge(t *testing.T) {
 	wire := encodeLSA(t, sampleRouterLSA(t))
 	mutAge := append([]byte(nil), wire...)

@@ -221,3 +221,49 @@ func TestReactorForwardRRNonClientRule(t *testing.T) {
 	reflected := rrForward(t, rrBodyBase(), false, true)
 	require.NotNil(t, reflected, "a non-client route is still reflected to an RR client")
 }
+
+// TestReactorForwardRRPreservesExtendedNextHop proves that reflecting an IPv4-unicast route
+// carrying an IPv6 next-hop in MP_REACH_NLRI (RFC 8950 extended next-hop encoding) passes the
+// next-hop encoding along byte-identical: the RR injects ORIGINATOR_ID and CLUSTER_LIST but never
+// rewrites the MP_REACH next-hop.
+//
+// RFC requirement: RFC8950-5-1 positive -- the reflected MP_REACH_NLRI, including its 16-byte IPv6
+// next-hop for IPv4 NLRI, is byte-identical to the received attribute. On the reflection path the
+// peer's next-hop mode is nhModeNone, so applyFactsNextHop leaves attribute 14 untouched
+// (internal/component/bgp/reactor/peer_forward_facts.go:226-229), and the MP re-encode rewrites the
+// attribute only when the NLRI framing changes between encoding contexts, which it does not here
+// because source and destination share one context (internal/component/bgp/reactor/forward_body.go:217).
+func TestReactorForwardRRPreservesExtendedNextHop(t *testing.T) {
+	// MP_REACH_NLRI value: AFI=IPv4, SAFI=unicast, 16-byte IPv6 next-hop (2001:db8::1), NLRI 192.0.2.0/24.
+	mpReach := []byte{
+		0x00, 0x01, // AFI IPv4
+		0x01, // SAFI unicast
+		0x10, // Next Hop length = 16 (IPv6)
+		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // 2001:db8::1
+		0x00,                   // reserved
+		0x18, 0xc0, 0x00, 0x02, // NLRI 192.0.2.0/24
+	}
+
+	body := []byte{
+		0, 0, // WithdrawnLen = 0
+		0, 48, // TotalPathAttrLen = 48
+		0x40, 1, 1, 0, // ORIGIN igp
+		0x40, 2, 6, 2, 1, 0, 0, 0xFD, 0xE9, // AS_PATH [65001]
+		0x40, 5, 4, 0, 0, 0, 100, // LOCAL_PREF 100
+		0x80, 14, 25, // MP_REACH_NLRI (optional non-transitive), value length = 25
+	}
+	body = append(body, mpReach...)
+
+	out := rrForward(t, body, true, false)
+	require.NotNil(t, out, "a client's IPv6-next-hop route is reflected to a non-client")
+	attrs := decodeBodyAttrs(t, out)
+
+	// Reflection actually happened: the RR injected ORIGINATOR_ID and CLUSTER_LIST.
+	require.Equal(t, []byte{10, 0, 0, 1}, attrs[9], "ORIGINATOR_ID set to originator (client 10.0.0.1)")
+	require.Equal(t, []byte{1, 2, 3, 2}, attrs[10], "CLUSTER_LIST prepended (RR cluster id)")
+
+	// The MP_REACH_NLRI, including the IPv6 next-hop encoding, is passed along unchanged.
+	require.Equal(t, mpReach, attrs[14], "MP_REACH_NLRI reflected byte-identical (encoding not rewritten)")
+	assert.Equal(t, mpReach[4:20], attrs[14][4:20], "IPv6 next-hop bytes byte-identical")
+}

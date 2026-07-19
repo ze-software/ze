@@ -289,6 +289,18 @@ func TestPAPWriteAckCapsMessageAt255(t *testing.T) {
 //
 //	or where the reply frame has the wrong protocol, code,
 //	or Identifier echo.
+//
+// RFC requirement: RFC1334-2.3-1 positive -- on an accepted id/password pair
+// runPAPAuthPhase transmits an Authenticate-Ack with Code=2 (producer
+// internal/component/l2tp/ppp/pap.go:222 -> WritePAPAck pap.go:123); the reply
+// payload[0] asserted here is PAPAuthenticateAck.
+// RFC requirement: RFC1334-2.3-2 negative -- the accept path sends an Ack
+// (Code=2), never a Nak, so Nak stays confined to the reject path (contrast the
+// WritePAPNak call at pap.go:224).
+// RFC requirement: RFC1334-2.3-3 positive -- the reply echoes the request
+// Identifier 0x42 (producer writePAPReply copies buf[off+1]=identifier,
+// internal/component/l2tp/ppp/pap.go:138); paired with the 0x77 case in
+// TestPAPRejectWritesNak, the two distinct ids discriminate a hardcoded value.
 func TestPAPRequestEmitsEvent(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
@@ -391,6 +403,18 @@ func TestPAPRequestEmitsEvent(t *testing.T) {
 // PREVENTS: regression where the reject path sends Ack, drops the
 //
 //	message, or echoes the wrong identifier.
+//
+// RFC requirement: RFC1334-2.3-2 positive -- on a rejected id/password pair
+// runPAPAuthPhase transmits an Authenticate-Nak with Code=3 (producer
+// internal/component/l2tp/ppp/pap.go:224 -> WritePAPNak pap.go:129); the reply
+// payload[0] asserted here is PAPAuthenticateNak.
+// RFC requirement: RFC1334-2.3-1 negative -- the reject path sends a Nak
+// (Code=3), never an Ack, so Ack stays confined to the accept path (contrast the
+// WritePAPAck call at pap.go:222).
+// RFC requirement: RFC1334-2.3-3 positive -- the reply echoes the distinct
+// request Identifier 0x77 (producer writePAPReply copies buf[off+1]=identifier,
+// internal/component/l2tp/ppp/pap.go:138); the 0x42/0x77 pair across these two
+// tests proves the identifier is copied from the request, not hardcoded.
 func TestPAPRejectWritesNak(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)

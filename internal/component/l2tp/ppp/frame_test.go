@@ -2,6 +2,7 @@ package ppp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"testing"
 )
@@ -136,6 +137,81 @@ func TestPPPFrameRoundTrip(t *testing.T) {
 			}
 			if !bytes.Equal(gotPayload, tc.payload) {
 				t.Errorf("payload mismatch")
+			}
+		})
+	}
+}
+
+// RFC requirement: RFC1332-2-1 positive -- exactly one IPCP packet is encapsulated per
+// PPP frame with the Protocol field 0x8021: WriteFrame + WriteLCPPacket
+// (internal/component/l2tp/ppp/frame.go, lcp.go) build one IPCP Configure-Request; the
+// two-byte Protocol field is 0x8021 (ProtoIPCP), and the LCP Length field spans the whole
+// Information field, so the frame carries a single IPCP packet with no trailing second one.
+func TestIPCPFrameCarriesExactlyOnePacket(t *testing.T) {
+	// One IPCP Configure-Request carrying an IP-Address option (type 3, 10.0.0.1).
+	data := []byte{IPCPOptIPAddress, 6, 10, 0, 0, 1}
+	buf := make([]byte, MaxFrameLen)
+	off := WriteFrame(buf, 0, ProtoIPCP, nil)
+	off += WriteLCPPacket(buf, off, LCPConfigureRequest, 0x01, data)
+	frame := buf[:off]
+
+	// Protocol field is hex 8021, both as the two raw octets and via ParseFrame.
+	if frame[0] != 0x80 || frame[1] != 0x21 {
+		t.Fatalf("protocol octets = %02x %02x, want 80 21", frame[0], frame[1])
+	}
+	proto, payload, _, err := ParseFrame(frame)
+	if err != nil {
+		t.Fatalf("ParseFrame: %v", err)
+	}
+	if proto != ProtoIPCP {
+		t.Fatalf("proto = 0x%04x, want 0x%04x (ProtoIPCP)", proto, ProtoIPCP)
+	}
+
+	// Exactly one IPCP packet: the LCP Length field equals the Information field
+	// length, so no bytes remain for a second packet.
+	pkt, err := ParseLCPPacket(payload)
+	if err != nil {
+		t.Fatalf("ParseLCPPacket: %v", err)
+	}
+	if pkt.Code != LCPConfigureRequest {
+		t.Errorf("code = %d, want Configure-Request", pkt.Code)
+	}
+	length := int(binary.BigEndian.Uint16(payload[2:4]))
+	if length != len(payload) {
+		t.Errorf("LCP Length = %d, Information field = %d; frame is not exactly one IPCP packet", length, len(payload))
+	}
+	if lcpHeaderLen+len(pkt.Data) != len(payload) {
+		t.Errorf("parsed packet spans %d bytes but Information field is %d; trailing bytes present", lcpHeaderLen+len(pkt.Data), len(payload))
+	}
+}
+
+// RFC requirement: RFC1332-2-1 negative -- a Protocol-0x8021 frame whose IPCP Length field
+// does not delimit exactly one packet is rejected: ParseLCPPacket
+// (internal/component/l2tp/ppp/lcp.go) returns errLCPLengthMismatch when the Length is
+// below the 4-byte header or exceeds the Information field, so a frame that is not exactly
+// one well-formed IPCP packet cannot be processed (handleFrame drops it,
+// internal/component/l2tp/ppp/session_run.go).
+func TestIPCPFrameRejectsNonSinglePacket(t *testing.T) {
+	cases := []struct {
+		name string
+		body []byte
+	}{
+		{"length below header", []byte{LCPConfigureRequest, 0x01, 0x00, 0x03, 0xAA}},
+		{"length exceeds information field", []byte{LCPConfigureRequest, 0x01, 0x00, 0x20, 0xAA, 0xBB}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := make([]byte, MaxFrameLen)
+			off := WriteFrame(buf, 0, ProtoIPCP, tc.body)
+			proto, payload, _, err := ParseFrame(buf[:off])
+			if err != nil {
+				t.Fatalf("ParseFrame: %v", err)
+			}
+			if proto != ProtoIPCP {
+				t.Fatalf("proto = 0x%04x, want 0x%04x (ProtoIPCP)", proto, ProtoIPCP)
+			}
+			if _, err := ParseLCPPacket(payload); !errors.Is(err, errLCPLengthMismatch) {
+				t.Errorf("err = %v, want errLCPLengthMismatch", err)
 			}
 		})
 	}

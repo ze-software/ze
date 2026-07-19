@@ -1121,6 +1121,9 @@ func TestSessionRejectsInvalidHoldTime(t *testing.T) {
 //
 // VALIDATES: Wire format of capability code NOTIFICATION data.
 // PREVENTS: Malformed NOTIFICATION data for non-family capabilities.
+// RFC requirement: RFC5492-5-1 positive -- each offending capability code is placed in the
+// NOTIFICATION Data encoded exactly as in an OPEN message: code(1)+length(1), e.g. ASN4 as
+// {65, 0} and Extended Message as {6, 0} (internal/component/bgp/reactor/session_validation.go:415).
 func TestBuildUnsupportedCapabilityDataCodes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1269,6 +1272,11 @@ func TestSessionRejectsRefusedCapability(t *testing.T) {
 //
 // VALIDATES: Required capability present → session proceeds to OpenConfirm.
 // PREVENTS: False rejections when required capability is properly negotiated.
+//
+// RFC requirement: RFC5492-3-1 negative -- when the peer's OPEN carries the supported
+// (required) capability, no Unsupported Capability NOTIFICATION is sent and the session
+// advances to OpenConfirm; the NOTIFICATION-with-offending-capability path fires only for
+// capabilities that actually cause it, never for a supported one.
 func TestSessionAcceptsRequiredCapability(t *testing.T) {
 	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
@@ -2349,6 +2357,11 @@ func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 // VALIDATES: AC-5 valid ROUTE-REFRESH is delivered to callback/event consumers.
 //
 // PREVENTS: Over-tight validation from dropping valid Route Refresh, BoRR, or EoRR messages.
+//
+// RFC requirement: RFC2918-4-2 negative -- the "ignore" is scoped to non-advertised
+// families: a ROUTE-REFRESH for an <AFI, SAFI> the speaker DID advertise (IPv4
+// unicast, negotiated by setupEstablishedSession) is NOT ignored; it reaches the
+// receive callbacks. Complements the non-negotiated-family ignore case.
 func TestRouteRefreshValidLengthDelivered(t *testing.T) {
 	session, client, cleanup := setupEstablishedSession(t)
 	defer cleanup()

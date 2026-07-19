@@ -10,9 +10,14 @@ import (
 )
 
 // TestRouteRefreshType verifies ROUTE_REFRESH message type.
+//
+// RFC requirement: RFC2918-3-1 positive -- a ROUTE-REFRESH message reports message
+// type ROUTE-REFRESH, which is the constant 5 (RouteRefresh.Type in routerefresh.go,
+// TypeROUTEREFRESH in header.go).
 func TestRouteRefreshType(t *testing.T) {
 	r := &RouteRefresh{AFI: 1, SAFI: 1}
 	assert.Equal(t, TypeROUTEREFRESH, r.Type())
+	assert.Equal(t, MessageType(5), r.Type())
 }
 
 // TestRouteRefreshPack verifies ROUTE_REFRESH packing.
@@ -20,6 +25,10 @@ func TestRouteRefreshType(t *testing.T) {
 // VALIDATES: AFI and SAFI correctly serialized.
 //
 // PREVENTS: Malformed request causing peer to send wrong routes.
+//
+// RFC requirement: RFC2918-3-2 positive -- a packed ROUTE-REFRESH carries exactly a
+// 4-byte payload after the header: AFI (2) + Reserved (1) + SAFI (1)
+// (RouteRefresh.Len/WriteTo in routerefresh.go).
 func TestRouteRefreshPack(t *testing.T) {
 	r := &RouteRefresh{
 		AFI:  family.AFIIPv6,
@@ -60,6 +69,10 @@ func TestRouteRefreshUnpack(t *testing.T) {
 }
 
 // TestRouteRefreshUnpackShort verifies short data handling.
+//
+// RFC requirement: RFC2918-3-2 negative -- a ROUTE-REFRESH payload shorter than the
+// required 4 bytes (here 3) is rejected: UnpackRouteRefresh returns ErrShortRead
+// rather than parsing a truncated <AFI, SAFI> (routerefresh.go).
 func TestRouteRefreshUnpackShort(t *testing.T) {
 	_, err := UnpackRouteRefresh([]byte{0x00, 0x01, 0x00}) // Only 3 bytes
 	assert.ErrorIs(t, err, ErrShortRead)

@@ -234,6 +234,10 @@ func TestMismatchString(t *testing.T) {
 // VALIDATES: ExtendedNextHop is negotiated when both peers advertise same tuple.
 //
 // PREVENTS: Sending IPv4 NLRI with IPv6 next-hop to peer that doesn't support it.
+//
+// RFC requirement: RFC8950-4-2 positive -- the tuple (NLRI AFI/SAFI, NH AFI) is negotiated only
+// because both local and remote advertise the same IPv4/Unicast -> IPv6 tuple; Negotiate records
+// it in the intersection (internal/core/bgp/capability/negotiated.go:302).
 func TestNegotiateExtendedNextHop(t *testing.T) {
 	t.Parallel()
 	// Both peers advertise IPv4/Unicast can use IPv6 next-hop
@@ -265,6 +269,10 @@ func TestNegotiateExtendedNextHop(t *testing.T) {
 // VALIDATES: Mismatched ExtNH tuples result in no negotiation.
 //
 // PREVENTS: Assuming ExtNH support when only one peer advertises it.
+//
+// RFC requirement: RFC8950-4-2 negative -- when only the local peer advertises the tuple and the
+// remote does not, the tuple is absent from the negotiated intersection, so it is not usable
+// (internal/core/bgp/capability/negotiated.go:302).
 func TestNegotiateExtendedNextHopMismatch(t *testing.T) {
 	t.Parallel()
 	// Only local advertises ExtNH
@@ -524,6 +532,8 @@ func TestCheckRefusedCodes(t *testing.T) {
 // VALIDATES: draft-abraitis-idr-addpath-paths-limit: limits stored per direction.
 //
 // PREVENTS: Wrong path count enforcement direction.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2 positive -- with ADD-PATH negotiated for the family, the PATHS-LIMIT is honored and stored per direction.
 func TestNegotiatePathsLimit(t *testing.T) {
 	t.Parallel()
 	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
@@ -577,6 +587,8 @@ func TestNegotiatePathsLimitOneSided(t *testing.T) {
 // VALIDATES: draft-abraitis-idr-addpath-paths-limit: requires ADD-PATH.
 //
 // PREVENTS: Storing limits for families without ADD-PATH negotiated.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2 negative -- the PATHS-LIMIT capability is ignored when the ADD-PATH capability is not present (limits stay zero).
 func TestNegotiatePathsLimitNoAddPath(t *testing.T) {
 	t.Parallel()
 	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
@@ -601,6 +613,9 @@ func TestNegotiatePathsLimitNoAddPath(t *testing.T) {
 // VALIDATES: Per-family filtering against AddPath.
 //
 // PREVENTS: Limits leaking to families without ADD-PATH support.
+//
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3 positive -- the IPv4 tuple is present in ADD-PATH, so its PATHS-LIMIT tuple applies.
+// RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3 negative -- the IPv6 tuple was not received in ADD-PATH, so its PATHS-LIMIT tuple is ignored (stays zero).
 func TestNegotiatePathsLimitPartialAddPath(t *testing.T) {
 	t.Parallel()
 	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}

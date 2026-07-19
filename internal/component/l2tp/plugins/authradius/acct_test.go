@@ -224,6 +224,9 @@ func TestRADIUSAcctInterim(t *testing.T) {
 	acct.Stop()
 }
 
+// RFC requirement: RFC2869-x-5 positive -- splitGigawords derives Gigawords as
+// uint32(bytes>>32) directly from the 64-bit byte counter, not from a separately
+// tracked wrap event.
 func TestSplitGigawords(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -251,6 +254,8 @@ func TestSplitGigawords(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2869-x-3 negative -- with sub-4GB counters (gigawords == 0) a
+// Stop/Interim Accounting-Request carries no Acct-Input/Output-Gigawords attribute.
 func TestBuildAcctPacketWithCounters(t *testing.T) {
 	saved := acctGetStats
 	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
@@ -285,6 +290,10 @@ func TestBuildAcctPacketWithCounters(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2869-x-2 positive -- an Accounting-Request with Acct-Status-Type
+// Stop carries the Acct-Input/Output-Gigawords attributes.
+// RFC requirement: RFC2869-x-3 positive -- when the octet counter has wrapped past 2^32
+// the Gigawords attribute is present and holds the wrap count.
 func TestBuildAcctPacketGigawords(t *testing.T) {
 	saved := acctGetStats
 	acctGetStats = func(name string) (*iface.InterfaceStats, error) {

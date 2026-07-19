@@ -192,6 +192,10 @@ func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {
 }
 
 // VALIDATES: AC-4 -- invalid authenticator silently discarded.
+// RFC requirement: RFC5176-3.5-1 negative -- a CoA-Request whose Request Authenticator
+// is invalid is not processed: its attributes are never acted on.
+// RFC requirement: RFC5176-3.5-2 positive -- a packet with an invalid authenticator is
+// silently discarded, producing no response datagram.
 func TestCoAListenerInvalidAuth(t *testing.T) {
 	secret := []byte("test-coa-secret")
 	cl, err := newCoAListener(0, nil, secret, nil, nil)
@@ -267,6 +271,10 @@ func TestCoAListenerMissingMessageAuthenticatorDropped(t *testing.T) {
 }
 
 // VALIDATES: AC-5 -- CoA for unknown session returns NAK with Error-Cause 503.
+// RFC requirement: RFC5176-3.5-1 positive -- a CoA-Request with a valid Request
+// Authenticator is processed: its attributes are examined and a response is emitted.
+// RFC requirement: RFC5176-3.5-2 negative -- a packet with a valid authenticator is not
+// discarded; it receives a response, so the silent discard is specific to invalid auth.
 func TestCoAListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-coa-secret-2")
 	cl, err := newCoAListener(0, nil, secret, nil, nil)
@@ -328,6 +336,8 @@ func TestCoAListenerMissingEventTimestamp(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5176-3.3-1 positive -- a Disconnect-Request bearing a valid
+// Acct-Session-Id identifies and acts on the matching session (teardown).
 func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 	secret := []byte("test-dm-replay-secret")
 	fake := &fakeL2TPService{snap: l2tp.Snapshot{
