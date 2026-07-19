@@ -39,6 +39,23 @@ type ListenerMigrator struct {
 	rest   Reconfigurable
 	grpc   Reconfigurable
 	logger *slog.Logger
+
+	// unauth holds the names of services built without authentication. A SIGHUP
+	// reload must not migrate any of them to a non-loopback address: the auth
+	// mode is fixed at build time, so a boot-time exposure guard (mgmt_guard.go)
+	// would otherwise fail open on reload. Populated by MarkUnauthenticated
+	// after the boot guard passes.
+	unauth map[string]bool
+}
+
+// MarkUnauthenticated records that the named service was built without
+// authentication, so ReloadListeners refuses any migration that would move it
+// to a non-loopback address (AC-7 of the management-listener guard).
+func (m *ListenerMigrator) MarkUnauthenticated(name string) {
+	if m.unauth == nil {
+		m.unauth = make(map[string]bool)
+	}
+	m.unauth[name] = true
 }
 
 // NewListenerMigrator creates a migrator. Pass nil for services that are not running.
@@ -118,6 +135,20 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 
 	if len(changes) == 0 {
 		return nil
+	}
+
+	// Fail-closed reload gate (AC-7): refuse before applying ANY change if a
+	// service built without authentication would move to a non-loopback
+	// address. Returning here leaves every service on its current listeners.
+	for i := range changes {
+		if !m.unauth[changes[i].name] {
+			continue
+		}
+		for _, addr := range changes[i].add {
+			if listenAddrIsNonLoopback(addr) {
+				return fmt.Errorf("refusing to migrate %s to non-loopback listener %q without authentication", changes[i].name, addr)
+			}
+		}
 	}
 
 	conflicts := detectConflicts(changes)

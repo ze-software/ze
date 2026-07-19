@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -368,6 +368,36 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for loopback vs routable vs unparseable
 - [ ] Functional `.ci` tests for each refusal
+
+## Review Gate
+
+Scope of this pass: boot-guard core only (AC-1..AC-4, AC-7). AC-5 (LG) and AC-6
+(offline `ze config validate` / `ze doctor` gNMI parity) remain OPEN -- spec stays
+in-progress. Two independent reviewer subagents (security + correctness/wiring)
+reviewed the diff from the guard entry point.
+
+- BLOCKER: 0
+- ISSUE: 2, both FIXED:
+  - [security] MCP fail-open -- `auth-mode none` + token read as authenticated
+    while the server builds the accept-all `noneAuthenticator` (producers:
+    `internal/component/mcp/streamable.go:169`, `bearer.go:151`,
+    `cmd/ze/hub/service_mcp.go:125`). Fixed by `mcpListenerAuthenticated`
+    (mirrors server effective-mode precedence); regression test
+    `TestMcpListenerAuthenticated` incl. the none+token case.
+  - [correctness] `GNMIListenConfig.Validate` doc comment claimed
+    validate/doctor/boot wiring that this phase defers (AC-6). Comment corrected
+    to state it is unwired pending AC-6.
+- NIT: 2, ACCEPTED + documented in DECISION.md:
+  - Guard call site is before every in-scope management bind but after
+    `eng.Start`/SSH/dropPrivileges (not a fail-open; hoisting further is higher
+    regression risk than the NIT warrants).
+  - Three non-loopback classifiers across hub vs config packages (cannot share
+    without a new dependency; identical fail-closed netip rule).
+
+Verification: `go test` (config + hub packages, all feature tags) green including
+the new fail-open regression test; `golangci-lint` on the two changed packages: 0
+issues. `make ze-test` / QEMU boot-refusal + functional `.ci` refusal tests are
+part of the deferred close-out (Goal Gates remain unchecked).
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; verifier V1 corrected both earlier passes (MCP guard exists but does not run at boot; the insecure-web YANG path is clamped, only the env path bypasses). Deepened to design 2026-07-16: all citations re-verified against the working tree; the doctor claim was corrected (MCP is present in the hardcoded fallback at `checks_listener.go:83-87`; the schema path already discovers gNMI; the actual gaps are the missing "gnmi" listener default, the missing gNMI semantic Validate, and bind-probe-vs-exposure semantics).

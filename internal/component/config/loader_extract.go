@@ -25,6 +25,8 @@ var (
 	errEnvironmentMcpAuthModeOauthRequires3   = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
 	errEnvironmentMcpTlsCertSetWithout        = errors.New("environment.mcp.tls: cert set without key")
 	errEnvironmentMcpTlsKeySetWithout         = errors.New("environment.mcp.tls: key set without cert")
+
+	errEnvironmentGnmiNonLoopbackRequiresToken = errors.New("environment.gnmi: non-loopback listener requires token")
 )
 
 // loaderLogger is the config loader subsystem logger (lazy initialization).
@@ -415,6 +417,40 @@ type GNMIListenConfig struct {
 		Cert string
 		Key  string
 	}
+}
+
+// AnyListenerNonLoopback reports whether at least one gNMI Server entry binds
+// to a non-loopback address. A host that does not parse as an IP address (e.g.
+// `localhost` or any unresolvable hostname) is treated as non-loopback so an
+// operator cannot smuggle remote reachability through a DNS name. Mirrors
+// MCPListenConfig.AnyListenerNonLoopback so exactly one classification rule
+// exists across the config surfaces.
+func (c GNMIListenConfig) AnyListenerNonLoopback() bool {
+	for _, s := range c.Servers {
+		addr, err := netip.ParseAddr(s.Host)
+		if err != nil || !addr.IsLoopback() {
+			return true
+		}
+	}
+	return false
+}
+
+// Validate returns a non-nil error when the gNMI config would expose an
+// unauthenticated management surface: a non-loopback listener (including the
+// 0.0.0.0:9339 default synthesized by ExtractGNMIConfig) with no token. gNMI's
+// interceptors are installed only when a token is set and checkAuth allows on
+// an empty token, so a tokenless non-loopback bind is an unauthenticated
+// read+write config surface. NOTE: not yet wired into `ze config validate` /
+// `ze doctor` / the boot semantic check (that offline parity is AC-6 of
+// plan/spec-fixit-mgmt-listener-auth-guard.md, a deferred follow-up phase);
+// boot-time exposure is currently caught by the hub management-listener guard,
+// which refuses the resolved (env-or-YANG) gNMI bind. Fail-closed per
+// .claude/rules/exact-or-reject.md.
+func (c GNMIListenConfig) Validate() error {
+	if c.AnyListenerNonLoopback() && c.Token == "" {
+		return errEnvironmentGnmiNonLoopbackRequiresToken
+	}
+	return nil
 }
 
 // ExtractGNMIConfig returns the environment.gnmi config if enabled.

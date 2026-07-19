@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
 	"sync"
 
@@ -22,19 +21,11 @@ import (
 
 var errServerNotReady = errors.New("server not ready")
 
-// apiHasNonLoopback reports whether any configured API listener binds to
-// an address other than loopback (127.0.0.0/8 or ::1).
-func apiHasNonLoopback(cfg zeconfig.APIConfig) bool {
-	for _, listeners := range [][]zeconfig.APIListenConfig{cfg.REST, cfg.GRPC} {
-		for _, l := range listeners {
-			ip := net.ParseIP(l.Host)
-			if ip == nil || !ip.IsLoopback() {
-				return true
-			}
-		}
-	}
-	return false
-}
+// API non-loopback classification is now handled by the shared boot-time guard
+// (mgmt_guard.go: listenAddrIsNonLoopback + checkMgmtListeners), which the API
+// server's listener declaration in runYANGConfig feeds. The former
+// apiHasNonLoopback helper was folded into that single classifier so exactly
+// one non-loopback rule exists across every management surface.
 
 func configValidationHook(configPath string) api.ConfigValidationHook {
 	return func(previous, candidate string) error {

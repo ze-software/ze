@@ -739,6 +739,145 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
+	// Resolve REST/gRPC API listen config (env > config file) up front so the
+	// boot-time management-listener guard below sees every management surface's
+	// (address, auth) pair before anything binds. The API build path further
+	// down reuses apiCfg / apiCfgOK / apiUsers.
+	apiCfg, apiCfgOK := zeconfig.ExtractAPIConfig(loadResult.Tree)
+	if env.IsEnabled("ze.api-server.rest.enabled") && !apiCfg.RESTOn {
+		apiCfg.RESTOn = true
+		apiCfg.REST = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "8081"}}
+		apiCfgOK = true
+	}
+	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && apiCfg.RESTOn {
+		host, port, parseErr := net.SplitHostPort(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.api.rest.listen: %v\n", parseErr)
+			return 1
+		}
+		// Env-var override replaces the config-provided list with one entry.
+		apiCfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+	}
+	if env.IsEnabled("ze.api-server.grpc.enabled") && !apiCfg.GRPCOn {
+		apiCfg.GRPCOn = true
+		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}}
+		apiCfgOK = true
+	}
+	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && apiCfg.GRPCOn {
+		host, port, parseErr := net.SplitHostPort(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.api.grpc.listen: %v\n", parseErr)
+			return 1
+		}
+		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+	}
+	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
+		apiCfg.Token = token
+	}
+
+	var apiUsers []authz.UserConfig
+	if apiCfgOK {
+		if u, uErr := loadZefsUsers(); uErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: API power-user auth unavailable: %v\n", uErr)
+		} else {
+			apiUsers = u
+		}
+		// Config-file users authenticate alongside the always-on power user.
+		apiUsers = mergeAuthUsers(apiUsers, sshCfg.Users)
+
+		// Report active auth mode to make silent degradation visible.
+		switch {
+		case len(apiUsers) > 0:
+			fmt.Fprintf(os.Stderr, "API auth mode: per-user (%d users)\n", len(apiUsers))
+		case apiCfg.Token != "":
+			fmt.Fprintln(os.Stderr, "API auth mode: single-token (shared bearer)")
+		default:
+			fmt.Fprintln(os.Stderr, "warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs")
+		}
+	}
+
+	// Boot-time management-listener exposure guard (mgmt_guard.go): one
+	// fail-closed check that refuses to serve any management surface bound
+	// non-loopback without authentication. Each surface declares its resolved
+	// (address, auth) pair; the guard function names no service. A surface whose
+	// feature-gate is compiled out never declares (it cannot bind).
+	webFactoryOn := serviceFactoryRegistered("web")
+	mcpFactoryOn := serviceFactoryRegistered("mcp")
+	// A secure web listener carries auth middleware (and its own no-users
+	// fail-closed disable), so only the insecure path is unauthenticated. MCP
+	// auth mirrors the server's effective-mode precedence (see
+	// mcpListenerAuthenticated): an explicit "none" makes the server accept-all
+	// even with a token set, so a token alone does NOT authenticate.
+	webAuthed := !insecureWeb
+	mcpAuthed := mcpListenerAuthenticated(mcpCfgOK, mcpCfg.AuthMode, mcpToken)
+	apiAuthed := len(apiUsers) > 0 || apiCfg.Token != ""
+
+	var mgmtListeners []mgmtListener
+	if webFactoryOn && webEnabled {
+		mgmtListeners = append(mgmtListeners, mgmtListener{
+			service:       "web (insecure)",
+			addrs:         webAddrs,
+			authenticated: webAuthed,
+			remedy:        "bind ze.web.listen to 127.0.0.1/::1, or drop ze.web.insecure and configure users",
+		})
+	}
+	if mcpFactoryOn {
+		mgmtListeners = append(mgmtListeners, mgmtListener{
+			service:       "MCP",
+			addrs:         mcpAddrs,
+			authenticated: mcpAuthed,
+			remedy:        "set ze.mcp.token (or environment.mcp auth-mode), or bind to 127.0.0.1/::1 only",
+		})
+	}
+	if gnmiBuild != nil {
+		if gnmiAddr, gnmiToken, gnmiEnabled := resolveGNMIListeners(loadResult.Tree); gnmiEnabled {
+			mgmtListeners = append(mgmtListeners, mgmtListener{
+				service:       "gNMI",
+				addrs:         []string{gnmiAddr},
+				authenticated: gnmiToken != "",
+				remedy:        "set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only",
+			})
+		}
+	}
+	if apiCfgOK && (restBuild != nil || grpcBuild != nil) {
+		apiAddrs := append(apiListenToAddrs(apiCfg.REST), apiListenToAddrs(apiCfg.GRPC)...)
+		mgmtListeners = append(mgmtListeners, mgmtListener{
+			service:       "API",
+			addrs:         apiAddrs,
+			authenticated: apiAuthed,
+			remedy:        "set ze.api-server.token, initialize zefs users, or bind to 127.0.0.1/::1 only",
+		})
+	}
+
+	// Run the existing precise MCP semantic checks on the boot path too
+	// (bind-remote without auth, bearer without token, oauth without TLS): these
+	// catch config-level inconsistencies the loopback/auth guard alone would
+	// miss, with the same messages `ze config validate` prints.
+	if serviceFactoryRegistered("mcp") && mcpCfgOK {
+		if err := mcpCfg.Validate(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+	}
+
+	if checkMgmtListeners(mgmtListeners) {
+		return 1
+	}
+
+	// Mark unauthenticated surfaces so a SIGHUP listener migration cannot move
+	// them to a non-loopback address after boot (fail-closed corollary: a
+	// boot-only guard would otherwise fail open on reload -- AC-7).
+	if webFactoryOn && webEnabled && !webAuthed {
+		lm.MarkUnauthenticated("web")
+	}
+	if mcpFactoryOn && !mcpAuthed {
+		lm.MarkUnauthenticated("mcp")
+	}
+	if apiCfgOK && !apiAuthed {
+		lm.MarkUnauthenticated("rest")
+		lm.MarkUnauthenticated("grpc")
+	}
+
 	// Build optional, compile-out-able services through the construction
 	// registry. With a feature's ze_<feature> tag off, its factory is not
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
@@ -797,40 +936,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}()
 	}
 
-	// Start REST/gRPC API servers if configured (env > config file).
+	// REST/gRPC API listen config and users were resolved above (before the
+	// management-listener guard); apiCfg / apiCfgOK / apiUsers are reused here.
 	var apiShutdowns []func(context.Context)
-	apiCfg, apiCfgOK := zeconfig.ExtractAPIConfig(loadResult.Tree)
-	if env.IsEnabled("ze.api-server.rest.enabled") && !apiCfg.RESTOn {
-		apiCfg.RESTOn = true
-		apiCfg.REST = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "8081"}}
-		apiCfgOK = true
-	}
-	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && apiCfg.RESTOn {
-		host, port, parseErr := net.SplitHostPort(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.api.rest.listen: %v\n", parseErr)
-			return 1
-		}
-		// Env-var override replaces the config-provided list with one entry.
-		// Compound multi-listener env support lands in a later chunk.
-		apiCfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
-	}
-	if env.IsEnabled("ze.api-server.grpc.enabled") && !apiCfg.GRPCOn {
-		apiCfg.GRPCOn = true
-		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}}
-		apiCfgOK = true
-	}
-	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && apiCfg.GRPCOn {
-		host, port, parseErr := net.SplitHostPort(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.api.grpc.listen: %v\n", parseErr)
-			return 1
-		}
-		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
-	}
-	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
-		apiCfg.Token = token
-	}
 	apiServer.SetFullReloadFunc(func(context.Context) error {
 		return reloadAfterCommit()
 	})
@@ -840,30 +948,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog)
 	}
 	if apiCfgOK {
-		var apiUsers []authz.UserConfig
-		if u, uErr := loadZefsUsers(); uErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: API power-user auth unavailable: %v\n", uErr)
-		} else {
-			apiUsers = u
-		}
-		// Config-file users authenticate alongside the always-on power user.
-		apiUsers = mergeAuthUsers(apiUsers, sshCfg.Users)
-
-		// Report active auth mode to make silent degradation visible.
-		switch {
-		case len(apiUsers) > 0:
-			fmt.Fprintf(os.Stderr, "API auth mode: per-user (%d users)\n", len(apiUsers))
-		case apiCfg.Token != "":
-			fmt.Fprintln(os.Stderr, "API auth mode: single-token (shared bearer)")
-		default:
-			fmt.Fprintln(os.Stderr, "warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs")
-		}
-
-		if len(apiUsers) == 0 && apiCfg.Token == "" && apiHasNonLoopback(apiCfg) {
-			fmt.Fprintln(os.Stderr, "error: refusing to start API on non-loopback listener without authentication")
-			fmt.Fprintln(os.Stderr, "  set ze.api-server.token, initialize zefs users, or bind to 127.0.0.1/::1 only")
-			return 1
-		}
+		// apiUsers and the auth-mode report were resolved above; the boot-time
+		// management-listener guard has already refused any non-loopback API
+		// listener without authentication (the former apiHasNonLoopback inline
+		// refusal is folded into the single shared classifier).
 
 		// Build REST and gRPC through their compile-out seams (service_rest.go /
 		// service_grpc.go). Each transport is independently gated (ze_rest /

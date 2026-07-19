@@ -10,7 +10,41 @@ package hub
 import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// resolveGNMIListeners resolves the gNMI enable flag, effective listen address,
+// and token from env vars and the config tree, applying the same precedence and
+// 0.0.0.0:9339 default the gated builder (service_gnmi.go) uses to bind. It is
+// always-on so the boot-time management-listener guard can see gNMI's
+// (address, token) pair before anything binds, and the gated builder calls the
+// SAME function so exactly one resolver exists (no drift between what the guard
+// classifies and what actually binds). TLS cert/key resolution stays in the
+// gated builder because the guard does not read cert files.
+func resolveGNMIListeners(tree *zeconfig.Tree) (addr, token string, enabled bool) {
+	addr = env.Get("ze.gnmi.listen")
+	token = env.Get("ze.gnmi.token")
+	if env.IsEnabled("ze.gnmi.enabled") {
+		enabled = true
+	}
+
+	if gnmiYANG, ok := zeconfig.ExtractGNMIConfig(tree); ok {
+		enabled = true
+		if addr == "" {
+			if addrs := endpointsToAddrs(gnmiYANG.Servers); len(addrs) > 0 {
+				addr = addrs[0]
+			}
+		}
+		if token == "" {
+			token = gnmiYANG.Token
+		}
+	}
+
+	if enabled && addr == "" {
+		addr = "0.0.0.0:9339"
+	}
+	return addr, token, enabled
+}
 
 // gnmiServer is the always-on view of a built gNMI server. The real
 // *gnmi.Server stays behind the ze_gnmi-gated implementation.

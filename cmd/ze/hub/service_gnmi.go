@@ -48,27 +48,17 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 		return nil
 	}
 
-	gnmiEnabled := false
-	gnmiAddr := env.Get("ze.gnmi.listen")
-	gnmiToken := env.Get("ze.gnmi.token")
+	// Resolve enable/address/token through the always-on shared resolver
+	// (gnmi_infra.go) so the boot-time management-listener guard and this
+	// builder agree on exactly the (address, token) pair that binds. TLS
+	// cert/key stay here because the guard does not read cert files.
+	gnmiAddr, gnmiToken, gnmiEnabled := resolveGNMIListeners(in.Tree)
 	gnmiTLSCert := env.Get("ze.gnmi.tls.cert")
 	gnmiTLSKey := env.Get("ze.gnmi.tls.key")
-	if env.IsEnabled("ze.gnmi.enabled") {
-		gnmiEnabled = true
-	}
 
 	if gnmiYANG, ok := zeconfig.ExtractGNMIConfig(in.Tree); ok {
-		gnmiEnabled = true
-		if gnmiAddr == "" {
-			if addrs := endpointsToAddrs(gnmiYANG.Servers); len(addrs) > 0 {
-				gnmiAddr = addrs[0]
-			}
-			if len(gnmiYANG.Servers) > 1 {
-				slog.Warn("gNMI: only first server listener is used, extra listeners ignored", "configured", len(gnmiYANG.Servers))
-			}
-		}
-		if gnmiToken == "" {
-			gnmiToken = gnmiYANG.Token
+		if env.Get("ze.gnmi.listen") == "" && len(gnmiYANG.Servers) > 1 {
+			slog.Warn("gNMI: only first server listener is used, extra listeners ignored", "configured", len(gnmiYANG.Servers))
 		}
 		if gnmiTLSCert == "" {
 			gnmiTLSCert = gnmiYANG.TLS.Cert
@@ -80,9 +70,6 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 
 	if !gnmiEnabled {
 		return nil
-	}
-	if gnmiAddr == "" {
-		gnmiAddr = "0.0.0.0:9339"
 	}
 
 	gnmiCfg := zegnmi.Config{
