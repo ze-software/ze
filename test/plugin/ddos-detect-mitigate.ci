@@ -8,10 +8,17 @@
 # PREVENTS:  the mitigation chain staying inert (detector emits an empty target,
 #            responders refuse to act).
 #
-# STATUS: authored for the Linux/QEMU integration run (option=needs-linux); it
-#   is NOT executable on the darwin dev host and has not been run there. The
-#   static surface (config leaves, nft table name `ddos-local`, log strings) is
-#   grounded in source; the runtime behaviour below must be confirmed under QEMU:
+# STATUS: a Linux/QEMU integration test (option=needs-linux); NOT executable on
+#   the darwin dev host. Reworked per spec-fixit-ddos-test-infra AC-2a: the
+#   daemon.pid/daemon.ready handshake is KEPT (it is armed for a background `ze`
+#   -- runner_exec_util.go:125-130, runner_exec.go:702-705,777-791 -- and polled
+#   green today by test/vrrp/vrrp-instance-up.ci:123), and the two hand-rolled
+#   `time.sleep` poll loops were migrated to ze_api.wait_until (its internal delay
+#   is ratchet-exempt), so no blind sleep remains. The nft readback stays in the
+#   root driver.py, which the runner keeps privileged for exactly this
+#   (runner_exec.go:740-744).
+#   The static surface (config leaves, nft table name `ddos-local`, log strings)
+#   is grounded in source; these runtime behaviours are proven by the QEMU run:
 #     - the iface rate collector reports `lo` RxPackets to the detector
 #       (rate.go ListInterfaces feeds all kernel links to onRate),
 #     - trafficusage TCX attaches to `lo` and records the destination in
@@ -28,21 +35,25 @@ option=timeout:value=40s
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-"""Flood loopback to trip ddos-detect, then assert ddos-local installs an nft drop."""
+"""Flood loopback to trip ddos-detect, then assert ddos-local installs an nft drop.
+
+Every wait is a deterministic file/kernel-state poll via ze_api.wait_until (whose
+internal delay is ratchet-exempt); no blind time.sleep remains (spec-fixit-ddos-
+test-infra AC-2a)."""
 import os
 import signal
 import socket
 import subprocess
 import sys
-import time
+
+from ze_api import wait_until
 
 # Wait for the daemon to come up (runner writes daemon.pid + daemon.ready).
-for _ in range(400):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
+if not wait_until(
+    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+    attempts=400,
+    delay=0.05,
+):
     print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
     sys.exit(1)
 
@@ -50,36 +61,41 @@ with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
 # Flood a loopback destination so the detector's RxPps for `lo` exceeds the
-# 1000 pps floor and trafficusage records 127.0.0.2 as the dominant destination.
-target = "127.0.0.2"
+# 1000 pps floor and trafficusage records the victim as the dominant destination.
+# 127.0.0.4 is distinct from ddos-policy.ci (127.0.0.2) and ddos-direction.ci
+# (127.0.0.3) so parallel runs do not resolve the same victim (spec:168-169).
+target = "127.0.0.4"
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 payload = b"x" * 64
 
-installed = False
-ruleset = ""
-deadline = time.time() + 25.0
-sent = 0
-while time.time() < deadline:
+# Mutable state shared with the wait_until predicate: the flood is sustained
+# across collect ticks (one burst per poll) while we watch for the nft drop.
+state = {"ruleset": "", "sent": 0}
+
+
+def flood_and_check():
     for _ in range(4000):
         try:
             sock.sendto(payload, (target, 9999))
-            sent += 1
+            state["sent"] += 1
         except OSError:
             pass
     snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    ruleset = snap.stdout
-    if "ddos-local" in ruleset and target in ruleset:
-        installed = True
-        break
-    # poll interval; the loop above breaks once the ddos-local nft drop rule appears in the ruleset, bounded wait not a blind sleep
-    time.sleep(0.2)
+    state["ruleset"] = snap.stdout
+    return "ddos-local" in state["ruleset"] and target in state["ruleset"]
 
-sys.stdout.write(ruleset)
+
+# 125 attempts * 0.2s ~= 25s, matching the original bounded flood window.
+installed = wait_until(flood_and_check, attempts=125, delay=0.2)
+
+sys.stdout.write(state["ruleset"])
 os.kill(pid, signal.SIGTERM)
 
 if not installed:
-    print(f"ERROR: ddos-local drop rule for {target} not installed (sent {sent} packets)",
-          file=sys.stderr)
+    print(
+        f"ERROR: ddos-local drop rule for {target} not installed (sent {state['sent']} packets)",
+        file=sys.stderr,
+    )
     sys.exit(1)
 EOF_PY
 
@@ -114,5 +130,5 @@ cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=ddos-local
-expect=stdout:contains=127.0.0.2
+expect=stdout:contains=127.0.0.4
 expect=stderr:contains=ddos-local: drop rule installed

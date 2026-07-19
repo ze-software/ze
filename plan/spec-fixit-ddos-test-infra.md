@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | ~~0/N (research)~~ design complete; impl Phases 1-5 pending (2026-07-17) |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Task
 
@@ -675,21 +675,37 @@ responder believes (the same intent-vs-kernel distinction D-4 rests on).
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
 
-### Run 1 (initial)
+### Run 1 (initial) -- independent general-purpose reviewer, static review vs producers (2026-07-19)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | ISSUE | Reworked test reused victim 127.0.0.2 (same as `ddos-policy.ci`), violating the spec's victim-separation requirement; shared `ze_ddos-local` table name amplifies a parallel-run collision | `test/plugin/ddos-detect-mitigate.ci` target; `responder.go:22` | fixed (victim -> 127.0.0.4); table-name/concurrent-sweep part is R-7 / `spec-fixit-firewall-concurrency-deadlock`, out of scope |
+| 2 | NOTE | Stderr assertions (`hook=forward`, defer token) depend on slog Text handler with color OFF; a PTY / `ze.log.color=true` would dim the key and break the substring | `color.go:121-150` | acknowledged (holds under standard non-TTY QEMU capture) |
+| 3 | NOTE | Veth-flood RX-pps trip and trafficusage victim resolution are unverifiable statically; config monitors both zdd0 and zdd0p as a hedge | `ddos-transit-forward-drop.ci` | acknowledged (AC-1's QEMU discovery territory) |
+| 4 | NOTE | `wait_until(lambda: False, attempts=1, delay=0.3)` pacing idiom is obscure but correct and commented | `ddos-transit-forward-drop.ci` driver.py | acknowledged |
+
+Confirmed correct by the reviewer (evidence cited): drop-installed log renders `hook=forward`
+(`responder.go:152-153`, `hookChainName` 170-175); defer log substring matches
+(`responder.go:115-116`); nft renders `hook forward` (`firewall/model.go:120-128`); 203.0.113.9
+is guaranteed remote (`classifyDirection` 354-367 -> `AddressIsLocal` RTN_LOCAL check); AC-3 not
+weakened (`match.go:17-21` adds the dst match only when `DstPrefix.IsValid()`); SIGHUP reload from
+`ze-bgp.conf` proven (vrrp precedent); wait_until pacing math and 127->125 ratchet math correct;
+all config leaves valid.
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE]
+- Retargeted the reworked test's victim to 127.0.0.4 (distinct from ddos-policy 127.0.0.2 and
+  ddos-direction 127.0.0.3), removing the address overlap the ISSUE flagged.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | ISSUE fix is a self-contained address change; NOTEs are acknowledgements, no re-review needed | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Independent review shows 0 BLOCKER, 0 ISSUE (the single ISSUE fixed; residue is out-of-scope R-7)
+- [x] All NOTEs recorded above
+- Artifact: `tmp/review/fixit-ddos-test-infra-58c51aab-79d8-400d-b779-2c0cf322a274.md` (verdict=clean)
+- CAVEAT: review is STATIC (QEMU forbidden in this job). Green-under-QEMU proof (AC-1, AC-4,
+  AC-5, AC-6 execution) is deferred to the human/CI QEMU run in the drain recipe.
 
 ## Pre-Commit Verification
 

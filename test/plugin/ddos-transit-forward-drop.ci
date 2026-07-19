@@ -1,0 +1,256 @@
+# Test: ddos-local drops a REMOTE (transit) victim on the netfilter FORWARD hook
+# when forward-mitigation is on, and defers to flowspec (no on-host drop) when it
+# is off -- the end-to-end proof of spec-ddos-direction-allowlist AC-10.
+#
+# VALIDATES: spec-fixit-ddos-test-infra AC-4 -- a flood at a remote, box-unowned
+#            victim (203.0.113.9) is classified Direction=remote (classifyDirection
+#            -> iface.AddressIsLocal false, detector.go:354-367) and, with
+#            `ddos { local { forward-mitigation } }` on, ddos-local installs an nft
+#            drop on the FORWARD hook (hookForDirection -> HookForward,
+#            responder.go:160-168; chain rendered `type filter hook forward`).
+# VALIDATES: spec-fixit-ddos-test-infra AC-5 -- with forward-mitigation off the
+#            responder installs NO on-host drop and logs the flowspec deferral
+#            (responder.go:111-118).
+# PREVENTS:  a transit victim silently getting an INPUT-hook drop (which cannot
+#            touch forwarded traffic), or forward-mitigation being ignored.
+#
+# COMPLEMENTS (does not replace) the exhaustive hook-selection unit test
+# TestLocalHookByDirection (internal/plugins/ddos/local/responder_test.go:179):
+# this proves the same selection end to end, through a real flood and a kernel
+# nft readback.
+#
+# STATUS: option=needs-linux; runs as root on the QEMU Alpine VM. Pattern of
+#   record for kernel-state assertions: test/vrrp/vrrp-instance-up.ci (setup.py
+#   veth + background `ze` + root driver.py + ze_api.wait_until; no blind sleep).
+#   The nft readback stays in the root driver.py, which the runner keeps
+#   privileged for exactly this (runner_exec.go:740-744); no `firewall {}` block
+#   is declared, so ApplyAll autoloads nft on demand (registry.go:104-109) with
+#   ddos-local as the sole nft driver (spec D-2).
+#
+#   Two attack generations are required and are the timing-sensitive part of this
+#   test: AttackDetected/Characterized emit ONCE per generation at attack onset
+#   (detector.go:310-333, characterize.go:138-160), so hookForDirection is
+#   consulted only then. Phase A (forward-mitigation ON) drives one generation and
+#   proves the FORWARD drop; the flood then stops and the attack CLEARS (the drop
+#   is withdrawn), the config reloads with forward-mitigation OFF, and Phase B
+#   drives a fresh generation that must defer. If a QEMU run shows the reload/
+#   re-trigger is flaky, AC-5 can be split into a sibling `.ci`; AC-4 (the parent
+#   AC-10 mandate) stands alone in Phase A.
+
+option=needs-linux
+option=env:var=ze.log.ddos-detect:value=info
+option=env:var=ze.log.ddos-local:value=info
+option=timeout:value=120s
+
+tmpfs=setup.py:mode=755:terminator=EOF_SETUP
+#!/usr/bin/env python3
+# Build the transit topology: a veth pair with the box addressed on one end, so a
+# victim address inside the connected /24 but assigned to NOTHING (203.0.113.9)
+# resolves as a REMOTE, box-unowned unicast destination (not RTN_LOCAL). A static
+# neighbour lets the flood egress immediately instead of stalling on ARP for a
+# host that does not exist; the peer end simply absorbs the packets. Idempotent
+# (errors swallowed). Enable forwarding, since forward-mitigation guards the
+# FORWARD plane.
+import subprocess
+
+
+def ip(*args):
+    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
+
+
+ip("link", "add", "zdd0", "type", "veth", "peer", "name", "zdd0p")
+ip("addr", "add", "203.0.113.1/24", "dev", "zdd0")
+ip("link", "set", "zdd0", "up")
+ip("link", "set", "zdd0p", "up")
+ip("neigh", "add", "203.0.113.9", "lladdr", "02:00:00:00:00:01", "dev", "zdd0", "nud", "permanent")
+subprocess.run(["sysctl", "-w", "net.ipv4.ip_forward=1"],
+               stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+EOF_SETUP
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Prove the FORWARD-hook drop for a remote victim, then the no-drop deferral.
+
+Runs as root (the runner keeps the foreground driver privileged, runner_exec.go:
+740-744). Every wait is a deterministic kernel/file-state poll via ze_api.wait_until
+(its internal delay is ratchet-exempt); no blind time.sleep."""
+import os
+import signal
+import socket
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+VICTIM = "203.0.113.9"  # remote (box-unowned) so classifyDirection -> remote
+DPORT = 9999
+PAYLOAD = b"x" * 64
+TABLE = "ze_ddos-local"  # local/config.go:22 tableName (ze_ ownership prefix)
+
+# forward-mitigation OFF variant of the daemon config, reloaded (SIGHUP) for
+# Phase B. Mirrors the stdin=ze-bgp block below with the leaf flipped.
+CONFIG_OFF = """ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+		forward-mitigation false
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface zdd0p {
+				enabled true
+			}
+			interface zdd0 {
+				enabled true
+			}
+		}
+	}
+}
+"""
+
+
+def ruleset():
+    return subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True).stdout
+
+
+def drop_installed():
+    """True once ddos-local has programmed a kernel drop for the victim."""
+    rs = ruleset()
+    return TABLE in rs and VICTIM in rs
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def blast(n):
+        sent = 0
+        for _ in range(n):
+            try:
+                sock.sendto(PAYLOAD, (VICTIM, DPORT))
+                sent += 1
+            except OSError:
+                pass
+        return sent
+
+    state = {"sent": 0}
+
+    if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                      attempts=400, delay=0.05):
+        sys.exit("daemon readiness files missing")
+    with open("daemon.pid") as f:
+        pid = int(f.read().strip())
+
+    # --- Phase A (AC-4): forward-mitigation ON -> FORWARD-hook drop. ---
+    def flood_and_drop():
+        state["sent"] += blast(4000)
+        return drop_installed()
+
+    if not wait_until(flood_and_drop, attempts=150, delay=0.3):
+        sys.exit("no ddos-local drop for remote victim %s after %d packets:\n%s"
+                 % (VICTIM, state["sent"], ruleset()))
+    rs = ruleset()
+    if "hook forward" not in rs:
+        sys.exit("drop installed for %s but NOT on the FORWARD hook (transit victim "
+                 "must select HookForward):\n%s" % (VICTIM, rs))
+    sys.stdout.write("FORWARD-DROP-INSTALLED %s\n" % VICTIM)
+
+    # --- clear: stop flooding, let the attack end and the drop be withdrawn so
+    # Phase B starts from a clean kernel and a fresh attack generation. ---
+    if not wait_until(lambda: not drop_installed(), attempts=300, delay=0.3):
+        sys.exit("mitigation never cleared after the flood stopped:\n%s" % ruleset())
+
+    # --- Phase B (AC-5): reload forward-mitigation OFF, re-flood -> no drop. ---
+    with open("ze-bgp.conf", "w") as f:
+        f.write(CONFIG_OFF)
+    os.kill(pid, signal.SIGHUP)
+
+    # Drive a new attack generation with forward-mitigation off. The detector must
+    # re-fire (proven by the daemon's "deferring to flowspec" log, asserted via
+    # expect=stderr) while NO drop table is ever installed. Flood a bounded window
+    # and fail fast if a drop appears.
+    state["sent2"] = 0
+    for _ in range(80):  # ~24s of sustained flood across detector collect ticks
+        state["sent2"] += blast(4000)
+        if drop_installed():
+            sys.exit("forward-mitigation OFF but a drop was installed for remote "
+                     "victim %s:\n%s" % (VICTIM, ruleset()))
+        wait_until(lambda: False, attempts=1, delay=0.3)  # ratchet-exempt pacing
+    sys.stdout.write("REMOTE-DEFER-NO-DROP %s (sent %d)\n" % (VICTIM, state["sent2"]))
+
+    sock.close()
+    os.kill(pid, signal.SIGTERM)
+
+    def dead():
+        try:
+            os.kill(pid, 0)
+            return False
+        except OSError:
+            return True
+    wait_until(dead, attempts=100, delay=0.05)
+
+
+if __name__ == "__main__":
+    main()
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+		forward-mitigation true
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface zdd0p {
+				enabled true
+			}
+			interface zdd0 {
+				enabled true
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=python3 setup.py
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=115s
+expect=exit:code=0
+expect=stdout:contains=FORWARD-DROP-INSTALLED 203.0.113.9
+expect=stdout:contains=REMOTE-DEFER-NO-DROP 203.0.113.9
+expect=stderr:contains=ddos-local: drop rule installed
+expect=stderr:contains=hook=forward
+expect=stderr:contains=forward-mitigation disabled, deferring to flowspec
