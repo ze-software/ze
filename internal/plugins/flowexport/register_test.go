@@ -125,6 +125,45 @@ func TestRunEngine_RefusesExternalProcess(t *testing.T) {
 	}
 }
 
+// RFC requirement: SFLOW-V5-x-15 positive -- if_counters are cumulative since boot: interfaceCountersFrom copies the raw kernel counters straight through (register.go:349-357) with no per-poll differencing. The 64-bit octet counters are carried without truncation, and calling the (stateless) converter twice on the same input yields identical values -- a differencing implementation would report zero on the second identical call.
+func TestInterfaceCountersFromCumulative(t *testing.T) {
+	info := &iface.InterfaceInfo{
+		Name:  "eth0",
+		Index: 2,
+		Type:  "device",
+		State: "up",
+		Stats: &iface.InterfaceStats{
+			RxBytes:   5_000_000_000, // > 2^32: must survive as a 64-bit cumulative value
+			RxPackets: 4_000_000,
+			TxBytes:   9_000_000_000,
+			TxPackets: 7_000_000,
+		},
+	}
+
+	ic := interfaceCountersFrom(info, 1000, "full")
+
+	// Raw cumulative copy, no baseline subtraction and no 32-bit truncation.
+	if ic.IfInOctets != 5_000_000_000 {
+		t.Errorf("IfInOctets = %d, want 5000000000 (raw cumulative, untruncated)", ic.IfInOctets)
+	}
+	if ic.IfOutOctets != 9_000_000_000 {
+		t.Errorf("IfOutOctets = %d, want 9000000000 (raw cumulative, untruncated)", ic.IfOutOctets)
+	}
+	if ic.IfInUcastPkts != 4_000_000 {
+		t.Errorf("IfInUcastPkts = %d, want 4000000 (raw cumulative)", ic.IfInUcastPkts)
+	}
+	if ic.IfOutUcastPkts != 7_000_000 {
+		t.Errorf("IfOutUcastPkts = %d, want 7000000 (raw cumulative)", ic.IfOutUcastPkts)
+	}
+
+	// No differencing: a second conversion of the same counters is identical, not a delta.
+	ic2 := interfaceCountersFrom(info, 1000, "full")
+	if ic2.IfInOctets != ic.IfInOctets || ic2.IfOutOctets != ic.IfOutOctets {
+		t.Errorf("second conversion differs (in %d->%d, out %d->%d); counters must stay cumulative, not be differenced",
+			ic.IfInOctets, ic2.IfInOctets, ic.IfOutOctets, ic2.IfOutOctets)
+	}
+}
+
 func TestIfTypeFor(t *testing.T) {
 	cases := map[string]uint32{
 		"device":    6,

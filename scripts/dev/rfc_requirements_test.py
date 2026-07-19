@@ -730,6 +730,8 @@ class TestStatusLedgerCrossCheck(unittest.TestCase):
         "No tracked gap in current source anchors. |\n"
         "| draft-ietf-example-thing | Example draft | Partial | stuff | "
         "Section 6 validation is unimplemented. |\n"
+        "| sflow-v5 | Example non-RFC stem | Experimental | stuff | "
+        "Three MUST gaps tracked. |\n"
     )
 
     def test_gap_disclosed_passes(self):
@@ -764,6 +766,20 @@ class TestStatusLedgerCrossCheck(unittest.TestCase):
         rows = R.parse_status_ledger(self.STATUS)
         self.assertIn("draft-ietf-example-thing", rows)
         self.assertEqual(rows["draft-ietf-example-thing"]["status"], "Partial")
+
+    def test_nonrfc_stem_row_is_keyed(self):
+        """A non-RFC, non-draft summary (e.g. sflow-v5) enrolls under its file
+        stem, a lowercase hyphenated token; its status row is keyed by that stem
+        so a {gap} on it can find its disclosure row."""
+        rows = R.parse_status_ledger(self.STATUS)
+        self.assertIn("sflow-v5", rows)
+        ann = R.Annotation(kind="gap", polarity=None, reason="split seq")
+        errs = R.check_status_agreement(
+            [_req("SFLOW-V5-x-9", annotation=ann, rfc="sflow-v5")],
+            rows,
+            {"sflow-v5"},
+        )
+        self.assertEqual(errs, [])
 
     def test_draft_gap_disclosed_by_partial_row(self):
         """A {gap} on an enrolled draft passes when its draft-stem row is

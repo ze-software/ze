@@ -32,6 +32,7 @@ func testCounters() *flowexport.InterfaceCounters {
 	}
 }
 
+// RFC requirement: SFLOW-V5-x-7 positive -- every if_counters field is written XDR big-endian at its 4-byte-aligned offset: the test decodes each field with binary.BigEndian at fixed offsets (base+0, +4, +8, ...) and a little-endian or misaligned write would fail these reads (counter.go:71-156).
 func TestSFlowIfCounters(t *testing.T) {
 	buf := make([]byte, 256)
 	c := testCounters()

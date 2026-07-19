@@ -772,6 +772,12 @@ def parse_status_ledger(text: str) -> Dict[str, Dict[str, str]]:
             # Without this a {gap} on an enrolled draft could never find its disclosure
             # row and would fail check_status_agreement (ai/rules/fail-closed-guards.md).
             key = cells[0]
+        elif re.match(r"^[a-z][a-z0-9]*(-[a-z0-9.]+)+$", cells[0]):
+            # Non-RFC, non-draft summaries (e.g. sflow-v5) enroll under their file
+            # stem, which is a lowercase hyphenated token. Key the status row by that
+            # exact stem so a {gap} on such a summary can find its disclosure row --
+            # same fail-closed reasoning as the draft branch above.
+            key = cells[0]
         else:
             continue
         rows[key] = {

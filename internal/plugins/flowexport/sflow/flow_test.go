@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// RFC requirement: SFLOW-V5-x-10 positive -- the flow_sample carries the actual 1-in-N sampling_rate the agent used: the rate handed to WriteFlowSample (2048) decodes back at the sampling_rate offset (flow.go:51-52).
 func TestSFlowFlowSample(t *testing.T) {
 	buf := make([]byte, 256)
 
@@ -66,6 +67,7 @@ func TestSFlowFlowSample(t *testing.T) {
 	}
 }
 
+// RFC requirement: SFLOW-V5-x-8 positive -- the sampled_header's variable-length opaque header is XDR-framed: a 4-byte count prefix precedes the bytes (asserted == 14) and the 14-byte payload is zero-padded up to the next 4-byte boundary (asserted pad bytes == 0) (flow.go:116-128).
 func TestSFlowSampledHeader(t *testing.T) {
 	buf := make([]byte, 256)
 	// Simulate a 14-byte Ethernet header (dst MAC + src MAC + ethertype)

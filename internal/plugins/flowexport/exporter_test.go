@@ -145,6 +145,7 @@ func TestExportFlowsAppliesEnrichment(t *testing.T) {
 	}
 }
 
+// RFC requirement: SFLOW-V5-x-6 positive -- a sampled packet is not buffered: exportFlowSample encodes and dispatches it synchronously in the calling goroutine (exporter.go:242), so immediately after the call returns the encoder has already received the sample -- there is no holding queue that could delay it past 1 second.
 func TestExportFlowSampleDispatch(t *testing.T) {
 	exp := newTestExporter(t, "sflow")
 
@@ -251,5 +252,61 @@ func TestConntrackPublishesFlowObs(t *testing.T) {
 	}
 	if obs.Flow.Proto != 6 {
 		t.Errorf("flow proto = %d, want 6", obs.Flow.Proto)
+	}
+}
+
+// countingEncoder counts how many times Encode (a counter poll) is asked for, so
+// a test can assert the poll-interval gate at exporter.go:186-189 admits or
+// suppresses a snapshot.
+type countingEncoder struct {
+	encodeCalls   int
+	templateCalls int
+}
+
+func (c *countingEncoder) Encode(snap CounterSnapshot, _ *Sender) (int, error) {
+	c.encodeCalls++
+	return len(snap.Interfaces), nil
+}
+
+func (c *countingEncoder) EncodeTemplate(_ *Sender) error {
+	c.templateCalls++
+	return nil
+}
+
+// RFC requirement: SFLOW-V5-x-14 positive -- with PollingInterval=1s, a second snapshot whose time is a full interval after the first passes the gate (now.Sub(lastPoll) < pollInterval is false at exactly one interval) and produces a second counter poll (exporter.go:186-189,213).
+func TestSFlowCounterPollAtInterval(t *testing.T) {
+	exp := newTestExporter(t, "sflow") // PollingInterval: 1 (second)
+	enc := &countingEncoder{}
+	exp.setEncoder("c1", enc)
+
+	t0 := time.Now()
+	exp.notifySnapshot(CounterSnapshot{Time: t0, Interfaces: []InterfaceCounters{{IfIndex: 1}}})
+	if enc.encodeCalls != 1 {
+		t.Fatalf("first snapshot: encodeCalls = %d, want 1 (fresh collector always polls)", enc.encodeCalls)
+	}
+
+	// One full polling interval later: the gate must admit the snapshot.
+	exp.notifySnapshot(CounterSnapshot{Time: t0.Add(time.Second), Interfaces: []InterfaceCounters{{IfIndex: 1}}})
+	if enc.encodeCalls != 2 {
+		t.Fatalf("snapshot at +1 interval: encodeCalls = %d, want 2 (a counter poll is produced each polling interval)", enc.encodeCalls)
+	}
+}
+
+// RFC requirement: SFLOW-V5-x-14 negative -- a snapshot arriving sooner than the configured PollingInterval is suppressed: with lastPoll set by the first poll, a snapshot 500ms later (< 1s) trips now.Sub(lastPoll) < pollInterval and the gate `continue`s, so no extra counter sample is produced (exporter.go:186-189).
+func TestSFlowCounterPollBeforeInterval(t *testing.T) {
+	exp := newTestExporter(t, "sflow") // PollingInterval: 1 (second)
+	enc := &countingEncoder{}
+	exp.setEncoder("c1", enc)
+
+	t0 := time.Now()
+	exp.notifySnapshot(CounterSnapshot{Time: t0, Interfaces: []InterfaceCounters{{IfIndex: 1}}})
+	if enc.encodeCalls != 1 {
+		t.Fatalf("first snapshot: encodeCalls = %d, want 1 (fresh collector always polls)", enc.encodeCalls)
+	}
+
+	// Well within the polling interval: the gate must suppress this snapshot.
+	exp.notifySnapshot(CounterSnapshot{Time: t0.Add(500 * time.Millisecond), Interfaces: []InterfaceCounters{{IfIndex: 1}}})
+	if enc.encodeCalls != 1 {
+		t.Fatalf("snapshot at +500ms: encodeCalls = %d, want 1 (no poll before the polling interval elapses)", enc.encodeCalls)
 	}
 }

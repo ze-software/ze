@@ -111,9 +111,17 @@ func TestGenerateIPv6CPInterfaceID(t *testing.T) {
 
 // VALIDATES: AC-9 -- IPv6CP's first CONFREQ proposes a locally-generated
 //
-//	8-byte Interface-Identifier.
+//	8-byte Interface-Identifier, and carries EXACTLY ONE instance of the
+//	Interface-Identifier option.
 //
-// PREVENTS: ze shipping with an all-zero or fixed identifier.
+// PREVENTS: ze shipping with an all-zero or fixed identifier, or emitting a
+// Configure-Request with zero or duplicate Interface-Identifier options.
+//
+// RFC requirement: RFC5072-4.1-1 positive -- a Configure-Request MUST contain exactly one
+// instance of the Interface-Identifier option (§4.1): writeNCPOptions
+// (internal/component/l2tp/ppp/ncp.go) builds a single IPv6CPOptions with HasInterfaceID
+// set, and WriteIPv6CPOptions (ipv6cp.go) serializes exactly one Interface-Identifier
+// option; the initial Configure-Request is parsed and its type-1 options counted == 1.
 func TestIPv6CPProposesInterfaceID(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
 	defer td.cleanup()
@@ -132,6 +140,29 @@ func TestIPv6CPProposesInterfaceID(t *testing.T) {
 	if !isValidIPv6CPInterfaceID(opts.InterfaceID) {
 		t.Errorf("proposed identifier %x invalid (zero or all-ones)", opts.InterfaceID)
 	}
+
+	// RFC 5072 §4.1: the Configure-Request MUST carry exactly one
+	// Interface-Identifier option. Count the type-1 options in the raw Data
+	// directly, because ParseIPv6CPOptions collapses duplicates into a single
+	// HasInterfaceID and would hide a second instance.
+	iidCount := 0
+	for off := 0; off < len(pkt.Data); {
+		if len(pkt.Data)-off < 2 {
+			break
+		}
+		optLen := int(pkt.Data[off+1])
+		if optLen < 2 || off+optLen > len(pkt.Data) {
+			break
+		}
+		if pkt.Data[off] == IPv6CPOptInterfaceID {
+			iidCount++
+		}
+		off += optLen
+	}
+	if iidCount != 1 {
+		t.Errorf("Configure-Request carries %d Interface-Identifier options, want exactly 1", iidCount)
+	}
+
 	// Keep time referenced so the linter does not flag it unused on
 	// platforms where every other time usage goes through the helper.
 	_ = time.Now

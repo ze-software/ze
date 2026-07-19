@@ -2,6 +2,7 @@ package ppp
 
 import (
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -254,6 +255,30 @@ func readIPCPUntil(t *testing.T, td *ncpTestDriver, want uint8) LCPPacket {
 	return LCPPacket{}
 }
 
+// readIPv6CPUntil is the IPv6CP counterpart of readIPCPUntil: it reads IPv6CP
+// packets until one carries the wanted code, so an assertion on ze's response
+// is not defeated by an interleaved (and legitimate) Configure-Request resend.
+func readIPv6CPUntil(t *testing.T, td *ncpTestDriver, want uint8) LCPPacket {
+	t.Helper()
+	for range 6 {
+		pkt := td.readPeerNCPPacket(t, ProtoIPv6CP)
+		if pkt.Code == want {
+			return pkt
+		}
+	}
+	t.Fatalf("no IPv6CP packet with code %d after 6 reads", want)
+	return LCPPacket{}
+}
+
+// ipv6cpInterfaceIDOption builds the wire bytes of an Interface-Identifier
+// option (type 1, length 10) carrying id, the Data field of an IPv6CP
+// Configure-* packet.
+func ipv6cpInterfaceIDOption(id [ipv6cpInterfaceIDLen]byte) []byte {
+	out := make([]byte, 0, ipv6cpInterfaceIDOptLen)
+	out = append(out, IPv6CPOptInterfaceID, ipv6cpInterfaceIDOptLen)
+	return append(out, id[:]...)
+}
+
 // TestIPCPDNSRejectAbsorbed drives absorbIPCPReject's non-fatal branch.
 //
 // ze never OFFERS DNS in its own Configure-Request: writeNCPOptions (ncp.go)
@@ -368,6 +393,12 @@ func TestIPCPIPAddressRejectIsFatal(t *testing.T) {
 //
 //	EventSessionIPAssigned{ipv6} with the peer's Interface-ID; NO
 //	iface.Backend.AddAddressP2P call is made.
+//
+// RFC requirement: RFC5072-3-1 positive -- IPV6CP is exchanged only inside the
+// network-layer protocol phase: completeIPv6CP runs the IPv6CP Configure exchange to the
+// Opened state, which is only reachable after runNCPPhase (the network phase) has started
+// the IPv6CP FSM (startNCP, internal/component/l2tp/ppp/ncp.go), and only then is the
+// IPv6 assignment announced. The pre-network half is TestIPv6CPNoResponseBeforeNetworkPhase.
 func TestIPv6CPOpenedEmitsAssigned(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
 	defer td.cleanup()
@@ -387,6 +418,72 @@ func TestIPv6CPOpenedEmitsAssigned(t *testing.T) {
 	if calls := td.backend.P2PCalls(); len(calls) != 0 {
 		t.Errorf("AddAddressP2P should NOT be called for IPv6CP; got %+v", calls)
 	}
+}
+
+// TestIPv6ServiceStartsOnlyAfterIPv6CPOpened pins the guard at
+// afterLCPOpen (internal/component/l2tp/ppp/session_run.go): startIPv6Service --
+// the RA sender and DHCPv6 server that originate IPv6 packets on pppN -- is
+// called only inside `if s.ipv6cpState == LCPStateOpened`. startIPv6Service
+// cannot succeed against the fake ppp42 interface (no such interface / no raw
+// socket), so it returns an error that afterLCPOpen logs once as
+// "ppp: IPv6 service start failed (non-fatal)". That log is emitted if and only
+// if the Opened guard passed, which makes it a faithful observable for "the IPv6
+// service was invoked". afterLCPOpen runs the log before it sends EventSessionUp,
+// so once the test observes EventSessionUp the attempt has already been recorded.
+//
+// VALIDATES: a session that drives IPV6CP to Opened attempts to start the IPv6
+// service (the log appears); the control session with IPv6CP disabled -- which
+// never reaches Opened -- never attempts it (the log is absent). The control run
+// proves the assertion is not vacuous: ze does not start the IPv6 service
+// unconditionally.
+// PREVENTS: a regression that started RA/DHCPv6 origination before IPV6CP reached
+// Opened (or regardless of it), putting IPv6 packets on the wire too early.
+//
+// RFC requirement: RFC5072-2-1 positive -- PPP MUST reach the network-layer protocol
+// phase and IPV6CP MUST reach Opened before any IPv6 packet is sent (§2): ze's IPv6
+// packet source, startIPv6Service (RA sender + DHCPv6 server), is invoked from
+// afterLCPOpen (internal/component/l2tp/ppp/session_run.go) only under the
+// s.ipv6cpState == LCPStateOpened guard, which afterLCPOpen reaches only after
+// runNCPPhase (the network phase), so it runs after the network phase and only once
+// IPV6CP has Opened.
+func TestIPv6ServiceStartsOnlyAfterIPv6CPOpened(t *testing.T) {
+	const startAttemptLog = "IPv6 service start failed"
+
+	t.Run("opened: IPv6 service is started", func(t *testing.T) {
+		w := &captureWriter{}
+		logger := slog.New(slog.NewTextHandler(w, nil))
+		td := newNCPTestDriverIPLogged(t, &StartSession{DisableIPCP: true}, autoAcceptIP, logger)
+		defer td.cleanup()
+
+		td.completeIPv6CP(t)
+
+		if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+			t.Fatal("no EventSessionUp after IPv6CP reached Opened")
+		}
+		// Reaching EventSessionUp means afterLCPOpen passed the line-482 guard, so
+		// the (failing) startIPv6Service attempt has already been logged.
+		if got := w.String(); !strings.Contains(got, startAttemptLog) {
+			t.Errorf("IPv6 service was not started after IPV6CP reached Opened; log = %q", got)
+		}
+	})
+
+	t.Run("control: IPv6CP disabled, service is not started", func(t *testing.T) {
+		w := &captureWriter{}
+		logger := slog.New(slog.NewTextHandler(w, nil))
+		td := newNCPTestDriverIPLogged(t, &StartSession{DisableIPv6CP: true}, autoAcceptIP, logger)
+		defer td.cleanup()
+
+		td.completeIPCP(t)
+
+		if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+			t.Fatal("no EventSessionUp after IPCP reached Opened")
+		}
+		// ipv6cpState never left Initial, so the line-482 guard is false and
+		// startIPv6Service is never called: the attempt log must be absent.
+		if got := w.String(); strings.Contains(got, startAttemptLog) {
+			t.Errorf("IPv6 service was started although IPV6CP never reached Opened; log = %q", got)
+		}
+	})
 }
 
 // VALIDATES: AC-12 -- EventSessionUp fires after both NCPs reach
@@ -550,5 +647,363 @@ func TestParallelNCPsNetPipe(t *testing.T) {
 
 	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 3*time.Second); !ok {
 		t.Fatal("no EventSessionUp after parallel NCPs")
+	}
+}
+
+// TestIPv6CPNoResponseBeforeNetworkPhase is the pre-network half of RFC 5072 §3:
+// "IPV6CP packets MUST NOT be exchanged until PPP has reached the network-layer protocol
+// phase; earlier packets should be silently discarded." Before the network phase the
+// per-session ipv6cpState is still LCPStateInitial (its zero value); handleFrame
+// (internal/component/l2tp/ppp/session_run.go, ProtoIPv6CP branch) buffers such a frame
+// into earlyNCPFrames and returns without writing anything to the chan fd -- ze never
+// exchanges an IPV6CP packet before the phase begins.
+//
+// VALIDATES: an IPV6CP Configure-Request delivered while ipv6cpState==LCPStateInitial
+// produces NO IPV6CP response on the wire (recordingChanFile stays empty) and is buffered
+// (earlyNCPFrames grows), not answered.
+// PREVENTS: a regression that answered (Ack/Nak/Reject) an IPV6CP packet arriving before
+// the network phase, exchanging IPV6CP too early.
+//
+// RFC requirement: RFC5072-3-1 negative -- an IPV6CP Configure-Request arriving before the
+// network-layer protocol phase (ipv6cpState==LCPStateInitial) draws no IPV6CP response;
+// handleFrame (internal/component/l2tp/ppp/session_run.go) buffers it into earlyNCPFrames
+// and writes nothing to the chan fd.
+func TestIPv6CPNoResponseBeforeNetworkPhase(t *testing.T) {
+	chanFile := &recordingChanFile{}
+	// A pristine pppSession: ipv6cpState defaults to LCPStateInitial (0) and
+	// disableIPv6CP defaults to false, i.e. IPv6CP is enabled but the network
+	// phase has not started.
+	s := &pppSession{
+		logger:   discardLogger(),
+		chanFile: chanFile,
+	}
+	if s.ipv6cpState != LCPStateInitial {
+		t.Fatalf("precondition: ipv6cpState = %s, want Initial", s.ipv6cpState)
+	}
+
+	frame := make([]byte, MaxFrameLen)
+	off := WriteFrame(frame, 0, ProtoIPv6CP, nil)
+	off += WriteLCPPacket(frame, off, LCPConfigureRequest, 0x30,
+		ipv6cpInterfaceIDOption(ipv6cpTestPeerID))
+
+	if term := s.handleFrame(frame[:off]); term {
+		t.Fatal("handleFrame terminated the session on a pre-network IPV6CP packet")
+	}
+	if chanFile.Len() != 0 {
+		t.Fatalf("ze emitted %x in response to a pre-network IPV6CP Configure-Request; "+
+			"RFC 5072 §3 forbids exchanging IPV6CP before the network phase", chanFile.Bytes())
+	}
+	if len(s.earlyNCPFrames) != 1 {
+		t.Fatalf("pre-network IPV6CP frame not buffered: earlyNCPFrames = %d, want 1",
+			len(s.earlyNCPFrames))
+	}
+}
+
+// TestIPv6CPInterfaceIDsDiffer drives IPv6CP to Opened and reads back both ends' chosen
+// interface identifiers: ze's own (carried in its initial Configure-Request) and the
+// peer's (echoed in EventSessionIPAssigned once negotiation completes).
+//
+// VALIDATES: upon completion the two ends hold DIFFERENT interface identifiers.
+// PREVENTS: a regression that let both ends settle on the same identifier.
+//
+// RFC requirement: RFC5072-4.1-2 positive -- "the interface identifier MUST be unique
+// within the PPP link; ... different interface-identifier values are to be selected for
+// the ends of the PPP link" (§4.1): ze's locally generated identifier
+// (generateIPv6CPInterfaceID, internal/component/l2tp/ppp/ipv6cp.go) differs from the
+// peer's accepted identifier at Opened.
+func TestIPv6CPInterfaceIDsDiffer(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
+	}
+	zeOpts, err := ParseIPv6CPOptions(cr.Data)
+	if err != nil || !zeOpts.HasInterfaceID {
+		t.Fatalf("ze's initial CR missing Interface-Identifier: %v", err)
+	}
+	localIID := zeOpts.InterfaceID
+
+	// Complete with the peer proposing a different identifier.
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureAck, cr.Identifier, cr.Data)
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x22,
+		ipv6cpInterfaceIDOption(ipv6cpTestPeerID))
+	if ack := readIPv6CPUntil(t, td, LCPConfigureAck); ack.Code != LCPConfigureAck {
+		t.Fatalf("ze did not Ack the peer's Interface-Identifier")
+	}
+
+	assigned, ok := waitForEventOfType[EventSessionIPAssigned](t, td.driver.EventsOut(), 2*time.Second)
+	if !ok {
+		t.Fatal("no EventSessionIPAssigned after IPv6CP Opened")
+	}
+	if assigned.InterfaceID == localIID {
+		t.Fatalf("both ends negotiated the same interface identifier %x; RFC 5072 §4.1 "+
+			"requires the two ends to differ", localIID)
+	}
+	if assigned.InterfaceID != ipv6cpTestPeerID {
+		t.Errorf("peer InterfaceID = %x, want %x", assigned.InterfaceID, ipv6cpTestPeerID)
+	}
+}
+
+// TestIPv6CPNaksCollidingInterfaceID has the peer propose ze's OWN identifier. This is the
+// uniqueness guard from the receive side: evalIPv6CPRequest
+// (internal/component/l2tp/ppp/ncp.go) returns optsBad when the proposed identifier equals
+// s.localInterfaceID, so the FSM answers Configure-Nak instead of Configure-Ack.
+//
+// VALIDATES: a peer Configure-Request whose Interface-Identifier equals ze's own is NOT
+// acknowledged; ze replies Configure-Nak.
+// PREVENTS: a regression that Acked a colliding identifier, leaving both ends identical.
+//
+// RFC requirement: RFC5072-4.1-2 negative -- the identifiers must be unique within the
+// link (§4.1): when the peer proposes ze's own identifier, ze refuses to Ack it and sends
+// a Configure-Nak so the peer must pick a different value.
+func TestIPv6CPNaksCollidingInterfaceID(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
+	}
+	zeOpts, err := ParseIPv6CPOptions(cr.Data)
+	if err != nil || !zeOpts.HasInterfaceID {
+		t.Fatalf("ze's initial CR missing Interface-Identifier: %v", err)
+	}
+
+	// Peer echoes ze's own identifier -> collision.
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x21,
+		ipv6cpInterfaceIDOption(zeOpts.InterfaceID))
+
+	resp := readIPv6CPUntil(t, td, LCPConfigureNak)
+	if resp.Code == LCPConfigureAck {
+		t.Fatal("ze Acked a colliding Interface-Identifier equal to its own")
+	}
+	if resp.Code != LCPConfigureNak {
+		t.Fatalf("response code = %d, want Configure-Nak for a colliding identifier", resp.Code)
+	}
+}
+
+// TestIPv6CPAcksDifferentNonZeroInterfaceID has the peer propose a valid, non-zero
+// identifier distinct from ze's. evalIPv6CPRequest (internal/component/l2tp/ppp/ncp.go)
+// accepts it (optsBad=false), so the FSM emits Configure-Ack echoing the option.
+//
+// VALIDATES: a valid, different, non-zero peer identifier is answered with Configure-Ack
+// that carries the peer's identifier verbatim.
+// PREVENTS: a regression that Nak'd or rejected an acceptable identifier.
+//
+// RFC requirement: RFC5072-4.1-3 positive -- "if the two interface identifiers are
+// different and the received interface identifier is not zero, the interface identifier
+// MUST be acknowledged, i.e., a Configure-Ack is sent with the requested interface
+// identifier" (§4.1).
+func TestIPv6CPAcksDifferentNonZeroInterfaceID(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
+	}
+
+	// ipv6cpTestPeerID is non-zero, non-all-ones, and (with overwhelming
+	// probability) different from ze's crypto/rand identifier.
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x21,
+		ipv6cpInterfaceIDOption(ipv6cpTestPeerID))
+
+	ack := readIPv6CPUntil(t, td, LCPConfigureAck)
+	if ack.Code != LCPConfigureAck {
+		t.Fatalf("response code = %d, want Configure-Ack for a valid non-zero identifier", ack.Code)
+	}
+	ackOpts, err := ParseIPv6CPOptions(ack.Data)
+	if err != nil || !ackOpts.HasInterfaceID {
+		t.Fatalf("Ack missing Interface-Identifier: %v", err)
+	}
+	if ackOpts.InterfaceID != ipv6cpTestPeerID {
+		t.Errorf("Ack Interface-Identifier = %x, want the requested %x",
+			ackOpts.InterfaceID, ipv6cpTestPeerID)
+	}
+}
+
+// TestIPv6CPNaksZeroInterfaceID has the peer propose the all-zero identifier.
+// isValidIPv6CPInterfaceID (internal/component/l2tp/ppp/ipv6cp.go) rejects all-zero, so
+// evalIPv6CPRequest returns optsBad and the FSM answers Configure-Nak, never Configure-Ack.
+//
+// VALIDATES: an all-zero proposed identifier is NOT acknowledged; ze replies Configure-Nak.
+// PREVENTS: a regression that Acked the reserved all-zero identifier.
+//
+// RFC requirement: RFC5072-4.1-3 negative -- the "MUST be acknowledged" rule is for a
+// different, non-zero identifier (§4.1); a zero interface identifier is not a valid value
+// to Ack, so ze answers Configure-Nak instead.
+func TestIPv6CPNaksZeroInterfaceID(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
+	}
+
+	var zero [ipv6cpInterfaceIDLen]byte
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x21,
+		ipv6cpInterfaceIDOption(zero))
+
+	resp := readIPv6CPUntil(t, td, LCPConfigureNak)
+	if resp.Code == LCPConfigureAck {
+		t.Fatal("ze Acked an all-zero Interface-Identifier")
+	}
+	if resp.Code != LCPConfigureNak {
+		t.Fatalf("response code = %d, want Configure-Nak for a zero identifier", resp.Code)
+	}
+}
+
+// TestIPv6CPResendsCRWithNakSuggestedID feeds ze a Configure-Nak carrying a valid suggested
+// identifier. absorbIPv6CPNak (internal/component/l2tp/ppp/ncp.go) adopts it into
+// s.localInterfaceID, and the ReqSent+RCN transition (ppp_fsm.go) resends a
+// Configure-Request; writeNCPOptions then emits the adopted identifier.
+//
+// VALIDATES: after a valid Configure-Nak, ze's resent Configure-Request carries the
+// Nak-suggested Interface-Identifier.
+// PREVENTS: a regression that ignored the peer's suggestion and re-proposed the old value.
+//
+// RFC requirement: RFC5072-4.1-7 positive -- "a new Configure-Request MUST be sent with
+// the identifier value suggested in the last Configure-Nak from the peer" (§4.1).
+func TestIPv6CPResendsCRWithNakSuggestedID(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr1 := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr1.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr1.Code)
+	}
+
+	suggested := [ipv6cpInterfaceIDLen]byte{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11}
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureNak, cr1.Identifier,
+		ipv6cpInterfaceIDOption(suggested))
+
+	cr2 := readIPv6CPUntil(t, td, LCPConfigureRequest)
+	opts, err := ParseIPv6CPOptions(cr2.Data)
+	if err != nil || !opts.HasInterfaceID {
+		t.Fatalf("resent CR missing Interface-Identifier: %v", err)
+	}
+	if opts.InterfaceID != suggested {
+		t.Errorf("resent CR Interface-Identifier = %x, want the Nak-suggested %x",
+			opts.InterfaceID, suggested)
+	}
+}
+
+// TestIPv6CPNakInvalidSuggestionNotAdopted feeds ze a Configure-Nak whose suggested
+// identifier is the invalid all-zero value. absorbIPv6CPNak
+// (internal/component/l2tp/ppp/ncp.go) guards adoption behind isValidIPv6CPInterfaceID, so
+// the invalid suggestion is discarded and the resent Configure-Request keeps ze's original
+// identifier.
+//
+// VALIDATES: an invalid Nak suggestion is NOT adopted; the resent Configure-Request carries
+// ze's original identifier, not the invalid suggested value.
+// PREVENTS: a regression that blindly copied any Nak-suggested value, including all-zero.
+//
+// RFC requirement: RFC5072-4.1-7 negative -- the "resend with the suggested value" rule
+// (§4.1) applies to a usable suggestion; an invalid (all-zero) suggestion is not adopted,
+// so the resent Configure-Request does not carry it.
+func TestIPv6CPNakInvalidSuggestionNotAdopted(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr1 := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr1.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr1.Code)
+	}
+	orig, err := ParseIPv6CPOptions(cr1.Data)
+	if err != nil || !orig.HasInterfaceID {
+		t.Fatalf("ze's initial CR missing Interface-Identifier: %v", err)
+	}
+
+	var zero [ipv6cpInterfaceIDLen]byte
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureNak, cr1.Identifier,
+		ipv6cpInterfaceIDOption(zero))
+
+	cr2 := readIPv6CPUntil(t, td, LCPConfigureRequest)
+	opts, err := ParseIPv6CPOptions(cr2.Data)
+	if err != nil || !opts.HasInterfaceID {
+		t.Fatalf("resent CR missing Interface-Identifier: %v", err)
+	}
+	if opts.InterfaceID == zero {
+		t.Fatal("resent CR adopted the invalid all-zero Nak suggestion")
+	}
+	if opts.InterfaceID != orig.InterfaceID {
+		t.Errorf("resent CR Interface-Identifier = %x, want the original %x "+
+			"(an invalid suggestion must be ignored)", opts.InterfaceID, orig.InterfaceID)
+	}
+}
+
+// TestIPv6CPInterfaceIDRejectIsFatal is the IPv6CP counterpart of
+// TestIPCPIPAddressRejectIsFatal. The Interface-Identifier is the sole, mandatory IPv6CP
+// option; absorbIPv6CPReject (internal/component/l2tp/ppp/ncp.go) returns fatal when a
+// Configure-Reject names it, so handleNCPPacket calls s.fail and the session is torn down.
+// Because the session ends, ze never sends a further Configure-Request -- and so cannot
+// send one still carrying the Interface-Identifier option.
+//
+// VALIDATES: a valid Configure-Reject of the Interface-Identifier option brings the session
+// DOWN.
+// PREVENTS: a regression that absorbed the reject and kept re-proposing the option.
+//
+// RFC requirement: RFC5072-4.1-12 positive -- "a new Configure-Request MUST NOT contain the
+// interface-identifier option if a valid Interface-Identifier Configure-Reject is received"
+// (§4.1): rejecting the mandatory option is fatal, so no subsequent Configure-Request
+// carrying it is ever sent.
+func TestIPv6CPInterfaceIDRejectIsFatal(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
+	}
+	// RFC 1661 §5.4: the Configure-Reject echoes the rejected option verbatim -- here ze's
+	// own Interface-Identifier option from the CR it just sent.
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureReject, cr.Identifier, cr.Data)
+
+	if _, ok := waitForEventOfType[EventSessionDown](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionDown after the peer rejected the mandatory Interface-Identifier")
+	}
+}
+
+// TestIPv6CPUnknownOptionRejectNotFatal contrasts with the mandatory-option reject: a
+// Configure-Reject naming a NON-Interface-Identifier option (type 2) leaves
+// absorbIPv6CPReject (internal/component/l2tp/ppp/ncp.go) returning non-fatal, so the
+// session survives and the ReqSent+RCN transition (ppp_fsm.go) resends the
+// Configure-Request -- which still legitimately carries the Interface-Identifier, because
+// that option was NOT the one rejected.
+//
+// VALIDATES: a Configure-Reject of a non-Interface-Identifier option does NOT tear the
+// session down; ze keeps negotiating and its resent Configure-Request still carries the
+// Interface-Identifier.
+// PREVENTS: a regression that treated every Configure-Reject as fatal.
+//
+// RFC requirement: RFC5072-4.1-12 negative -- the "MUST NOT re-include the option" rule
+// (§4.1) is scoped to a reject OF the Interface-Identifier option; a reject of some other
+// option is not fatal and does not strip the Interface-Identifier from the next
+// Configure-Request.
+func TestIPv6CPUnknownOptionRejectNotFatal(t *testing.T) {
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPv6CP code = %d, want Configure-Request", cr.Code)
+	}
+	// A well-formed option that is NOT Interface-Identifier (type 2, length 4).
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureReject, cr.Identifier,
+		[]byte{2, 4, 0x00, 0x11})
+
+	if _, ok := waitForEventOfType[EventSessionDown](t, td.driver.EventsOut(), 300*time.Millisecond); ok {
+		t.Fatal("Configure-Reject of a non-Interface-Identifier option must not tear the session down")
+	}
+
+	// ze continues negotiating: the resent Configure-Request still carries the
+	// Interface-Identifier (that option was not rejected).
+	resent := readIPv6CPUntil(t, td, LCPConfigureRequest)
+	opts, err := ParseIPv6CPOptions(resent.Data)
+	if err != nil || !opts.HasInterfaceID {
+		t.Fatalf("resent CR missing Interface-Identifier after a non-fatal reject: %v", err)
 	}
 }

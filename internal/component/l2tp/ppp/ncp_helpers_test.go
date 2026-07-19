@@ -2,6 +2,7 @@ package ppp
 
 import (
 	"encoding/binary"
+	"log/slog"
 	"net"
 	"net/netip"
 	"testing"
@@ -58,6 +59,14 @@ func newNCPTestDriverCfg(t *testing.T, overrides *StartSession) *ncpTestDriver {
 // IPv6 (an IPv4-only pool).
 func newNCPTestDriverIP(t *testing.T, overrides *StartSession, ipFn func(*Driver)) *ncpTestDriver {
 	t.Helper()
+	return newNCPTestDriverIPLogged(t, overrides, ipFn, discardLogger())
+}
+
+// newNCPTestDriverIPLogged is newNCPTestDriverIP with a caller-supplied logger,
+// so a test can capture what the session goroutine logs (e.g. to observe a
+// code path gated on session state that has no other visible side effect).
+func newNCPTestDriverIPLogged(t *testing.T, overrides *StartSession, ipFn func(*Driver), logger *slog.Logger) *ncpTestDriver {
+	t.Helper()
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
 	const fd = 5001
@@ -67,7 +76,7 @@ func newNCPTestDriverIP(t *testing.T, overrides *StartSession, ipFn func(*Driver
 
 	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
-	d := makeTestDriver(backend, ops)
+	d := makeTestDriverWithLogger(backend, ops, logger)
 	go ipFn(d)
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)

@@ -261,7 +261,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | draft-ietf-idr-linklocal-capability | Link-local next-hop capability code 77 | Supported | Capability declaration around RFC 2545 next-hop behavior. |
 | draft-ietf-idr-software-version | BGP Software Version capability code 75 | Supported | Software version advertisement plugin. |
 | ISO/IEC 10589 | IS-IS base protocol | Experimental | Base IS-IS protocol reference, paired with the IS-IS RFC rows above. |
-| sFlow v5 | sFlow export | Experimental | Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in rfc/short/sflow-v5.md: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9); no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12); unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). |
+| sflow-v5 | sFlow export | Experimental | Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in rfc/short/sflow-v5.md: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9); no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12); unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). |
 
 <!-- source: docs/features.md -- feature status vocabulary and draft-backed feature rows -->
 <!-- source: docs/features/bgp-protocol.md -- draft-backed BGP capability rows -->

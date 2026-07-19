@@ -8,6 +8,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
 )
 
+// RFC requirement: SFLOW-V5-x-1 positive -- the datagram's first field decodes big-endian to 5, the compile-time Version constant WriteDatagramHeader writes (encoder.go:14,40).
+// RFC requirement: SFLOW-V5-x-2 positive -- the agent-address bytes decode to the stable operator IP handed to WriteDatagramHeader unchanged (encoder.go:43-57), so a reboot re-emits the same identifying address.
 func TestSFlowDatagramHeaderIPv4(t *testing.T) {
 	buf := make([]byte, flowexport.MaxDatagramSize)
 	agent := netip.MustParseAddr("10.0.0.1")
@@ -48,6 +50,7 @@ func TestSFlowDatagramHeaderIPv4(t *testing.T) {
 	}
 }
 
+// RFC requirement: SFLOW-V5-x-3 positive -- the agent address and the sub_agent_id (7) both decode to the distinct values written into the header (encoder.go:43-59); together they name one sampling entity, so neither alone is relied upon.
 func TestSFlowDatagramHeaderIPv6(t *testing.T) {
 	buf := make([]byte, flowexport.MaxDatagramSize)
 	agent := netip.MustParseAddr("2001:db8::1")
@@ -87,6 +90,8 @@ func TestSFlowDatagramHeaderIPv6(t *testing.T) {
 	}
 }
 
+// RFC requirement: SFLOW-V5-x-4 positive -- one sub-agent keeps its own sequence space: the per-agent datagram sequence advances 1,2,3 (encoder.go:98,110) while each per-source (ifIndex) sample sequence is tracked independently in seqNums (encoder.go:132-134).
+// RFC requirement: SFLOW-V5-x-5 positive -- a counter batch too large for one datagram spills into a second (encoder.go:120-123) and every emitted datagram stays within the 1400-byte MaxDatagramSize path-MTU cap (sender.go:14).
 func TestSFlowMultiInterface(t *testing.T) {
 	buf := make([]byte, flowexport.MaxDatagramSize)
 	agent := netip.MustParseAddr("10.0.0.1")
@@ -115,6 +120,14 @@ func TestSFlowMultiInterface(t *testing.T) {
 	// 15 interfaces: 11 fit in first datagram, 4 in second
 	if len(datagrams) != 2 {
 		t.Fatalf("expected 2 datagrams, got %d", len(datagrams))
+	}
+
+	// SFLOW-V5-x-5: no emitted datagram may exceed the path-MTU cap; the overflow
+	// into a second datagram above is precisely what keeps each one bounded.
+	for i, dg := range datagrams {
+		if len(dg) > flowexport.MaxDatagramSize {
+			t.Errorf("datagram %d size %d exceeds MaxDatagramSize %d", i, len(dg), flowexport.MaxDatagramSize)
+		}
 	}
 
 	// First datagram: 11 samples

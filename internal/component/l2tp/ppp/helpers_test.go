@@ -1,6 +1,7 @@
 package ppp
 
 import (
+	"bytes"
 	"io"
 	"log/slog"
 	"net"
@@ -291,7 +292,13 @@ func scriptedPeer(t *testing.T, conn net.Conn, done chan<- struct{}) {
 // NewDriver directly and drive the auth channel themselves rather
 // than call this helper.
 func makeTestDriver(backend IfaceBackend, ops pppOps) *Driver {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	return makeTestDriverWithLogger(backend, ops, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+// makeTestDriverWithLogger is makeTestDriver with a caller-supplied logger, so
+// a test can capture what the session goroutine logs and observe a gated code
+// path whose only externally visible side effect is a log line.
+func makeTestDriverWithLogger(backend IfaceBackend, ops pppOps, logger *slog.Logger) *Driver {
 	d := NewDriver(DriverConfig{
 		Logger:  logger,
 		Backend: backend,
@@ -299,6 +306,27 @@ func makeTestDriver(backend IfaceBackend, ops pppOps) *Driver {
 	})
 	go autoAcceptAuth(d)
 	return d
+}
+
+// captureWriter is a goroutine-safe io.Writer that accumulates everything
+// written to it. A session goroutine writes its logs through it while the test
+// goroutine snapshots them with String(); both take the same lock, so reads and
+// the session's writes never race.
+type captureWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *captureWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *captureWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
 }
 
 // autoAcceptAuth reads every EventAuthRequest from d.AuthEventsOut()
