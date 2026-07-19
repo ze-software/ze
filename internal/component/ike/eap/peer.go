@@ -302,13 +302,48 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 		ps.tlsTransport.feedPeerData(data)
 	}
 
-	// Check if handshake completed.
+	// If the TLS handshake has completed, capture the MSK now so it is ready
+	// when the authenticator sends EAP-Success. Completion does NOT end the EAP
+	// exchange here: with TLS 1.3 the peer produces its final flight (client
+	// Certificate/CertificateVerify/Finished) at the same instant the handshake
+	// completes, and that flight must still be sent to the authenticator via
+	// readAndSendTLS below. The EAP layer only concludes on the EAP-Success the
+	// authenticator sends after it has verified that flight (handled in Process,
+	// CodeSuccess). Returning Done here would drop the unsent flight and stall
+	// the authenticator forever.
 	if ps.tlsDone.Load() {
 		ps.msk = ps.deriveTLSMSK()
-		return PeerResult{Done: true, MSK: ps.msk}
 	}
 
 	return ps.readAndSendTLS(req.Identifier)
+}
+
+// verifyServerChain returns a tls.Config.VerifyPeerCertificate callback that
+// validates the authenticator's presented certificate chain against roots
+// without any DNS/hostname check (EAP-TLS has no server hostname).
+// RFC 5216 Section 5.3: the peer validates the authenticator's certificate.
+func verifyServerChain(roots *x509.CertPool) func([][]byte, [][]*x509.Certificate) error {
+	return func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+		if len(rawCerts) == 0 {
+			return fmt.Errorf("eap-tls: authenticator presented no certificate")
+		}
+		certs := make([]*x509.Certificate, 0, len(rawCerts))
+		for _, raw := range rawCerts {
+			c, err := x509.ParseCertificate(raw)
+			if err != nil {
+				return fmt.Errorf("eap-tls: parse authenticator certificate: %w", err)
+			}
+			certs = append(certs, c)
+		}
+		opts := x509.VerifyOptions{Roots: roots, Intermediates: x509.NewCertPool()}
+		for _, c := range certs[1:] {
+			opts.Intermediates.AddCert(c)
+		}
+		if _, err := certs[0].Verify(opts); err != nil {
+			return fmt.Errorf("eap-tls: authenticator certificate chain verification failed: %w", err)
+		}
+		return nil
+	}
 }
 
 func (ps *PeerSession) startTLSClient() error {
@@ -324,14 +359,28 @@ func (ps *PeerSession) startTLSClient() error {
 	var rootCAs *x509.CertPool
 	if len(ps.tlsCfg.CACertPEM) > 0 {
 		rootCAs = x509.NewCertPool()
-		rootCAs.AppendCertsFromPEM(ps.tlsCfg.CACertPEM)
+		if !rootCAs.AppendCertsFromPEM(ps.tlsCfg.CACertPEM) {
+			return fmt.Errorf("eap-tls: failed to parse peer CA certificate")
+		}
 	}
 
+	// RFC 5216 Section 5.3: the EAP peer validates the authenticator's
+	// certificate chain against its configured trust anchor. EAP-TLS carries no
+	// server hostname, so Go's default (SNI/hostname-based) verification cannot
+	// be used -- with a CA set but no ServerName, tls.Client rejects the config
+	// outright ("either ServerName or InsecureSkipVerify must be specified") and
+	// never sends a ClientHello. InsecureSkipVerify disables only that default
+	// hostname check; when a trust anchor is configured the chain is instead
+	// verified explicitly against it in VerifyPeerCertificate below. With no
+	// trust anchor the peer performs no server-certificate validation.
 	tlsCfg := &tls.Config{
 		Certificates:       []tls.Certificate{cert},
-		RootCAs:            rootCAs,
-		InsecureSkipVerify: rootCAs == nil, //nolint:gosec // skip only if no CA provided
+		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; chain verified in VerifyPeerCertificate when a CA is configured
 		MinVersion:         tls.VersionTLS12,
+	}
+	if rootCAs != nil {
+		tlsCfg.RootCAs = rootCAs
+		tlsCfg.VerifyPeerCertificate = verifyServerChain(rootCAs)
 	}
 
 	ps.tlsTransport = newEAPTLSTransport()
@@ -378,6 +427,13 @@ func (ps *PeerSession) deriveTLSMSK() [64]byte {
 		return msk
 	}
 	cs := ps.tlsConn.ConnectionState()
+	// Fail closed: tlsDone is also set when the TLS handshake FAILED (e.g. the
+	// authenticator's certificate was rejected). ExportKeyingMaterial panics on
+	// a connection whose handshake did not complete, so guard on it and return
+	// an all-zero MSK -- an invalid key that cannot yield a passing EAP-Success.
+	if !cs.HandshakeComplete {
+		return msk
+	}
 	exported, err := cs.ExportKeyingMaterial("client EAP encryption", nil, 64)
 	if err == nil {
 		copy(msk[:], exported)

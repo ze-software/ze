@@ -280,10 +280,18 @@ func (m *tlsMethod) deriveMSK() [64]byte {
 }
 
 // notifyCh sends a non-blocking signal on a buffered channel.
+// The channel is a level-style wakeup for a waiter that re-reads all available
+// buffered data on each loop, so at most one pending token is ever needed.
+//
+// This MUST use default (skip only when a token is already queued), NOT
+// case <-time.After(0): time.After(0) is essentially always ready, so the
+// select would choose at random and drop roughly half of all wakeups even when
+// the buffer has space -- permanently parking a Read blocked on <-ch and
+// deadlocking the EAP-TLS handshake.
 func notifyCh(ch chan struct{}) {
-	select { //nolint:staticcheck // non-blocking signal; drop is intentional when already signaled
+	select {
 	case ch <- struct{}{}:
-	case <-time.After(0):
+	default: // A wakeup is already queued; the waiter will observe the latest data.
 	}
 }
 
