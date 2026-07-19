@@ -8,7 +8,9 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 ## Coverage by RFC
 
-1319 MUST-level requirement(s) still owe work across 165 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+1226 MUST-level requirement(s) still owe work across 165 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+
+**Enrollable now** (2): every MUST-level requirement is already covered or annotated, so adding these to `rfc/enrolled.txt` would gate them without any new work: `rfc3768`, `rfc6810`
 
 | RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | State |
 |---|---|---|---|---|---|---|---|
@@ -148,9 +150,11 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `rfc9582` | 10 | 6 | 0 | 4 | 0 | 0 | **enrolled** |
 | `rfc9728` | 7 | 2 | 0 | 5 | 0 | 0 | **enrolled** |
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | **enrolled** |
-| `rfc4724` | 26 | 3 | 0 | 10 | 13 | 13 | backlog |
+| `rfc3768` | 39 | 30 | 0 | 9 | 0 | 0 | enrollable |
+| `rfc6810` | 39 | 5 | 0 | 34 | 0 | 0 | enrollable |
+| `rfc4724` | 26 | 15 | 0 | 10 | 1 | 1 | backlog |
+| `rfc4552` | 27 | 0 | 0 | 23 | 4 | 4 | backlog |
 | `rfc5036` | 14 | 0 | 0 | 0 | 14 | 14 | backlog |
-| `rfc3768` | 39 | 9 | 0 | 9 | 21 | 21 | backlog |
 | `rfc8955` | 22 | 0 | 0 | 0 | 22 | 22 | backlog |
 | `rfc9256` | 22 | 0 | 0 | 0 | 22 | 22 | backlog |
 | `rfc5340` | 23 | 0 | 0 | 0 | 23 | 23 | backlog |
@@ -158,12 +162,10 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `rfc8669` | 25 | 0 | 0 | 0 | 25 | 25 | backlog |
 | `rfc9494` | 25 | 0 | 0 | 0 | 25 | 25 | backlog |
 | `rfc7752` | 26 | 0 | 0 | 0 | 26 | 26 | backlog |
-| `rfc4552` | 27 | 0 | 0 | 0 | 27 | 27 | backlog |
 | `rfc6793` | 30 | 0 | 0 | 0 | 30 | 30 | backlog |
 | `rfc8666` | 30 | 0 | 0 | 0 | 30 | 30 | backlog |
 | `rfc8277` | 34 | 0 | 0 | 0 | 34 | 34 | backlog |
 | `rfc4577` | 36 | 0 | 0 | 0 | 36 | 36 | backlog |
-| `rfc6810` | 39 | 2 | 1 | 0 | 36 | 37 | backlog |
 | `draft-ietf-bess-mup-safi` | 40 | 0 | 0 | 0 | 40 | 40 | backlog |
 | `rfc9552` | 42 | 0 | 0 | 0 | 42 | 42 | backlog |
 | `rfc8665` | 47 | 0 | 0 | 0 | 47 | 47 | backlog |
@@ -183,9 +185,9 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1` | MUST | 3 | `internal/component/bgp/reactor/config_test.go:588` | -- | {single-polarity} the encoder appends exactly one capability.PathsLimit holding all families at internal/component/bgp/reactor/config_capabilities.go:388-391, so no code path can emit a second instance and a two-instance negative case cannot be constructed |
-| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2` | MUST | 3 | `internal/core/bgp/capability/negotiated_test.go:546` | `internal/core/bgp/capability/negotiated_test.go:601` |  |
-| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3` | MUST | 3 | `internal/core/bgp/capability/negotiated_test.go:627` | `internal/core/bgp/capability/negotiated_test.go:628` |  |
-| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:818` | `internal/core/bgp/capability/capability_test.go:819` |  |
+| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2` | MUST | 3 | `internal/core/bgp/capability/negotiated_test.go:580` | `internal/core/bgp/capability/negotiated_test.go:635` |  |
+| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3` | MUST | 3 | `internal/core/bgp/capability/negotiated_test.go:661` | `internal/core/bgp/capability/negotiated_test.go:662` |  |
+| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:866` | `internal/core/bgp/capability/capability_test.go:867` |  |
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5` | SHOULD | 3 | -- | -- |  |
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6` | SHOULD | 3 | -- | -- |  |
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7` | SHOULD | 3 | -- | -- |  |
@@ -1100,7 +1102,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC2918-2-1` | MUST | 2 | `internal/core/bgp/capability/capability_test.go:602` | `internal/component/bgp/reactor/session_handlers_test.go:85` |  |
+| `RFC2918-2-1` | MUST | 2 | `internal/core/bgp/capability/capability_test.go:650` | `internal/component/bgp/reactor/session_handlers_test.go:85` |  |
 | `RFC2918-3-1` | MUST | 3 | `internal/component/bgp/message/routerefresh_test.go:14` | `internal/component/bgp/message/header_test.go:37` |  |
 | `RFC2918-3-2` | MUST | 3 | `internal/component/bgp/message/routerefresh_test.go:29` | `internal/component/bgp/message/routerefresh_test.go:73`, `internal/component/bgp/reactor/session_handlers_test.go:374` |  |
 | `RFC2918-3-3` | SHOULD | 3 | -- | -- |  |
@@ -1301,30 +1303,30 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
 | `RFC3768-5.2.2-1` | MUST NOT | 5.2.2 | -- | -- | {not-applicable} the VRRP plugin performs no IP datagram forwarding -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes each received advert into the FSM and never re-emits it, and tx scopes adverts to link-local multicast with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143 |
-| `RFC3768-5.2.3-1` | MUST | 5.2.3 | -- | -- | {single-polarity} buildIPv4Header unconditionally sets TTL 255 at internal/plugins/vrrp/transport/transport.go:562, so no input yields a different TTL -- the rx TTL!=255 discard is the separate RFC3768-5.2.3-2 |
+| `RFC3768-5.2.3-1` | MUST | 5.2.3 | `internal/plugins/vrrp/transport/transport_test.go:258` | -- | {single-polarity} buildIPv4Header unconditionally sets TTL 255 at internal/plugins/vrrp/transport/transport.go:562, so no input yields a different TTL -- the rx TTL!=255 discard is the separate RFC3768-5.2.3-2 |
 | `RFC3768-5.2.3-2` | MUST | 5.2.3 | `internal/plugins/vrrp/packet/validate_test.go:48` | `internal/plugins/vrrp/packet/validate_test.go:504` |  |
 | `RFC3768-5.3.10-1` | SHOULD | 5.3.10 | -- | -- |  |
 | `RFC3768-5.3.2-1` | MUST | 5.3.2 | `internal/plugins/vrrp/packet/validate_test.go:49` | `internal/plugins/vrrp/packet/validate_test.go:128` |  |
-| `RFC3768-5.3.4-1` | MUST | 5.3.4 | -- | -- |  |
-| `RFC3768-5.3.4-2` | MUST | 5.3.4 | -- | -- |  |
+| `RFC3768-5.3.4-1` | MUST | 5.3.4 | `internal/plugins/vrrp/groups_test.go:705` | `internal/plugins/vrrp/groups_test.go:706` |  |
+| `RFC3768-5.3.4-2` | MUST | 5.3.4 | `internal/plugins/vrrp/groups_test.go:310` | `internal/plugins/vrrp/groups_test.go:311` |  |
 | `RFC3768-5.3.6-1` | MUST | 5.3.6 | `internal/plugins/vrrp/packet/validate_test.go:50` | `internal/plugins/vrrp/packet/validate_test.go:565` |  |
-| `RFC3768-6.4.2-1` | MUST NOT | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-2` | MUST | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-3` | MUST NOT | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-4` | MUST | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-5` | MUST | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-6` | MUST | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-7` | MUST | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.2-8` | MUST | 6.4.2 | -- | -- |  |
-| `RFC3768-6.4.3-1` | MUST | 6.4.3 | -- | -- |  |
-| `RFC3768-6.4.3-2` | MUST | 6.4.3 | -- | -- |  |
+| `RFC3768-6.4.2-1` | MUST NOT | 6.4.2 | `internal/plugins/vrrp/instance_test.go:278` | `internal/plugins/vrrp/instance_test.go:313` |  |
+| `RFC3768-6.4.2-2` | MUST | 6.4.2 | `internal/plugins/vrrp/instance_test.go:279` | `internal/plugins/vrrp/instance_test.go:314` |  |
+| `RFC3768-6.4.2-3` | MUST NOT | 6.4.2 | `internal/plugins/vrrp/instance_test.go:280` | `internal/plugins/vrrp/instance_test.go:315` |  |
+| `RFC3768-6.4.2-4` | MUST | 6.4.2 | `internal/plugins/vrrp/fsm/fsm_test.go:88` | `internal/plugins/vrrp/fsm/fsm_test.go:89` |  |
+| `RFC3768-6.4.2-5` | MUST | 6.4.2 | `internal/plugins/vrrp/fsm/fsm_test.go:408` | `internal/plugins/vrrp/fsm/fsm_test.go:596` |  |
+| `RFC3768-6.4.2-6` | MUST | 6.4.2 | `internal/plugins/vrrp/fsm/fsm_test.go:90` | `internal/plugins/vrrp/fsm/fsm_test.go:91` |  |
+| `RFC3768-6.4.2-7` | MUST | 6.4.2 | `internal/plugins/vrrp/fsm/fsm_test.go:92` | `internal/plugins/vrrp/fsm/fsm_test.go:93` |  |
+| `RFC3768-6.4.2-8` | MUST | 6.4.2 | `internal/plugins/vrrp/fsm/fsm_test.go:94` | `internal/plugins/vrrp/fsm/fsm_test.go:95` |  |
+| `RFC3768-6.4.3-1` | MUST | 6.4.3 | `internal/plugins/vrrp/dataplane_linux_test.go:61` | `internal/plugins/vrrp/dataplane_linux_test.go:118` |  |
+| `RFC3768-6.4.3-2` | MUST | 6.4.3 | `internal/plugins/vrrp/instance_test.go:311` | `internal/plugins/vrrp/instance_test.go:281` |  |
 | `RFC3768-6.4.3-3` | MUST NOT | 6.4.3 | -- | -- | {gap} ze installs the virtual address on any Master transition regardless of ownership -- fsm InstallVIPs executed by instance.doInstallVIPs internal/plugins/vrrp/instance.go:369 -- and never enforces Accept_Mode (stored for the show snapshot only, internal/plugins/vrrp/fsm/events.go:45; EffectiveAcceptMode internal/plugins/vrrp/groups.go:152 feeds only the snapshot at instance.go:420), so a non-owner Master accepts packets addressed to the virtual IP |
-| `RFC3768-6.4.3-4` | MUST | 6.4.3 | -- | -- |  |
-| `RFC3768-6.4.3-5` | MUST | 6.4.3 | -- | -- |  |
-| `RFC3768-6.4.3-6` | MUST | 6.4.3 | -- | -- |  |
-| `RFC3768-6.4.3-7` | MUST | 6.4.3 | -- | -- |  |
-| `RFC3768-6.4.3-8` | MUST | 6.4.3 | -- | -- |  |
-| `RFC3768-6.4.3-9` | MUST | 6.4.3 | -- | -- |  |
+| `RFC3768-6.4.3-4` | MUST | 6.4.3 | `internal/plugins/vrrp/instance_test.go:312` | `internal/plugins/vrrp/instance_test.go:282` |  |
+| `RFC3768-6.4.3-5` | MUST | 6.4.3 | `internal/plugins/vrrp/fsm/fsm_test.go:96`, `internal/plugins/vrrp/instance_test.go:381` | `internal/plugins/vrrp/fsm/fsm_test.go:97` |  |
+| `RFC3768-6.4.3-6` | MUST | 6.4.3 | `internal/plugins/vrrp/fsm/fsm_test.go:98` | `internal/plugins/vrrp/fsm/fsm_test.go:597` |  |
+| `RFC3768-6.4.3-7` | MUST | 6.4.3 | `internal/plugins/vrrp/fsm/fsm_test.go:99` | `internal/plugins/vrrp/fsm/fsm_test.go:100` |  |
+| `RFC3768-6.4.3-8` | MUST | 6.4.3 | `internal/plugins/vrrp/fsm/fsm_test.go:101` | `internal/plugins/vrrp/fsm/fsm_test.go:102` |  |
+| `RFC3768-6.4.3-9` | MUST | 6.4.3 | `internal/plugins/vrrp/fsm/fsm_test.go:103` | `internal/plugins/vrrp/fsm/fsm_test.go:104` |  |
 | `RFC3768-7.1-1` | MUST | 7.1 | `internal/plugins/vrrp/packet/validate_test.go:42` | `internal/plugins/vrrp/packet/validate_test.go:576` |  |
 | `RFC3768-7.1-10` | SHOULD | 7.1 | -- | -- |  |
 | `RFC3768-7.1-11` | SHOULD | 7.1 | -- | -- |  |
@@ -1334,15 +1336,15 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC3768-7.1-3` | MUST | 7.1 | `internal/plugins/vrrp/packet/validate_test.go:44` | `internal/plugins/vrrp/packet/validate_test.go:279` |  |
 | `RFC3768-7.1-4` | MUST | 7.1 | `internal/plugins/vrrp/packet/validate_test.go:45` | `internal/plugins/vrrp/packet/validate_test.go:138` |  |
 | `RFC3768-7.1-5` | MUST | 7.1 | `internal/plugins/vrrp/packet/validate_test.go:46` | `internal/plugins/vrrp/packet/validate_test.go:566` |  |
-| `RFC3768-7.1-6` | MUST | 7.1 | -- | -- |  |
-| `RFC3768-7.1-7` | MUST | 7.1 | -- | -- |  |
+| `RFC3768-7.1-6` | MUST | 7.1 | `internal/plugins/vrrp/instance_test.go:422` | `internal/plugins/vrrp/instance_test.go:404` |  |
+| `RFC3768-7.1-7` | MUST | 7.1 | `internal/plugins/vrrp/instance_test.go:502` | `internal/plugins/vrrp/instance_test.go:463` |  |
 | `RFC3768-7.1-8` | MUST | 7.1 | `internal/plugins/vrrp/packet/validate_test.go:47` | `internal/plugins/vrrp/packet/validate_test.go:225`, `internal/plugins/vrrp/packet/validate_test.go:266` |  |
 | `RFC3768-7.1-9` | SHOULD | 7.1 | -- | -- |  |
 | `RFC3768-7.2-1` | MUST | 7.2 | `internal/plugins/vrrp/packet/packet_test.go:87` | -- | {single-polarity} a golden encode pins every field and the checksum -- WriteTo internal/plugins/vrrp/packet/packet.go:251 plus FillChecksum internal/plugins/vrrp/packet/checksum.go:86 -- while a corrupted-encoding rejection is the separate receive requirement RFC3768-7.1-3 |
 | `RFC3768-7.2-2` | MUST | 7.2 | `internal/plugins/vrrp/packet/packet_test.go:377` | -- | {single-polarity} the source MAC is the virtual-router MAC from packet.VirtualMAC internal/plugins/vrrp/packet/packet.go:97 egressed by binding the tx socket to the vMAC macvlan internal/plugins/vrrp/transport/backend_linux.go:133, a deterministic derivation with no input that yields a different MAC |
-| `RFC3768-7.2-3` | MUST | 7.2 | -- | -- | {single-polarity} the source IP is the parent unit primary IPv4 from resolveParentPrimaryV4 internal/plugins/vrrp/transport/transport.go:573, a deterministic selection re-resolved on address change, with no input that yields a wrong-source advert |
-| `RFC3768-7.2-4` | MUST | 7.2 | -- | -- | {single-polarity} buildIPv4Header sets IP protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 at internal/plugins/vrrp/transport/backend_linux.go:256, both constants with no input that changes them |
-| `RFC3768-8.2-1` | MUST NOT | 8.2 | -- | -- |  |
+| `RFC3768-7.2-3` | MUST | 7.2 | `internal/plugins/vrrp/transport/transport_test.go:202` | -- | {single-polarity} the source IP is the parent unit primary IPv4 from resolveParentPrimaryV4 internal/plugins/vrrp/transport/transport.go:573, a deterministic selection re-resolved on address change, with no input that yields a wrong-source advert |
+| `RFC3768-7.2-4` | MUST | 7.2 | `internal/plugins/vrrp/transport/transport_test.go:259` | -- | {single-polarity} buildIPv4Header sets IP protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 at internal/plugins/vrrp/transport/backend_linux.go:256, both constants with no input that changes them |
+| `RFC3768-8.2-1` | MUST NOT | 8.2 | `internal/plugins/vrrp/dataplane_linux_test.go:62` | `internal/plugins/vrrp/dataplane_linux_test.go:119` |  |
 | `RFC3768-8.2-2` | SHOULD NOT | 8.2 | -- | -- |  |
 | `RFC3768-8.2-3` | SHOULD | 8.2 | -- | -- |  |
 | `RFC3768-8.3-1` | MUST | 8.3 | -- | -- | {not-applicable} ze performs no proxy ARP for virtual addresses -- the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64), and no proxy-ARP path exists |
@@ -1772,7 +1774,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC4301-4.1-1` | MUST | 4.1 | `internal/component/ike/engine/child_test.go:161`, `internal/plugins/ospf/ipsec_install_test.go:142` | -- | {single-polarity} ze projects both modes -- IKE child SAs install tunnel-mode ESP and OSPFv3 RFC 4552 installs transport-mode ESP/AH; a capability-presence MUST has no meaningful negative (internal/component/ike/engine/child.go:224, :253, internal/plugins/ospf/ipsec_install.go:413, :441) |
+| `RFC4301-4.1-1` | MUST | 4.1 | `internal/component/ike/engine/child_test.go:161`, `internal/plugins/ospf/ipsec_install_test.go:146` | -- | {single-polarity} ze projects both modes -- IKE child SAs install tunnel-mode ESP and OSPFv3 RFC 4552 installs transport-mode ESP/AH; a capability-presence MUST has no meaningful negative (internal/component/ike/engine/child.go:224, :253, internal/plugins/ospf/ipsec_install.go:413, :441) |
 | `RFC4301-4.1-2` | MUST | 4.1 | `internal/component/ike/engine/child_test.go:176` | -- | {single-polarity} ze (a security gateway) installs tunnel-mode ESP for every IKE-negotiated peer SA and policy (internal/component/ike/engine/child.go:224, :253, :281, :295) |
 | `RFC4301-4.1-3` | MUST | 4.1 | `internal/component/ike/engine/child_test.go:163` | -- | {single-polarity} the IKE child-SA path hardcodes tunnel mode for every peer SA, so a peer SA can never be transport (internal/component/ike/engine/child.go:40, :224, :253) |
 | `RFC4301-4.1-4` | MUST | 4.1 | `internal/component/ike/engine/child_test.go:165` | -- | {single-polarity} the inbound and outbound child SAs of a pair are both built with modeTunnel, so the pair is always same-mode (internal/component/ike/engine/child.go:224, :253) |
@@ -1877,41 +1879,41 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC4552-10-1` | SHOULD | 10 | -- | -- |  |
 | `RFC4552-10.1-1` | SHOULD | 10.1 | -- | -- |  |
 | `RFC4552-10.3-1` | SHOULD | 10.3 | -- | -- |  |
-| `RFC4552-11-1` | MUST | 11 | -- | -- |  |
-| `RFC4552-11-2` | MUST | 11 | -- | -- |  |
-| `RFC4552-11-3` | MUST | 11 | -- | -- |  |
-| `RFC4552-11-4` | MUST | 11 | -- | -- |  |
+| `RFC4552-11-1` | MUST | 11 | -- | -- | {single-polarity} the out/in/fwd proto-89 policies put the IPsec barrier around all OSPF traffic on the interface (buildIPsecPolicies, ipsec_install.go:447-451); the barrier is installed, never rejected |
+| `RFC4552-11-2` | MUST | 11 | -- | -- | {single-polarity} a disabled interface installs no require-policy (setConfig adds only interfaces with an IPsec block, ipsec_install.go:190-200), so its OSPF is bypassed by the kernel default; the bypass has no reject path |
+| `RFC4552-11-3` | MUST | 11 | `internal/plugins/ospf/ipsec_install_test.go:74` | -- | {single-polarity} an enabled interface installs the out/in/fwd protect (require) policies (installLocked, ipsec_install.go:329-337); the protect rules are installed, never rejected |
+| `RFC4552-11-4` | MUST | 11 | -- | -- | {gap} no virtual-link SPD rules are installed on transit-area interfaces because virtual-link IPsec is unimplemented (ipsec_install.go:190-200 installs only configured-interface policies). Disclosed in docs/features/rfc-status.md RFC 4552 row |
 | `RFC4552-11-5` | MAY | 11 | -- | -- |  |
 | `RFC4552-12-1` | MUST | 12 | -- | -- |  |
 | `RFC4552-2-1` | MAY | 2 | -- | -- |  |
-| `RFC4552-2-2` | MUST | 2 | -- | -- |  |
+| `RFC4552-2-2` | MUST | 2 | -- | -- | {single-polarity} the installer only ever builds a transport-mode SA (buildIPsecSA Mode=ModeTransport, ipsec_install.go:413), so there is no tunnel-mode reject path to exercise |
 | `RFC4552-2-3` | MAY | 2 | -- | -- |  |
 | `RFC4552-3-1` | MUST | 3 | -- | -- |  |
-| `RFC4552-3-2` | MUST | 3 | -- | -- |  |
+| `RFC4552-3-2` | MUST | 3 | `internal/plugins/ospf/ipsec_install_test.go:69` | -- | {single-polarity} an esp interface always installs an SA with Proto=ProtoESP (ipsecProtoNumber, ipsec_install.go:454-459); "supporting ESP" has no reject path of its own |
 | `RFC4552-3-3` | MAY | 3 | -- | -- |  |
-| `RFC4552-3-4` | MUST | 3 | -- | -- |  |
-| `RFC4552-3-5` | MUST | 3 | -- | -- |  |
+| `RFC4552-3-4` | MUST | 3 | -- | -- | {not-applicable} the per-packet silent discard of unprotected inbound OSPFv3 is done by the kernel XFRM inbound require-policy; ze installs that policy (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32), never inspecting or dropping a packet |
+| `RFC4552-3-5` | MUST | 3 | -- | -- | {not-applicable} the discard of an OSPFv3 packet that fails the integrity check is performed by the kernel XFRM transform; ze reads the resulting XfrmInIntegFailures/XfrmInStateProtoError counters (ipsec_drops_linux.go:24-30) but never verifies or drops a packet itself |
 | `RFC4552-4-1` | SHOULD | 4 | -- | -- |  |
 | `RFC4552-4-2` | MUST | 4 | -- | -- |  |
-| `RFC4552-4-3` | MUST | 4 | -- | -- |  |
-| `RFC4552-4-4` | MUST | 4 | -- | -- |  |
-| `RFC4552-6-1` | MUST | 6 | -- | -- |  |
+| `RFC4552-4-3` | MUST | 4 | -- | -- | {not-applicable} an unprotected packet on a confidentiality-enabled interface is dropped by the kernel XFRM inbound require-policy (buildIPsecPolicies SADirIn, ipsec_install.go:449), not by ze |
+| `RFC4552-4-4` | MUST | 4 | -- | -- | {not-applicable} an ESP packet that fails decryption/integrity is dropped by the kernel XFRM transform; ze surfaces the drop via the XFRM counters (ipsec_drops_linux.go:32) but never decrypts or discards a packet |
+| `RFC4552-6-1` | MUST | 6 | -- | -- | {single-polarity} every installed policy is transport mode (buildIPsecPolicies Mode=ModeTransport, ipsec_install.go:441); there is no non-transport policy to reject |
 | `RFC4552-6-10` | SHOULD NOT | 6 | -- | -- |  |
-| `RFC4552-6-11` | MUST | 6 | -- | -- |  |
-| `RFC4552-6-2` | MUST | 6 | -- | -- |  |
-| `RFC4552-6-3` | MUST | 6 | -- | -- |  |
-| `RFC4552-6-4` | MUST | 6 | -- | -- |  |
-| `RFC4552-6-5` | MUST | 6 | -- | -- |  |
+| `RFC4552-6-11` | MUST | 6 | -- | -- | {not-applicable} multiple SAs with the same selectors between two peers is a kernel SAD capability (states keyed by SPI); ze installs one SA per interface with a distinct SPI (buildIPsecSA, ipsec_install.go:401) and delegates SA storage to the kernel XFRM |
+| `RFC4552-6-2` | MUST | 6 | -- | -- | {single-polarity} each interface's policies are scoped by IfIndex (buildIPsecPolicies IfIndex, ipsec_install.go:444), so the per-interface policy set is the interface-selected SPD; there is no reject path |
+| `RFC4552-6-3` | MUST | 6 | -- | -- | {single-polarity} every policy carries source, destination, upper-protocol 89, and direction selectors (buildIPsecPolicies, ipsec_install.go:436-445); a selector set is emitted, never rejected |
+| `RFC4552-6-4` | MUST | 6 | -- | -- | {single-polarity} the inbound require-policy is scoped to the arrival ifindex (buildIPsecPolicies SADirIn IfIndex, ipsec_install.go:444-449); the kernel does the per-packet tagging, ze only supplies the interface selector |
+| `RFC4552-6-5` | MUST | 6 | -- | -- | {single-polarity} the SA is keyed from the statically configured SPI+key with no IKE (buildIPsecSA, ipsec_install.go:401-424); manual keying has no reject path |
 | `RFC4552-6-6` | MUST NOT | 6 | -- | -- |  |
-| `RFC4552-6-7` | MUST | 6 | -- | -- |  |
+| `RFC4552-6-7` | MUST | 6 | -- | -- | {not-applicable} an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen/ipsecEncKeyLen, config.go:106-117) and the stream-cipher carve-out is RFC4552-6-6 |
 | `RFC4552-6-8` | SHOULD | 6 | -- | -- |  |
-| `RFC4552-6-9` | MUST | 6 | -- | -- |  |
-| `RFC4552-7-1` | MUST | 7 | -- | -- |  |
+| `RFC4552-6-9` | MUST | 6 | -- | -- | {not-applicable} the IP encapsulation of ESP packets is the per-packet ESP framing performed by the kernel XFRM transform (internal/component/ike/dataplane/xfrm_linux.go); ze installs the ESP SA but never builds an ESP header |
+| `RFC4552-7-1` | MUST | 7 | -- | -- | {single-polarity} one manually configured SPI/key drives the single shared SA that both protects egress and verifies ingress (buildIPsecSA installed once, ipsec_install.go:316-328); there is no reject path |
 | `RFC4552-8-1` | SHOULD | 8 | -- | -- |  |
-| `RFC4552-9-1` | MUST | 9 | -- | -- |  |
-| `RFC4552-9-2` | MUST | 9 | -- | -- |  |
-| `RFC4552-9-3` | MUST | 9 | -- | -- |  |
-| `RFC4552-9-4` | MUST | 9 | -- | -- |  |
+| `RFC4552-9-1` | MUST | 9 | -- | -- | {gap} OSPFv3 virtual-link IPsec is unimplemented; the installer consumes only configured-interface IPsec blocks (setConfig over cfg.Interfaces, ipsec_install.go:190-200) and no virtual link ever installs an SA. Disclosed in docs/features/rfc-status.md RFC 4552 row |
+| `RFC4552-9-2` | MUST | 9 | -- | -- | {gap} ze never enables IPsec on a virtual link, so it does not switch virtual-link source/destination selection when IPsec is on; the endpoints stay RFC 5340 §2.9 routed globals (v6ResolveVirtualEndpointLocked, virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row |
+| `RFC4552-9-3` | MUST | 9 | -- | -- | {gap} virtual-link IPsec is unimplemented, so the RFC 4552 §9 rule of using the first LA-bit intra-area-prefix address as the source is not applied; ze selects the source from RFC 5340 routed globals (v6RouterGlobalAddr, virtuallink_v6.go:42-81). Disclosed in docs/features/rfc-status.md RFC 4552 row |
+| `RFC4552-9-4` | MUST | 9 | -- | -- | {gap} the matching destination rule (first LA-bit intra-area-prefix address of the virtual neighbor) is likewise unapplied because virtual-link IPsec is unimplemented (virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row |
 
 ## RFC4555 -- enrolled (gated)
 
@@ -2063,34 +2065,34 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 |---|---|---|---|---|---|
 | `RFC4724-2-1` | RECOMMENDED | 2 | -- | -- |  |
 | `RFC4724-3-1` | MUST | 3 | `internal/component/bgp/plugins/gr/gr_test.go:111` | -- | {single-polarity} ze's GR sender emits exactly one code-64 declaration per peer (internal/component/bgp/plugins/gr/gr.go:703 extractGRCapabilities appends one CapabilityDecl per peer) and the encoder writes a single TLV (internal/core/bgp/capability/capability.go:553 WriteTo); there is no code path that emits two instances, so the more-than-one case cannot be constructed to test negatively |
-| `RFC4724-3-2` | MUST | 3 | -- | -- |  |
-| `RFC4724-3-3` | MUST | 3 | -- | -- |  |
-| `RFC4724-3-4` | MUST | 3 | -- | -- |  |
+| `RFC4724-3-2` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:422` | `internal/core/bgp/capability/capability_test.go:433` |  |
+| `RFC4724-3-3` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:428` | `internal/core/bgp/capability/capability_test.go:442` |  |
+| `RFC4724-3-4` | MUST | 3 | `internal/core/bgp/capability/negotiated_test.go:62` | `internal/core/bgp/capability/negotiated_test.go:70` |  |
 | `RFC4724-3-5` | MUST | 3 | -- | -- | {not-applicable} ze advertises its Adj-RIB-Out and per-family End-of-RIB immediately on reaching Established (internal/component/bgp/reactor/peer_initial_sync.go:277,334) and has no receive-side mechanism that gates advertisement on a peer's End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and never defers advertisement, so there is no wait state for the R bit to override |
 | `RFC4724-4-1` | MUST | 4 | `internal/component/bgp/message/eor_test.go:16` | `internal/component/bgp/message/eor_test.go:224` |  |
-| `RFC4724-4-2` | MUST | 4 | -- | -- |  |
+| `RFC4724-4-2` | MUST | 4 | `internal/component/bgp/plugins/gr/gr_state_test.go:213` | `internal/component/bgp/plugins/gr/gr_state_test.go:44` |  |
 | `RFC4724-4-3` | RECOMMENDED | 4 | -- | -- |  |
 | `RFC4724-4-4` | MAY | 4 | -- | -- |  |
 | `RFC4724-4.1-1` | MUST | 4.1 | -- | -- | {gap} ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
 | `RFC4724-4.1-2` | MUST | 4.1 | -- | -- | {gap} because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
 | `RFC4724-4.1-3` | MUST NOT | 4.1 | -- | -- | {gap} this governs forwarding over ze's own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze's own routes as a Restarting Speaker |
-| `RFC4724-4.1-4` | MUST | 4.1 | -- | -- |  |
+| `RFC4724-4.1-4` | MUST | 4.1 | `internal/component/bgp/grmarker/grmarker_test.go:259` | `internal/component/bgp/grmarker/grmarker_test.go:484` |  |
 | `RFC4724-4.1-5` | MUST | 4.1 | -- | -- | {gap} ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection |
 | `RFC4724-4.1-6` | MUST | 4.1 | -- | -- | {gap} this is the completion step of the deferred-selection cycle ze does not run (see RFC4724-4.1-5); with no own-Loc-RIB stale state (RFC4724-4.1-1) there is no post-selection stale removal on ze's own restart |
 | `RFC4724-4.1-7` | MUST | 4.1 | `internal/component/bgp/message/eor_test.go:20` | `internal/component/bgp/message/eor_test.go:228` |  |
 | `RFC4724-4.1-8` | MUST | 4.1 | -- | -- | {gap} ze exposes no Selection_Deferral_Timer configuration -- the GR YANG model (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang) carries restart-time and long-lived-stale-time only, and no code defers selection (see RFC4724-4.1-5) |
 | `RFC4724-4.2-1` | MUST | 4.2 | -- | -- | {gap} ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session |
-| `RFC4724-4.2-10` | MUST | 4.2 | -- | -- |  |
-| `RFC4724-4.2-11` | MUST | 4.2 | -- | -- |  |
+| `RFC4724-4.2-10` | MUST | 4.2 | `internal/component/bgp/plugins/rib/storage/stale_test.go:147` | `internal/component/bgp/plugins/rib/storage/stale_test.go:179` |  |
+| `RFC4724-4.2-11` | MUST | 4.2 | `internal/component/bgp/plugins/gr/gr_state_test.go:178` | `internal/component/bgp/plugins/gr/gr_state_test.go:307` |  |
 | `RFC4724-4.2-12` | MAY | 4.2 | -- | -- |  |
 | `RFC4724-4.2-13` | MAY | 4.2 | -- | -- |  |
 | `RFC4724-4.2-2` | MUST | 4.2 | -- | -- | {gap} the same RFC 4271 collision path closes the NEW connection and keeps the existing Established session (internal/component/bgp/reactor/reactor_connection.go:134-136 rejectConnectionCollisionWithSettings), the opposite of the RFC 4724 Section 4.2 override that closes the previous session and retains the new one |
-| `RFC4724-4.2-3` | MUST | 4.2 | -- | -- |  |
-| `RFC4724-4.2-4` | MUST | 4.2 | -- | -- |  |
+| `RFC4724-4.2-3` | MUST | 4.2 | `internal/component/bgp/plugins/gr/gr_state_test.go:40` | `internal/component/bgp/plugins/gr/gr_state_test.go:290` |  |
+| `RFC4724-4.2-4` | MUST | 4.2 | `internal/component/bgp/plugins/gr/gr_state_test.go:265` | `internal/component/bgp/plugins/gr/gr_state_test.go:279` |  |
 | `RFC4724-4.2-5` | MUST NOT | 4.2 | -- | -- |  |
-| `RFC4724-4.2-6` | MUST NOT | 4.2 | -- | -- |  |
-| `RFC4724-4.2-7` | MUST | 4.2 | -- | -- |  |
-| `RFC4724-4.2-8` | MUST | 4.2 | -- | -- |  |
+| `RFC4724-4.2-6` | MUST NOT | 4.2 | `internal/component/bgp/grmarker/grmarker_test.go:481` | `internal/component/bgp/grmarker/grmarker_test.go:262` |  |
+| `RFC4724-4.2-7` | MUST | 4.2 | `internal/component/bgp/plugins/gr/gr_state_test.go:65` | `internal/component/bgp/plugins/gr/gr_state_test.go:98` |  |
+| `RFC4724-4.2-8` | MUST | 4.2 | `internal/component/bgp/plugins/gr/gr_state_test.go:136` | `internal/component/bgp/plugins/gr/gr_state_test.go:95` |  |
 | `RFC4724-4.2-9` | MUST | 4.2 | `internal/component/bgp/message/eor_test.go:22` | `internal/component/bgp/message/eor_test.go:229` |  |
 
 ## RFC4760 -- enrolled (gated)
@@ -2558,9 +2560,9 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
 | `RFC5549-3-1` | MUST | 3 | `internal/core/bgp/attribute/mpnlri_test.go:341`, `internal/core/bgp/attribute/mpnlri_test.go:399`, `internal/core/bgp/attribute/mpnlri_test.go:445` | `internal/core/bgp/attribute/mpnlri_test.go:492` |  |
-| `RFC5549-4-1` | MUST | 4 | `internal/component/bgp/reactor/peer_test.go:1200`, `internal/core/bgp/capability/negotiated_test.go:244` | `internal/component/bgp/reactor/peer_test.go:1231`, `internal/core/bgp/capability/negotiated_test.go:283` |  |
-| `RFC5549-4-2` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:458`, `internal/core/bgp/capability/capability_test.go:491` | -- | {single-polarity} ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1 |
-| `RFC5549-4-3` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:17`, `internal/core/bgp/capability/capability_test.go:461`, `internal/core/bgp/capability/capability_test.go:494` | -- | {single-polarity} the Extended Next Hop Encoding capability code is the fixed constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:646). The code has no alternate-value code path, so there is no wrong-code case to reject as a negative |
+| `RFC5549-4-1` | MUST | 4 | `internal/component/bgp/reactor/peer_test.go:1200`, `internal/core/bgp/capability/negotiated_test.go:278` | `internal/component/bgp/reactor/peer_test.go:1231`, `internal/core/bgp/capability/negotiated_test.go:317` |  |
+| `RFC5549-4-2` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:506`, `internal/core/bgp/capability/capability_test.go:539` | -- | {single-polarity} ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1 |
+| `RFC5549-4-3` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:17`, `internal/core/bgp/capability/capability_test.go:509`, `internal/core/bgp/capability/capability_test.go:542` | -- | {single-polarity} the Extended Next Hop Encoding capability code is the fixed constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:646). The code has no alternate-value code path, so there is no wrong-code case to reject as a negative |
 | `RFC5549-4-4` | MUST NOT | 4 | `internal/component/bgp/reactor/peer_test.go:1203` | `internal/component/bgp/reactor/peer_test.go:1234`, `internal/component/bgp/reactor/peer_test.go:1255` |  |
 | `RFC5549-4-5` | MAY | 4 | -- | -- |  |
 | `RFC5549-5-1` | MUST NOT | 5 | `internal/component/bgp/reactor/forward_rr_test.go:237` | -- | {single-polarity} on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
@@ -3027,65 +3029,65 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC6810-11-1` | SHOULD | 11 | -- | -- |  |
 | `RFC6810-11-2` | SHOULD | 11 | -- | -- |  |
 | `RFC6810-11-3` | SHOULD | 11 | -- | -- |  |
-| `RFC6810-2-1` | MUST | 2 | -- | -- |  |
-| `RFC6810-3-1` | MUST | 3 | -- | -- |  |
+| `RFC6810-2-1` | MUST | 2 | -- | -- | {not-applicable} cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data |
+| `RFC6810-3-1` | MUST | 3 | -- | -- | {not-applicable} operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate |
 | `RFC6810-3-2` | MAY | 3 | -- | -- |  |
-| `RFC6810-4-1` | MUST | 4 | -- | -- |  |
-| `RFC6810-4-2` | MUST | 4 | -- | -- |  |
+| `RFC6810-4-1` | MUST | 4 | -- | -- | {gap} ze does not select the most preferred cache -- startSessions launches a Run goroutine for every configured cache concurrently (internal/component/bgp/plugins/rpki/rpki.go:291-298) and the parsed preference is only surfaced for display (rpki.go:1026), never used to order or choose caches |
+| `RFC6810-4-2` | MUST | 4 | -- | -- | {not-applicable} cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds |
 | `RFC6810-5-1` | MUST | 5 | `internal/component/bgp/plugins/rpki/rtr_pdu_test.go:16` | `internal/component/bgp/plugins/rpki/rtr_pdu_test.go:33` |  |
 | `RFC6810-5-2` | MAY | 5 | -- | -- |  |
 | `RFC6810-5.1-1` | MUST | 5.1 | `internal/component/bgp/plugins/rpki/rtr_pdu_test.go:52` | `internal/component/bgp/plugins/rpki/rtr_pdu_test.go:123` |  |
-| `RFC6810-5.1-2` | MUST | 5.1 | -- | -- |  |
-| `RFC6810-5.10-1` | MUST | 5.10 | -- | -- |  |
-| `RFC6810-5.10-2` | MUST NOT | 5.10 | -- | -- |  |
-| `RFC6810-5.10-3` | MUST | 5.10 | -- | -- |  |
-| `RFC6810-5.10-4` | MUST | 5.10 | -- | -- |  |
+| `RFC6810-5.1-2` | MUST | 5.1 | -- | -- | {gap} ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush |
+| `RFC6810-5.10-1` | MUST | 5.10 | -- | -- | {not-applicable} Error Report sender obligation -- ze only reads received Error Reports (internal/component/bgp/plugins/rpki/rtr_session.go:363) and has no Error Report writer, so it never encodes Length of Encapsulated PDU |
+| `RFC6810-5.10-2` | MUST NOT | 5.10 | -- | -- | {not-applicable} Error Report sender obligation -- ze has no Error Report writer (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it can never emit an Error Report about an Error Report |
+| `RFC6810-5.10-3` | MUST | 5.10 | -- | -- | {not-applicable} Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never encodes error text |
+| `RFC6810-5.10-4` | MUST | 5.10 | -- | -- | {not-applicable} Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text |
 | `RFC6810-5.10-5` | SHOULD | 5.10 | -- | -- |  |
 | `RFC6810-5.10-6` | MAY | 5.10 | -- | -- |  |
-| `RFC6810-5.5-1` | MUST | 5.5 | -- | -- |  |
-| `RFC6810-5.6-1` | MUST | 5.6 | -- | -- |  |
+| `RFC6810-5.5-1` | MUST | 5.5 | -- | -- | {not-applicable} cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission |
+| `RFC6810-5.6-1` | MUST | 5.6 | -- | -- | {not-applicable} cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP |
 | `RFC6810-5.6-2` | SHOULD | 5.6 | -- | -- |  |
-| `RFC6810-5.8-1` | MUST | 5.8 | -- | -- |  |
-| `RFC6810-6.1-1` | MUST | 6.1 | -- | -- |  |
+| `RFC6810-5.8-1` | MUST | 5.8 | -- | -- | {not-applicable} cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match |
+| `RFC6810-6.1-1` | MUST | 6.1 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:83` | -- | {single-polarity} the re-query cadence is Run's post-sync wait of s.retryInterval (internal/component/bgp/plugins/rpki/rtr_session.go:106-110), defaulting to 600s (rtr_session.go:81) which is below the one-hour ceiling; there is no malformed input that yields a too-infrequent negative case |
 | `RFC6810-6.1-2` | MAY | 6.1 | -- | -- |  |
-| `RFC6810-6.2-1` | MUST | 6.2 | -- | -- |  |
+| `RFC6810-6.2-1` | MUST | 6.2 | -- | -- | {not-applicable} cache-side rate limit on Serial Notify emission -- ze receives Serial Notify and ignores it during sync (internal/component/bgp/plugins/rpki/rtr_session.go:359) and never sends one |
 | `RFC6810-6.2-2` | SHOULD | 6.2 | -- | -- |  |
-| `RFC6810-6.3-1` | MUST | 6.3 | -- | -- |  |
+| `RFC6810-6.3-1` | MUST | 6.3 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:107` | `internal/component/bgp/plugins/rpki/rtr_session_test.go:120` |  |
 | `RFC6810-6.3-2` | SHOULD | 6.3 | -- | -- |  |
-| `RFC6810-6.4-1` | MUST | 6.4 | -- | -- |  |
+| `RFC6810-6.4-1` | MUST | 6.4 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:149` | `internal/component/bgp/plugins/rpki/rtr_session_test.go:165` |  |
 | `RFC6810-6.4-2` | SHOULD | 6.4 | -- | -- |  |
-| `RFC6810-7-1` | MUST | 7 | `internal/component/bgp/plugins/rpki/rpki_config_test.go:90` | -- |  |
-| `RFC6810-7-2` | MUST | 7 | -- | -- |  |
-| `RFC6810-7-3` | MUST | 7 | -- | -- |  |
+| `RFC6810-7-1` | MUST | 7 | `internal/component/bgp/plugins/rpki/rpki_config_test.go:90` | -- | {single-polarity} ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case |
+| `RFC6810-7-2` | MUST | 7 | -- | -- | {not-applicable} operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator's; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology |
+| `RFC6810-7-3` | MUST | 7 | -- | -- | {gap} ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select |
 | `RFC6810-7-4` | SHOULD | 7 | -- | -- |  |
 | `RFC6810-7-5` | SHOULD | 7 | -- | -- |  |
 | `RFC6810-7-6` | SHOULD | 7 | -- | -- |  |
 | `RFC6810-7-7` | MAY | 7 | -- | -- |  |
-| `RFC6810-7.1-1` | MUST | 7.1 | -- | -- |  |
-| `RFC6810-7.1-2` | MUST | 7.1 | -- | -- |  |
+| `RFC6810-7.1-1` | MUST | 7.1 | -- | -- | {not-applicable} cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication |
+| `RFC6810-7.1-2` | MUST | 7.1 | -- | -- | {not-applicable} SSH-transport obligation -- ze implements no SSH RTR transport (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so SSH user authentication has no code path |
 | `RFC6810-7.1-3` | SHOULD | 7.1 | -- | -- |  |
 | `RFC6810-7.1-4` | SHOULD | 7.1 | -- | -- |  |
 | `RFC6810-7.1-5` | MAY | 7.1 | -- | -- |  |
 | `RFC6810-7.1-6` | MAY | 7.1 | -- | -- |  |
-| `RFC6810-7.2-1` | MUST | 7.2 | -- | -- |  |
+| `RFC6810-7.2-1` | MUST | 7.2 | -- | -- | {not-applicable} TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path |
 | `RFC6810-7.2-10` | SHOULD NOT | 7.2 | -- | -- |  |
-| `RFC6810-7.2-2` | MUST | 7.2 | -- | -- |  |
-| `RFC6810-7.2-3` | MUST | 7.2 | -- | -- |  |
-| `RFC6810-7.2-4` | MUST | 7.2 | -- | -- |  |
-| `RFC6810-7.2-5` | MUST | 7.2 | -- | -- |  |
-| `RFC6810-7.2-6` | MUST | 7.2 | -- | -- |  |
-| `RFC6810-7.2-7` | MUST NOT | 7.2 | -- | -- |  |
-| `RFC6810-7.2-8` | MUST | 7.2 | -- | -- |  |
+| `RFC6810-7.2-2` | MUST | 7.2 | -- | -- | {not-applicable} TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates |
+| `RFC6810-7.2-3` | MUST | 7.2 | -- | -- | {not-applicable} cache-side TLS obligation -- ze runs no RTR TLS server (it is a client that dials out, internal/component/bgp/plugins/rpki/rtr_session.go:125), so it checks no connecting IP against iPAddress identities |
+| `RFC6810-7.2-4` | MUST | 7.2 | -- | -- | {not-applicable} TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it verifies no cache server certificate |
+| `RFC6810-7.2-5` | MUST | 7.2 | -- | -- | {not-applicable} TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127 dials plain TCP), so DNS-ID identifier support does not apply |
+| `RFC6810-7.2-6` | MUST | 7.2 | -- | -- | {not-applicable} cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127) |
+| `RFC6810-7.2-7` | MUST NOT | 7.2 | -- | -- | {not-applicable} TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it uses no certificate identifiers, CN-ID or otherwise |
+| `RFC6810-7.2-8` | MUST | 7.2 | -- | -- | {not-applicable} TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it sets no TLS reference identifier |
 | `RFC6810-7.2-9` | SHOULD | 7.2 | -- | -- |  |
-| `RFC6810-7.3-1` | MUST | 7.3 | -- | -- |  |
-| `RFC6810-7.3-2` | MUST | 7.3 | -- | -- |  |
+| `RFC6810-7.3-1` | MUST | 7.3 | -- | -- | {not-applicable} TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys |
+| `RFC6810-7.3-2` | MUST | 7.3 | -- | -- | {not-applicable} TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no MD5 key material |
 | `RFC6810-7.3-3` | SHOULD | 7.3 | -- | -- |  |
-| `RFC6810-7.4-1` | MUST | 7.4 | -- | -- |  |
-| `RFC6810-7.4-2` | MUST | 7.4 | -- | -- |  |
-| `RFC6810-7.4-3` | MUST | 7.4 | -- | -- |  |
-| `RFC6810-7.4-4` | MUST | 7.4 | -- | -- |  |
-| `RFC6810-8-1` | MUST | 8 | -- | -- |  |
-| `RFC6810-8-2` | MUST NOT | 8 | -- | -- |  |
+| `RFC6810-7.4-1` | MUST | 7.4 | -- | -- | {not-applicable} TCP-AO transport obligation -- ze implements no TCP-AO for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no AO keys |
+| `RFC6810-7.4-2` | MUST | 7.4 | -- | -- | {not-applicable} TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no AO key material |
+| `RFC6810-7.4-3` | MUST | 7.4 | -- | -- | {not-applicable} TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it negotiates no MAC length |
+| `RFC6810-7.4-4` | MUST | 7.4 | -- | -- | {not-applicable} TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms |
+| `RFC6810-8-1` | MUST | 8 | -- | -- | {gap} ze does not mark VRPs by source cache -- every RTR session writes one shared ROACache (internal/component/bgp/plugins/rpki/rpki.go:292) and vrpEntry carries only MaxLength and ASN (roa_cache.go:12-15) with no source field, so a withdraw from one cache can remove a VRP another announced |
+| `RFC6810-8-2` | MUST NOT | 8 | `internal/component/bgp/plugins/rpki/roa_cache_test.go:143` | `internal/component/bgp/plugins/rpki/roa_cache_test.go:148` |  |
 | `RFC6810-8-3` | SHOULD | 8 | -- | -- |  |
 | `RFC6810-8-4` | SHOULD | 8 | -- | -- |  |
 | `RFC6810-8-5` | SHOULD | 8 | -- | -- |  |
@@ -3804,8 +3806,8 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC7911-3-1` | MUST | 3 | `internal/core/bgp/nlri/base_len_test.go:182`, `internal/core/bgp/nlri/inet_test.go:112` | `internal/core/bgp/nlri/base_len_test.go:143` |  |
 | `RFC7911-4-1` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:347` | `internal/core/bgp/capability/capability_test.go:318` |  |
 | `RFC7911-4-2` | SHOULD | 4 | -- | -- |  |
-| `RFC7911-5-1` | MUST | 5 | `internal/core/bgp/capability/negotiated_test.go:47`, `internal/core/bgp/context/negotiated_test.go:167` | `internal/core/bgp/context/negotiated_test.go:168` |  |
-| `RFC7911-5-2` | MUST | 5 | `internal/core/bgp/capability/negotiated_test.go:48`, `internal/core/bgp/context/negotiated_test.go:169` | `internal/core/bgp/context/negotiated_test.go:170` |  |
+| `RFC7911-5-1` | MUST | 5 | `internal/core/bgp/capability/negotiated_test.go:81`, `internal/core/bgp/context/negotiated_test.go:167` | `internal/core/bgp/context/negotiated_test.go:168` |  |
+| `RFC7911-5-2` | MUST | 5 | `internal/core/bgp/capability/negotiated_test.go:82`, `internal/core/bgp/context/negotiated_test.go:169` | `internal/core/bgp/context/negotiated_test.go:170` |  |
 | `RFC7911-5-3` | MUST | 5 | `internal/component/bgp/reactor/forward_body_test.go:114` | `internal/component/bgp/reactor/forward_body_test.go:22` |  |
 | `RFC7911-5-4` | MUST | 5 | `internal/component/bgp/reactor/forward_split_test.go:301`, `internal/component/bgp/reactor/reactor_test.go:511` | `internal/component/bgp/reactor/forward_split_test.go:251`, `internal/component/bgp/reactor/reactor_test.go:512` |  |
 | `RFC7911-5-5` | SHALL | 5 | `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:75`, `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:125` | `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:76`, `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:126` |  |
@@ -4130,7 +4132,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 |---|---|---|---|---|---|
 | `RFC8654-3-1` | MUST | 3 | `internal/component/bgp/message/rfc7606_structural_test.go:124` | `internal/component/bgp/message/rfc7606_structural_test.go:238` |  |
 | `RFC8654-3-2` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:29` | -- | {single-polarity} the capability-code assignment is a single fixed value, so the only falsifiable check is that CodeExtendedMessage encodes as 6; there is no distinct rejection behavior for a negative case to exercise |
-| `RFC8654-3-3` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:419` | -- | {single-polarity} the capability's value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive |
+| `RFC8654-3-3` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:467` | -- | {single-polarity} the capability's value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive |
 | `RFC8654-4-1` | MUST | 4 | `internal/component/bgp/message/header_test.go:263` | `internal/component/bgp/message/header_test.go:254` |  |
 | `RFC8654-4-2` | MUST | 4 | `internal/component/bgp/message/update_build_test.go:1616` | `internal/component/bgp/message/update_build_test.go:1588` |  |
 | `RFC8654-4-3` | MUST | 4 | `internal/component/bgp/message/header_test.go:319` | `internal/component/bgp/message/header_test.go:239` |  |
@@ -4393,8 +4395,8 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC8950-3-1` | MUST | 3 | `internal/core/bgp/attribute/mpnlri_test.go:337`, `internal/core/bgp/attribute/mpnlri_test.go:441` | `internal/core/bgp/attribute/mpnlri_test.go:487` |  |
 | `RFC8950-3-2` | MUST | 3 | `internal/core/bgp/attribute/mpnlri_test.go:575`, `internal/core/bgp/attribute/mpnlri_test.go:673` | -- | {single-polarity} on encode ze always writes an all-zero 8-byte Route Distinguisher before a VPN next-hop (internal/core/bgp/attribute/mpnlri.go:170-176) and on decode it skips the 8 RD bytes without validating their value (mpnlri.go:438-443), so ze never emits a nonzero RD and never rejects one -- there is no negative case |
 | `RFC8950-4-1` | MUST | 4 | `internal/component/bgp/reactor/peer_test.go:1196` | `internal/component/bgp/reactor/peer_test.go:1227`, `internal/component/bgp/reactor/peer_test.go:1251` |  |
-| `RFC8950-4-2` | MUST | 4 | `internal/core/bgp/capability/negotiated_test.go:240` | `internal/core/bgp/capability/negotiated_test.go:279` |  |
-| `RFC8950-4-3` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:454`, `internal/core/bgp/capability/capability_test.go:487` | -- | {single-polarity} ze binds the Extended Next Hop Encoding capability to the constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:644-646). The code is a fixed constant with no alternate-value code path, so there is no wrong-code case to reject as a negative |
+| `RFC8950-4-2` | MUST | 4 | `internal/core/bgp/capability/negotiated_test.go:274` | `internal/core/bgp/capability/negotiated_test.go:313` |  |
+| `RFC8950-4-3` | MUST | 4 | `internal/core/bgp/capability/capability_test.go:502`, `internal/core/bgp/capability/capability_test.go:535` | -- | {single-polarity} ze binds the Extended Next Hop Encoding capability to the constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:644-646). The code is a fixed constant with no alternate-value code path, so there is no wrong-code case to reject as a negative |
 | `RFC8950-5-1` | MUST NOT | 5 | `internal/component/bgp/reactor/forward_rr_test.go:230` | -- | {single-polarity} on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226-229) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
 | `RFC8950-5-2` | SHOULD | 5 | -- | -- |  |
 | `RFC8950-5-3` | MAY | 5 | -- | -- |  |
@@ -4755,7 +4757,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC9252-3.4-1` | MUST | 3.4 | `internal/component/bgp/message/rfc7606_test.go:2365` | `internal/component/bgp/message/rfc7606_test.go:2394`, `internal/component/bgp/message/rfc7606_test.go:2434` |  |
 | `RFC9252-4.1-1` | MUST | 4.1 | -- | -- | {gap} parseSIDStructure validates the LBL+LNL+FL+AL sum but never bounds Transposition Length against the 20-bit VPN label field or the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go:121) |
 | `RFC9252-5-1` | MUST | 5 | `internal/component/bgp/plugins/rib/srv6_ineligible_test.go:72` | `internal/component/bgp/plugins/rib/srv6_ineligible_test.go:83` |  |
-| `RFC9252-5-2` | MUST | 5 | -- | -- | {not-applicable} acting as an SRv6 ingress PE that resolves a Service SID's locator against a forwarding table is a data-plane role ze does not play; isSRv6Ineligible gates best-path on SID extraction validity only and ze installs no SRv6 service SID (internal/component/bgp/plugins/rib/rib_bestchange.go:963) |
+| `RFC9252-5-2` | MUST | 5 | -- | -- | {gap} ze acts as an SRv6 ingress PE -- it extracts the received best-path Service SID (internal/component/bgp/plugins/rib/rib_bestchange.go:729,:882) and installs it into the FIB as a kernel SEG6 encap route (internal/plugins/fib/kernel/nexthop_linux.go:78) or a VPP SR steering policy (internal/plugins/fib/vpp/srv6.go:35) -- but performs no RFC 9252 Section 5 resolvability check: isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go:963) gates best-path on SID extraction validity only, never on locator reachability (no resolvability check exists in internal/component/bgp) |
 | `RFC9252-6.1-1` | MUST | 6.1 | -- | -- | {gap} parseSIDStructure never bounds Transposition Length against the 24-bit EVPN label field or the Argument Length, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go:121) |
 | `RFC9252-6.2-1` | MUST | 6.2 | -- | -- | {gap} parseSIDStructure never bounds Transposition Length against the 24-bit EVPN label field or the Function Length, and the EVPN encoder carries no SRv6 route-2/3/5 SID (internal/component/bgp/plugins/rib/pool/srv6sid.go:121) |
 
@@ -5081,8 +5083,8 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC9582-5.12-7` | MUST NOT | 5.12 | `internal/component/bgp/plugins/rpki/rtr_pdu_test.go:218` | `internal/component/bgp/plugins/rpki/rtr_pdu_test.go:353` |  |
 | `RFC9582-5.12-8` | SHOULD | 5.12 | -- | -- |  |
 | `RFC9582-5.12-9` | MAY | 5.12 | -- | -- |  |
-| `RFC9582-7-1` | MUST | 7 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:16` | -- | {single-polarity} ze constructs every session at rtrVersionMax and writes that version unconditionally into the initial query, so the emitted version byte is observable but there is no malformed input that yields a wrong-version query to test negatively |
-| `RFC9582-7-2` | MUST | 7 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:45` | `internal/component/bgp/plugins/rpki/rtr_session_test.go:59` |  |
+| `RFC9582-7-1` | MUST | 7 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:18` | -- | {single-polarity} ze constructs every session at rtrVersionMax and writes that version unconditionally into the initial query, so the emitted version byte is observable but there is no malformed input that yields a wrong-version query to test negatively |
+| `RFC9582-7-2` | MUST | 7 | `internal/component/bgp/plugins/rpki/rtr_session_test.go:47` | `internal/component/bgp/plugins/rpki/rtr_session_test.go:61` |  |
 | `RFC9582-7-3` | MUST | 7 | -- | -- | {not-applicable} this binds the RTR cache/server role; ze runs only an RTR client that dials out and reads error reports, with no listener and no error-report writer, so it never receives queries or sends error code 4 (internal/component/bgp/plugins/rpki/rtr_session.go:125) |
 | `RFC9582-7-4` | SHOULD | 7 | -- | -- |  |
 
