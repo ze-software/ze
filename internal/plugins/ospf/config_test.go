@@ -555,6 +555,7 @@ func TestKeyRolloverOverlapAccepted(t *testing.T) {
 		keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "a", SendLifetime: lifetimeConfig{Start: "2026-01-01T00:00:00Z", End: "2026-06-01T00:00:00Z"}},
 		keyConfig{KeyID: 2, Algorithm: "hmac-sha-256", Secret: "b", SendLifetime: lifetimeConfig{Start: "2026-05-01T00:00:00Z", End: "2026-12-01T00:00:00Z"}},
 	)
+	// RFC requirement: RFC5709-3.2-1 positive -- a rollover where the new key's send-start (2026-05-01) is at or before the old key's send-end (2026-06-01) has overlapping generate windows, so validation accepts it and signing coverage never lapses (validateKeyRollover config.go:1025-1036).
 	if err := validateConfig(cfg); err != nil {
 		t.Fatalf("overlapping send-lifetimes must validate, got %v", err)
 	}
@@ -567,6 +568,7 @@ func TestKeyRolloverGapRejected(t *testing.T) {
 		keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "a", SendLifetime: lifetimeConfig{Start: "2026-01-01T00:00:00Z", End: "2026-02-01T00:00:00Z"}},
 		keyConfig{KeyID: 2, Algorithm: "hmac-sha-256", Secret: "b", SendLifetime: lifetimeConfig{Start: "2026-03-01T00:00:00Z", End: "2026-04-01T00:00:00Z"}},
 	)
+	// RFC requirement: RFC5709-3.2-1 negative -- a rollover where the new key's send-start (2026-03-01) is AFTER the old key's send-end (2026-02-01) leaves a coverage gap and is rejected with ErrKeyRolloverGap, so a config that would drop signing coverage cannot commit (validateKeyRollover config.go:1032-1035).
 	if err := validateConfig(cfg); !errors.Is(err, ErrKeyRolloverGap) {
 		t.Fatalf("send-lifetime gap = %v, want ErrKeyRolloverGap", err)
 	}

@@ -56,23 +56,40 @@ func TestOSPFAuthSignVerifyCrypto(t *testing.T) {
 			af := signed[offAuth : offAuth+AuthFieldLen]
 			assert.Equal(t, []byte{0, 0}, af[0:2], "reserved")
 			assert.Equal(t, byte(7), af[2], "key id")
+			// RFC requirement: RFC5709-3.1-2 positive -- the Auth Data Length octet (auth field offset 3) equals the algorithm's hash length L (20/32/48/64), set across every HMAC-SHA algo (Sign auth_verify.go:177, asserted here).
 			assert.Equal(t, byte(authDigestLen(algo)), af[3], "auth data length = digest length")
+			// RFC requirement: RFC5709-3.1-3 positive -- the 32-bit Cryptographic Sequence Number 42 is written into auth field offset 4 and read back unchanged by Verify (seq==42 below), so the 32-bit sequence round-trips (Sign auth_verify.go:178, Verify :240).
 			assert.Equal(t, uint32(42), readUint32(af, 4), "crypto sequence")
 			// Checksum is zero (trap #10), Packet Length excludes the appended digest.
+			// RFC requirement: RFC5709-3.3-5 positive -- the OSPF header Checksum field is left zero for an AuType 2 signed packet so the digest can cover it (header.go:317-320); asserted at offChecksum here.
 			assert.Zero(t, readUint16(signed, offChecksum), "checksum zero for crypto auth")
+			// RFC requirement: RFC5709-3.1-4 positive -- the digest is appended AFTER the OSPF packet (a trailer): Packet Length stays plen (excludes the digest), never inside the 8-byte auth field (Sign auth_verify.go:180, asserted here).
 			assert.Equal(t, plen, int(readUint16(signed, offLength)), "Packet Length excludes the digest")
+			// RFC requirement: RFC5709-3.3-4 positive -- the Second-Hash (final HMAC output) is placed as the Authentication Data of length L in the trailer: len(signed)==plen+authDigestLen(algo) (Sign auth_verify.go:180, asserted here).
 			assert.Len(t, signed, plen+authDigestLen(algo), "digest appended after the body")
 
+			// RFC requirement: RFC5709-3-1 positive -- HMAC-SHA-256 (and the other HMAC-SHA algos) produce a digest the receiver verifies; the correct key verifies the signed packet (hmacDigest auth_verify.go:120-126, Verify :241-242).
+			// RFC requirement: RFC5709-3.3-1 positive -- the trailer is Apad-filled (0x878FE1F3 repeated L/4) before hashing on both sign and verify, so the Apad-consistent digest verifies (apad auth_verify.go:80-86, Sign :179, Verify :241).
+			// RFC requirement: RFC5709-3.3-2 positive -- Ko is derived to length L; the 28-byte secret drives the H(K) branch for L=16/20 and the zero-pad branch for L=32/48/64, and all verify (deriveKo auth_verify.go:106-117).
+			// RFC requirement: RFC5709-3.3-3 positive -- the HMAC First-Hash/Second-Hash (Ko XOR Ipad/Opad, crypto/hmac) is recomputed identically by the receiver, so the correct key verifies (hmacDigest auth_verify.go:120-126).
+			// RFC requirement: RFC5709-3.4-1 positive -- on receive Verify recomputes the digest over the packet with an Apad trailer and compares it to the saved wire digest; a correctly signed packet matches (Verify auth_verify.go:241-242).
+			// RFC requirement: RFC5709-3-5 positive -- each of the 5 supported algorithms is configured under Key ID 7 and signs/verifies, so any supported algorithm may be paired with a given Key ID (key built from algo above, Verify :241-242).
 			seq, ok := Verify(signed, AuTypeCryptographic, key, [4]byte{})
 			assert.True(t, ok, "correct key verifies")
 			assert.Equal(t, uint64(42), seq)
 
+			// RFC requirement: RFC5709-3-1 negative -- a wrong key yields a different HMAC-SHA digest, so Verify rejects the packet (Verify auth_verify.go:241-242).
+			// RFC requirement: RFC5709-3.3-2 negative -- a different secret derives a different Ko, so the recomputed digest differs and Verify rejects (deriveKo auth_verify.go:106-117, Verify :242).
+			// RFC requirement: RFC5709-3.3-3 negative -- a wrong key changes the HMAC (Ko XOR Ipad/Opad) input, so the Second-Hash differs and Verify rejects (hmacDigest auth_verify.go:120-126).
 			_, bad := Verify(signed, AuTypeCryptographic, AuthKey{KeyID: 7, Algorithm: algo, Secret: []byte("wrong key")}, [4]byte{})
 			assert.False(t, bad, "wrong key rejected")
 
 			// A flipped digest byte must fail (constant-time compare still rejects).
 			tampered := bytes.Clone(signed)
 			tampered[len(tampered)-1] ^= 0xff
+			// RFC requirement: RFC5709-3.3-1 negative -- a flipped trailer octet no longer matches the Apad-based recomputed digest, so Verify rejects (Verify auth_verify.go:241-242).
+			// RFC requirement: RFC5709-3.3-4 negative -- flipping a byte of the length-L Second-Hash trailer makes the constant-time compare fail, so corrupted Authentication Data is rejected (Verify auth_verify.go:242).
+			// RFC requirement: RFC5709-3.4-1 negative -- the receive-side recompute+compare rejects a packet whose saved wire digest was altered (the recompute no longer matches) (Verify auth_verify.go:242).
 			_, t2 := Verify(tampered, AuTypeCryptographic, key, [4]byte{})
 			assert.False(t, t2, "tampered digest rejected")
 		})
@@ -202,6 +219,8 @@ func TestOSPFAuthCryptoRejectsExtraTrailerBytes(t *testing.T) {
 		require.True(t, ok, "exact-length packet verifies")
 
 		// RFC requirement: RFC7474-2-1 negative -- the AuType 3 trailer is exactly the 8-octet sequence plus the digest; an extra byte after it breaks the strict framing (plen+8+l != len(wire)) and Verify rejects it, so the sequence octets are load-bearing (Verify auth_verify.go:252).
+		// RFC requirement: RFC5709-3.1-2 negative -- on the AuType 2 iteration, the trailer must be exactly Auth Data Len (L) octets; an extra byte makes plen+l != len(wire), so Verify's strict length guard rejects a wrong-length Authentication Data (Verify auth_verify.go:231).
+		// RFC requirement: RFC5709-3.1-4 negative -- on the AuType 2 iteration, the digest is a trailer of exactly L octets after the packet; any extra unauthenticated bytes appended after it are rejected rather than silently accepted (Verify auth_verify.go:231).
 		padded := append(bytes.Clone(signed), 0x00)
 		_, bad := Verify(padded, au, key, [4]byte{})
 		assert.False(t, bad, "extra byte after the digest trailer is rejected for AuType %d", au)
@@ -218,8 +237,10 @@ func TestOSPFAuthCryptoRejectsKeyIDMismatch(t *testing.T) {
 	a2 := helloWire(t, AuTypeCryptographic)
 	signedA2, err := Sign(a2, AuTypeCryptographic, AuthKey{KeyID: 7, Algorithm: AuthHMACSHA256, Secret: secret}, 1, [4]byte{})
 	require.NoError(t, err)
+	// RFC requirement: RFC5709-3.4-2 negative -- the AuType 2 key/algorithm is selected implicitly from the packet's Key ID; a verifier keyed to a non-matching Key ID must not verify even with the identical secret (Verify key-id guard auth_verify.go:237-239).
 	_, mismatch2 := Verify(signedA2, AuTypeCryptographic, AuthKey{KeyID: 8, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
 	assert.False(t, mismatch2, "AuType 2: a non-matching Key ID must not verify even with the right secret")
+	// RFC requirement: RFC5709-3.4-2 positive -- a verifier whose Key ID matches the packet's single-octet Key ID selects the right key/algorithm and verifies (Verify auth_verify.go:237-242).
 	_, match2 := Verify(signedA2, AuTypeCryptographic, AuthKey{KeyID: 7, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
 	assert.True(t, match2, "AuType 2: matching Key ID verifies")
 
@@ -304,4 +325,31 @@ func TestOSPFAuthType3RequiresProtocolIDSuffix(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := Verify(signed, AuTypeCryptographicESN, key, src)
 	require.True(t, ok, "the suffix-appending signer verifies, isolating the protocol ID as the cause")
+}
+
+// TestOSPFAuthCryptoChecksumOctetAuthenticated proves RFC 5709 §3.3 / RFC 2328 D.4.3: the
+// OSPF header Checksum field is set to 0 for an AuType 2 packet and is covered by the
+// digest (Sign hashes the full packet, including offset 12). A packet whose zeroed checksum
+// octet is mutated after signing therefore fails verification: Verify recomputes the digest
+// over wire[:plen] (offset 12 included) and the constant-time compare no longer matches. A
+// baseline verify of the untampered packet isolates the mutated checksum octet as the sole
+// cause of the reject.
+func TestOSPFAuthCryptoChecksumOctetAuthenticated(t *testing.T) {
+	key := AuthKey{KeyID: 7, Algorithm: AuthHMACSHA256, Secret: []byte("checksum-covered-by-digest")}
+	signed, err := Sign(helloWire(t, AuTypeCryptographic), AuTypeCryptographic, key, 9, [4]byte{})
+	require.NoError(t, err)
+	require.Zero(t, readUint16(signed, offChecksum), "checksum zeroed for AuType 2 before hashing")
+
+	// Baseline: the untampered zero-checksum packet verifies.
+	_, ok := Verify(signed, AuTypeCryptographic, key, [4]byte{})
+	require.True(t, ok, "the zero-checksum AuType 2 packet verifies")
+
+	// Flip one octet of the Checksum field (offset 12). The digest covers wire[:plen]
+	// including offset 12, so the recompute no longer matches and Verify must reject.
+	tampered := bytes.Clone(signed)
+	tampered[offChecksum] ^= 0xff
+	require.NotZero(t, readUint16(tampered, offChecksum), "the flip actually set a non-zero checksum octet")
+	// RFC requirement: RFC5709-3.3-5 negative -- the OSPF header Checksum is zeroed for AuType 2 and covered by the digest (Sign hashes the full packet incl. offset 12, auth_verify.go:179); mutating a checksum octet makes Verify's recompute over wire[:plen] mismatch and reject (auth_verify.go:241-242).
+	_, bad := Verify(tampered, AuTypeCryptographic, key, [4]byte{})
+	assert.False(t, bad, "a mutated checksum octet fails the AuType 2 digest")
 }

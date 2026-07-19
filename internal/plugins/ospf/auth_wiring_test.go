@@ -53,6 +53,7 @@ func TestEngineSignPacketCrypto(t *testing.T) {
 	eng.auth.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "k3y"}))
 
 	signed := eng.signPacket("eth0", encodeHello(t))
+	// RFC requirement: RFC5709-3.1-1 positive -- the engine sign hook rewrites an HMAC-SHA-authenticated packet's AuType to 2 (Cryptographic Authentication) on the wire (signPacket -> Sign; header AuType stamp header.go:190), asserted from the on-wire low octet here.
 	assert.Equal(t, packet.AuTypeCryptographic, packet.AuType(uint16(signed[14])<<8|uint16(signed[15])), "AuType rewritten to 2")
 	assert.Zero(t, uint16(signed[12])<<8|uint16(signed[13]), "crypto keeps the checksum zero (trap #10)")
 

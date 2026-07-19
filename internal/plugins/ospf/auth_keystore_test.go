@@ -65,6 +65,7 @@ func TestOSPFAuthStoreSignVerify(t *testing.T) {
 	plain := make([]byte, packet.CommonHeaderLen+24)
 	plain[0] = 2 // version
 	plain[1] = byte(packet.PacketTypeHello)
+	// RFC requirement: RFC5709-3.1-1 negative -- crypto auth requires AuType 2; a received packet whose AuType is not the configured cryptographic AuType is rejected as an autype-mismatch (authStore.verify auth_keystore.go:341-343).
 	_, autypeOK := s.verify("eth0", peer, [4]byte{}, plain)
 	assert.False(t, autypeOK, "AuType mismatch rejected")
 }
@@ -129,6 +130,7 @@ func TestOSPFAuthReplay(t *testing.T) {
 	require.True(t, ok2, "seq 11 (>10) accepted")
 	// RFC requirement: RFC7474-2-5 negative -- a sequence lower than the last accepted (5 < 11) is dropped as a replay (authStore.verify auth_keystore.go:357-359).
 	// RFC requirement: RFC7474-2-6 negative -- a same-type sequence at or below the per-type high-water mark is rejected, proving the mark actually gates packets of that type (authStore.verify auth_keystore.go:357-359).
+	// RFC requirement: RFC5709-3.1-3 negative -- the 32-bit Cryptographic Sequence Number is enforced per RFC 2328 App D on the AuType 2 path: a packet carrying a sequence at or below the last accepted (5 < 11, and the equal-11 case below) is dropped as a replay, so the sequence field is load-bearing anti-replay state (authStore.verify auth_keystore.go:357-359).
 	reason, replayOK := s.verify("eth0", peer, [4]byte{}, mk(5))
 	assert.False(t, replayOK, "seq 5 (< last accepted 11) rejected as replay")
 	assert.Equal(t, "replay", reason)
@@ -288,6 +290,7 @@ func TestSignKeyNoRevertWhenAllExpired(t *testing.T) {
 
 	k, au, _, _, ok := s.signKey("eth0")
 	require.True(t, ok, "an expired chain must still sign, not revert to AuType 0")
+	// RFC requirement: RFC5709-3.2-2 positive -- when every send-lifetime has expired the store keeps signing under the cryptographic AuType (selectSendKey returns the most-recently-starting key, signKey never yields AuTypeNull for a resolved chain), so it never reverts to an unauthenticated condition (selectSendKey auth_keystore.go:263-287).
 	assert.Equal(t, packet.AuTypeCryptographic, au)
 	assert.Equal(t, uint32(2), k.KeyID, "the most-recently-starting key is used after expiry")
 }
