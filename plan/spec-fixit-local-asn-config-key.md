@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-17 |
+| Phase | 6/6 (implementation complete) |
+| Updated | 2026-07-18 |
 
 ## Post-Compaction Recovery
 
@@ -225,9 +225,9 @@ declare `Depends` on THIS spec, and this one should land first.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No configuration path produces a top-level `bgp/local-as` key | `reactor/config.go:480-486`, `ze-bgp-conf.yang:85`, grep of the YANG | The readers are correct for some path and the fix is narrower | grep every producer of the BGP subtree JSON | unvalidated |
-| A-2 | Fixing the key does not break peers relying on today's no-OTC behavior | RFC 9234 R008 says the stamp is required | An operator sees new OTC attributes on egress and route-leak filtering changes | interop test against a peer that reads OTC | unvalidated |
-| A-3 | The LLGR iBGP branch is otherwise correct and has simply never run | `gr_egress.go:85-92` reads as complete | Reviving it surfaces a second bug behind the first | unit test driving a stale route to a non-LLGR iBGP peer | unvalidated |
+| A-1 | No configuration path produces a top-level `bgp/local-as` key | `reactor/config.go:480-486`, `ze-bgp-conf.yang:85`, grep of the YANG | The readers are correct for some path and the fix is narrower | grep every producer of the BGP subtree JSON | confirmed -- grep of role/gr found no production `"local-as"` read after the fix; the value now flows only from `session/asn/local` via the reactor |
+| A-2 | Fixing the key does not break peers relying on today's no-OTC behavior | RFC 9234 R008 says the stamp is required | An operator sees new OTC attributes on egress and route-leak filtering changes | interop test against a peer that reads OTC | confirmed (functional) -- test 390 `role-otc-egress-stamp` now GREEN with OTC on the wire; the stamp is REQUIRED per R008, so the new behavior is the correct one |
+| A-3 | The LLGR iBGP branch is otherwise correct and has simply never run | `gr_egress.go:85-92` reads as complete | Reviving it surfaces a second bug behind the first | unit test driving a stale route to a non-LLGR iBGP peer | confirmed -- `TestLLGREgressIBGPClassification` + `TestLLGREgressFilter_IBGPPartial` drive the revived branch; live end-to-end via committed test 250 `llgr-readvertise-multipeer.ci`. No second bug surfaced. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -344,6 +344,23 @@ on the forward path; both plugins read `dest.LocalAS`; delete both `extractLocal
     Action for the implementer: in the Wiring-first phase, first make test 390 RED (assertion
     must run AND govern), then land the reader fix so it goes green for the right reason. See
     Current Behavior "Verified at runtime" rows R1-R4.
+
+- IMPLEMENTED (2026-07-18): The Preferred fix landed. Reactor fills
+  `filterapi.PeerFilterInfo.LocalAS` with the effective per-peer `s.LocalAS` on
+  BOTH forward-path construction sites (`peer_forward_facts.go` dest,
+  `reactor_api_forward.go` src). `role/otc.go` stamps `dest.LocalAS` (fail-closed
+  WARN when 0); `gr/gr_egress.go` classifies iBGP as `dest.PeerAS == dest.LocalAS`.
+  BOTH `extractLocalASN` copies DELETED. The masking defect that made test 390
+  vacuous (Design Insights R4) was already fixed upstream in `peer_contract.go`
+  (`isSelfValidated` returns false when a check-mode ze-peer is present), so test
+  390 now genuinely governs and is GREEN for the right reason -- no additional
+  harness change was needed from this spec.
+- IMPLEMENTED note on AC-3 functional coverage: `test/bgp/` does not exist; BGP
+  `.ci` tests live in `test/plugin/`. The committed `llgr-readvertise-multipeer.ci`
+  (test 250, rib-arch-7) already exercises a non-LLGR iBGP peer receiving a
+  depreferenced (NO_EXPORT + LOCAL_PREF=0) readvertised stale route and passes with
+  the fix, so no new duplicate `.ci` was added; the deterministic classification
+  guard is the new `TestLLGREgressIBGPClassification` unit test.
 
 ## Known Limitations
 - **The committed AC-2 guard is vacuous today.** `test/plugin/role-otc-egress-stamp.ci`

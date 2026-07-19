@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 609 packages, 606 described, 3 TODO
+Total: 610 packages, 607 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -451,6 +451,7 @@ Total: 609 packages, 606 described, 3 TODO
 | `internal/core/probe` | holds the low-level ICMP echo and target-resolution helpers shared by the active-probe commands (ping, traceroute, probe-round, and the tcp-check resolver) |  |
 | `internal/core/procfs` | provides helpers for reading and decoding Linux /proc network state |  |
 | `internal/core/reboot` | provides platform-specific system reboot |  |
+| `internal/core/redact` | scrubs credential-bearing tokens from strings before they are logged |  |
 | `internal/core/redistevents` | owns the shared, value-typed payload that protocol route producers (L2TP, connected, future static/OSPF/ISIS) publish on the EventBus and the bgp-redistribute consumer subscribes to |  |
 | `internal/core/replay` | holds the ONE vocabulary every late-join replay hop shares: a value-typed request payload carrying an opaque correlation token, a reserved broadcast sentinel, and the token-derived "is this a... |  |
 | `internal/core/report` | is the single place where Ze subsystems push operator-visible warnings and errors |  |

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1169 summaries
+Total: 1173 summaries
 
 ## 000-099
 
@@ -1238,3 +1238,7 @@ Total: 1169 summaries
 | 1175 | ze-suffix-test-isolation | `plan/learned/1175-ze-suffix-test-isolation.md` |
 | 1176 | Durable-cache directory-tree writes must be atomic (stage + rename) | `plan/learned/1176-cache-tree-atomic-stage-rename.md` |
 | 1177 | feature-gate child 9: VRRP compile-out (ze_vrrp) | `plan/learned/1177-feature-gate-9-vrrp.md` |
+| 1178 | LDP Basic Discovery: dedicated Hello reader goroutine | `plan/learned/1178-ldp-hello-read-loop.md` |
+| 1179 | fixit-local-asn-config-key | `plan/learned/1179-fixit-local-asn-config-key.md` |
+| 1180 | RPKI Per-Peer Action | `plan/learned/1180-rpki-per-peer-action.md` |
+| 1181 | fixit-bcrypt-hash-credential (restrict + mask) | `plan/learned/1181-fixit-bcrypt-hash-credential.md` |

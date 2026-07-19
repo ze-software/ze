@@ -212,8 +212,12 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 		}
 		if len(a.r.egressFilters) > 0 {
 			info.filterInfo = filterapi.PeerFilterInfo{
-				Address:   s.Address,
-				PeerAS:    s.PeerAS,
+				Address: s.Address,
+				PeerAS:  s.PeerAS,
+				// Effective per-peer local AS, matching the forward-path src/dest
+				// filterInfo fills (reactor_api_forward.go, peer_forward_facts.go)
+				// so no egress filter ever reads a silent zero from src.LocalAS.
+				LocalAS:   s.LocalAS,
 				Name:      s.Name,
 				GroupName: s.GroupName,
 			}

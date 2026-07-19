@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 292 design docs, 2997 files
+Total: 294 design docs, 3003 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -125,6 +125,7 @@ Total: 292 design docs, 2997 files
 | `cmd/ze/hub/service_rest_test.go` | ze_rest-gated REST seam test |
 | `cmd/ze/hub/service_web.go` | compile-out-able web service |
 | `cmd/ze/hub/web_infra.go` | ze_web compile-out seam |
+| `scripts/codegen/feature_tags.go` | the three static consumers are GENERATED, not hand-maintained |
 
 ## `ai/rules/no-sprintf-alloc.md`
 
@@ -1988,6 +1989,10 @@ Total: 292 design docs, 2997 files
 
 - `cmd/ze/help_ai.go` -- AI help reference generator
 - `internal/component/mcp/tools.go` -- MCP tool auto-generation from command registry
+
+## `docs/guide/rpki.md`
+
+- `internal/component/bgp/plugins/rpki/rpki_status.go` -- `show bgp rpki status` action serialization (global + per-peer)
 
 ## `docs/research/bfd-implementation-guide.md`
 
@@ -3961,6 +3966,15 @@ Total: 292 design docs, 2997 files
 ## `plan/spec-fixit-appliance-evidence-config.md`
 
 - `cmd/ze/bootstrap_template_test.go` -- template becomes effective config
+
+## `plan/spec-fixit-bcrypt-hash-credential.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/cli/editor_mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/config/mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
+| `internal/core/redact/redact.go` | credential-token redaction for logs |
 
 ## `plan/spec-followup-l2tp-call.md`
 

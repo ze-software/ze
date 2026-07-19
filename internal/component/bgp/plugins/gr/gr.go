@@ -159,10 +159,8 @@ func RunGRPlugin(conn net.Conn) int {
 
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time
 	// and long-lived-stale-time, then set capabilities for Stage 3.
-	// Also captures local-as for the LLGR egress filter (IBGP detection).
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
-		var localAS uint32
 		for _, section := range sections {
 			if section.Root != "bgp" {
 				continue
@@ -170,18 +168,15 @@ func RunGRPlugin(conn net.Conn) int {
 			caps = append(caps, extractGRCapabilities(section.Data)...)
 			// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
 			caps = append(caps, extractLLGRCapabilities(section.Data)...)
-			// Extract local-as for LLGR egress filter IBGP detection.
-			if localAS == 0 {
-				localAS = extractLocalASN(section.Data)
-			}
 		}
 		p.SetCapabilities(caps)
 
-		// Initialize LLGR egress filter state with peerLLGRCaps and localAS.
+		// Initialize LLGR egress filter state with peerLLGRCaps. The local AS for
+		// iBGP detection is NOT captured here: the reactor hands the effective
+		// per-peer local AS via dest.LocalAS on the forward and readvertise rails.
 		// The filter reads this atomically; no lock needed for the pointer swap.
 		gp.mu.Lock()
 		s := &egressFilterState{
-			localAS:      localAS,
 			peerLLGRCaps: gp.peerLLGRCaps,
 		}
 		gp.mu.Unlock()

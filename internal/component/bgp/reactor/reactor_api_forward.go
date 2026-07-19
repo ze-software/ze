@@ -205,8 +205,12 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 			if len(a.r.egressFilters) > 0 {
 				srcInfo.filterInfo = filterapi.PeerFilterInfo{
-					Address:   s.Address,
-					PeerAS:    s.PeerAS,
+					Address: s.Address,
+					PeerAS:  s.PeerAS,
+					// Effective per-peer local AS, mirroring the dest filterInfo
+					// (peer_forward_facts.go). Kept in sync so no egress filter
+					// ever reads a silent zero from src.LocalAS.
+					LocalAS:   s.LocalAS,
 					Name:      s.Name,
 					GroupName: s.GroupName,
 				}

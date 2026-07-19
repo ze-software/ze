@@ -138,6 +138,11 @@ func TestForwardFactsSendCtxID(t *testing.T) {
 	assert.True(t, facts.sendASN4)
 }
 
+// TestForwardFactsFilterInfo is the reactor-side wiring proof for
+// plan/spec-fixit-local-asn-config-key.md AC-1: the forward-path PeerFilterInfo
+// carries the effective per-peer local AS, so egress filters (role/OTC,
+// gr/LLGR) read dest.LocalAS instead of re-parsing raw config JSON. Before the
+// fix this field was omitted and defaulted to 0.
 func TestForwardFactsFilterInfo(t *testing.T) {
 	peer := NewPeer(&PeerSettings{
 		Address:   netip.MustParseAddr("10.0.0.1"),
@@ -153,9 +158,30 @@ func TestForwardFactsFilterInfo(t *testing.T) {
 	assert.Equal(t, filterapi.PeerFilterInfo{
 		Address:   netip.MustParseAddr("10.0.0.1"),
 		PeerAS:    65001,
+		LocalAS:   65000,
 		Name:      "test-peer",
 		GroupName: "test-group",
 	}, facts.filterInfo)
+}
+
+// TestForwardFactsFilterInfoLocalASOverride proves the forward-path LocalAS is
+// the EFFECTIVE per-peer value (session/asn/local override), not the router's
+// global AS. This is why the chosen fix reads dest.LocalAS rather than a single
+// captured global local-as: iBGP detection (RFC 9494 4.5.3) and OTC stamping
+// (RFC 9234 R008) must honor a per-peer override.
+func TestForwardFactsFilterInfoLocalASOverride(t *testing.T) {
+	peer := NewPeer(&PeerSettings{
+		Address:       netip.MustParseAddr("10.0.0.1"),
+		LocalAS:       65010, // effective per-peer override
+		GlobalLocalAS: 65000, // router global
+		PeerAS:        65001,
+	})
+	peer.refreshForwardFacts()
+
+	facts := peer.forwardFacts()
+	require.NotNil(t, facts)
+	assert.Equal(t, uint32(65010), facts.filterInfo.LocalAS,
+		"forward-path LocalAS must be the effective per-peer local AS, not the global")
 }
 
 func TestPrecomputeNextHop(t *testing.T) {

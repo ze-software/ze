@@ -121,8 +121,16 @@ func (p *Peer) refreshForwardFacts() {
 		maxMsgSize:  int(message.MaxMessageLength(message.TypeUPDATE, extendedMsg)),
 
 		filterInfo: filterapi.PeerFilterInfo{
-			Address:   s.Address,
-			PeerAS:    s.PeerAS,
+			Address: s.Address,
+			PeerAS:  s.PeerAS,
+			// LocalAS is the effective per-peer local AS (per-peer local-as
+			// override when set, otherwise the global local-as). Filling it here
+			// lets egress filters read dest.LocalAS instead of re-parsing the raw
+			// config JSON: role/OTC stamps it (RFC 9234 R008) and gr/LLGR uses it
+			// for iBGP detection (RFC 9494 Section 4.5.3). The readvertise rail
+			// already fills the same field from peer.Settings().LocalAS
+			// (reactor_api_batch.go), so both egress rails agree.
+			LocalAS:   s.LocalAS,
 			Name:      s.Name,
 			GroupName: s.GroupName,
 		},

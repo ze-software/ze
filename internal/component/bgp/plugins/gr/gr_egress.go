@@ -30,8 +30,12 @@ var localPrefZero [4]byte // zero-value is correct: 0x00000000
 
 // egressFilterState holds the shared state read by LLGREgressFilter.
 // Set atomically by RunGRPlugin; read by the egress filter on the hot path.
+//
+// The local AS for iBGP detection is NOT stored here: the reactor supplies the
+// effective per-peer local AS per destination via filterapi.PeerFilterInfo.LocalAS
+// (dest.LocalAS), which correctly honors a per-peer local-as override where a
+// single captured global value would not.
 type egressFilterState struct {
-	localAS         uint32
 	peerLLGRCaps    map[string]*llgrPeerCap // peerAddr -> LLGR capability (read under mu in grPlugin)
 	llgrActiveCount atomic.Int32            // number of peers currently in LLGR state
 }
@@ -80,7 +84,10 @@ func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta m
 	}
 
 	// Destination peer does NOT have LLGR capability.
-	isIBGP := dest.PeerAS == s.localAS
+	// RFC 9494 Section 4.5.3: iBGP is dest.PeerAS == our local AS for this session.
+	// The reactor supplies the effective per-peer local AS in dest.LocalAS
+	// (peer_forward_facts.go / reactor_api_batch.go readvertise rail).
+	isIBGP := dest.PeerAS == dest.LocalAS
 
 	if isIBGP {
 		// RFC 9494 Section 4.5.3: Partial deployment (IBGP).
