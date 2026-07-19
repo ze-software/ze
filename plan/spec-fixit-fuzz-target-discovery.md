@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -169,6 +169,29 @@ Test infrastructure only; no user-facing features. The discovery-driven gate is 
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary seeds (zero-length, truncated, oversized) present in the covered corpora
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Verdict | clean (0 BLOCKER, 0 ISSUE) |
+| Reviewers | 2 independent subagents (correctness + make/build-tag) |
+| Artifact | `tmp/review/fixit-fuzz-target-discovery-58c51aab-79d8-400d-b779-2c0cf322a274.md` |
+| Date | 2026-07-19 |
+
+Both reviewers verified independently against the live tree:
+- Coverage: all 72 `func Fuzz` discovered, exact single-package paths (no `/...`), all 10 ISIS/OSPF present; committed fragment == generator output (`--check` exit 0).
+- Anchoring: every target emits `-fuzz=^<Name>$` (make `$$`→`$`); prefix-colliders (VPN/FlowSpec/BGPLS families) safe.
+- Behavior preserved: no OLD target dropped vs `HEAD:mk/test-fuzz.mk`; exactly +10 ISIS/OSPF. `ze-fuzz-one` unchanged.
+- Make: `include` path correct, recipes TAB-indented, `.PHONY` still applies; ISIS/OSPF/VRRP packages compile+list under `GO_TEST_TAGS`.
+- Freshness gates: `ze-fuzz-targets-check` + `ze-regen-check` git-diff both catch drift; stale message exact.
+- `is_fuzz_source` routing correct, no over-routing; docs area counts sum to 72.
+
+Two NITs (neither a defect, both addressed or accepted):
+- `is_fuzz_source` substring-matches `func Fuzz` (can only over-route → safe by design; accepted as the conservative choice).
+- Negative routing test strengthened to exercise a real `internal/` non-fuzz `_test.go` (`internal/core/clock/clock_test.go`), not just the prefix guard.
+
+**AC status:** AC-1 (72 incl. 10 ISIS/OSPF), AC-2 (anchored), AC-3 (exact path), AC-4 (auto-include, tested), AC-5 (10s/60s budget kept + docs 57→72), AC-6 (`ze-fuzz-targets-check` stale/fresh) all implemented and tested. NOT run (parked constraint): the bounded `make ze-fuzz-test` mutation pass + R-1 triage — deferred to CI/drain.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Verified: `mk/test-fuzz.mk` has 0 ISIS/OSPF references; 69 distinct `func Fuzz` names across 26 packages vs ~60 enumerated; `internal/plugins/{isis,ospf}/yang` exist (the `/...` hazard). Siblings `spec-fixit-parser-fuzz-gaps` and `spec-improve-8-fuzz-decode-context` add coverage; this spec fixes enumeration so written fuzzers actually run.

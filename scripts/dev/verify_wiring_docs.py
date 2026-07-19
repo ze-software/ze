@@ -37,6 +37,7 @@ TARGET_ORDER = (
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
+    "ze-fuzz-targets-check",
 )
 
 MAKE_TARGETS = {
@@ -49,6 +50,7 @@ MAKE_TARGETS = {
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
+    "ze-fuzz-targets-check",
 }
 
 # Reviewed exceptions for exported symbols that are deliberately API surface.
@@ -391,7 +393,33 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("ze-inventory-json")
             selected.add("ze-command-list-json")
             selected.add("ze-plugin-imports-check")
+        if is_fuzz_source(root, path):
+            selected.add("ze-fuzz-targets-check")
     return [target for target in TARGET_ORDER if target in selected]
+
+
+def is_fuzz_source(root: Path, path: str) -> bool:
+    """Changed files that must re-run the fuzz-target enumeration freshness gate.
+
+    The source of truth for mk/test-fuzz-targets.mk is "an internal/ package has
+    a `func Fuzz`", so any test file that adds/removes one, plus the generator
+    and the fuzz makefiles themselves, must re-check the committed fragment. A
+    _test.go we cannot read (e.g. a deletion in a changed-file list) is routed
+    conservatively so a removed target still fails a stale fragment.
+    """
+    if path in {
+        "mk/test-fuzz.mk",
+        "mk/test-fuzz-targets.mk",
+        "scripts/dev/fuzz-targets.py",
+    }:
+        return True
+    if not (path.startswith("internal/") and path.endswith("_test.go")):
+        return False
+    try:
+        text = (root / path).read_text(encoding="utf-8")
+    except OSError:
+        return True  # unreadable (deleted): route the check to be safe
+    return "func Fuzz" in text
 
 
 def is_wiring_source(path: str) -> bool:

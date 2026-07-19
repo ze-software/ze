@@ -28,6 +28,32 @@ func TestVerifyWiringDocsRoutesAnchoredDocChanges(t *testing.T) {
 	mustContain(t, out, "ze-doc-check-stale")
 }
 
+// VALIDATES: Changing a test file that declares a `func Fuzz` schedules the
+// fuzz-target enumeration freshness gate, so a new/removed fuzzer cannot leave
+// mk/test-fuzz-targets.mk stale.
+// PREVENTS: a fuzz target being added to source but never reaching the runner.
+func TestVerifyWiringDocsRoutesFuzzTargetChanges(t *testing.T) {
+	out := runVerifyWiringDocsDryRun(t, "internal/plugins/isis/packet/fuzz_test.go")
+	mustContain(t, out, "ze-fuzz-targets-check")
+
+	// The generated fragment and its generator route the gate too.
+	out = runVerifyWiringDocsDryRun(t, "mk/test-fuzz-targets.mk")
+	mustContain(t, out, "ze-fuzz-targets-check")
+
+	// A real internal/ test file that declares no `func Fuzz` must NOT route the
+	// gate -- exercises the read-and-reject branch, not just the prefix guard.
+	out = runVerifyWiringDocsDryRun(t, "internal/core/clock/clock_test.go")
+	if strings.Contains(out, "ze-fuzz-targets-check") {
+		t.Fatalf("internal non-fuzz test file routed the fuzz gate:\n%s", out)
+	}
+
+	// A non-internal test path is rejected at the prefix guard, before any read.
+	out = runVerifyWiringDocsDryRun(t, "scripts/dev/does-not-declare-fuzz_test.go")
+	if strings.Contains(out, "ze-fuzz-targets-check") {
+		t.Fatalf("non-fuzz path routed the fuzz gate:\n%s", out)
+	}
+}
+
 // VALIDATES: Changing plugin registration schedules registry-backed inventory checks.
 // PREVENTS: plugin/all.go and command inventory drift staying outside ze-verify.
 func TestVerifyWiringDocsRoutesPluginRegistrationChanges(t *testing.T) {

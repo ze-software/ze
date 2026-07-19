@@ -6,7 +6,7 @@
 .PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
-.PHONY: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check
+.PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -93,6 +93,7 @@ include mk/test-chaos.mk
 include mk/test-integration.mk
 include mk/test-release.mk
 include mk/perf.mk
+include mk/alloc-gate.mk
 include mk/inventory.mk
 include mk/gokrazy.mk
 include mk/test-mutation.mk
@@ -107,9 +108,13 @@ generate:
 	@go run scripts/codegen/yang_glue.go
 	@go run scripts/codegen/plugin_imports.go
 	@go run scripts/codegen/feature_tags.go
+	@python3 scripts/dev/fuzz-targets.py
 
 ze-plugin-imports-check:
 	@go run scripts/codegen/plugin_imports.go --check
+
+ze-fuzz-targets-check:
+	@python3 scripts/dev/fuzz-targets.py --check
 
 ze-yang-glue-check:
 	@go run scripts/codegen/yang_glue.go --check
@@ -448,9 +453,9 @@ ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-
 	@echo "All generated files updated"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
