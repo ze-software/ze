@@ -26,6 +26,8 @@ func TestInterAsTERemoteAsTLV(t *testing.T) {
 	if body[4] != 0x00 || body[5] != byte(TESubRemoteAS) {
 		t.Fatalf("first sub-TLV type = %d%d, want 21", body[4], body[5])
 	}
+	// RFC requirement: RFC5392-3.3.1-1 positive -- a 2-byte ASN is zero-extended into the 4-octet
+	// Remote AS Number field: the high two octets are zero (big-endian uint32 encode) (§3.3.1).
 	if body[8] != 0x00 || body[9] != 0x00 {
 		t.Fatalf("2-byte ASN not zero-extended: high octets %#x %#x", body[8], body[9])
 	}
@@ -86,11 +88,18 @@ func TestInterAsTEIPv6AsbrIdType24(t *testing.T) {
 		t.Fatalf("IPv6 remote ASBR ID = %v/%v", got.Link.HasRemoteASBRv6, got.Link.RemoteASBRv6)
 	}
 	// Confirm the sub-TLV type on the wire is 24, never 23, and Length is 16.
+	// RFC requirement: RFC5392-3.3.2-2 positive -- for a v4-less inter-AS link (only an IPv6
+	// Remote ASBR ID present, no IPv4 one) origination emits the IPv6 Remote ASBR ID sub-TLV
+	// (type 24, 16 octets), never the editorial-slip type 23 (§3.3.2, §3.3.3).
 	sawV6 := false
+	sawV4 := false
 	it := newOpaqueTLVIterator(decodeLinkValueForTest(t, body))
 	for it.Next() {
 		if it.Type() == 23 {
 			t.Fatalf("emitted the editorial-slip type 23 for the IPv6 Remote ASBR ID")
+		}
+		if it.Type() == TESubIPv4RemoteASBRID {
+			sawV4 = true
 		}
 		if it.Type() == 24 {
 			sawV6 = true
@@ -101,6 +110,9 @@ func TestInterAsTEIPv6AsbrIdType24(t *testing.T) {
 	}
 	if it.Err() != nil {
 		t.Fatalf("sub-TLV walk: %v", it.Err())
+	}
+	if sawV4 {
+		t.Fatalf("v4-less inter-AS link emitted an IPv4 Remote ASBR ID sub-TLV (22)")
 	}
 	if !sawV6 {
 		t.Fatalf("IPv6 Remote ASBR ID sub-TLV (24) not present on the wire")

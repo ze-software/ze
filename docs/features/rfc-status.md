@@ -136,7 +136,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 | RFC 4552 | OSPFv3 IPsec authentication | Experimental | Manual AH/ESP IPsec config for OSPFv3 IPv6 interfaces, XFRM readiness check, SA and policy lifecycle. | Manual keying only; feature remains under OSPF experimental status. |
 | RFC 5250 | OSPFv2 opaque LSAs | Experimental | Opaque LSA framework and retention. | Same OSPF experimental status. |
 | RFC 3630 | OSPFv2 Traffic Engineering LSA | Experimental | TE LSA body and sub-TLV support. | Same OSPF experimental status. |
-| RFC 5392 | OSPF inter-AS TE extensions | Experimental | Inter-AS TE sub-TLV support. | Same OSPF experimental status. |
+| RFC 5392 | OSPF inter-AS TE (OSPFv2) | Experimental | OSPFv2 Inter-AS-TE-v2 (Opaque type 6): Remote-AS (21), IPv4/IPv6 Remote-ASBR-ID (22/24) sub-TLVs; Link-ID prohibition and Remote-AS requirement enforced on originate and receive; MinLSInterval-paced proxy origination with no adjacency or Hellos. | Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemented, so the U-bit=1 rule (RFC5392-3.1.2-1), the v3 Neighbor-ID prohibition (RFC5392-3.2.1-2), and the v3 IPv6/IPv4 Remote-ASBR-ID inclusion rules (RFC5392-3.3.3-1, RFC5392-3.3.3-2) have no v3 carrier to bind. |
 | RFC 7770 | OSPF Router Information LSA | Experimental | Router Information LSA body and multi-instance ordering. | Same OSPF experimental status. |
 | RFC 7684 | OSPF Extended Prefix and Link LSAs | Experimental | Extended Prefix and Extended Link LSA bodies and malformed TLV handling. | Same OSPF experimental status. |
 | RFC 3623 | OSPFv2 Graceful Restart | Experimental | Restarter and helper behavior. | Same OSPF experimental status. |

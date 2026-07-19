@@ -54,9 +54,15 @@ func TestRICapabilityBitsFromState(t *testing.T) {
 	}
 	// The encoded word sets bit 1 (GR-helper) and bit 2 (stub-router), clears bit 3 (TE).
 	field := caps.infoField()
+	// RFC requirement: RFC7770-2.4-2 negative -- an unconfigured capability (no TE anywhere in
+	// this config) leaves its Informational Capabilities bit clear in the encoded word, so the
+	// advertisement cannot over-claim a capability the router lacks (§2.4).
 	if field&packet.RIInfoBitMask(packet.RIInfoBitTrafficEngineering) != 0 {
 		t.Errorf("TE bit set in encoded field %#08x", field)
 	}
+	// RFC requirement: RFC7770-2.4-2 positive -- a configured capability (stub-router derived
+	// from the max-metric config) sets its Informational Capabilities bit in the encoded word, so
+	// the TLV accurately reflects the router's actual capabilities (§2.4).
 	if field&packet.RIInfoBitMask(packet.RIInfoBitStubRouter) == 0 {
 		t.Errorf("stub-router bit clear in encoded field %#08x", field)
 	}
@@ -70,6 +76,9 @@ func TestRICapabilityTEBitFromConfig(t *testing.T) {
 		`"router-information":{"enabled":true},`+
 		`"areas":{"area":{"0":{"area-id":"0"}}},`+
 		`"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0","traffic-engineering":{"enable":true}}}}}}`)
+	// RFC requirement: RFC7770-2.4-2 positive -- a configured capability (an interface
+	// traffic-engineering block) is accurately reflected as the RFC 3630 TE Informational
+	// Capability, deriving from live config rather than a static flag (§2.4).
 	if !eng.deriveRICapabilities().TE {
 		t.Fatalf("TE bit not set with an interface traffic-engineering block")
 	}
@@ -112,8 +121,46 @@ func TestRITLVType1First(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode RI body: %v", err)
 	}
+	// RFC requirement: RFC7770-2.4-1 positive -- the type-1 Informational Capabilities TLV is the
+	// FIRST TLV in Instance 0 of the RI LSA, even with a registered downstream TLV present, so a
+	// receiver always finds the capability word at the canonical position (§2.4).
 	if len(decoded) == 0 || decoded[0].Type != packet.RITLVInformationalCapabilities {
 		t.Fatalf("first TLV type = %v, want 1 (Informational Capabilities)", decoded)
+	}
+}
+
+func TestRIFunctionalCapabilitiesEmittedZero(t *testing.T) {
+	resetRITLVs()
+	t.Cleanup(resetRITLVs)
+	// Ze supports no functional capabilities, so the Router Functional Capabilities TLV (type 2)
+	// it originates carries the constant all-zero value ("no functional capability supported").
+	eng, router := newRedistEngine(t, riCfg(true, "area"))
+	decoded, err := packet.DecodeRITLVStream(eng.buildRIInstances(OpaqueScopeArea, router)[0])
+	if err != nil {
+		t.Fatalf("decode RI body: %v", err)
+	}
+	var fn *packet.RITLV
+	for i := range decoded {
+		if decoded[i].Type == packet.RITLVFunctionalCapabilities {
+			fn = &decoded[i]
+		}
+	}
+	if fn == nil {
+		t.Fatalf("no Functional Capabilities (type-2) TLV emitted in Instance 0")
+	}
+	if len(fn.Value) != packet.RICapabilitiesMinLen {
+		t.Fatalf("functional capabilities value len = %d, want %d", len(fn.Value), packet.RICapabilitiesMinLen)
+	}
+	// RFC requirement: RFC7770-2.6-2 positive -- the originated Functional Capabilities TLV value
+	// is the constant all-zero 4-octet word, so it reflects the router's actual (empty) functional
+	// capability set rather than advertising an unsupported capability (§2.6).
+	for i, b := range fn.Value {
+		if b != 0 {
+			t.Fatalf("functional capabilities value byte %d = %#x, want 0 (no functional capability supported)", i, b)
+		}
+	}
+	if got := packet.RIReadCapabilities(fn.Value); got != 0 {
+		t.Fatalf("functional capabilities word = %#08x, want 0", got)
 	}
 }
 

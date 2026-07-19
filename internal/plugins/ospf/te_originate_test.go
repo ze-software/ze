@@ -242,12 +242,49 @@ func TestInterAsTEOriginateScopePolicy(t *testing.T) {
 				t.Fatalf("inter-AS scope = %v, want %v", link.Scope, tc.want)
 			}
 			l := decodeOrigTELSA(t, *link).Link
+			// RFC requirement: RFC5392-3.2.1-1 positive -- the OSPFv2 inter-AS origination never
+			// sets HasLinkID, so it never emits the prohibited Link ID sub-TLV (type 2) (§3.2.1).
 			if l.HasLinkID {
 				t.Fatalf("inter-AS Link TLV must omit the Link ID sub-TLV (RFC 5392 sec 3.2.1)")
 			}
+			// RFC requirement: RFC5392-3.2.1-4 positive -- origination always emits the REQUIRED
+			// Remote AS Number sub-TLV (21) for an inter-AS TE link (§3.2.1, §3.3.1).
+			// RFC requirement: RFC5392-3.3.2-1 positive -- origination emits the IPv4 Remote ASBR
+			// ID sub-TLV (22) when remote-asbr-ipv4 is configured on the inter-AS link (§3.3.2).
 			if !l.HasRemoteAS || l.RemoteAS != 65001 || !l.HasRemoteASBRv4 {
 				t.Fatalf("inter-AS Link missing remote AS / ASBR: %+v", l)
 			}
 		})
+	}
+}
+
+func TestInterASTEOriginatesWithoutNeighbor(t *testing.T) {
+	// RFC 5392 sec 4: an inter-AS TE link carries no OSPF adjacency and exchanges no Hello; the
+	// ASBR proxies the advertisement purely from config. Drive origination with an EMPTY live
+	// topology (no interfaces, no neighbors, no FSM state) and assert the inter-AS Link LSA is
+	// still originated from config alone.
+	const cfg = `{"ospf":{"router-id":"1.1.1.1","router-address":"9.9.9.9","opaque":true,
+	  "areas":{"area":{"0":{"area-id":"0"}}},
+	  "interfaces":{"interface":{"eth0":{"name":"eth0","area":"0","network-type":"point-to-point",
+	    "traffic-engineering":{"enable":true,"inter-as":{"remote-as":"65001","remote-asbr-ipv4":"203.0.113.9"}}}}}}}`
+	eng := teEngineWithTopology(t, cfg, nil)
+	out := eng.teOriginateType6(types.RouterID{1, 1, 1, 1})
+	var link *opaqueOrigination
+	for i := range out {
+		if !out[i].Withdraw {
+			link = &out[i]
+		}
+	}
+	// RFC requirement: RFC5392-4-1 positive -- inter-AS TE origination proceeds from config with
+	// no neighbor in the topology, so the inter-AS link forms no adjacency and exchanges no Hello
+	// (config-only proxy: teOriginateType6 / buildInterASTELink require no neighbor) (§4).
+	// RFC requirement: RFC5392-4-2 positive -- the inter-AS advertisement is produced purely from
+	// config with no FSM/adjacency: the LSA originates even though no interface is up (§4).
+	if link == nil {
+		t.Fatalf("inter-AS Link LSA not originated from config alone (no neighbor / no adjacency)")
+	}
+	l := decodeOrigTELSA(t, *link).Link
+	if !l.HasRemoteAS || l.RemoteAS != 65001 {
+		t.Fatalf("config-only inter-AS origination missing Remote AS: %+v", l)
 	}
 }

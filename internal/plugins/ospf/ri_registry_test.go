@@ -48,6 +48,8 @@ func TestRITLVRegistered(t *testing.T) {
 	}
 	got := riTLVTypes(t, bodies[0])
 	// type-1 first (sec 2.4), then type-2 functional carrier, then the registered type-8.
+	// RFC requirement: RFC7770-2.6-1 positive -- the type-2 Functional Capabilities TLV is carried
+	// in the first instance (Instance 0) of the RI LSA, immediately after the type-1 TLV (§2.6).
 	want := []uint16{packet.RITLVInformationalCapabilities, packet.RITLVFunctionalCapabilities, 8}
 	if len(got) != len(want) {
 		t.Fatalf("TLV types = %v, want %v", got, want)

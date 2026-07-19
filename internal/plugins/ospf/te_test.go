@@ -49,10 +49,32 @@ func TestTEReceiveMalformedNoEntry(t *testing.T) {
 		t.Fatalf("type-1 link without Link ID stored, want skipped")
 	}
 	// A type-6 Link TLV carrying the prohibited Link ID sub-TLV is skipped (RFC 5392 sec 3.2.1).
+	// RFC requirement: RFC5392-3.2.1-1 negative -- reception rejects a type-6 inter-AS Link TLV
+	// that carries the prohibited Link ID sub-TLV; it is parsed but produces no TED entry (§3.2.1).
 	withLinkID := packet.TELSA{IsLink: true, Link: packet.TELink{HasLinkType: true, LinkType: packet.TELinkTypePointToPoint, HasLinkID: true, LinkID: [4]byte{2, 2, 2, 2}, HasRemoteAS: true, RemoteAS: 65001, HasRemoteASBRv4: true, RemoteASBRv4: [4]byte{203, 0, 113, 9}}}.Encode()
 	eng.teOnReceive(teReceived(OpaqueScopeArea, packet.InterAsTEOpaqueType, 3, adv, withLinkID, true, false))
 	if n := len(eng.ted.Snapshot().Links); n != 0 {
 		t.Fatalf("type-6 link with prohibited Link ID stored, want skipped")
+	}
+}
+
+func TestTEReceiveType6MissingRemoteASSkipped(t *testing.T) {
+	// RFC 5392 sec 3.2.1/3.3.1: the Remote AS Number sub-TLV (21) is REQUIRED in a type-6
+	// inter-AS Link TLV. A received type-6 Link TLV that lacks it is a spec violation: parsed,
+	// counted, and skipped, leaving no TED entry (validateReceivedTELink).
+	eng, _ := newRedistEngine(t, teCfgJSON)
+	adv := mustRouterID(t, "2.2.2.2")
+	// A well-formed type-6 Link TLV with a Link Type and an IPv4 remote ASBR ID but NO Remote AS
+	// Number sub-TLV.
+	noRemoteAS := packet.TELSA{IsLink: true, Link: packet.TELink{
+		HasLinkType: true, LinkType: packet.TELinkTypePointToPoint,
+		HasRemoteASBRv4: true, RemoteASBRv4: [4]byte{203, 0, 113, 9},
+	}}.Encode()
+	// RFC requirement: RFC5392-3.2.1-4 negative -- reception rejects a type-6 inter-AS Link TLV
+	// that lacks the REQUIRED Remote AS Number sub-TLV; the guard produces no TED entry (§3.2.1).
+	eng.teOnReceive(teReceived(OpaqueScopeArea, packet.InterAsTEOpaqueType, 7, adv, noRemoteAS, true, false))
+	if n := len(eng.ted.Snapshot().Links); n != 0 {
+		t.Fatalf("type-6 inter-AS link without the Remote AS sub-TLV stored, want skipped (RFC 5392 sec 3.2.1)")
 	}
 }
 

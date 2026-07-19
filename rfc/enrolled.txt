@@ -118,3 +118,5 @@ rfc5575	BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capabi
 rfc9086	BGP-LS Egress Peer Engineering SIDs: 2 single-polarity positive (reserved ignored on receipt) + 10 gap (EPE SID origination not implemented; decode only)
 rfc9085	BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Label 20-bit mask, reserved + undefined flags ignored on receipt) + 9 gap (SR-SID origination/encode not implemented; decode only)
 rfc2759	MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN-strip, UTF-16LE hash) + 3 single-polarity positive (uppercase S=, 16-octet random challenges) + 3 gap (no MS-CHAPv2 Failure/C= packet, peer skips authenticator-response check, no E=691)
+rfc7770	OSPF Router Information LSA (RFC 7770): 1 MET (capabilities reflect config) + 3 single-polarity positive (TLV ordering, functional-cap zero) + 7 not-applicable (IETF document-author / IANA-process obligations)
+rfc5392	OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6; 3 MET (Remote-AS required, Link-ID prohibited, re-advert rate-limit) + 5 single-polarity positive + 4 gap (OSPFv3 Inter-AS-TE-v3 function code 13 unimplemented)

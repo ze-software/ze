@@ -113,6 +113,52 @@ func TestOpaqueOriginateIdempotent(t *testing.T) {
 	}
 }
 
+func TestInterASTEReAdvertiseRateLimited(t *testing.T) {
+	// RFC 5392 sec 4: on a TE parameter change the ASBR re-advertises the inter-AS TE link but
+	// MUST take precautions against excessive re-advertisement per RFC 3630 sec 3. Origination of
+	// a Type-6 inter-AS TE LSA reuses the same RFC 2328 sec 9.5 MinLSInterval rate-limit as any
+	// self-originated opaque LSA (OriginateOpaque -> nextOwnSequenceForce).
+	db, tx, clock := opaqueOriginateDB(t)
+	a0 := area("0.0.0.0")
+	interAS := func(metric uint32) []byte {
+		return packet.TELSA{IsLink: true, Link: packet.TELink{
+			HasLinkType: true, LinkType: packet.TELinkTypePointToPoint,
+			HasRemoteAS: true, RemoteAS: 65001,
+			HasRemoteASBRv4: true, RemoteASBRv4: [4]byte{203, 0, 113, 9},
+			HasTEMetric: true, TEMetric: metric,
+		}}.Encode()
+	}
+	in := OpaqueOriginateInput{
+		Router: rid("1.1.1.1"), OpaqueType: packet.InterAsTEOpaqueType, OpaqueID: 0x06,
+		Scope: types.LSTypeOpaqueArea, Area: a0, Options: types.OptionO, Body: interAS(10),
+	}
+	h1, ok := db.OriginateOpaque(in)
+	if !ok {
+		t.Fatalf("first inter-AS TE origination failed")
+	}
+	firstSends := lsUpdateSends(tx)
+	// A CHANGED body (new TE metric) within MinLSInterval is rate-limited: no new sequence and
+	// nothing reflooded.
+	in.Body = interAS(20)
+	// RFC requirement: RFC5392-4-3 positive -- re-advertising the inter-AS TE LSA within
+	// MinLSInterval is suppressed, the excessive-re-advertisement precaution required by §4.
+	if h2, ok := db.OriginateOpaque(in); ok || h2.Sequence != h1.Sequence {
+		t.Fatalf("re-advertisement within MinLSInterval not rate-limited: ok=%v seq %v->%v", ok, h1.Sequence, h2.Sequence)
+	}
+	if lsUpdateSends(tx) != firstSends {
+		t.Fatalf("rate-limited re-advertisement still reflooded: %d -> %d", firstSends, lsUpdateSends(tx))
+	}
+	// After MinLSInterval elapses the same changed body IS re-advertised with a higher sequence.
+	clock.Add(5 * time.Second)
+	// RFC requirement: RFC5392-4-3 negative -- once MinLSInterval has elapsed the changed inter-AS
+	// TE LSA is re-advertised with the next sequence, so the precaution throttles but never
+	// permanently blocks a genuine parameter-change re-advertisement (§4).
+	h3, ok := db.OriginateOpaque(in)
+	if !ok || h3.Sequence != h1.Sequence.Next() {
+		t.Fatalf("re-advertisement after MinLSInterval not permitted: ok=%v seq %v->%v", ok, h1.Sequence, h3.Sequence)
+	}
+}
+
 func TestOpaqueWithdrawFlushes(t *testing.T) {
 	db, tx, clock := opaqueOriginateDB(t)
 	a0 := area("0.0.0.0")
