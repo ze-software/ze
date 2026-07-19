@@ -345,6 +345,9 @@ func TestMSCHAPv2PeerChallengeRandom16(t *testing.T) {
 }
 
 func TestTLSFragmenterRoundTrip(t *testing.T) {
+	// RFC requirement: RFC5216-2.1.5-1 positive -- a TLS message larger than one
+	// EAP-TLS fragment is split into multiple fragments on send and reassembled
+	// byte-for-byte on receive (RFC 5216 Section 2.1.5 fragmentation).
 	data := make([]byte, 3000)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -389,6 +392,9 @@ func TestTLSFragmenterRoundTrip(t *testing.T) {
 }
 
 func TestTLSFragmenterFirstFragmentHasLength(t *testing.T) {
+	// RFC requirement: RFC5216-3-1 positive -- the FIRST fragment of a
+	// multi-fragment TLS message carries the L (Length included) bit and the
+	// 4-octet TLS Message Length (RFC 5216 Section 3, Section 2.1.5).
 	data := make([]byte, 2000)
 
 	var f tlsFragmenter
@@ -429,6 +435,9 @@ func TestTLSFragmenterSmallDataNoFragment(t *testing.T) {
 }
 
 func TestTLSReassemblyRejectsOversized(t *testing.T) {
+	// RFC requirement: RFC5216-2.1.5-1 negative -- a first fragment whose L-flag
+	// TLS Message Length exceeds the reassembly cap is rejected rather than
+	// buffered, bounding the memory a peer can force during reassembly.
 	var f tlsFragmenter
 
 	td := make([]byte, 5)
@@ -438,5 +447,67 @@ func TestTLSReassemblyRejectsOversized(t *testing.T) {
 	err := f.reassemble(td)
 	if err == nil {
 		t.Fatal("expected error for oversized TLS message")
+	}
+}
+
+func TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength(t *testing.T) {
+	// A 3000-byte message at 1024 bytes/fragment produces three fragments:
+	// first (L+M), middle (M only), last (neither).
+	data := make([]byte, 3000)
+
+	var f tlsFragmenter
+	f.startSending(data)
+
+	first := f.nextFragment()
+	if first[0]&eapTLSFlagL == 0 {
+		t.Fatal("first fragment must have the L flag set")
+	}
+
+	middle := f.nextFragment()
+	last := f.nextFragment()
+
+	// RFC requirement: RFC5216-3-1 negative -- only the first fragment carries
+	// the L bit; the middle fragment (More set, not first) and the last fragment
+	// (neither More nor first) MUST NOT set L, so the 4-octet TLS Message Length
+	// appears exactly once per message (RFC 5216 Section 3, Section 2.1.5).
+	if middle[0]&eapTLSFlagM == 0 {
+		t.Fatalf("middle fragment should have the M flag set, flags=0x%02x", middle[0])
+	}
+	if middle[0]&eapTLSFlagL != 0 {
+		t.Fatalf("middle fragment must NOT set the L flag, flags=0x%02x", middle[0])
+	}
+	if last[0]&eapTLSFlagM != 0 {
+		t.Fatalf("last fragment must NOT set the M flag, flags=0x%02x", last[0])
+	}
+	if last[0]&eapTLSFlagL != 0 {
+		t.Fatalf("last fragment must NOT set the L flag, flags=0x%02x", last[0])
+	}
+}
+
+func TestTLSFragmentReservedFlagBitsAreZero(t *testing.T) {
+	// RFC requirement: RFC5216-3-2 positive -- every EAP-TLS flags octet emitted
+	// on send has reserved bits 3..7 (mask 0x1F) clear; only L (0x80), M (0x40)
+	// and S (0x20) are ever set (RFC 5216 Section 3).
+	const reservedMask = 0x1F
+
+	// The Start request uses the S flag alone.
+	if eapTLSFlagS&reservedMask != 0 {
+		t.Fatalf("Start flags 0x%02x set a reserved bit", eapTLSFlagS)
+	}
+
+	// A multi-fragment send exercises first (L+M), middle (M), last (none); a
+	// small send exercises the single-fragment (L only) case.
+	for _, size := range []int{3000, 100} {
+		var f tlsFragmenter
+		f.startSending(make([]byte, size))
+		for {
+			td := f.nextFragment()
+			if td[0]&reservedMask != 0 {
+				t.Fatalf("size %d: fragment flags 0x%02x set a reserved bit (mask 0x%02x)", size, td[0], reservedMask)
+			}
+			if td[0]&eapTLSFlagM == 0 {
+				break
+			}
+		}
 	}
 }
