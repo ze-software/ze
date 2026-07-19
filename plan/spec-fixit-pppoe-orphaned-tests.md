@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -382,16 +382,40 @@ MUST document: validation rules, error conditions, state transitions.
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- `internal/test/cli/register_test.go` (NEW): `TestCIRootsRegistered` guard — asserts
+  every top-level `test/<dir>` holding `.ci` files is reachable by a ze-test runner
+  (`registry.HasRootHandler(dir)` covers the 20 `registerCIRoot` suites + `vpp`; an
+  explicit `bigRunnerCIDirs` allowlist covers the 8 big-runner subcommand dirs). Also
+  fails on a stale allowlist entry. Verified RED (flags only `[pppoe]`) —
+  `tmp/fixit-pppoe/guard-red.log`.
+- `internal/test/runner/record_parse_test.go` (CHANGED): added
+  `TestParseOptionUnknownStillErrors` — `option=netns:veth=...` through `parseAndAdd`
+  must error with "unknown option type"/"netns" (AC-4 fail-closed default). Verified
+  GREEN — `tmp/fixit-pppoe/ac4.log`.
+- `test/pppoe/*.ci` deletion (Option D): PARKED, approval-gated (see Deviations).
 
 ### Bugs Found/Fixed
-- (fill during implementation)
+- None. The narrow defect (unparseable `option=netns` + unregistered suite) is resolved
+  by deletion + guard, not by a code fix to `parseOption` (its fail-closed default is
+  intentionally preserved and now pinned by a test).
 
 ### Documentation Updates
-- (fill during implementation)
+- `docs/features.md:88` PPPoE Access row: left AS-IS (AC-3 — `Partial` reflects feature
+  completeness, not tests; RFC 2516 discovery coverage already exists in the accel-ppp
+  labs). Optional one-line note to `docs/functional-tests.md` about the guard is staged
+  in the drain recipe.
 
 ### Deviations from Plan
-- (fill during implementation)
+- **Deletion of `test/pppoe/*.ci` NOT executed.** These are git-tracked user-visible
+  files; the spec's own DELETION-NEEDS-APPROVAL gate (`ai/rules/never-destroy-work.md`)
+  requires Thomas's EXPLICIT approval, and a parent-agent task instruction is not the
+  user's consent. Deletion is staged in `tmp/drain-fixit-pppoe-orphaned-tests.md` as the
+  sole remaining step; the guard is intentionally left RED until it lands.
+- Refined assumption A-1: a per-test netns LAUNCH mode DOES exist
+  (`internal/test/runner/netns_linux.go`, `enterTestNetns`, `netnsModeActive()`), but it
+  is a global env-driven runner mode, NOT the `option=netns:veth=` `.ci` directive — that
+  directive and its veth topology were never built. Spec's conclusion (repair = net-new
+  construction) stands.
 
 ## Implementation Audit
 
@@ -402,14 +426,29 @@ MUST document: validation rules, error conditions, state transitions.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | BLOCKED (approval) | `TestCIRootsRegistered` (RED now, GREEN on deletion) | Guard written + verified RED flagging only `[pppoe]`; goes GREEN only when `test/pppoe/` is deleted — deletion approval-gated |
+| AC-2 | BLOCKED (approval) | deletion of the 3 `.ci` | Under Option D the files no longer exist; parked on approval |
+| AC-3 | DONE | `docs/features.md:88` unchanged | `Partial` reflects feature completeness, not tests; coverage exists in accel-ppp labs |
+| AC-4 | DONE | `TestParseOptionUnknownStillErrors` GREEN (`tmp/fixit-pppoe/ac4.log`) | `parseOption` fail-closed default preserved and now pinned by a test |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestParseOptionNetns` | SKIPPED (Option A only) | — | Not implemented: Option D chosen, no `netns` parser case added |
+| `TestParseOptionUnknownStillErrors` | DONE (GREEN) | `internal/test/runner/record_parse_test.go` | AC-4 |
+| `TestCIRootsRegistered` | DONE (RED, by design) | `internal/test/cli/register_test.go` | AC-1; GREEN on deletion |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/test/cli/register_test.go` | CREATED | `TestCIRootsRegistered` guard |
+| `internal/test/runner/record_parse_test.go` | MODIFIED | added `TestParseOptionUnknownStillErrors` |
+| `test/pppoe/pppoe-basic.ci` | DELETE PENDING (approval) | staged in drain recipe |
+| `test/pppoe/pppoe-vlan.ci` | DELETE PENDING (approval) | staged in drain recipe |
+| `test/pppoe/pppoe-concurrent-l2tp.ci` | DELETE PENDING (approval) | staged in drain recipe |
+| `internal/test/cli/register.go` | UNCHANGED | Option D adds no `registerCIRoot` row |
+| `internal/test/runner/record_parse.go` | UNCHANGED | Option D adds no `netns` parser case (fail-closed default preserved) |
+| `docs/features.md` | UNCHANGED | AC-3 |
 
 ### Audit Summary
 - **Total items:**
@@ -426,21 +465,33 @@ MUST document: validation rules, error conditions, state transitions.
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (initial — independent reviewer subagent over the diff)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (fill during implementation) | file:line | (fill during implementation) |
+| 1 | (no BLOCKER) | — | — | — |
+| 2 | ISSUE | `bigRunnerCIDirs` re-hardcodes names that have canonical in-package sources (validCommands, predecessorTestDir); a new `ze-test bgp <sub>` suite would false-positive if the copy is not updated | `register_test.go` allowlist | FIXED — see Fixes applied |
+| 3 | NOTE | Allowlist membership trusted, not verified against real dispatch (residual false-green surface) | `register_test.go` stale-check | Mitigated by fix (allowlist now IS the dispatch source `bgpCIRunnerDirs`); doc-comment records the trust boundary |
+| 4 | NOTE | Guard keys on `dir == root-name` for registerCIRoot suites (true for all 20 today) | `register_test.go` | Documented in guard comment; accepted |
+| 5 | NOTE | Confirm `internal/test/cli` is in the unit-test gate (else dead test) | `mk/test-unit.mk` | VERIFIED: `ZE_PACKAGES = go list ./... (minus root)` includes it → runs in `make ze-unit-test`/`ze-test-rest` |
 
 ### Fixes applied
-- (fill during implementation)
+- ISSUE (#2): promoted the 7 bgp-subcommand dirs to a package-level single source of
+  truth `var bgpCIRunnerDirs` in `cmd_bgp.go`; the dispatch arg-check
+  (`if !bgpCIRunnerDirs[command]`) and the guard's `coveredByBigRunner` both consume it,
+  and `exabgp-compat` is referenced via the existing `predecessorTestDir` const. The
+  duplicated literal in the test is gone. Dispatch behavior is identical (same 7
+  subcommands). Verified: `go vet ./internal/test/cli/` clean; `TestCIRootsRegistered`
+  still RED flagging only `[pppoe]` (`tmp/fixit-pppoe/guard2.log`).
 
-### Run 2+ (re-runs until clean)
+### Run 2 (confirmation review of the ISSUE fix — independent subagent)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | (no BLOCKER, no ISSUE) | Dispatch behavior identical (same 7 subcommands via `bgpCIRunnerDirs`); no coverage regression — exactly one orphan `pppoe`; stale-check honest, no false-green | `cmd_bgp.go`, `register_test.go` | — |
+| 2 | NOTE | Stale identifier in doc-comment: referenced removed `validCommands` | `cmd_bgp.go:34` | FIXED — comment now points to the `if !bgpCIRunnerDirs[command]` gate |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Independent review re-run shows 0 BLOCKER, 0 ISSUE (Run 1: 1 ISSUE fixed; Run 2 confirmation: clean). Artifact: `tmp/review/fixit-pppoe-orphaned-tests-58c51aab-79d8-400d-b779-2c0cf322a274.md`
+- [x] All NOTEs recorded: #3 (trust boundary — mitigated, allowlist is the dispatch source), #4 (dir==root-name — documented), #5 (unit-test gate — verified in ZE_PACKAGES), Run-2 #2 (stale comment — fixed)
 
 ## Pre-Commit Verification
 

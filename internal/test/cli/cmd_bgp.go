@@ -28,6 +28,22 @@ const (
 	cmdChaosIntg = "chaos"
 )
 
+// bgpCIRunnerDirs is the set of "ze-test bgp <sub>" subcommands. Each name is
+// also the test/<name> directory that subcommand walks (see zeTestRunEncodingOrAPI
+// and zeTestRunSimpleTests), so it is the single source of truth for both argument
+// validation (the `if !bgpCIRunnerDirs[command]` gate below) and the orphaned-suite
+// guard (TestCIRootsRegistered): those dirs are covered by a big runner, not
+// registerCIRoot.
+var bgpCIRunnerDirs = map[string]bool{
+	"encode":     true,
+	cmdPlugin:    true,
+	"decode":     true,
+	"parse":      true,
+	"reload":     true,
+	cmdChaosIntg: true,
+	cmdChaosWeb:  true,
+}
+
 func cmdBgp(args []string) int {
 	if err := zeTestBgpMain(args); err != nil {
 		if !errors.Is(err, ErrTestsFailed) {
@@ -496,17 +512,7 @@ func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
 		return nil
 	}
 
-	validCommands := map[string]bool{
-		"encode":     true,
-		cmdPlugin:    true,
-		"decode":     true,
-		"parse":      true,
-		"reload":     true,
-		cmdChaosIntg: true,
-		cmdChaosWeb:  true,
-	}
-
-	if !validCommands[command] {
+	if !bgpCIRunnerDirs[command] {
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		zeTestPrintRunUsage()
 		return nil

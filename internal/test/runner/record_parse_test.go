@@ -113,6 +113,42 @@ EOF_PEER
 	require.NoError(t, err, "non-env option directives inside peer block must be accepted")
 }
 
+// TestParseOptionUnknownStillErrors verifies that an unknown option type in a
+// .ci file (here option=netns, the directive the orphaned test/pppoe/*.ci carried)
+// is rejected by parseOption's fail-closed default branch. The error must name
+// the offending type so the author sees what to fix; a zero value or silent skip
+// would be a false green (ai/rules/fail-closed-guards.md).
+//
+// VALIDATES: AC-4 (spec-fixit-pppoe-orphaned-tests) — parseOption's fail-closed
+// default is not weakened; an unknown option type stays a hard error.
+// PREVENTS: relaxing the default to a warning/skip so stale .ci "parse" quietly.
+//
+// Driven from the parse entry point (parseAndAdd on a real .ci line), not the
+// parseOption helper alone, per ai/rules/fail-closed-guards.md.
+func TestParseOptionUnknownStillErrors(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	confFile := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+	ciFile := filepath.Join(tmpDir, "unknown-option.ci")
+	// option=netns is exactly the directive the deleted test/pppoe/*.ci used; it
+	// matches no parseOption case and must hit the fail-closed default.
+	ciContent := "option=file:path=test.conf\n" +
+		"option=netns:veth=veth-bng,veth-sub\n" +
+		"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304\n"
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	_, err := et.parseAndAdd(ciFile)
+	require.Error(t, err, "an unknown option type must be a hard parse error, not silently accepted")
+
+	msg := err.Error()
+	assert.Contains(t, msg, "unknown option type", "error must state the option type is unknown")
+	assert.Contains(t, msg, "netns", "error must name the offending option type so the author can fix it")
+}
+
 // TestDiscoverSkipsUnparseableFile verifies that a single unparseable .ci file
 // is recorded as a failure but does NOT abort discovery of the rest of the
 // directory. A bad file used to error out of Discover and hide every other test
