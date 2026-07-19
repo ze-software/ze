@@ -51,6 +51,9 @@ func TestASPATrackerRemove(t *testing.T) {
 // VALIDATES: AC-5 — cache change triggers re-verification of affected routes.
 // PREVENTS: Stale ASPA states persisting after cache update.
 func TestASPATrackerRevalidate(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1 positive -- when ASPA data changes,
+	// affected tracked routes are re-verified and the route whose state flipped (Valid -> Invalid)
+	// is returned for re-dispatch.
 	cache := NewASPACache()
 	// Initially: 64501 authorizes 64500 as provider.
 	cache.Set(64501, []uint32{64500})
@@ -111,6 +114,9 @@ func TestASPATrackerReverseIndex(t *testing.T) {
 // VALIDATES: Route with unchanged state not returned.
 // PREVENTS: Spurious event emission.
 func TestASPATrackerRevalidateNoChange(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1 negative -- re-verification after an
+	// ASPA change that does not alter a route's outcome returns nothing, so no spurious re-dispatch
+	// is triggered for that route.
 	cache := NewASPACache()
 	cache.Set(64501, []uint32{64500})
 

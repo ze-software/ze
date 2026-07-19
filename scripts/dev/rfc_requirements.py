@@ -763,9 +763,18 @@ def parse_status_ledger(text: str) -> Dict[str, Dict[str, str]]:
         if len(cells) < 3:
             continue
         m = re.match(r"^RFC\s*(\d+)$", cells[0])
-        if not m:
+        if m:
+            key = "rfc" + m.group(1)
+        elif re.match(r"^draft-[\w.-]+$", cells[0]):
+            # Internet-Draft summaries enroll under their full stem (there is no RFC
+            # number to key on), so their status row leads with the draft name and is
+            # keyed by that stem -- matching Requirement.rfc for a draft-stem summary.
+            # Without this a {gap} on an enrolled draft could never find its disclosure
+            # row and would fail check_status_agreement (ai/rules/fail-closed-guards.md).
+            key = cells[0]
+        else:
             continue
-        rows["rfc" + m.group(1)] = {
+        rows[key] = {
             "status": cells[2],
             "coverage": cells[3] if len(cells) > 3 else "",
             "remaining": cells[4] if len(cells) > 4 else "",

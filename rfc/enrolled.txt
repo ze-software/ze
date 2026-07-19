@@ -111,3 +111,5 @@ rfc8907	The TACACS+ Protocol (ze as a TACACS+ client/NAS): eleven MUST-level req
 rfc2473	Generic Packet Tunneling in IPv6 (tunnel datapath delegated to kernel ip6_tunnel / VPP; ze configures netdevs only)
 rfc7474	OSPFv2 manual-key security extension (AuType 3 extended 64-bit crypto sequence): 10 MUSTs, 7 met + 3 single-polarity, wired end-to-end
 rfc7012	IPFIX Information Model: exporter role; 8 not-applicable (no enterprise IEs / reduced-size / variable-length IEs / IANA-registry authorship) + 3 single-polarity positive
+rfc9582	RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play)
+draft-ietf-sidrops-aspa-verification	ASPA AS_PATH verification: 4 MET + 2 single-polarity (6-1, 7-2) + 2 gap (6-4 per-AFI records, 8-1 Invalid-not-preferred)

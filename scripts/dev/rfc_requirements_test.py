@@ -728,6 +728,8 @@ class TestStatusLedgerCrossCheck(unittest.TestCase):
         "Ze intentionally emits MP_UNREACH first, not compliant with 5.1 ordering. |\n"
         "| RFC 4271 | BGP-4 base protocol | Supported | stuff | "
         "No tracked gap in current source anchors. |\n"
+        "| draft-ietf-example-thing | Example draft | Partial | stuff | "
+        "Section 6 validation is unimplemented. |\n"
     )
 
     def test_gap_disclosed_passes(self):
@@ -754,6 +756,32 @@ class TestStatusLedgerCrossCheck(unittest.TestCase):
             rows = R.parse_status_ledger(fh.read())
         self.assertGreater(len(rows), 40)
         self.assertIn("rfc7606", rows)
+
+    def test_draft_stem_row_is_keyed(self):
+        """A draft summary enrolls under its stem, so its status row is keyed by
+        that stem (there is no RFC number). Without this a {gap} on an enrolled
+        draft could never be disclosed."""
+        rows = R.parse_status_ledger(self.STATUS)
+        self.assertIn("draft-ietf-example-thing", rows)
+        self.assertEqual(rows["draft-ietf-example-thing"]["status"], "Partial")
+
+    def test_draft_gap_disclosed_by_partial_row(self):
+        """A {gap} on an enrolled draft passes when its draft-stem row is
+        non-'Supported' (Partial discloses the shortfall)."""
+        rows = R.parse_status_ledger(self.STATUS)
+        ann = R.Annotation(kind="gap", polarity=None, reason="section 6")
+        errs = R.check_status_agreement(
+            [
+                _req(
+                    "DRAFT-IETF-EXAMPLE-THING-6-1",
+                    annotation=ann,
+                    rfc="draft-ietf-example-thing",
+                )
+            ],
+            rows,
+            {"draft-ietf-example-thing"},
+        )
+        self.assertEqual(errs, [])
 
 
 # --------------------------------------------------------------------------

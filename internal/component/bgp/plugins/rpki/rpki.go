@@ -336,13 +336,7 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	aspaState := aspaStateNone
 	var normalizedPath []uint32
 	if rp.aspaEnabled.Load() && asp != nil {
-		var hasASSet bool
-		normalizedPath, hasASSet = normalizeASPath(asp.Segments)
-		if hasASSet {
-			aspaState = ASPAUnknown
-		} else {
-			aspaState = verifyASPA(rp.aspaCache, normalizedPath)
-		}
+		aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments)
 	}
 
 	// Validate IPv4 unicast NLRIs.

@@ -13,6 +13,9 @@ import (
 // VALIDATES: AC-2 — route with all authorized providers -> Valid.
 // PREVENTS: Valid paths incorrectly classified.
 func TestASPAVerifyValid(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 negative -- a path with no AS_SET
+	// runs the normal upstream verification algorithm (here yielding Valid), rather than being
+	// short-circuited to Unknown.
 	c := NewASPACache()
 	// Path: 100 -> 200 -> 300 (neighbor=100, origin=300)
 	// 200 authorizes 100 as provider, 300 authorizes 200 as provider.
@@ -56,6 +59,8 @@ func TestASPAVerifyUnknown(t *testing.T) {
 // VALIDATES: AC-9 — AS_SET -> Unknown.
 // PREVENTS: Attempting to verify unordered sets.
 func TestASPAVerifyASSet(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 positive -- an AS_SET in the path is
+	// flagged as unverifiable by normalization (the signal handleStructuredUpdate maps to Unknown).
 	segments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 200}},
 		{Type: attribute.ASSet, ASNs: []uint32{300, 400}},
@@ -92,6 +97,10 @@ func TestASPAVerifyEmptyPath(t *testing.T) {
 // VALIDATES: [A,A,B,B,B] -> [A,B]; [A,B,A] unchanged.
 // PREVENTS: Incorrect prepend handling (must be consecutive-only).
 func TestASPANormalizePrepends(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3 positive -- consecutive duplicate
+	// ASNs (prepending artifacts) are collapsed: [100,100,200,200,200] -> [100,200].
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3 negative -- non-consecutive
+	// duplicates are preserved: [100,200,100] is left unchanged (only consecutive dups collapse).
 	segments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 100, 200, 200, 200}},
 	}
@@ -200,4 +209,45 @@ func TestASPANormalizeEmptySegments(t *testing.T) {
 	path, hasSet = normalizeASPath([]attribute.ASPathSegment{})
 	assert.False(t, hasSet)
 	assert.Nil(t, path)
+}
+
+// TestASPAStateForPath verifies the received-UPDATE ASPA entry point: it normalizes a route's
+// AS_PATH segments and either verifies them or maps an AS_SET to Unknown. This is the exact logic
+// handleStructuredUpdate applies to every received UPDATE that carries an AS_PATH.
+//
+// VALIDATES: aspaStateForPath runs verification on received customer/lateral-peer paths and maps
+// AS_SET to Unknown.
+// PREVENTS: Received routes bypassing ASPA verification, or AS_SET paths being verified as if
+// ordered.
+func TestASPAStateForPath(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-1 positive -- ASPA verification is run
+	// for a received route's AS_PATH: a customer/lateral-peer path with authorized providers
+	// resolves to Valid via the same entry point handleStructuredUpdate uses.
+	c := NewASPACache()
+	// Path 100 -> 200 -> 300: 200 authorizes 100, 300 authorizes 200.
+	c.Set(200, []uint32{100})
+	c.Set(300, []uint32{200})
+
+	segments := []attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{100, 200, 300}},
+	}
+	state, normalized := aspaStateForPath(c, segments)
+	assert.Equal(t, ASPAValid, state)
+	assert.Equal(t, []uint32{100, 200, 300}, normalized)
+
+	// An unauthorized hop on a received path resolves to Invalid (verification actually runs).
+	badCache := NewASPACache()
+	badCache.Set(200, []uint32{100})
+	badCache.Set(300, []uint32{999}) // 200 not authorized
+	state, _ = aspaStateForPath(badCache, segments)
+	assert.Equal(t, ASPAInvalid, state)
+
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 positive -- an AS_SET in a received
+	// path is mapped to Unknown (unverifiable) instead of being run through verification.
+	setSegments := []attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{100, 200}},
+		{Type: attribute.ASSet, ASNs: []uint32{300, 400}},
+	}
+	state, _ = aspaStateForPath(c, setSegments)
+	assert.Equal(t, ASPAUnknown, state)
 }

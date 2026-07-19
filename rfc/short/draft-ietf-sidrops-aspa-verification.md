@@ -271,14 +271,14 @@ Not applicable (Internet-Draft, no RFC number assigned).
 
 ## Compliance Checklist
 
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-1] [MUST] Apply upstream verification to routes received from customers and lateral peers (Section 6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-1] [MUST] Apply upstream verification to routes received from customers and lateral peers (Section 6) {single-polarity: positive; verifyASPA runs on every received UPDATE carrying an AS_PATH whenever ASPA is enabled (a superset that includes customer and peer routes), and there is no required case where such a route must NOT be verified (internal/component/bgp/plugins/rpki/rpki.go:338)}
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2] [MUST] AS_SET in path must result in Unknown validation state (Section 6)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3] [MUST] Prepend removal must only collapse consecutive duplicates (Section 6)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-4] [MUST] Support per-AFI ASPA records if provided by cache (Section 6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-4] [MUST] Support per-AFI ASPA records if provided by cache (Section 6) {gap: the ASPA PDU AFI-flags byte is read only to reject unknown AFI and is then discarded; ASPARecord carries no AFI field and the cache is keyed by customer AS alone, so per-AFI records for one customer overwrite each other and one AS_PATH state is applied to both IPv4 and IPv6 NLRIs (internal/component/bgp/plugins/rpki/aspa_cache.go:10-13, rpki.go:344)}
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-x-1] [MUST] AS0 in ASPA provider set must be ignored (Pitfalls)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-1] [MUST NOT] Invalid routes must not be preferred over Valid or Unknown routes (Section 8)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-1] [MUST NOT] Invalid routes must not be preferred over Valid or Unknown routes (Section 8) {gap: ASPA state drives only a binary reject/keep decision with no local-pref demotion or best-path tiebreak, and the default Invalid action is LogOnly (retain), so an accepted ASPA-Invalid route competes on ordinary BGP attributes and can outrank an ASPA-Valid route for the same prefix (internal/component/bgp/plugins/rpki/rpki.go:92-100, rpki_config.go:110)}
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1] [MUST] Re-run verification when ASPA data changes (Section 7)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-2] [MUST] Use the most recent ASPA data available (Section 7)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-2] [MUST] Use the most recent ASPA data available (Section 7) {single-polarity: positive; ApplyDelta atomically replaces cache entries at each End of Data and verifyASPA reads the live cache under lock, so verification always reflects the applied delta; there is no stale-data mode to test negatively (internal/component/bgp/plugins/rpki/aspa_cache.go:110-129)}
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-2] [SHOULD] Reject Invalid routes by default (Section 8)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-3] [SHOULD] Accept Unknown routes as unverified (Section 8)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-4] [SHOULD] Log Invalid results for operational visibility (Section 8)

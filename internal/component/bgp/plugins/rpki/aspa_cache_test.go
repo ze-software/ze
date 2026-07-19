@@ -161,3 +161,29 @@ func TestASPACacheRemoveNonexistent(t *testing.T) {
 	c.Remove(99999)
 	assert.Equal(t, 0, c.count())
 }
+
+// TestASPAApplyDeltaMostRecent verifies verification uses the most recent ASPA data after a delta.
+//
+// VALIDATES: ApplyDelta atomically replaces a customer's provider set, and a subsequent verifyASPA
+// reads the replaced (latest) data rather than the superseded set.
+// PREVENTS: Stale ASPA records driving verification after an incremental cache update.
+func TestASPAApplyDeltaMostRecent(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-2 positive -- verification uses the
+	// most recent ASPA data: after ApplyDelta replaces 300's provider set, verifyASPA reflects the
+	// new authorization outcome for the same path.
+	c := NewASPACache()
+	// Initial state: 200 authorizes 100, 300 authorizes 200 -> path is Valid.
+	c.ApplyDelta(nil, []ASPARecord{
+		{CustomerAS: 200, Providers: []uint32{100}},
+		{CustomerAS: 300, Providers: []uint32{200}},
+	})
+	assert.Equal(t, ASPAValid, verifyASPA(c, []uint32{100, 200, 300}))
+
+	// Newer data replaces 300's provider set so that 200 is no longer authorized.
+	c.ApplyDelta(nil, []ASPARecord{
+		{CustomerAS: 300, Providers: []uint32{999}},
+	})
+	// verifyASPA must read the latest data and now classify the same path as Invalid.
+	assert.Equal(t, ASPAInvalid, verifyASPA(c, []uint32{100, 200, 300}))
+	assert.False(t, c.isProvider(300, 200), "superseded provider must be gone after delta")
+}

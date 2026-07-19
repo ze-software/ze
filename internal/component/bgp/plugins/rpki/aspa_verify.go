@@ -103,3 +103,17 @@ func verifyASPA(cache *ASPACache, path []uint32) uint8 {
 	}
 	return ASPAValid
 }
+
+// aspaStateForPath maps a received route's AS_PATH segments to an ASPA validation state.
+// draft-ietf-sidrops-aspa-verification Section 6: an AS_SET (or AS_CONFED_SET) makes the
+// path unverifiable and yields Unknown; otherwise the normalized unique-hop list is run
+// through the upstream verification algorithm. This is the entry point handleStructuredUpdate
+// uses to verify received customer and lateral-peer routes. Returns the state and the
+// normalized path (retained by the caller for re-validation tracking).
+func aspaStateForPath(cache *ASPACache, segments []attribute.ASPathSegment) (uint8, []uint32) {
+	normalizedPath, hasASSet := normalizeASPath(segments)
+	if hasASSet {
+		return ASPAUnknown, normalizedPath
+	}
+	return verifyASPA(cache, normalizedPath), normalizedPath
+}

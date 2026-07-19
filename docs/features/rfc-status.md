@@ -254,7 +254,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | Standard | Area | Status | Note |
 |----------|------|--------|------|
 | draft-abraitis-idr-addpath-paths-limit | BGP PATHS-LIMIT | Supported | Per-family path-count limit capability for ADD-PATH. |
-| draft-ietf-sidrops-aspa-verification | ASPA path verification | Supported | ASPA validation algorithm, policy actions, and RPKI event output. |
+| draft-ietf-sidrops-aspa-verification | ASPA path verification | Partial | Section 6 verification algorithm (upstream/downstream), AS_SET to Unknown, prepend collapse, AS0-in-provider rejection, RTR ASPA PDU (Type 11) consumption, and re-validation on cache change. Two MUSTs unmet: per-AFI ASPA records (6-4, the AFI flag is parsed then discarded and the cache is keyed by customer AS alone, so per-AFI records overwrite each other); Invalid-not-preferred (8-1, ASPA state drives only reject/keep with default LogOnly, so an accepted Invalid route can outrank a Valid one for the same prefix). |
 | draft-ietf-idr-linklocal-capability | Link-local next-hop capability code 77 | Supported | Capability declaration around RFC 2545 next-hop behavior. |
 | draft-ietf-idr-software-version | BGP Software Version capability code 75 | Supported | Software version advertisement plugin. |
 | ISO/IEC 10589 | IS-IS base protocol | Experimental | Base IS-IS protocol reference, paired with the IS-IS RFC rows above. |
