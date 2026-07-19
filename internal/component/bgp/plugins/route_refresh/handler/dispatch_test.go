@@ -21,6 +21,10 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 //
 // VALIDATES: Dispatch chain reaches handleBoRR with peer selector and family.
 // PREVENTS: Refresh markers broken by dispatch chain.
+//
+// RFC requirement: RFC7313-4-1 positive -- "request peer <addr> borr" dispatches
+// through to SendBoRR (reactor.sendBoRRCalled), the entry point that emits the
+// subtype-1 BoRR marker ze sends before re-advertising the refreshed route set.
 func TestDispatchBGPPeerBoRR(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor)
@@ -35,6 +39,10 @@ func TestDispatchBGPPeerBoRR(t *testing.T) {
 //
 // VALIDATES: Dispatch chain reaches handleEoRR with peer selector and family.
 // PREVENTS: Refresh markers broken by dispatch chain.
+//
+// RFC requirement: RFC7313-4-2 positive -- "request peer <addr> eorr" dispatches
+// through to SendEoRR (reactor.sendEoRRCalled), the entry point that emits the
+// subtype-2 EoRR marker ze sends after re-advertising the refreshed route set.
 func TestDispatchBGPPeerEoRR(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor)

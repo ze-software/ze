@@ -410,6 +410,11 @@ func TestFlowSpecIPv6Basic(t *testing.T) {
 	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")))
 
 	assert.Equal(t, IPv6FlowSpec, fs.Family())
+
+	// RFC 8956 Section 2: IPv6 Flow Specification rules use the (AFI=2, SAFI=133) pair.
+	// RFC requirement: RFC8956-2-2 positive -- IPv6 FlowSpec uses AFI 2 with SAFI 133 (§2)
+	assert.Equal(t, AFI(2), fs.Family().AFI, "IPv6 FlowSpec AFI must be 2")
+	assert.Equal(t, SAFI(133), fs.Family().SAFI, "IPv6 FlowSpec SAFI must be 133")
 }
 
 // TestFlowSpecBytes verifies wire format encoding.
@@ -614,8 +619,13 @@ func TestFlowSpecVPNFamily(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, AFIIPv4, IPv4FlowSpecVPN.AFI)
 	assert.Equal(t, SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
+
+	// RFC 8956 Section 2: IPv6 L3VPN Flow Specification rules use the (AFI=2, SAFI=134) pair.
+	// RFC requirement: RFC8956-2-2 positive -- IPv6 FlowSpec L3VPN uses AFI 2 with SAFI 134 (§2)
 	assert.Equal(t, AFIIPv6, IPv6FlowSpecVPN.AFI)
+	assert.Equal(t, AFI(2), IPv6FlowSpecVPN.AFI, "IPv6 FlowSpec VPN AFI must be 2")
 	assert.Equal(t, SAFIFlowSpecVPN, IPv6FlowSpecVPN.SAFI)
+	assert.Equal(t, SAFI(134), IPv6FlowSpecVPN.SAFI, "IPv6 FlowSpec VPN SAFI must be 134")
 }
 
 // TestFlowSpecVPNBasic verifies basic FlowSpec VPN creation.

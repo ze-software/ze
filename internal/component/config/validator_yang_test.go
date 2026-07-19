@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,11 @@ import (
 	// bgp/schema already imported in reader_test.go (same package).
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
+
+	// isis provides a leaf with a pure `length` restriction (hostname,
+	// `type string { length "1..255" }`), which TestValidateTree_LengthViolation
+	// uses to exercise the validator's length branch. The bgp schema has none.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/yang"
 )
 
 // newTestLoader creates a resolved YANG loader with all registered modules.
@@ -29,6 +35,8 @@ func newTestLoader(t *testing.T) *yang.Loader {
 //
 // VALIDATES: Full config tree validation succeeds with valid values (AC-7).
 // PREVENTS: False positives rejecting valid configurations.
+//
+// RFC requirement: RFC7950-9.12-1 positive -- peer connection/remote/ip carrying "192.0.2.2" matches the ip-address union's ipv4-address member, so the union-typed leaf is accepted.
 func TestValidateTree_ValidConfig(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -150,6 +158,8 @@ func TestValidateTree_EnumViolation(t *testing.T) {
 //
 // VALIDATES: Range violation detected in nested container (AC-2, AC-3).
 // PREVENTS: Out-of-range numeric values passing validation.
+//
+// RFC requirement: RFC7950-8.3.1-1 negative -- a value outside a leaf's YANG range (receive-hold-time 2, port 0) is rejected with ErrTypeRange, the invalid-value response for a range constraint.
 func TestValidateTree_RangeViolation(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -236,6 +246,8 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 //
 // VALIDATES: Pattern violation detected for ipv4-address typedef (AC-6).
 // PREVENTS: Malformed strings passing pattern validation.
+//
+// RFC requirement: RFC7950-8.3.1-1 negative -- a string violating a leaf's YANG pattern (router-id "not-an-ip") is rejected with ErrTypePattern, the invalid-value response for a pattern constraint.
 func TestValidateTree_PatternViolation(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -256,6 +268,8 @@ func TestValidateTree_PatternViolation(t *testing.T) {
 //
 // VALIDATES: Mandatory field missing at nested container level (AC-4, AC-5).
 // PREVENTS: Silent acceptance of incomplete config.
+//
+// RFC requirement: RFC7950-7.6.5-1 negative -- a missing mandatory node (router-id) yields an ErrTypeMissing (missing-element) error at path bgp/router-id.
 func TestValidateTree_MandatoryMissing(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -275,6 +289,90 @@ func TestValidateTree_MandatoryMissing(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected missing mandatory error for router-id")
+}
+
+// TestValidateTree_UnionViolation verifies a value matching no union member type is rejected.
+//
+// VALIDATES: Union violation detected for the peer connection/remote/ip leaf, whose type is
+// a union of ze-types:ip-address (itself ipv4-address|ipv6-address) and a "dynamic" enum.
+// PREVENTS: A value that is neither a valid IP nor a defined enum silently passing the union.
+//
+// RFC requirement: RFC7950-9.12-1 negative -- "not-an-ip" matches neither the ip-address member (ipv4/ipv6) nor the "dynamic" enum member of the union-typed leaf, so validateUnion rejects it with ErrTypeType.
+func TestValidateTree_UnionViolation(t *testing.T) {
+	v := newTestValidator(t)
+
+	data := map[string]any{
+		"router-id": "192.0.2.1",
+		"session": map[string]any{
+			"asn": map[string]any{
+				"local": uint32(65001),
+			},
+		},
+		"peer": map[string]any{
+			"peer1": map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{
+						"ip": "not-an-ip", // matches no member type of the ip union
+					},
+					"local": map[string]any{
+						"ip": "192.0.2.1",
+					},
+				},
+				"session": map[string]any{
+					"asn": map[string]any{
+						"remote": uint32(65002),
+					},
+				},
+			},
+		},
+	}
+
+	errs := v.ValidateTree("bgp", data)
+	require.NotEmpty(t, errs, "union value matching no member type should produce an error")
+	found := false
+	for _, e := range errs {
+		if e.Type == yang.ErrTypeType && strings.Contains(e.Path, "remote/ip") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected a union-mismatch (type) error on remote/ip: %v", errs)
+}
+
+// TestValidateTree_LengthViolation verifies a string violating a leaf's length restriction is
+// rejected with a length error.
+//
+// VALIDATES: Length violation detected for a leaf typed `string { length "1..255" }`. The bgp
+// schema has no length-restricted leaf, so this drives the check through the isis `hostname`
+// leaf (ze-isis-conf.yang), whose type carries a length and no pattern, exercising
+// validateString's length branch in isolation.
+// PREVENTS: An over-length string silently passing the string type check.
+//
+// RFC requirement: RFC7950-8.3.1-1 negative -- a 256-character hostname violates the leaf's YANG length "1..255", so validateString rejects it with ErrTypeLength (the invalid-value response for a length constraint).
+func TestValidateTree_LengthViolation(t *testing.T) {
+	v := newTestValidator(t)
+
+	// isis `hostname` is `type string { length "1..255" }` with no pattern, so an
+	// over-length value fails only the length check (validator.go length branch).
+	tooLong := strings.Repeat("a", 256)
+	tree := map[string]any{"hostname": tooLong}
+
+	var lengthErrs []yang.ValidationError
+	for _, e := range v.ValidateTreeAllModules("isis", tree) {
+		if e.Type == yang.ErrTypeLength {
+			lengthErrs = append(lengthErrs, e)
+		}
+	}
+	require.NotEmpty(t, lengthErrs, "over-length hostname should produce a length error")
+	assert.Contains(t, lengthErrs[0].Path, "hostname")
+
+	// A within-length value clears the length branch: no length error is raised. This proves
+	// the rejection above is length-driven, not a blanket refusal of the hostname leaf.
+	okTree := map[string]any{"hostname": "router-1"}
+	for _, e := range v.ValidateTreeAllModules("isis", okTree) {
+		assert.NotEqualf(t, yang.ErrTypeLength, e.Type,
+			"a within-length hostname must not raise a length error: %v", e)
+	}
 }
 
 // TestValidateTree_MultipleErrors verifies all errors are collected, not stopped at first.
@@ -384,6 +482,9 @@ func TestValidateTree_ListEntries(t *testing.T) {
 //
 // VALIDATES: Family mode accepts enable/disable/require/ignore, rejects others (AC-8, AC-9).
 // PREVENTS: Invalid family mode values passing validation after enum conversion.
+//
+// RFC requirement: RFC7950-9.6-1 positive -- each defined family-mode enum value (enable/disable/require/ignore) is accepted.
+// RFC requirement: RFC7950-9.6-1 negative -- a value not in the enum ("invalid-mode") is rejected with ErrTypeEnum.
 func TestValidateTree_FamilyModeEnum(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -447,6 +548,9 @@ func TestValidateTree_FamilyModeEnum(t *testing.T) {
 //
 // VALIDATES: add-path direction accepts send/receive/send/receive, rejects others (AC-10).
 // PREVENTS: Invalid add-path direction values passing validation.
+//
+// RFC requirement: RFC7950-9.6-1 positive -- each defined add-path direction enum value (send/receive/send/receive) is accepted.
+// RFC requirement: RFC7950-9.6-1 negative -- a value not in the enum ("both") is rejected with ErrTypeEnum.
 func TestValidateTree_AddPathDirectionEnum(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -677,6 +781,9 @@ func TestValidator_ValidateString_WrongType(t *testing.T) {
 //
 // VALIDATES: String patterns are enforced.
 // PREVENTS: Accepting malformed IP addresses.
+//
+// RFC requirement: RFC7950-8.3.1-1 positive -- a value matching the leaf's YANG pattern (router-id "192.0.2.1") is accepted.
+// RFC requirement: RFC7950-8.3.1-1 negative -- a value violating the pattern (router-id "not-an-ip") is rejected.
 func TestValidator_ValidatePattern(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -723,6 +830,9 @@ func TestValidator_ErrorMessages(t *testing.T) {
 //
 // VALIDATES: Hold-time accepts 0 or values >= 3.
 // BOUNDARY: 0 valid, 1-2 invalid, 3+ valid.
+//
+// RFC requirement: RFC7950-8.3.1-1 positive -- values inside the leaf's YANG range "0 | 3..65535" (0, 3, 180, 65535) are accepted.
+// RFC requirement: RFC7950-8.3.1-1 negative -- values outside that range (1, 2) are rejected.
 func TestValidator_HoldTimeRange(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -755,6 +865,9 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 //
 // VALIDATES: Container validation detects missing mandatory fields.
 // PREVENTS: Silent acceptance of incomplete config missing required fields.
+//
+// RFC requirement: RFC7950-7.6.5-1 positive -- a container with all mandatory nodes present (local/as, router-id) passes validation.
+// RFC requirement: RFC7950-7.6.5-1 negative -- a missing mandatory node yields an ErrTypeMissing (missing-element) error.
 func TestValidator_MandatoryField(t *testing.T) {
 	v := newTestValidator(t)
 

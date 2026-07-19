@@ -133,6 +133,13 @@ func TestRouteRefreshCommonFamilies(t *testing.T) {
 // VALIDATES: Subtype correctly serialized and parsed.
 //
 // PREVENTS: Failure to handle enhanced route refresh markers.
+//
+// RFC requirement: RFC7313-4-1 positive -- the BoRR marker ze sends before
+// re-advertising encodes Message Subtype byte 1 at body offset 2
+// (RouteRefreshBoRR case: body[2]==1, round-tripping to parsed.Subtype).
+// RFC requirement: RFC7313-4-2 positive -- the EoRR marker ze sends after
+// re-advertising encodes Message Subtype byte 2 at body offset 2
+// (RouteRefreshEoRR case: body[2]==2, round-tripping to parsed.Subtype).
 func TestRouteRefreshSubtypes(t *testing.T) {
 	tests := []struct {
 		name    string

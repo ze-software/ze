@@ -399,6 +399,10 @@ func TestHandleRouteRefresh_InvalidLength(t *testing.T) {
 
 // TestHandleRouteRefresh_UnknownSubtype verifies subtypes > 2 are silently ignored.
 // RFC 7313 Section 5: unknown subtypes MUST be ignored.
+//
+// RFC requirement: RFC7313-4-3 negative -- handleRouteRefresh examines the Message
+// Subtype field, and for a value other than 0/1/2 (here 3, 100, 255) it takes no
+// BoRR/EoRR/normal action, returning without error rather than processing the message.
 func TestHandleRouteRefresh_UnknownSubtype(t *testing.T) {
 	s := newOpenSentSession(t)
 

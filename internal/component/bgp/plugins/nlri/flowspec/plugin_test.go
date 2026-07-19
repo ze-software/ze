@@ -8,6 +8,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRunFlowSpecDecode verifies decode mode protocol handling.
@@ -713,4 +717,41 @@ func TestRunCLIDecode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestIPv6FlowSpecNegotiatesMultiprotocolCapability verifies RFC 8956 Section 2:
+// an implementation advertising IPv6 Flow Specification negotiates the
+// (AFI=2, SAFI=133) Multiprotocol Extension capability.
+//
+// The flowspec plugin declares "ipv6/flow" as a decode family (register.go);
+// OPEN negotiation (internal/component/bgp/reactor/session_negotiate.go sendOpen)
+// resolves each declared decode family via family.LookupFamily and emits a
+// capability.Multiprotocol{AFI, SAFI} for it. This test pins the declared family
+// through that mapping to the Multiprotocol (Code 1) capability with AFI 2 / SAFI 133
+// that negotiation produces.
+//
+// VALIDATES: ipv6/flow yields an (AFI 2, SAFI 133) Multiprotocol capability.
+// PREVENTS: IPv6 FlowSpec silently omitted from the OPEN capability set; the
+// negotiated pair drifting from the RFC-mandated (AFI 2, SAFI 133).
+func TestIPv6FlowSpecNegotiatesMultiprotocolCapability(t *testing.T) {
+	t.Parallel()
+
+	// The flowspec plugin advertises ipv6/flow as a decode family (register.go),
+	// which is what OPEN negotiation offers as a Multiprotocol capability.
+	reg := registry.Lookup("bgp-nlri-flowspec")
+	require.NotNil(t, reg, "flowspec plugin must be registered")
+	require.Contains(t, reg.Families, "ipv6/flow",
+		"flowspec must advertise ipv6/flow so OPEN negotiation offers it")
+
+	// sendOpen resolves the declared family string, exactly as negotiation does.
+	fam, ok := family.LookupFamily("ipv6/flow")
+	require.True(t, ok, "ipv6/flow must resolve to a registered family")
+
+	// RFC 8956 Section 2: the pair carried in the Multiprotocol capability MUST be
+	// (AFI=2, SAFI=133) for IPv6 Flow Specification rules.
+	// RFC requirement: RFC8956-2-1 positive -- ipv6/flow negotiates the (AFI 2, SAFI 133) Multiprotocol capability (§2)
+	mp := &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}
+	assert.Equal(t, capability.CodeMultiprotocol, mp.Code(), "must be a Multiprotocol capability (Code 1)")
+	assert.Equal(t, capability.AFI(2), mp.AFI, "IPv6 FlowSpec MP capability AFI must be 2")
+	assert.Equal(t, capability.SAFI(133), mp.SAFI, "IPv6 FlowSpec MP capability SAFI must be 133")
 }

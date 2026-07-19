@@ -2295,6 +2295,12 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 // VALIDATES: AC-4 invalid ROUTE-REFRESH body length sends NOTIFICATION and closes.
 //
 // PREVENTS: Malformed peer input reaching plugin/API receive callbacks before RFC 7313 validation.
+//
+// RFC requirement: RFC7313-5-1 positive -- a ROUTE-REFRESH body whose length is not 4
+// (too short or too long) triggers a NOTIFICATION carrying Error Code 7
+// (NotifyRouteRefresh) and subcode 1 (NotifyRouteRefreshInvalidLength).
+// RFC requirement: RFC7313-5-2 positive -- that NOTIFICATION's Data field
+// (notif[HeaderLen+2:]) contains the complete received ROUTE-REFRESH message (== rrMsg).
 func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 	tests := []struct {
 		name string
@@ -2362,6 +2368,10 @@ func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 // families: a ROUTE-REFRESH for an <AFI, SAFI> the speaker DID advertise (IPv4
 // unicast, negotiated by setupEstablishedSession) is NOT ignored; it reaches the
 // receive callbacks. Complements the non-negotiated-family ignore case.
+//
+// RFC requirement: RFC7313-5-1 negative -- the invalid-length guard does not over-fire:
+// a ROUTE-REFRESH whose body length IS 4 raises no NOTIFICATION, returns no error, and
+// is delivered to the receive callbacks with the session still Established.
 func TestRouteRefreshValidLengthDelivered(t *testing.T) {
 	session, client, cleanup := setupEstablishedSession(t)
 	defer cleanup()
@@ -2429,6 +2439,12 @@ func TestHandleRouteRefreshNormal(t *testing.T) {
 //
 // VALIDATES: ROUTE-REFRESH with subtype 1 (BoRR) is processed without error.
 // PREVENTS: Session reset on valid BoRR marker.
+//
+// RFC requirement: RFC7313-4-3 positive -- the Message Subtype field is examined and a
+// recognized subtype (1, BoRR) is dispatched to its handling without error, session
+// remaining Established.
+// RFC requirement: RFC7313-5-3 negative -- a recognized subtype (0/1/2) is NOT ignored:
+// unlike an unknown subtype, a BoRR is accepted and acted upon rather than dropped.
 func TestHandleRouteRefreshBoRR(t *testing.T) {
 	session, client, cleanup := setupEstablishedSession(t)
 	defer cleanup()
@@ -2456,6 +2472,10 @@ func TestHandleRouteRefreshBoRR(t *testing.T) {
 //
 // VALIDATES: ROUTE-REFRESH with subtype 2 (EoRR) is processed without error.
 // PREVENTS: Session reset on valid EoRR marker.
+//
+// RFC requirement: RFC7313-4-3 positive -- the Message Subtype field is examined and a
+// recognized subtype (2, EoRR) is dispatched to its handling without error, session
+// remaining Established.
 func TestHandleRouteRefreshEoRR(t *testing.T) {
 	session, client, cleanup := setupEstablishedSession(t)
 	defer cleanup()
@@ -2485,6 +2505,12 @@ func TestHandleRouteRefreshEoRR(t *testing.T) {
 //
 // VALIDATES: Unknown subtype (e.g., 42) is silently ignored.
 // PREVENTS: Error or session reset on unknown subtype.
+//
+// RFC requirement: RFC7313-5-3 positive -- a ROUTE-REFRESH with a subtype other than
+// 0, 1, or 2 (here 42) is ignored: no error, session stays Established.
+// RFC requirement: RFC7313-4-3 negative -- examining the Message Subtype field, an
+// unrecognized subtype takes no BoRR/EoRR/normal action; it is dropped rather than
+// processed.
 func TestHandleRouteRefreshUnknown(t *testing.T) {
 	session, client, cleanup := setupEstablishedSession(t)
 	defer cleanup()
@@ -2512,6 +2538,9 @@ func TestHandleRouteRefreshUnknown(t *testing.T) {
 //
 // VALIDATES: Reserved subtype 255 is silently ignored.
 // PREVENTS: Error or session reset on reserved subtype.
+//
+// RFC requirement: RFC7313-5-3 positive -- a ROUTE-REFRESH with a subtype other than
+// 0, 1, or 2 (here reserved 255) is ignored: no error, session stays Established.
 func TestHandleRouteRefreshReserved(t *testing.T) {
 	session, client, cleanup := setupEstablishedSession(t)
 	defer cleanup()

@@ -60,6 +60,8 @@ func TestISISAuthAlgorithmEnumAcceptsAll(t *testing.T) {
 	// Every algorithm the runtime backend (auth_keystore.go algoFromString /
 	// auth_verify.go) supports must be a valid schema enum value -- including
 	// hmac-sha-224, the value the B9 finding flagged as missing.
+	//
+	// RFC requirement: RFC7950-9.6-1 positive -- each algorithm defined in the ze-isis-conf.yang enum is accepted as a valid enumeration value.
 	for _, algo := range []string{
 		"cleartext",
 		"hmac-md5",
@@ -75,6 +77,8 @@ func TestISISAuthAlgorithmEnumAcceptsAll(t *testing.T) {
 
 	// A value outside the enum is still rejected -- proves the enum IS enforced on
 	// this path, so the acceptances above are meaningful (not a no-op walk).
+	//
+	// RFC requirement: RFC7950-9.6-1 negative -- a value not defined in the enum ("hmac-sha-999") is rejected with ErrTypeEnum.
 	errs := validateAlgo("hmac-sha-999")
 	require.NotEmpty(t, errs, "an unknown algorithm must be rejected by the enum")
 	assert.Equal(t, yang.ErrTypeEnum, errs[0].Type)
