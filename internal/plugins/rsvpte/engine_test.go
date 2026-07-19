@@ -191,6 +191,7 @@ func TestEngineTransitForwarding(t *testing.T) {
 	fwd, dst, ok := ft.lastByType(MsgTypePath)
 	require.True(t, ok, "transit relays PATH downstream")
 	assert.Equal(t, egress, dst, "PATH relayed to next ERO hop")
+	// RFC requirement: RFC3209-4.3.4-1 positive -- the transit node removes its own leading ERO subobject (nextHopFromERO, engine.go:407-416) before relaying, so the forwarded PATH's ERO begins at the next hop (the egress).
 	require.Len(t, fwd.ERO, 1, "transit consumed its own ERO subobject; only the egress hop remains")
 	assert.Equal(t, egress, fwd.ERO[0].Address.Addr())
 
@@ -354,4 +355,72 @@ func TestEnginePathTearReleases(t *testing.T) {
 	assert.Empty(t, fib.removed, "egress programs no push entry to withdraw")
 	require.Len(t, fib.removedSwap, 1, "egress pop entry withdrawn")
 	assert.Equal(t, popLabel, fib.removedSwap[0])
+}
+
+// VALIDATES: a RESV that carries no LABEL object is rejected -- the LABEL is
+// mandatory in a RESV, so handleResv drops it and the ingress LSP is not brought up.
+func TestEngineResvWithoutLabelRejected(t *testing.T) {
+	// RFC requirement: RFC3209-4.1-1 negative -- a RESV with no LABEL object is rejected by handleResv (engine.go:425-427); the ingress LSP stays path-sent and no push is programmed.
+	e, _, fib := testEngine(t, "10.0.0.1", nil)
+
+	key := lspKey{
+		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
+		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
+	}
+	lsp, _ := e.table.GetOrCreate(key)
+	lsp.Role = RoleIngress
+	lsp.setState(LSPStatePathSent)
+
+	// A RESV with SESSION + STYLE + SENDER_TEMPLATE but deliberately NO LABEL object.
+	session := sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID}
+	filter := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
+	raw := encodeMessage(MsgTypeResv, defaultIPTTL, []objEncoder{
+		func(b []byte) int { return encodeSessionIPv4(b, session) },
+		func(b []byte) int { return encodeStyle(b, StyleSharedExplicit) },
+		func(b []byte) int { return encodeSenderTemplate(b, filter) },
+	})
+
+	// Sanity: the crafted RESV really lacks a LABEL.
+	msg, err := DecodeMessage(raw)
+	require.NoError(t, err)
+	require.True(t, msg.HasSession)
+	require.False(t, msg.HasLabel, "crafted RESV must carry no LABEL")
+
+	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.9"), Payload: raw})
+
+	got, ok := e.table.Get(key)
+	require.True(t, ok)
+	assert.Equal(t, LSPStatePathSent, got.State, "labelless RESV is rejected; LSP stays path-sent")
+	assert.Zero(t, got.OutLabel, "no out-label recorded from a labelless RESV")
+	assert.Empty(t, fib.pushed, "no push programmed for a rejected RESV")
+}
+
+// VALIDATES: when a transit node removes itself from the ERO and no next hop
+// remains, it does NOT forward the PATH; it returns a PathErr (Routing Problem /
+// Bad ERO Object) toward the sender.
+func TestEngineTransitNoUsableERONextHop(t *testing.T) {
+	// RFC requirement: RFC3209-4.3.4-1 negative -- after removing itself from the ERO the transit node has no next hop, so it forwards no PATH and sends a PathErr (Routing Problem / Bad ERO, engine.go:314-318).
+	e, ft, _ := testEngine(t, "10.0.0.5", nil)
+
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		// The ERO names only this transit node; after it removes itself nothing remains.
+		ERO:          []eroHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}},
+		SenderTSpec:  FlowSpec{TokenRate: 1e8},
+		LabelRequest: labelRequest{L3PID: 0x0800},
+	}
+	src := netip.MustParseAddr("10.0.0.1")
+	e.handlePacket(Packet{Src: src, Payload: buildPath(psb, src, 64)})
+
+	perr, dst, ok := ft.lastByType(MsgTypePathErr)
+	require.True(t, ok, "a PATH with no usable ERO next hop sends a PathErr")
+	assert.Equal(t, src, dst, "PathErr goes back to the PATH source")
+	assert.Equal(t, ErrCodeRoutingProblem, perr.ErrorSpec.ErrorCode)
+	assert.Equal(t, ErrValueBadEROObject, perr.ErrorSpec.ErrorValue)
+
+	if _, _, relayed := ft.lastByType(MsgTypePath); relayed {
+		t.Fatal("no PATH must be relayed when the ERO has no usable next hop")
+	}
+	assert.Empty(t, e.table.All(), "no state installed for an unusable-ERO PATH")
 }

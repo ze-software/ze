@@ -42,6 +42,7 @@ func TestBuildPathRoundTrip(t *testing.T) {
 	assert.Equal(t, psb.SenderTemplate, msg.SenderTemplate)
 	require.True(t, msg.HasHop)
 	assert.Equal(t, hop, msg.Hop.NextHop)
+	// RFC requirement: RFC3209-4.2-1 positive -- buildPath appends a LABEL_REQUEST (build.go:92) so a PATH ze builds carries the object that requests label allocation.
 	require.True(t, msg.HasLabelRequest)
 	assert.Equal(t, psb.LabelRequest, msg.LabelRequest)
 	require.True(t, msg.HasERO)
@@ -71,8 +72,10 @@ func TestBuildResvRoundTrip(t *testing.T) {
 	assert.Equal(t, MsgTypeResv, msg.Header.MsgType)
 	require.True(t, msg.HasSession)
 	assert.Equal(t, rsb.Session, msg.Session)
+	// RFC requirement: RFC3209-4.1-1 positive -- buildResv emits a LABEL object (build.go:129) so a RESV ze builds carries the label the node reports upstream.
 	require.True(t, msg.HasLabel)
 	assert.Equal(t, uint32(16001), msg.Label.Label)
+	// RFC requirement: RFC3209-6-2 positive -- a RESV built with the SE style carries STYLE = Shared Explicit (18) on the wire (build.go:126, wire.go:680), the style make-before-break requires.
 	require.True(t, msg.HasStyle)
 	assert.Equal(t, StyleSharedExplicit, msg.Style)
 	require.True(t, msg.HasSenderTemplate, "filter spec decodes as sender template")

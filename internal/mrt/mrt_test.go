@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"testing"
+	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/mrt"
 )
@@ -18,6 +19,24 @@ func TestCommonHeaderRoundTrip(t *testing.T) {
 	n := mrt.WriteCommonHeader(buf, 0, ts, typ, sub, msgLen)
 	if n != mrt.CommonHeaderLen {
 		t.Fatalf("WriteCommonHeader returned %d, want %d", n, mrt.CommonHeaderLen)
+	}
+
+	// RFC requirement: RFC6396-1-1 positive -- multi-octet header values are stored in
+	// network byte order (big-endian, most significant octet first). WriteCommonHeader
+	// writes every field through be = binary.BigEndian (internal/mrt/encode.go:7,10-13);
+	// these raw-byte checks assert MSB-first layout directly, so a little-endian encoder
+	// would fail here rather than silently round-trip through a matching decoder.
+	if buf[0] != byte(ts>>24) || buf[1] != byte(ts>>16) || buf[2] != byte(ts>>8) || buf[3] != byte(ts) {
+		t.Errorf("Timestamp bytes = % x, want big-endian %08x", buf[0:4], ts)
+	}
+	if buf[4] != byte(typ>>8) || buf[5] != byte(typ) {
+		t.Errorf("Type bytes = % x, want big-endian %04x", buf[4:6], typ)
+	}
+	if buf[6] != byte(sub>>8) || buf[7] != byte(sub) {
+		t.Errorf("Subtype bytes = % x, want big-endian %04x", buf[6:8], sub)
+	}
+	if buf[8] != byte(msgLen>>24) || buf[9] != byte(msgLen>>16) || buf[10] != byte(msgLen>>8) || buf[11] != byte(msgLen) {
+		t.Errorf("Length bytes = % x, want big-endian %08x", buf[8:12], msgLen)
 	}
 
 	h, err := mrt.DecodeHeader(buf[:n])
@@ -137,6 +156,42 @@ func TestPeerIndexTableRoundTrip(t *testing.T) {
 		if got.ASN != want.ASN {
 			t.Errorf("Peer[%d].ASN = %d, want %d", i, got.ASN, want.ASN)
 		}
+	}
+}
+
+// RFC requirement: RFC6396-4.3.1-1 positive -- when no view name is associated with the
+// dump, the PEER_INDEX_TABLE View Name Length field is 0. The RIB dumper always passes an
+// empty view name (internal/plugins/mrt/dump.go:199), and WritePeerIndexTable stores
+// len(viewName) as the 2-byte View Name Length (internal/mrt/encode.go:48), so the encoded
+// length reads 0 and no View Name bytes follow.
+// RFC requirement: RFC6396-4.3.1-2 positive -- the emitted View Name is valid UTF-8: the
+// dumper emits a constant empty view name (internal/plugins/mrt/dump.go:199), and the empty
+// string is valid UTF-8, so the decoded View Name never contains an invalid UTF-8 sequence.
+func TestPeerIndexTableEmptyViewName(t *testing.T) {
+	collectorID := [4]byte{198, 51, 100, 4}
+	peers := testPeers()
+
+	buf := make([]byte, 4096)
+	n := mrt.WritePeerIndexTable(buf, 0, collectorID, "", peers)
+	if n == 0 {
+		t.Fatal("WritePeerIndexTable returned 0")
+	}
+
+	// View Name Length is the 2-byte big-endian field right after the 4-byte
+	// Collector BGP ID (RFC 6396 Section 4.3.1).
+	if viewNameLen := binary.BigEndian.Uint16(buf[4:6]); viewNameLen != 0 {
+		t.Errorf("View Name Length = %d, want 0 for an empty view name", viewNameLen)
+	}
+
+	pit, err := mrt.DecodePeerIndexTable(buf[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pit.ViewName != "" {
+		t.Errorf("ViewName = %q, want empty", pit.ViewName)
+	}
+	if !utf8.ValidString(pit.ViewName) {
+		t.Errorf("ViewName is not valid UTF-8: %q", pit.ViewName)
 	}
 }
 

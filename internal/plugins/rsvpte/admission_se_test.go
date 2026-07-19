@@ -32,6 +32,7 @@ func TestSEAdmissionMBBDoesNotDoubleReserve(t *testing.T) {
 // VALIDATES: without SE sharing the second 5Gbps reservation would exceed the
 // 8Gbps limit -- proves the test above is a real admission that SE enables.
 func TestSEAdmissionDistinctSessionsDoNotShare(t *testing.T) {
+	// RFC requirement: RFC3209-6-1 negative -- reservation sharing is keyed on the SESSION (endpoint, tunnel-id, ext-id; admission.go:29-41). LSPs of DIFFERENT sessions do not share (they sum and are denied), so only same-SESSION LSPs -- the make-before-break old/new pair -- share.
 	ac := newAdmissionController()
 	ac.setInterface("eth0", 10e9, 8e9)
 

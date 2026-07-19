@@ -292,6 +292,8 @@ func TestRSVPRRODecode(t *testing.T) {
 }
 
 func TestRSVPLabelObject(t *testing.T) {
+	// RFC requirement: RFC3209-4.1-2 positive -- a valid 20-bit label (<= MaxLabel 0xFFFFF, upper 12 bits zero) round-trips through encodeLabelObject/decodeLabelObject unchanged (the "max valid" case).
+	// RFC requirement: RFC3209-4.1-2 negative -- a label above 0xFFFFF (upper 12 bits nonzero) is rejected by decodeLabelObject with errLabelRange (wire.go:386), not decoded (the "above max" case).
 	tests := []struct {
 		name    string
 		label   uint32
@@ -325,6 +327,49 @@ func TestRSVPLabelObject(t *testing.T) {
 				t.Errorf("Label = %d, want %d", decoded.Label, tt.label)
 			}
 		})
+	}
+}
+
+// TestRSVPSessionObjectEncoding pins the SESSION object wire format RFC 3209 requires:
+// Class-Num SESSION, C-Type 7 (LSP_TUNNEL_IPv4), and a zeroed reserved field on send.
+func TestRSVPSessionObjectEncoding(t *testing.T) {
+	// RFC requirement: RFC3209-4.6.1-2 positive -- encodeSessionIPv4 stamps SESSION C-Type 7 (LSP_TUNNEL_IPv4) for RSVP-TE LSP tunnels (wire.go:240).
+	// RFC requirement: RFC3209-4.6.1-1 positive -- encodeSessionIPv4 writes the SESSION reserved field (body bytes 4-5) as zero on send (wire.go:243-244).
+	buf := make([]byte, 32)
+	// Nonzero endpoint/tunnel-id/ext-id so a stray write into the reserved field would show.
+	n := encodeSessionIPv4(buf, sessionIPv4{
+		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"),
+		TunnelID:       0xffff,
+		ExtTunnelID:    0xffffffff,
+	})
+	if n != 16 {
+		t.Fatalf("encodeSessionIPv4 returned %d bytes, want 16", n)
+	}
+	if buf[2] != ClassSession {
+		t.Errorf("SESSION Class-Num = %d, want %d", buf[2], ClassSession)
+	}
+	if buf[3] != CTypeLSPTunnelIPv4 {
+		t.Errorf("SESSION C-Type = %d, want %d (LSP_TUNNEL_IPv4)", buf[3], CTypeLSPTunnelIPv4)
+	}
+	if buf[8] != 0 || buf[9] != 0 {
+		t.Errorf("SESSION reserved field = 0x%02x%02x, want 0x0000", buf[8], buf[9])
+	}
+}
+
+// TestRSVPSenderTemplateReservedZeroOnSend pins the SENDER_TEMPLATE reserved field to
+// zero on send.
+func TestRSVPSenderTemplateReservedZeroOnSend(t *testing.T) {
+	// RFC requirement: RFC3209-4.6.2-1 positive -- encodeSenderTemplate zeroes the SENDER_TEMPLATE reserved field (body bytes 4-5) on send (wire.go:275-276).
+	buf := make([]byte, 32)
+	n := encodeSenderTemplate(buf, senderTemplateIPv4{
+		SenderAddr: netip.MustParseAddr("10.0.0.1"),
+		LSPID:      0xffff,
+	})
+	if n != 12 {
+		t.Fatalf("encodeSenderTemplate returned %d bytes, want 12", n)
+	}
+	if buf[8] != 0 || buf[9] != 0 {
+		t.Errorf("SENDER_TEMPLATE reserved field = 0x%02x%02x, want 0x0000", buf[8], buf[9])
 	}
 }
 

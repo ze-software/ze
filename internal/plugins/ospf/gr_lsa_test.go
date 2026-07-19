@@ -15,6 +15,13 @@ import (
 // TestGraceLSAv4BodyBuild (AC-3): the body always carries the type-1 Grace Period and type-2
 // Reason; the type-3 IP Interface Address TLV appears only on shared media.
 func TestGraceLSAv4BodyBuild(t *testing.T) {
+	// RFC requirement: RFC3623-A-4 positive -- a shared-media (broadcast/NBMA/P2MP) grace-LSA
+	// carries the type-3 IP Interface Address TLV (RFC 3623 sec A, sec 3.1): grV4Body with
+	// sharedMedia=true sets HasInterfaceAddr, so EncodeGraceLSA appends the type-3 TLV
+	// (gr_lsa.go:19-27, packet/grace_lsa.go:51-53) and the address round-trips.
+	// RFC requirement: RFC3623-A-4 negative -- a non-shared (point-to-point / virtual-link)
+	// grace-LSA OMITS the type-3 TLV: grV4Body with sharedMedia=false leaves HasInterfaceAddr
+	// clear, so no type-3 TLV is emitted (the p2p case below asserts !g2.HasInterfaceAddr).
 	addr := [4]byte{192, 0, 2, 5}
 
 	shared := grV4Body(120, 2, addr, true)

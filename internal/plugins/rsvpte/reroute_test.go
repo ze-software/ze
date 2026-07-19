@@ -38,6 +38,11 @@ func TestEngineMakeBeforeBreak(t *testing.T) {
 	newKey, ok := e.reroute(oldKey, newERO)
 	require.True(t, ok)
 	assert.Equal(t, uint16(2), newKey.LSPID, "new LSP uses the next LSP_ID")
+	// RFC requirement: RFC3209-6-1 positive -- the make-before-break replacement keeps the old LSP's SESSION (Tunnel Endpoint, Tunnel ID, Extended Tunnel ID) and differs only in LSP ID (reroute sets newKey.LSPID = oldKey.LSPID+1, reroute.go:45-46).
+	assert.Equal(t, oldKey.TunnelEndpoint, newKey.TunnelEndpoint, "same tunnel endpoint (SESSION)")
+	assert.Equal(t, oldKey.TunnelID, newKey.TunnelID, "same tunnel ID (SESSION)")
+	assert.Equal(t, oldKey.ExtTunnelID, newKey.ExtTunnelID, "same extended tunnel ID (SESSION)")
+	assert.NotEqual(t, oldKey.LSPID, newKey.LSPID, "only the LSP ID differs")
 
 	// A PATH was sent for the new LSP; both LSPs exist (make-before-break).
 	path, _, ok := ft.lastByType(MsgTypePath)

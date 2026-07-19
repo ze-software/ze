@@ -6,10 +6,14 @@
 package mrt
 
 import (
+	"bytes"
 	"net/netip"
+	"path/filepath"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
 )
 
 func peerAt(addr string) *plugin.PeerInfo {
@@ -72,6 +76,55 @@ func TestShouldRecordDirectionAndPeerCombined(t *testing.T) {
 	// Wrong peer, right direction → dropped.
 	if c.shouldRecord(peerAt("10.0.0.2"), false) {
 		t.Error("combined filter recorded a disallowed peer")
+	}
+}
+
+func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
+	// RFC requirement: RFC6396-4.4.2-2 positive -- a BGP4MP_MESSAGE record encapsulates
+	// exactly one BGP message [SHALL]. OnBGPMessage builds a single record per call with
+	// one WriteBGP4MPMessage and writes it once (internal/plugins/mrt/component.go:99-143),
+	// and a BGP4MP MESSAGE record's body is exactly that one encapsulated message
+	// (WriteBGP4MPMessage, internal/mrt/encode.go:167-173). This drives one OnBGPMessage
+	// call and asserts the dump holds exactly one BGP4MP MESSAGE record whose body equals
+	// the single input message byte-for-byte (no second message appended).
+	c := New(Config{}, nil)
+	path := filepath.Join(t.TempDir(), "all.mrt")
+	c.allMsgs = newAsyncWriter(mrtfmt.NewWriter(path), c.logger)
+
+	peer := &plugin.PeerInfo{
+		Address:      netip.MustParseAddr("192.0.2.1"),
+		LocalAddress: netip.MustParseAddr("192.0.2.2"),
+		PeerAS:       65001,
+		LocalAS:      65002,
+	}
+	// A single well-formed 19-byte BGP KEEPALIVE: 16-byte marker + length 19 + type 4.
+	bgpMsg := []byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0x00, 0x13, 0x04,
+	}
+	c.OnBGPMessage(peer, message.TypeUPDATE, false, bgpMsg)
+	if err := c.allMsgs.Close(); err != nil {
+		t.Fatalf("close all writer: %v", err)
+	}
+
+	var messages [][]byte
+	h := &mrtfmt.Handler{
+		OnMessage: func(_ mrtfmt.Header, _ uint32, m *mrtfmt.MessageRecord) error {
+			messages = append(messages, bytes.Clone(m.BGPMessage))
+			return nil
+		},
+	}
+	if err := mrtfmt.ReadFile(path, h); err != nil {
+		t.Fatalf("read back dump: %v", err)
+	}
+
+	if len(messages) != 1 {
+		t.Fatalf("BGP4MP MESSAGE record count = %d, want exactly 1", len(messages))
+	}
+	if !bytes.Equal(messages[0], bgpMsg) {
+		t.Errorf("encapsulated message = % x, want % x (record must carry exactly the one message)",
+			messages[0], bgpMsg)
 	}
 }
 

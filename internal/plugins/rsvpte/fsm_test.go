@@ -59,6 +59,20 @@ func TestLSPTableAllocateLabel(t *testing.T) {
 	}
 }
 
+// TestLSPTableAllocateSkipsReservedLabels checks the dynamic label allocator never
+// hands out a reserved label (0-15): it starts at firstDynamicLabel (1000) and every
+// label it returns stays at or above that floor.
+func TestLSPTableAllocateSkipsReservedLabels(t *testing.T) {
+	// RFC requirement: RFC3209-4.1-3 positive -- allocated labels start at firstDynamicLabel (1000, fsm.go:184/205) and stay >= it (wrap resets to firstDynamicLabel, fsm.go:215-217), so the reserved 0-15 label range is never allocated.
+	table := newLSPTable()
+	for range 100 {
+		l := table.AllocateLabel()
+		if l < firstDynamicLabel {
+			t.Fatalf("AllocateLabel returned %d, want >= %d (reserved labels 0-15 must never be allocated)", l, firstDynamicLabel)
+		}
+	}
+}
+
 func TestLSPTableRemove(t *testing.T) {
 	table := newLSPTable()
 	key := lspKey{
