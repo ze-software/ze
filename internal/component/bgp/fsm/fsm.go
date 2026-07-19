@@ -37,8 +37,18 @@
 package fsm
 
 import (
+	"errors"
 	"sync"
 )
+
+// ErrFSMError is returned by Event when an event lands in a state handler's
+// error default arm — i.e. an event that RFC 4271 Section 8.2.2 treats as a
+// Finite State Machine Error (Error Code 5) in that state, forcing a transition
+// to Idle. Callers use errors.Is(err, ErrFSMError) to distinguish a rejected,
+// error-causing event from a handled one (which returns nil). Events that are
+// deliberately ignored without a state change (RFC 4271's "does not cause change
+// in the state", e.g. any other event in Idle) return nil, not this sentinel.
+var ErrFSMError = errors.New("fsm: event caused a Finite State Machine Error")
 
 // StateCallback is called when the FSM changes state.
 type StateCallback func(from, to State)
@@ -157,16 +167,17 @@ func (f *FSM) Event(event Event) error {
 	switch f.state {
 	case StateIdle:
 		f.handleIdle(event)
+		return nil
 	case StateConnect:
-		f.handleConnect(event)
+		return f.handleConnect(event)
 	case StateActive:
-		f.handleActive(event)
+		return f.handleActive(event)
 	case StateOpenSent:
-		f.handleOpenSent(event)
+		return f.handleOpenSent(event)
 	case StateOpenConfirm:
-		f.handleOpenConfirm(event)
+		return f.handleOpenConfirm(event)
 	case StateEstablished:
-		f.handleEstablished(event)
+		return f.handleEstablished(event)
 	}
 
 	return nil
@@ -200,6 +211,10 @@ func (f *FSM) handleIdle(event Event) {
 	default:
 		// RFC 4271 Section 8.2.2: "Any other event (Events 9-12, 15-28) received
 		// in the Idle state does not cause change in the state of the local system."
+		// This is a deliberate, RFC-mandated ignore (no state change), NOT a
+		// Finite State Machine Error, so Event returns nil for the Idle default
+		// arm — unlike the error default arms in the post-connection states below.
+		return
 	}
 }
 
@@ -208,7 +223,7 @@ func (f *FSM) handleIdle(event Event) {
 // RFC 4271 Section 8.2.2 (Connect state):
 // "In this state, BGP FSM is waiting for the TCP connection to be completed."
 // Handles connection events to transition to OpenSent or Idle state.
-func (f *FSM) handleConnect(event Event) {
+func (f *FSM) handleConnect(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in CONNECT state per RFC 4271.
 	case EventManualStart:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
@@ -246,9 +261,11 @@ func (f *FSM) handleConnect(event Event) {
 		// the ConnectRetryCounter by 1... and changes its state to Idle."
 		f.change(StateIdle)
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle
+	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
 		f.change(StateIdle)
+		return ErrFSMError
 	}
+	return nil
 }
 
 // handleActive processes events in ACTIVE state (passive peer).
@@ -257,7 +274,7 @@ func (f *FSM) handleConnect(event Event) {
 // "In this state, BGP FSM is trying to acquire a peer by listening for,
 // and accepting, a TCP connection."
 // Handles connection events for passive mode peers.
-func (f *FSM) handleActive(event Event) {
+func (f *FSM) handleActive(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in ACTIVE state per RFC 4271.
 	case EventManualStart:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
@@ -296,9 +313,11 @@ func (f *FSM) handleActive(event Event) {
 		// drops the TCP connection... and changes its state to Idle."
 		f.change(StateIdle)
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle
+	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
 		f.change(StateIdle)
+		return ErrFSMError
 	}
+	return nil
 }
 
 // handleOpenSent processes events in OPENSENT state.
@@ -306,7 +325,7 @@ func (f *FSM) handleActive(event Event) {
 // RFC 4271 Section 8.2.2 (OpenSent state):
 // "In this state, BGP FSM waits for an OPEN message from its peer."
 // Handles OPEN message reception to transition to OpenConfirm or errors to Idle.
-func (f *FSM) handleOpenSent(event Event) {
+func (f *FSM) handleOpenSent(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in OPENSENT state per RFC 4271.
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
@@ -347,7 +366,9 @@ func (f *FSM) handleOpenSent(event Event) {
 
 	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
 		f.change(StateIdle)
+		return ErrFSMError
 	}
+	return nil
 }
 
 // handleOpenConfirm processes events in OPENCONFIRM state.
@@ -355,7 +376,7 @@ func (f *FSM) handleOpenSent(event Event) {
 // RFC 4271 Section 8.2.2 (OpenConfirm state):
 // "In this state, BGP waits for a KEEPALIVE or NOTIFICATION message."
 // Handles KEEPALIVE to transition to Established or errors to Idle.
-func (f *FSM) handleOpenConfirm(event Event) {
+func (f *FSM) handleOpenConfirm(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in OPENCONFIRM state per RFC 4271.
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
@@ -405,7 +426,9 @@ func (f *FSM) handleOpenConfirm(event Event) {
 
 	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
 		f.change(StateIdle)
+		return ErrFSMError
 	}
+	return nil
 }
 
 // handleEstablished processes events in ESTABLISHED state.
@@ -414,7 +437,7 @@ func (f *FSM) handleOpenConfirm(event Event) {
 // "In the Established state, the BGP FSM can exchange UPDATE, NOTIFICATION,
 // and KEEPALIVE messages with its peer."
 // Handles ongoing session events and transitions to Idle on errors.
-func (f *FSM) handleEstablished(event Event) {
+func (f *FSM) handleEstablished(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in ESTABLISHED state per RFC 4271.
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
@@ -488,6 +511,14 @@ func (f *FSM) handleEstablished(event Event) {
 		// Note: RFC specifies Event 11 (KeepaliveTimer_Expires) should send
 		// KEEPALIVE and restart the timer; not implemented here as timer
 		// management is handled externally.
+		//
+		// A second OPEN received on an established connection (EventBGPOpen) also
+		// lands here: RFC 4271 Section 8.2.2 treats it as a Finite State Machine
+		// Error. The reactor keys its NOTIFICATION (code 5) + close on the FSM
+		// state before firing the event; this sentinel lets logFSMEvent record
+		// the rejected transition as well.
 		f.change(StateIdle)
+		return ErrFSMError
 	}
+	return nil
 }

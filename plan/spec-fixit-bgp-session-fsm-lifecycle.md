@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -435,6 +435,35 @@ Add `// RFC 4271 Section 8.2.2: "<quoted requirement>"` above the OPEN-in-Establ
 → AUTONOMOUS DEFAULT (2026-07-17): **Q-4 policy-teardown reconnect class = BACKOFF** (not immediate `ErrTeardown`; adopts D-7). **[STAKES: protocol]** Rationale: after a policy tear-down the peer's config still violates policy, so it re-offends immediately; routing through `ErrTeardown`'s immediate-reconnect arm (`peer_run.go:78-84`) would produce a NOTIFICATION storm. A distinct sentinel that is NOT `errors.Is ErrTeardown` falls through to the exponential-backoff arm (`peer_run.go:118-151`), the lower-wire-churn, more-reversible option. This changes observable flap cadence for `filter_family` tear-down users. Thomas: override if wrong.
 
 → AUTONOMOUS DEFAULT (2026-07-17): **Q-5 Prometheus counters = ADD BOTH, peer-labeled** (adopts recommendation). `ze_bgp_hold_expiry_graced_total` (incremented in the grace branch, `session.go:425-431`) and `ze_bgp_open_in_established_total` (incremented at the defect-3 gate in `handleOpen`). Home verified: the reactor `rmetrics` struct lives in `reactor_metrics.go` and is already peer-labeled via `peerLabel()` / `.With(peerLabel).Inc()` (`peer_run.go:42-49`); the session reaches it through `session.prefixMetrics = p.reactor.rmetrics` (`peer_run.go:204-206`). Cheap counters, no new runtime dependency. Integration Checklist Prometheus row → resolved (add). Thomas: override if wrong.
+
+## Review Gate
+
+**Scope reviewed: the `fsm/*` slice only** (see the file-scope note under Files to Modify —
+this session was restricted to `internal/component/bgp/fsm/{fsm.go,fsm_test.go,timer.go,timer_test.go}`
+plus `reactor/{peer_run.go,session_coalesce.go}`; the latter two needed no change per D-3).
+The reactor-side consumers (grace-branch caller in `session.go`, `handleOpen` gate,
+policy-teardown, `Run` defer, Prometheus counters, functional/interop tests) are NOT part
+of this slice and remain open for the session-file slice.
+
+| Field | Value |
+|-------|-------|
+| Verdict | clean (0 BLOCKER, 0 ISSUE) |
+| Reviewer | independent subagent over the working-tree diff |
+| Artifact | `tmp/review/fixit-bgp-session-fsm-lifecycle-58c51aab-79d8-400d-b779-2c0cf322a274.md` |
+| Files | `fsm/fsm.go`, `fsm/timer.go`, `fsm/fsm_test.go`, `fsm/timer_test.go`, `fsm/fsm_fuzz_test.go` |
+
+Reviewer confirmed: generation guard correct (stale fire cannot clobber a fresh arm; pristine
+`holdFireGen==0` refuses an out-of-context grace re-arm; `StopAll` wins the R-3 race); `holdTime==0`
+disabled on all three arm paths; `ResetHoldTimer`'s `!holdRunning` no-op preserved; the
+`ErrFSMError` classification matches all 30 error-default-arm `{state,event}` pairs exactly
+(including the Established `BGPOpenMsgErr` asymmetry); tests are non-tautological (each fails if
+the fix is reverted). Three NITs raised; two applied (self-enforcing `d<=0` guard in
+`armHoldTimerLocked`; clarifying comment on the grace `d<=0` deliberate-disarm path). Third NIT
+(fuzz assertion slightly weaker) left as-is: covered by `TestFSMExhaustiveTransitions`.
+
+Scoped verification (unit only; NO large/functional/QEMU suites, NO `ze-verify*`):
+`go test -race ./internal/component/bgp/fsm/` PASS; fuzz seed corpus PASS;
+`golangci-lint run ./internal/component/bgp/fsm/` 0 issues.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Deepened to design 2026-07-16: every `file:line` re-verified against the working tree.

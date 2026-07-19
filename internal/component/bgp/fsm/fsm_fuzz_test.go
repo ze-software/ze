@@ -6,7 +6,10 @@
 
 package fsm
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // validState reports whether s is one of the six RFC 4271 §8.2.2 states.
 func validState(s State) bool {
@@ -51,9 +54,12 @@ func FuzzFSMEventSequence(f *testing.F) {
 			}
 
 			for _, b := range data {
-				// Raw byte covers valid events (0..14) and unknown numbers (must no-op).
-				if err := m.Event(Event(int(b))); err != nil {
-					t.Fatalf("Event(%d) returned error: %v", int(b), err)
+				// Raw byte covers valid events (0..14) and unknown numbers. An
+				// event that lands in an error default arm returns ErrFSMError
+				// (RFC 4271 Finite State Machine Error); that is expected. Any
+				// OTHER error would signal a bug.
+				if err := m.Event(Event(int(b))); err != nil && !errors.Is(err, ErrFSMError) {
+					t.Fatalf("Event(%d) returned unexpected error: %v", int(b), err)
 				}
 				if st := m.State(); !validState(st) {
 					t.Fatalf("invalid state %d after Event(%d) (passive=%v)", int(st), int(b), passive)

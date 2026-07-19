@@ -452,6 +452,43 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Established_UpdateMsgErr", StateEstablished, false, EventUpdateMsgErr, StateIdle},
 	}
 
+	// errorArms is an independent oracle of the {state,event} pairs that land in
+	// a handler's error default arm (RFC 4271 Section 8.2.2 Finite State Machine
+	// Error → Idle). Event must return ErrFSMError for exactly these pairs and nil
+	// for every other transition, including Idle's deliberate ignores and the
+	// explicit cases that legitimately transition to Idle (e.g. ManualStop).
+	type sePair struct {
+		s State
+		e Event
+	}
+	errorArms := map[sePair]bool{}
+	for _, p := range []sePair{
+		// CONNECT default arm
+		{StateConnect, EventHoldTimerExpires}, {StateConnect, EventKeepaliveTimerExpires},
+		{StateConnect, EventBGPOpen}, {StateConnect, EventKeepaliveMsg},
+		{StateConnect, EventUpdateMsg}, {StateConnect, EventUpdateMsgErr},
+		// ACTIVE default arm
+		{StateActive, EventHoldTimerExpires}, {StateActive, EventKeepaliveTimerExpires},
+		{StateActive, EventBGPOpen}, {StateActive, EventKeepaliveMsg},
+		{StateActive, EventUpdateMsg}, {StateActive, EventUpdateMsgErr},
+		// OPENSENT default arm
+		{StateOpenSent, EventManualStart}, {StateOpenSent, EventConnectRetryTimerExpires},
+		{StateOpenSent, EventKeepaliveTimerExpires}, {StateOpenSent, EventTCPConnectionConfirmed},
+		{StateOpenSent, EventKeepaliveMsg}, {StateOpenSent, EventUpdateMsg},
+		{StateOpenSent, EventUpdateMsgErr},
+		// OPENCONFIRM default arm
+		{StateOpenConfirm, EventManualStart}, {StateOpenConfirm, EventConnectRetryTimerExpires},
+		{StateOpenConfirm, EventTCPConnectionConfirmed}, {StateOpenConfirm, EventBGPOpen},
+		{StateOpenConfirm, EventUpdateMsg}, {StateOpenConfirm, EventUpdateMsgErr},
+		// ESTABLISHED default arm (note: Established handles EventBGPHeaderErr
+		// explicitly but NOT EventBGPOpenMsgErr, so the latter is an error arm).
+		{StateEstablished, EventManualStart}, {StateEstablished, EventConnectRetryTimerExpires},
+		{StateEstablished, EventTCPConnectionConfirmed}, {StateEstablished, EventBGPOpen},
+		{StateEstablished, EventBGPOpenMsgErr},
+	} {
+		errorArms[p] = true
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := New()
@@ -459,7 +496,13 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 			f.setState(tt.from)
 
 			err := f.Event(tt.event)
-			require.NoError(t, err)
+			if errorArms[sePair{tt.from, tt.event}] {
+				require.ErrorIs(t, err, ErrFSMError,
+					"from %s + %s should be an FSM error", tt.from, tt.event)
+			} else {
+				require.NoError(t, err,
+					"from %s + %s should be handled cleanly", tt.from, tt.event)
+			}
 			require.Equal(t, tt.to, f.State(),
 				"from %s + %s: expected %s, got %s",
 				tt.from, tt.event, tt.to, f.State())
@@ -502,10 +545,65 @@ func TestFSMUnexpectedEventCallback(t *testing.T) {
 			})
 
 			err := f.Event(tt.event)
-			require.NoError(t, err)
+			require.ErrorIs(t, err, ErrFSMError,
+				"unexpected event → Idle is a Finite State Machine Error")
 			require.True(t, called, "callback should fire on unexpected event → Idle")
 			require.Equal(t, tt.state, fromState)
 			require.Equal(t, StateIdle, toState)
+		})
+	}
+}
+
+// TestFSMEventReturnsErrorOnIllegalTransition verifies AC-5 of the
+// fixit-bgp-session-fsm-lifecycle spec: Event returns a non-nil sentinel
+// (ErrFSMError) when an event lands in a state handler's error default arm, and
+// nil when the event is handled (including deliberate Idle ignores). This is the
+// enabling change (defect 4a) that lets the reactor's logFSMEvent warn branch —
+// and the OPEN-in-Established gate — detect a rejected transition.
+//
+// VALIDATES: AC-5 — sentinel from error default arms, nil from handled events.
+//
+// PREVENTS: Regressing FSM.Event back to always returning nil, which makes
+// illegal transitions (e.g. a second OPEN in Established) silently undetectable.
+func TestFSMEventReturnsErrorOnIllegalTransition(t *testing.T) {
+	tests := []struct {
+		name    string
+		state   State
+		event   Event
+		wantErr bool
+	}{
+		// Defect 3's central case: a second OPEN received in Established/OpenConfirm
+		// is an FSM error, not a handled event.
+		{"BGPOpen in Established", StateEstablished, EventBGPOpen, true},
+		{"BGPOpen in OpenConfirm", StateOpenConfirm, EventBGPOpen, true},
+		// Other error default arms.
+		{"ManualStart in Established", StateEstablished, EventManualStart, true},
+		{"ConnectRetryTimerExpires in Established", StateEstablished, EventConnectRetryTimerExpires, true},
+		{"UpdateMsg in OpenConfirm", StateOpenConfirm, EventUpdateMsg, true},
+		{"KeepaliveMsg in Connect", StateConnect, EventKeepaliveMsg, true},
+		// Handled events return nil.
+		{"KeepaliveMsg in Established", StateEstablished, EventKeepaliveMsg, false},
+		{"UpdateMsg in Established", StateEstablished, EventUpdateMsg, false},
+		{"BGPOpen in OpenSent (handled → OpenConfirm)", StateOpenSent, EventBGPOpen, false},
+		{"KeepaliveMsg in OpenConfirm (handled → Established)", StateOpenConfirm, EventKeepaliveMsg, false},
+		{"ManualStop in Established (explicit → Idle)", StateEstablished, EventManualStop, false},
+		// Idle's default arm is a deliberate RFC ignore, NOT an FSM error.
+		{"BGPOpen in Idle (deliberate ignore)", StateIdle, EventBGPOpen, false},
+		{"UpdateMsg in Idle (deliberate ignore)", StateIdle, EventUpdateMsg, false},
+		{"ManualStart in Idle (handled → Connect)", StateIdle, EventManualStart, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := New()
+			f.setState(tt.state)
+
+			err := f.Event(tt.event)
+			if tt.wantErr {
+				require.ErrorIs(t, err, ErrFSMError)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
