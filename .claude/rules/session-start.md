@@ -36,6 +36,15 @@ Loading LSP is ~1 tool call and zero-cost if unused. Skipping it costs a round-t
 with the user every time you are wrong about what the task needs. The asymmetry is
 not close.
 
+**Subagent carve-out.** The requirement is to ISSUE the query, not to succeed in
+loading a tool your harness does not expose. LSP is genuinely absent for subagents:
+`ToolSearch query="select:LSP"` returns "No matching deferred tools found". A subagent
+that issued the query and got that response has SATISFIED step 1 -- proceed, do not
+retry, do not treat the empty result as a skipped step. The gate agrees:
+`.claude/hooks/block-until-lsp.sh` lifts on the query text, not on a successful load
+(by design -- a stuck session is the worse failure). The banned excuses above are about
+SKIPPING the query; issuing it and getting nothing back is not a skip.
+
 **Mechanical rule:** the first `ToolSearch` / `Bash` / `Read` / `Edit` / anything
 in a new session must be `ToolSearch query="select:LSP"`. If it is not, you have
 violated this rule. Apologize, load it, proceed.

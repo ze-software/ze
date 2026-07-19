@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Task
 
@@ -296,6 +296,36 @@ whole spec is about.
 | R-3 | T-4 is "fixed" by widening the evidence to anything | The gate exists because inference-written specs cost ten false premises in one day. Widen to what a spec can be ABOUT, nothing more |
 | R-4 | T-6 is "fixed" by making the index gate warn-only, or by widening `--stale-index-ok` | With no CI, this gate is the only enforcement of index freshness. AC-9 requires it to still refuse a genuinely stale index; per-index scoping is the fix, not a softer refusal |
 | R-5 | The Files to Modify list stays scoped to T-1..T-4 and T-5/T-6 land untested | Both were found by tooling firing on this spec's own commits; whoever implements must add `scripts/dev/commit_helper_test.py` coverage for T-6 and a fixture for T-5 |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Reviewer | independent subagent (general-purpose) over the full diff |
+| Verdict | clean (0 BLOCKER, 0 ISSUE after fixes) |
+| Artifact | `tmp/review/fixit-agent-tooling-misleads-<sid>.md` (review_gate.py record) |
+
+Findings and resolutions:
+
+- BLOCKER: none.
+- ISSUE-1 (T-1): the widened citation regex used `[^`]*` before the extension, so
+  an empty-basename `` `.go` `` was accepted -- a valid-looking zero
+  (`ai/rules/fail-closed-guards.md`). FIXED: require a basename (`+`) before the
+  extension; the empty prefix is allowed only for the literal `Makefile`. Added
+  `validate-spec-empty-basename-citation-rejected`.
+- ISSUE-2 (T-5): the daemon-detection grep matched `internal|cmd` but not `pkg/`,
+  yet T-4's evidence set treats `pkg/` (the plugin SDK compiled into the daemon)
+  as daemon source. A `pkg/`-only user-facing spec could have skipped the `.ci`
+  the old gate required. FIXED: `(internal|pkg|cmd)/`. Added
+  `validate-spec-daemon-py-surface-still-rejected`.
+- NIT-1 (`feeds_discovery_index` now only test-called): left as-is -- it is a thin
+  `bool(is_discovery_source)` wrapper (itself `bool(indexes_fed_by)`), so it cannot
+  drift, and its test still guards the shared path predicate.
+- NIT-2 (no direct test of a daemon spec naming a `.py` surface): added, see ISSUE-2.
+
+Verification after fixes: `hook-fixture-check.py` 61/61, `hook-parity-check.py`
+131/131, `commit_helper_test.py` 30/30, `discovery_sources_test.py` 14/14, `ruff`
+clean, `bash -n` clean on both hooks.
 
 ## Checklist
 

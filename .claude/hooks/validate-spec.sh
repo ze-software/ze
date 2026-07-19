@@ -118,14 +118,30 @@ for section in "${REQUIRED_SECTIONS[@]}"; do
 done
 
 # === CURRENT BEHAVIOR CHECK ===
-# Ensure source files were actually read (not just placeholders)
-CURRENT_BEHAVIOR_SECTION=$(sed -n '/^## Current Behavior/,/^##/p' "$FILE_PATH" | head -30)
+# Ensure source files were actually read (not just placeholders).
+# Read the WHOLE section (not a fixed 30-line window): a long section's
+# "Behavior to preserve" heading used to fall outside a `head -30` window and
+# warn permanently, training readers to ignore validator output (T-1). sed's
+# range already stops at the next `## ` heading.
+CURRENT_BEHAVIOR_SECTION=$(sed -n '/^## Current Behavior/,/^## /p' "$FILE_PATH")
 if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
+    # A cited source is a backticked path ending in a known source extension OR
+    # named `Makefile`, OPTIONALLY followed by `:<line>` -- the exact citation
+    # form ai/rules/no-fabrication.md mandates (path plus line number). `.sh`,
+    # `.mk` and `Makefile` are included so a spec about shell/make tooling can
+    # cite the file it is about. The `- [ ]`/`- [x]` checkbox anchor keeps prose
+    # out: a sentence cannot match, so this accepts the mandated form without
+    # accepting everything (ai/rules/fail-closed-guards.md).
+    # A basename is required before the extension (`+`, not `*`) so a bare
+    # `` `.go` `` -- an empty path component -- is rejected, not accepted as a
+    # valid-looking zero (ai/rules/fail-closed-guards.md). The empty prefix is
+    # allowed ONLY for the literal Makefile (which has no basename+extension).
+    _CB_SRC='`([^`]+\.(go|py|rs|ts|js|sh|mk)|[^`]*Makefile)(:[0-9]+)?`'
     # Check for "Source files read:" with actual file paths
-    if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^[[:space:]]*-[[:space:]]*\[[[:space:]]*\][[:space:]]*`[^`]+\.(go|py|rs|ts|js)`'; then
+    if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE "^[[:space:]]*-[[:space:]]*\[[[:space:]]*\][[:space:]]*${_CB_SRC}"; then
         # No unchecked source files - check for checked ones
-        if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^[[:space:]]*-[[:space:]]*\[x\][[:space:]]*`[^`]+\.(go|py|rs|ts|js)`'; then
-            ERRORS+=("Current Behavior section must list source files read (e.g., '- [ ] \`path/to/file.go\`')")
+        if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE "^[[:space:]]*-[[:space:]]*\[x\][[:space:]]*${_CB_SRC}"; then
+            ERRORS+=("Current Behavior section must list source files read (e.g., '- [ ] \`path/to/file.go\`' or '- [ ] \`scripts/dev/foo.py:42\`')")
         fi
     fi
 
@@ -234,14 +250,34 @@ if [[ -n "$FILES_SECTION" ]]; then
 fi
 
 # === FUNCTIONAL TEST CHECK (BLOCKING) ===
-# Every spec with user-facing features MUST have .ci functional tests
+# Every spec with user-facing features MUST have .ci functional tests.
+# A `.ci` drives the ze daemon, so only a spec that changes daemon Go
+# (internal/*.go or cmd/*.go) can have one. A spec that only edits hooks, dev
+# scripts, or docs cannot -- its real functional surface is a driving test in
+# that language (e.g. scripts/dev/hook-fixture-check.py). Scope the requirement
+# to daemon specs rather than dropping it (T-5): the `.ci` rule exists because
+# unit tests alone let 30 tests ship that never bound a peer, and daemon specs
+# still owe one.
+# pkg/ is the plugin SDK compiled into the daemon (pkg/plugin, pkg/ze), so it
+# counts as daemon code exactly as T-4's evidence set does (internal/ pkg/ cmd/).
+# Omitting it would let a pkg/-only user-facing spec skip the .ci the old gate
+# required.
+FILES_TO_MODIFY=$(sed -n '/^## Files to Modify/,/^## /p' "$FILE_PATH")
+TOUCHES_DAEMON=false
+if echo "$FILES_TO_MODIFY" | grep -qE '`[^`]*(internal|pkg|cmd)/[^`]*\.go`'; then
+    TOUCHES_DAEMON=true
+fi
 FUNC_TEST_SECTION=$(sed -n '/^### Functional Tests/,/^###\|^##/p' "$FILE_PATH" | head -20)
 if [[ -z "$FUNC_TEST_SECTION" ]]; then
     ERRORS+=("Missing '### Functional Tests' section. User-facing features MUST have .ci tests (see rules/integration-completeness.md)")
 elif echo "$FUNC_TEST_SECTION" | grep -qiE 'N/A|not applicable|no new .* features|no user-facing|cosmetic|existing test|no regressions|test suite passes'; then
     : # Explicit opt-out for internal/cosmetic specs — allowed
-elif ! echo "$FUNC_TEST_SECTION" | grep -qE '\.ci'; then
-    ERRORS+=("Functional Tests section must reference .ci test files. A Go unit test is NOT a substitute for a .ci functional test")
+elif echo "$FUNC_TEST_SECTION" | grep -qE '\.ci'; then
+    : # names a .ci functional test — always acceptable
+elif [[ "$TOUCHES_DAEMON" == false ]] && echo "$FUNC_TEST_SECTION" | grep -qE '`?[A-Za-z0-9_./-]+\.(py|sh)`?'; then
+    : # tooling-only spec (no daemon code) naming a concrete .py/.sh driving surface — allowed
+else
+    ERRORS+=("Functional Tests section must reference .ci test files (this spec touches daemon code). A Go unit test is NOT a substitute for a .ci functional test")
 fi
 
 # === NO CODE IN SPECS CHECK ===

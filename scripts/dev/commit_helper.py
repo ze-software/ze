@@ -23,6 +23,7 @@ from pathlib import Path
 # so the commit gate here and the router cannot drift apart.
 from discovery_sources import GENERATORS as DISCOVERY_INDEX_GENERATORS
 from discovery_sources import OUTPUTS as DISCOVERY_INDEX_OUTPUTS
+from discovery_sources import indexes_fed_by as _indexes_fed_by
 from discovery_sources import is_discovery_source as _is_discovery_source
 
 SESSION_RE = re.compile(r"^[0-9a-f]{8}$")
@@ -640,13 +641,24 @@ def discovery_index_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str
             "  regenerated files in this commit."
         ]
     # Fresh on disk: a regenerated index must ride along when a source that feeds
-    # it is part of this commit, or the committed tree drifts out of sync.
-    if not any(feeds_discovery_index(repo, p) for p in add_paths):
+    # it is part of this commit, or the committed tree drifts out of sync. Demand
+    # ONLY the indexes THIS commit's sources actually feed -- an index left dirty
+    # by a concurrent session (one this commit does not feed) must not be demanded,
+    # or the remediation is "cross-commit someone else's index row" (T-6).
+    fed: set[str] = set()
+    for p in add_paths:
+        header = (
+            _read_head(repo / p, 40)
+            if p.endswith(".go") and not p.endswith("_test.go")
+            else ""
+        )
+        fed |= _indexes_fed_by(p, header)
+    if not fed:
         return []
     missing = [
         out
         for out in DISCOVERY_INDEX_OUTPUTS
-        if out not in add_paths and index_pending(repo, out)
+        if out in fed and out not in add_paths and index_pending(repo, out)
     ]
     if not missing:
         return []
@@ -1294,9 +1306,13 @@ def create(args: argparse.Namespace) -> int:
                 "  cli-grammar/wiring-docs) never fail for flaky or environmental\n"
                 "  reasons -- a red means the tree is structurally broken. They are\n"
                 "  NOT eligible for --unverified or a plan/known-failures.md known-red.\n"
-                "  Fix it at the source, then re-run `make " + gate_reds[0] + "` (or\n"
-                "  `make ze-verify`) until green. If you already fixed it, that re-run\n"
-                "  refreshes tmp/ze-verify-failures.json and clears this."
+                "  Fix it at the source (run `make " + gate_reds[0] + "` to see the\n"
+                "  failure). To CLEAR this refusal you must refresh the verify record:\n"
+                "  only `make ze-verify` (or `make ze-verify-changed`) rewrites\n"
+                "  tmp/ze-verify-failures.json -- `make "
+                + gate_reds[0]
+                + "` alone does\n"
+                "  NOT. Re-run a full verify until green and this clears."
             )
         if not args.unverified:
             raise UsageError(

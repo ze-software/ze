@@ -17,6 +17,14 @@ Description), ai/DOCS-TO-CODE.md (from `// Design:` headers), ai/LEARNED-FULL-IN
 
 from __future__ import annotations
 
+# Named index outputs. Kept as constants (not bare tuple positions) so the
+# per-index source map below reads as data, not as a coincidence of ordering.
+PACKAGE_MAP = "ai/PACKAGE-MAP.md"  # from `// Package` docs + register.go Description
+DOCS_TO_CODE = "ai/DOCS-TO-CODE.md"  # from `// Design:` headers
+LEARNED_INDEX = "ai/LEARNED-FULL-INDEX.md"  # from plan/learned/NNN-*.md
+
+# GENERATORS[i] produces OUTPUTS[i]; the two tuples MUST stay parallel (the commit
+# gate and the freshness check both `zip()` them).
 GENERATORS = (
     "scripts/dev/package_map.py",
     "scripts/dev/docs_to_code.py",
@@ -24,12 +32,51 @@ GENERATORS = (
 )
 
 OUTPUTS = (
-    "ai/PACKAGE-MAP.md",
-    "ai/DOCS-TO-CODE.md",
-    "ai/LEARNED-FULL-INDEX.md",
+    PACKAGE_MAP,
+    DOCS_TO_CODE,
+    LEARNED_INDEX,
 )
 
 HEADER_MARKERS = ("// Package", "// Design:")
+
+
+def indexes_fed_by(path: str, header_text: str = "") -> frozenset[str]:
+    """The subset of OUTPUTS that committing `path` can drift.
+
+    This is the DATA the module docstring only stated as prose: each source maps
+    to the specific index(es) it feeds, not to "some index". A commit that touches
+    a source must refresh ONLY the indexes in this set, so an unrelated index left
+    dirty by another session is not falsely demanded (see T-6 in
+    plan/spec-fixit-agent-tooling-misleads.md). Returns an empty set when `path`
+    feeds no index.
+
+    `header_text` is only consulted for non-test `.go` files (to look for the
+    `// Package` / `// Design:` markers the indexes derive from); the caller
+    supplies HEAD and/or working-tree content as appropriate.
+    """
+    # A committed index "feeds" only itself: committing it is how its own
+    # freshness is satisfied, and it never obliges any OTHER index to ride along.
+    if path in OUTPUTS:
+        return frozenset({path})
+    # Makefile / mk/ carry the ze-discovery-index wiring that runs every
+    # generator, so a change there can drift any index. Conservative: demand all.
+    if path == "Makefile" or path.startswith("mk/"):
+        return frozenset(OUTPUTS)
+    # A generator feeds exactly its paired output.
+    for gen, out in zip(GENERATORS, OUTPUTS):
+        if path == gen:
+            return frozenset({out})
+    fed: set[str] = set()
+    if path.startswith("plan/learned/") and path.endswith(".md"):
+        fed.add(LEARNED_INDEX)
+    if path.endswith("register.go"):
+        fed.add(PACKAGE_MAP)  # register.go Description strings feed PACKAGE-MAP
+    if path.endswith(".go") and not path.endswith("_test.go"):
+        if "// Package" in header_text:
+            fed.add(PACKAGE_MAP)
+        if "// Design:" in header_text:
+            fed.add(DOCS_TO_CODE)
+    return frozenset(fed)
 
 
 def is_discovery_source(path: str, header_text: str = "") -> bool:
@@ -37,16 +84,8 @@ def is_discovery_source(path: str, header_text: str = "") -> bool:
 
     `header_text` is only consulted for non-test `.go` files (to look for the
     `// Package` / `// Design:` markers the indexes derive from); the caller
-    supplies HEAD and/or working-tree content as appropriate.
+    supplies HEAD and/or working-tree content as appropriate. Defined in terms of
+    `indexes_fed_by` so the "is it a source" and "which index" answers can never
+    disagree.
     """
-    if path in GENERATORS or path in OUTPUTS:
-        return True
-    if path == "Makefile" or path.startswith("mk/"):
-        return True
-    if path.startswith("plan/learned/") and path.endswith(".md"):
-        return True
-    if path.endswith("register.go"):
-        return True
-    if path.endswith(".go") and not path.endswith("_test.go"):
-        return any(marker in header_text for marker in HEADER_MARKERS)
-    return False
+    return bool(indexes_fed_by(path, header_text))

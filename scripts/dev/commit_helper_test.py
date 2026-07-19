@@ -427,6 +427,10 @@ class TestStagingGuard(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _git(root, "init")
+            # Disable commit signing (matching every sibling commit test in this
+            # file): a global commit.gpgsign=true would otherwise make this the
+            # only test that fails when gpg cannot reach a tty for a passphrase.
+            _git(root, "config", "commit.gpgsign", "false")
             (root / "a.txt").write_text("a")
             _git(root, "add", "a.txt")
             _git(
@@ -441,6 +445,119 @@ class TestStagingGuard(unittest.TestCase):
             )
             r = self._run_guard(root, ("a.txt",))
             self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class TestDiscoveryIndexProblems(unittest.TestCase):
+    """T-6: the freshness gate demands ONLY the indexes a commit's sources feed.
+
+    An index left dirty by a concurrent session (one THIS commit does not feed)
+    must not be demanded -- following that demand cross-commits another session's
+    index row, the exact failure git-safety.md documents. A genuinely omitted
+    index that this commit DOES feed must still be demanded (AC-9, both
+    directions). discovery_index_freshness runs the real generators, so it is
+    stubbed to isolate the fresh-on-disk branch this fix touches.
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "ai").mkdir()
+        (root / "plan" / "learned").mkdir(parents=True)
+        for out in ch.DISCOVERY_INDEX_OUTPUTS:
+            (root / out).write_text("v1\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        return root
+
+    def test_unrelated_dirty_index_passes(self):
+        saved = ch.discovery_index_freshness
+        ch.discovery_index_freshness = lambda repo: ("fresh", [])
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = self._repo(tmp)
+                # This commit feeds ONLY the learned index and includes it.
+                (root / "plan" / "learned" / "1200-x.md").write_text("# L\n")
+                (root / "ai" / "LEARNED-FULL-INDEX.md").write_text("v2\n")
+                # DOCS-TO-CODE.md is dirty from another session but this commit
+                # does not feed it, so the gate must not demand it.
+                (root / "ai" / "DOCS-TO-CODE.md").write_text("someone-else\n")
+                problems = ch.discovery_index_problems(
+                    root,
+                    ("plan/learned/1200-x.md", "ai/LEARNED-FULL-INDEX.md"),
+                )
+                self.assertEqual(problems, [], problems)
+        finally:
+            ch.discovery_index_freshness = saved
+
+    def test_fed_index_omitted_still_refuses(self):
+        saved = ch.discovery_index_freshness
+        ch.discovery_index_freshness = lambda repo: ("fresh", [])
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = self._repo(tmp)
+                # Commit feeds the learned index, whose output IS dirty but omitted.
+                (root / "plan" / "learned" / "1200-x.md").write_text("# L\n")
+                (root / "ai" / "LEARNED-FULL-INDEX.md").write_text("v2\n")
+                problems = ch.discovery_index_problems(
+                    root, ("plan/learned/1200-x.md",)
+                )
+                self.assertTrue(problems, "a fed-but-omitted dirty index must refuse")
+                self.assertIn("LEARNED-FULL-INDEX.md", "\n".join(problems))
+        finally:
+            ch.discovery_index_freshness = saved
+
+
+class TestStructuralGateRemediation(unittest.TestCase):
+    """T-3 (AC-5): the structural-gate refusal must name a command that actually
+    refreshes tmp/ze-verify-failures.json. Only a full `make ze-verify` /
+    `ze-verify-changed` (verify_run.go) rewrites that record; `make <gate>` alone
+    does not. A remediation that cannot work is worse than none (ai/rules/error-messages.md).
+    """
+
+    def test_refusal_names_the_real_refresher_and_disclaims_the_gate_command(self):
+        import contextlib
+        import io
+
+        saved = (ch.verify_status, ch.structural_gate_reds)
+        ch.verify_status = lambda repo: ("stale", "structural red")
+        ch.structural_gate_reds = lambda repo: ["ze-lint-changed"]
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                _git(root, "init", "-q")
+                _git(root, "config", "user.email", "t@example.com")
+                _git(root, "config", "user.name", "t")
+                _git(root, "config", "commit.gpgsign", "false")
+                (root / "f.txt").write_text("hello\n")
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    rc = ch.main(
+                        [
+                            "--repo",
+                            str(root),
+                            "create",
+                            "--session",
+                            "abcd1234",
+                            "--subject",
+                            "fixture",
+                            "--file",
+                            "f.txt",
+                            "--lesson-not-needed",
+                            "fixture test for the structural-gate remediation text",
+                        ]
+                    )
+                msg = err.getvalue()
+                self.assertEqual(rc, 2, msg)
+                # Names the TRUE refresher.
+                self.assertIn("ze-verify", msg)
+                # And makes explicit the per-gate command does NOT refresh the record.
+                self.assertRegex(msg, r"ze-verify-failures\.json")
+                self.assertIn("NOT", msg)
+        finally:
+            ch.verify_status, ch.structural_gate_reds = saved
 
 
 if __name__ == "__main__":

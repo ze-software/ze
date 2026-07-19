@@ -1336,9 +1336,11 @@ def c_design_without_lsp(ctx):
         return (
             2,
             "❌ Blocked: no implementation investigated this session before a spec/design write.\n"
-            "  Before specing a gap, READ the function that PRODUCES the behavior you are\n"
+            "  Before specing a gap, READ the source that PRODUCES the behavior you are\n"
             "  claiming, not its caller (ai/rules/no-fabrication.md, Behavioral claims).\n"
-            "  Reading any .go under internal/ pkg/ cmd/, or using the LSP tool, satisfies this.",
+            "  Reading the source a spec can be ABOUT satisfies this: .go under internal/\n"
+            "  pkg/ cmd/, .py under scripts/, .sh under .claude/hooks/, the Makefile or\n"
+            "  mk/ -- or using the LSP tool.",
         )
     fresh = int(os.environ.get("LSP_FRESHNESS_SECONDS", "1800"))
     if time.time() - max(mtimes) > fresh:

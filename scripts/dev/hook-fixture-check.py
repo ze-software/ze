@@ -300,6 +300,129 @@ def run_validate_spec(results: Results) -> None:
         f"rc={rc} err={err[:160]!r}",
     )
 
+    base = _VALID_SPEC.replace("@ARROW@", "->")
+    _CB = "## Current Behavior\n\n- [ ] `internal/x/y.go`"
+
+    # T-1 (AC-1): a citation carrying a line number is the form no-fabrication.md
+    # mandates; the old regex required the backtick to END in the extension, so a
+    # trailing :line defeated the match. Must now be ACCEPTED.
+    rc, err = _run_validate_spec(
+        script,
+        base.replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py:42`"),
+    )
+    results.check(
+        "validate-spec-line-numbered-citation-accepted",
+        rc == 0,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-1 (AC-2): a shell path and a Makefile path must be citable (a spec about a
+    # shell hook could not cite the hook it is about under the old extension set).
+    rc, err = _run_validate_spec(
+        script,
+        base.replace(
+            _CB,
+            "## Current Behavior\n\n- [ ] `.claude/hooks/foo.sh`\n- [ ] `Makefile:12`",
+        ),
+    )
+    results.check(
+        "validate-spec-shell-and-makefile-citable",
+        rc == 0,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-1 (AC-3): the whole Current Behavior section is read, not a 30-line window.
+    # A citation sitting past line 30 of the section was invisible to `head -30`,
+    # so the check wrongly demanded source files that were in fact listed.
+    long_preamble = "\n".join(f"prose context line {i}" for i in range(35))
+    rc, err = _run_validate_spec(
+        script,
+        base.replace(
+            _CB,
+            "## Current Behavior\n\n" + long_preamble + "\n\n- [ ] `internal/x/y.go`",
+        ),
+    )
+    results.check(
+        "validate-spec-whole-current-behavior-read",
+        rc == 0,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-1 MUST-NOT-FIRE (AC-7): prose alone is STILL rejected. Widening to accept a
+    # line-numbered/shell citation must not accept a sentence with no source path.
+    rc, err = _run_validate_spec(
+        script,
+        base.replace(
+            _CB,
+            "## Current Behavior\n\nWe looked at the shell hooks and reasoned about them.",
+        ),
+    )
+    results.check(
+        "validate-spec-prose-citation-still-rejected",
+        rc == 2 and "list source files read" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-5 (AC-8): a tooling-only spec (no daemon Go in Files to Modify) may name a
+    # concrete .py driving surface instead of a .ci, and pass. No opt-out keyword
+    # is used, so this exercises the daemon-scoping path, not the keyword escape.
+    tooling = (
+        base.replace(
+            "- `internal/x/y.go` - fixture feature file",
+            "- `scripts/dev/foo.py` - fixture tooling file",
+        )
+        .replace(
+            "| foo.ci | test/x/ | user runs foo | |",
+            "| hook fixtures | `scripts/dev/hook-fixture-check.py` | fixtures drive the hook | |",
+        )
+        .replace(_CB, "## Current Behavior\n\n- [ ] `scripts/dev/foo.py`")
+    )
+    rc, err = _run_validate_spec(script, tooling)
+    results.check(
+        "validate-spec-tooling-surface-accepted",
+        rc == 0,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-5 MUST-NOT-FIRE (AC-8): a spec that DOES touch daemon Go still owes a .ci;
+    # naming only a Go unit test (no .ci, no opt-out keyword) must be REJECTED.
+    daemon = base.replace(
+        "| foo.ci | test/x/ | user runs foo | |",
+        "| foo unit | `internal/x/y_test.go` | user runs foo | |",
+    )
+    rc, err = _run_validate_spec(script, daemon)
+    results.check(
+        "validate-spec-daemon-still-needs-ci",
+        rc == 2 and "must reference .ci" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-5 MUST-NOT-FIRE (AC-8, review NIT-2): a daemon spec must NOT be able to
+    # take the tooling escape by naming a .py surface -- the TOUCHES_DAEMON guard
+    # blocks it. internal/x/y.go stays in Files to Modify, so it is a daemon spec.
+    daemon_py = base.replace(
+        "| foo.ci | test/x/ | user runs foo | |",
+        "| py surface | `scripts/dev/foo.py` | user runs foo | |",
+    )
+    rc, err = _run_validate_spec(script, daemon_py)
+    results.check(
+        "validate-spec-daemon-py-surface-still-rejected",
+        rc == 2 and "must reference .ci" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # T-1 MUST-NOT-FIRE (AC-7, review ISSUE-1): an empty-basename citation `.go`
+    # is garbage, not a real source path, and must be REJECTED. The basename `+`
+    # (not `*`) closes the zero-value-looks-valid hole (fail-closed-guards.md).
+    rc, err = _run_validate_spec(
+        script, base.replace(_CB, "## Current Behavior\n\n- [ ] `.go`")
+    )
+    results.check(
+        "validate-spec-empty-basename-citation-rejected",
+        rc == 2 and "list source files read" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
 
 # --------------------------------------------------------------------------- #
 # commit-gate: commit_helper.py creation-time gates in git fixtures
@@ -684,6 +807,7 @@ def run_session_id(results: Results) -> None:
 
 # --------------------------------------------------------------------------- #
 
+
 def run_rfc_test_guard(results: Results) -> None:
     """The RFC-tagged test guard (plan/spec-rfc-requirement-coverage.md).
 
@@ -705,28 +829,46 @@ def run_rfc_test_guard(results: Results) -> None:
     )
 
     def edit(old: str, new: str, path: str = fp):
-        return cw({"tool": "Edit", "ti": {"old_string": old, "new_string": new}, "fp": path})
+        return cw(
+            {"tool": "Edit", "ti": {"old_string": old, "new_string": new}, "fp": path}
+        )
 
     # The core case: "fix" the failing test instead of the code.
     r = edit(tagged, tagged.replace("TreatAsWithdraw", "None"))
-    results.check("rfc-guard-blocks-expectation-swap", r is not None and r[0] == 2, repr(r))
+    results.check(
+        "rfc-guard-blocks-expectation-swap", r is not None and r[0] == 2, repr(r)
+    )
 
     # test-relax is SELF-SERVICE. It must not buy a pass here: an agent writing its own
     # justification is not the user's approval. This is the loophole the guard closes.
-    r = edit(tagged, tagged.replace(
-        "\trequire.Equal", "\t// test-relax: no longer applies\n\trequire.NotEqual"))
-    results.check("rfc-guard-relax-token-insufficient", r is not None and r[0] == 2, repr(r))
+    r = edit(
+        tagged,
+        tagged.replace(
+            "\trequire.Equal", "\t// test-relax: no longer applies\n\trequire.NotEqual"
+        ),
+    )
+    results.check(
+        "rfc-guard-relax-token-insufficient", r is not None and r[0] == 2, repr(r)
+    )
 
     # Deleting the assertion entirely.
-    r = edit(tagged, "// RFC requirement: RFC7606-7.1-1 negative - x.\nfunc TestX(t *testing.T) {\n}\n")
-    results.check("rfc-guard-blocks-assertion-delete", r is not None and r[0] == 2, repr(r))
+    r = edit(
+        tagged,
+        "// RFC requirement: RFC7606-7.1-1 negative - x.\nfunc TestX(t *testing.T) {\n}\n",
+    )
+    results.check(
+        "rfc-guard-blocks-assertion-delete", r is not None and r[0] == 2, repr(r)
+    )
 
     # Must NOT over-block ordinary maintenance, or the hook gets disabled and protects
     # nothing (spec risk R-8).
     r = edit(tagged, tagged.replace("\t", "    "))
     results.check("rfc-guard-allows-reformat", r is None, repr(r))
 
-    r = edit(tagged, tagged.replace("ORIGIN len != 1 withdraws", "malformed ORIGIN is withdrawn"))
+    r = edit(
+        tagged,
+        tagged.replace("ORIGIN len != 1 withdraws", "malformed ORIGIN is withdrawn"),
+    )
     results.check("rfc-guard-allows-comment-edit", r is None, repr(r))
 
     # The user approved: recorded, auditable, allowed.
@@ -751,12 +893,82 @@ def run_rfc_test_guard(results: Results) -> None:
     results.check("rfc-guard-covers-ci", r is not None and r[0] == 2, repr(r))
 
 
+# --------------------------------------------------------------------------- #
+# mark-source-read: the spec-write gate's evidence set (T-4)
+# --------------------------------------------------------------------------- #
+
+
+def _run_mark_source_read(file_path: str) -> bool:
+    """Drive mark-source-read.sh over a Read of `file_path`; return marker-written.
+
+    The script cd's to CLAUDE_PROJECT_DIR and sources
+    .claude/hooks/lib/session-id.sh relative to it, so the fixture project needs a
+    copy of that lib. A fixed CLAUDE_CODE_SESSION_ID makes the marker path
+    deterministic (env source wins in _session_id).
+    """
+    work = tempfile.mkdtemp(prefix="mark-source-read-", dir=_fixture_root())
+    try:
+        libdst = os.path.join(work, ".claude", "hooks", "lib")
+        os.makedirs(libdst, exist_ok=True)
+        shutil.copytree(os.path.join(HOOKS, "lib"), libdst, dirs_exist_ok=True)
+        sid = "11111111-2222-3333-4444-555555555555"
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=sid)
+        payload = json.dumps({"tool_input": {"file_path": file_path}})
+        subprocess.run(
+            ["bash", os.path.join(HOOKS, "mark-source-read.sh")],
+            input=payload,
+            text=True,
+            capture_output=True,
+            env=env,
+            timeout=30,
+        )
+        return os.path.isfile(
+            os.path.join(work, "tmp", "session", f".source-read-{sid}")
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def run_mark_source_read(results: Results) -> None:
+    """T-4 (AC-6): reading the .py/.sh/Makefile a spec is ABOUT must satisfy the
+    spec-write gate -- the marker is written for those, not only for Go, so an
+    agent need not read an unrelated .go file purely to pass."""
+    print("mark-source-read:")
+
+    for label, path in (
+        ("go-internal", "/repo/internal/x/y.go"),
+        ("py-scripts", "/repo/scripts/dev/foo.py"),
+        ("sh-hooks", "/repo/.claude/hooks/foo.sh"),
+        ("makefile", "/repo/Makefile"),
+        ("mk-file", "/repo/mk/inventory.mk"),
+    ):
+        results.check(
+            f"mark-source-read-writes-{label}",
+            _run_mark_source_read(path),
+            f"marker not written for {path}",
+        )
+
+    # MUST-NOT-FIRE: an unrelated doc/spec read does not ground a spec, so it must
+    # NOT write the marker (the gate stays honest about what counts as evidence).
+    for label, path in (
+        ("doc", "/repo/docs/guide/x.md"),
+        ("spec", "/repo/plan/spec-foo.md"),
+        ("py-outside-scripts", "/repo/internal/x/tool.py"),
+    ):
+        results.check(
+            f"mark-source-read-skips-{label}",
+            not _run_mark_source_read(path),
+            f"marker wrongly written for {path}",
+        )
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
     "commit-gate": run_commit_gate,
     "session-id": run_session_id,
     "rfc-test-guard": run_rfc_test_guard,
+    "mark-source-read": run_mark_source_read,
 }
 
 

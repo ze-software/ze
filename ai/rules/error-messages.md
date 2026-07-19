@@ -22,6 +22,15 @@ An error must answer three questions:
 If the next step needs more than one line, attach a diagnostic code (below)
 rather than truncating the guidance.
 
+**Leg 3 must be TRUE, not merely present.** A remediation that names a command
+must name one that actually produces the promised effect. A command that looks
+plausible but does not do what the message claims is worse than no advice: the
+reader trusts it, follows it, and loses the time twice, then stops trusting the
+tool's output at all. Verify the producer before you print the instruction -- if
+the message says "re-run X to refresh Y", read the code that writes Y and confirm
+X writes it (a lint target does not rewrite a verify record; only a verify run
+does). This is the `doctor-vpp-lcp-netns` class of bug: advice that cannot work.
+
 Scope of leg 3: it is mandatory on machine-facing surfaces (doctor, startup,
 config apply/verify, readiness, plugin load -- the diagnostic-code surfaces
 below). For internal errors that get wrapped upward, legs 1 and 2 plus a
