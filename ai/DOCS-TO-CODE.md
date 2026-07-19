@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 294 design docs, 3003 files
+Total: 295 design docs, 3007 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -69,6 +69,10 @@ Total: 294 design docs, 3003 files
 | `internal/plugins/iface/netlink/doctor_linux.go` | kernel macvlan capability probe |
 | `internal/plugins/iface/netlink/doctor_other.go` | macvlan capability probe (non-Linux stub) |
 | `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
+
+## `ai/rules/fail-closed-guards.md`
+
+- `cmd/ze/hub/mgmt_guard.go` -- boot-time management-listener exposure guard
 
 ## `ai/rules/feature-gate-registration.md`
 
@@ -1478,6 +1482,7 @@ Total: 294 design docs, 3003 files
 | `internal/test/runner/record.go` | test record types and state |
 | `internal/test/runner/record_collection.go` | test record collection and querying |
 | `internal/test/runner/record_parse.go` | CI file parsing and test discovery |
+| `internal/test/runner/record_parse_cmd.go` | cmd=background/foreground/stop directive parsing |
 | `internal/test/runner/report.go` | test runner framework |
 | `internal/test/runner/runner.go` | test runner framework |
 | `internal/test/runner/runner_config.go` | per-daemon config file naming |
@@ -1940,6 +1945,7 @@ Total: 294 design docs, 3003 files
 
 | File | Topic |
 |------|-------|
+| `internal/perf/allocgate.go` | alloc-ceiling gate (ze-alloc-gate stage) |
 | `internal/test/plugins/fakeas112/store.go` | fakeas112 current-set + replay-on-request |
 | `internal/test/plugins/fakeredist/store.go` | fakeredist current-set + replay-on-request |
 | `internal/test/runner/failure_group.go` | functional failure routing groups |
@@ -2681,6 +2687,7 @@ Total: 294 design docs, 3003 files
 | `internal/plugins/static/backend_linux.go` | Linux netlink backend with multipath |
 | `internal/plugins/static/backend_other.go` | rejecting backend for non-Linux |
 | `internal/plugins/static/backend_vpp_linux.go` | VPP data-plane static backend selection |
+| `internal/plugins/static/doctor.go` | interface-only next-hop readiness check |
 | `internal/plugins/static/model.go` | static route data model |
 | `internal/plugins/static/register.go` | plugin registration and lifecycle |
 | `internal/plugins/static/vpp/backend.go` | VPP static route programming via GoVPP |

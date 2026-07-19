@@ -535,6 +535,13 @@ func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retr
 	}
 }
 
+// listenDiscovery opens the per-interface multicast UDP socket for Basic Discovery.
+// It is a package var so tests can substitute a loopback socket and drive
+// discoverOnInterface end-to-end without multicast joins or the privileged port 646.
+var listenDiscovery = func(ifi *net.Interface, addr *net.UDPAddr) (*net.UDPConn, error) {
+	return net.ListenMulticastUDP("udp4", ifi, addr)
+}
+
 // discoverOnInterface sends and receives multicast Hellos on a single interface
 // (ifName ""), the system-assigned multicast interface).
 func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onNewAdj func(*Adjacency)) {
@@ -553,16 +560,22 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 		}
 	}
 
-	udpConn, err := net.ListenMulticastUDP("udp4", ifi, multicastAddr)
+	udpConn, err := listenDiscovery(ifi, multicastAddr)
 	if err != nil {
 		log.Error("ldp: failed to listen on multicast", "interface", ifName, "error", err)
 		return
 	}
-	defer func() {
-		if err := udpConn.Close(); err != nil {
-			log.Debug("ldp: UDP close error", "error", err)
-		}
-	}()
+	// closeConn is idempotent: the ctx-cancel path closes the socket to unblock the
+	// reader promptly, and this defer is a harmless backstop for every other path.
+	var closeOnce sync.Once
+	closeConn := func() {
+		closeOnce.Do(func() {
+			if err := udpConn.Close(); err != nil {
+				log.Debug("ldp: UDP close error", "error", err)
+			}
+		})
+	}
+	defer closeConn()
 
 	// Pin multicast egress to this link and use TTL 1 (RFC 5036 Section 2.4.1:
 	// Basic Discovery Hellos are link-scoped), so Hellos leave on the LDP
@@ -582,25 +595,59 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 
 	sendHello(udpConn, multicastAddr, lsrID, cfg, log)
 
-	recvBuf := make([]byte, 4096)
+	// Drain inbound Hellos in a dedicated reader goroutine, decoupled from the
+	// send tick. Previously ReadFromUDP was gated behind the helloTicker select,
+	// so the socket was drained only once per HelloInterval (5s) and one datagram
+	// at a time: on a shared segment with N neighbors, N-1 Hellos per interval
+	// were dropped, hold timers expired, and adjacencies flapped. The reader now
+	// loops continuously on ReadFromUDP so every neighbor's Hello is consumed.
+	// Models the ISIS readLoop (internal/plugins/isis/transport/backend_linux.go:196):
+	// a receiver runs its own loop, uses its own buffer, and exits on socket
+	// close / ctx cancel. sendHello stays on helloTicker below (net.UDPConn is
+	// safe for one concurrent Read and Write), and AdjacencyTable is RWMutex-
+	// guarded so processDiscoveryPacket -> Update races safely with the expiry sweep.
+	readerDone := make(chan struct{})
+	go readDiscoveryLoop(ctx, udpConn, lsrID, ifName, adjTable, onNewAdj, log, readerDone)
 
 	for {
 		select {
 		case <-ctx.Done():
+			// Close the socket to unblock a blocked ReadFromUDP immediately, then
+			// wait for the reader to exit so neither the goroutine nor the socket
+			// leaks across a config reload / shutdown.
+			closeConn()
+			<-readerDone
 			return
 		case <-helloTicker.C:
 			sendHello(udpConn, multicastAddr, lsrID, cfg, log)
 		}
+	}
+}
 
-		if err := udpConn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
+// readDiscoveryLoop continuously reads inbound Basic Discovery Hellos on udpConn
+// and feeds each datagram to processDiscoveryPacket, decoupled from the Hello send
+// cadence. It exits when udpConn is closed or ctx is canceled, closing done on the
+// way out so discoverOnInterface can join it. A 1s read deadline is a backstop so
+// a missed socket close still wakes the loop to re-check ctx (spec A-3).
+func readDiscoveryLoop(ctx context.Context, udpConn *net.UDPConn, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onNewAdj func(*Adjacency), log *slog.Logger, done chan<- struct{}) {
+	defer close(done)
+	recvBuf := make([]byte, 4096)
+	for {
+		if ctx.Err() != nil {
 			return
+		}
+		if err := udpConn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
+			return // socket closed on shutdown / reload
 		}
 
 		n, _, readErr := udpConn.ReadFromUDP(recvBuf)
 		if readErr != nil {
+			if errors.Is(readErr, net.ErrClosed) {
+				return // socket closed on shutdown / reload
+			}
 			var ne net.Error
 			if errors.As(readErr, &ne) && ne.Timeout() {
-				continue
+				continue // deadline backstop: re-check ctx and read again
 			}
 			log.Warn("ldp: UDP read error", "error", readErr)
 			continue

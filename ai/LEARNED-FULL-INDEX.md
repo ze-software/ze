@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1173 summaries
+Total: 1192 summaries
 
 ## 000-099
 
@@ -1238,7 +1238,31 @@ Total: 1173 summaries
 | 1175 | ze-suffix-test-isolation | `plan/learned/1175-ze-suffix-test-isolation.md` |
 | 1176 | Durable-cache directory-tree writes must be atomic (stage + rename) | `plan/learned/1176-cache-tree-atomic-stage-rename.md` |
 | 1177 | feature-gate child 9: VRRP compile-out (ze_vrrp) | `plan/learned/1177-feature-gate-9-vrrp.md` |
-| 1178 | LDP Basic Discovery: dedicated Hello reader goroutine | `plan/learned/1178-ldp-hello-read-loop.md` |
+| 1178 | LDP Basic Discovery: dedicated Hello reader goroutine | `plan/learned/1178-fixit-ldp-hello-read-loop.md` |
 | 1179 | fixit-local-asn-config-key | `plan/learned/1179-fixit-local-asn-config-key.md` |
 | 1180 | RPKI Per-Peer Action | `plan/learned/1180-rpki-per-peer-action.md` |
 | 1181 | fixit-bcrypt-hash-credential (restrict + mask) | `plan/learned/1181-fixit-bcrypt-hash-credential.md` |
+| 1182 | Firewall reconcile serialization (registry `reconcileMu`) | `plan/learned/1182-fixit-firewall-concurrency-deadlock.md` |
+| 1183 | fixit: fuzz-target discovery (generated enumeration) | `plan/learned/1183-fixit-fuzz-target-discovery.md` |
+| 1184 | fixit: monitor ping cadence holds under loss | `plan/learned/1184-fixit-ping-monitor-cadence.md` |
+| 1185 | fixit-static-interface-nexthops | `plan/learned/1185-fixit-static-interface-nexthops.md` |
+| 1186 | fixit: ddos test-infrastructure (detect-mitigate rework + transit FORWARD-drop proof) | `plan/learned/1186-fixit-ddos-test-infra.md` |
+| 1188 | fixit-rfc7606-treat-as-withdraw | `plan/learned/1188-fixit-rfc7606-treat-as-withdraw.md` |
+| 1190 | fixit-recent-cache-buffer-reclaim | `plan/learned/1190-fixit-recent-cache-buffer-reclaim.md` |
+| 1191 | Learned: fixit-plugin-event-subscription | `plan/learned/1191-fixit-plugin-event-subscription.md` |
+| 1194 | Learned: fixit-private-asn-leak-deferred-nil-api-fail-open (egress_inject_filter slice) | `plan/learned/1194-fixit-private-asn-leak-deferred-nil-api-fail-open.md` |
+| 1195 | fixit-supply-chain-hardening (AC-3: vendored updater hardening guard) | `plan/learned/1195-fixit-supply-chain-hardening.md` |
+| 1197 | fixit: agent-facing gates that lied to the agent | `plan/learned/1197-fixit-agent-tooling-misleads.md` |
+| 1198 | Learned: fixit-perf-alloc-ci-gate | `plan/learned/1198-fixit-perf-alloc-ci-gate.md` |
+
+## 1200-1299
+
+| # | Summary | File |
+|---|---------|------|
+| 1200 | fixit-mgmt-listener-auth-guard | `plan/learned/1200-fixit-mgmt-listener-auth-guard.md` |
+| 1202 | Learned: fixit-bgp-session-fsm-lifecycle (fsm/* slice) | `plan/learned/1202-fixit-bgp-session-fsm-lifecycle.md` |
+| 1205 | Learned: fixit-show-ping-serial-pacing | `plan/learned/1205-fixit-show-ping-serial-pacing.md` |
+| 1215 | Learned: fixit-ipsec-clear-reestablish | `plan/learned/1215-fixit-ipsec-clear-reestablish.md` |
+| 1217 | fixit-doc-gate-and-refs | `plan/learned/1217-fixit-doc-gate-and-refs.md` |
+| 1218 | fixit-pppoe-orphaned-tests | `plan/learned/1218-fixit-pppoe-orphaned-tests.md` |
+| 1219 | fixit: stop a named background process mid-.ci-test | `plan/learned/1219-fixit-runner-kill-background.md` |

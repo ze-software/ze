@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-18 |
 
 ## Post-Compaction Recovery
 
@@ -171,5 +171,34 @@ fails (only 1 adjacency appears per interval); after the fix it passes.
 - [ ] Tests PASS (paste output)
 - [ ] Burst / single / cancel / send-cadence cases all present
 
+## Review Gate
+
+Independent review per `ai/rules/critical-review.md` (reviewers are subagents over the
+actual diff, not the author's inline reasoning). Looped to zero BLOCKER / zero ISSUE.
+
+**Pass 1 (core fix diff):** 2 independent reviewers, 0 BLOCKER.
+- ISSUE (both, converged): the unit tests called `readDiscoveryLoop` directly, so no
+  default-tag test asserted that `discoverOnInterface` actually spawns the reader and
+  drains end-to-end; a regression deleting `go readDiscoveryLoop(...)` would pass every
+  non-integration test (only the `integration && linux` FRR test drove the wiring).
+  → RESOLVED: added a `listenDiscovery` package-var seam in `register.go` and
+  `TestDiscoverOnInterfaceSpawnsReaderAndDrains`, which runs the real `discoverOnInterface`
+  over a substituted loopback socket, asserts an N-Hello burst drains (`Len()==4`), then
+  asserts a prompt return on ctx cancel. Deleting the reader launch fails it (drain times
+  out AND the join blocks).
+- NIT: hot-spin risk on a persistent immediate read error (mirrors the ISIS reference
+  model; near-impossible for a UDP socket given the 1s deadline). Left as-is by design.
+
+**Pass 2 (seam + wiring-test delta):** 2 fresh independent reviewers, 0 BLOCKER, 0 ISSUE.
+Verified: seam is production-safe (written only in tests, read once per call, no
+`t.Parallel`), the wiring test locks the reader-launch, every `discoverOnInterface`
+return path is leak-free, `-race` clean across 40+ runs. NITs: wiring-test comment
+overstated what it isolates; `recvConn` leaked on the test's failure path.
+→ Both NITs applied (comment reworded; `t.Cleanup` close added).
+
+**Pass 3 (final confirmation of the two test-only NIT fixes):** 2 fresh reviewers,
+0 BLOCKER, 0 ISSUE. Artifact recorded via `scripts/dev/review_gate.py record`.
+
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; lines verified by direct read (`register.go:587-610`, `discovery.go:18`, `discovery_manager.go:71`, `backend_linux.go:196-234`). Related recover-boundary work belongs to `plan/spec-improve-5-panic-boundaries`.
+- Fix landed: dedicated `readDiscoveryLoop` reader goroutine decoupled from `helloTicker`; send-only main `select`; idempotent `closeConn` (`sync.Once`) + `<-readerDone` join on ctx cancel; 1s read-deadline backstop. Tests: `internal/plugins/ldp/discovery_burst_test.go` (all pass under `-race`).

@@ -168,7 +168,7 @@ func TestLDPInteropFRR(t *testing.T) {
 	defer cancel()
 	mgr := newDiscoveryManager(ctx, log, func(ifctx context.Context, ifName string, c ldpConfig) {
 		discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
-			startSessionForAdj(ctx, log, adj, lsrID, lib, sessions, &sessionsMu, fib)
+			startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, lib, sessions, &sessionsMu, fib)
 		})
 	})
 	mgr.reconcile(cfg)
