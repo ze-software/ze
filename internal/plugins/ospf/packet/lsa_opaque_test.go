@@ -16,6 +16,7 @@ import (
 // Opaque ID is the low 24 bits of the Link State ID, in both directions (RFC 5250 App A.2).
 func TestOpaqueLinkStateIDSplit(t *testing.T) {
 	id := types.LinkStateID{0xAA, 0xBB, 0xCC, 0xDD}
+	// RFC requirement: RFC5250-3-2 positive -- the Link State ID splits into a 1-byte Opaque Type (high octet) and a 3-byte Opaque ID (low 24 bits)
 	if got := OpaqueTypeOf(id); got != 0xAA {
 		t.Fatalf("OpaqueType = %#x, want 0xAA", got)
 	}

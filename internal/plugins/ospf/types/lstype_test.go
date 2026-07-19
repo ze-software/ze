@@ -22,6 +22,7 @@ func TestLSTypeKnownValues(t *testing.T) {
 		if !typ.InScope() {
 			t.Fatalf("LSType %d not in scope", typ)
 		}
+		// RFC requirement: RFC5250-3-1 negative -- standard OSPFv2 LS types are not classified as opaque
 		if typ.IsOpaque() {
 			t.Fatalf("LSType %d unexpectedly opaque", typ)
 		}
@@ -34,6 +35,7 @@ func TestLSTypeKnownValues(t *testing.T) {
 		if typ.InScope() {
 			t.Fatalf("opaque LSType %d unexpectedly in scope", typ)
 		}
+		// RFC requirement: RFC5250-3-1 positive -- LS types 9/10/11 are recognized as opaque LSAs
 		if !typ.IsOpaque() {
 			t.Fatalf("opaque LSType %d not opaque", typ)
 		}

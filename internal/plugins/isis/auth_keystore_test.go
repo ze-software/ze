@@ -74,6 +74,12 @@ func TestISISAuthKeyStore(t *testing.T) {
 // VALIDATES: TestISISAuthRotation (TDD plan, AC-4) -- during an overlap window
 // both the old and the new key are accepted on receive, and the active signing
 // key follows the send lifetime, so a key change does not drop adjacencies.
+//
+// RFC requirement: RFC5310-4-2 positive -- during the overlap window the store keeps
+// and uses more than one key at once: verifyKeys returns BOTH the old and the new key
+// (len == 2) before and after the rollover, so a PDU signed by either currently valid
+// key is accepted; implementations must store and use more than one key at the same
+// time (RFC 5310 sec 4).
 func TestISISAuthRotation(t *testing.T) {
 	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	old := base.Add(-time.Hour).Format(time.RFC3339)

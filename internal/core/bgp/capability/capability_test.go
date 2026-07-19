@@ -313,6 +313,7 @@ func TestParseFromOptionalParamsMultipleCapabilitiesParameters(t *testing.T) {
 // VALIDATES: ADD-PATH capability handling for path diversity.
 //
 // PREVENTS: Route selection issues when multiple paths are available.
+// RFC requirement: RFC7911-4-1 negative -- a single-family ADD-PATH parses to exactly one capability instance (len(caps)==1) carrying that one AFI/SAFI, so no extra instance is fabricated when only one family is present.
 func TestAddPathCapability(t *testing.T) {
 	t.Parallel()
 	// ADD-PATH for IPv4 Unicast: send+receive
@@ -341,6 +342,7 @@ func TestAddPathCapability(t *testing.T) {
 // VALIDATES: Multiple AFI/SAFI in single capability.
 //
 // PREVENTS: Only first family being parsed.
+// RFC requirement: RFC7911-4-1 positive -- two AFI/SAFIs (IPv4 and IPv6 unicast) are advertised in a single ADD-PATH capability instance: Parse yields exactly one capability (len(caps)==1) carrying both families.
 func TestAddPathMultipleFamilies(t *testing.T) {
 	t.Parallel()
 	data := []byte{

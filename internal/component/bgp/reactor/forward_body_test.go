@@ -19,6 +19,7 @@ import (
 func TestForwardSplitConvertsAddPathContext(t *testing.T) {
 	// VALIDATES: AC-1, AC-4, AC-5 -- mismatched ADD-PATH contexts are converted before shared helper splitting.
 	// PREVENTS: Forwarding source-context path IDs to a destination peer that did not negotiate RFC 7911 ADD-PATH.
+	// RFC requirement: RFC7911-5-3 negative -- the destination peer has not negotiated ADD-PATH (dest ctx addPath=false) while the source has, so buildFwdBody strips the 4-octet Path IDs and emits plain RFC 4271 NLRI (each destination prefix is 4 bytes, no path id).
 	srcCtx, srcCtxID := registerForwardBodyTestContext(t, true, true)
 	destCtx, destCtxID := registerForwardBodyTestContext(t, true, false)
 	peer := forwardBodyTestPeer(destCtx, destCtxID)
@@ -110,6 +111,7 @@ func TestForwardDoesNotRetranscodeASN2RewrittenWire(t *testing.T) {
 func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 	// VALIDATES: AC-3 -- same source/destination ContextID keeps the raw split branch before parsing.
 	// PREVENTS: Regressing same-context forwarding into parsed UPDATE allocation and SendUpdate dispatch.
+	// RFC requirement: RFC7911-5-3 positive -- source and destination share an ADD-PATH-negotiated context (both addPath=true), so forwarding preserves the extended NLRI encoding: the emitted NLRI bytes equal the source NLRI including their 4-octet Path IDs.
 	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
 	peer := forwardBodyTestPeer(ctx, ctxID)
 

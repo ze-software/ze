@@ -109,6 +109,7 @@ func TestINETIPv6Basic(t *testing.T) {
 // VALIDATES: ADD-PATH path ID handling (RFC 7911).
 //
 // PREVENTS: ADD-PATH interop failures.
+// RFC requirement: RFC7911-3-1 positive -- ParseINET with addPath=true consumes the leading 4-octet Path Identifier (0x00000001) before the prefix length and exposes it via PathID(), decoding the extended NLRI encoding.
 func TestINETWithAddPath(t *testing.T) {
 	t.Parallel()
 	// Path ID (4 bytes) + prefix length (1) + prefix bytes

@@ -60,6 +60,7 @@ func TestOpaqueBitIgnoredOutsideDD(t *testing.T) {
 		t.Fatalf("adjacency did not progress with opaque enabled")
 	}
 	// Before any DD is exchanged the neighbor is not yet opaque-capable.
+	// RFC requirement: RFC5250-3.1-5 negative -- the O-bit is a DD-only signal; a Hello exchange never confers opaque capability
 	if snap.OpaqueCapable {
 		t.Fatalf("neighbor reported opaque-capable before receiving an O-bit DD")
 	}
@@ -70,6 +71,7 @@ func TestOpaqueBitIgnoredOutsideDD(t *testing.T) {
 		t.Fatalf("HandleDBDesc: %s", reason)
 	}
 	fns := tbl.FloodNeighbors(cfg.Name)
+	// RFC requirement: RFC5250-3.1-5 positive -- opaque capability is learned from the DD Options O-bit
 	if len(fns) != 1 || !fns[0].OpaqueCapable {
 		t.Fatalf("neighbor not reported opaque-capable after an O-bit DD: %+v", fns)
 	}

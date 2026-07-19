@@ -140,6 +140,7 @@ func TestWriteTo_INET(t *testing.T) {
 //
 // VALIDATES: WriteNLRI prepends path ID when ctx.AddPath=true.
 // PREVENTS: Missing path ID in ADD-PATH enabled sessions.
+// RFC requirement: RFC7911-3-1 negative -- with ADD-PATH disabled the "AddPath disabled" subtest asserts WriteNLRI writes no Path Identifier and returns exactly Len() bytes, so the 4-octet field is prepended only when ADD-PATH is in effect.
 func TestWriteNLRI_AddPath(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
@@ -178,6 +179,7 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 //
 // VALIDATES: WriteNLRI uses stored path ID when addPath=true.
 // PREVENTS: Path ID being lost or zeroed when forwarding routes.
+// RFC requirement: RFC7911-3-1 positive -- WriteNLRI prepends the stored 4-octet Path Identifier (42) in network byte order (0x0000002a) ahead of the prefix and returns 4 + Len() bytes, extending the NLRI encoding with the Path Identifier field.
 func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")

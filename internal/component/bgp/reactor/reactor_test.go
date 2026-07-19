@@ -508,6 +508,8 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 // VALIDATES: WriteAnnounceUpdate correctly encodes path identifier when ADD-PATH enabled.
 //
 // PREVENTS: ADD-PATH encoding being silently skipped (RFC 7911 violation).
+// RFC requirement: RFC7911-5-4 positive -- with ADD-PATH negotiated, WriteAnnounceUpdate emits the extended NLRI encoding: the message is exactly 4 bytes longer (the 4-octet Path Identifier) than the non-ADD-PATH encoding while the path attributes are unchanged.
+// RFC requirement: RFC7911-5-4 negative -- without ADD-PATH the same route is encoded with no Path Identifier (nNoAddPath), 4 bytes shorter, so the path id is generated into the NLRI only when ADD-PATH is negotiated.
 func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
 	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),

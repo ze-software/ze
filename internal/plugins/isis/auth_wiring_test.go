@@ -111,6 +111,13 @@ func authTestLANHello(level lsdbLevel) []byte {
 // RFC requirement: RFC5304-2-2 positive -- a Level 2 level PDU signed with the DOMAIN
 // authentication string (the L2 chain, levelChain(levelTwo)) verifies; L2 PDUs use
 // the domain string as in L2 Link State PDUs (RFC 5304 sec 2).
+// RFC requirement: RFC5310-3.2-1 positive -- authTestConfig keys the area chain
+// HMAC-SHA-256, so a Level 1 level PDU signed with the AREA authentication string
+// carries CRYPTO_AUTH type 3 and verifies; L1 PDUs use the Area Authentication string
+// as in L1 Link State PDUs (RFC 5310 sec 3.2).
+// RFC requirement: RFC5310-3.2-2 positive -- a Level 2 level PDU signed with the DOMAIN
+// authentication string (HMAC-SHA-256, CRYPTO_AUTH type 3) verifies; L2 PDUs use the
+// domain authentication string as in L2 Link State PDUs (RFC 5310 sec 3.2).
 func TestISISAuthEngineSignLevel(t *testing.T) {
 	e := newEngine(transport.New(transport.NewBackend()))
 	e.setKeyStore(authTestConfig())
@@ -148,6 +155,10 @@ func TestISISAuthReject(t *testing.T) {
 	// Positive case: a correctly signed IIH on eth0 verifies (adjacency may form).
 	// RFC requirement: RFC5304-2-3 positive -- an IIH signed with the per-interface
 	// Link Level Authentication String (the circuit's IIH chain) verifies (RFC 5304 sec 2).
+	// RFC requirement: RFC5310-3.2-3 positive -- an IIH signed with the Link Level
+	// Authentication string (the per-interface IIH chain, HMAC-SHA-256/CRYPTO_AUTH type
+	// 3) verifies; IS-IS HELLO PDUs use the Link Level Authentication string
+	// (RFC 5310 sec 3.2).
 	signedHello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello(levelOne))
 	if !e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: signedHello}) {
 		t.Fatal("correctly signed IIH rejected")
@@ -156,6 +167,9 @@ func TestISISAuthReject(t *testing.T) {
 	// Negative case (AC-1): an IIH with no TLV 10 is rejected.
 	// RFC requirement: RFC5304-2-3 negative -- an IIH lacking the Link Level
 	// Authentication String (no TLV 10) is rejected under configured IIH auth (RFC 5304 sec 2).
+	// RFC requirement: RFC5310-3.2-3 negative -- an IIH lacking the Link Level
+	// Authentication string (no TLV 10) is rejected under configured CRYPTO_AUTH
+	// (RFC 5310 sec 3.2).
 	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: authTestLANHello(levelOne)}) {
 		t.Fatal("unauthenticated IIH accepted under configured auth")
 	}
@@ -187,6 +201,9 @@ func TestISISAuthChainSelection(t *testing.T) {
 	// RFC requirement: RFC5304-2-1 negative -- an L1 level PDU signed with a
 	// non-area string (the per-interface IIH key) is rejected; only the Area
 	// authentication string authenticates an L1 PDU (RFC 5304 sec 2).
+	// RFC requirement: RFC5310-3.2-1 negative -- an L1 level PDU signed with a
+	// non-area string (the per-interface IIH key) is rejected; only the Area
+	// Authentication string authenticates an L1 PDU (RFC 5310 sec 3.2).
 	iihKey := packet.Key{Algorithm: packet.AuthAlgoHMACSHA256, Secret: []byte("iihsecret"), KeyID: 3}
 	crossLSP, _ := packet.SignPDU(authTestLSP(levelOne), iihKey)
 	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: crossLSP}) {
@@ -266,6 +283,9 @@ func TestISISAuthLevelChainCrossUseL2(t *testing.T) {
 	// RFC requirement: RFC5304-2-2 negative -- an L2 level PDU signed with a
 	// non-domain string (the per-interface IIH key) is rejected; only the domain
 	// authentication string authenticates an L2 PDU (RFC 5304 sec 2).
+	// RFC requirement: RFC5310-3.2-2 negative -- an L2 level PDU signed with a
+	// non-domain string (the per-interface IIH key) is rejected; only the domain
+	// authentication string authenticates an L2 PDU (RFC 5310 sec 3.2).
 	iihKey := packet.Key{Algorithm: packet.AuthAlgoHMACSHA256, Secret: []byte("iihsecret"), KeyID: 3}
 	crossL2, _ := packet.SignPDU(authTestLSP(levelTwo), iihKey)
 	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: crossL2}) {

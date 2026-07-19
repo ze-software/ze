@@ -60,6 +60,7 @@ func TestOpaqueScopeRouting(t *testing.T) {
 	if !db.Install(a0, lsa10) {
 		t.Fatalf("Type 10 opaque install rejected")
 	}
+	// RFC requirement: RFC5250-3.1-2 positive -- a Type 10 opaque LSA is bound to the receiving area's store
 	if _, ok := db.LookupLSA(a0, lsa10.Header.Key()); !ok {
 		t.Fatalf("Type 10 opaque not in the area store")
 	}
@@ -69,6 +70,7 @@ func TestOpaqueScopeRouting(t *testing.T) {
 	if !db.Install(types.BackboneArea, lsa11) {
 		t.Fatalf("Type 11 opaque install rejected")
 	}
+	// RFC requirement: RFC5250-3-1 positive -- opaque LS types 9/10/11 route to the store their flooding scope selects (Type 11 -> AS-wide)
 	if _, ok := db.LookupLSA(area("0.0.0.9"), lsa11.Header.Key()); !ok {
 		t.Fatalf("Type 11 opaque not visible AS-wide (routed to per-area store?)")
 	}
@@ -83,6 +85,7 @@ func TestOpaqueScopeRouting(t *testing.T) {
 	// Type 9 (link scope) -> the per-interface link store; Install must reject it so it
 	// cannot land in an area store.
 	lsa9 := opaqueLSA(t, types.LSTypeOpaqueLink, 1, 0x30, rid("2.2.2.2"), types.InitialSequenceNumber, body)
+	// RFC requirement: RFC5250-3-1 negative -- a link-scoped Type 9 is refused the area store (scope is enforced, not accept-all)
 	if db.Install(a0, lsa9) {
 		t.Fatalf("Install accepted a link-scoped Type 9 opaque LSA into an area store")
 	}
@@ -110,9 +113,11 @@ func TestOpaqueType9WrongInterfaceDiscarded(t *testing.T) {
 
 	// RFC 5250 §3.1: a Type-9 opaque LSA is bound to its arrival link -- present on eth0,
 	// never installed on eth1, and never flooded out eth1.
+	// RFC requirement: RFC5250-3.1-1 positive -- a Type 9 opaque LSA is stored on its arrival interface
 	if _, ok := db.LookupLinkLSA("eth0", lsa9.Header.Key()); !ok {
 		t.Fatalf("Type 9 opaque not stored on the arrival interface")
 	}
+	// RFC requirement: RFC5250-3.1-1 negative -- a Type 9 opaque LSA is not installed on a non-target interface
 	if _, ok := db.LookupLinkLSA("eth1", lsa9.Header.Key()); ok {
 		t.Fatalf("Type 9 opaque leaked to a non-target interface")
 	}
@@ -144,6 +149,7 @@ func TestOpaqueType11StubDiscarded(t *testing.T) {
 
 	// Received on a stub interface -> discarded, not installed, not acknowledged (§3.1).
 	db.ReceiveUpdate(ReceiveInput{Interface: "eth0", AreaID: stub, RouterID: rid("2.2.2.2"), Src: netip.MustParseAddr("10.0.0.2"), Update: packet.LSUpdate{LSAs: []packet.LSA{lsa11}}})
+	// RFC requirement: RFC5250-3.1-3 negative -- a Type 11 opaque LSA received on a stub-area interface is discarded, not installed
 	if _, ok := db.LookupLSA(types.BackboneArea, lsa11.Header.Key()); ok {
 		t.Fatalf("Type 11 opaque installed despite arriving on a stub interface")
 	}
@@ -152,6 +158,7 @@ func TestOpaqueType11StubDiscarded(t *testing.T) {
 	}
 
 	// A Type 11 in the AS-opaque store must not be flooded out a stub interface.
+	// RFC requirement: RFC5250-3.1-3 positive -- a Type 11 opaque LSA is accepted into the AS-opaque store (valid outside a stub area)
 	if !db.Install(types.BackboneArea, lsa11) {
 		t.Fatalf("Type 11 install into AS-opaque store rejected")
 	}

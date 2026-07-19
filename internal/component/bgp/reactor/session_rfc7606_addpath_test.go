@@ -72,6 +72,8 @@ func newAddPathSession(t *testing.T, fams ...capability.Family) *Session {
 // Untagged guard: the RFC7606-5.3-4 coverage tags live on the message-level pair (see
 // rfc7606_withdraw_test.go); this adds the session-level ADD-PATH proof without re-staling
 // their audited fingerprints in rfc/audit/rfc7606.json.
+// RFC requirement: RFC7911-5-5 positive -- with ADD-PATH receive negotiated for IPv6 unicast, enforceRFC7606 skips the 4-octet Path Identifier before reading the inner MP_REACH prefix length, so the negotiated family's NLRI is parsed with the path id and a conforming ADD-PATH UPDATE is accepted (RFC7606ActionNone).
+// RFC requirement: RFC7911-5-5 negative -- with no ADD-PATH negotiated the identical bytes are parsed as plain NLRI, the leading path-id octet reads as an out-of-range prefix length, and the session resets, proving the parse consults the per-family negotiated ADD-PATH state.
 func TestEnforceRFC7606_MPAddPathLargePathIDAccepted(t *testing.T) {
 	ipv6 := capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}
 
@@ -120,6 +122,8 @@ func TestEnforceRFC7606_MPAddPathLargePathIDAccepted(t *testing.T) {
 //
 // Untagged guard: the RFC7606-5.3-1 coverage tags live on the message-level tests; this adds
 // the session-level ADD-PATH proof without re-staling their audited fingerprints.
+// RFC requirement: RFC7911-5-5 positive -- with ADD-PATH receive negotiated for IPv4 unicast, enforceRFC7606 skips the 4-octet Path Identifier before reading the body NLRI prefix length, so the negotiated family's NLRI is parsed with the path id and a conforming ADD-PATH UPDATE is accepted (RFC7606ActionNone).
+// RFC requirement: RFC7911-5-5 negative -- with no ADD-PATH negotiated the identical IPv4 body bytes are parsed as plain NLRI, the leading path-id octet reads as an out-of-range prefix length, and the session resets, isolating acceptance to the per-family ADD-PATH state.
 func TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted(t *testing.T) {
 	ipv4 := capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}
 

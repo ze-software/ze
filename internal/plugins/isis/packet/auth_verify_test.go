@@ -155,6 +155,11 @@ func TestISISAuthSignVerifyHMACMD5(t *testing.T) {
 
 // VALIDATES: TestISISAuthSignVerifyHMACSHA256 (TDD plan) -- type 3 HMAC-SHA-256
 // sign/verify per PDU class; Key ID round-trips; digest 32 octets (RFC 5310).
+//
+// RFC requirement: RFC5310-3.4-1 positive -- the on-wire Authentication TLV carries
+// auth type 3 (CRYPTO_AUTH) and Key-ID(2)||digest(32); the auth-type byte and the TLV
+// length are placed before the digest is computed (auth_sign.go:47-52), so a type-3
+// PDU round-trips and verifies (RFC 5310 sec 3.4).
 func TestISISAuthSignVerifyHMACSHA256(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("sha-key"), KeyID: 0xBEEF}
 	for name, build := range pduBuilders() {
@@ -223,6 +228,12 @@ func TestISISAuthSignVerifyHMACSHAFamily(t *testing.T) {
 // implementation would emit.
 // PREVENTS: a regression back to zero-fill for the RFC 5310 family, which would
 // break interop with any RFC-conforming peer.
+//
+// RFC requirement: RFC5310-3.4-1 positive -- known-answer: the re-hashed pre-image
+// (wantPre) is the full signed PDU with only the data region Apad-filled, so it still
+// contains the Authentication TLV's type byte (0x3) and length; the on-wire digest
+// equals that pre-image, proving the auth type and length are filled before the digest
+// is computed (RFC 5310 sec 3.3 step 1 / sec 3.4).
 func TestISISAuthHMACSHAApadPreimage(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("apad-key"), KeyID: 0x1234}
 	signed, err := SignPDU(testCSNP(t), key)
@@ -374,6 +385,12 @@ func TestISISAuthNoKeysAccepts(t *testing.T) {
 // Fletcher checksum is valid AFTER the digest is in place, the digest is computed
 // over the PDU with Authentication Value + Checksum + Remaining Lifetime zeroed
 // (RFC 5304 sec 2), and the whole thing round-trips and verifies.
+//
+// RFC requirement: RFC5310-4-1 positive -- the LSP digest excludes the Checksum and
+// the Remaining Lifetime: both are zeroed before the HMAC is computed
+// (auth_sign.go:268-272), so a post-sign Remaining-Lifetime change (with a recomputed
+// Fletcher checksum) still verifies, proving those fields are not authenticated
+// (RFC 5310 sec 4).
 func TestISISAuthLSPChecksumAfterSign(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACMD5, Secret: []byte("lsp-key")}
 	signed, err := SignPDU(testLSP(t), key)
@@ -613,6 +630,10 @@ func TestISISAuthConstantTimeCompare(t *testing.T) {
 //
 // RFC requirement: RFC5304-2-6 negative -- a PDU whose Authentication Value is
 // INCORRECT (signed with a different key) is discarded by VerifyPDU (RFC 5304 sec 2).
+// RFC requirement: RFC5310-4-2 negative -- a PDU signed with a key that is NOT among
+// the candidate (accept-set) keys is rejected, so the rollover accept-set only honors
+// currently valid keys and an unknown key does not verify (RFC 5310 sec 4;
+// HMAC-SHA-256 is one of the algorithms exercised).
 func TestISISAuthWrongKeyRejected(t *testing.T) {
 	algos := []AuthAlgorithm{AuthAlgoHMACMD5, AuthAlgoHMACSHA256}
 	for _, algo := range algos {
@@ -634,6 +655,14 @@ func TestISISAuthWrongKeyRejected(t *testing.T) {
 
 // VALIDATES: AC-4 hitless rotation -- a PDU signed with EITHER of two accepted
 // keys verifies when both are candidates (the overlap window).
+//
+// RFC requirement: RFC5310-4-2 positive -- a PDU signed with EITHER of two accepted
+// keys (the overlap window) verifies, so more than one key is stored and used at the
+// same time (RFC 5310 sec 4).
+// RFC requirement: RFC5310-4-1 positive -- an HMAC-SHA-256 (CRYPTO_AUTH type 3) LSP
+// round-trips and verifies; the LSP digest is computed by the shared backend that
+// zeroes the Checksum and Remaining Lifetime before hashing (auth_sign.go:268-272),
+// so the RFC 5310 sec 4 exclusion holds on the type-3 LSP path.
 func TestISISAuthRotationOverlapAccepts(t *testing.T) {
 	oldKey := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("old"), KeyID: 1}
 	newKey := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("new"), KeyID: 2}
@@ -651,6 +680,10 @@ func TestISISAuthRotationOverlapAccepts(t *testing.T) {
 
 // VALIDATES: a generic-crypto PDU whose Key-ID matches no candidate is rejected
 // (RFC 5310 sec 3.5: the SA is identified by Key ID).
+//
+// RFC requirement: RFC5310-4-2 negative -- a CRYPTO_AUTH PDU whose Key-ID matches no
+// candidate in the accept-set is rejected, so during rollover only a currently valid
+// key's Key ID is honored (RFC 5310 sec 4 / sec 3.5: the SA is identified by Key ID).
 func TestISISAuthKeyIDMismatchRejected(t *testing.T) {
 	signed, _ := SignPDU(testCSNP(t), Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("k"), KeyID: 1})
 	other := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("k"), KeyID: 99}

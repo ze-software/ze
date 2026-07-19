@@ -35,9 +35,11 @@ func TestOpaqueFloodOnlyToOpaqueNeighbor(t *testing.T) {
 		t.Fatalf("Type 11 install rejected")
 	}
 	db.floodExcept("", types.RouterID{}, types.BackboneArea, lsa11.Header.Key())
+	// RFC requirement: RFC5250-3.1-4 positive -- an opaque LSA is flooded to an opaque-capable (O-bit) neighbor
 	if db.retransmit[NeighborKey{Interface: "eth0", RouterID: rid("2.2.2.2")}][lsa11.Header.Key()] == nil {
 		t.Fatalf("opaque LSA not queued for the opaque-capable neighbor")
 	}
+	// RFC requirement: RFC5250-3.1-4 negative -- an opaque LSA is not flooded to a non-opaque neighbor
 	if db.retransmit[NeighborKey{Interface: "eth0", RouterID: rid("3.3.3.3")}][lsa11.Header.Key()] != nil {
 		t.Fatalf("opaque LSA wrongly queued for a non-opaque neighbor (RFC 5250 §3.1)")
 	}

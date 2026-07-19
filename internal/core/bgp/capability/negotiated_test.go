@@ -44,6 +44,8 @@ func TestNegotiateBasic(t *testing.T) {
 // VALIDATES: ADD-PATH mode intersection.
 //
 // PREVENTS: Path ID sent when peer can't receive, or vice versa.
+// RFC requirement: RFC7911-5-1 positive -- local advertises Send/Both (Both) so it is send-capable; combined with the peer's Receive, Negotiate yields AddPathSend, enabling send only because local advertised a Send-capable mode.
+// RFC requirement: RFC7911-5-2 positive -- the peer advertises Receive while local advertises Both, so Negotiate yields AddPathSend: local may send precisely because it received the peer's Receive capability.
 func TestNegotiateAddPath(t *testing.T) {
 	t.Parallel()
 	local := []Capability{

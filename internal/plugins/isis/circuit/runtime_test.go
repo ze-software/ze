@@ -68,6 +68,12 @@ func TestISISHelloSignedOverPaddedPDU(t *testing.T) {
 	// RFC requirement: RFC5304-2-4 positive -- the PDU the signer receives is
 	// already padded to the MTU (length == MTU - LLC), so the HMAC is computed
 	// AFTER padding, not before (RFC 5304 sec 2).
+	// RFC requirement: RFC5310-3.2-5 positive -- the CRYPTO_AUTH result for the IS-IS
+	// HELLO is calculated after the PDU is padded to the MTU: the signer receives the
+	// padded bytes (length == MTU - LLC, Padding TLV 8 present) (RFC 5310 sec 3.2).
+	// RFC requirement: RFC5310-3.4-2 positive -- the IIH authentication data is computed
+	// after the Hello has been padded to the MTU (SendHello pads then signs,
+	// circuit/runtime.go:273-276), so the signer sees the padded PDU (RFC 5310 sec 3.4).
 	if len(cs.pdu) != wantPDU {
 		t.Fatalf("signer received a %d-octet PDU, want %d (padded to MTU %d - LLC %d); signing ran before padding",
 			len(cs.pdu), wantPDU, mtu, transport.LLCHeaderLen)

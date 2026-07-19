@@ -95,6 +95,12 @@ func TestTFTPReadRequestLogged(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7440-3-1 positive -- a well-formed RRQ whose filename and mode
+// fields each end in a single-byte NUL parses into the correct filename and mode
+// (producer parseRRQ splits each field on its NUL terminator,
+// internal/plugins/tftpserver/handler.go:61,77,90). RFC 7440 restates the RFC 2347
+// wire format; this same NUL-terminated field discipline governs the windowsize
+// option field even though ze does not implement that option.
 func TestTFTPParseRRQ(t *testing.T) {
 	t.Parallel()
 
@@ -117,6 +123,11 @@ func TestTFTPParseRRQ(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7440-3-1 negative -- an RRQ whose filename or mode field lacks
+// its single-byte NUL terminator is rejected: the "no filename NUL" and "no mode NUL"
+// cases carry an unterminated field and parseRRQ returns an error rather than
+// accepting it (producer parseRRQ returns "missing filename"/"missing mode" when no
+// NUL follows the field, internal/plugins/tftpserver/handler.go:74-75,87-88).
 func TestTFTPParseRRQInvalid(t *testing.T) {
 	t.Parallel()
 

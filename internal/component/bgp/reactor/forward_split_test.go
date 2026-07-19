@@ -248,6 +248,7 @@ func generatePrefix(i int) string {
 //
 // VALIDATES: Full splitting pipeline: SplitUpdate → multiple chunks → all NLRIs preserved.
 // PREVENTS: Data loss or corruption during UPDATE splitting.
+// RFC requirement: RFC7911-5-4 negative -- the same splitting pipeline with ADD-PATH off (addPath=false) carries plain RFC 4271 NLRI with no Path Identifier, so no 4-octet field is added when ADD-PATH is not negotiated.
 func TestSplitUpdateEndToEnd(t *testing.T) {
 	var nlriBytes []byte
 	for i := range 1200 {
@@ -297,6 +298,7 @@ func TestSplitUpdateEndToEnd(t *testing.T) {
 //
 // VALIDATES: Add-Path NLRIs split correctly with 4-byte path-id preservation.
 // PREVENTS: Path-ID corruption during splitting.
+// RFC requirement: RFC7911-5-4 positive -- splitting an ADD-PATH UPDATE (addPath=true) preserves every 4-octet Path Identifier across chunks and all NLRI bytes round-trip, so the extended (prefix, Path ID) encoding survives message splitting.
 func TestSplitUpdateAddPathEndToEnd(t *testing.T) {
 	var nlriBytes []byte
 	for i := range 100 {

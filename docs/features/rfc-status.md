@@ -14,7 +14,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 | RFC 6793 | 4-byte AS numbers | Supported | ASN4 capability, AS4_PATH, AS4_AGGREGATOR, AS_TRANS handling. | No tracked gap in current source anchors. |
 | RFC 2918 | Route Refresh | Supported | Route Refresh capability and ROUTE-REFRESH message handling. | No tracked gap in current source anchors. |
 | RFC 7313 | Enhanced Route Refresh | Supported | BoRR and EoRR support, capability checks, bounded route resend. | No tracked gap in current source anchors. |
-| RFC 7911 | ADD-PATH | Supported | Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated. | No tracked gap in current source anchors. |
+| RFC 7911 | ADD-PATH | Supported | Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated; tests bound per requirement in `ai/RFC-REQUIREMENTS.md`. | One MUST gap, gated in `rfc/short/rfc7911.md`: on re-advertisement ze preserves the ingress Path Identifier (internal/component/bgp/reactor/forward_body.go copies the received path-id and the egress RIB key rib_structured.go carries it) rather than minting its own per RFC7911-2-2, so a re-advertised path is not assigned a fresh Path Identifier. |
 | RFC 8654 | BGP Extended Message | Supported | Extended message capability and 65535-byte message limit when negotiated. | No tracked gap in current source anchors. |
 | RFC 8950 | Extended Next Hop | Supported | IPv6 next-hop for IPv4 NLRI and negotiated extended next-hop lookup. | No tracked gap in current source anchors. |
 | RFC 5549 | Legacy extended next-hop encoding | Supported | Backward-compatible parser for the older format superseded by RFC 8950. | Main public claim uses RFC 8950. |

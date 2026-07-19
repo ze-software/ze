@@ -41,12 +41,15 @@ func TestOpaqueType11UnreachableOriginatorNotUsable(t *testing.T) {
 
 	// Type 11 from an unreachable originator -> delivered Reachable=false (§5).
 	deliver(types.LSTypeOpaqueAS, mustRouterID(t, "2.2.2.2"))
+	// RFC requirement: RFC5250-5-1 negative -- a Type 11 opaque LSA whose originating ASBR is unreachable is delivered not-usable
 	if len(got) != 1 || got[0].Reachable {
 		t.Fatalf("unreachable Type-11 originator: got %+v, want one delivery with Reachable=false", got)
 	}
 
 	// Type 11 from a reachable originator -> Reachable=true.
 	deliver(types.LSTypeOpaqueAS, reachable)
+	// RFC requirement: RFC5250-5-1 positive -- a Type 11 opaque LSA whose originating ASBR is reachable is delivered usable
+	// RFC requirement: RFC5250-5-2 positive -- reachability is recomputed from the live seam on each delivery (never cached), so re-evaluation yields the current usability
 	if len(got) != 2 || !got[1].Reachable {
 		t.Fatalf("reachable Type-11 originator: got %+v, want Reachable=true", got)
 	}

@@ -164,6 +164,10 @@ func TestFromNegotiatedNil(t *testing.T) {
 // VALIDATES: AddPath is correctly set based on negotiated mode.
 //
 // PREVENTS: Wrong path ID handling in encoding/decoding.
+// RFC requirement: RFC7911-5-1 positive -- across the 9-mode matrix, send is enabled (wantSend true) exactly when local advertises Send or Both (Send/Receive, Both/Receive, Both/Both), never when local is Receive-only.
+// RFC requirement: RFC7911-5-1 negative -- when local advertises Receive only (Receive/Send, Receive/Both) send stays disabled (wantSend false) even though the peer can receive, so a non-Send local mode cannot send.
+// RFC requirement: RFC7911-5-2 positive -- send is enabled (wantSend true) only when the peer advertises Receive or Both (Send/Receive, Send/Both, Both/Both), pairing local Send with the peer's receive capability.
+// RFC requirement: RFC7911-5-2 negative -- when the peer advertises Send only (Send/Send, Both/Send) send stays disabled (wantSend false) because the peer never advertised a Receive-capable mode.
 func TestFromNegotiatedAddPath(t *testing.T) {
 	// All 9 permutations of (Receive, Send, Both) x (Receive, Send, Both)
 	tests := []struct {
