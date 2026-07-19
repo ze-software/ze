@@ -180,6 +180,13 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
+		// Record ADD-PATH for the family before the first insert so the FamilyRIB is
+		// created with (prefix, path-id) keying. Mirrors the JSON path
+		// (insertPoolNLRIs); without it the structured path would collapse ADD-PATH
+		// siblings of a prefix (RFC 7911), silently dropping paths.
+		if addPath {
+			peerRIB.SetAddPath(ipv4Family, true)
+		}
 		if nlrisplit.Supported(ipv4Family) {
 			prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, addPath)
 			for _, wirePrefix := range prefixes {
@@ -214,6 +221,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			nlriBytes := mpReach.NLRIBytes()
 			if len(nlriBytes) > 0 {
 				addPath := ctx != nil && ctx.AddPath(fam)
+				// Record ADD-PATH before the first insert so the FamilyRIB keys by
+				// (prefix, path-id) (RFC 7911), mirroring the JSON insert path.
+				if addPath {
+					peerRIB.SetAddPath(fam, true)
+				}
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, addPath)
 				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wirePrefix := range prefixes {

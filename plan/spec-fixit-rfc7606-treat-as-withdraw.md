@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -287,3 +287,43 @@ Add `// RFC 7606 Section 2: "MUST be handled as though all of the routes contain
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit (verifier V3). Deepened to design on 2026-07-16: every citation re-verified against the working tree; the two-class producer split (Class A structural drop vs Class B attribute-semantic withdraw), the synthesis design (D-1..D-8), and assumptions A-1..A-4 resolved with producer evidence. Line-number corrections vs the skeleton: `reactor_notify.go:218-339` -> `:218-579`; `session_validate_test.go:54-116` -> `:56-117`; functional test location `test/bgp/` (nonexistent) -> `test/plugin/`. ~~Not `ready` until Thomas answers the open questions and approves.~~
 - Readiness pass (2026-07-17): all three Open Questions resolved autonomously so a fresh implementer needs no answer from Thomas. OQ1 already answered by the code shipped in `b1f27a3e0` (left as-is). OQ2 resolved N/A (justified): the interop harness cannot host exabgp and no shipped daemon emits malformed attributes, so no `47-*` scenario is created and `test/plugin/rfc7606-treat-as-withdraw.ci` (ze-peer raw hex) is the conformance driver; dependent Interop/Files-to-Create/Implementation-step rows updated to match. OQ3 resolved Accept (`updates-received` counting synthesized withdraws is an acceptable, documented operator-visible change). Each resolution is recorded APPEND-ONLY at its Open-Questions entry with a Thomas-override line. Status stays `ready`.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Verdict | CLEAN (0 BLOCKER, 0 ISSUE) |
+| Reviewer | Independent subagent over the diff (2026-07-19) |
+| Artifact | `tmp/review/fixit-rfc7606-treat-as-withdraw-58c51aab-79d8-400d-b779-2c0cf322a274.md` |
+
+### Scope note (park session 58c51aab, 2026-07-19)
+
+The spec CORE (`message.SynthesizeWithdraw` + `enforceRFC7606` treat-as-withdraw dispatch)
+was already implemented and committed by a prior session. This session closed the
+RIB-boundary coverage gaps and fixed one latent ADD-PATH bug exposed by that coverage.
+
+AC status:
+- AC-1: COVERED. Adj-RIB-In removal (prior `adj_rib_in` test) + NEW Loc-RIB best-change
+  propagation (`TestRIBTreatAsWithdrawRemovesInstalledRoute`, this session). Established +
+  no NOTIFICATION covered by prior reactor tests.
+- AC-2: COVERED (unit byte-transform, prior `TestSynthesizeWithdrawPreservesExistingWithdrawn`).
+- AC-3: COVERED (unit, prior `TestSynthesizeWithdrawConvertsMPReachToMPUnreach`).
+- AC-4: COVERED (prior session-reset + no-callback tests).
+- AC-5: COVERED (NEW `TestRIBTreatAsWithdrawRemovesInstalledRoute` never-installed sub-case).
+- AC-6: COVERED (NEW `TestRIBTreatAsWithdrawAddPathPreservesPathID`; required the
+  `rib_structured.go` `SetAddPath` fix so the structured receive path keys ADD-PATH siblings).
+- AC-7: COVERED (prior `TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal`).
+- AC-8: **NOT met end-to-end** — `withdrawMPAttrs` emits two MP_UNREACH in one body but the
+  RIB reads only the first (`AttributesWire.GetRaw` first-match). Reactor-scope divergence
+  from spec D-8 (two UPDATEs); flagged in DECISION.md + drain recipe. Follow-up required.
+- AC-9: **NOT met** — `validateUpdateFamilies` runs on the synthesized body and strict-mode
+  teardown contradicts "no teardown"; spec D-5 (skip non-negotiated families at synthesis)
+  not implemented. Reactor-scope divergence; flagged. Follow-up required.
+
+NIT (from review, non-blocking): the MP_REACH `SetAddPath` branch has no dedicated test
+(line-for-line mirror of the tested IPv4 branch); an IPv6/MP add-path treat-as-withdraw
+test would close it.
+
+Verification: scoped `go test` on rib/message/fsm packages PASS; rib package `go vet` +
+`golangci-lint` clean. (`make ze-verify*` and functional/QEMU suites deliberately NOT run —
+park session on a shared live tree.)
