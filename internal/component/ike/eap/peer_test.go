@@ -309,6 +309,41 @@ func TestPeerMSCHAPv2ViaWireFormat(t *testing.T) {
 	t.Logf("server accepted response (MS-CHAPv2 verification passed)")
 }
 
+func TestMSCHAPv2PeerChallengeRandom16(t *testing.T) {
+	newPeerChallenge := func() [16]byte {
+		server := &mschapv2Method{password: "pw"}
+		challengePkt := server.Start(0x10)
+		peer := NewPeerSession(TypeMSCHAPv2, "user", "pw")
+		peer.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: TypeIdentity})
+		res := peer.Process(&Packet{
+			Code:       challengePkt.Code,
+			Identifier: challengePkt.Identifier,
+			Type:       challengePkt.Type,
+			TypeData:   challengePkt.TypeData,
+		})
+		if res.Err != nil {
+			t.Fatalf("peer challenge: %v", res.Err)
+		}
+		return peer.peerChallenge
+	}
+
+	// RFC requirement: RFC2759-x-9 positive -- the peer fills its 16-octet Peer-Challenge
+	// from crypto/rand: the field is exactly 16 octets, not all-zero, and different in two
+	// independent sessions.
+	pc1 := newPeerChallenge()
+	pc2 := newPeerChallenge()
+	if len(pc1) != 16 {
+		t.Fatalf("peerChallenge length: got %d, want 16", len(pc1))
+	}
+	var zero [16]byte
+	if pc1 == zero {
+		t.Fatal("peerChallenge is all-zero; not randomized")
+	}
+	if pc1 == pc2 {
+		t.Fatal("two sessions produced identical Peer-Challenge")
+	}
+}
+
 func TestTLSFragmenterRoundTrip(t *testing.T) {
 	data := make([]byte, 3000)
 	for i := range data {

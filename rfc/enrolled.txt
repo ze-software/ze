@@ -117,3 +117,4 @@ rfc4090	Fast Reroute Extensions to RSVP-TE for LSP Tunnels: 11 MUSTs all MET (FA
 rfc5575	BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capability/family/component-ordering/reserved-bits) + 4 gap (Section 6 validation unimplemented, same root cause as RFC8956-5-1)
 rfc9086	BGP-LS Egress Peer Engineering SIDs: 2 single-polarity positive (reserved ignored on receipt) + 10 gap (EPE SID origination not implemented; decode only)
 rfc9085	BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Label 20-bit mask, reserved + undefined flags ignored on receipt) + 9 gap (SR-SID origination/encode not implemented; decode only)
+rfc2759	MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN-strip, UTF-16LE hash) + 3 single-polarity positive (uppercase S=, 16-octet random challenges) + 3 gap (no MS-CHAPv2 Failure/C= packet, peer skips authenticator-response check, no E=691)

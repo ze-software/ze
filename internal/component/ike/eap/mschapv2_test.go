@@ -26,10 +26,19 @@ func TestMD4Empty(t *testing.T) {
 
 func TestNtPasswordHash(t *testing.T) {
 	// Well-known: NtPasswordHash("Password") = a4f49c406510bdcab6824ee7c30fd852.
+	// RFC requirement: RFC2759-x-10 positive -- the known-answer vector matches only when
+	// the password is MD4-hashed over its UTF-16LE encoding, as NtPasswordHash does.
 	got := ntPasswordHash("Password")
 	want := mustHex16("a4f49c406510bdcab6824ee7c30fd852")
 	if got != want {
 		t.Fatalf("NtPasswordHash: got %x, want %x", got, want)
+	}
+
+	// RFC requirement: RFC2759-x-10 negative -- MD4 over the UTF-8 (raw ASCII) bytes of the
+	// same password produces a different hash, so the vector falsifies a UTF-8 encoding.
+	utf8Hash := md4Sum([]byte("Password"))
+	if utf8Hash == want {
+		t.Fatalf("UTF-8 MD4 must not match the UTF-16LE NtPasswordHash vector: %x", utf8Hash)
 	}
 }
 
@@ -144,6 +153,35 @@ func TestStripDomain(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("StripDomain(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+func TestChallengeHashExcludesDomainPrefix(t *testing.T) {
+	authChallenge := mustHex16("5b5d7c7d7b3f2f3e3c2c602132262628")
+	peerChallenge := mustHex16("21402324255e262a28295f2b3a337c7e")
+	password := "clientPass"
+
+	// RFC requirement: RFC2759-x-4 positive -- ChallengeHash consumes the bare username:
+	// StripDomain removes the DOMAIN\ prefix so the domain-qualified name hashes
+	// identically to its bare form.
+	if StripDomain("DOMAIN\\User") != "User" {
+		t.Fatalf("StripDomain(%q) = %q, want %q", "DOMAIN\\User", StripDomain("DOMAIN\\User"), "User")
+	}
+	if challengeHash(peerChallenge, authChallenge, StripDomain("DOMAIN\\User")) !=
+		challengeHash(peerChallenge, authChallenge, "User") {
+		t.Fatal("stripped DOMAIN\\ name must hash identically to the bare name")
+	}
+
+	// RFC requirement: RFC2759-x-4 negative -- feeding the unstripped DOMAIN\ name to
+	// ChallengeHash yields a different Challenge, so a valid bare-username NT-Response no
+	// longer verifies: excluding the prefix is load-bearing, not cosmetic.
+	if challengeHash(peerChallenge, authChallenge, "DOMAIN\\User") ==
+		challengeHash(peerChallenge, authChallenge, "User") {
+		t.Fatal("unstripped DOMAIN\\ name must hash differently from the bare name")
+	}
+	bare := GenerateNTResponse(authChallenge, peerChallenge, "User", password)
+	if VerifyNTResponse(authChallenge, peerChallenge, "DOMAIN\\User", password, bare) {
+		t.Fatal("unstripped DOMAIN\\ username must not verify a bare-username NT-Response")
 	}
 }
 
