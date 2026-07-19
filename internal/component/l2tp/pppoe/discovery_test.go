@@ -43,6 +43,8 @@ var (
 	discBcastMAC  = [pppoe.EthALen]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 )
 
+// RFC requirement: RFC2516-x-3 positive -- a frame whose ver/type octet is 0x11 (VER=1, TYPE=1) parses successfully instead of being discarded.
+// RFC requirement: RFC2516-x-7 positive -- a discovery frame with a unicast source MAC is accepted.
 func TestParsePADI(t *testing.T) {
 	hostUniq := []byte{0xDE, 0xAD}
 	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
@@ -120,6 +122,8 @@ func TestParsePADR(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-5.2-1 positive -- BuildPADO echoes the Host-Uniq from the PADI unchanged in the PADO.
+// RFC requirement: RFC2516-5.2-3 positive -- the PADO carries the Host-Uniq that was present in the PADI.
 func TestBuildPADO(t *testing.T) {
 	padi := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("internet")},
@@ -168,6 +172,8 @@ func TestBuildPADO(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-5.2-1 positive -- BuildPADS echoes the Host-Uniq from the PADR unchanged in the PADS.
+// RFC requirement: RFC2516-5.4-1 positive -- the PADS carries exactly one Service-Name tag echoed from the PADR.
 func TestBuildPADS(t *testing.T) {
 	padr := buildDiscFrame(discACMAC, discClientMAC, pppoe.CodePADR, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("internet")},
@@ -200,6 +206,9 @@ func TestBuildPADS(t *testing.T) {
 	if svcTag == nil || string(svcTag.Value) != "internet" {
 		t.Errorf("Service-Name not echoed")
 	}
+	if n := len(pkt.FindAllTags(pppoe.TagServiceName)); n != 1 {
+		t.Errorf("PADS Service-Name tag count = %d, want exactly 1", n)
+	}
 
 	huTag := pkt.FindTag(pppoe.TagHostUniq)
 	if huTag == nil || len(huTag.Value) != 2 {
@@ -207,6 +216,7 @@ func TestBuildPADS(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-x-6 positive -- BuildPADT addresses the PADT to the peer's unicast MAC (the destination is unicast, never broadcast).
 func TestBuildPADT(t *testing.T) {
 	var buf [pppoe.EthMaxLen]byte
 	frame := pppoe.BuildPADT(buf[:], discACMAC, discClientMAC, 100, "ze-ac")
@@ -229,6 +239,8 @@ func TestBuildPADT(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-5.2-4 positive -- when the requested Service-Name is served, MatchServiceName returns true, so handlePADI (server.go:62) proceeds to send a PADO.
+// RFC requirement: RFC2516-5.2-4 negative -- when the requested Service-Name cannot be served, MatchServiceName returns false, so handlePADI (server.go:62) returns without sending a PADO.
 func TestServiceNameFilter(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -287,6 +299,8 @@ func TestParseShortPacket(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-x-1 negative -- a frame whose VER nibble is not 1 (ver/type 0x21) is rejected with ErrBadVersion, not parsed.
+// RFC requirement: RFC2516-x-3 negative -- a frame with ver/type other than 0x11 is silently discarded (ParseDiscovery returns ErrBadVersion rather than a Packet).
 func TestParseBadVersion(t *testing.T) {
 	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, nil)
 	frame[pppoe.EthHdrLen] = 0x21 // bad version
@@ -312,6 +326,7 @@ func TestParseInvalidTagLength(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-x-7 negative -- a frame whose source MAC is the broadcast address is rejected (ErrBroadcastSource), never treated as a valid packet.
 func TestParseBroadcastSource(t *testing.T) {
 	frame := buildDiscFrame(discBcastMAC, discBcastMAC, pppoe.CodePADI, nil)
 
@@ -321,6 +336,7 @@ func TestParseBroadcastSource(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-x-7 negative -- a frame whose source MAC is a multicast address is rejected (ErrMulticastSource), never treated as a valid packet.
 func TestParseMulticastSource(t *testing.T) {
 	mcastMAC := [pppoe.EthALen]byte{0x01, 0x00, 0x5E, 0x00, 0x00, 0x01}
 	frame := buildDiscFrame(discBcastMAC, mcastMAC, pppoe.CodePADI, nil)
@@ -343,6 +359,7 @@ func TestParseNoTags(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2516-x-4 positive -- a zero-length End-Of-List tag terminates tag parsing; tags after it are not returned.
 func TestParseEndOfListTag(t *testing.T) {
 	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("svc")},
@@ -428,5 +445,253 @@ func TestConstants(t *testing.T) {
 	}
 	if pppoe.MinDiscFrame != 20 {
 		t.Errorf("MinDiscFrame = %d, want 20", pppoe.MinDiscFrame)
+	}
+}
+
+// RFC requirement: RFC2516-x-1 positive -- a built discovery frame carries VER=1 in the high nibble of the ver/type octet.
+// RFC requirement: RFC2516-x-2 positive -- a built discovery frame carries TYPE=1 in the low nibble of the ver/type octet.
+func TestBuildFrameVerType(t *testing.T) {
+	var buf [pppoe.EthMaxLen]byte
+	frame := pppoe.BuildPADI(buf[:], discClientMAC, "internet", []byte{0x01, 0x02})
+	if frame == nil {
+		t.Fatal("BuildPADI returned nil")
+	}
+	verType := frame[pppoe.EthHdrLen]
+	if verType != pppoe.PPPoEVerType {
+		t.Fatalf("ver/type octet = 0x%02x, want 0x11", verType)
+	}
+	if ver := verType >> 4; ver != 1 {
+		t.Errorf("VER = %d, want 1", ver)
+	}
+	if typ := verType & 0x0F; typ != 1 {
+		t.Errorf("TYPE = %d, want 1", typ)
+	}
+}
+
+// RFC requirement: RFC2516-x-2 negative -- a frame whose TYPE nibble is not 1 (ver/type 0x12) is rejected with ErrBadVersion, not parsed.
+func TestParseBadType(t *testing.T) {
+	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, nil)
+	frame[pppoe.EthHdrLen] = 0x12 // VER=1, TYPE=2
+
+	_, err := pppoe.ParseDiscovery(frame)
+	if !errors.Is(err, pppoe.ErrBadVersion) {
+		t.Errorf("err = %v, want ErrBadVersion", err)
+	}
+}
+
+// RFC requirement: RFC2516-5.1-1 positive -- BuildPADI writes exactly one Service-Name tag.
+// RFC requirement: RFC2516-5.1-2 positive -- BuildPADI addresses the PADI to the Ethernet broadcast MAC.
+func TestBuildPADIDiscovery(t *testing.T) {
+	var buf [pppoe.EthMaxLen]byte
+	frame := pppoe.BuildPADI(buf[:], discClientMAC, "internet", []byte{0xDE, 0xAD})
+	if frame == nil {
+		t.Fatal("BuildPADI returned nil")
+	}
+	pkt, err := pppoe.ParseDiscovery(frame)
+	if err != nil {
+		t.Fatalf("parse PADI: %v", err)
+	}
+	if pkt.Code != pppoe.CodePADI {
+		t.Errorf("Code = 0x%02x, want PADI", pkt.Code)
+	}
+	if n := len(pkt.FindAllTags(pppoe.TagServiceName)); n != 1 {
+		t.Errorf("PADI Service-Name tag count = %d, want exactly 1", n)
+	}
+	if pkt.DstMAC != discBcastMAC {
+		t.Errorf("PADI DstMAC = %v, want broadcast %v", pkt.DstMAC, discBcastMAC)
+	}
+}
+
+// RFC requirement: RFC2516-5.3-1 positive -- BuildPADR echoes the AC-Cookie from the PADO unchanged in the PADR.
+// RFC requirement: RFC2516-5.3-3 positive -- the PADR carries the AC-Cookie that was in the selected PADO.
+// RFC requirement: RFC2516-5.3-4 positive -- BuildPADR includes the Host-Uniq (the value the Host used in its PADI) in the PADR.
+// RFC requirement: RFC2516-5.3-2 positive -- BuildPADR writes exactly one Service-Name tag.
+func TestBuildPADREchoesTags(t *testing.T) {
+	cookie := []byte("ac-cookie-1234567890")
+	// PADO is sent BY the AC: source = AC MAC, destination = Host MAC.
+	pado := buildDiscFrame(discClientMAC, discACMAC, pppoe.CodePADO, []pppoe.Tag{
+		{Type: pppoe.TagACName, Value: []byte("ze-ac")},
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+		{Type: pppoe.TagACCookie, Value: cookie},
+	})
+	padoPkt, err := pppoe.ParseDiscovery(pado)
+	if err != nil {
+		t.Fatalf("parse PADO: %v", err)
+	}
+
+	hostUniq := []byte{0x11, 0x22, 0x33, 0x44}
+	var buf [pppoe.EthMaxLen]byte
+	frame := pppoe.BuildPADR(buf[:], discClientMAC, &padoPkt, "internet", hostUniq)
+	if frame == nil {
+		t.Fatal("BuildPADR returned nil")
+	}
+	padr, err := pppoe.ParseDiscovery(frame)
+	if err != nil {
+		t.Fatalf("parse PADR: %v", err)
+	}
+	if padr.DstMAC != discACMAC {
+		t.Errorf("PADR DstMAC = %v, want AC %v", padr.DstMAC, discACMAC)
+	}
+	ck := padr.FindTag(pppoe.TagACCookie)
+	if ck == nil || !bytes.Equal(ck.Value, cookie) {
+		t.Errorf("AC-Cookie = %v, want echoed %x", ck, cookie)
+	}
+	hu := padr.FindTag(pppoe.TagHostUniq)
+	if hu == nil || !bytes.Equal(hu.Value, hostUniq) {
+		t.Errorf("Host-Uniq = %v, want %x", hu, hostUniq)
+	}
+	if n := len(padr.FindAllTags(pppoe.TagServiceName)); n != 1 {
+		t.Errorf("PADR Service-Name tag count = %d, want exactly 1", n)
+	}
+}
+
+// RFC requirement: RFC2516-5.3-1 negative -- when the PADO carried no AC-Cookie, BuildPADR emits no AC-Cookie tag (it does not invent one).
+// RFC requirement: RFC2516-5.3-3 negative -- a PADR built from a cookieless PADO carries no AC-Cookie tag.
+// RFC requirement: RFC2516-5.3-4 negative -- with no Host-Uniq supplied, BuildPADR emits no Host-Uniq tag.
+func TestBuildPADRNoOptionalTags(t *testing.T) {
+	// PADO is sent BY the AC: source = AC MAC, destination = Host MAC.
+	pado := buildDiscFrame(discClientMAC, discACMAC, pppoe.CodePADO, []pppoe.Tag{
+		{Type: pppoe.TagACName, Value: []byte("ze-ac")},
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+	})
+	padoPkt, err := pppoe.ParseDiscovery(pado)
+	if err != nil {
+		t.Fatalf("parse PADO: %v", err)
+	}
+
+	var buf [pppoe.EthMaxLen]byte
+	frame := pppoe.BuildPADR(buf[:], discClientMAC, &padoPkt, "internet", nil)
+	if frame == nil {
+		t.Fatal("BuildPADR returned nil")
+	}
+	padr, err := pppoe.ParseDiscovery(frame)
+	if err != nil {
+		t.Fatalf("parse PADR: %v", err)
+	}
+	if padr.FindTag(pppoe.TagACCookie) != nil {
+		t.Error("PADR must not carry an AC-Cookie when the PADO had none")
+	}
+	if padr.FindTag(pppoe.TagHostUniq) != nil {
+		t.Error("PADR must not carry a Host-Uniq when none was supplied")
+	}
+}
+
+// RFC requirement: RFC2516-5.2-1 negative -- when the PADI/PADR carried no Host-Uniq, BuildPADO and BuildPADS emit no Host-Uniq tag.
+// RFC requirement: RFC2516-5.2-3 negative -- a PADO built from a PADI without Host-Uniq carries no Host-Uniq tag.
+func TestBuildNoHostUniqEcho(t *testing.T) {
+	padi := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+	})
+	padiPkt, err := pppoe.ParseDiscovery(padi)
+	if err != nil {
+		t.Fatalf("parse PADI: %v", err)
+	}
+	var buf [pppoe.EthMaxLen]byte
+	pado := pppoe.BuildPADO(buf[:], discACMAC, &padiPkt, "ze-ac", []string{"internet"}, []byte("cookie"))
+	padoPkt, err := pppoe.ParseDiscovery(pado)
+	if err != nil {
+		t.Fatalf("parse PADO: %v", err)
+	}
+	if padoPkt.FindTag(pppoe.TagHostUniq) != nil {
+		t.Error("PADO must not carry a Host-Uniq when the PADI had none")
+	}
+
+	padr := buildDiscFrame(discACMAC, discClientMAC, pppoe.CodePADR, []pppoe.Tag{
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+	})
+	padrPkt, err := pppoe.ParseDiscovery(padr)
+	if err != nil {
+		t.Fatalf("parse PADR: %v", err)
+	}
+	var buf2 [pppoe.EthMaxLen]byte
+	pads := pppoe.BuildPADS(buf2[:], discACMAC, &padrPkt, "ze-ac", 7)
+	padsPkt, err := pppoe.ParseDiscovery(pads)
+	if err != nil {
+		t.Fatalf("parse PADS: %v", err)
+	}
+	if padsPkt.FindTag(pppoe.TagHostUniq) != nil {
+		t.Error("PADS must not carry a Host-Uniq when the PADR had none")
+	}
+}
+
+// RFC requirement: RFC2516-x-5 positive -- BuildPADO, BuildPADR, and BuildPADS carry the Relay-Session-Id unchanged in each subsequent Discovery packet of the exchange.
+func TestRelaySessionIDEcho(t *testing.T) {
+	relayID := []byte{0xAB, 0xCD, 0xEF, 0x01}
+
+	padi := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+		{Type: pppoe.TagRelaySessionID, Value: relayID},
+	})
+	padiPkt, err := pppoe.ParseDiscovery(padi)
+	if err != nil {
+		t.Fatalf("parse PADI: %v", err)
+	}
+	var b1 [pppoe.EthMaxLen]byte
+	pado := pppoe.BuildPADO(b1[:], discACMAC, &padiPkt, "ze-ac", []string{"internet"}, []byte("cookie"))
+	padoPkt, err := pppoe.ParseDiscovery(pado)
+	if err != nil {
+		t.Fatalf("parse PADO: %v", err)
+	}
+	if tag := padoPkt.FindTag(pppoe.TagRelaySessionID); tag == nil || !bytes.Equal(tag.Value, relayID) {
+		t.Errorf("PADO Relay-Session-Id = %v, want echoed %x", tag, relayID)
+	}
+
+	var b2 [pppoe.EthMaxLen]byte
+	padr := pppoe.BuildPADR(b2[:], discClientMAC, &padoPkt, "internet", nil)
+	padrPkt, err := pppoe.ParseDiscovery(padr)
+	if err != nil {
+		t.Fatalf("parse PADR: %v", err)
+	}
+	if tag := padrPkt.FindTag(pppoe.TagRelaySessionID); tag == nil || !bytes.Equal(tag.Value, relayID) {
+		t.Errorf("PADR Relay-Session-Id = %v, want echoed %x", tag, relayID)
+	}
+
+	var b3 [pppoe.EthMaxLen]byte
+	pads := pppoe.BuildPADS(b3[:], discACMAC, &padrPkt, "ze-ac", 9)
+	padsPkt, err := pppoe.ParseDiscovery(pads)
+	if err != nil {
+		t.Fatalf("parse PADS: %v", err)
+	}
+	if tag := padsPkt.FindTag(pppoe.TagRelaySessionID); tag == nil || !bytes.Equal(tag.Value, relayID) {
+		t.Errorf("PADS Relay-Session-Id = %v, want echoed %x", tag, relayID)
+	}
+}
+
+// RFC requirement: RFC2516-x-5 negative -- when no Relay-Session-Id is present in the input, the built Discovery packet carries none (no spurious Relay-Session-Id is invented).
+func TestRelaySessionIDNoEcho(t *testing.T) {
+	padi := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+	})
+	padiPkt, err := pppoe.ParseDiscovery(padi)
+	if err != nil {
+		t.Fatalf("parse PADI: %v", err)
+	}
+	var buf [pppoe.EthMaxLen]byte
+	pado := pppoe.BuildPADO(buf[:], discACMAC, &padiPkt, "ze-ac", []string{"internet"}, []byte("cookie"))
+	padoPkt, err := pppoe.ParseDiscovery(pado)
+	if err != nil {
+		t.Fatalf("parse PADO: %v", err)
+	}
+	if padoPkt.FindTag(pppoe.TagRelaySessionID) != nil {
+		t.Error("PADO must not carry a Relay-Session-Id when the PADI had none")
+	}
+}
+
+// RFC requirement: RFC2516-x-8 positive -- a frame carrying an unknown tag type parses without error, the unknown tag is retained, and known tags remain findable.
+func TestUnknownTagIgnored(t *testing.T) {
+	const unknownTag uint16 = 0x9999
+	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
+		{Type: unknownTag, Value: []byte{0xDE, 0xAD}},
+		{Type: pppoe.TagServiceName, Value: []byte("internet")},
+	})
+	pkt, err := pppoe.ParseDiscovery(frame)
+	if err != nil {
+		t.Fatalf("ParseDiscovery must not error on an unknown tag: %v", err)
+	}
+	if svc := pkt.FindTag(pppoe.TagServiceName); svc == nil || string(svc.Value) != "internet" {
+		t.Error("known Service-Name tag must still be found alongside an unknown tag")
+	}
+	if pkt.FindTag(unknownTag) == nil {
+		t.Error("unknown tag should be retained, not dropped")
 	}
 }

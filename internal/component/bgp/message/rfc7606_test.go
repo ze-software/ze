@@ -2362,6 +2362,7 @@ func TestRFC7606ASPath4ByteASNOverrun(t *testing.T) {
 
 // RFC 8669/9252 Prefix-SID validation tests.
 
+// RFC requirement: RFC9252-3.4-1 positive -- a well-formed SRv6 Service TLV is accepted (no treat-as-withdraw).
 func TestValidatePrefixSIDAttr_Valid(t *testing.T) {
 	// Valid SRv6 L3 Service TLV with 21-byte SID Info sub-TLV.
 	sidInfoValue := make([]byte, 21)
@@ -2390,6 +2391,7 @@ func TestValidatePrefixSIDAttr_TrailingBytes(t *testing.T) {
 	require.Contains(t, result.Description, "trailing bytes")
 }
 
+// RFC requirement: RFC9252-3.4-1 negative -- a malformed SRv6 Service TLV (trailing bytes after the last sub-TLV) triggers treat-as-withdraw.
 func TestValidateSRv6ServiceTLV_TrailingBytes(t *testing.T) {
 	// RFC 9252 Section 3.4: Service TLV with trailing byte after sub-TLV.
 	sidInfoValue := make([]byte, 21)
@@ -2427,4 +2429,21 @@ func TestValidateSRv6ServiceTLV_SubSubTLVExceedsBounds(t *testing.T) {
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Contains(t, result.Description, "sub-sub-TLV exceeds")
+}
+
+// RFC requirement: RFC9252-3.4-1 negative -- a SID Information Sub-TLV shorter than the 21-octet
+// minimum is a malformed SRv6 Service TLV and triggers treat-as-withdraw (RFC 9252 Section 3.2/3.4).
+func TestValidateSRv6ServiceTLV_SIDInfoTooShort(t *testing.T) {
+	// SID Info sub-TLV (type 1) with declared length 10 (< 21).
+	// Layout: Service TLV Reserved(0) + SID Info header(type=1, length=10) + 10 payload bytes.
+	value := []byte{0, 1, 0, 10}
+	value = append(value, make([]byte, 10)...)
+
+	data := []byte{5, byte(len(value) >> 8), byte(len(value))} // Service TLV type=5
+	data = append(data, value...)
+
+	result := validatePrefixSIDAttr(40, len(data), data, false, false)
+	require.NotNil(t, result)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Contains(t, result.Description, "< 21")
 }

@@ -146,6 +146,8 @@ func v4uEngine(t *testing.T) (*engine, int) {
 
 // TestAFBitGatesFullNonDefault pins AC-5/R-2: on a non-default AF a Hello without the AF-bit
 // forms no adjacency, while the same Hello with the AF-bit does.
+// RFC requirement: RFC5838-2.4-1 negative -- on a non-default AF a Hello with the AF-bit clear forms no adjacency; it is discarded before the neighbor reaches Full.
+// RFC requirement: RFC5838-2.4-1 positive -- on a non-default AF the same Hello carrying the AF-bit is accepted and brings the neighbor up.
 func TestAFBitGatesFullNonDefault(t *testing.T) {
 	eng, ifindex := v4uEngine(t)
 	defer eng.shutdown()
@@ -170,6 +172,7 @@ func TestAFBitGatesFullNonDefault(t *testing.T) {
 
 // TestAFBitIgnoredDefaultAF pins AC-6/A-8: the default IPv6-unicast instance still forms an
 // adjacency with a neighbor whose Hello omits the AF-bit (RFC 5838 §2.6).
+// RFC requirement: RFC5838-2.4-2 positive -- the base IPv6-unicast AF does not apply the AF-bit check, so it still forms an adjacency with a neighbor whose Hello omits the AF-bit.
 func TestAFBitIgnoredDefaultAF(t *testing.T) {
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point"}}}}}`), nil)
 	if err != nil {

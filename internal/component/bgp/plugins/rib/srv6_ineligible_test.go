@@ -62,6 +62,14 @@ func makeRouteEntryWithOtherAttrs(otherAttrsData []byte) storage.RouteEntry {
 	return storage.RouteEntry{Bundle: bundleH}
 }
 
+// TestIsSRv6Ineligible_ValidSID checks best-path eligibility of a route whose
+// Prefix-SID attribute carries a valid SRv6 Service SID.
+//
+// VALIDATES: RFC 9252 Section 5 -- isSRv6Ineligible admits a route with an
+// extractable SRv6 SID to best-path candidacy.
+// PREVENTS: a valid SRv6 VPN/EVPN route being silently dropped from best-path.
+//
+// RFC requirement: RFC9252-5-1 positive -- a path whose Prefix-SID carries a valid SRv6 SID is eligible for best-path selection.
 func TestIsSRv6Ineligible_ValidSID(t *testing.T) {
 	otherAttrs := buildOtherAttrsWithPrefixSID(buildValidSRv6PrefixSID())
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
@@ -72,6 +80,7 @@ func TestIsSRv6Ineligible_ValidSID(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC9252-5-1 negative -- a path whose Prefix-SID carries SRv6 Service TLVs but no extractable valid SID is ineligible for best-path selection.
 func TestIsSRv6Ineligible_InvalidSID(t *testing.T) {
 	otherAttrs := buildOtherAttrsWithPrefixSID(buildInvalidSRv6PrefixSID())
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)

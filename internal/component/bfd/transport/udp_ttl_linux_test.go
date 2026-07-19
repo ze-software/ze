@@ -20,6 +20,17 @@ import (
 // second socket with IP_RECVTTL enabled.
 // PREVENTS: regression where Start skips the setsockopt and the kernel
 // default TTL (usually 64) is used instead.
+//
+// RFC requirement: RFC5881-5-1 positive -- with authentication not in use, the
+// transmitted TTL/Hop Limit is 255: applySocketOptions
+// (internal/component/bfd/transport/udp_linux.go:79) sets IP_TTL=255 at Start,
+// so the bound socket reports IP_TTL 255.
+// RFC requirement: RFC5881-5-3 positive -- the same IP_TTL=255 is applied
+// unconditionally (udp_linux.go:79), so the transmitted TTL is 255 whether or
+// not authentication is in use.
+// RFC requirement: RFC5881-6-1 positive -- transmitting with TTL 255 is what
+// confines a single-hop Control packet to the one-hop path being protected (a
+// conformant peer's GTSM accepts only TTL 255); the same setsockopt produces it.
 func TestUDPSetOutboundTTL255(t *testing.T) {
 	u := &UDP{
 		Bind: netip.MustParseAddrPort("127.0.0.1:0"),
@@ -141,5 +152,47 @@ func TestUDPBindConflict(t *testing.T) {
 	if err == nil {
 		_ = second.Stop()
 		t.Fatal("second Start succeeded; expected bind conflict")
+	}
+}
+
+// RFC requirement: RFC5881-5-1 negative -- the transmit TTL is 255 because ze
+// sets IP_TTL=255 explicitly, not because the kernel default is 255. A plain
+// UDP socket that did NOT run applySocketOptions reports the kernel default
+// TTL, which is not 255, so without ze's setsockopt a Control packet would be
+// transmitted with a TTL a conformant single-hop peer discards.
+// RFC requirement: RFC5881-5-3 negative -- the same holds regardless of
+// authentication: the 255 is a deliberate socket option, and its absence yields
+// a non-255 transmit TTL.
+// RFC requirement: RFC5881-6-1 negative -- without TTL 255 the packet is not
+// confined to the one-hop path; the kernel default would allow it to traverse
+// multiple hops. This pins that ze's one-hop confinement comes from the
+// explicit IP_TTL=255 (internal/component/bfd/transport/udp_linux.go:79), not
+// from chance.
+func TestUDPDefaultTTLNot255(t *testing.T) {
+	// A bare UDP socket with no BFD socket options applied.
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatalf("ListenUDP: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		t.Fatalf("SyscallConn: %v", err)
+	}
+	var (
+		ttl    int
+		optErr error
+	)
+	if err := raw.Control(func(fd uintptr) {
+		ttl, optErr = unix.GetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_TTL)
+	}); err != nil {
+		t.Fatalf("Control: %v", err)
+	}
+	if optErr != nil {
+		t.Fatalf("GetsockoptInt IP_TTL: %v", optErr)
+	}
+	if ttl == 255 {
+		t.Fatal("a plain UDP socket already reports IP_TTL 255; the test cannot prove ze's setsockopt is what produces 255")
 	}
 }

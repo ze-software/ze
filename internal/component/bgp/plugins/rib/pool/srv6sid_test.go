@@ -136,6 +136,7 @@ func TestExtractSRv6SIDFull_NoTransposition(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC9252-3.2.1-3 positive -- a SID Structure whose LBL+LNL+FL+AL sum is <= 128 and >= TransposOffset+TransposLen is accepted and its transposition parameters extracted.
 func TestExtractSRv6SIDFull_WithTransposition(t *testing.T) {
 	// SID with function bits zeroed (transposition will fill them from label).
 	sid := netip.MustParseAddr("2001:db8:1::")
@@ -213,6 +214,7 @@ func TestApplyTransposition_ZeroLength(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC9252-3.2.1-3 negative -- a SID Structure whose LBL+LNL+FL+AL sum exceeds 128 is rejected (no transposition applied).
 func TestExtractSRv6SIDFull_InvalidSIDStructure(t *testing.T) {
 	sid := netip.MustParseAddr("2001:db8::1")
 	ip6 := sid.As16()
@@ -227,5 +229,74 @@ func TestExtractSRv6SIDFull_InvalidSIDStructure(t *testing.T) {
 	}
 	if r.HasTranspos {
 		t.Error("HasTranspos should be false for invalid SID Structure")
+	}
+}
+
+// RFC requirement: RFC9252-3.2.1-3 negative -- a SID Structure whose LBL+LNL+FL+AL sum is
+// less than TransposOffset+TransposLen is rejected (errata 7817: the constraint uses >=).
+func TestExtractSRv6SIDFull_SumBelowTransposition(t *testing.T) {
+	sid := netip.MustParseAddr("2001:db8::1")
+	ip6 := sid.As16()
+
+	// LBL+LNL+FL+AL = 32+16+16+0 = 64, but TransposOffset+TransposLen = 60+16 = 76 > 64.
+	// Errata 7817 requires sum >= offset+len, so this SID Structure is invalid.
+	subTLV := buildSIDInfoSubTLVWithStructure(ip6, 32, 16, 16, 0, 16, 60)
+	tlv := buildServiceTLV(5, subTLV)
+
+	r := ExtractSRv6SIDFull(tlv)
+	if !r.SID.IsValid() {
+		t.Error("SID should still be valid even with an out-of-range SID Structure")
+	}
+	if r.HasTranspos {
+		t.Error("HasTranspos should be false when the sum is below TransposOffset+TransposLen")
+	}
+}
+
+// RFC requirement: RFC9252-3.1-2 positive -- a Service TLV with its Reserved octet set to 0 parses and yields the SID.
+func TestExtractSRv6SID_ServiceReservedZero(t *testing.T) {
+	sid := netip.MustParseAddr("2001:db8::99")
+	ip6 := sid.As16()
+
+	subTLV := buildSIDInfoSubTLV(ip6)
+	// buildServiceTLV sets the Service TLV Reserved octet to 0.
+	tlv := buildServiceTLV(5, subTLV)
+
+	if got := ExtractSRv6SID(tlv); got != sid {
+		t.Errorf("ExtractSRv6SID() = %v, want %v", got, sid)
+	}
+}
+
+// RFC requirement: RFC9252-3.1-2 negative -- a non-zero Service TLV Reserved octet is ignored by the
+// receiver (the SID is still extracted), never treated as an error.
+func TestExtractSRv6SID_ServiceReservedIgnored(t *testing.T) {
+	sid := netip.MustParseAddr("2001:db8::99")
+	ip6 := sid.As16()
+
+	subTLV := buildSIDInfoSubTLV(ip6)
+	// Value: Reserved(1) + Sub-TLVs, with a NON-ZERO Reserved octet (0xFF).
+	value := append([]byte{0xFF}, subTLV...)
+	tlv := append([]byte{5, byte(len(value) >> 8), byte(len(value))}, value...)
+
+	if got := ExtractSRv6SID(tlv); got != sid {
+		t.Errorf("non-zero Service TLV Reserved must be ignored: ExtractSRv6SID() = %v, want %v", got, sid)
+	}
+}
+
+// RFC requirement: RFC9252-3.2-4 positive -- a SID carrying an unrecognized SRv6 Endpoint Behavior is
+// never considered invalid; the receiver extracts it without inspecting the behavior value.
+func TestExtractSRv6SID_UnknownEndpointBehavior(t *testing.T) {
+	sid := netip.MustParseAddr("2001:db8:cafe::2")
+	ip6 := sid.As16()
+
+	// SID Info Sub-TLV with an unassigned/unknown Endpoint Behavior (0xFEED) and zero AL.
+	value := make([]byte, 0, 21)
+	value = append(value, 0) // Reserved
+	value = append(value, ip6[:]...)
+	value = append(value, 0, 0xFE, 0xED, 0) // Flags(1) + Behavior(2)=0xFEED + Reserved(1)
+	subTLV := append([]byte{1, byte(len(value) >> 8), byte(len(value))}, value...)
+	tlv := buildServiceTLV(5, subTLV)
+
+	if got := ExtractSRv6SID(tlv); got != sid {
+		t.Errorf("unknown Endpoint Behavior must not invalidate the SID: got %v, want %v", got, sid)
 	}
 }

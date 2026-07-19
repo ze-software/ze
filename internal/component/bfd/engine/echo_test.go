@@ -65,6 +65,13 @@ func (h *echoHook) OnEchoRTT(_ string, rtt time.Duration) {
 // PREVENTS: regression where echoTickLocked never runs (wiring miss),
 // handleEchoInbound drops valid ZEEC envelopes, or OnEchoTx/OnEchoRx
 // stop firing.
+//
+// RFC requirement: RFC5881-4-8 positive -- BFD Echo packets are transmitted so
+// they are received by the remote system: sendEchoLocked
+// (internal/component/bfd/engine/echo.go:83-110) transmits to the peer's echo
+// port and the peer's handleEchoInbound receives and reflects them, so this
+// round-trip proves the echo TX reaches the remote (OnEchoRx fires on both
+// sides and RTT samples are recorded).
 func TestEchoRoundTrip(t *testing.T) {
 	addrAA := netip.MustParseAddr(addrA)
 	addrBB := netip.MustParseAddr(addrB)

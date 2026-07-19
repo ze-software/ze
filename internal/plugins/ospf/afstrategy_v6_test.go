@@ -248,6 +248,7 @@ func TestOSPFv6ComputeExternalNSSA(t *testing.T) {
 
 // TestV6PrefixToNetipAFWidth pins RFC 5838 §2.7: v6PrefixToNetip decodes into a 4-byte
 // address for an IPv4 AF and a 16-byte address for an IPv6 AF.
+// RFC requirement: RFC5838-2.3-1 negative -- a prefix length wider than the instance address family (a 64-bit prefix under an IPv4 AF) is rejected, so a non-conforming prefix is skipped and never enters the route computation.
 func TestV6PrefixToNetipAFWidth(t *testing.T) {
 	v4 := ospfv3packet.Prefix{Length: 24, Address: []byte{10, 20, 30, 0}}
 	got, ok := v6PrefixToNetip(v4, afIPv4Unicast)
@@ -274,6 +275,7 @@ func TestV6PrefixToNetipAFWidth(t *testing.T) {
 // TestIPv4OverV3BuildRoutes pins AC-8/AC-9: an IPv4 prefix carried in an OSPFv3
 // Intra-Area-Prefix-LSA on an IPv4-unicast instance decodes to a 4-byte netip.Prefix and
 // inherits the SPF next-hop resolved from the adjacency (RFC 5838 §2.7).
+// RFC requirement: RFC5838-2.3-1 positive -- an IPv4 prefix conforming to the IPv4-unicast instance is used in the route computation and produces an installed IPv4 route.
 func TestIPv4OverV3BuildRoutes(t *testing.T) {
 	wire, ok := netipToV6Prefix(netip.MustParsePrefix("10.4.0.0/24"), 5)
 	if !ok {
@@ -318,6 +320,41 @@ func TestIPv4OverV3BuildRoutes(t *testing.T) {
 	}
 	if len(r.NextHops) != 1 || r.NextHops[0].Addr != nh {
 		t.Errorf("next-hops = %v, want [fe80::2] (adjacency link-local, RFC 5838 §2.7)", r.NextHops)
+	}
+}
+
+// TestV6ForwardingAddrAFWidth pins RFC 5838 §2.6: a received AS-external / NSSA forwarding
+// address is rendered at the instance address family's width. An IPv4 AF reads the IPv4
+// address from the leading 32 bits of the 128-bit field; an IPv6 AF reads the full 128 bits.
+// Origination writes the IPv4 address into the leading 4 octets and zeroes the rest
+// (origination_v6_nssa.go:29-31), so for an IPv4 AF only the leading 32 bits are significant.
+// RFC requirement: RFC5838-2.6-1 positive -- an IPv4-unicast AF renders the forwarding address as the IPv4 address held in the leading 32 bits of the 128-bit field.
+// RFC requirement: RFC5838-2.6-1 negative -- an IPv6 AF renders the full 128-bit forwarding address, so the IPv4 width is applied only for IPv4 address families.
+// RFC requirement: RFC5838-2.6-2 positive -- for an IPv4 AF only the leading 32 bits are significant; trailing octets, which origination sets to zero, do not alter the rendered IPv4 address.
+func TestV6ForwardingAddrAFWidth(t *testing.T) {
+	// IPv4 in the leading 4 octets, remaining 12 zero -- the shape origination writes.
+	var fa [16]byte
+	copy(fa[:4], []byte{192, 0, 2, 7})
+
+	if got := v6ForwardingAddr(fa, afIPv4Unicast); !got.Is4() || got != netip.MustParseAddr("192.0.2.7") {
+		t.Errorf("IPv4 AF forwarding address = %v (is4=%v), want 192.0.2.7", got, got.Is4())
+	}
+
+	// An IPv6 AF must consume all 16 octets, never truncate to the leading 4.
+	got6 := v6ForwardingAddr(fa, afIPv6Unicast)
+	if !got6.Is6() || got6.Is4() {
+		t.Errorf("IPv6 AF forwarding address = %v, want a 16-byte IPv6 address", got6)
+	}
+	if got6 == netip.MustParseAddr("192.0.2.7") {
+		t.Errorf("IPv6 AF wrongly rendered the forwarding address at IPv4 width: %v", got6)
+	}
+
+	// Trailing octets are not significant for an IPv4 AF: only the leading 32 bits carry the
+	// IPv4 address, matching the remaining-bits-zero origination convention.
+	noisy := fa
+	noisy[4], noisy[15] = 0xff, 0xff
+	if got := v6ForwardingAddr(noisy, afIPv4Unicast); got != netip.MustParseAddr("192.0.2.7") {
+		t.Errorf("IPv4 AF forwarding address with non-zero trailing octets = %v, want 192.0.2.7 (leading 32 bits only)", got)
 	}
 }
 

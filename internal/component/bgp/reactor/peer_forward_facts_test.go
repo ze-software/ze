@@ -270,6 +270,59 @@ func TestPrecomputeNextHop(t *testing.T) {
 	}
 }
 
+// TestPrefixSIDPropagationNextHop verifies the RFC 9252 Section 3.3 propagation
+// rules for the BGP Prefix-SID attribute (code 40) on the egress next-hop path.
+// Ze originates no local SRv6 SID, so when the next-hop changes it removes the
+// entire attribute (which necessarily removes every unrecognized sub-TLV and
+// sub-sub-TLV it carried), and when the next-hop is unchanged it emits no op for
+// code 40 so the received bytes -- including all Reserved fields -- are forwarded
+// verbatim.
+//
+// RFC requirement: RFC9252-3.3-1 positive -- with next-hop unchanged no op touches the Prefix-SID attribute, so all of its Reserved fields propagate unchanged.
+// RFC requirement: RFC9252-3.3-2 negative -- with next-hop unchanged the Prefix-SID attribute is not removed (no suppress op is emitted).
+// RFC requirement: RFC9252-3.3-2 positive -- when the next-hop changes the whole Prefix-SID attribute is suppressed, removing every unrecognized sub-TLV and sub-sub-TLV a fortiori.
+// RFC requirement: RFC9252-3.3-1 negative -- when the next-hop changes the Prefix-SID attribute is not preserved (it is suppressed).
+func TestPrefixSIDPropagationNextHop(t *testing.T) {
+	const prefixSIDCode = 40
+
+	countPrefixSIDOps := func(mods *filterapi.ModAccumulator) (suppress, touched int) {
+		for _, op := range mods.Ops() {
+			if op.Code != prefixSIDCode {
+				continue
+			}
+			touched++
+			if op.Action == filterapi.AttrModSuppress {
+				suppress++
+			}
+		}
+		return suppress, touched
+	}
+
+	t.Run("next-hop unchanged preserves Prefix-SID", func(t *testing.T) {
+		var facts peerForwardFacts
+		precomputeNextHop(&PeerSettings{NextHopMode: NextHopUnchanged}, &facts)
+		var mods filterapi.ModAccumulator
+		applyFactsNextHop(&facts, &mods)
+
+		suppress, touched := countPrefixSIDOps(&mods)
+		assert.Zero(t, touched, "next-hop unchanged must not touch the Prefix-SID attribute")
+		assert.Zero(t, suppress, "next-hop unchanged must not suppress the Prefix-SID attribute")
+	})
+
+	t.Run("next-hop changed removes Prefix-SID", func(t *testing.T) {
+		var facts peerForwardFacts
+		precomputeNextHop(&PeerSettings{
+			NextHopMode:  NextHopSelf,
+			LocalAddress: netip.MustParseAddr("2001:db8::1"),
+		}, &facts)
+		var mods filterapi.ModAccumulator
+		applyFactsNextHop(&facts, &mods)
+
+		suppress, _ := countPrefixSIDOps(&mods)
+		assert.Equal(t, 1, suppress, "next-hop self must suppress the Prefix-SID attribute exactly once")
+	})
+}
+
 func TestPrecomputeSendCommunity(t *testing.T) {
 	tests := []struct {
 		name     string

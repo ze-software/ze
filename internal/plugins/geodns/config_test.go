@@ -212,3 +212,65 @@ func TestParseConfig_SecurePortZero(t *testing.T) {
 		t.Fatal("tls port 0 accepted, want rejected")
 	}
 }
+
+// TestRFC2181_TTLSignBitBound verifies geodns bounds a TTL to the 31-bit range,
+// so the most significant (sign) bit is never set on the wire.
+//
+// VALIDATES: RFC 2181 section 8 -- a TTL is an unsigned number in 0..2147483647
+// (2^31 - 1) encoded in the less significant 31 bits with the sign bit zero.
+// PREVENTS: a configured TTL with the top bit set being served as-is.
+func TestRFC2181_TTLSignBitBound(t *testing.T) {
+	t.Parallel()
+
+	// RFC requirement: RFC2181-8-1 positive -- the maximum in-range TTL of
+	// 2147483647 (2^31-1, sign bit zero) is accepted and preserved exactly.
+	ttl, err := parseTTL("2147483647")
+	if err != nil {
+		t.Fatalf("parseTTL(2147483647) rejected a valid maximum TTL: %v", err)
+	}
+	if ttl != 2147483647 {
+		t.Errorf("parseTTL(2147483647) = %d, want 2147483647", ttl)
+	}
+	if ttl&0x80000000 != 0 {
+		t.Errorf("accepted TTL %d has the sign bit set, violating section 8", ttl)
+	}
+
+	// RFC requirement: RFC2181-8-1 negative -- a TTL of 2147483648 (2^31, sign bit
+	// set) is rejected rather than served with the top bit on the wire.
+	if _, err := parseTTL("2147483648"); err == nil {
+		t.Error("parseTTL(2147483648) accepted a TTL with the sign bit set, want rejected")
+	}
+}
+
+// TestRFC2181_LabelsUnrestricted verifies geodns places no restriction on label
+// content and loads a zone containing labels that are not "hostname"-legal.
+//
+// VALIDATES: RFC 2181 section 11 -- implementations must not restrict the labels
+// that can be used, and a server must not refuse a zone for questionable labels.
+// PREVENTS: geodns rejecting valid DNS names (underscore-prefixed, non-LDH).
+func TestRFC2181_LabelsUnrestricted(t *testing.T) {
+	t.Parallel()
+
+	// The host label carries an underscore and a plus, neither of which is a legal
+	// "hostname" character, yet both are valid DNS labels.
+	data := `{"service":{"geodns":{"enabled":"true","zone":["t.example."],` +
+		`"host-set":{"s":{"host":{"_dmarc.foo+bar.t.example.":{"address":["10.0.0.1"]}}}},` +
+		`"source":{"0.0.0.0/0":{"host-set":"s"}}}}}`
+
+	// RFC requirement: RFC2181-11-3 positive -- the zone loads despite carrying a
+	// label some client programs would consider questionable.
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("geodns refused a zone with questionable labels: %v", err)
+	}
+
+	hs := cfg.HostSets["s"]
+	if hs == nil {
+		t.Fatal("host-set s missing after parse")
+	}
+	// RFC requirement: RFC2181-11-2 positive -- the underscore/plus label is served
+	// verbatim, so geodns imposed no restriction on the label content.
+	if _, ok := hs.Hosts["_dmarc.foo+bar.t.example."]; !ok {
+		t.Errorf("host with non-hostname label was dropped; hosts=%v", hs.Hosts)
+	}
+}

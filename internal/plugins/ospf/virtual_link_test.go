@@ -435,6 +435,7 @@ func v6DecodeAreaRouter(t *testing.T, eng *engine, area types.AreaID, rid types.
 // VALIDATES: spec-ospf-ext-7 AC-7 / A-5 -- the OSPFv3 virtual link resolves both a local
 // GLOBAL source and the neighbor's GLOBAL destination from the transit area's
 // Intra-Area-Prefix-LSAs (RFC 5340 sec 2.9), not the transit link-locals.
+// RFC requirement: RFC5838-2.8-1 positive -- the OSPFv3 virtual-link endpoint resolves to a global IPv6 address for both ends, so control packets are forwarded correctly by the intermediate hops.
 func TestV6VirtualEndpointResolvesGlobalAddress(t *testing.T) {
 	e := newV6OriginEngine()
 	transit := vlArea(t, "0.0.0.1")
@@ -454,6 +455,28 @@ func TestV6VirtualEndpointResolvesGlobalAddress(t *testing.T) {
 	}
 	if !dst.Is6() || dst.IsUnspecified() || dst != netip.MustParseAddr("2001:db8:2::2") {
 		t.Fatalf("neighbor global destination = %v, want 2001:db8:2::2", dst)
+	}
+}
+
+// TestV6VirtualEndpointRequiresGlobalAddress pins RFC 5838 §2.8: an OSPFv3 virtual-link
+// endpoint resolves only from a GLOBAL IPv6 address. When the neighbor advertises only a
+// link-local prefix in the transit area, no endpoint is resolved and the virtual link cannot
+// carry control packets (fail-closed), so a missing global IPv6 address is never masked.
+// RFC requirement: RFC5838-2.8-1 negative -- when the neighbor advertises no global IPv6 address (only a link-local), the virtual-link endpoint does not resolve, so no virtual link is formed without the required global address.
+func TestV6VirtualEndpointRequiresGlobalAddress(t *testing.T) {
+	e := newV6OriginEngine()
+	transit := vlArea(t, "0.0.0.1")
+	self := vlRID(t, "10.0.0.1")
+	neighbor := vlRID(t, "10.0.0.2")
+	e.cfg.RouterID = self
+	// This router advertises a global address, but the neighbor advertises only a link-local
+	// prefix -- there is no global IPv6 address associated with the virtual link's far end.
+	installV6IntraPrefix(t, e.lsdb, transit, self, "2001:db8:1::1/128")
+	installV6IntraPrefix(t, e.lsdb, transit, neighbor, "fe80::2/128")
+
+	rt := &virtualLinkRuntime{cfg: virtualLinkConfig{TransitArea: transit, RemoteRouterID: neighbor}}
+	if _, _, ok := e.v6ResolveVirtualEndpointLocked(rt); ok {
+		t.Fatal("virtual-link endpoint resolved without a global IPv6 address for the neighbor (RFC 5838 §2.8)")
 	}
 }
 

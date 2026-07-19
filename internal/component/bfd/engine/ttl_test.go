@@ -12,6 +12,15 @@ import (
 // whose TTL is not exactly 255. Last-valid is 255; first-invalid is 254.
 // PREVENTS: regression where a single-hop session accepts spoofed traffic
 // from an off-link source (TTL decremented by at least one router).
+//
+// RFC requirement: RFC5881-5-2 positive -- with authentication not in use, a
+// single-hop packet whose TTL is exactly 255 is accepted. passesTTLGate
+// (internal/component/bfd/engine/loop.go:163) returns in.TTL == 255, so the
+// "exactly 255" case below passes.
+// RFC requirement: RFC5881-5-2 negative -- a received single-hop packet whose
+// TTL is not 255 MUST be discarded. The same producer (loop.go:163) rejects the
+// "one below" (254) and other cases below, and rejects TTL 0 (the transport
+// could not extract a TTL, fail-closed).
 func TestTTLGateSingleHop(t *testing.T) {
 	tests := []struct {
 		name string

@@ -110,3 +110,48 @@ func TestGenerateMagic(t *testing.T) {
 		}
 	}
 }
+
+// RFC requirement: RFC2516-x-9 positive -- the client's LCP Configure-Request proposes an MRU of 1492 (the PPPoE default ceiling), so LCP negotiates MRU at 1492 or lower.
+func TestLCPConfigRequestMRU(t *testing.T) {
+	var scratch [ppp.MaxFrameLen]byte
+	var w bytes.Buffer
+	sendLCPConfigRequest(&w, scratch[:], 1, 1492, 0x12345678)
+
+	proto, payload, _, err := ppp.ParseFrame(w.Bytes())
+	if err != nil {
+		t.Fatalf("ParseFrame: %v", err)
+	}
+	if proto != ppp.ProtoLCP {
+		t.Fatalf("proto = %#x, want LCP", proto)
+	}
+	pkt, err := ppp.ParseLCPPacket(payload)
+	if err != nil {
+		t.Fatalf("ParseLCPPacket: %v", err)
+	}
+	if pkt.Code != ppp.LCPConfigureRequest {
+		t.Fatalf("code = %d, want Configure-Request", pkt.Code)
+	}
+	opts, err := ppp.ParseLCPOptions(pkt.Data)
+	if err != nil {
+		t.Fatalf("ParseLCPOptions: %v", err)
+	}
+	var (
+		mru   uint16
+		found bool
+	)
+	for _, opt := range opts {
+		if opt.Type == ppp.LCPOptMRU && len(opt.Data) == 2 {
+			mru = binary.BigEndian.Uint16(opt.Data)
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("LCP Configure-Request carries no MRU option")
+	}
+	if mru > 1492 {
+		t.Errorf("proposed MRU = %d, want <= 1492", mru)
+	}
+	if mru != 1492 {
+		t.Errorf("proposed MRU = %d, want 1492 (PPPoE default)", mru)
+	}
+}

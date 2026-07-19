@@ -1,6 +1,7 @@
 package dhcpserver
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net"
 	"net/netip"
@@ -1269,5 +1270,289 @@ func TestPXEBackwardCompatNoBootScriptURL(t *testing.T) {
 	}
 	if string(opt67) != "ipxe.efi" {
 		t.Errorf("option 67 = %q, want ipxe.efi (backward compat: no boot-script-url means TFTP bootfile for all)", string(opt67))
+	}
+}
+
+// optionFirstOffset walks the DHCP options field by tag-length-value and returns
+// the byte offset (within the full packet) of the first occurrence of each option
+// code. Walking by the declared length octet means a code recovered here is proof
+// that option carried a length octet and stayed in bounds.
+func optionFirstOffset(pkt []byte) map[byte]int {
+	offs := map[byte]int{}
+	opts := pkt[240:]
+	for i := 0; i < len(opts); {
+		if opts[i] == optEnd {
+			break
+		}
+		if opts[i] == optPad {
+			i++
+			continue
+		}
+		if i+1 >= len(opts) {
+			break
+		}
+		code := opts[i]
+		l := int(opts[i+1])
+		if i+2+l > len(opts) {
+			break
+		}
+		if _, seen := offs[code]; !seen {
+			offs[code] = 240 + i
+		}
+		i += 2 + l
+	}
+	return offs
+}
+
+// TestOptionSubnetMaskBeforeRouter proves the server emits option 1 before option 3.
+// VALIDATES: RFC 2132 Section 3.3 ordering constraint on a DHCP reply carrying both.
+// PREVENTS: a reordering of buildReply that would place the router before the mask.
+func TestOptionSubnetMaskBeforeRouter(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t) // configured with both a default router and a subnet mask
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x31}
+	offer := h.handle(buildDiscover(mac, 0x0331))
+	if offer == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	offs := optionFirstOffset(offer)
+	maskOff, hasMask := offs[optSubnetMask]
+	routerOff, hasRouter := offs[optRouter]
+	if !hasMask {
+		t.Fatal("OFFER missing subnet mask option (1)")
+	}
+	if !hasRouter {
+		t.Fatal("OFFER missing router option (3)")
+	}
+	// RFC requirement: RFC2132-3.3-1 positive -- when both are present the subnet mask (option 1) is emitted at an earlier byte offset than the router (option 3).
+	if maskOff >= routerOff {
+		t.Errorf("subnet mask at offset %d must precede router at offset %d", maskOff, routerOff)
+	}
+}
+
+// TestEmittedIPListOptionLengthsMultipleOfFour proves emitted IP-list options carry
+// a length that is a multiple of 4.
+// VALIDATES: RFC 2132 Sections 3.5 (router) and 3.8 (DNS) length constraints.
+// PREVENTS: an encoder change that emits a truncated (non-multiple-of-4) address list.
+func TestEmittedIPListOptionLengthsMultipleOfFour(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t) // two DNS servers configured
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x35}
+	offer := h.handle(buildDiscover(mac, 0x0358))
+	if offer == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	router := getResponseOption(offer, optRouter)
+	// RFC requirement: RFC2132-3.5-1 positive -- the emitted router option length is non-zero and a multiple of 4.
+	if len(router) == 0 || len(router)%4 != 0 {
+		t.Errorf("router option length = %d, want non-zero multiple of 4", len(router))
+	}
+	if len(router) != 4 {
+		t.Errorf("router option length = %d, want 4 (single configured router)", len(router))
+	}
+
+	dns := getResponseOption(offer, optDNS)
+	// RFC requirement: RFC2132-3.8-1 positive -- the emitted domain-name-server option length is non-zero and a multiple of 4.
+	if len(dns) == 0 || len(dns)%4 != 0 {
+		t.Errorf("DNS option length = %d, want non-zero multiple of 4", len(dns))
+	}
+	if len(dns) != 8 {
+		t.Errorf("DNS option length = %d, want 8 (two configured servers)", len(dns))
+	}
+}
+
+// TestEveryEmittedOptionHasLengthOctet proves the options field is well-formed TLV.
+// VALIDATES: RFC 2132 Section 2 -- every option except Pad/End carries a length octet.
+// PREVENTS: an encoder that writes a bare code with no length octet, desyncing parsers.
+func TestEveryEmittedOptionHasLengthOctet(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x21}
+	offer := h.handle(buildDiscover(mac, 0x0201))
+	if offer == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	// Walk the options strictly by the declared length octet. If any option omitted
+	// its length octet, this walk would desync and fail to land exactly on End.
+	seen := map[byte]bool{}
+	opts := offer[240:]
+	reachedEnd := false
+	i := 0
+	for i < len(opts) {
+		if opts[i] == optEnd {
+			reachedEnd = true
+			break
+		}
+		if opts[i] == optPad {
+			i++
+			continue
+		}
+		if i+1 >= len(opts) {
+			t.Fatalf("option code %d at offset %d has no length octet", opts[i], 240+i)
+		}
+		l := int(opts[i+1])
+		if i+2+l > len(opts) {
+			t.Fatalf("option code %d at offset %d declares length %d that overruns the packet", opts[i], 240+i, l)
+		}
+		seen[opts[i]] = true
+		i += 2 + l
+	}
+
+	// RFC requirement: RFC2132-2-1 positive -- the length-octet-driven walk recovers every expected option and terminates exactly on the End marker, proving each option carried a length octet.
+	if !reachedEnd {
+		t.Error("options field did not terminate on an End (255) marker via length-octet walk")
+	}
+	for _, code := range []byte{optMessageType, optServerID, optSubnetMask, optRouter, optDNS, optDomainName, optLeaseTime, optT1, optT2} {
+		if !seen[code] {
+			t.Errorf("length-octet walk did not recover expected option code %d", code)
+		}
+	}
+}
+
+// TestASCIIOptionParsingTolerantOfTrailingNull proves the ASCII-option receiver is
+// robust to a trailing NUL and never requires one.
+// VALIDATES: RFC 2132 Section 2 -- receiver deletes/tolerates trailing NULs and does
+// not require them, exercised via the option 60/77 prefix matchers.
+// PREVENTS: a switch to exact-length string equality that would break on a trailing NUL.
+func TestASCIIOptionParsingTolerantOfTrailingNull(t *testing.T) {
+	t.Parallel()
+
+	build := func(code byte, val []byte) []byte {
+		pkt := make([]byte, 400)
+		binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+		off := 240
+		pkt[off] = code
+		pkt[off+1] = byte(len(val))
+		copy(pkt[off+2:], val)
+		off += 2 + len(val)
+		pkt[off] = optEnd
+		return pkt
+	}
+
+	// RFC requirement: RFC2132-2-3 positive -- ASCII option data WITHOUT a trailing NUL is accepted; the receiver does not require one.
+	if !isPXEClient(build(optVendorClassID, []byte("PXEClient:Arch:00000"))) {
+		t.Error("option 60 without a trailing NUL must be recognized (no trailing NUL required)")
+	}
+	if !isIPXE(build(optUserClass, []byte("iPXE"))) {
+		t.Error("option 77 without a trailing NUL must be recognized (no trailing NUL required)")
+	}
+
+	// RFC requirement: RFC2132-2-2 positive -- the same ASCII option data WITH a trailing NUL is still recognized; the receiver tolerates (is not broken by) the NUL.
+	if !isPXEClient(build(optVendorClassID, []byte("PXEClient:Arch:00000\x00"))) {
+		t.Error("option 60 with a trailing NUL must still be recognized (NUL tolerated)")
+	}
+	if !isIPXE(build(optUserClass, []byte("iPXE\x00"))) {
+		t.Error("option 77 with a trailing NUL must still be recognized (NUL tolerated)")
+	}
+}
+
+// TestIgnoresClientVendorSpecificOption43 proves a client-sent option 43 is ignored.
+// VALIDATES: RFC 2132 Section 8.4 -- a server not equipped to interpret vendor-specific
+// information ignores it.
+// PREVENTS: a future reader of option 43 that would let client data alter the reply.
+func TestIgnoresClientVendorSpecificOption43(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x43}
+
+	baseline := buildDiscover(mac, 0x4343)
+
+	withOpt43 := make([]byte, 300)
+	withOpt43[0] = opRequest
+	withOpt43[1] = htypeEthernet
+	withOpt43[2] = hlenEthernet
+	binary.BigEndian.PutUint32(withOpt43[4:8], 0x4343)
+	copy(withOpt43[28:34], mac)
+	binary.BigEndian.PutUint32(withOpt43[236:240], magicCookie)
+	off := 240
+	withOpt43[off] = optMessageType
+	withOpt43[off+1] = 1
+	withOpt43[off+2] = msgDiscover
+	off += 3
+	vendor := []byte{0x01, 0x04, 0xde, 0xad, 0xbe, 0xef} // arbitrary vendor-specific payload
+	withOpt43[off] = optVendorSpecific
+	withOpt43[off+1] = byte(len(vendor))
+	copy(withOpt43[off+2:], vendor)
+	off += 2 + len(vendor)
+	withOpt43[off] = optEnd
+
+	// Same MAC: the pool returns the same address for both, so any difference in the
+	// reply can only come from the option 43 the second request carries.
+	offerBase := h.handle(baseline)
+	offer43 := h.handle(withOpt43)
+	if offerBase == nil || offer43 == nil {
+		t.Fatal("expected DHCPOFFER for both requests, got nil")
+	}
+	// RFC requirement: RFC2132-8.4-1 positive -- a request carrying a vendor-specific option 43 the server does not interpret yields a reply byte-identical to one without it, proving the option is ignored rather than acted on or rejected.
+	if !bytes.Equal(offerBase, offer43) {
+		t.Error("client option 43 changed the reply; vendor-specific info must be ignored")
+	}
+	if getResponseMsgType(offer43) != msgOffer {
+		t.Errorf("message type = %d, want %d (OFFER)", getResponseMsgType(offer43), msgOffer)
+	}
+}
+
+// TestIgnoresUnknownVendorClass proves an unrecognized option 60 vendor class is ignored.
+// VALIDATES: RFC 2132 Section 9.13 -- a server not equipped to interpret class-specific
+// information ignores it.
+// PREVENTS: class-specific handling (e.g. PXE injection) leaking to non-PXE clients.
+func TestIgnoresUnknownVendorClass(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t) // PXE enabled, to prove a non-PXE class still gets no PXE options
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x60}
+
+	baseline := buildDiscover(mac, 0x0060)
+
+	withClass := make([]byte, 300)
+	withClass[0] = opRequest
+	withClass[1] = htypeEthernet
+	withClass[2] = hlenEthernet
+	binary.BigEndian.PutUint32(withClass[4:8], 0x0060)
+	copy(withClass[28:34], mac)
+	binary.BigEndian.PutUint32(withClass[236:240], magicCookie)
+	off := 240
+	withClass[off] = optMessageType
+	withClass[off+1] = 1
+	withClass[off+2] = msgDiscover
+	off += 3
+	class := []byte("MSFT 5.0") // a vendor class the server does not interpret
+	withClass[off] = optVendorClassID
+	withClass[off+1] = byte(len(class))
+	copy(withClass[off+2:], class)
+	off += 2 + len(class)
+	withClass[off] = optEnd
+
+	offerBase := h.handle(baseline)
+	offerClass := h.handle(withClass)
+	if offerBase == nil || offerClass == nil {
+		t.Fatal("expected DHCPOFFER for both requests, got nil")
+	}
+	// RFC requirement: RFC2132-9.13-1 positive -- an unrecognized vendor class yields a reply byte-identical to one without option 60, proving the class-specific info is ignored (no class-driven handling).
+	if !bytes.Equal(offerBase, offerClass) {
+		t.Error("unknown vendor class changed the reply; class-specific info must be ignored")
+	}
+	if getResponseOption(offerClass, optTFTPServerName) != nil {
+		t.Error("non-PXE vendor class must not trigger PXE option 66 injection")
+	}
+	if getResponseOption(offerClass, optBootfileName) != nil {
+		t.Error("non-PXE vendor class must not trigger PXE option 67 injection")
 	}
 }

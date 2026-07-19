@@ -204,3 +204,38 @@ func TestCacheConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// TestRFC2181_CacheReplacesRRSetNoMerge verifies that a second response for a
+// cached name+type replaces the whole RRSet rather than merging its records
+// into the cached set.
+//
+// VALIDATES: RFC 2181 section 5.4 -- a server must never merge response RRs with
+// cached RRs, and must discard the entire cached RRSet when a new answer arrives.
+// PREVENTS: a stale record surviving into a merged RRSet after the authoritative
+// data changed.
+func TestRFC2181_CacheReplacesRRSetNoMerge(t *testing.T) {
+	c := newCache(100, 3600)
+
+	// Cache a two-record RRSet, then replace it with a disjoint single-record set.
+	c.put("www.example.", 1, []string{"192.0.2.1", "192.0.2.2"}, 300)
+	c.put("www.example.", 1, []string{"198.51.100.9"}, 300)
+
+	records, ok := c.get("www.example.", 1)
+	require.True(t, ok, "the RRSet should still be cached after replacement")
+
+	// RFC requirement: RFC2181-5.4-1 positive -- the replacement RRSet is exactly
+	// the new answer; the old records are absent, so response RRs were never
+	// merged with cached RRs.
+	assert.Equal(t, []string{"198.51.100.9"}, records,
+		"cache must return only the replacement RRSet, never a merge of old and new")
+	assert.NotContains(t, records, "192.0.2.1", "the discarded cached record must not survive")
+	assert.NotContains(t, records, "192.0.2.2", "the discarded cached record must not survive")
+
+	// RFC requirement: RFC2181-5.4-2 positive -- forming an RRSet with cached data
+	// discarded the entire cached RRSet rather than growing it, leaving exactly one
+	// cache entry for the key.
+	c.mu.Lock()
+	count := len(c.entries)
+	c.mu.Unlock()
+	assert.Equal(t, 1, count, "replacing an RRSet must not accumulate entries")
+}

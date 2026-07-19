@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -237,4 +238,230 @@ func hasSOA(rrs []dns.RR) bool {
 		}
 	}
 	return false
+}
+
+// answerState builds and publishes nothing; it returns an in-process resolver
+// snapshot for driving answerQuestions without a socket.
+func answerState(t *testing.T, jsonCfg string) *resolverState {
+	t.Helper()
+	cfg, err := parseConfig(jsonCfg)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	st := buildState(cfg)
+	st.serial = 1
+	return st
+}
+
+// TestRFC2181_UDPReplySourceAndPort verifies that a UDP reply is sourced from the
+// address and port the query was sent to, and directed back to the query's source
+// port, over a real socket.
+//
+// VALIDATES: RFC 2181 sections 4.1 and 4.2 -- the reply's source IP is the query's
+// destination address, replies leave from the port they were sent to, and the
+// query's source port is used as the reply's destination port.
+// PREVENTS: a reply sourced from the wrong address/port being dropped by the client.
+func TestRFC2181_UDPReplySourceAndPort(t *testing.T) {
+	port := freePort(t)
+	cfg := resolveTestConfig(t, port) // listener bound to 127.0.0.1:port
+	storeApplied(cfg, 1)
+	mgr := newServerManager(testLogger())
+	if err := mgr.apply(cfg); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	t.Cleanup(mgr.stopAll)
+
+	serverAddr := &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(port)}
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+	if err != nil {
+		t.Fatalf("client socket: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	q := subnetMsg("proxy.test.example.", dns.TypeA, "1.1.1.1")
+	q.Id = 0x2181
+	packed, err := q.Pack()
+	if err != nil {
+		t.Fatalf("pack query: %v", err)
+	}
+	if _, err := conn.WriteToUDP(packed, serverAddr); err != nil {
+		t.Fatalf("send query: %v", err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set deadline: %v", err)
+	}
+	buf := make([]byte, 4096)
+	n, src, err := conn.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("read reply: %v", err)
+	}
+
+	// RFC requirement: RFC2181-4.1-1 positive -- the reply's source IP equals the
+	// address the query was sent to (127.0.0.1), because the listener binds it.
+	if !src.IP.Equal(net.ParseIP("127.0.0.1")) {
+		t.Errorf("reply source IP = %s, want 127.0.0.1 (the query destination address)", src.IP)
+	}
+	// RFC requirement: RFC2181-4.2-1 positive -- the reply is directed from the port
+	// the query was sent to (the server port).
+	if src.Port != int(port) {
+		t.Errorf("reply source port = %d, want %d (the server port)", src.Port, port)
+	}
+	// RFC requirement: RFC2181-4.2-2 positive -- the server used the query's UDP
+	// source port as the reply destination, so the datagram arrived on this client
+	// socket and matches our query id.
+	var reply dns.Msg
+	if err := reply.Unpack(buf[:n]); err != nil {
+		t.Fatalf("unpack reply: %v", err)
+	}
+	if reply.Id != q.Id {
+		t.Errorf("reply id = %d, want %d", reply.Id, q.Id)
+	}
+	if got := firstA(&reply); got != "10.0.0.2" {
+		t.Errorf("reply A = %q, want 10.0.0.2 (external host-set)", got)
+	}
+}
+
+// TestRFC2181_RRSetEqualTTL verifies every record in an A RRSet geodns emits for
+// one host carries an identical TTL.
+//
+// VALIDATES: RFC 2181 section 5.2 -- the TTLs of all RRs in an RRSet must be equal;
+// a server must never send an RRSet with unequal TTLs.
+// PREVENTS: a multi-address host emitting records with differing TTLs.
+func TestRFC2181_RRSetEqualTTL(t *testing.T) {
+	t.Parallel()
+	st := answerState(t, `{"service":{"geodns":{"enabled":"true","zone":["t.example."],`+
+		`"host-set":{"web":{"host":{"www.t.example.":{"ttl":"120","address":["10.0.0.1","10.0.0.2","10.0.0.3"]}}}},`+
+		`"source":{"0.0.0.0/0":{"host-set":"web"}}}}}`)
+
+	r := new(dns.Msg)
+	r.SetQuestion("www.t.example.", dns.TypeA)
+	msg := new(dns.Msg)
+	msg.SetReply(r)
+	answerQuestions(msg, r, st, netip.MustParseAddr("203.0.113.7"))
+
+	var ttls []uint32
+	for _, rr := range msg.Answer {
+		if a, ok := rr.(*dns.A); ok {
+			ttls = append(ttls, a.Hdr.Ttl)
+		}
+	}
+	if len(ttls) < 2 {
+		t.Fatalf("want a multi-record A RRSet, got %d A records", len(ttls))
+	}
+	// RFC requirement: RFC2181-5.2-1 positive -- every A record in the RRSet shares
+	// the single configured TTL of 120 seconds.
+	for i, ttl := range ttls {
+		if ttl != ttls[0] {
+			t.Errorf("A record %d TTL = %d, want %d (all equal)", i, ttl, ttls[0])
+		}
+	}
+	if ttls[0] != 120 {
+		t.Errorf("RRSet TTL = %d, want the configured 120", ttls[0])
+	}
+}
+
+// TestRFC2181_NSCanonicalWithGlue verifies geodns's synthesized NS targets are
+// canonical names (never aliases/CNAMEs) and carry A glue.
+//
+// VALIDATES: RFC 2181 section 10.3 -- an NS/MX value must not be an alias and must
+// never have a CNAME RR, and that name must have one or more address records.
+// PREVENTS: an NS record pointing at an alias, or lacking address records.
+func TestRFC2181_NSCanonicalWithGlue(t *testing.T) {
+	t.Parallel()
+	st := answerState(t, `{"service":{"geodns":{"enabled":"true","zone":["t.example."],"nameserver":["10.0.0.1","10.0.0.2"]}}}`)
+
+	r := new(dns.Msg)
+	r.SetQuestion("t.example.", dns.TypeNS)
+	msg := new(dns.Msg)
+	msg.SetReply(r)
+	answerQuestions(msg, r, st, netip.MustParseAddr("203.0.113.7"))
+
+	var nsTargets []string
+	for _, rr := range msg.Answer {
+		switch v := rr.(type) {
+		case *dns.NS:
+			nsTargets = append(nsTargets, v.Ns)
+		case *dns.CNAME:
+			t.Fatalf("NS answer contains a CNAME %q; an alias must never appear here", v.Target)
+		}
+	}
+	if len(nsTargets) != 2 {
+		t.Fatalf("want 2 NS records, got %d (%v)", len(nsTargets), nsTargets)
+	}
+	// RFC requirement: RFC2181-10.3-1 positive -- each NS target is a canonical
+	// ns<n>.<zone> name, never an alias/CNAME.
+	for _, ns := range nsTargets {
+		if !strings.HasPrefix(ns, "ns") || !strings.HasSuffix(ns, ".t.example.") {
+			t.Errorf("NS target %q is not a canonical ns<n>.<zone> name", ns)
+		}
+	}
+
+	glue := map[string]bool{}
+	for _, rr := range msg.Extra {
+		switch v := rr.(type) {
+		case *dns.A:
+			glue[v.Hdr.Name] = true
+		case *dns.CNAME:
+			t.Errorf("glue for %q is a CNAME; an NS target must resolve via address records", v.Hdr.Name)
+		}
+	}
+	// RFC requirement: RFC2181-10.3-2 positive -- every NS target has an A (address)
+	// glue record.
+	for _, ns := range nsTargets {
+		if !glue[ns] {
+			t.Errorf("NS target %q has no A glue record; glue=%v", ns, glue)
+		}
+	}
+}
+
+// TestRFC2181_WireNameLimits verifies geodns's emitted names respect the DNS wire
+// limits and that the codec ze writes through rejects an over-limit label.
+//
+// VALIDATES: RFC 2181 section 11 -- any one label is limited to 1..63 octets and a
+// full domain name to 255 octets.
+// PREVENTS: geodns emitting a name the wire codec cannot represent.
+func TestRFC2181_WireNameLimits(t *testing.T) {
+	t.Parallel()
+	st := answerState(t, `{"service":{"geodns":{"enabled":"true","zone":["t.example."],`+
+		`"host-set":{"web":{"host":{"www.t.example.":{"address":["10.0.0.1"]}}}},`+
+		`"source":{"0.0.0.0/0":{"host-set":"web"}}}}}`)
+
+	r := new(dns.Msg)
+	r.SetQuestion("www.t.example.", dns.TypeA)
+	msg := new(dns.Msg)
+	msg.SetReply(r)
+	answerQuestions(msg, r, st, netip.MustParseAddr("203.0.113.7"))
+
+	// RFC requirement: RFC2181-11-1 positive -- geodns's synthesized answer packs
+	// through the wire codec, and every emitted name obeys the 1..63 octet label and
+	// 255 octet name limits.
+	packed, err := msg.Pack()
+	if err != nil {
+		t.Fatalf("geodns answer failed to pack: %v", err)
+	}
+	if len(packed) == 0 {
+		t.Fatal("packed message is empty")
+	}
+	if len(msg.Answer) == 0 {
+		t.Fatal("no answer records to check")
+	}
+	for _, rr := range msg.Answer {
+		name := rr.Header().Name
+		if len(name) > 255 {
+			t.Errorf("name %q exceeds 255 octets", name)
+		}
+		for label := range strings.SplitSeq(strings.TrimSuffix(name, "."), ".") {
+			if l := len(label); l < 1 || l > 63 {
+				t.Errorf("label %q in %q is %d octets, must be 1..63", label, name, l)
+			}
+		}
+	}
+
+	// The same codec refuses a 64-octet label, so an out-of-bounds name can never
+	// reach the wire from ze.
+	over := new(dns.Msg)
+	over.SetQuestion(strings.Repeat("a", 64)+".t.example.", dns.TypeA)
+	if _, err := over.Pack(); err == nil {
+		t.Error("a 64-octet label packed; the codec did not enforce the 63-octet limit")
+	}
 }
