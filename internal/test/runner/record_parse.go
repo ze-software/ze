@@ -711,80 +711,20 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 		}
 		r.RunCommands = append(r.RunCommands, rc)
 
+	case "stop":
+		// cmd=stop:seq=N:name=NAME[:signal=kill|term] terminates a named
+		// background process mid-test. Marker-based like parseCmdExec so it
+		// orders relative to other cmd= steps via seq=.
+		rc, err := parseCmdStop(rawLine)
+		if err != nil {
+			return err
+		}
+		r.RunCommands = append(r.RunCommands, rc)
+
 	default:
 		return fmt.Errorf("unknown cmd type %q", cmdType)
 	}
 	return nil
-}
-
-// parseCmdExec extracts fields from a cmd=background/foreground line using
-// marker-based parsing. This handles exec= values containing colons correctly.
-//
-// Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR][:exit=N].
-func parseCmdExec(mode, line string) (RunCommand, error) {
-	seqMarker := ":seq="
-	execMarker := ":exec="
-	stdinMarker := ":stdin="
-	timeoutMarker := ":timeout="
-	exitMarker := ":exit="
-
-	seqIdx := strings.Index(line, seqMarker)
-	execIdx := strings.Index(line, execMarker)
-
-	if seqIdx < 0 {
-		return RunCommand{}, fmt.Errorf("cmd:%s missing seq=", mode)
-	}
-	if execIdx < 0 {
-		return RunCommand{}, fmt.Errorf("cmd:%s missing exec=", mode)
-	}
-
-	// Extract seq value: from after ":seq=" to the next known marker or end.
-	seqStart := seqIdx + len(seqMarker)
-	seqEnd := nextMarker(line, seqStart, execMarker, stdinMarker, timeoutMarker, exitMarker)
-	seqStr := line[seqStart:seqEnd]
-	seq, err := strconv.Atoi(seqStr)
-	if err != nil || seq < 1 {
-		return RunCommand{}, fmt.Errorf("cmd:%s invalid seq=%q", mode, seqStr)
-	}
-
-	// Extract exec value: from after ":exec=" to the next known marker or end.
-	// This correctly preserves colons inside the exec value.
-	execStart := execIdx + len(execMarker)
-	execEnd := nextMarker(line, execStart, stdinMarker, timeoutMarker, exitMarker)
-	execVal := line[execStart:execEnd]
-	if execVal == "" {
-		return RunCommand{}, fmt.Errorf("cmd:%s missing exec=", mode)
-	}
-
-	rc := RunCommand{
-		Mode: mode,
-		Seq:  seq,
-		Exec: execVal,
-	}
-
-	// Extract optional stdin=, timeout= and exit= values.
-	if idx := strings.Index(line, stdinMarker); idx >= 0 {
-		start := idx + len(stdinMarker)
-		end := nextMarker(line, start, timeoutMarker, exitMarker)
-		rc.Stdin = line[start:end]
-	}
-	if idx := strings.Index(line, timeoutMarker); idx >= 0 {
-		start := idx + len(timeoutMarker)
-		end := nextMarker(line, start, exitMarker)
-		rc.Timeout = line[start:end]
-	}
-	if idx := strings.Index(line, exitMarker); idx >= 0 {
-		start := idx + len(exitMarker)
-		end := nextMarker(line, start, stdinMarker, timeoutMarker)
-		codeStr := line[start:end]
-		code, err := strconv.Atoi(codeStr)
-		if err != nil || code < 0 || code > 255 {
-			return RunCommand{}, fmt.Errorf("cmd:%s invalid exit=%q (want 0..255)", mode, codeStr)
-		}
-		rc.ExitCode = &code
-	}
-
-	return rc, nil
 }
 
 // nextMarker returns the index of the earliest occurrence of any marker

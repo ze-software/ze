@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -342,20 +342,58 @@ because it fixes what the killed peer must look like on the wire for the proof t
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- **Grammar (Phase 1+2).** `record.go`: `RunCommand` gains `Name` and `Signal`.
+  `record_parse_cmd.go` (NEW file, split out of `record_parse.go` to stay under the
+  1000-line ratchet): `parseCmdExec` gains an optional `:name=` marker;
+  `parseCmdStop` parses `cmd=stop:seq=N:name=NAME[:signal=kill|term]`. `parseCmd`
+  dispatches `case "stop"`. Marker-based, additive; every existing `.ci` still parses
+  (AC-5 — verified no existing `cmd=` line contains `:name=`).
+- **Stop (Phase 3).** `runner_exec_util.go`: `modeStop`/`signalKill`/`signalTerm`
+  consts; `stopNamedBackground` (lookup in `namedBg`, fail-closed on unknown name,
+  signal, reap, prune from `bgProcs`+`namedBg`); `stopBackgroundProcess` (SIGKILL
+  default; `term` delegates to `terminateGracefully`). `runner_exec.go`: `namedBg`
+  map, the `modeStop` intercept at the loop top (reaps before advancing — AC-1), and
+  name registration at the `modeBackground` append.
+- **Wiring proof.** `test/runner/stop-background.ci`: names a background sleeper,
+  stops it, asserts it is gone (`kill -0` fails) — deterministic via the reap
+  guarantee, mutation-resistant (a no-op stop leaves it alive → test fails). New
+  `runner` CI root registered (`internal/test/cli/register.go`) so the suite runs.
+- **Tests.** `record_parse_cmd_test.go` (parse: naming, stop, fail-closed, full
+  `parseAndAdd` pipeline); `runner_stop_test.go` (AC-1 kill+reap+prune, AC-2 unknown
+  name fails, AC-3 teardown tolerant, term path). All green;
+  `golangci-lint ./internal/test/runner/ ./internal/test/cli/` = 0 issues.
+- **Docs.** `docs/architecture/testing/ci-format.md` (full directive section) and
+  `docs/functional-tests.md` (Line Types table).
+- **Incidental fix.** `terminateGracefully` always received `2*time.Second` (unparam,
+  pre-existing, surfaced by touching the file): extracted `teardownGraceTimeout`
+  const, dropped the redundant param, updated all 4 call sites; removed the duplicated
+  SIGTERM-escalate logic via delegation.
+
+### Not implemented (routed onward)
+- **AC-4** (IPsec DPD end-to-end) is NOT implemented and `ipsec-dpd-timeout.ci` is NOT
+  restored. Per Failure Routing + Known Limitations, AC-4 depends on A-3
+  (`spec-fixit-plugin-event-subscription`), unconfirmed here (A-1 is validated from
+  source in this spec). AC-1..AC-3 + AC-5 are the delivered set. Add a deferral row
+  for AC-4 at drain, or leave AC-4 open and re-file.
 
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
 
-### Run 1 (initial)
+### Run 1 (two independent reviewer subagents over the diff)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | ISSUE | A stopped *named ze-peer* was pruned from `bgProcs`/`namedBg` but not `peerOutputs`, so the end-of-test peer Wait loop would double-`Wait()` it (spurious peer failure). Latent (not hit by the wiring test or the DPD daemon, both non-peer). | `runner_exec.go` peer Wait loop vs `stopNamedBackground` | FIXED: `stopNamedBackground` now returns the stopped `*exec.Cmd`; the `modeStop` case nils the matching `peerOutputs[i].proc`. |
+| 2 | ISSUE | The `runner` suite was registered (discoverable) but wired into NO make target, so `stop-background.ci` never runs in CI (`ai/rules/discovery-updates.md` gap). | `mk/test-functional.mk` gating list | FIXED: added `runner` to `all_suites` + the gating `run_suite` list, a dedicated `ze-runner-test` target, `.PHONY`, and the Functional Suite Inventory row. |
+| 3 | NOTE | `parseCmdExec` `name=` end-markers omitted `exec=`, so `name=` written before `exec=` would swallow the exec value (order-dependence asymmetry). | `record_parse_cmd.go` | FIXED: added `execMarker` to the `name=` bound; added `name_before_exec` regression test. |
+| 4 | BLOCKER (transient) | Package briefly did not compile mid-edit (signature change not yet reconciled across callers). | in-flight | RESOLVED: all callers updated; `go vet` + full package tests green. |
+| 5 | NOTE (positive) | Mutation-resistance confirmed: a no-op `cmd=stop` leaves the holder alive, `kill -0` succeeds, `expect=exit:code=0` fails. Deterministic (reap-before-advance), no sleep. | `stop-background.ci` | acknowledged |
+| 6 | NOTE (positive) | Fail-closed (AC-2) enforced at parse AND executor layers; unit tests assert real behavior (ExitCode -1, prune from both maps), no count-only, no sleeps. | tests | acknowledged |
+| 7 | NOTE (positive) | AC-4 correctly NOT delivered (`ipsec-dpd-timeout.ci` absent); delivered set AC-1..AC-3 + AC-5 matches the spec's Failure Routing. | scope | acknowledged |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Independent review complete; both ISSUEs and the parser NOTE fixed, transient BLOCKER resolved. Post-fix: `go test ./internal/test/runner/` green, `golangci-lint ./internal/test/runner/ ./internal/test/cli/` = 0 issues.
+- [x] All NOTEs recorded above.
 
 ## Checklist
 

@@ -89,7 +89,7 @@ func awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWriter, bgProcs
 	rec.FailureType = "timeout"
 	for _, p := range bgProcs {
 		if !peerProcs[p] && p.Process != nil {
-			terminateGracefully(p, 2*time.Second)
+			terminateGracefully(p)
 		}
 	}
 	return false

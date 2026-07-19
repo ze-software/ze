@@ -30,6 +30,7 @@ func init() {
 	registerCIRoot("managed", "managed", "managed", "Run managed config functional tests (.ci files in test/managed/).\nTests fleet management: hub config, per-client auth, managed boot, config change.", 1)
 	registerCIRoot("policy", "policy", "policy routing", "Run policy routing functional tests (.ci files in test/policy/).\nCovers boot-time apply, table/next-hop actions, tcp-flags, tcp-mss, and reload.", 0)
 	registerCIRoot("rsvpte", "rsvpte", "RSVP-TE", "Run RSVP-TE functional tests (.ci files in test/rsvpte/).\nCovers single-daemon boot: config parse -> YANG -> engine startup -> show rsvp-te session/interface/tunnel/fast-reroute (incl. RFC 4090 fast-reroute config + bypass).", 0)
+	registerCIRoot("runner", "runner", "runner", "Run test-runner primitive functional tests (.ci files in test/runner/).\nCovers the .ci orchestration grammar itself: naming a background process and stopping it mid-test (cmd=background:name=, cmd=stop).", 0)
 	registerCIRoot("static", "static", "static", "Run static route functional tests (.ci files in test/static/).\nCovers boot-time apply, reload add/remove, and show output.", 0)
 	registerCIRoot("traffic", "traffic", "traffic", "Run traffic-control functional tests (.ci files in test/traffic/).\nCovers component reactor wiring: boot-time apply and reload-time reapply.", 0)
 	registerCIRoot("ui", "ui", "UI", "Run UI functional tests (.ci files in test/ui/).\nTests config completion, editor CLI, and other UI-facing features.", 0)

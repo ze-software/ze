@@ -338,8 +338,9 @@ cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4
 For orchestrating multiple processes:
 
 ```
-cmd=background:seq=<N>:exec=<command>[:stdin=<name>]
+cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>]
 cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>][:exit=<N>]
+cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 ```
 
 | Key | Description |
@@ -349,11 +350,44 @@ cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>][:exit=<N>]
 | `stdin` | Stdin block name to pipe |
 | `timeout` | Foreground timeout (e.g., `10s`) |
 | `exit` | Exit code asserted for **this** command (0..255). See below. |
+| `name` | Handle for a background process, so a later `cmd=stop` can target it. |
+| `signal` | `cmd=stop` only: `kill` (SIGKILL, default) or `term` (SIGTERM). |
 
 Markers may appear in any order; each value runs to the next known marker.
 
 **Background:** Starts and keeps running until test ends.
 **Foreground:** Starts and waits for completion.
+**Stop:** Terminates a named background process mid-test (see below).
+
+#### `cmd=stop` -- terminate a background process mid-test
+
+A background process started with `name=<handle>` can be stopped at a chosen step
+by `cmd=stop:seq=<N>:name=<handle>`. The runner looks the process up, signals it,
+and **waits for it to exit before the next step runs**, so a later step can
+deterministically observe what happens after the process dies (e.g. `show vpn
+ipsec sa` emptying once an IKE responder is killed and DPD fires).
+
+- `signal=kill` (default) sends **SIGKILL**: the process gets no chance to flush or
+  send a protocol teardown. This is the choice for liveness/dead-peer tests where
+  the peer must go **silent** (a clean shutdown would take a different code path).
+- `signal=term` sends **SIGTERM**, escalating to SIGKILL if the process does not
+  exit within the teardown grace period -- a graceful stop.
+
+Fail-closed: a `cmd=stop` naming a process that was never started (no matching
+`name=`) **fails the test** with a clear error; it never silently no-ops, and it
+can only ever signal a process the runner itself started (never an arbitrary PID).
+Teardown still kills every remaining background process, and tolerates one the stop
+step already reaped.
+
+<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec (name=), parseCmdStop -->
+<!-- source: internal/test/runner/runner_exec_util.go -- stopNamedBackground, stopBackgroundProcess -->
+<!-- source: internal/test/runner/runner_exec.go -- modeStop step + namedBg registration -->
+<!-- test: internal/test/runner/record_parse_cmd_test.go TestParseStopBackgroundDirective, TestParseAndAdd_StopDirective -->
+<!-- test: internal/test/runner/runner_stop_test.go TestStopBackgroundKillsNamedProcess, TestTeardownToleratesStoppedProcess -->
+<!-- test: test/runner/stop-background.ci -- full parse->start->stop->assert wiring proof -->
+
+**Provenance:** added by spec-fixit-runner-kill-background to unblock end-to-end
+peer-death observation (the deleted `test/ipsec/ipsec-dpd-timeout.ci` needed it).
 
 #### `exit=` vs `expect=exit:code=` (per-command vs file-level)
 

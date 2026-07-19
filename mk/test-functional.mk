@@ -34,7 +34,7 @@
 .PHONY: ze-functional-test
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
-.PHONY: ze-l2tp-test ze-firewall-test ze-policy-test ze-appliance-test
+.PHONY: ze-l2tp-test ze-firewall-test ze-policy-test ze-appliance-test ze-runner-test
 .PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test ze-ospfv3-test ze-vrrp-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
@@ -155,7 +155,7 @@ ZE_SKIP_SUITES ?=
 ze-functional-test: $(ZE_TEST_DEPS_ALL)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) \
 	failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
-	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire"; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire runner"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
 		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
@@ -191,6 +191,7 @@ ze-functional-test: $(ZE_TEST_DEPS_ALL)
 	run_suite l2tp-wire $(SUITE_RUN) $(ZE_TEST_RUN) l2tp-wire --all; \
 	run_suite isis-wire $(SUITE_RUN) $(ZE_TEST_RUN) isis-wire --all; \
 	run_suite ospf-wire $(SUITE_RUN) $(ZE_TEST_RUN) ospf-wire --all; \
+	run_suite runner $(SUITE_RUN) $(ZE_TEST_RUN) runner --all; \
 	if [ -n "$$skipped_names" ]; then \
 		printf "\n\033[33mSKIPPED suites (ZE_SKIP_SUITES): %s\033[0m\n" "$$skipped_names"; \
 	fi; \
@@ -251,6 +252,12 @@ ze-policy-test: $(ZE_TEST_DEPS)
 
 ze-appliance-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) appliance --all
+
+# Test-runner primitive suite (test/runner/*.ci). Host-safe: it spawns only
+# sh/tail helpers, no ze daemon or privileged tooling, so it stays in the gating
+# ze-functional-test run_suite list above.
+ze-runner-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) runner --all
 
 # ─── Non-gated functional test suites ───────────────────────────────────────
 # These suites are shipped but not in the default ze-verify gate. They require

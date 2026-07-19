@@ -209,6 +209,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
+| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar itself (not a product feature): naming a background process (`cmd=background:...:name=`) and stopping it mid-test (`cmd=stop`). Host-safe (spawns only sh/tail helpers); in the gating `ze-functional-test` list. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -267,6 +268,26 @@ gated by a build tag not in the default set and has a dedicated make target:
 <!-- source: internal/component/web/stress_test.go -- TestWebConcurrentEditStress -->
 <!-- source: cmd/ze/hub/fleet_perf_test.go -- TestFleetManyClientsPerf -->
 <!-- source: mk/test-integration.mk -- ze-stress-web-test, ze-stress-fleet-test -->
+
+### Allocation-ceiling gate (`make ze-alloc-gate`, always-run in `ze-verify`)
+
+`make ze-alloc-gate` runs the reactor hot-path `ReportAllocs` benchmarks
+(bufmux / forward-pool / EBGPWire) with `-benchmem` at a bounded benchtime and
+asserts a per-benchmark `allocs/op` ceiling. allocs/op counts allocations, not
+time, so the ceiling is machine-independent; the gate needs no Docker and is
+registered as a stage in `scripts/status/verify_run.go`, so every full
+`make ze-verify` and CI push runs it (it is kept out of `ze-verify-changed` to
+leave the inline dev loop fast). Registration over hardcoding: a hot-path
+benchmark opts in by adding one entry to `perf.AllocCeilings`
+(`internal/perf/allocgate.go`); the gate fails closed if a registered benchmark
+is absent from the output. The machine-dependent timing regression check
+(convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
+`.woodpecker/perf-nightly.yml` (`bin/ze-perf track --check`, cron event), and
+the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-gate`.
+<!-- source: internal/perf/allocgate.go -- AllocCeilings, CheckAllocCeilings -->
+<!-- source: mk/alloc-gate.mk -- ze-alloc-gate target -->
+<!-- source: scripts/status/verify_run.go -- stagesForMode ze-verify includes ze-alloc-gate -->
+<!-- source: .woodpecker/perf-nightly.yml -- scheduled Docker-free perf --check -->
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
@@ -1014,6 +1035,8 @@ expect=json:conn=1:seq=1:json={...}
 | `tmpfs=` | `tmpfs=file.conf:terminator=EOF` | Embed file content inline |
 | `option=` | `option=file:path=test.conf` | Test configuration |
 | `cmd=` | `cmd=api:conn=1:seq=1:text=...` | API command |
+| `cmd=background:...:name=` | `cmd=background:seq=1:exec=ze -:name=responder` | Start a background process under a handle |
+| `cmd=stop:` | `cmd=stop:seq=3:name=responder[:signal=kill\|term]` | Terminate a named background process mid-test (SIGKILL default) |
 | `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes |
 | `expect=json:` | `expect=json:conn=1:seq=1:json=...` | Expected JSON |
 | `expect=stdout:` | `expect=stdout:contains=text` | Substring match in stdout |
@@ -1754,10 +1777,16 @@ Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using he
 
 ## Fuzz Testing
 
-Ze includes 57 fuzz targets covering all wire parsers, NLRI codecs, config
-parsing, cryptographic operations, protocol state machines, and
-receiver/server-facing parsers (BMP, RADIUS, DHCP). Fuzz tests catch crashes,
-panics, and memory corruption on malformed input.
+Ze includes 72 fuzz targets covering all wire parsers, NLRI codecs, config
+parsing, cryptographic operations, protocol state machines, IGP packet decoders
+(IS-IS, OSPF), and receiver/server-facing parsers (BMP, RADIUS, DHCP, VRRP).
+Fuzz tests catch crashes, panics, and memory corruption on malformed input.
+
+The target list is not hand-maintained: `scripts/dev/fuzz-targets.py` discovers
+every `func Fuzz` under `internal/` and emits the committed
+`mk/test-fuzz-targets.mk` fragment (one anchored `-fuzz=^<Name>$` invocation per
+target). A new fuzzer is included by existing, not by editing the makefile;
+`make ze-fuzz-targets-check` fails if the committed fragment drifts.
 
 ```bash
 make ze-fuzz-test                                    # All fuzz targets, 10s each
@@ -1773,16 +1802,21 @@ in the traditional sense). Run them periodically or before releases.
 | Area | Targets | Examples |
 |------|---------|---------|
 | BGP messages | 6 | `FuzzParseHeader`, `FuzzUnpackOpen`, `FuzzUnpackUpdate`, `FuzzUnpackNotification` |
-| BGP attributes | 8 | `FuzzParseOrigin`, `FuzzParseMED`, `FuzzParseASPath`, `FuzzParseCommunity` |
-| NLRI codecs | 13 | `FuzzParseVPN`, `FuzzParseEVPN`, `FuzzParseFlowSpec`, `FuzzParseBGPLS`, `FuzzParseMUP` |
-| Wire encoding | 4 | `FuzzParseIPv4Prefixes`, `FuzzParseIPv6Prefixes`, `FuzzRewriteASPath`, `FuzzParseNLRIs` |
+| BGP attributes | 7 | `FuzzParseOrigin`, `FuzzParseMED`, `FuzzParseASPath`, `FuzzParseCommunity` |
+| NLRI codecs | 16 | `FuzzParseVPN`, `FuzzParseEVPN`, `FuzzParseFlowSpec`, `FuzzParseBGPLS`, `FuzzParseMUP` |
+| Wire encoding | 5 | `FuzzParseIPv4Prefixes`, `FuzzParseIPv6Prefixes`, `FuzzParsePrefixes`, `FuzzRewriteASPath`, `FuzzParseNLRIs` |
+| IS-IS | 3 | `FuzzISISDecodePDU`, `FuzzISISTLVIterator`, `FuzzISISRoundTrip` |
+| OSPF | 7 | `FuzzOSPFDecodePacket`, `FuzzOSPFLSAIterator`, `FuzzOSPFTEBody`, `FuzzOSPFExtLinkBody` |
 | Config parser | 2 | `FuzzConfigParser`, `FuzzTokenizer` |
 | L2TP | 4 | `FuzzParseMessageHeader`, `FuzzAVPIterator`, `FuzzHiddenDecrypt`, `FuzzOnReceiveSequence` |
 | BFD | 3 | `FuzzParseControl`, `FuzzParseAuth`, `FuzzAuthDigest` |
-| PPP | 6 | `FuzzParseLCPPacket`, `FuzzParseCHAPResponse`, `FuzzParsePAPRequest`, `FuzzParseFrame` |
+| PPP | 7 | `FuzzParseLCPPacket`, `FuzzParseLCPOptions`, `FuzzParseCHAPResponse`, `FuzzParsePAPRequest`, `FuzzParseFrame` |
 | TACACS+ | 2 | `FuzzTacacsPacketUnmarshal`, `FuzzTacacsEncryptDecrypt` |
-| Receiver/server parsers | 3 | `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle` |
-| Other | 6 | `FuzzHandleRoundTrip`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzParseRDString` |
+| Receiver/server parsers | 4 | `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle`, `FuzzDecode` (VRRP) |
+| Other | 6 | `FuzzHandleRoundTrip`, `FuzzInvalidHandle`, `FuzzParseAttributes`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzFSMEventSequence` |
+<!-- source: internal/plugins/isis/packet/fuzz_test.go -- IS-IS packet fuzz targets -->
+<!-- source: internal/plugins/ospf/packet/fuzz_test.go -- OSPF packet fuzz targets -->
+<!-- source: scripts/dev/fuzz-targets.py -- generated mk/test-fuzz-targets.mk enumeration -->
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
 <!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->
 <!-- source: internal/component/radius/fuzz_test.go -- FuzzDecodeRADIUSVSA -->

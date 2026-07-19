@@ -211,11 +211,23 @@ type Record struct {
 
 // RunCommand represents a process to run during test execution.
 type RunCommand struct {
-	Mode    string // "background" or "foreground"
+	Mode    string // "background", "foreground", or "stop"
 	Seq     int    // Execution order (lower first)
-	Exec    string // Command to execute
+	Exec    string // Command to execute (empty for the "stop" directive)
 	Stdin   string // Name of stdin block to pipe
 	Timeout string // Timeout for foreground processes (e.g., "10s")
+
+	// Name is the optional handle a cmd=background line assigns to its process
+	// (cmd=background:...:name=NAME). It is REQUIRED on a cmd=stop directive,
+	// which names the previously-started background process to terminate. Empty
+	// for an unnamed background process or any foreground command.
+	Name string
+
+	// Signal selects how a cmd=stop directive terminates its target: "kill"
+	// (SIGKILL, the default -- a peer that stops answering, needed by the DPD
+	// proof) or "term" (SIGTERM, a graceful stop that lets the process flush and
+	// send protocol teardown). Empty on non-stop commands.
+	Signal string
 
 	// ExitCode is the exit code asserted for THIS command (cmd=...:exit=N), as
 	// opposed to the file-level expect=exit:code=, which only ever reaches the

@@ -6,6 +6,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,8 +112,18 @@ func (r *Runner) engineStepsForRun(steps []EngineStep) []EngineStep {
 const (
 	modeForeground  = "foreground"
 	modeBackground  = "background"
+	modeStop        = "stop"
 	fileCheckFailed = "file_check_failed"
 	failParseError  = "parse_error"
+)
+
+// Signal names accepted by a cmd=stop directive. Default is SIGKILL: a killed
+// responder goes silent (the exact condition IKEv2 liveness detection expects),
+// whereas SIGTERM would let the process send a clean protocol teardown and defeat
+// the DPD proof. See plan/spec-fixit-runner-kill-background.md (R-1).
+const (
+	signalKill = "kill"
+	signalTerm = "term"
 )
 
 // zeReadyFileEnabled reports whether a launched command is a ze daemon whose
@@ -364,17 +375,73 @@ func awaitQuickZe(proc *exec.Cmd, quickStdout, quickStderr, clientStdout, client
 	return waitErr
 }
 
+// teardownGraceTimeout is how long a SIGTERM'd process is given to exit before it
+// is forcefully killed. It is a single shared constant: every teardown/stop site
+// uses the same grace period, so it is not a per-call parameter.
+const teardownGraceTimeout = 2 * time.Second
+
 // terminateGracefully sends SIGTERM to a process and waits for it to exit.
-// If it doesn't exit within timeout, it is forcefully killed.
-func terminateGracefully(cmd *exec.Cmd, timeout time.Duration) {
+// If it doesn't exit within teardownGraceTimeout, it is forcefully killed.
+func terminateGracefully(cmd *exec.Cmd) {
 	if cmd.Process == nil {
 		_ = cmd.Wait()
 		return
 	}
 	_ = cmd.Process.Signal(syscall.SIGTERM)
-	timer := time.AfterFunc(timeout, func() {
+	timer := time.AfterFunc(teardownGraceTimeout, func() {
 		_ = cmd.Process.Kill()
 	})
 	_ = cmd.Wait()
 	timer.Stop()
+}
+
+// stopNamedBackground executes a cmd=stop step: it looks the named process up in
+// namedBg, terminates and reaps it, then removes it from both namedBg and the
+// bgProcs tracking slice so teardown never double-handles it and fgProc selection
+// skips it. It returns the stopped *exec.Cmd (so the caller can also drop it from
+// any other tracking, e.g. peerOutputs, and never Wait() a reaped process twice)
+// and the pruned bgProcs slice. A name that matches no tracked background process
+// is a hard error (AC-2, fail-closed): the directive can only ever signal a
+// process the runner itself started, never an arbitrary PID.
+func stopNamedBackground(cmd RunCommand, bgProcs []*exec.Cmd, namedBg map[string]*exec.Cmd) (*exec.Cmd, []*exec.Cmd, error) {
+	proc, ok := namedBg[cmd.Name]
+	if !ok {
+		return nil, bgProcs, fmt.Errorf("cmd seq=%d: stop names unknown background process %q "+
+			"(no cmd=background started with name=%s)", cmd.Seq, cmd.Name, cmd.Name)
+	}
+	stopBackgroundProcess(proc, cmd.Signal)
+	delete(namedBg, cmd.Name)
+	for i := range bgProcs {
+		if bgProcs[i] == proc {
+			bgProcs = append(bgProcs[:i], bgProcs[i+1:]...)
+			break
+		}
+	}
+	return proc, bgProcs, nil
+}
+
+// stopBackgroundProcess terminates a tracked background process mid-test on
+// behalf of a cmd=stop directive, then reaps it so the next step runs against a
+// process the OS has actually torn down (AC-1). With signalKill (the default) it
+// SIGKILLs the process -- the killed peer goes silent, the condition IKEv2 DPD
+// (dead-peer detection) observes. With signalTerm it delegates to
+// terminateGracefully (SIGTERM, then SIGKILL after teardownGraceTimeout) so a test
+// wanting a clean stop gets one and the runner never hangs. Errors are ignored
+// throughout: the whole point is that the process is gone, and a double reap in
+// teardown is harmless (AC-3).
+func stopBackgroundProcess(cmd *exec.Cmd, signal string) {
+	if cmd.Process == nil {
+		_ = cmd.Wait()
+		return
+	}
+	if signal == signalTerm {
+		terminateGracefully(cmd)
+		return
+	}
+	// Default: SIGKILL. The process cannot flush or send a protocol teardown,
+	// which is exactly what the DPD proof requires (a clean DELETE would defeat
+	// AC-4). Wait reaps the killed process; it returns fast because the kill has
+	// already fired.
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
 }

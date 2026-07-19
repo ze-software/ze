@@ -227,7 +227,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	err = peerCmd.Wait()
 
 	// Gracefully stop client - SIGTERM first, force kill after timeout
-	terminateGracefully(clientCmd, 2*time.Second)
+	terminateGracefully(clientCmd)
 
 	rec.PeerOutput = peerStdout.String() + peerStderr.String()
 	rec.ClientOutput = clientStdout.String() + clientStderr.String()
@@ -436,6 +436,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}()
 
+	// Name -> tracked background process, populated when a cmd=background line
+	// carries name=NAME. A later cmd=stop directive looks the process up here to
+	// terminate it mid-test. A stopped process is removed from both bgProcs and
+	// this map after it is reaped, so teardown never touches an already-dead
+	// process and fgProc selection skips it (see the modeStop case below).
+	namedBg := make(map[string]*exec.Cmd)
+
 	// Per-process output tracking for ze-peer instances.
 	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
 	var peerOutputs []peerOutput
@@ -493,6 +500,30 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Execute commands in order
 	for cmdIdx, cmd := range cmds {
+		// A cmd=stop step terminates a named background process mid-test. It runs
+		// no binary, so intercept it before the exec/arg parsing below (an empty
+		// Exec would otherwise trip errEmptyExecCommand). An unknown name fails
+		// the test (AC-2); the process is reaped before step N+1 runs (AC-1).
+		if cmd.Mode == modeStop {
+			stopped, newBgProcs, stopErr := stopNamedBackground(cmd, bgProcs, namedBg)
+			if stopErr != nil {
+				rec.Error = stopErr
+				rec.FailureType = "stop_target_not_found"
+				return false
+			}
+			bgProcs = newBgProcs
+			// If the stopped process is also tracked as a ze-peer, drop its proc
+			// handle so the end-of-test peer Wait loop does not Wait() an already
+			// reaped process (which returns "Wait was already called" and would
+			// surface as a spurious peer failure). Its captured output is kept.
+			for i := range peerOutputs {
+				if peerOutputs[i].proc == stopped {
+					peerOutputs[i].proc = nil
+				}
+			}
+			continue
+		}
+
 		// Expand $PORT2 before $PORT to avoid partial match ("$PORT2" contains "$PORT")
 		execStr := strings.ReplaceAll(cmd.Exec, "$PORT2", strconv.Itoa(rec.Port+1))
 		execStr = strings.ReplaceAll(execStr, "$PORT", strconv.Itoa(rec.Port))
@@ -767,6 +798,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		switch {
 		case cmd.Mode == modeBackground:
 			bgProcs = append(bgProcs, proc)
+			// Register the name a cmd=stop directive can target (Phase 2 naming
+			// grammar). Only background processes are nameable; the binding lives
+			// alongside the tracked *exec.Cmd, not a second registry.
+			if cmd.Name != "" {
+				namedBg[cmd.Name] = proc
+			}
 			switch {
 			case strings.Contains(execStr, "ze-peer"):
 				// Wait for ze-peer to be ready (listening) instead of a fixed
@@ -983,7 +1020,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Gracefully stop remaining processes (daemons)
 	for _, p := range bgProcs {
 		if !peerProcs[p] && p.Process != nil {
-			terminateGracefully(p, 2*time.Second)
+			terminateGracefully(p)
 		}
 	}
 
