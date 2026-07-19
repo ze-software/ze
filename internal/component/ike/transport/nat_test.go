@@ -40,6 +40,9 @@ func TestNATDetectionHash(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.23-1 positive -- NAT is detected automatically by comparing the
+// SHA-1(SPIi|SPIr|IP|Port) hash a peer sent against the locally computed value: DetectNAT
+// (nat.go:40) reports NAT present when the address the hash was computed over differs.
 func TestNATDetectionPresent(t *testing.T) {
 	spiI := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	spiR := [8]byte{0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18}
@@ -57,6 +60,9 @@ func TestNATDetectionPresent(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.23-1 negative -- when the received hash matches the locally
+// computed SHA-1 over the same address/port, DetectNAT (nat.go:40) reports no NAT, so the
+// automatic comparison does not raise a false positive on an un-NATted path.
 func TestNATDetectionAbsent(t *testing.T) {
 	spiI := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	spiR := [8]byte{0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18}
@@ -71,6 +77,9 @@ func TestNATDetectionAbsent(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.23-3 positive -- an IKE packet on port 4500 is prefixed with the
+// 4 zero bytes (the Non-ESP marker): AddNonESPMarker (nat.go:58) prepends them and
+// StripNonESPMarker (nat.go:67,76-77) recovers the IKE bytes from a marked packet.
 // RFC requirement: RFC3948-2.2-1 positive -- AddNonESPMarker prepends the 4-byte zero
 // Non-ESP Marker to an IKE message on port 4500 (nat.go:58), and StripNonESPMarker recovers
 // the original IKE bytes from a marked packet (nat.go:67,76-77).
@@ -100,6 +109,9 @@ func TestNonESPMarker(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.23-3 negative -- a packet on port 4500 whose leading bytes are a
+// non-zero ESP SPI (no 4-zero Non-ESP marker) is not treated as an IKE packet: StripNonESPMarker
+// returns ok=false (nat.go:79-80), so only IKE packets carry the marker.
 // RFC requirement: RFC3948-2.2-1 negative -- a packet whose first bytes are a non-zero ESP
 // SPI is NOT treated as a marked IKE packet: StripNonESPMarker returns ok=false (nat.go:79-80),
 // so the marker is never falsely stripped off ESP payload.

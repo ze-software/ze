@@ -263,6 +263,9 @@ func TestGenerateESPSPI(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.23-2 positive -- when NAT is detected, ESP traffic floats to UDP
+// 4500: installChildSA (child.go:235-238,263-267) sets UDP encapsulation on both Child SAs to
+// transport.NATTPort (4500), the same port IKE floats to (established.go:79, register.go:285).
 // RFC requirement: RFC3948-2.1-2 positive -- when NAT is detected, the Child SA install sets
 // the UDP-encapsulation source and destination ports to the IKE NAT-T port 4500
 // (transport.NATTPort) on both the inbound and outbound SA (child.go:235-238,263-267), so

@@ -15,6 +15,11 @@ import (
 // TestApplyChildRekeyResponse (key derive + install, replaces the SPI/key asserts),
 // TestRespondChildRekey (responder install + reply).
 
+// RFC requirement: RFC7296-2.8-1 positive -- on a simultaneous rekey, resolveRekeyCollision
+// (rekey.go:418) declares the exchange with the LOWER nonce the winner (§2.8.1), so the peer
+// whose nonce compares lower keeps its exchange.
+// RFC requirement: RFC7296-2.8-1 negative -- the higher nonce loses and two equal nonces do
+// NOT declare the local side the winner, so a collision never resolves to both sides winning.
 func TestRekeyCollision(t *testing.T) {
 	localNonce := []byte{0x01, 0x02, 0x03}
 	remoteNonce := []byte{0x04, 0x05, 0x06}
@@ -32,6 +37,10 @@ func TestRekeyCollision(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.8-2 positive -- SA lifetimes are enforced from the local
+// configuration alone: newLifetimeState (rekey.go) derives soft/hard expiry from the
+// locally supplied lifetime value, with no peer-negotiated input, so each peer enforces its
+// own policy independently.
 func TestSALifetimeTime(t *testing.T) {
 	lt := newLifetimeState(3600)
 	if lt == nil {

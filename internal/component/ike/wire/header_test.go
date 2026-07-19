@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+// RFC requirement: RFC7296-2.6-1 positive -- the 28-byte header (header.go:8) carries the
+// 8-byte InitiatorSPI and 8-byte ResponderSPI pair; WriteTo/ReadFrom round-trip both SPIs
+// byte-for-byte, so the (SPIi, SPIr) pair that identifies the IKE SA is present in every header.
 func TestHeaderRoundtrip(t *testing.T) {
 	h := Header{
 		InitiatorSPI: [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
@@ -69,6 +72,9 @@ func TestHeaderVersionEncoding(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.6-1 negative -- a header shorter than the fixed 28 bytes cannot
+// carry the full (SPIi, SPIr) pair, so ReadFrom (header.go:54) rejects it with ErrTruncated
+// rather than accepting a header with a partial or absent SPI pair.
 func TestDecodeTruncatedHeader(t *testing.T) {
 	var h Header
 	for _, size := range []int{0, 1, 15, 27} {

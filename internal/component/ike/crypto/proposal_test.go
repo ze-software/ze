@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+// RFC requirement: RFC7296-2.7-1 positive -- NegotiateIKE (proposal.go:27) selects exactly
+// one proposal whose ENCR/PRF/INTEG/DH transforms all match a local proposal, returning that
+// single combination (the responder picks exactly one transform of each type).
 func TestProposalNegotiationFirstMatch(t *testing.T) {
 	remote := []IKEProposal{
 		{
@@ -57,6 +60,9 @@ func TestProposalNegotiationFirstMatch(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7296-2.7-1 negative -- when no proposal offers a transform combination
+// the local policy accepts, NegotiateIKE (proposal.go:41) returns ErrNoProposalChosen so the
+// responder rejects all with NO_PROPOSAL_CHOSEN rather than accepting a partial match.
 func TestProposalNegotiationNoMatch(t *testing.T) {
 	remote := []IKEProposal{
 		{

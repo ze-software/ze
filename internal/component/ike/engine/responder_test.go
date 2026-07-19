@@ -262,6 +262,10 @@ func establishPSK(t *testing.T) (ini, resp *SA, ps *PeerSession) {
 // roles (initiator=true / responder=false). This closes spec-ipsec-13's deferral.
 // PREVENTS: the responder deriving wrong rekey keys or the wrong SK direction on the
 // new IKE SA (the reason peer IKE rekeys were previously dropped).
+// RFC requirement: RFC7296-1.3.3-1 positive -- rekeying the IKE SA carries a mandatory KE
+// payload: initiateIKERekey (rekey.go:292) emits SA+Ni+KEi and respondIKERekey completes a
+// real DH from it, so the decrypted rekey request contains a KE payload and the exchange
+// derives fresh keys end to end.
 func TestRespondIKERekey(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	iniSA, respSA, _ := establishPSK(t)
@@ -276,6 +280,16 @@ func TestRespondIKERekey(t *testing.T) {
 	reqInner, err := decryptAndParse(respSA, parseMsg(t, reqBytes), reqBytes)
 	if err != nil {
 		t.Fatalf("responder decrypt rekey request: %v", err)
+	}
+	// KE is mandatory when rekeying the IKE SA (RFC 7296 §1.3.3): the request must carry one.
+	haveKE := false
+	for i := range reqInner {
+		if _, ok := reqInner[i].Payload.(*wire.PayloadKE); ok {
+			haveKE = true
+		}
+	}
+	if !haveKE {
+		t.Fatal("IKE-SA rekey request carried no KE payload (KE is mandatory for IKE rekey)")
 	}
 	respBytes, newRespSA, err := respondIKERekey(respSA, reqInner, 2, log)
 	if err != nil {
@@ -641,6 +655,10 @@ func freshInitiatorInit(t *testing.T) (*SA, transport.Packet) {
 // in the second slot; the established SA and its Child SA are NOT touched (RFC 7296
 // Section 2.4: never act on the unauthenticated message). Red before the fix: the old
 // responderBusy gate stayed true for the SA's whole life and dropped the init.
+// RFC requirement: RFC7296-2.4-3 positive -- a fresh (unauthenticated) IKE_SA_INIT arriving
+// while an established SA owns the loop is accepted IN PARALLEL as a half-open second SA
+// (tryResponderSAInit, register.go:541); the established SA and its Child SA are left intact,
+// so the responder never concludes the peer failed from an unauthenticated message.
 func TestResponderAcceptsReinitAfterStaleSA(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ps, old, table := ownedResponder(t)
@@ -688,6 +706,10 @@ func TestResponderAcceptsReinitAfterStaleSA(t *testing.T) {
 // but never authenticates leaves the established SA and its Child SA untouched, and the
 // half-open SA is reaped after responderHandshakeTimeout -- freeing responderBusy so a
 // later genuine re-init is not wedged. No unauthenticated message ever deletes an SA.
+// RFC requirement: RFC7296-2.4-3 negative -- an IKE_SA_INIT that is accepted in parallel but
+// never authenticates does NOT delete or supersede the established SA: it is reaped after the
+// handshake timeout while the old SA and its Child SA survive untouched, proving no
+// unauthenticated message ever tears down the established SA.
 func TestResponderKeepsOldSAOnUnauthenticatedInit(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ps, old, table := ownedResponder(t)
@@ -782,6 +804,9 @@ func TestResponderSupersedesOnAuthenticatedInit(t *testing.T) {
 // VALIDATES: INITIAL_CONTACT is emitted on the initiator's first IKE_AUTH request and
 // honored by the responder. A normal PSK handshake round-trips it end to end (RFC 7296
 // Section 2.4: "MUST be in the first IKE_AUTH request").
+// RFC requirement: RFC7296-2.4-4 positive -- INITIAL_CONTACT is carried in the FIRST IKE_AUTH
+// request: buildAuthRequest (auth.go:124-126) appends the notify to the initiator's first
+// IKE_AUTH, and a full PSK handshake round-trips it so the responder parses/honors it there.
 func TestInitiatorEmitsInitialContact(t *testing.T) {
 	_, resp, _ := establishPSK(t)
 	if !resp.InitialContact {
