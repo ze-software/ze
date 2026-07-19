@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 295 design docs, 3011 files
+Total: 295 design docs, 3016 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2239,6 +2239,7 @@ Total: 295 design docs, 3011 files
 | `internal/core/dnsserver/manager.go` | generic DNS listener lifecycle |
 | `internal/core/dnsserver/matcher.go` | CIDR longest-prefix matcher |
 | `internal/plugins/geodns/server.go` | listener lifecycle, client-IP and |
+| `internal/plugins/geodns/server_rfc7871_test.go` | geodns consumes the EDNS0 |
 | `internal/plugins/geodns/source.go` | longest-prefix mechanism moved to |
 
 ## `plan/learned/1029-ospf-ext-1-opaque-framework.md`
@@ -3075,6 +3076,7 @@ Total: 295 design docs, 3011 files
 |------|-------|
 | `internal/component/ike/eap/eap.go` | EAP framework and method dispatch |
 | `internal/component/ike/eap/eap_mschapv2.go` | EAP-MSCHAPv2 method handler |
+| `internal/component/ike/eap/eap_mschapv2_test.go` | EAP-MSCHAPv2 handler tests |
 | `internal/component/ike/eap/eap_test.go` | EAP framework tests |
 | `internal/component/ike/eap/eap_tls.go` | EAP-TLS method handler |
 | `internal/component/ike/eap/md4.go` | MD4 for MS-CHAPv2 NtPasswordHash |
@@ -3082,6 +3084,7 @@ Total: 295 design docs, 3011 files
 | `internal/component/ike/eap/mschapv2_test.go` | MS-CHAPv2 crypto tests |
 | `internal/component/ike/eap/pool.go` | Virtual IP pool for road warrior clients |
 | `internal/component/ike/eap/pool_test.go` | Virtual IP pool tests |
+| `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
 | `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
 | `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
 | `internal/component/ike/transport/keepalive.go` | NAT keepalive sender |
@@ -3173,8 +3176,12 @@ Total: 295 design docs, 3011 files
 
 ## `plan/learned/805-ipsec-11-interop-eap.md`
 
-- `internal/component/ike/eap/peer.go` -- EAP peer (client/initiator) side
-- `internal/component/ike/eap/peer_test.go` -- EAP peer session tests
+| File | Topic |
+|------|-------|
+| `internal/component/ike/eap/eap_tls_handshake_test.go` | EAP-TLS in-memory handshake harness |
+| `internal/component/ike/eap/eap_tls_regression_test.go` | EAP-TLS transport + peer fixes |
+| `internal/component/ike/eap/peer.go` | EAP peer (client/initiator) side |
+| `internal/component/ike/eap/peer_test.go` | EAP peer session tests |
 
 ## `plan/learned/807-install-2-tftpserver.md`
 
