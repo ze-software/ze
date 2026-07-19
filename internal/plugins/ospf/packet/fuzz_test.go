@@ -88,6 +88,9 @@ func FuzzOSPFExtPrefixBody(f *testing.F) {
 	}}}))
 	f.Add(EncodeExtPrefixLSA(ExtPrefixLSA{Ranges: []ExtPrefixRangeTLV{{Value: []byte{0x20, 0, 0, 5}}}}))
 	f.Add([]byte{0x00, 0x01, 0xff, 0xff})
+	// RFC requirement: RFC7684-5-1 negative -- arbitrary, truncated, or overrunning Extended
+	// Prefix bodies and sub-TLVs never panic; the bound-checked decoder only ever returns an
+	// error, so a malformed permutation cannot crash the routing process (§5).
 	f.Fuzz(func(t *testing.T, data []byte) {
 		lsa, err := DecodeExtPrefixLSA(data)
 		for i := range lsa.Prefixes {
@@ -105,6 +108,9 @@ func FuzzOSPFExtLinkBody(f *testing.F) {
 		SubTLVs: []ExtSubTLV{{Type: 2, Value: []byte{1, 2, 3, 4}}},
 	}))
 	f.Add([]byte{0x00, 0x01, 0xff, 0xff})
+	// RFC requirement: RFC7684-5-1 negative -- arbitrary, truncated, or overrunning Extended
+	// Link bodies and sub-TLVs never panic; the bound-checked decoder only ever returns an
+	// error, so a malformed permutation cannot crash the routing process (§5).
 	f.Fuzz(func(t *testing.T, data []byte) {
 		_, err := DecodeExtLinkLSA(data)
 		_ = err

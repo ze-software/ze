@@ -118,6 +118,9 @@ func TestExtPrefixNFlagPreservedInterArea(t *testing.T) {
 		}
 		p := decodeOnePrefix(t, o)
 		if p.RouteType == packet.ExtRouteTypeInterArea {
+			// RFC requirement: RFC7684-2.1-2 positive -- a host /32 summarized between areas
+			// keeps the N-Flag on the propagated inter-area Extended Prefix TLV
+			// (selfPrefixAdverts, ext_prefix.go:154-157).
 			if !p.HasFlag(packet.ExtPrefixFlagN) {
 				t.Fatalf("N-Flag not preserved on inter-area host prefix: %+v", p)
 			}
@@ -127,8 +130,45 @@ func TestExtPrefixNFlagPreservedInterArea(t *testing.T) {
 	t.Fatalf("no inter-area prefix originated")
 }
 
+func TestExtPrefixNFlagNotSetNonHostInterArea(t *testing.T) {
+	// A NON-host /24 connected in area 0, summarized into area 1: the inter-area Extended
+	// Prefix TLV sets the A-Flag (locally connected in another area) but does NOT carry the
+	// N-Flag, because N is preserved only for a host prefix (RFC 7684 sec 2.1). This confines
+	// the N-Flag preservation to host prefixes so a non-host inter-area prefix never gains N.
+	router := types.RouterID{1, 1, 1, 1}
+	topo := []ospflsdb.InterfaceInfo{extStubIface("eth0", [4]byte{10, 0, 0, 1}, [4]byte{255, 255, 255, 0})}
+	eng, _ := extEngineWithTopology(t, topo)
+	area1 := types.AreaID{0, 0, 0, 1}
+	eng.lsdb.OriginateSummary(area1, router, 0, types.LSTypeSummaryNetwork, types.LinkStateID{10, 0, 0, 0}, [4]byte{255, 255, 255, 0}, 20)
+
+	for _, o := range eng.extPrefixOnOriginate(router) {
+		if o.Withdraw {
+			continue
+		}
+		p := decodeOnePrefix(t, o)
+		if p.RouteType == packet.ExtRouteTypeInterArea {
+			// RFC requirement: RFC7684-2.1-2 negative -- a non-host /24 propagated inter-area
+			// gets the A-Flag but NOT the N-Flag; preservation carries the flag state through
+			// faithfully (absent stays absent), it does not blanket-set N.
+			if !p.HasFlag(packet.ExtPrefixFlagA) {
+				t.Fatalf("inter-area prefix attached in another area must set the A-Flag: %+v", p)
+			}
+			if p.HasFlag(packet.ExtPrefixFlagN) {
+				t.Fatalf("N-Flag must NOT be set on a non-host inter-area prefix: %+v", p)
+			}
+			return
+		}
+	}
+	t.Fatalf("no inter-area prefix originated")
+}
+
 func TestExtPrefixScopeSelection(t *testing.T) {
 	// Pure scope mapping: intra/inter-area -> area (10); external -> AS (11).
+	// RFC requirement: RFC7684-2.1-3 positive -- intra-area and inter-area prefixes map to
+	// area scope (LS Type 10), the scope that satisfies an area-local prefix (extPrefixScope,
+	// ext.go:107).
+	// RFC requirement: RFC7684-2.1-3 negative -- AS-external and NSSA-external prefixes map to
+	// AS scope (LS Type 11), never area scope, so an AS-wide prefix is not under-flooded.
 	for rt, want := range map[uint8]OpaqueScope{
 		packet.ExtRouteTypeIntraArea:    OpaqueScopeArea,
 		packet.ExtRouteTypeInterArea:    OpaqueScopeArea,

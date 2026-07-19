@@ -265,6 +265,7 @@ func TestVerifyJWT_RejectAudienceMismatch(t *testing.T) {
 		Keys:             keys,
 		Clock:            newFixedClock(now),
 	})
+	// RFC requirement: RFC8707-5-1 negative -- a token whose aud ("https://wrong/") does not match ExpectedAudience ("https://mcp/") is rejected with errJWTAudienceMismatch (verifyJWT jwt.go:240-242 via audClaim.Matches jwt.go:92-108)
 	if !errors.Is(err, errJWTAudienceMismatch) {
 		t.Fatalf("expected errJWTAudienceMismatch, got %v", err)
 	}
@@ -274,6 +275,7 @@ func TestVerifyJWT_AudienceArrayForm(t *testing.T) {
 	// RFC 7519 allows aud to be a string OR array. Array form must work.
 	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
 	now := time.Unix(1_700_000_000, 0)
+	// RFC requirement: RFC8707-5-2 positive -- an aud JSON array ["https://one/","https://mcp/"] is decoded (audClaim.UnmarshalJSON jwt.go:58-76) and accepted because one entry matches ExpectedAudience "https://mcp/" (Matches array loop jwt.go:97-106)
 	claims := map[string]any{
 		"iss": "iss",
 		"aud": []string{"https://one/", "https://mcp/"},
@@ -477,6 +479,7 @@ func TestAudClaim_Matches(t *testing.T) {
 	if !a.Matches("https://one/") {
 		t.Fatal("should match https://one/")
 	}
+	// RFC requirement: RFC8707-5-2 negative -- an aud array {"https://one/","https://two/"} does not match "https://three/"; Matches returns false when no array entry matches (Matches array loop jwt.go:97-106)
 	if a.Matches("https://three/") {
 		t.Fatal("should not match unknown audience")
 	}

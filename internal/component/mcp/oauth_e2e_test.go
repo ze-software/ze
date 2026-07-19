@@ -342,6 +342,7 @@ func TestAudClaim_MatchesCanonicalVariants(t *testing.T) {
 		"https://MCP.EXAMPLE/",
 		"https://mcp.example///",
 	}
+	// RFC requirement: RFC8707-2-3 positive -- trailing-slash-divergent aud variants ("https://mcp.example" and "https://mcp.example///") match the configured "https://mcp.example/" after trailing-slash normalisation (normaliseURL streamable_auth.go:205 via canonicalAudience jwt.go:96,102)
 	for _, a := range accepted {
 		t.Run("accept_"+a, func(t *testing.T) {
 			claim := audClaim{a}
@@ -355,6 +356,7 @@ func TestAudClaim_MatchesCanonicalVariants(t *testing.T) {
 		"http://mcp.example/", // scheme downgrade
 		"https://mcp.example/path",
 	}
+	// RFC requirement: RFC8707-2-3 negative -- a genuinely different resource ("https://other.example/", scheme-downgraded "http://mcp.example/", path-divergent "https://mcp.example/path") does not match the configured "https://mcp.example/"; canonical comparison rejects rather than blanket-accepting (normaliseURL streamable_auth.go:205 via canonicalAudience jwt.go:96,102)
 	for _, a := range rejected {
 		t.Run("reject_"+a, func(t *testing.T) {
 			claim := audClaim{a}
@@ -391,6 +393,8 @@ func TestNewStreamable_OAuth_AcceptsSlashDivergentAudience(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 
+	// RFC requirement: RFC8707-5-1 positive -- a token whose aud matches the resource's canonical audience authenticates and returns 200 OK (verifyJWT jwt.go:240-242 via audClaim.Matches jwt.go:92-108)
+	// RFC requirement: RFC8707-2-3 positive -- token aud "https://mcp.example" (no trailing slash) matches the configured "https://mcp.example/" because both sides are trailing-slash normalised (normaliseURL streamable_auth.go:205 via canonicalAudience jwt.go:96,102)
 	if w.Code != http.StatusOK {
 		t.Fatalf("canonicalised audience mismatch should be accepted: status=%d body=%s",
 			w.Code, w.Body.String())

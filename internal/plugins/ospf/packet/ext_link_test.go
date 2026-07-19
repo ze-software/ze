@@ -22,6 +22,9 @@ func TestExtLinkTLVRoundTrip(t *testing.T) {
 		t.Fatalf("body length %d not 4-octet aligned", len(body))
 	}
 	out, err := DecodeExtLinkLSA(body)
+	// RFC requirement: RFC7684-5-1 positive -- a well-formed Extended Link body decodes without
+	// error through the bound-checked decoder (DecodeExtLinkLSA, packet/ext_link.go:78), proving
+	// the malformed-detection bounds do not reject valid input.
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -68,6 +71,9 @@ func TestExtLinkSingleTLVEnforced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+	// RFC requirement: RFC7684-3.1-1 negative -- an LSA carrying two Extended Link TLVs decodes
+	// to the FIRST TLV only and counts the extra (ExtraLinkTLVs=1) so the consumer can log it;
+	// a second TLV never silently replaces the first (§3.1 SHALL: only one per LSA).
 	if out.Link.LinkID != [4]byte{2, 2, 2, 2} {
 		t.Fatalf("must use FIRST Extended Link TLV, got %+v", out.Link)
 	}

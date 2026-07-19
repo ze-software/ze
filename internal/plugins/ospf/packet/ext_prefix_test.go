@@ -25,6 +25,9 @@ func TestExtPrefixTLVRoundTrip(t *testing.T) {
 		t.Fatalf("body length %d not 4-octet aligned", len(body))
 	}
 	out, err := DecodeExtPrefixLSA(body)
+	// RFC requirement: RFC7684-5-1 positive -- a well-formed Extended Prefix body decodes without
+	// error through the bound-checked decoder (DecodeExtPrefixLSA, packet/ext_prefix.go:153),
+	// proving the malformed-detection bounds do not reject valid input.
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}

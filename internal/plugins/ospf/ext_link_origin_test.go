@@ -43,6 +43,8 @@ func TestExtLinkMirrorsRouterLSALink(t *testing.T) {
 		t.Fatalf("Extended Link scope override = %v, want area/default", link.Scope)
 	}
 	lsa, err := packet.DecodeExtLinkLSA(link.Body)
+	// RFC requirement: RFC7684-3.1-1 positive -- origination emits exactly one Extended Link
+	// Opaque LSA carrying a single Extended Link TLV per link (extLinkOnOriginate, ext_link.go:26).
 	if err != nil || !lsa.HasLink {
 		t.Fatalf("decode Extended Link body: %v hasLink=%v", err, lsa.HasLink)
 	}

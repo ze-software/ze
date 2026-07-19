@@ -63,6 +63,8 @@ func TestExtPrefixNFlagIgnoredNonHost(t *testing.T) {
 	if !ok {
 		t.Fatalf("prefix not stored")
 	}
+	// RFC requirement: RFC7684-2.1-1 negative -- the N-Flag set on a /24 non-host prefix is
+	// cleared on receive (extNormalizeFlags, ext_prefix.go:265-271), so it is never honored.
 	if e.flags&packet.ExtPrefixFlagN != 0 {
 		t.Fatalf("N-Flag must be ignored on a /24 non-host prefix, flags=%#x", e.flags)
 	}
@@ -72,6 +74,8 @@ func TestExtPrefixNFlagIgnoredNonHost(t *testing.T) {
 		Body: extPrefixBody(packet.ExtRouteTypeIntraArea, 32, packet.ExtPrefixFlagN, [4]byte{10, 9, 9, 9}), Reachable: true,
 	})
 	h, _ := eng.extRecv.lookupPrefix(adv, [5]byte{10, 9, 9, 9, 32})
+	// RFC requirement: RFC7684-2.1-1 positive -- the N-Flag set on a /32 host prefix is
+	// retained on receive; normalization is confined to non-host prefixes.
 	if h.flags&packet.ExtPrefixFlagN == 0 {
 		t.Fatalf("N-Flag must be kept on a /32 host prefix, flags=%#x", h.flags)
 	}
@@ -156,6 +160,9 @@ func TestExtPrefixMalformedCounted(t *testing.T) {
 		OpaqueType: packet.ExtPrefixOpaqueType, OpaqueID: 1, Scope: OpaqueScopeArea, AdvertisingRouter: adv,
 		Body: []byte{0x00, 0x01, 0x00, 0xff, 0x01, 0x20, 0x00, 0x00}, Reachable: true,
 	})
+	// RFC requirement: RFC7684-5-1 negative -- a top-level TLV Length overrunning the body is
+	// detected by the bound-checked decoder, counted (ze_ospf_ext_malformed_total), and no
+	// prefix attribute is stored, rather than crashing the routing process (§5).
 	if reg.counts["ze_ospf_ext_malformed_total|7"] == 0 {
 		t.Fatalf("malformed body did not increment ze_ospf_ext_malformed_total: %v", reg.counts)
 	}

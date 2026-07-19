@@ -139,6 +139,9 @@ func TestLDPSyncConfigCreatesMachine(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5443-2-1 positive -- while LDP is not fully operational
+// (not-synchronized or hold-down) the P2P link metric is forced to LSInfinity regardless
+// of the configured cost, so transit traffic avoids the link.
 func TestLDPSyncForcesMaxMetric(t *testing.T) {
 	// AC-1 / A-1: while not synchronized the P2P effective metric is forced to
 	// LSInfinity regardless of the configured cost.
@@ -149,6 +152,8 @@ func TestLDPSyncForcesMaxMetric(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5443-2-2 positive -- the OSPF max-cost value the mechanism
+// substitutes is exactly LSInfinity, the 16-bit 0xFFFF.
 func TestLDPSyncMaxMetricValue(t *testing.T) {
 	// A-2: the substituted value is exactly LSInfinity 0xFFFF (RFC 5443 §2).
 	if uint16(ospflsdb.LSInfinity) != 0xFFFF {
@@ -156,6 +161,9 @@ func TestLDPSyncMaxMetricValue(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5443-2-5 positive -- an LDP SessionUp alone drives the link only to
+// Hold-Down (metric still LSInfinity); sync is not declared until the hold-down estimate
+// that all label bindings are exchanged completes.
 func TestLDPSyncSubscribesSessionEvents(t *testing.T) {
 	// AC-2 / A-3: a published SessionUp drives the machine to Hold-Down.
 	m, _ := newTestSyncManager()
@@ -174,6 +182,11 @@ func TestLDPSyncSubscribesSessionEvents(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5443-2-1 negative -- once LDP is fully operational (hold-down expired
+// -> Synchronized) the link metric returns to the configured cost, not LSInfinity.
+// RFC requirement: RFC5443-2-5 negative -- Synchronized is declared only after the hold-down
+// timer expires (the all-bindings-exchanged estimate is met); session-up alone leaves the
+// link at LSInfinity.
 func TestLDPSyncRestoresAfterHoldDown(t *testing.T) {
 	// AC-3 / A-5 / R-1: cost is restored only on hold-down expiry, not on session-up.
 	m, ft := newTestSyncManager()
@@ -275,6 +288,9 @@ func TestLDPSyncResetsOnInterfaceDown(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5443-2-2 negative -- an interface not under LDP-sync is never assigned
+// the 0xFFFF max value; its effective metric stays the configured cost, so the LSInfinity
+// substitution is confined to the mechanism.
 func TestLDPSyncDisabledIsNoOp(t *testing.T) {
 	// AC-10 / A-10: an interface without ldp-sync is unmanaged; LDP events are ignored
 	// and the effective cost is the configured cost.
@@ -344,6 +360,18 @@ func TestLDPSyncStuckRaisesAlert(t *testing.T) {
 // RFC requirement: RFC6138-4-1 negative -- the withhold is confined to non-cut-edges: a
 // not-synchronized non-cut-edge broadcast transit link IS withheld, so the cut-edge exemption is
 // meaningful rather than a blanket no-withhold.
+// RFC requirement: RFC5443-4-1 positive -- the only cost the mechanism raises is the 16-bit
+// IP link metric (effectiveP2PCost -> LSInfinity); ze originates no TE LSA, so no TE metric
+// is ever touched.
+// RFC requirement: RFC5443-4-1 negative -- the LDP-sync withhold is a pure IP-plane decision
+// confined to broadcast transit links: a cut-edge is never withheld, so the mechanism never
+// manufactures a TE-cost change or a CSPF/TE reroute.
+// RFC requirement: RFC5443-3-1 positive -- the broadcast cost-out is a whole-segment decision:
+// ldpSyncWithholdTransit keys on the segment's cut-edge status with no per-neighbor input, and
+// a cut-edge segment is advertised as a whole.
+// RFC requirement: RFC5443-3-1 negative -- a not-synchronized non-cut-edge broadcast segment
+// withholds its transit link in its entirety (never per individual peer), so the cost-out
+// granularity is the whole link, not the peer.
 func TestLDPSyncTECostUntouched(t *testing.T) {
 	// AC-15: the mechanism raises only the IP link cost (RFC 5443 §4), never a TE cost.
 	// Ze originates no TE LSA, so the guarantee holds trivially: the only override is
