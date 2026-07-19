@@ -284,6 +284,10 @@ func TestExportDefaultAllRoles(t *testing.T) {
 // VALIDATES: extractRoleCapabilities correctly parses BGP config JSON and returns
 // CapabilityDecl with correct code (9), encoding (hex), and single-byte payload.
 // PREVENTS: Config being silently ignored, causing missing Role capability.
+//
+// RFC requirement: RFC9234-4.1-1 positive -- a peer with a configured role advertises exactly one Role capability (code 9) in its OPEN.
+// RFC requirement: RFC9234-4.1-1 negative -- a peer with no role, or an invalid or empty role, advertises no Role capability.
+// RFC requirement: RFC9234-4.1-2 positive -- exactly one Role capability is emitted per configured peer, never multiple versions.
 func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 	tests := []struct {
 		name        string

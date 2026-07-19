@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"io"
 	"net"
 	"net/http"
@@ -48,6 +49,12 @@ func hostPort(port uint16) string {
 // VALIDATES: AC-3 -- a Manager with a DoT endpoint serves DNS-over-TLS (RFC
 // 7858) to a real TLS client using the shared handler, and a verifying client
 // (real cert check, no InsecureSkipVerify) succeeds.
+// RFC requirement: RFC7858-3.1-1 positive -- the server listens on and accepts a TCP+TLS connection on its DoT port and answers (default DoT port 853, secure.go:39).
+// RFC requirement: RFC7858-3.1-5 positive -- the client initiates a TLS handshake as the first data exchange (Net "tcp-tls"), then the query is answered.
+// RFC requirement: RFC7858-3.1-6 positive -- (server role) the DoT port transports TLS-wrapped DNS rather than cleartext; the TLS exchange succeeds.
+// RFC requirement: RFC7858-3.1-8 positive -- the server responds over the established TLS session; a TLS-wrapped query on the DoT port is answered.
+// RFC requirement: RFC7858-3.3-1 positive -- the exchange uses the RFC 1035 4.2.2 two-octet length-prefixed framing (miekg/dns over the TLS listener); a mis-framed message would not round-trip.
+// RFC requirement: RFC7858-8-1 positive -- a certificate-verifying client negotiating TLS 1.2 (the BCP 195 floor) completes the handshake and is answered.
 func TestDoTListener(t *testing.T) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
@@ -100,10 +107,10 @@ func dohURL(port uint16, query []byte) string {
 	return u.String()
 }
 
-func mustPack(t *testing.T, name string, qtype uint16) []byte {
+func mustPack(t *testing.T, name string) []byte {
 	t.Helper()
 	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(name), qtype)
+	m.SetQuestion(dns.Fqdn(name), dns.TypeA)
 	wire, err := m.Pack()
 	if err != nil {
 		t.Fatalf("pack query: %v", err)
@@ -133,7 +140,7 @@ func TestDoHListener(t *testing.T) {
 	// RFC requirement: RFC8484-4.2-1 positive -- a POST carrying Content-Type application/dns-message is processed into a DNS answer.
 	// RFC requirement: RFC8484-6-4 positive -- the POST body is the raw wire-format DNS message used directly (no base64 encoding), and the server answers it.
 	postReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		dohURL(port, nil), bytes.NewReader(mustPack(t, "post.test", dns.TypeA)))
+		dohURL(port, nil), bytes.NewReader(mustPack(t, "post.test")))
 	if err != nil {
 		t.Fatalf("new POST request: %v", err)
 	}
@@ -149,7 +156,7 @@ func TestDoHListener(t *testing.T) {
 	// RFC requirement: RFC8484-6-2 positive -- the GET query carries the wire message base64url-encoded in the "dns" variable and is answered.
 	// RFC requirement: RFC8484-6-3 positive -- the "dns" value is base64url WITHOUT padding (RawURLEncoding); the compliant unpadded request is accepted.
 	getReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
-		dohURL(port, mustPack(t, "get.test", dns.TypeA)), http.NoBody)
+		dohURL(port, mustPack(t, "get.test")), http.NoBody)
 	if err != nil {
 		t.Fatalf("new GET request: %v", err)
 	}
@@ -204,7 +211,7 @@ func TestDoHRefusedYields403(t *testing.T) {
 	t.Cleanup(mgr.Stop)
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		dohURL(port, nil), bytes.NewReader(mustPack(t, "drop.test", dns.TypeA)))
+		dohURL(port, nil), bytes.NewReader(mustPack(t, "drop.test")))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -367,6 +374,7 @@ func TestParseSecureLeaves(t *testing.T) {
 }
 
 // VALIDATES: defaults are 853/443//dns-query and a missing node leaves them.
+// RFC requirement: RFC7858-3.1-1 positive -- the default DoT listen port is 853 (the IANA "domain-s" port), so an unconfigured DoT server listens on 853.
 func TestDefaultSecureConfig(t *testing.T) {
 	sc := DefaultSecureConfig()
 	if sc.DoTPort != DefaultDoTPort || sc.DoHPort != DefaultDoHPort || sc.DoHPath != DefaultDoHPath {
@@ -470,7 +478,7 @@ func dohGet(t *testing.T, client *http.Client, rawURL string) *http.Response {
 // RFC requirement: RFC8484-5.4-1 negative -- text/plain is not honored as the DoH media type; only application/dns-message is supported.
 func TestDoHRejectsWrongContentType(t *testing.T) {
 	port, client := startDoH(t, echoHandler("10.0.0.8"))
-	resp := dohPost(t, client, port, "text/plain", mustPack(t, "wrongct.test", dns.TypeA))
+	resp := dohPost(t, client, port, "text/plain", mustPack(t, "wrongct.test"))
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d, want 415", resp.StatusCode)
@@ -510,7 +518,7 @@ func TestDoHGetRejectsBadDNSParam(t *testing.T) {
 // RFC requirement: RFC8484-6-3 negative -- a "dns" value that INCLUDES base64url padding ('=') is rejected (400); padded encodings are not accepted.
 func TestDoHGetRejectsPaddedDNSParam(t *testing.T) {
 	port, client := startDoH(t, echoHandler("10.0.0.8"))
-	query := mustPack(t, "padded.test", dns.TypeA)
+	query := mustPack(t, "padded.test")
 	padded := base64.URLEncoding.EncodeToString(query) // URLEncoding, unlike RawURLEncoding, appends '=' padding.
 	if !strings.Contains(padded, "=") {
 		t.Fatalf("expected a padded encoding to contain '=', got %q", padded)
@@ -540,7 +548,7 @@ func TestDoHCacheControlMatchesSmallestTTL(t *testing.T) {
 		_ = w.WriteMsg(m)
 	})
 	port, client := startDoH(t, handler)
-	resp := dohPost(t, client, port, dohContentType, mustPack(t, "ttl.test", dns.TypeA))
+	resp := dohPost(t, client, port, dohContentType, mustPack(t, "ttl.test"))
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
@@ -597,5 +605,135 @@ func TestDoHIgnoresEDNSUDPSize(t *testing.T) {
 	}
 	if len(m.Answer) != answers {
 		t.Fatalf("got %d answers, want %d (full response, untruncated)", len(m.Answer), answers)
+	}
+}
+
+// startDoT brings up a DoT-only Manager serving handler on a fresh port and
+// returns the bound port plus a client root pool that verifies the server cert.
+func startDoT(t *testing.T, handler dns.Handler) (uint16, *x509.CertPool) {
+	t.Helper()
+	port := freePort(t)
+	srvTLS, roots := testTLSPair(t)
+	mgr := New(testLogger(), handler, Options{})
+	if err := mgr.ApplyListeners(true, Listeners{
+		DoT:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
+		TLSConfig: srvTLS,
+	}); err != nil {
+		t.Fatalf("ApplyListeners: %v", err)
+	}
+	t.Cleanup(mgr.Stop)
+	return port, roots
+}
+
+// VALIDATES: the DoT port is TLS-only. A cleartext DNS-over-TCP query (RFC 1035
+// length-prefixed, no TLS handshake) sent to the DoT listener is never answered:
+// the server reads the first bytes as a TLS record, the handshake fails, and no
+// cleartext DNS response comes back.
+// RFC requirement: RFC7858-3.1-5 negative -- the first data exchange must be a TLS handshake; a connection whose first bytes are cleartext DNS (not a ClientHello) gets no DNS answer.
+// RFC requirement: RFC7858-3.1-6 negative -- (server role) the DoT port is not used to carry cleartext DNS; a cleartext query to it is not answered.
+// RFC requirement: RFC7858-3.1-8 negative -- the server does not respond to a cleartext DNS message on the DoT port, including after the failed TLS handshake.
+func TestDoTRefusesCleartext(t *testing.T) {
+	port, _ := startDoT(t, echoHandler("10.0.0.7"))
+
+	// Dial raw TCP (no TLS) and send a length-prefixed cleartext query, exactly as
+	// an RFC 7766 DNS-over-TCP client would.
+	d := net.Dialer{Timeout: 3 * time.Second}
+	conn, err := d.DialContext(context.Background(), "tcp", hostPort(port))
+	if err != nil {
+		t.Fatalf("dial DoT port: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+	if err := conn.SetDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		t.Fatalf("set deadline: %v", err)
+	}
+
+	q := new(dns.Msg)
+	q.SetQuestion(dns.Fqdn("cleartext.test"), dns.TypeA)
+	wire, err := q.Pack()
+	if err != nil {
+		t.Fatalf("pack query: %v", err)
+	}
+	framed := make([]byte, 2+len(wire))
+	binary.BigEndian.PutUint16(framed[:2], uint16(len(wire)))
+	copy(framed[2:], wire)
+	if _, werr := conn.Write(framed); werr != nil {
+		// A write failure (server already dropped the non-TLS connection) is itself
+		// proof the cleartext query was refused.
+		return
+	}
+
+	// Whatever comes back must NOT be a well-formed DNS reply to our query: a TLS
+	// server answers a non-ClientHello with a TLS alert or closes the connection.
+	buf := make([]byte, 512)
+	n, rerr := conn.Read(buf)
+	if rerr != nil {
+		return // connection closed / errored: no cleartext answer, as required.
+	}
+	if n > 2 {
+		msg := new(dns.Msg)
+		if uerr := msg.Unpack(buf[2:n]); uerr == nil && msg.Id == q.Id && len(msg.Question) > 0 {
+			t.Fatalf("server answered a cleartext DNS query on the DoT port (%d bytes); it must not", n)
+		}
+	}
+}
+
+// VALIDATES: the DoT listener enforces the BCP 195 TLS floor -- a client that
+// offers only TLS 1.1 (below the TLS 1.2 minimum ze configures, secure.go via
+// selfcert.NewTLSConfig MinVersion) fails the handshake and gets no answer,
+// while the TLS 1.2 client in TestDoTListener succeeds.
+// RFC requirement: RFC7858-8-1 negative -- a client capped below TLS 1.2 (max TLS 1.1) is refused, so the BCP 195 "TLS 1.2 or higher" floor is enforced, not merely documented.
+func TestDoTRejectsBelowTLS12(t *testing.T) {
+	port, roots := startDoT(t, echoHandler("10.0.0.7"))
+
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn("oldtls.test"), dns.TypeA)
+	c := &dns.Client{
+		Net:     "tcp-tls",
+		Timeout: 3 * time.Second,
+		TLSConfig: &tls.Config{
+			RootCAs:    roots,
+			ServerName: "127.0.0.1",
+			MinVersion: tls.VersionTLS10,
+			MaxVersion: tls.VersionTLS11,
+		},
+	}
+	if _, _, err := c.Exchange(m, hostPort(port)); err == nil {
+		t.Fatal("DoT exchange with a TLS 1.1-capped client succeeded; the server must enforce the TLS 1.2 minimum (BCP 195)")
+	}
+}
+
+// VALIDATES: the DoT server is robust to an idle connection being terminated by
+// the client. After a client opens a DoT connection, queries, and abruptly
+// closes it while idle, the server keeps serving and answers a fresh connection.
+// RFC requirement: RFC7858-3.4-5 positive -- a client that abruptly terminates an idle DoT connection does not disturb the server; a subsequent connection is answered.
+func TestDoTRobustToIdleConnectionClose(t *testing.T) {
+	port, roots := startDoT(t, echoHandler("10.0.0.7"))
+
+	tlsCfg := &tls.Config{RootCAs: roots, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	c := &dns.Client{Net: "tcp-tls", Timeout: 3 * time.Second, TLSConfig: tlsCfg}
+
+	// First connection: query, then abruptly close the now-idle connection.
+	conn, err := c.Dial(hostPort(port))
+	if err != nil {
+		t.Fatalf("dial DoT: %v", err)
+	}
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn("idle1.test"), dns.TypeA)
+	if _, _, err := c.ExchangeWithConn(m, conn); err != nil {
+		t.Fatalf("first DoT exchange: %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close idle conn: %v", err)
+	}
+
+	// The server must still answer a brand-new connection.
+	m2 := new(dns.Msg)
+	m2.SetQuestion(dns.Fqdn("idle2.test"), dns.TypeA)
+	resp, _, err := c.Exchange(m2, hostPort(port))
+	if err != nil {
+		t.Fatalf("DoT exchange after idle-connection close: %v", err)
+	}
+	if len(resp.Answer) != 1 {
+		t.Fatalf("expected 1 answer after reconnect, got %d", len(resp.Answer))
 	}
 }

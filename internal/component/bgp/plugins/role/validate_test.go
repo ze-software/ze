@@ -17,6 +17,9 @@ func roleCap(hex string) sdk.ValidateOpenCapability {
 //
 // VALIDATES: Customer↔Provider, RS↔RS-Client, Peer↔Peer are accepted.
 // PREVENTS: Valid role pairs being rejected, breaking legitimate sessions.
+//
+// RFC requirement: RFC9234-4.2-1 positive -- a role pair drawn from RFC 9234 Table 2 (Customer/Provider, RS/RS-Client, Peer/Peer) corresponds and is accepted.
+// RFC requirement: RFC9234-4.2-2 negative -- a corresponding (valid) pair is NOT rejected, so the Role Mismatch NOTIFICATION is scoped to real mismatches.
 func TestValidateOpenRolePair_ValidPairs(t *testing.T) {
 	t.Parallel()
 
@@ -58,6 +61,9 @@ func TestValidateOpenRolePair_ValidPairs(t *testing.T) {
 //
 // VALIDATES: Customer↔Customer, Provider↔Provider rejected with correct codes.
 // PREVENTS: Invalid pairs being accepted, allowing route leaks per RFC 9234.
+//
+// RFC requirement: RFC9234-4.2-1 negative -- a pair absent from RFC 9234 Table 2 does not correspond and is not accepted.
+// RFC requirement: RFC9234-4.2-2 positive -- a non-corresponding pair is rejected with the Role Mismatch NOTIFICATION code 2 subcode 11.
 func TestValidateOpenRolePair_InvalidPairs(t *testing.T) {
 	t.Parallel()
 
@@ -153,6 +159,8 @@ func TestValidateOpenRolePair_NoPeerRole_Strict(t *testing.T) {
 //
 // VALIDATES: RFC 9234 Section 4.2 requires rejection when multiple different Roles are received.
 // PREVENTS: Ambiguous role assignment when peer sends conflicting capabilities.
+//
+// RFC requirement: RFC9234-4.2-3 positive -- multiple Role capabilities carrying different values are rejected with the Role Mismatch NOTIFICATION code 2 subcode 11.
 func TestValidateOpenRolePair_MultipleDifferentRoles(t *testing.T) {
 	t.Parallel()
 
@@ -181,6 +189,8 @@ func TestValidateOpenRolePair_MultipleDifferentRoles(t *testing.T) {
 //
 // VALIDATES: RFC 9234 Section 4.2 only rejects when values differ, not when duplicated.
 // PREVENTS: False rejection when peer happens to send the same Role twice.
+//
+// RFC requirement: RFC9234-4.2-3 negative -- multiple Role capabilities that all share one value are treated as a single capability and accepted, not rejected.
 func TestValidateOpenRolePair_MultipleSameRoles(t *testing.T) {
 	t.Parallel()
 

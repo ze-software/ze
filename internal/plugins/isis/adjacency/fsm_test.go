@@ -391,3 +391,68 @@ func TestISISDownOnCircuitDown(t *testing.T) {
 		t.Fatalf("Down() -> state %v sessionDown %v, want down/true", tr.State, tr.SessionDown)
 	}
 }
+
+// RFC requirement: RFC5303-3.1-6 positive -- a system able to process the option
+// follows the three-way procedure: with a TLV 240 present, ReceiveHello
+// (fsm.go:207 bidirectional) withholds Up until the neighbor proves it heard us,
+// so an Up-reporting-but-no-echo neighbor stays Initializing.
+// RFC requirement: RFC5303-3.1-6 negative -- the three-way procedure is engaged
+// by the option, not applied blanket: with NO TLV 240 the legacy ISO 10589
+// two-way adjacency forms on the first Hello with no echo at all.
+func TestISISThreeWayProceduresEngagedByOption(t *testing.T) {
+	area := []types.AreaID{mustArea(t, 0x49, 0x00, 0x01)}
+
+	withOpt := &Adjacency{State: StateDown}
+	tr := ReceiveHello(withOpt, p2pLocal(t), HelloInput{
+		SystemID: peerSys, Level: Level1, HoldTime: 30, Areas: area,
+		HasThreeWay: true,
+		ThreeWay:    packet.P2PThreeWayTLV{State: packet.AdjThreeWayUp, HasCircuitID: true}, // no neighbor echo
+	}, t0)
+	if tr.State != StateInitializing {
+		t.Fatalf("option present, no echo -> state %v, want initializing (procedure engaged)", tr.State)
+	}
+
+	noOpt := &Adjacency{State: StateDown}
+	tr = ReceiveHello(noOpt, p2pLocal(t), HelloInput{
+		SystemID: peerSys, Level: Level1, HoldTime: 30, Areas: area,
+		HasThreeWay: false,
+	}, t0)
+	if tr.State != StateUp {
+		t.Fatalf("no option -> legacy two-way should reach up, got %v", tr.State)
+	}
+}
+
+// RFC requirement: RFC5303-3.2-13 positive -- when the received option does not
+// yet prove bidirectionality the "Initialize" action applies: the adjacency is
+// set to Initializing and NO session event is generated (classify at fsm.go:244).
+// RFC requirement: RFC5303-3.2-13 negative -- the event-less Initializing outcome
+// is specific to "Initialize": once the neighbor reports Up and echoes us the
+// action is "Up", so the adjacency goes Up WITH a session event.
+func TestISISThreeWayInitializeAction(t *testing.T) {
+	area := []types.AreaID{mustArea(t, 0x49, 0x00, 0x01)}
+
+	adj := &Adjacency{State: StateDown}
+	tr := ReceiveHello(adj, p2pLocal(t), HelloInput{
+		SystemID: peerSys, Level: Level1, HoldTime: 30, Areas: area,
+		HasThreeWay: true,
+		ThreeWay:    packet.P2PThreeWayTLV{State: packet.AdjThreeWayDown, HasCircuitID: true},
+	}, t0)
+	if tr.State != StateInitializing {
+		t.Fatalf("state = %v, want initializing", tr.State)
+	}
+	if tr.SessionUp || tr.SessionDown {
+		t.Fatalf("Initialize action generated a session event: %+v", tr)
+	}
+
+	tr = ReceiveHello(adj, p2pLocal(t), HelloInput{
+		SystemID: peerSys, Level: Level1, HoldTime: 30, Areas: area,
+		HasThreeWay: true,
+		ThreeWay: packet.P2PThreeWayTLV{
+			State: packet.AdjThreeWayUp, HasCircuitID: true,
+			HasNeighbor: true, NeighborID: localSys,
+		},
+	}, t0)
+	if tr.State != StateUp || !tr.SessionUp {
+		t.Fatalf("state=%v sessionUp=%v, want up with session event", tr.State, tr.SessionUp)
+	}
+}

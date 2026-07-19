@@ -327,10 +327,12 @@ func TestCheckOTCIngress(t *testing.T) {
 		{"stamp_from_rs", roleRS, 65003, attrsNoOTC, otcAccept, 65003},
 
 		// No stamp: no OTC from Customer/RS-Client (legitimate, not upstream)
+		// RFC requirement: RFC9234-5-3 negative -- a route without OTC from a Customer is not stamped; ingress stamping is scoped to Provider/Peer/RS.
 		{"no_stamp_from_customer", roleCustomer, 65001, attrsNoOTC, otcAccept, 0},
 		{"no_stamp_from_rs_client", roleRSClient, 65001, attrsNoOTC, otcAccept, 0},
 
 		// Reject leak: OTC from Customer/RS-Client
+		// RFC requirement: RFC9234-5-1 positive -- a route carrying OTC received from a Customer is a route leak and marked ineligible.
 		{"reject_customer_with_otc", roleCustomer, 65001, attrsOTC65001, otcRejectLeak, 0},
 		{"reject_rs_client_with_otc", roleRSClient, 65001, attrsOTC65001, otcRejectLeak, 0},
 
@@ -340,6 +342,8 @@ func TestCheckOTCIngress(t *testing.T) {
 		{"reject_peer_otc_zero_asn", rolePeer, 0, attrsOTC65001, otcRejectLeak, 0},
 
 		// Provider/RS with OTC already: accept, no re-stamp
+		// RFC requirement: RFC9234-5-1 negative -- a route carrying OTC received from a Provider is not a leak (the rule is scoped to Customer/RS-Client), so it stays eligible.
+		// RFC requirement: RFC9234-5-12 negative -- a well-formed OTC (length 4) is accepted normally, never converted to a withdrawal.
 		{"accept_provider_has_otc", roleProvider, 65001, attrsOTC65001, otcAccept, 0},
 		{"accept_rs_has_otc", roleRS, 65001, attrsOTC65001, otcAccept, 0},
 
@@ -473,6 +477,7 @@ func TestOTCIngressFilter(t *testing.T) {
 		assert.False(t, accept)
 	})
 
+	// RFC requirement: RFC9234-5-3 positive -- a route without OTC received from a Provider is stamped on ingress with the remote AS number.
 	t.Run("stamp_from_provider", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
 		meta := make(map[string]any)
@@ -488,6 +493,7 @@ func TestOTCIngressFilter(t *testing.T) {
 		assert.Equal(t, uint32(65002), asn)
 	})
 
+	// RFC requirement: RFC9234-5-2 negative -- a route with OTC from a Peer whose OTC value equals the Peer's AS number is not a leak and is accepted.
 	t.Run("accept_peer_otc_matches", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
 		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65003), nil), make(map[string]any))
@@ -495,6 +501,7 @@ func TestOTCIngressFilter(t *testing.T) {
 		assert.Nil(t, modified)
 	})
 
+	// RFC requirement: RFC9234-5-2 positive -- a route with OTC from a Peer whose OTC value differs from the Peer's AS number is a route leak and marked ineligible.
 	t.Run("reject_peer_otc_mismatch", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
 		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65099), nil), make(map[string]any))
@@ -643,6 +650,7 @@ func TestOTCEgressFilter(t *testing.T) {
 	//   rs-client → source IS RS          provider → source IS Customer
 	//   rs        → source IS RS-Client
 
+	// RFC requirement: RFC9234-3.1-1 positive -- a route learned from a Provider (our role Customer) is not propagated to a Provider destination.
 	t.Run("src_role_customer_to_provider_suppress", func(t *testing.T) {
 		// src-role "customer" = we are customer = source IS Provider → suppress to Provider.
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
@@ -652,6 +660,7 @@ func TestOTCEgressFilter(t *testing.T) {
 			"src IS Provider (our role=customer), dest=provider: suppress")
 	})
 
+	// RFC requirement: RFC9234-3.1-1 negative -- a route learned from a Customer (our role Provider) may be propagated to a Provider destination, so the prohibition is scoped to Provider/Peer/RS-learned routes.
 	t.Run("src_role_provider_to_provider_accept", func(t *testing.T) {
 		// src-role "provider" = we are provider = source IS Customer → accept to Provider.
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
@@ -942,6 +951,9 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 
 // VALIDATES: AC-1, AC-11 — Route without OTC to Customer gets mods.Op(35, AttrModSet, ...).
 // PREVENTS: Missing OTC egress stamping per RFC 9234 Section 5.
+//
+// RFC requirement: RFC9234-5-4 positive -- a route without OTC advertised to a Customer is stamped with the local AS number.
+// RFC requirement: RFC9234-5-10 negative -- OTC egress processing DOES run for an IPv4 unicast route (the family gate admits AFI 1/2 SAFI 1), so a unicast route to a Customer is stamped.
 func TestOTCEgressStampMod(t *testing.T) {
 	// Provider (local role) sends to Customer (dest role).
 	// Route has no OTC -> should write mod to stamp OTC with local ASN.
@@ -978,6 +990,8 @@ func TestOTCEgressStampMod(t *testing.T) {
 
 // VALIDATES: AC-4 — Route without OTC to Provider does NOT get OTC stamped.
 // PREVENTS: OTC stamped on routes to Provider (upstream).
+//
+// RFC requirement: RFC9234-5-4 negative -- a route without OTC advertised to a Provider is not stamped; egress stamping is scoped to Customer/Peer/RS-Client.
 func TestOTCEgressNoStampProvider(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
@@ -1029,6 +1043,8 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 
 // VALIDATES: AC-1, AC-11 — OTC stamp value is local ASN, not source or dest peer ASN.
 // PREVENTS: Stamping with wrong ASN.
+//
+// RFC requirement: RFC9234-5-9 positive -- the egress OTC stamp uses dest.LocalAS (the effective per-peer internet-facing local AS), not the source or destination peer AS.
 func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
@@ -1060,6 +1076,8 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 
 // VALIDATES: AC-7 — Non-unicast egress skips OTC processing entirely.
 // PREVENTS: OTC applied to non-unicast families.
+//
+// RFC requirement: RFC9234-5-10 positive -- OTC egress processing is skipped for a non-unicast (multicast) family, so no OTC is applied outside AFI 1/2 SAFI 1.
 func TestOTCEgressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
@@ -1131,6 +1149,8 @@ func TestOTCAttrModHandlerRegisteredInRegistry(t *testing.T) {
 
 // VALIDATES: AC-14 — otcAttrModHandler creates OTC from scratch when source absent.
 // PREVENTS: OTC not added when attribute is missing from source.
+//
+// RFC requirement: RFC9234-5-6 negative -- when no OTC is present in the source, the handler creates one from the op; there is no prior value to preserve.
 func TestOTCAttrModHandlerNewAttr(t *testing.T) {
 	asnBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(asnBuf, 65000)
@@ -1149,6 +1169,8 @@ func TestOTCAttrModHandlerNewAttr(t *testing.T) {
 
 // VALIDATES: AC-5 — otcAttrModHandler preserves existing OTC unchanged.
 // PREVENTS: Double-stamping or overwriting existing OTC value.
+//
+// RFC requirement: RFC9234-5-6 positive -- a source route that already carries OTC keeps it unchanged; the set op is ignored so the value is preserved.
 func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 	// Source has OTC = 65001.
 	srcOTC := buildOTCAttr(65001)
@@ -1347,6 +1369,10 @@ func TestIsPayloadUnicastTruncatedMPReach(t *testing.T) {
 
 // VALIDATES: RFC 9234 Section 5 egress rule 2 is unconditional on wire-bytes OTC.
 // PREVENTS: OTC-bearing routes leaking to Provider/Peer/RS when source has no role config.
+//
+// RFC requirement: RFC9234-5-5 positive -- a route already carrying OTC is suppressed (not propagated) to a Provider, Peer, or RS destination.
+// RFC requirement: RFC9234-5-5 negative -- an OTC route to a Customer, and a route without OTC to a Provider, are not suppressed, so the rule is scoped.
+// RFC requirement: RFC9234-5-11 positive -- the wire-bytes OTC suppression runs unconditionally, independent of any source role configuration, so the procedure cannot be disabled by operator config.
 func TestOTCEgressWireBytesCheck(t *testing.T) {
 	// Only destination peer has role config. Source peer has none.
 	setFilterState(nil, nil)
@@ -1384,4 +1410,47 @@ func TestOTCEgressWireBytesCheck(t *testing.T) {
 	// Route WITHOUT OTC to Provider: allowed (no OTC, no filtering from unconfigured src).
 	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
 	assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil), "no OTC to provider: allow")
+}
+
+// TestOTCIngressMalformedTreatAsWithdraw drives the ingress filter entry point
+// (OTCIngressFilter) with a malformed OTC (length 3) on an UPDATE that announces a
+// prefix, and asserts the announcement is converted to a withdrawal per RFC 9234
+// Section 5 (treat-as-withdraw, RFC 7606 Section 2): the NLRI moves to the withdrawn
+// section and the path attributes are emptied. The existing reject_malformed_otc case
+// covers a malformed OTC with no announcement (drop); this pins the announcement->withdrawal
+// rewrite that the drop case cannot exercise.
+//
+// RFC requirement: RFC9234-5-12 positive -- a malformed OTC on an UPDATE announcing a prefix is handled as treat-as-withdraw: the prefix moves to the withdrawn section and the path attributes are emptied.
+func TestOTCIngressMalformedTreatAsWithdraw(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleCustomer},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleProvider)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	// ORIGIN + malformed OTC (length 3, not the required 4).
+	attrs := []byte{0x40, 0x01, 0x01, 0x00, 0xC0, 35, 3, 0x00, 0x01, 0x02}
+	nlri := []byte{24, 10, 0, 0} // 10.0.0.0/24 announcement
+	payload := buildTestPayload(attrs, nlri)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
+
+	require.True(t, accept, "treat-as-withdraw keeps the message as a withdrawal, it is not a drop")
+	require.NotNil(t, modified, "a malformed OTC on an announced prefix must be rewritten to a withdrawal")
+
+	wdLen := binary.BigEndian.Uint16(modified[0:2])
+	require.Equal(t, uint16(len(nlri)), wdLen, "the announced NLRI must move into the withdrawn section")
+	assert.Equal(t, nlri, modified[2:2+wdLen], "withdrawn bytes must equal the original NLRI")
+
+	attrLen := binary.BigEndian.Uint16(modified[2+wdLen : 2+wdLen+2])
+	assert.Equal(t, uint16(0), attrLen, "treat-as-withdraw clears the path attributes")
+
+	_, found, _ := findOTC(extractAttrsFromPayload(modified))
+	assert.False(t, found, "the malformed OTC must not survive in the withdrawal")
 }
