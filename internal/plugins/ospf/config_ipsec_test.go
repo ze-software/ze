@@ -83,6 +83,37 @@ func TestIPsecAHWithEncryptionRejected(t *testing.T) {
 	}
 }
 
+func TestIPsecESPRequiresIntegrity(t *testing.T) {
+	// RFC 4301 §4.2: an ESP SA MUST NOT be instantiated with NULL encryption AND no
+	// integrity. Ze's config validator always requires an integrity algorithm+key for ESP
+	// (config_ipsec.go:114-124), so the forbidden NULL-enc + no-integrity combination is
+	// rejected, and NULL encryption is allowed only when integrity is present.
+
+	// RFC requirement: RFC4301-4.2-1 negative -- an esp interface with NULL encryption and NO
+	// integrity algorithm is rejected with ErrIPsecAuthAlgo, so a null-cipher/no-auth ESP SA
+	// can never be instantiated (validateIPsecInterface, config_ipsec.go:114-124).
+	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
+		`"protocol":"esp","spi":256,"encryption-algorithm":"null"`, "")), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig (null enc, no integrity): %v", err)
+	}
+	if err := validateConfig(cfg); !errors.Is(err, ErrIPsecAuthAlgo) {
+		t.Fatalf("validateConfig(esp null-enc no-integrity) = %v, want ErrIPsecAuthAlgo", err)
+	}
+
+	// RFC requirement: RFC4301-4.2-1 positive -- an esp interface with NULL encryption but WITH
+	// a valid integrity algorithm+key IS accepted: NULL encryption is legal precisely because
+	// integrity is present, the boundary the guard enforces (config_ipsec.go:114-166).
+	cfg, err = parseOSPFConfig(ospfSec(v6IPsecCfg(
+		`"protocol":"esp","spi":256,"algorithm":"sha256","key":"`+hexKey(32)+`","encryption-algorithm":"null"`, "")), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig (null enc, sha256): %v", err)
+	}
+	if err := validateConfig(cfg); err != nil {
+		t.Fatalf("validateConfig(esp null-enc with integrity): %v", err)
+	}
+}
+
 func TestIPsecKeyLengthValidation(t *testing.T) {
 	// Auth key length must match the algorithm.
 	cases := []struct {

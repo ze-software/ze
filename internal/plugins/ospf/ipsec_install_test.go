@@ -59,6 +59,9 @@ func TestIPsecInstallOnInterfaceUp(t *testing.T) {
 	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
 	inst.setConfig([]interfaceConfig{espIface(256)})
 
+	// RFC requirement: RFC4301-4.5-1 positive -- manual keying: the OSPFv3 (RFC 4552) installer
+	// installs the SA and policies from a statically configured SPI+key with no IKE exchange
+	// (the automated-keying half is TestChildSAInstallsInDataplane).
 	inst.onInterfaceUp(testIfIndex, "eth1")
 
 	// RFC 4552 §7: one shared wildcard SA (the same (::, spi, proto) state protects
@@ -136,6 +139,9 @@ func TestIPsecSAIsWildcardWithOSPFSelector(t *testing.T) {
 	if !sa.Src.Equal(net.IPv6zero) || !sa.Dst.Equal(net.IPv6zero) {
 		t.Errorf("SA must be wildcard-address (::,::); got src=%v dst=%v", sa.Src, sa.Dst)
 	}
+	// RFC requirement: RFC4301-4.1-1 positive -- Ze supports both IPsec modes; this asserts the
+	// transport-mode half: the OSPFv3 (RFC 4552) SA is installed with Mode == ModeTransport
+	// (the tunnel-mode half is TestChildSAInstallsInDataplane, the IKE Child SA).
 	if sa.Mode != dataplane.ModeTransport {
 		t.Errorf("SA mode = %d, want transport (RFC 4552 §2)", sa.Mode)
 	}

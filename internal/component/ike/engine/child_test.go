@@ -133,9 +133,14 @@ func TestChildSAInstallsInDataplane(t *testing.T) {
 		t.Fatalf("createFirstChildSA: %v", err)
 	}
 
+	// RFC requirement: RFC4301-4.5-1 positive -- automated (IKE) keying: createFirstChildSA
+	// derives ESP KEYMAT from the negotiated IKE SA and installs both Child SAs with no
+	// manual key (the manual-keying half is TestIPsecInstallOnInterfaceUp, RFC 4552).
 	if len(dp.sas) != 2 {
 		t.Fatalf("installed SAs = %d, want 2 (inbound + outbound)", len(dp.sas))
 	}
+	// RFC requirement: RFC4301-4.4.1-1 positive -- the install populates the SPD: two PROTECT
+	// policies (inbound + outbound) are captured for the SA pair (child.go:276,:290).
 	if len(dp.policies) != 2 {
 		t.Fatalf("installed policies = %d, want 2 (in + out)", len(dp.policies))
 	}
@@ -151,6 +156,30 @@ func TestChildSAInstallsInDataplane(t *testing.T) {
 	outbound := dp.sas[1]
 	if outbound.SPI != child.OutboundSPI {
 		t.Errorf("outbound SPI = %d, want %d", outbound.SPI, child.OutboundSPI)
+	}
+
+	// RFC requirement: RFC4301-4.1-1 positive -- Ze supports both IPsec modes; this asserts the
+	// tunnel-mode half (the transport-mode half is TestIPsecSAIsWildcardWithOSPFSelector).
+	// RFC requirement: RFC4301-4.1-3 positive -- an SA to a peer is instantiated in tunnel mode:
+	// each installed Child SA carries Mode == modeTunnel (child.go:224,:253).
+	// RFC requirement: RFC4301-4.1-4 positive -- the inbound and outbound SA of one IKE-keyed
+	// pair use the SAME mode (both modeTunnel), never a transport/tunnel mix.
+	for _, s := range []struct {
+		label string
+		p     dataplane.SAParams
+	}{{"inbound", inbound}, {"outbound", outbound}} {
+		if s.p.Mode != modeTunnel {
+			t.Errorf("%s SA mode = %d, want modeTunnel (%d)", s.label, s.p.Mode, modeTunnel)
+		}
+	}
+
+	// RFC requirement: RFC4301-4.1-2 positive -- a security gateway supports tunnel mode: the
+	// Child SA install emits tunnel-mode PROTECT policies alongside the tunnel-mode SAs
+	// (child.go:281,:295).
+	for i, p := range dp.policies {
+		if p.Mode != modeTunnel {
+			t.Errorf("policy[%d] mode = %d, want modeTunnel (%d)", i, p.Mode, modeTunnel)
+		}
 	}
 }
 
@@ -266,6 +295,9 @@ func TestNarrowTS(t *testing.T) {
 	wide := &net.IPNet{IP: net.ParseIP("10.0.0.0").To4(), Mask: net.CIDRMask(8, 32)}
 	narrow := &net.IPNet{IP: net.ParseIP("10.1.0.0").To4(), Mask: net.CIDRMask(16, 32)}
 
+	// RFC requirement: RFC4301-4.4.2-1 positive -- inbound SAD/SPD selectors come from the
+	// negotiated (narrowed) traffic selector: narrowTS returns the /16 intersection that a
+	// Child SA install then writes into the inbound policy (RFC 7296 S2.9 narrowing).
 	result := narrowTS(narrow, wide)
 	if result == nil {
 		t.Fatal("narrowTS returned nil for subset")
@@ -280,6 +312,49 @@ func TestNarrowTS(t *testing.T) {
 	if result != nil {
 		t.Error("narrowTS should return nil for disjoint networks")
 	}
+}
+
+// TestChildSAInboundPolicyUsesNegotiatedTS asserts the inbound SPD/SAD entry is populated
+// with the Child SA's negotiated traffic selectors, not the raw tunnel endpoints.
+func TestChildSAInboundPolicyUsesNegotiatedTS(t *testing.T) {
+	sa := testSA()
+	sa.IsInitiator = true
+	sa.NegotiatedTSi = &net.IPNet{IP: net.ParseIP("10.1.0.0").To4(), Mask: net.CIDRMask(16, 32)}
+	sa.NegotiatedTSr = &net.IPNet{IP: net.ParseIP("10.2.0.0").To4(), Mask: net.CIDRMask(16, 32)}
+	dp := &mockDP{}
+	log := slogutil.DiscardLogger()
+
+	child, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 7, dp, log)
+	if err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+
+	// As initiator, TSi is local and TSr is remote (child.go:155-164), so the negotiated
+	// selectors override the raw /32 tunnel endpoints on the Child SA.
+	if child.TSLocal.String() != sa.NegotiatedTSi.String() {
+		t.Errorf("child TSLocal = %v, want negotiated TSi %v", child.TSLocal, sa.NegotiatedTSi)
+	}
+	if child.TSRemote.String() != sa.NegotiatedTSr.String() {
+		t.Errorf("child TSRemote = %v, want negotiated TSr %v", child.TSRemote, sa.NegotiatedTSr)
+	}
+	if len(dp.policies) != 2 {
+		t.Fatalf("installed policies = %d, want 2 (in + out)", len(dp.policies))
+	}
+
+	// RFC requirement: RFC4301-4.4.2-1 positive -- the inbound SAD/SPD entry is populated with
+	// the negotiated traffic selectors: the inbound policy (Dir=In) carries Src == negotiated
+	// TSr and Dst == negotiated TSi (child.go:276-288 over the narrowed TS from :155-164).
+	inPol := dp.policies[0]
+	if inPol.Dir != dataplane.SADirIn {
+		t.Fatalf("policies[0] Dir = %d, want inbound (%d)", inPol.Dir, dataplane.SADirIn)
+	}
+	if inPol.Src.String() != sa.NegotiatedTSr.String() {
+		t.Errorf("inbound policy Src = %v, want negotiated TSr %v", inPol.Src, sa.NegotiatedTSr)
+	}
+	if inPol.Dst.String() != sa.NegotiatedTSi.String() {
+		t.Errorf("inbound policy Dst = %v, want negotiated TSi %v", inPol.Dst, sa.NegotiatedTSi)
+	}
+	child.Clear()
 }
 
 func TestDeleteNotification(t *testing.T) {
