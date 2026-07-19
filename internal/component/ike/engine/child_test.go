@@ -236,6 +236,10 @@ func TestChildSANoIKEKeys(t *testing.T) {
 // RFC requirement: RFC3948-2.1-1 positive -- GenerateESPSPI (child.go:77 loops until spi != 0)
 // yields a valid, non-zero ESP SPI on every call; 100 generated SPIs are all non-zero and
 // near-unique, so a compliant SPI is what the generator produces.
+// RFC requirement: RFC4303-2.1-1 positive -- same producer, same evidence: GenerateESPSPI
+// (child.go:77-88 loops until spi != 0) always returns a non-zero ESP SPI, so the SPI Ze puts on
+// the wire is drawn from the 1..2^32-1 range and the reserved value 0 (RFC 4303 S2.1) is never
+// what the generator hands back.
 func TestGenerateESPSPI(t *testing.T) {
 	seen := make(map[uint32]bool)
 	for range 100 {
@@ -246,6 +250,9 @@ func TestGenerateESPSPI(t *testing.T) {
 		// RFC requirement: RFC3948-2.1-1 negative -- the generator NEVER emits the forbidden
 		// zero SPI (zero is reserved for the Non-ESP Marker that distinguishes IKE from ESP on
 		// port 4500, RFC 3948 S2.1); a produced spi == 0 fails the test.
+		// RFC requirement: RFC4303-2.1-1 negative -- the same assertion pins RFC 4303 S2.1: SPI 0
+		// MUST NOT appear on the wire, and a generated spi == 0 (the reserved value) fails the
+		// test, so the forbidden zero SPI is never produced for an ESP SA.
 		if spi == 0 {
 			t.Fatal("SPI must not be zero (RFC 4303)")
 		}
@@ -288,6 +295,68 @@ func TestChildSANATTEncapPorts(t *testing.T) {
 		if dir.p.UDPEncapDPort != transport.NATTPort {
 			t.Errorf("%s: UDPEncapDPort = %d, want %d (must match IKE NAT-T port)", dir.label, dir.p.UDPEncapDPort, transport.NATTPort)
 		}
+	}
+}
+
+// RFC requirement: RFC4303-3.4.3-1 positive -- the anti-replay window an IKE-keyed Child SA
+// projects into the dataplane is 32 packets: createFirstChildSA installs both the inbound and the
+// outbound ESP SA with SAParams.ReplayWin == replayWindow (child.go:42 const replayWindow = 32,
+// applied at :226 and :255), meeting the RFC 4303 S3.4.3 minimum supported window of 32.
+func TestChildSAReplayWindowMinimum(t *testing.T) {
+	sa := testSA()
+	dp := &mockDP{}
+	log := slogutil.DiscardLogger()
+
+	if _, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 1, dp, log); err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+	if len(dp.sas) != 2 {
+		t.Fatalf("installed SAs = %d, want 2 (inbound + outbound)", len(dp.sas))
+	}
+	for _, s := range []struct {
+		label string
+		p     dataplane.SAParams
+	}{{"inbound", dp.sas[0]}, {"outbound", dp.sas[1]}} {
+		if s.p.ReplayWin != 32 {
+			t.Errorf("%s SA ReplayWin = %d, want 32 (RFC 4303 S3.4.3 minimum anti-replay window)", s.label, s.p.ReplayWin)
+		}
+	}
+}
+
+// RFC requirement: RFC4303-3.4.3-2 positive -- anti-replay is never enabled on an integrity-less
+// ESP SA in the IKE keying path: every Child SA createFirstChildSA installs with a non-zero
+// ReplayWin (child.go:226,:255) also carries an ESP integrity transform on the SAME SAParams --
+// AuthAlgo + AuthKey for a separate-algorithm SA, or an AEAD transform -- so the replay window is
+// only ever set on an SA that also has ESP integrity (RFC 4303 S3.4.3).
+func TestChildSAReplayRequiresIntegrity(t *testing.T) {
+	sa := testSA()
+	dp := &mockDP{}
+	log := slogutil.DiscardLogger()
+
+	if _, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 1, dp, log); err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+	if len(dp.sas) != 2 {
+		t.Fatalf("installed SAs = %d, want 2 (inbound + outbound)", len(dp.sas))
+	}
+	sawWindow := false
+	for _, s := range []struct {
+		label string
+		p     dataplane.SAParams
+	}{{"inbound", dp.sas[0]}, {"outbound", dp.sas[1]}} {
+		if s.p.ReplayWin == 0 {
+			continue // anti-replay disabled: the MUST NOT does not apply to this SA
+		}
+		sawWindow = true
+		hasIntegrity := s.p.IsAEAD || (s.p.AuthAlgo != "" && len(s.p.AuthKey) > 0)
+		if !hasIntegrity {
+			t.Errorf("%s SA has ReplayWin=%d but no ESP integrity (AuthAlgo=%q AuthKey=%dB AEAD=%v); "+
+				"anti-replay MUST NOT be enabled without ESP integrity (RFC 4303 S3.4.3)",
+				s.label, s.p.ReplayWin, s.p.AuthAlgo, len(s.p.AuthKey), s.p.IsAEAD)
+		}
+	}
+	if !sawWindow {
+		t.Fatal("no installed ESP SA carried an anti-replay window; the requirement was not exercised")
 	}
 }
 

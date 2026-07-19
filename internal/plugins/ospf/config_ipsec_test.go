@@ -156,9 +156,15 @@ func TestIPsecSPIBoundary(t *testing.T) {
 			t.Fatalf("spi %d parse: %v", c.spi, err)
 		}
 		err = validateConfig(cfg)
+		// RFC requirement: RFC4303-2.1-1 negative -- an SPI in the reserved 0..255 range (spi=255)
+		// is rejected with ErrIPsecSPIReserved, so a reserved SPI can never be installed and thus
+		// never placed on the wire (validateIPsecInterface, config_ipsec.go:104-106).
 		if c.wantErr && !errors.Is(err, ErrIPsecSPIReserved) {
 			t.Errorf("spi %d: err = %v, want ErrIPsecSPIReserved", c.spi, err)
 		}
+		// RFC requirement: RFC4303-2.1-1 positive -- the first non-reserved SPI (spi=256), the
+		// boundary just above the reserved 0..255 range, is accepted, so a valid ESP SPI passes
+		// validation and can be installed (config_ipsec.go:104-106).
 		if !c.wantErr && err != nil {
 			t.Errorf("spi %d: unexpected err %v", c.spi, err)
 		}
