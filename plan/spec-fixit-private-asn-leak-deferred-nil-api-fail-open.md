@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 > **Readiness pass (2026-07-17, autonomous).** Status advanced `skeleton` → `ready`.
 > Every `file:line` in this spec was re-opened and confirmed against the committed

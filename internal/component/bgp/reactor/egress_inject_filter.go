@@ -17,6 +17,8 @@
 package reactor
 
 import (
+	"log/slog"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
 
@@ -40,8 +42,26 @@ import (
 // peer's own keepalives/routes, which writeMu serializes regardless.
 func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override []byte) {
 	facts := peer.forwardFacts()
-	if facts == nil || len(facts.exportFilters) == 0 || r.api == nil {
+	// nil facts (peer not established -- peer_forward_facts.go:35) and an empty
+	// export chain are legitimate ACCEPTS: absent preconditions, not guard
+	// misses. A not-established peer has no session on which a route reaches the
+	// wire; a peer with no export filters has no export policy to run. Keep the
+	// zero-cost skip for both.
+	if facts == nil || len(facts.exportFilters) == 0 {
 		return false, nil
+	}
+	// facts present AND export filters configured: this peer HAS an export
+	// policy whose purpose is to reject. A nil API server means the filter
+	// engine that enforces it is absent -- a guard MISS, not an accept. Fail
+	// closed and speak, exactly as policyFilterFunc (filter_chain.go:368-371:
+	// Warn + PolicyReject) and default-originate (peer_initial_sync.go) already
+	// do for this identical r.api == nil condition. Silently accepting would
+	// send the route unfiltered and leak whatever the export policy exists to
+	// strip (e.g. RFC 6996 private ASNs). See
+	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md.
+	if r.api == nil {
+		slog.Warn("export filter: no API server -- fail-closed", "peer", facts.addrStr)
+		return true, nil
 	}
 	// The body was encoded by the session write path in THIS peer's SEND context,
 	// so that is the context its attributes must be parsed under -- and likewise
