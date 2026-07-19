@@ -227,6 +227,10 @@ func TestParseHeaderShortBuffer(t *testing.T) {
 	})
 }
 
+// RFC requirement: RFC2661-x-1 positive -- the reserved bits of the L2TP
+// control-header flag word (every bit outside T/L/S/O/P and the Version field,
+// which includes RFC bits 8-11) are emitted zero. WriteControlHeader stamps the
+// fixed 0xC802 flag constant, so the reserved-bit invariant holds on send.
 // TestWriteControlHeader validates that the serialized header round-trips
 // byte-for-byte through ParseMessageHeader.
 // VALIDATES: exact byte layout; Length backfill by re-calling WriteControlHeader.
@@ -240,6 +244,13 @@ func TestWriteControlHeader(t *testing.T) {
 	want := []byte{0xC8, 0x02, 0x00, 0x0C, 0xAB, 0xCD, 0x12, 0x34, 0x00, 0x07, 0x00, 0x08}
 	if !bytes.Equal(buf, want) {
 		t.Fatalf("bytes:\n got  %x\n want %x", buf, want)
+	}
+	// RFC 2661 S3.1: reserved header bits MUST be zero on transmission. The
+	// reserved set is every bit outside the defined flags and the Version field.
+	word := uint16(buf[0])<<8 | uint16(buf[1])
+	reserved := ^uint16(flagT | flagL | flagS | flagO | flagP | verMask)
+	if word&reserved != 0 {
+		t.Fatalf("reserved header bits not zero on send: word=0x%04x reserved-bits=0x%04x", word, word&reserved)
 	}
 	h, err := ParseMessageHeader(buf)
 	if err != nil {

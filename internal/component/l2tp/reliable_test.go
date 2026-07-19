@@ -143,6 +143,10 @@ func TestOnReceiveInOrder(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-5 positive -- a duplicate control message sets
+// NeedsZLB so it is acknowledged (via ZLB/piggyback) even though already seen.
+// RFC requirement: RFC2661-5.8-5 negative -- a duplicate is NOT re-delivered to
+// the upper layer (Delivered is empty), so it is acked but not reprocessed.
 // VALIDATES: AC-5 duplicate is classified ClassDuplicate and sets
 // needsZLB (MUST ACK per RFC 2661 S5.8 line 2550).
 func TestOnReceiveDuplicate(t *testing.T) {
@@ -331,6 +335,11 @@ func TestOnReceiveAckedCountSurfaced(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-4 positive -- on retransmit the Nr field is
+// updated to the current next-expected value (nextRecvSeq), not the stale Nr the
+// message first carried.
+// RFC requirement: RFC2661-5.8-4 negative -- on retransmit the Ns field stays the
+// same as the original transmission; retransmission MUST NOT consume a new Ns.
 // VALIDATES: AC-11 Tick retransmits outstanding messages with Nr
 // rewritten. PREVENTS: the stale-Nr trap (RFC 2661 S5.8 line 2589-2590
 // and S24.9).
@@ -359,6 +368,8 @@ func TestTickRetransmit(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-1 positive -- successive retransmit deadlines
+// follow exponential backoff (1s, 2s, 4s, ... doubling each expiry) up to the cap.
 // VALIDATES: AC-11 Tick backoff schedule doubles up to the cap.
 func TestTickBackoffSchedule(t *testing.T) {
 	e := NewReliableEngine(ReliableConfig{
@@ -397,6 +408,12 @@ func TestTickEmpty(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-3 positive -- once the retransmit budget is
+// exhausted (attempts exceed MaxRetransmit) the engine signals TeardownRequired,
+// the trigger the reactor uses to clear the tunnel and its sessions.
+// RFC requirement: RFC2661-5.8-3 negative -- while attempts remain (before the
+// budget is exhausted) the engine does NOT signal teardown, so a tunnel is not
+// torn down prematurely.
 // VALIDATES: AC-13 max-retransmit exceeded signals teardown.
 func TestTickMaxAttempts(t *testing.T) {
 	e := newTestEngine() // maxRetransmit=3
@@ -537,6 +554,11 @@ func TestCloseTransitions(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-7 positive -- after Close the engine retains state
+// for the full retransmission interval: Expired is false throughout the retention
+// window, so it can still acknowledge retransmits of the final exchange.
+// RFC requirement: RFC2661-5.8-7 negative -- once the full retransmission interval
+// has elapsed, Expired becomes true; state is NOT retained forever.
 // VALIDATES: AC-24, AC-25 Expired returns false before retention elapses
 // and true after.
 func TestExpired(t *testing.T) {

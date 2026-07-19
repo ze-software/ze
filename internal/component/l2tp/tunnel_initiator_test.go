@@ -104,6 +104,10 @@ func TestParseSCCRP_RoundTrip(t *testing.T) {
 	require.Equal(t, resp, info.ChallengeResponseValue)
 }
 
+// RFC requirement: RFC2661-24.10-1 negative -- an SCCRP whose Assigned Tunnel ID
+// is 0 (or absent) is a protocol error: parseSCCRP rejects it, so no tunnel is
+// adopted from a zero peer TID. (Ze drops the SCCRP here rather than emitting a
+// StopCCN; this tags the code's actual behavior.)
 func TestParseSCCRP_Rejects(t *testing.T) {
 	// VALIDATES: parseSCCRP rejects an empty body and a missing/zero
 	// Assigned Tunnel ID.
@@ -125,6 +129,11 @@ func TestParseSCCRP_Rejects(t *testing.T) {
 
 // --- Initiator FSM (AC-1, AC-2) ---
 
+// RFC requirement: RFC2661-4.1-4 positive -- a tunnel-scoped control exchange with
+// no unrecognized mandatory AVP is accepted: a clean SCCRP drives SCCCN emission
+// and the tunnel reaches Established rather than being torn down with StopCCN.
+// RFC requirement: RFC2661-24.10-1 positive -- an SCCRP carrying a non-zero
+// Assigned Tunnel ID (555) is accepted and adopted as the peer's tunnel ID.
 func TestTunnelInitiatorHandshake(t *testing.T) {
 	// VALIDATES: AC-1 + AC-2 -- dial sends SCCRQ (peer TID 0, our local TID
 	// in Assigned Tunnel ID) and enters wait-ctl-reply; the peer's SCCRP
@@ -237,4 +246,32 @@ func TestInitiatorSCCRPWrongState(t *testing.T) {
 	out := tun.handleSCCRP(now, defaults, []byte{})
 	require.Nil(t, out)
 	require.Equal(t, L2TPTunnelIdle, tun.state)
+}
+
+// RFC requirement: RFC2661-4.1-4 negative -- an unrecognized mandatory (M=1)
+// vendor AVP in a tunnel-scoped SCCCN makes parseSCCCN reject the body, and
+// handleSCCCN tears the tunnel down with a StopCCN instead of establishing it.
+func TestTunnelSCCCNUnknownMandatoryAVP_StopCCN(t *testing.T) {
+	logger := slog.Default()
+	now := time.Now()
+	defaults := initiatorDefaults("")
+	tun := newTunnel(100, 200, netip.MustParseAddrPort("10.0.0.2:1701"),
+		ReliableConfig{RecvWindow: 8}, logger, now)
+	tun.state = L2TPTunnelWaitCtlConn
+
+	// SCCCN body: Message Type first (valid), then an unknown mandatory vendor AVP.
+	var buf [128]byte
+	off := 0
+	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgSCCCN))
+	off += WriteAVPBytes(buf[:], off, true, 9999, AVPType(1), []byte{0x01})
+
+	out := tun.handleSCCCN(now, defaults, buf[:off])
+	require.Len(t, out, 1, "unknown mandatory AVP must produce exactly one StopCCN")
+	require.Equal(t, L2TPTunnelClosed, tun.state, "tunnel must be torn down")
+
+	shdr, err := ParseMessageHeader(out[0].bytes)
+	require.NoError(t, err)
+	sc, err := parseStopCCN(out[0].bytes[shdr.PayloadOff:shdr.Length])
+	require.NoError(t, err, "emitted message must parse as a StopCCN")
+	require.EqualValues(t, resultNotAuthorized, sc.Result, "code's actual teardown Result Code")
 }

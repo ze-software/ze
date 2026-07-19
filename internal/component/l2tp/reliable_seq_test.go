@@ -1,6 +1,8 @@
 package l2tp
 
 import (
+	"log/slog"
+	"net/netip"
 	"testing"
 	"time"
 )
@@ -86,5 +88,27 @@ func TestConstants(t *testing.T) {
 	}
 	if RecvWindowMax != 32768 {
 		t.Errorf("RecvWindowMax = %d, want 32768 (half of 16-bit Ns space)", RecvWindowMax)
+	}
+}
+
+// RFC requirement: RFC2661-5.8-2 positive -- the retransmit backoff cap is at
+// least 8 seconds, and the reactor's engine-construction path adopts that default:
+// newTunnel (exactly as reactor.go builds tunnels, with only RecvWindow set and
+// RTimeoutCap left zero) yields an engine whose cap equals DefaultRTimeoutCap (>= 8s).
+func TestBackoffCapAtLeast8Seconds(t *testing.T) {
+	if DefaultRTimeoutCap < 8*time.Second {
+		t.Fatalf("DefaultRTimeoutCap = %v, want >= 8s (RFC 2661 S5.8)", DefaultRTimeoutCap)
+	}
+	// reactor.go constructs every tunnel via newTunnel with a ReliableConfig
+	// carrying only RecvWindow; RTimeoutCap stays zero and must default to
+	// DefaultRTimeoutCap inside NewReliableEngine.
+	tun := newTunnel(1, 2, netip.MustParseAddrPort("10.0.0.1:1701"),
+		ReliableConfig{RecvWindow: 16}, slog.Default(), time.Unix(0, 0))
+	if tun.engine.cfg.RTimeoutCap != DefaultRTimeoutCap {
+		t.Fatalf("engine RTimeoutCap = %v, want DefaultRTimeoutCap (%v)",
+			tun.engine.cfg.RTimeoutCap, DefaultRTimeoutCap)
+	}
+	if tun.engine.rtimeoutCap < 8*time.Second {
+		t.Fatalf("engine rtimeoutCap = %v, want >= 8s", tun.engine.rtimeoutCap)
 	}
 }

@@ -118,6 +118,9 @@ func buildOCCN(txSpeed, framingType uint32) []byte {
 
 // --- AC-1: ICRQ -> ICRP full handshake start ---
 
+// RFC requirement: RFC2661-4.1-3 positive -- a well-formed session-scoped ICRQ
+// carrying no unrecognized mandatory AVP is accepted: the session is created and an
+// ICRP is returned rather than a CDN teardown.
 func TestSession_IncomingLNS_ICRQ(t *testing.T) {
 	// VALIDATES: AC-1 -- LAC sends ICRQ; ze sends ICRP with Assigned Session ID.
 	tun := newEstablishedTunnel(t, 0)
@@ -302,6 +305,8 @@ func TestSession_ICRQAssignedSIDZero(t *testing.T) {
 
 // --- AC-7, AC-8: CDN ---
 
+// RFC requirement: RFC2661-10-1 positive -- a CDN for an established session
+// destroys it (session count drops to zero).
 func TestSession_CDN_EstablishedSession(t *testing.T) {
 	// VALIDATES: AC-7 -- CDN destroys established session.
 	tun := newEstablishedTunnel(t, 0)
@@ -329,6 +334,8 @@ func TestSession_CDN_EstablishedSession(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-10-1 positive -- CDN is valid in a non-idle,
+// non-established state too: a CDN in wait-connect destroys the session.
 func TestSession_CDN_AnyState(t *testing.T) {
 	// VALIDATES: AC-8 -- CDN valid in wait-connect state too.
 	tun := newEstablishedTunnel(t, 0)
@@ -351,8 +358,45 @@ func TestSession_CDN_AnyState(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-10-1 negative -- a CDN naming a session ID that does
+// not exist on the tunnel is dropped: handleCDN finds no matching session, emits
+// nothing, and does NOT destroy an unrelated established session.
+func TestSession_CDN_UnknownSessionDropped(t *testing.T) {
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+
+	// Establish one real session so we can prove the unknown-SID CDN leaves it alone.
+	tun.handleICRQ(buildICRQ(500, 1001), now, logger)
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	tun.handleICCN(sess, buildICCN(10000000, 2), now, logger)
+	if tun.sessionCount() != 1 {
+		t.Fatalf("setup: expected 1 established session, got %d", tun.sessionCount())
+	}
+
+	// Choose a session ID guaranteed to differ from the one allocated (and non-zero,
+	// so the SID==0 branch does not handle it).
+	unknownSID := sess.localSID + 1
+	if unknownSID == 0 {
+		unknownSID = 1
+	}
+
+	out := tun.handleCDN(unknownSID, buildCDN(1, unknownSID), logger)
+	if len(out) != 0 {
+		t.Fatalf("unknown-session CDN produced %d sends, want 0 (dropped)", len(out))
+	}
+	if tun.sessionCount() != 1 {
+		t.Fatalf("unknown-session CDN destroyed a real session: count now %d", tun.sessionCount())
+	}
+}
+
 // --- AC-9: StopCCN cascades to sessions ---
 
+// RFC requirement: RFC2661-9-1 positive -- receiving a StopCCN cascades to clear
+// every session in the tunnel (two sessions drop to zero) and closes the tunnel.
 func TestSession_StopCCN_CascadeSessions(t *testing.T) {
 	// VALIDATES: AC-9 -- StopCCN clears all sessions.
 	tun := newEstablishedTunnel(t, 0)
@@ -507,6 +551,12 @@ func TestSession_OutgoingLAC_OCCN(t *testing.T) {
 
 // --- AC-14: Unknown mandatory AVP -> CDN ---
 
+// RFC requirement: RFC2661-4.1-3 negative -- an unrecognized mandatory (M=1) AVP
+// in a session-scoped ICRQ is rejected with a CDN that tears down the session.
+// RFC requirement: RFC2661-24.12-1 positive -- the response to an unknown M=1
+// vendor AVP in a session context is exactly one CDN (session teardown).
+// RFC requirement: RFC2661-24.12-1 negative -- the tunnel is NOT torn down: it
+// stays Established, so the unknown session AVP does not escalate to a StopCCN.
 func TestSession_UnknownMandatoryAVP(t *testing.T) {
 	// VALIDATES: AC-14 -- unknown M=1 vendor AVP -> CDN (not StopCCN).
 	tun := newEstablishedTunnel(t, 0)
@@ -756,6 +806,9 @@ func TestSessionCDNQueuesTeardown(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-9-1 negative -- before any StopCCN arrives, no session
+// teardowns are queued: the established sessions persist, so the cascade is driven
+// by the StopCCN and does not clear sessions spuriously.
 func TestStopCCNQueuesAllTeardowns(t *testing.T) {
 	// VALIDATES: AC-12 -- StopCCN queues kernel teardowns for all sessions.
 	// PREVENTS: kernel resources leaked after StopCCN.
@@ -884,6 +937,9 @@ func TestParseCDN_Valid(t *testing.T) {
 
 // --- Wire builder round-trip tests ---
 
+// RFC requirement: RFC2661-4.1-2 positive -- the Message Type AVP is written as
+// the FIRST AVP of a control message: writeICRPBody's first emitted AVP is the
+// Message Type AVP (value ICRP), before the Assigned Session ID AVP.
 func TestWriteICRPBody(t *testing.T) {
 	var buf [64]byte
 	n := writeICRPBody(buf[:], 42)
@@ -977,6 +1033,8 @@ func TestSessionState_String(t *testing.T) {
 
 // --- Boundary tests ---
 
+// RFC requirement: RFC2661-10-2 positive -- a non-zero Assigned Session ID
+// (65535, the maximum) is accepted by the parser, so real session IDs are usable.
 func TestSession_SIDBoundary_MaxUint16(t *testing.T) {
 	// VALIDATES: Assigned Session ID 65535 is valid.
 	payload := buildICRQ(65535, 1)
@@ -989,6 +1047,8 @@ func TestSession_SIDBoundary_MaxUint16(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-10-2 negative -- Session ID 0 is reserved and never
+// assigned: an ICRQ carrying Assigned Session ID 0 is rejected by the parser.
 func TestSession_SIDBoundary_Zero(t *testing.T) {
 	// VALIDATES: Assigned Session ID 0 is rejected by parser.
 	payload := buildICRQ(0, 1)

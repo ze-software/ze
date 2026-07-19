@@ -104,6 +104,9 @@ func TestAVPIteratorEmptyValueExhaustion(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-4.1-1 negative -- an AVP arriving with a reserved bit
+// (bits 2-5 of the first word) set is flagged FlagReserved by the iterator, so the
+// parser can treat it as unrecognized rather than silently honoring it.
 // TestAVPIteratorReservedBits validates AC-10: reserved bit exposed in flags.
 func TestAVPIteratorReservedBits(t *testing.T) {
 	// Reserved bit 2 set: 0x2008 (len=8, reserved bit high in first nibble).
@@ -174,6 +177,9 @@ func TestWriteAVPMaxBytes(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-4.1-1 positive -- every catalog AVP the writers emit
+// carries its reserved bits (word mask 0x3C00) zero on transmission: the iterator
+// reports no FlagReserved on any round-tripped AVP.
 // TestAVPCatalogRoundTrip validates AC-15: every catalog AVP round-trips.
 func TestAVPCatalogRoundTrip(t *testing.T) {
 	cases := []struct {
@@ -229,12 +235,16 @@ func TestAVPCatalogRoundTrip(t *testing.T) {
 				t.Fatalf("n=%d want %d", n, tc.want.size)
 			}
 			it := NewAVPIterator(buf[:n])
-			_, at, _, _, ok := it.Next()
+			_, at, flags, _, ok := it.Next()
 			if !ok {
 				t.Fatalf("iter err: %v", it.Err())
 			}
 			if at != tc.want.attr {
 				t.Fatalf("attr: %d want %d", at, tc.want.attr)
+			}
+			// RFC 2661 S4.1: reserved bits MUST be zero on transmission.
+			if flags&FlagReserved != 0 {
+				t.Fatalf("%s: written AVP has reserved bits set (flags=%v)", tc.name, flags)
 			}
 		})
 	}

@@ -109,6 +109,9 @@ func TestWindowRetransmitFloor(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-6 negative -- an invalid peer Receive Window Size
+// of 0 is NOT accepted verbatim; it is clamped up to 1, proving the window is not a
+// blanket pass-through of whatever the peer advertised.
 // VALIDATES: AC-18 peer RWS = 0 is coerced to 1. RFC 2661 Section 5.8
 // line 2616-2617: "A value of 0 for the Receive Window Size AVP is
 // invalid". Guide Section 24.6 recommends treating as 1.
@@ -177,6 +180,9 @@ func TestWindowUpdatePeerRWS(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-6 positive -- a peer Receive Window Size of 4 is
+// accepted and honored: with peerRWS=4 and CWND grown to 4, the window permits 4
+// outstanding messages (available(0) == 4).
 // VALIDATES: available() reports how many new messages may be sent. Key
 // for the engine's Enqueue gating logic.
 func TestWindowAvailable(t *testing.T) {
@@ -192,6 +198,11 @@ func TestWindowAvailable(t *testing.T) {
 	w.onAck()
 	w.onAck()
 	w.onAck()
+	// RFC 2661 S5.8: MUST accept a peer Receive Window Size of up to 4. With
+	// peerRWS=4 and cwnd=4, the flow-control window permits 4 outstanding.
+	if got := w.available(0); got != 4 {
+		t.Errorf("available(0) with cwnd=4,peerRWS=4 = %d, want 4 (peer RWS of 4 honored)", got)
+	}
 	if got := w.available(2); got != 2 {
 		t.Errorf("available(2) with cwnd=4 = %d, want 2", got)
 	}

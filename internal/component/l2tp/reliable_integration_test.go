@@ -188,6 +188,13 @@ func TestReorderDelivery(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-5.8-7 positive -- after the final exchange (StopCCN)
+// and Close, the engine keeps its reliable-delivery state for the full
+// retransmission interval: a retransmitted StopCCN is still classified duplicate
+// and re-acknowledged (NeedsZLB) during the retention window.
+// RFC requirement: RFC2661-5.8-7 negative -- once the full retransmission interval
+// has elapsed, the engine reports Expired; the retained state is released, not kept
+// indefinitely.
 // VALIDATES: post-teardown state retention. After A receives StopCCN
 // and closes, a duplicate StopCCN retransmit from B is still
 // acknowledged via BuildZLB. After retentionDuration elapses, A

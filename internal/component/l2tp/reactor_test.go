@@ -253,6 +253,9 @@ func TestReactor_TunnelCreatedFromSCCRQ(t *testing.T) {
 	require.Equal(t, "peer-a", peerHost)
 }
 
+// RFC requirement: RFC2661-4.1-2 negative -- an SCCRQ whose first AVP is not the
+// Message Type AVP (here Host Name is placed first) is rejected: parseSCCRQ fails
+// the "first AVP must be Message Type" check and no tunnel is created.
 // TestReactor_MalformedSCCRQCreatesNoTunnel — BLOCKER-fix regression.
 // A peer that sends a TunnelID=0 packet whose AVP body fails the full
 // parseSCCRQ validation MUST NOT consume a tunnel slot. Prior to the
@@ -1173,6 +1176,10 @@ func (o *recordingRouteObserver) downs() [][2]uint16 {
 	return out
 }
 
+// RFC requirement: RFC2661-5.8-3 positive -- after the reliable engine exhausts
+// its retransmissions without a response, the tunnel AND its established sessions
+// are cleared: the peer-teardown path tears the tunnel down and withdraws the
+// session's subscriber route (OnSessionDown fires for the established session).
 // VALIDATES: a peer-initiated tunnel teardown (HELLO exhaustion -> StopCCN)
 // withdraws subscriber routes for the tunnel's established sessions via
 // RouteObserver.OnSessionDown, matching the operator and PPP-event paths.
