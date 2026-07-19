@@ -1,0 +1,34 @@
+# Scheduled (cron-only) performance regression check.
+#
+# spec-fixit-perf-alloc-ci-gate AC-5: promotes the Docker-free `--check` subset
+# of the release perf gate into a scheduled pipeline. It runs the timing
+# regression check (convergence / throughput / p99) over the committed NDJSON
+# history using the SAME `bin/ze-perf track --check` logic invoked by
+# `make ze-perf-gate` (mk/test-release.mk) -- referenced, not duplicated.
+#
+# Scheduled-only by design: timing metrics are machine-dependent and noisy
+# across CI hosts, so they must NOT gate push/pull_request merges (the
+# always-run, deterministic allocs/op gate is `make ze-alloc-gate`, wired into
+# `make ze-verify`). The Docker throughput/p99 DUT matrix stays in
+# `make ze-perf-gate` / spec-release-evidence-gate; this job needs no Docker.
+when:
+  event: cron
+
+steps:
+  perf-regression-check:
+    image: golang:1.26
+    commands:
+      - apt-get update
+      - apt-get install -y --no-install-recommends build-essential git make python3
+      - export PATH="/usr/local/go/bin:$PATH"
+      # Build the ze-perf binary (cmd/ze with the ze_perf tag); Docker-free.
+      - make perf
+      # Docker-free timing regression check over stored history. When no history
+      # has been recorded yet the job reports and passes -- there is nothing to
+      # regress against, and this scheduled job never blocks a merge.
+      - |
+        if [ -s test/perf/history/ze.ndjson ]; then
+          bin/ze-perf track --check test/perf/history/ze.ndjson
+        else
+          echo "no perf history (test/perf/history/ze.ndjson); nothing to check"
+        fi

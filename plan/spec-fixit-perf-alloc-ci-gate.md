@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -200,6 +200,37 @@ Test infrastructure only; no user-facing features. The gate is a CI/verify stage
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary case (allocs == ceiling passes, ceiling+1 fails) present
+
+## Review Gate
+
+Independent review recorded: `tmp/review/fixit-perf-alloc-ci-gate-58c51aab-79d8-400d-b779-2c0cf322a274.md`
+(reviewer: fresh general-purpose subagent, verified against the real reactor
+benchmark files, ran the benchmarks, tests, and lint).
+
+| Severity | Count | Disposition |
+|----------|-------|-------------|
+| BLOCKER | 0 | — |
+| ISSUE | 0 | — |
+| NIT | 3 | all acknowledged, none required (see below) |
+
+Verdict: **CLEAN**. 0 BLOCKER, 0 ISSUE. Loop complete.
+
+NIT disposition (each explicitly "not required" by the reviewer):
+- **Pipe masks `go test` exit code** (`mk/alloc-gate.mk`): `... | tee LOG` takes
+  tee's exit under POSIX `sh`. Safely backstopped by the tested fail-closed
+  missing-benchmark guard (a masked build/run failure emits no benchmark lines →
+  every registered benchmark flagged Missing → gate fails). Kept: `set -o pipefail`
+  is not portable to the default `sh`, and the guard is the real protection.
+  Documented in `plan/learned/1198-*.md`.
+- **Exported symbols consumed only by in-package tests** (`allocgate.go`):
+  `AllocCeilings` is the documented registration point (AC-4), intentionally
+  exported as the public opt-in API; `golangci-lint` reports 0 issues. Kept exported.
+- **allocs/op integer truncation is a sensitivity floor**: go truncates
+  `netallocs/b.N`; only ever under-reports, so no false fails and a real per-op
+  regression still trips. Design is sound; noted in the learned file.
+
+Not editing source to address NITs: all are doc-only or accepted-as-designed, and
+an edit would invalidate the recorded review hashes for zero functional gain.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit (MEDIUM). Benchmarks, thresholds, and perf tooling
