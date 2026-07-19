@@ -25,10 +25,17 @@ const tracerouteDrainInterval = 50 * time.Millisecond
 // when the round completes (after ~1s). Cancel stops the round early.
 type TracerouteFactory func(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error)
 
+// ViewKeyTraceroute is the registry/factory key for the monitor-traceroute live
+// view. Consumers inject a TracerouteFactory under this key via SetViewFactory.
+const ViewKeyTraceroute = "traceroute"
+
 type traceroutePollMsg struct{}
 
 // traceroutePipedPollMsg triggers a poll of the piped traceroute channel.
 type traceroutePipedPollMsg struct{}
+
+func (traceroutePollMsg) isViewMsg()      {}
+func (traceroutePipedPollMsg) isViewMsg() {}
 
 // traceroutePathStats holds per-IP statistics at a given TTL.
 type traceroutePathStats struct {
@@ -230,13 +237,9 @@ func parsePositiveInt(s string) int {
 	return n
 }
 
-// SetTracerouteFactory sets the factory used to run traceroute probes.
-func (m *Model) SetTracerouteFactory(f TracerouteFactory) {
-	m.tracerouteFactory = f
-}
-
 func (m *Model) startTraceroute(input string) tea.Cmd {
-	if m.tracerouteFactory == nil {
+	factory := m.tracerouteFactory()
+	if factory == nil {
 		m.statusMessage = "traceroute not available (no daemon connection)"
 		return nil
 	}
@@ -252,17 +255,18 @@ func (m *Model) startTraceroute(input string) tea.Cmd {
 		return nil
 	}
 
-	m.traceroute = &tracerouteState{
+	m.activeView = &tracerouteView{st: &tracerouteState{
 		target:  target,
 		maxHops: maxHops,
-		poller:  m.tracerouteFactory,
-	}
+		poller:  factory,
+	}}
 
 	return m.startTracerouteRound()
 }
 
 func (m *Model) startTraceroutePiped(input string) tea.Cmd {
-	if m.tracerouteFactory == nil {
+	factory := m.tracerouteFactory()
+	if factory == nil {
 		m.statusMessage = "traceroute not available (no daemon connection)"
 		return nil
 	}
@@ -284,16 +288,16 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		return nil
 	}
 
-	m.traceroutePiped = &traceroutePipedState{
+	m.activeView = &traceroutePipedView{st: &traceroutePipedState{
 		target:        target,
 		maxHops:       maxHops,
-		poller:        m.tracerouteFactory,
+		poller:        factory,
 		formatFn:      formatFn,
 		logMode:       pipeFlags.Log,
 		hasFormatPipe: pipeFlags.HasFormat,
 		pipeResolve:   pipeFlags.Resolve,
 		pipeOrigin:    pipeFlags.Origin,
-	}
+	}}
 
 	if pipeFlags.Log {
 		m.outputBuf.WriteString("--- monitor traceroute | log (Esc to stop) ---\n")
@@ -305,7 +309,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 }
 
 func (m *Model) startTracerouteRound() tea.Cmd {
-	ts := m.traceroute
+	ts := m.activeTraceroute()
 	if ts == nil || ts.poller == nil {
 		return nil
 	}
@@ -323,7 +327,7 @@ func (m *Model) startTracerouteRound() tea.Cmd {
 }
 
 func (m *Model) startTraceroutePipedRound() tea.Cmd {
-	ps := m.traceroutePiped
+	ps := m.activeTraceroutePiped()
 	if ps == nil || ps.poller == nil {
 		return nil
 	}
@@ -342,7 +346,7 @@ func (m *Model) startTraceroutePipedRound() tea.Cmd {
 }
 
 func (m *Model) stopTraceroute() {
-	ts := m.traceroute
+	ts := m.activeTraceroute()
 	if ts == nil {
 		return
 	}
@@ -351,7 +355,7 @@ func (m *Model) stopTraceroute() {
 	}
 
 	lastRender := m.renderTraceroutePlain()
-	m.traceroute = nil
+	m.activeView = nil
 
 	if lastRender != "" {
 		if m.outputBuf.Len() > 0 {
@@ -370,7 +374,7 @@ func (m *Model) stopTraceroute() {
 }
 
 func (m *Model) stopTraceroutePiped() {
-	ps := m.traceroutePiped
+	ps := m.activeTraceroutePiped()
 	if ps == nil {
 		return
 	}
@@ -382,7 +386,7 @@ func (m *Model) stopTraceroutePiped() {
 	isLog := ps.logMode
 	target := ps.target
 	rounds := ps.rounds
-	m.traceroutePiped = nil
+	m.activeView = nil
 
 	if !isLog && lastOutput != "" {
 		if m.outputBuf.Len() > 0 {
@@ -463,7 +467,7 @@ func applyHopTo(hops *[]tracerouteHop, hop map[string]any) {
 }
 
 func (m Model) handleTraceroutePoll() (tea.Model, tea.Cmd) {
-	ts := m.traceroute
+	ts := m.activeTraceroute()
 	if ts == nil || ts.hopChan == nil {
 		return m, nil
 	}
@@ -493,7 +497,7 @@ func (m Model) handleTraceroutePoll() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
-	ps := m.traceroutePiped
+	ps := m.activeTraceroutePiped()
 	if ps == nil || ps.hopChan == nil {
 		return m, nil
 	}
@@ -655,7 +659,7 @@ func hopsToJSON(hops []tracerouteHop, rounds int) string {
 }
 
 func (m *Model) handleTracerouteKey(keyStr string) bool {
-	if m.traceroute == nil {
+	if m.activeTraceroute() == nil {
 		return false
 	}
 	switch keyStr {
@@ -791,7 +795,7 @@ func renderPathLinePlain(sb *textbuf.Buffer, hopNum string, p *traceroutePathSta
 }
 
 func (m Model) renderTraceroute() string {
-	ts := m.traceroute
+	ts := m.activeTraceroute()
 	if ts == nil {
 		return ""
 	}
@@ -886,7 +890,7 @@ func (m Model) renderTraceroute() string {
 // renderTraceroutePlain renders the traceroute table without ANSI styling,
 // suitable for persisting in the scrollback buffer after leaving alt screen.
 func (m Model) renderTraceroutePlain() string {
-	ts := m.traceroute
+	ts := m.activeTraceroute()
 	if ts == nil || len(ts.hops) == 0 {
 		return ""
 	}
@@ -948,7 +952,7 @@ func (m Model) renderTraceroutePlain() string {
 
 // renderTraceroutePiped renders piped traceroute output for alt screen (replace mode).
 func (m Model) renderTraceroutePiped() string {
-	ps := m.traceroutePiped
+	ps := m.activeTraceroutePiped()
 	if ps == nil {
 		return ""
 	}

@@ -126,14 +126,11 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 	cmdTree := buildRuntimeTreeFromDispatch(dispatch)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
 
-	m.SetDashboardFactory(func() (func() (string, error), error) {
+	injectViewFactories(&m, func() (func() (string, error), error) {
 		return func() (string, error) {
 			return dispatch("show bgp summary")
 		}, nil
 	})
-
-	m.SetTracerouteFactory(streamingTracerouteFactory)
-	m.SetPingFactory(streamingPingFactory)
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
@@ -217,14 +214,11 @@ func runInteractiveSession(client *cliClient) int {
 	cmdTree := buildRuntimeTree(client)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
 
-	m.SetDashboardFactory(func() (func() (string, error), error) {
+	injectViewFactories(&m, func() (func() (string, error), error) {
 		return func() (string, error) {
 			return client.SendCommand("show bgp summary")
 		}, nil
 	})
-
-	m.SetTracerouteFactory(streamingTracerouteFactory)
-	m.SetPingFactory(streamingPingFactory)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
@@ -944,6 +938,23 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 	}
 
 	return suggestions
+}
+
+// injectViewFactories injects each registered live view's concrete factory into
+// the model by iterating unicli.RegisteredViews() instead of calling per-view
+// typed setters. dashboard is passed in because its poller differs per entry
+// point (SSH client vs in-process dispatch); ping/traceroute are package funcs.
+func injectViewFactories(m *unicli.Model, dashboard unicli.DashboardFactory) {
+	for _, v := range unicli.RegisteredViews() {
+		switch v.Key {
+		case unicli.ViewKeyDashboard:
+			m.SetViewFactory(v.Key, dashboard)
+		case unicli.ViewKeyTraceroute:
+			m.SetViewFactory(v.Key, unicli.TracerouteFactory(streamingTracerouteFactory))
+		case unicli.ViewKeyPing:
+			m.SetViewFactory(v.Key, unicli.PingFactory(streamingPingFactory))
+		}
+	}
 }
 
 func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {

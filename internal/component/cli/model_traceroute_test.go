@@ -139,7 +139,7 @@ func assertRender(t *testing.T, ts *tracerouteState, expected []string) {
 	t.Helper()
 	m := NewCommandModel()
 	m.width = 120
-	m.traceroute = ts
+	m.activeView = &tracerouteView{st: ts}
 	output := m.renderTraceroute()
 	for _, s := range expected {
 		assert.Contains(t, output, s, "render missing: %q", s)
@@ -312,7 +312,7 @@ func TestRender_HopNumberOnFirstPathOnly(t *testing.T) {
 
 	m := NewCommandModel()
 	m.width = 120
-	m.traceroute = ts
+	m.activeView = &tracerouteView{st: ts}
 	output := m.renderTraceroute()
 
 	lines := strings.Split(output, "\n")
@@ -373,18 +373,18 @@ func TestHandleTraceroutePoll(t *testing.T) {
 	close(ch)
 
 	m := NewCommandModel()
-	m.traceroute = &tracerouteState{
+	m.activeView = &tracerouteView{st: &tracerouteState{
 		target:  "8.8.8.8",
 		maxHops: 16,
 		hopChan: ch,
 		poller:  testFactory(nil),
-	}
+	}}
 
 	result, cmd := m.handleTraceroutePoll()
 	model, _ := result.(Model) //nolint:errcheck // test assertion follows
 	require.NotNil(t, cmd)
 
-	ts := model.traceroute
+	ts := model.activeTraceroute()
 	require.NotNil(t, ts)
 	assert.Equal(t, 1, ts.rounds)
 	require.Len(t, ts.hops, 3)
@@ -398,18 +398,18 @@ func TestHandleTraceroutePoll_Partial(t *testing.T) {
 	ch <- map[string]any{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 2.0}
 
 	m := NewCommandModel()
-	m.traceroute = &tracerouteState{
+	m.activeView = &tracerouteView{st: &tracerouteState{
 		target:  "8.8.8.8",
 		maxHops: 16,
 		hopChan: ch,
 		poller:  testFactory(nil),
-	}
+	}}
 
 	result, cmd := m.handleTraceroutePoll()
 	model, _ := result.(Model) //nolint:errcheck // test assertion follows
 	require.NotNil(t, cmd)
 
-	ts := model.traceroute
+	ts := model.activeTraceroute()
 	assert.Equal(t, 0, ts.rounds)
 	require.Len(t, ts.hops, 1)
 	assertPath(t, ts, 0, 0, "10.0.0.1", 1, 1)
@@ -427,7 +427,7 @@ func TestHandleTraceroutePoll_MultiRound(t *testing.T) {
 	}
 
 	m := NewCommandModel()
-	m.tracerouteFactory = factory
+	m.SetTracerouteFactory(factory)
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	require.NotNil(t, cmd)
 
@@ -438,17 +438,17 @@ func TestHandleTraceroutePoll_MultiRound(t *testing.T) {
 	result, cmd := m.handleTraceroutePoll()
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 	require.NotNil(t, cmd, "round 1 close should chain to next round")
-	assert.Equal(t, 1, m.traceroute.rounds)
+	assert.Equal(t, 1, m.activeTraceroute().rounds)
 	assert.Equal(t, 2, roundCount)
 
 	// Drain round 2: channel closes, startTracerouteRound chains round 3.
 	result, cmd = m.handleTraceroutePoll()
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 	require.NotNil(t, cmd, "round 2 close should chain to next round")
-	assert.Equal(t, 2, m.traceroute.rounds)
+	assert.Equal(t, 2, m.activeTraceroute().rounds)
 	assert.Equal(t, 3, roundCount)
 
-	assertPath(t, m.traceroute, 0, 0, "10.0.0.1", 2, 2)
+	assertPath(t, m.activeTraceroute(), 0, 0, "10.0.0.1", 2, 2)
 }
 
 func TestHandleTraceroutePoll_NilSession(t *testing.T) {
@@ -460,7 +460,7 @@ func TestHandleTraceroutePoll_NilSession(t *testing.T) {
 func TestRenderTraceroute_Empty(t *testing.T) {
 	m := NewCommandModel()
 	m.width = 80
-	m.traceroute = &tracerouteState{target: "8.8.8.8", rounds: 0, maxHops: 30}
+	m.activeView = &tracerouteView{st: &tracerouteState{target: "8.8.8.8", rounds: 0, maxHops: 30}}
 	output := m.renderTraceroute()
 	assert.Contains(t, output, "waiting for data...")
 }
@@ -493,17 +493,17 @@ func TestWritePadRight(t *testing.T) {
 
 func TestHandleTracerouteKey(t *testing.T) {
 	m := NewCommandModel()
-	m.traceroute = &tracerouteState{target: "8.8.8.8"}
+	m.activeView = &tracerouteView{st: &tracerouteState{target: "8.8.8.8"}}
 	assert.True(t, m.handleTracerouteKey("q"))
-	assert.Nil(t, m.traceroute)
+	assert.Nil(t, m.activeTraceroute())
 	assert.Equal(t, "traceroute stopped", m.statusMessage)
 }
 
 func TestHandleTracerouteKey_Esc(t *testing.T) {
 	m := NewCommandModel()
-	m.traceroute = &tracerouteState{target: "8.8.8.8"}
+	m.activeView = &tracerouteView{st: &tracerouteState{target: "8.8.8.8"}}
 	assert.True(t, m.handleTracerouteKey("esc"))
-	assert.Nil(t, m.traceroute)
+	assert.Nil(t, m.activeTraceroute())
 }
 
 func TestHandleTracerouteKey_NilSession(t *testing.T) {
@@ -520,7 +520,7 @@ func TestStartTraceroute_NoFactory(t *testing.T) {
 
 func TestStartTraceroute_NoTarget(t *testing.T) {
 	m := NewCommandModel()
-	m.tracerouteFactory = testFactory(nil)
+	m.SetTracerouteFactory(testFactory(nil))
 	cmd := m.startTraceroute("monitor traceroute max-hops 10")
 	assert.Nil(t, cmd)
 	assert.Equal(t, "monitor traceroute: missing target address", m.statusMessage)
@@ -528,11 +528,11 @@ func TestStartTraceroute_NoTarget(t *testing.T) {
 
 func TestStartTraceroute_OK(t *testing.T) {
 	m := NewCommandModel()
-	m.tracerouteFactory = testFactory([]map[string]any{{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 1.0}})
+	m.SetTracerouteFactory(testFactory([]map[string]any{{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 1.0}}))
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	assert.NotNil(t, cmd)
-	assert.NotNil(t, m.traceroute)
-	assert.Equal(t, "8.8.8.8", m.traceroute.target)
+	assert.NotNil(t, m.activeTraceroute())
+	assert.Equal(t, "8.8.8.8", m.activeTraceroute().target)
 }
 
 func TestDrainTracerouteHops(t *testing.T) {

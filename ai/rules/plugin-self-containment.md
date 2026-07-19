@@ -154,22 +154,30 @@ module depends on the other or on a central verb package.
 ### Registration over hardcoding (the CLI client too)
 
 The registration discipline applies to the **CLI client model**, not only the
-daemon's command/schema tree. The daemon already registers streaming views
-generically (`pluginserver.RegisterStreamingHandler(prefix, handler)`,
-`internal/component/plugin/server/handler.go`); the Bubble Tea client must not
-regress that into per-feature hardcoding.
+daemon's command/schema tree. The daemon registers streaming views generically
+(`pluginserver.RegisterMonitorProvider(MonitorProvider{Prefix, CreateFn})` plus
+`RegisterStreamingHandler(prefix, handler)`, resolved by longest-prefix
+`matchesPrefix` in `internal/component/plugin/server/handler.go`); the Bubble Tea
+client mirrors this with its own view registry and must not regress into
+per-feature hardcoding.
 
-Anti-pattern: each rich live view (dashboard, traceroute, ping, traffic) adding
-its own field + factory + state + dispatch to the core `cli.Model`
-(`internal/component/cli/model*.go`), wired one-by-one in
+Anti-pattern (removed 2026-07-19): each rich live view (dashboard, traceroute,
+ping, traffic) adding its own field + factory + state + dispatch to the core
+`cli.Model` (`internal/component/cli/model*.go`), wired one-by-one in
 `cmd/ze/hub/session_factory.go` and `internal/component/cli/client/main.go`. Every
 new view then edits the core struct in 4-5 places -- the opposite of "the core
 discovers features through a registry."
 
-Correct: a view registry of `{command-prefix, session-factory, renderer}` that the
-core `Model` iterates; each feature registers its view from its owner package, and
-the core holds one map with no per-feature field. New `monitor`/`show` views
-register and are discovered; they do not extend a core struct.
+Correct (live in the tree): the client-side view registry in
+`internal/component/cli/view_registry.go` (`RegisterView(viewSpec{key, prefix,
+matches, start})`, `RegisteredViews()`, longest-prefix `resolveView` copied from
+`handler.go` `matchesPrefix`). Each view registers from its own
+`register_view_*.go` `init()` (`ViewKeyPing`/`ViewKeyTraceroute`/`ViewKeyDashboard`)
+and hangs its session state off the single `Model.activeView` handle plus the
+generic `Model.viewFactories` store -- no per-feature field. Consumers iterate
+`cli.RegisteredViews()` and inject each factory by key via `SetViewFactory`, not
+three typed setters. The `TestModelHasNoPerFeatureViewField` reflection guard
+(`internal/component/cli/model_test.go`) fails if a per-feature field returns.
 
 General test for any spec: **a new feature must not require editing a `switch`,
 `case`, field list, or factory in a core or shared package -- it registers and is

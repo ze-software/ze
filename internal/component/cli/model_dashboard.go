@@ -26,6 +26,10 @@ const dashboardPollInterval = 2 * time.Second
 // Type alias of contract.DashboardFactory so ssh, web, and hub use the same type.
 type DashboardFactory = contract.DashboardFactory
 
+// ViewKeyDashboard is the registry/factory key for the bgp-monitor dashboard
+// live view. Consumers inject a DashboardFactory under this key via SetViewFactory.
+const ViewKeyDashboard = "dashboard"
+
 // dashboardTickMsg triggers a dashboard data poll.
 type dashboardTickMsg struct{}
 
@@ -34,6 +38,9 @@ type dashboardDataMsg struct {
 	data string
 	err  error
 }
+
+func (dashboardTickMsg) isViewMsg() {}
+func (dashboardDataMsg) isViewMsg() {}
 
 // dashboardPeer holds per-peer data parsed from the summary RPC response.
 type dashboardPeer struct {
@@ -211,13 +218,37 @@ func (ds *dashboardState) resolveSelectedIndex(peers []dashboardPeer) int {
 }
 
 // SetDashboardFactory sets the factory used to create dashboard sessions.
+// Thin wrapper over the generic keyed factory store (view_registry.go).
 func (m *Model) SetDashboardFactory(f DashboardFactory) {
-	m.dashboardFactory = f
+	m.SetViewFactory(ViewKeyDashboard, f)
+}
+
+// dashboardFactory returns the injected DashboardFactory, or nil when none is
+// registered or the stored value is the wrong type (fail-closed).
+func (m *Model) dashboardFactory() DashboardFactory {
+	raw, present := m.viewFactoryRaw(ViewKeyDashboard)
+	if !present {
+		return nil
+	}
+	f, ok := raw.(DashboardFactory)
+	if !ok {
+		return nil
+	}
+	return f
+}
+
+// activeDashboard returns the active dashboard state, or nil when the active
+// view is not the dashboard.
+func (m *Model) activeDashboard() *dashboardState {
+	if v, ok := m.activeView.(*dashboardView); ok {
+		return v.st
+	}
+	return nil
 }
 
 // IsDashboard returns true if the dashboard is active.
 func (m Model) IsDashboard() bool {
-	return m.dashboard != nil
+	return m.activeDashboard() != nil
 }
 
 // isDashboardCommand returns true if the input should enter dashboard mode.
@@ -229,22 +260,23 @@ func isDashboardCommand(input string) bool {
 
 // startDashboard enters dashboard mode.
 func (m *Model) startDashboard() tea.Cmd {
-	if m.dashboardFactory == nil {
+	factory := m.dashboardFactory()
+	if factory == nil {
 		m.statusMessage = "dashboard not available (no daemon connection)"
 		return nil
 	}
 
-	poller, err := m.dashboardFactory()
+	poller, err := factory()
 	if err != nil {
 		m.err = err
 		return nil
 	}
 
-	m.dashboard = &dashboardState{
+	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc: true,
 		poller:  poller,
 		rates:   make(map[string]*peerRateEntry),
-	}
+	}}
 
 	// Do initial poll immediately.
 	return m.dashboardPollCmd()
@@ -252,16 +284,17 @@ func (m *Model) startDashboard() tea.Cmd {
 
 // stopDashboard exits dashboard mode.
 func (m *Model) stopDashboard() {
-	m.dashboard = nil
+	m.activeView = nil
 	m.statusMessage = "dashboard stopped"
 }
 
 // dashboardPollCmd returns a tea.Cmd that polls for data.
 func (m *Model) dashboardPollCmd() tea.Cmd {
-	if m.dashboard == nil || m.dashboard.poller == nil {
+	ds := m.activeDashboard()
+	if ds == nil || ds.poller == nil {
 		return nil
 	}
-	poller := m.dashboard.poller
+	poller := ds.poller
 	return func() tea.Msg {
 		data, err := poller()
 		return dashboardDataMsg{data: data, err: err}
@@ -275,53 +308,53 @@ func dashboardScheduleTick() tea.Cmd {
 
 // handleDashboardData processes a poll result.
 func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
-	if m.dashboard == nil {
+	if m.activeDashboard() == nil {
 		return m, nil
 	}
 
 	now := time.Now()
-	m.dashboard.lastPollTime = now
+	m.activeDashboard().lastPollTime = now
 
 	if msg.err != nil {
-		m.dashboard.pollError = msg.err.Error()
+		m.activeDashboard().pollError = msg.err.Error()
 		return m, dashboardScheduleTick()
 	}
 
-	m.dashboard.pollError = ""
+	m.activeDashboard().pollError = ""
 	snap, err := parseDashboardSnapshot(msg.data)
 	if err != nil {
 		var tb textbuf.Buffer
-		m.dashboard.pollError = tb.Str("parse error: ").Err(err).String()
+		m.activeDashboard().pollError = tb.Str("parse error: ").Err(err).String()
 		return m, dashboardScheduleTick()
 	}
 
-	m.dashboard.updateRates(snap, now)
-	m.dashboard.snapshot = snap
+	m.activeDashboard().updateRates(snap, now)
+	m.activeDashboard().snapshot = snap
 
 	// Update selected index after data refresh.
 	if snap != nil && len(snap.Peers) > 0 {
-		sorted := sortDashboardPeers(snap.Peers, m.dashboard.sortColumn, m.dashboard.sortAsc)
-		m.dashboard.selectedIdx = m.dashboard.resolveSelectedIndex(sorted)
-		if m.dashboard.selectedIdx < len(sorted) {
-			m.dashboard.selectedAddr = sorted[m.dashboard.selectedIdx].Address
+		sorted := sortDashboardPeers(snap.Peers, m.activeDashboard().sortColumn, m.activeDashboard().sortAsc)
+		m.activeDashboard().selectedIdx = m.activeDashboard().resolveSelectedIndex(sorted)
+		if m.activeDashboard().selectedIdx < len(sorted) {
+			m.activeDashboard().selectedAddr = sorted[m.activeDashboard().selectedIdx].Address
 		}
 
 		// If in detail view and peer disappeared, return to table.
 		// Otherwise refresh detail data.
-		if m.dashboard.detailAddr != "" {
+		if m.activeDashboard().detailAddr != "" {
 			found := false
 			for _, p := range snap.Peers {
-				if p.Address == m.dashboard.detailAddr {
+				if p.Address == m.activeDashboard().detailAddr {
 					found = true
 					break
 				}
 			}
 			if !found {
-				m.dashboard.detailAddr = ""
-				m.dashboard.detailData = nil
+				m.activeDashboard().detailAddr = ""
+				m.activeDashboard().detailData = nil
 				m.statusMessage = "peer disconnected"
 			} else {
-				m.fetchPeerDetail(m.dashboard.detailAddr)
+				m.fetchPeerDetail(m.activeDashboard().detailAddr)
 			}
 		}
 	}
@@ -332,11 +365,11 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 // handleDashboardKey handles keyboard input in dashboard mode.
 // Returns true if the key was handled.
 func (m *Model) handleDashboardKey(keyStr string) bool {
-	if m.dashboard == nil {
+	if m.activeDashboard() == nil {
 		return false
 	}
 
-	ds := m.dashboard
+	ds := m.activeDashboard()
 
 	// Help overlay: ? toggles, any other key dismisses.
 	if ds.showHelp {
@@ -403,7 +436,7 @@ func (m *Model) handleDashboardKey(keyStr string) bool {
 // fetchPeerDetail fetches extended peer info via commandExecutor.
 // Results are stored in ds.detailData for rendering.
 func (m *Model) fetchPeerDetail(addr string) {
-	if m.commandExecutor == nil || m.dashboard == nil {
+	if m.commandExecutor == nil || m.activeDashboard() == nil {
 		return
 	}
 	var tb textbuf.Buffer
@@ -411,7 +444,7 @@ func (m *Model) fetchPeerDetail(addr string) {
 	if err != nil {
 		return
 	}
-	m.dashboard.detailData = parsePeerDetail(data, addr)
+	m.activeDashboard().detailData = parsePeerDetail(data, addr)
 }
 
 // parsePeerDetail extracts the detail map for a specific peer from the RPC response.
@@ -428,7 +461,7 @@ func parsePeerDetail(data, addr string) map[string]any {
 
 // renderDashboard renders the full dashboard screen.
 func (m Model) renderDashboard() string {
-	ds := m.dashboard
+	ds := m.activeDashboard()
 	if ds == nil {
 		return ""
 	}

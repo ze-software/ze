@@ -20,47 +20,13 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := tea.Key(msg)
 	keyStr := key.String()
 
-	// Dashboard mode intercepts all keys.
-	if m.dashboard != nil {
-		if m.handleDashboardKey(keyStr) {
-			return m, nil
-		}
-	}
-
-	// Traceroute monitor mode intercepts all keys.
-	if m.traceroute != nil {
-		if m.handleTracerouteKey(keyStr) {
-			return m, nil
-		}
-	}
-
-	// Ping monitor mode intercepts all keys.
-	if m.pingMonitor != nil {
-		if m.handlePingMonitorKey(keyStr) {
-			return m, nil
-		}
-	}
-
-	// Piped ping: replace mode intercepts all keys (alt screen),
-	// log mode only intercepts Esc/Ctrl-C.
-	if m.pingMonitorPiped != nil {
-		if keyStr == "q" || keyStr == keyCtrlC || keyStr == keyEsc {
-			m.stopPingMonitorPiped()
-			return m, nil
-		}
-		if !m.pingMonitorPiped.logMode {
-			return m, nil
-		}
-	}
-
-	// Piped traceroute: replace mode intercepts all keys (alt screen),
-	// log mode only intercepts Esc/Ctrl-C.
-	if m.traceroutePiped != nil {
-		if keyStr == "q" || keyStr == keyCtrlC || keyStr == keyEsc {
-			m.stopTraceroutePiped()
-			return m, nil
-		}
-		if !m.traceroutePiped.logMode {
+	// Active live view (dashboard / ping / traceroute, plain or piped) gets
+	// first refusal on every key. Full-screen views absorb all keys; the piped
+	// "| log" variants absorb only Esc/Ctrl-C/q and let other keys fall through
+	// (so the scrollback stays scrollable). A single active-view delegate
+	// replaces the former per-feature arms.
+	if m.activeView != nil {
+		if m.activeView.key(&m, keyStr) {
 			return m, nil
 		}
 	}
@@ -386,25 +352,21 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			m.statusMessage = ""
 			return m, nil
 		}
-		if isDashboardCommand(args) {
-			dashCmd := m.startDashboard()
-			return m, dashCmd
-		}
-		if isPingMonitorCommand(args) {
-			pingCmd := m.startPingMonitor(args)
-			return m, pingCmd
-		}
-		if isPipedPingMonitorCommand(args) {
-			pingCmd := m.startPingMonitorPiped(args)
-			return m, pingCmd
-		}
-		if isTracerouteMonitorCommand(args) {
-			trCmd := m.startTraceroute(args)
-			return m, trCmd
-		}
-		if isPipedTracerouteMonitorCommand(args) {
-			trCmd := m.startTraceroutePiped(args)
-			return m, trCmd
+		if spec, ok := resolveView(args); ok {
+			// Registry longest-prefix match replaces the per-feature
+			// dashboard/ping/traceroute isXCommand chain (editor "run" mode).
+			// start mutates m (sets activeView/status), so evaluate it before
+			// returning m.
+			prev := m.activeView
+			cmd := spec.start(&m, args)
+			// If start installed a new view (success), release the replaced
+			// view's live poller so switching does not leak it (spec Security
+			// Review). A failed start leaves activeView == prev, so the old view
+			// keeps running untouched.
+			if prev != nil && m.activeView != prev {
+				prev.release()
+			}
+			return m, cmd
 		}
 		if isMonitorCommand(args) {
 			cmd := m.startMonitorSessionFromInput(extractMonitorCmdArgs(args), args)
@@ -533,25 +495,20 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if m.mode == ModeOperational {
 		m.lastCommand = input
 		m.writeCommandEcho()
-		if isDashboardCommand(input) {
-			dashCmd := m.startDashboard()
-			return m, dashCmd
-		}
-		if isPingMonitorCommand(input) {
-			pingCmd := m.startPingMonitor(input)
-			return m, pingCmd
-		}
-		if isPipedPingMonitorCommand(input) {
-			pingCmd := m.startPingMonitorPiped(input)
-			return m, pingCmd
-		}
-		if isTracerouteMonitorCommand(input) {
-			trCmd := m.startTraceroute(input)
-			return m, trCmd
-		}
-		if isPipedTracerouteMonitorCommand(input) {
-			trCmd := m.startTraceroutePiped(input)
-			return m, trCmd
+		if spec, ok := resolveView(input); ok {
+			// Registry longest-prefix match replaces the per-feature
+			// dashboard/ping/traceroute isXCommand chain (command-only mode).
+			// start mutates m (sets activeView/status), so evaluate it before
+			// returning m.
+			prev := m.activeView
+			cmd := spec.start(&m, input)
+			// Release the replaced view's live poller on a successful switch so
+			// it does not leak (spec Security Review); a failed start leaves
+			// activeView == prev, so the old view keeps running untouched.
+			if prev != nil && m.activeView != prev {
+				prev.release()
+			}
+			return m, cmd
 		}
 		if isMonitorCommand(input) {
 			cmd := m.startMonitorSessionFromInput(extractMonitorCmdArgs(input), input)

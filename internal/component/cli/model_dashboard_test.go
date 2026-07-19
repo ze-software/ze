@@ -418,60 +418,60 @@ func TestDashboardKeyHandling(t *testing.T) {
 		},
 	}
 	m := NewCommandModel()
-	m.dashboard = &dashboardState{
+	m.activeView = &dashboardView{st: &dashboardState{
 		snapshot: snap,
 		sortAsc:  true,
 		rates:    map[string]*peerRateEntry{},
-	}
+	}}
 
 	// j moves selection down.
 	m.handleDashboardKey("j")
-	if m.dashboard.selectedIdx != 1 {
-		t.Errorf("j: selectedIdx got %d, want 1", m.dashboard.selectedIdx)
+	if m.activeDashboard().selectedIdx != 1 {
+		t.Errorf("j: selectedIdx got %d, want 1", m.activeDashboard().selectedIdx)
 	}
 
 	// k moves selection up.
 	m.handleDashboardKey("k")
-	if m.dashboard.selectedIdx != 0 {
-		t.Errorf("k: selectedIdx got %d, want 0", m.dashboard.selectedIdx)
+	if m.activeDashboard().selectedIdx != 0 {
+		t.Errorf("k: selectedIdx got %d, want 0", m.activeDashboard().selectedIdx)
 	}
 
 	// k at top stays at 0.
 	m.handleDashboardKey("k")
-	if m.dashboard.selectedIdx != 0 {
-		t.Errorf("k at top: selectedIdx got %d, want 0", m.dashboard.selectedIdx)
+	if m.activeDashboard().selectedIdx != 0 {
+		t.Errorf("k at top: selectedIdx got %d, want 0", m.activeDashboard().selectedIdx)
 	}
 
 	// s cycles sort column.
-	if m.dashboard.sortColumn != sortColumnAddress {
-		t.Fatalf("initial sort column: got %d, want %d", m.dashboard.sortColumn, sortColumnAddress)
+	if m.activeDashboard().sortColumn != sortColumnAddress {
+		t.Fatalf("initial sort column: got %d, want %d", m.activeDashboard().sortColumn, sortColumnAddress)
 	}
 	m.handleDashboardKey("s")
-	if m.dashboard.sortColumn != sortColumnASN {
-		t.Errorf("s: sort column got %d, want %d", m.dashboard.sortColumn, sortColumnASN)
+	if m.activeDashboard().sortColumn != sortColumnASN {
+		t.Errorf("s: sort column got %d, want %d", m.activeDashboard().sortColumn, sortColumnASN)
 	}
 
 	// S reverses sort direction.
 	m.handleDashboardKey("S")
-	if m.dashboard.sortAsc {
+	if m.activeDashboard().sortAsc {
 		t.Error("S: sort should be descending")
 	}
 
 	// Enter enters detail view.
 	m.handleDashboardKey("enter")
-	if m.dashboard.detailAddr == "" {
+	if m.activeDashboard().detailAddr == "" {
 		t.Error("enter: should be in detail view")
 	}
 
 	// Esc in detail view returns to table.
 	m.handleDashboardKey("esc")
-	if m.dashboard.detailAddr != "" {
-		t.Errorf("esc in detail: detailAddr should be empty, got %q", m.dashboard.detailAddr)
+	if m.activeDashboard().detailAddr != "" {
+		t.Errorf("esc in detail: detailAddr should be empty, got %q", m.activeDashboard().detailAddr)
 	}
 
 	// Esc in table view exits dashboard.
 	m.handleDashboardKey("esc")
-	if m.dashboard != nil {
+	if m.activeDashboard() != nil {
 		t.Error("esc in table: dashboard should be nil")
 	}
 }
@@ -480,7 +480,7 @@ func TestDashboardKeyHandling(t *testing.T) {
 // PREVENTS: dashboard crash or blank screen on poll error.
 func TestDashboardPollFailure(t *testing.T) {
 	m := NewCommandModel()
-	m.dashboard = &dashboardState{
+	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc: true,
 		rates:   map[string]*peerRateEntry{},
 		snapshot: &dashboardSnapshot{
@@ -492,24 +492,24 @@ func TestDashboardPollFailure(t *testing.T) {
 				{Address: "10.0.0.1", State: "established"},
 			},
 		},
-	}
+	}}
 
 	// Simulate poll failure.
 	result, _ := m.handleDashboardData(dashboardDataMsg{err: fmt.Errorf("connection refused")})
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 
-	if m.dashboard.pollError == "" {
+	if m.activeDashboard().pollError == "" {
 		t.Error("poll error should be set")
 	}
-	if !strings.Contains(m.dashboard.pollError, "connection refused") {
-		t.Errorf("poll error: got %q", m.dashboard.pollError)
+	if !strings.Contains(m.activeDashboard().pollError, "connection refused") {
+		t.Errorf("poll error: got %q", m.activeDashboard().pollError)
 	}
 	// Last good data should be preserved.
-	if m.dashboard.snapshot == nil {
+	if m.activeDashboard().snapshot == nil {
 		t.Error("snapshot should be preserved after poll failure")
 	}
-	if m.dashboard.snapshot.RouterID != "1.2.3.4" {
-		t.Errorf("preserved snapshot router-id: got %q", m.dashboard.snapshot.RouterID)
+	if m.activeDashboard().snapshot.RouterID != "1.2.3.4" {
+		t.Errorf("preserved snapshot router-id: got %q", m.activeDashboard().snapshot.RouterID)
 	}
 }
 
@@ -517,7 +517,7 @@ func TestDashboardPollFailure(t *testing.T) {
 // PREVENTS: stale detail view data.
 func TestDashboardDetailAutoRefresh(t *testing.T) {
 	m := NewCommandModel()
-	m.dashboard = &dashboardState{
+	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc:    true,
 		rates:      map[string]*peerRateEntry{},
 		detailAddr: "10.0.0.1",
@@ -526,7 +526,7 @@ func TestDashboardDetailAutoRefresh(t *testing.T) {
 				{Address: "10.0.0.1", State: "established", UpdatesReceived: 100},
 			},
 		},
-	}
+	}}
 
 	// Simulate poll with updated data while in detail view.
 	newData := `{"summary":{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h","peers-configured":1,"peers-established":1,"peers":[{"address":"10.0.0.1","remote-as":65001,"state":"established","uptime":"1h","updates-received":200,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,"eor-received":0,"eor-sent":0}]}}`
@@ -534,12 +534,12 @@ func TestDashboardDetailAutoRefresh(t *testing.T) {
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 
 	// Should still be in detail view.
-	if m.dashboard.detailAddr != "10.0.0.1" {
-		t.Errorf("should still be in detail view, got detailAddr=%q", m.dashboard.detailAddr)
+	if m.activeDashboard().detailAddr != "10.0.0.1" {
+		t.Errorf("should still be in detail view, got detailAddr=%q", m.activeDashboard().detailAddr)
 	}
 	// Data should be updated.
-	if m.dashboard.snapshot.Peers[0].UpdatesReceived != 200 {
-		t.Errorf("updates-received: got %d, want 200", m.dashboard.snapshot.Peers[0].UpdatesReceived)
+	if m.activeDashboard().snapshot.Peers[0].UpdatesReceived != 200 {
+		t.Errorf("updates-received: got %d, want 200", m.activeDashboard().snapshot.Peers[0].UpdatesReceived)
 	}
 }
 
@@ -547,7 +547,7 @@ func TestDashboardDetailAutoRefresh(t *testing.T) {
 // PREVENTS: stuck detail view for disconnected peer.
 func TestDashboardDetailPeerDisappears(t *testing.T) {
 	m := NewCommandModel()
-	m.dashboard = &dashboardState{
+	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc:    true,
 		rates:      map[string]*peerRateEntry{},
 		detailAddr: "10.0.0.1",
@@ -556,7 +556,7 @@ func TestDashboardDetailPeerDisappears(t *testing.T) {
 				{Address: "10.0.0.1", State: "established"},
 			},
 		},
-	}
+	}}
 
 	// Poll returns data without the peer we're viewing.
 	newData := `{"summary":{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h","peers-configured":1,"peers-established":1,"peers":[{"address":"10.0.0.2","remote-as":65002,"state":"established","uptime":"1h","updates-received":0,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,"eor-received":0,"eor-sent":0}]}}`
@@ -564,8 +564,8 @@ func TestDashboardDetailPeerDisappears(t *testing.T) {
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 
 	// Should return to table view.
-	if m.dashboard.detailAddr != "" {
-		t.Errorf("should return to table, got detailAddr=%q", m.dashboard.detailAddr)
+	if m.activeDashboard().detailAddr != "" {
+		t.Errorf("should return to table, got detailAddr=%q", m.activeDashboard().detailAddr)
 	}
 	if m.statusMessage != "peer disconnected" {
 		t.Errorf("status: got %q, want %q", m.statusMessage, "peer disconnected")

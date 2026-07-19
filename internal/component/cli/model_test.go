@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -13,6 +14,64 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
+
+// knownModelFields is the allowlist of Model's fields as of the view-registry
+// migration. It is the ratchet behind TestModelHasNoPerFeatureViewField (AC-4):
+// ANY new field trips the test, forcing a conscious decision. A live view must
+// register a viewSpec (view_registry.go) and hang its state off the single
+// activeView handle -- it must NOT add a field here. A legitimate non-view field
+// is added to this set with the same commit, which keeps the "no per-feature
+// view field" invariant reviewable rather than silently eroded.
+//
+// The two registry handles activeView + viewFactories are the ONLY view-related
+// entries; monitorFactory/monitorSession are the pre-existing generic monitor
+// (not a registered live view, intentionally not migrated).
+var knownModelFields = map[string]bool{
+	"editor": true, "completer": true, "validator": true, "textInput": true,
+	"viewport": true, "contextPath": true, "isTemplate": true,
+	"completions": true, "selected": true, "ghostText": true, "showDropdown": true,
+	"completionHint": true, "completionHintDim": true, "searchCache": true,
+	"validationErrors": true, "validationWarnings": true, "validationID": true,
+	"reloadErrors":    true,
+	"viewportContent": true, "showViewport": true, "showingConfig": true,
+	"showHelp": true, "showHints": true, "statusMessage": true, "cliFormat": true,
+	"err": true, "width": true, "height": true, "quitting": true,
+	"confirmQuit": true, "confirmExitConfig": true,
+	"confirmTimerActive": true, "confirmSecondsLeft": true, "confirmBackupPath": true,
+	"pasteMode": true, "pasteBuffer": true, "pasteModeLocation": true, "pasteModeAction": true,
+	"history": true, "outputBuf": true, "lastCommand": true,
+	"mode": true, "modeStates": true, "commandCompleter": true, "commandExecutor": true,
+	"monitorFactory": true, "monitorSession": true,
+	"activeView": true, "viewFactories": true,
+	"loginWarnings": true,
+	"auditRecorder": true, "auditSurface": true, "auditUsername": true, "auditRemoteAddr": true,
+	"shutdownFunc": true, "restartFunc": true,
+	"confirmStop": true, "confirmRestart": true,
+}
+
+// TestModelHasNoPerFeatureViewField is the AC-4 review guard: it reflects over
+// Model's fields and fails if ANY new field is added. A per-feature live-view
+// field (the old dashboard/ping/traceroute anti-pattern) is exactly what this
+// prevents -- the dashboard/ping/traceroute views register a viewSpec
+// (view_registry.go) and hang their session state off the single activeView
+// handle, not a named Model field. This is the executable ratchet the
+// plugin-self-containment rule demands ("Registration over hardcoding (the CLI
+// client too)"), mirroring the TestShowSchemaHasNoBGPPluginCommands mechanical
+// backstop.
+//
+// VALIDATES: cli.Model gains no per-feature live-view field (AC-3/AC-4).
+// PREVENTS: a NEW live view (any name, not just dashboard/ping/traceroute)
+// copying the old anti-pattern instead of registering through the view registry.
+func TestModelHasNoPerFeatureViewField(t *testing.T) {
+	for _, f := range reflect.VisibleFields(reflect.TypeFor[Model]()) {
+		assert.Truef(t, knownModelFields[f.Name],
+			"new Model field %q. If it is a live view's state or factory, register a "+
+				"viewSpec (view_registry.go) and use the activeView/viewFactories handles "+
+				"instead of a per-feature field (AC-4). If it is a legitimate non-view "+
+				"field, add it to knownModelFields in this test with your change.",
+			f.Name)
+	}
+}
 
 // Test config constants to avoid duplication.
 const (

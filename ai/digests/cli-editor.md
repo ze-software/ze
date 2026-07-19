@@ -18,7 +18,8 @@ to in-process registry handlers.
    reload notifier), then `cli.NewModel(ed)` (`internal/component/cli/model.go:317`). It wires
    `SetCommandCompleter(cmdCompleter)`, `SetCommandExecutor(executor)` where `executor =
    srv.ExecutorForUser(...)` (`internal/component/ssh/ssh.go:323`), plus audit recorder and
-   stop/restart callbacks (`session_factory.go:87-106`). No editor (`ConfigPath` empty) →
+   stop/restart callbacks (`session_factory.go:87-107`; view factories injected via
+   `injectViewFactories` → `cli.RegisteredViews()`). No editor (`ConfigPath` empty) →
    `cli.NewCommandModel()` (`model.go:373`), an operational-only console. `ze start --cli`
    uses the same models via `client.RunAttached` (`internal/component/cli/client/main.go:99`).
 2. **Keystroke → dispatch.** `Model.Update` (`model.go:440`) routes `tea.KeyPressMsg` to

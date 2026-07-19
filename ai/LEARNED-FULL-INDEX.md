@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1192 summaries
+Total: 1193 summaries
 
 ## 000-099
 
@@ -1266,3 +1266,4 @@ Total: 1192 summaries
 | 1217 | fixit-doc-gate-and-refs | `plan/learned/1217-fixit-doc-gate-and-refs.md` |
 | 1218 | fixit-pppoe-orphaned-tests | `plan/learned/1218-fixit-pppoe-orphaned-tests.md` |
 | 1219 | fixit: stop a named background process mid-.ci-test | `plan/learned/1219-fixit-runner-kill-background.md` |
+| 1221 | CLI live-view registry: migrate dashboard/ping/traceroute off per-feature Model fields | `plan/learned/1221-fixit-cli-view-registry.md` |

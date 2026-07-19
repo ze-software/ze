@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -324,6 +324,39 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding. M
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for registry size and empty-input prefix match
 - [ ] Existing view `.ci`/`.et` regression tests pass
+
+## Review Gate
+
+Independent critical review (3 reviewer subagents, distinct lenses: behavior
+preservation, registry/boundaries/AC-4, lifecycle/dispatch), looped to zero.
+Final: **0 BLOCKER, 0 ISSUE.**
+
+- Behavior preservation (reviewer 1): 0/0 -- tick routing, stale-tick guards,
+  piped `| log` legend-enrich, poll cadence, render fall-through, key semantics,
+  and no weakened test assertions all verified byte-equivalent to HEAD.
+- Registry / boundaries / AC-4 (reviewer 2): fixed 1 ISSUE -- the AC-4 guard was a
+  3-name denylist; replaced with a `knownModelFields` allowlist ratchet
+  (`model_test.go`) that flags ANY new `Model` field. Import boundary (`cli`
+  imports no engine; `contract` imports no `internal/component/*`), no cycle,
+  fail-closed factory, and word-boundary longest-prefix match verified clean.
+- Lifecycle / dispatch (reviewer 3): fixed 1 BLOCKER -- a view-switch from a live
+  `| log` view orphaned the outgoing view's context (goroutine/channel leak;
+  pre-existing in HEAD, but the spec Security Review mandates no-leak-on-switch).
+  Fix: `activeView.release()` (cancel-only) called in `handleEnter` only when a
+  new view actually installs, so a failed start preserves the running view.
+  Regression tests `TestDispatchSwitchReleasesPreviousView` /
+  `TestDispatchFailedStartPreservesActiveView` lock it in.
+
+Non-blocking NITs (recorded in `plan/learned/1221-fixit-cli-view-registry.md`):
+factory-getter status conflates "no factory" with "wrong type"; `injectViewFactories`
+hard-switches on the three view keys (a future view must update it).
+
+Verification (scoped only; live-server suites deliberately not run): `go test -tags
+ze_core ./internal/component/cli/...` ok; `go vet` consumers ok; `golangci-lint` 0
+issues. The `.ci`/`.et` regression tests (`test/ui/monitor-ping-pipe-resolve-log.ci`,
+`test/plugin/monitor-traceroute.ci`, `test/plugin/bgp-monitor-dashboard.ci`) are
+CI/reviewer-verified (they drive live servers) -- behavior is preserved by
+construction.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit (both architecture passes). Deepened to `design` on 2026-07-16: every citation re-verified against the working tree (fields `157-172`, Update switch `524-547`, dispatch `model_keys.go:389-406`/`536-553`, key handling `24-63`, render `model_render.go:318-339`); the per-feature surface is five sites, not the two the skeleton listed; the three factory signatures are heterogeneous (A-1 re-scoped to a lifecycle interface); no import cycle (A-2 confirmed both directions); the daemon-side `RegisterMonitorProvider` registry is the model to mirror; real regression tests are `test/ui/monitor-ping-pipe-resolve-log.ci`, `test/plugin/monitor-traceroute.ci`, `test/plugin/bgp-monitor-dashboard.ci` (the skeleton's `test/cli/*.ci` / `test-cli-ping-view` names do not exist).

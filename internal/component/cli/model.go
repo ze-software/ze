@@ -153,23 +153,16 @@ type Model struct {
 	commandCompleter CommandModeCompleter         // Completer for command mode (nil if no daemon)
 	commandExecutor  func(string) (string, error) // Executes operational commands via RPC (nil if no daemon)
 
-	// Monitor streaming state
+	// Monitor streaming state (generic monitor view; not a registered live view)
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
 	monitorSession *MonitorSession // Active monitor session (nil when not monitoring)
 
-	// Dashboard state (bgp monitor live peer table)
-	dashboardFactory DashboardFactory // Creates dashboard sessions (nil if unavailable)
-	dashboard        *dashboardState  // Active dashboard (nil when not in dashboard mode)
-
-	// Traceroute monitor state (mtr-style live hop table)
-	tracerouteFactory TracerouteFactory     // Runs traceroute probes (nil if unavailable)
-	traceroute        *tracerouteState      // Active traceroute session (nil when not active)
-	traceroutePiped   *traceroutePipedState // Active piped traceroute (nil when not active)
-
-	// Ping monitor state (continuous ping with live stats)
-	pingFactory      PingFactory     // Runs continuous ping (nil if unavailable)
-	pingMonitor      *pingState      // Active ping monitor (nil when not active)
-	pingMonitorPiped *pingPipedState // Active piped ping (nil when not active)
+	// Live view registry state. The dashboard/ping/traceroute rich live views
+	// register a viewSpec (view_registry.go) instead of each adding a field and
+	// switch arm here. activeView is the single active full-screen view (nil
+	// when none); viewFactories keys each view's injected concrete factory.
+	activeView    activeView     // Active live view (nil when none)
+	viewFactories map[string]any // Per-view factory, keyed by viewSpec.key
 
 	// Login warnings (set by SSH session, displayed on first render)
 	loginWarnings []LoginWarning
@@ -386,6 +379,7 @@ func NewModel(ed *Editor) (Model, error) {
 		statusMessage:      welcome,
 		pasteBuffer:        &strings.Builder{},
 		outputBuf:          &strings.Builder{},
+		viewFactories:      make(map[string]any),
 	}, nil
 }
 
@@ -417,6 +411,7 @@ func NewCommandModel() Model {
 		statusMessage: "welcome to ze!",
 		pasteBuffer:   &strings.Builder{},
 		outputBuf:     &strings.Builder{},
+		viewFactories: make(map[string]any),
 	}
 }
 
@@ -524,27 +519,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case monitorPollMsg:
 		return m.handleMonitorPoll()
 
-	case dashboardTickMsg:
-		if m.dashboard != nil {
-			pollCmd := m.dashboardPollCmd()
-			return m, pollCmd
+	case viewMsg:
+		// Route every live-view tick/data message to the single active view.
+		// One arm replaces the former per-feature dashboard/ping/traceroute cases.
+		// A stale tick after the view stopped (activeView nil) is a no-op.
+		if m.activeView != nil {
+			return m.activeView.update(&m, msg)
 		}
 		return m, nil
-
-	case dashboardDataMsg:
-		return m.handleDashboardData(msg)
-
-	case traceroutePollMsg:
-		return m.handleTraceroutePoll()
-
-	case traceroutePipedPollMsg:
-		return m.handleTraceroutePipedPoll()
-
-	case pingPollMsg:
-		return m.handlePingPoll()
-
-	case pingPipedPollMsg:
-		return m.handlePingPipedPoll()
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)

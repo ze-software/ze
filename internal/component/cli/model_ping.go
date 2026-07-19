@@ -30,8 +30,81 @@ const pingDrainInterval = 50 * time.Millisecond
 // contract and never imports the ping engine.
 type PingFactory func(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error)
 
+// ViewKeyPing is the registry/factory key for the monitor-ping live view.
+// Consumers inject a PingFactory under this key via SetViewFactory.
+const ViewKeyPing = "ping"
+
 type pingPollMsg struct{}
 type pingPipedPollMsg struct{}
+
+func (pingPollMsg) isViewMsg()      {}
+func (pingPipedPollMsg) isViewMsg() {}
+
+// pingView / pingPipedView are the activeView instances for monitor ping. They
+// hold the session state and delegate to the render/poll/stop methods that stay
+// in this file (Design 1).
+type pingView struct{ st *pingState }
+type pingPipedView struct{ st *pingPipedState }
+
+func (v *pingView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(pingPollMsg); ok {
+		return m.handlePingPoll()
+	}
+	return *m, nil
+}
+func (v *pingView) render(m *Model) string      { return m.renderPingMonitor() }
+func (v *pingView) key(m *Model, k string) bool { return m.handlePingMonitorKey(k) }
+func (v *pingView) release() {
+	if v.st != nil && v.st.cancel != nil {
+		v.st.cancel()
+	}
+}
+
+func (v *pingPipedView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(pingPipedPollMsg); ok {
+		return m.handlePingPipedPoll()
+	}
+	return *m, nil
+}
+
+func (v *pingPipedView) render(m *Model) string {
+	// In | log mode the piped view appends to the scrollback viewport; return ""
+	// so View() falls through to the normal render instead of the alt screen.
+	if v.st.logMode {
+		return ""
+	}
+	return m.renderPingMonitorPiped()
+}
+
+func (v *pingPipedView) key(m *Model, keyStr string) bool {
+	if keyStr == "q" || keyStr == keyCtrlC || keyStr == keyEsc {
+		m.stopPingMonitorPiped()
+		return true
+	}
+	// Replace mode (alt screen) absorbs all keys; log mode lets others through.
+	return !v.st.logMode
+}
+func (v *pingPipedView) release() {
+	if v.st != nil && v.st.cancel != nil {
+		v.st.cancel()
+	}
+}
+
+// activePing / activePingPiped return the active ping session state, or nil
+// when the active view is not a ping view.
+func (m *Model) activePing() *pingState {
+	if v, ok := m.activeView.(*pingView); ok {
+		return v.st
+	}
+	return nil
+}
+
+func (m *Model) activePingPiped() *pingPipedState {
+	if v, ok := m.activeView.(*pingPipedView); ok {
+		return v.st
+	}
+	return nil
+}
 
 // pingStats tracks running statistics for the ping monitor.
 type pingStats struct {
@@ -224,12 +297,30 @@ func parsePingMonitorArgs(input string) (pingMonitorArgs, string) {
 }
 
 // SetPingFactory sets the factory used to run continuous ping sessions.
+// Thin wrapper over the generic keyed factory store (view_registry.go).
 func (m *Model) SetPingFactory(f PingFactory) {
-	m.pingFactory = f
+	m.SetViewFactory(ViewKeyPing, f)
+}
+
+// pingFactory returns the injected PingFactory, or nil when none is registered
+// or the stored value is the wrong type. Fail-closed: a type mismatch is a
+// misconfiguration, surfaced by the caller as an unavailable status message,
+// never a nil-driven silent no-op (ai/rules/fail-closed-guards.md).
+func (m *Model) pingFactory() PingFactory {
+	raw, present := m.viewFactoryRaw(ViewKeyPing)
+	if !present {
+		return nil
+	}
+	f, ok := raw.(PingFactory)
+	if !ok {
+		return nil
+	}
+	return f
 }
 
 func (m *Model) startPingMonitor(input string) tea.Cmd {
-	if m.pingFactory == nil {
+	factory := m.pingFactory()
+	if factory == nil {
 		m.statusMessage = "ping monitor not available (no daemon connection)"
 		return nil
 	}
@@ -245,28 +336,29 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 		return nil
 	}
 
-	ch, cancel, err := m.pingFactory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
+	ch, cancel, err := factory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
 		return nil
 	}
 
-	m.pingMonitor = &pingState{
+	m.activeView = &pingView{st: &pingState{
 		target:   mp.Target,
 		interval: mp.Interval,
 		timeout:  mp.Timeout,
 		stats:    pingStats{min: math.MaxFloat64},
-		poller:   m.pingFactory,
+		poller:   factory,
 		replyCh:  ch,
 		cancel:   cancel,
-	}
+	}}
 
 	return tea.Tick(pingDrainInterval, func(time.Time) tea.Msg { return pingPollMsg{} })
 }
 
 func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
-	if m.pingFactory == nil {
+	factory := m.pingFactory()
+	if factory == nil {
 		m.statusMessage = "ping monitor not available (no daemon connection)"
 		return nil
 	}
@@ -288,19 +380,19 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		return nil
 	}
 
-	ch, cancel, err := m.pingFactory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
+	ch, cancel, err := factory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
 		return nil
 	}
 
-	m.pingMonitorPiped = &pingPipedState{
+	m.activeView = &pingPipedView{st: &pingPipedState{
 		target:        mp.Target,
 		interval:      mp.Interval,
 		timeout:       mp.Timeout,
 		stats:         pingStats{min: math.MaxFloat64},
-		poller:        m.pingFactory,
+		poller:        factory,
 		formatFn:      formatFn,
 		logMode:       pipeFlags.Log,
 		hasFormatPipe: pipeFlags.HasFormat,
@@ -308,7 +400,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		pipeOrigin:    pipeFlags.Origin,
 		replyCh:       ch,
 		cancel:        cancel,
-	}
+	}}
 
 	if pipeFlags.Log {
 		var hdr textbuf.Buffer
@@ -322,7 +414,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 }
 
 func (m *Model) stopPingMonitor() {
-	ps := m.pingMonitor
+	ps := m.activePing()
 	if ps == nil {
 		return
 	}
@@ -331,7 +423,7 @@ func (m *Model) stopPingMonitor() {
 	}
 
 	lastRender := m.renderPingPlain()
-	m.pingMonitor = nil
+	m.activeView = nil
 
 	if lastRender != "" {
 		if m.outputBuf.Len() > 0 {
@@ -350,7 +442,7 @@ func (m *Model) stopPingMonitor() {
 }
 
 func (m *Model) stopPingMonitorPiped() {
-	ps := m.pingMonitorPiped
+	ps := m.activePingPiped()
 	if ps == nil {
 		return
 	}
@@ -360,7 +452,7 @@ func (m *Model) stopPingMonitorPiped() {
 
 	lastOutput := renderPingStatsPlain(ps.target, &ps.stats)
 	isLog := ps.logMode
-	m.pingMonitorPiped = nil
+	m.activeView = nil
 
 	if m.outputBuf.Len() > 0 {
 		m.outputBuf.WriteString("\n")
@@ -413,7 +505,7 @@ func applyPingReply(stats *pingStats, reply map[string]any) {
 }
 
 func (m Model) handlePingPoll() (tea.Model, tea.Cmd) {
-	ps := m.pingMonitor
+	ps := m.activePing()
 	if ps == nil || ps.replyCh == nil {
 		return m, nil
 	}
@@ -433,7 +525,7 @@ func (m Model) handlePingPoll() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
-	ps := m.pingMonitorPiped
+	ps := m.activePingPiped()
 	if ps == nil || ps.replyCh == nil {
 		return m, nil
 	}
@@ -548,7 +640,7 @@ func formatPingReplyLine(reply map[string]any) string {
 }
 
 func (m *Model) handlePingMonitorKey(keyStr string) bool {
-	if m.pingMonitor == nil {
+	if m.activePing() == nil {
 		return false
 	}
 	switch keyStr {
@@ -572,7 +664,7 @@ var (
 )
 
 func (m Model) renderPingMonitor() string {
-	ps := m.pingMonitor
+	ps := m.activePing()
 	if ps == nil {
 		return ""
 	}
@@ -660,7 +752,7 @@ func (m Model) renderPingMonitor() string {
 }
 
 func (m Model) renderPingPlain() string {
-	ps := m.pingMonitor
+	ps := m.activePing()
 	if ps == nil || ps.stats.sent == 0 {
 		return ""
 	}
@@ -688,7 +780,7 @@ func renderPingStatsPlain(target string, s *pingStats) string {
 }
 
 func (m Model) renderPingMonitorPiped() string {
-	ps := m.pingMonitorPiped
+	ps := m.activePingPiped()
 	if ps == nil {
 		return ""
 	}

@@ -92,9 +92,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 					m.SetCommandCompleter(cmdCompleter)
 					if executor != nil {
 						m.SetCommandExecutor(executor)
-						m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
-						m.SetTracerouteFactory(streamingTracerouteFactory)
-						m.SetPingFactory(streamingPingFactory)
+						injectViewFactories(&m, executor)
 					}
 					monitorFn := srv.MonitorFactoryFunc()
 					if monitorFn != nil {
@@ -119,9 +117,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 		m.SetCommandCompleter(cmdCompleter)
 		if executor != nil {
 			m.SetCommandExecutor(executor)
-			m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
-			m.SetTracerouteFactory(streamingTracerouteFactory)
-			m.SetPingFactory(streamingPingFactory)
+			injectViewFactories(&m, executor)
 		}
 		monitorFn := srv.MonitorFactoryFunc()
 		if monitorFn != nil {
@@ -168,6 +164,24 @@ func mergePluginCommands(tree *command.Node, params bgpconfig.InfraHookParams) {
 		return
 	}
 	command.MergeCommandPaths(tree, d.Registry().VisibleCommandEntries())
+}
+
+// injectViewFactories injects each registered live view's concrete factory into
+// the model by iterating cli.RegisteredViews() instead of calling per-view typed
+// setters. The owner-cmd factories (ping/traceroute engines, dashboard executor)
+// are built here -- Design 1 keeps those imports in the consumer, but the Model
+// discovers which views exist through the registry.
+func injectViewFactories(m *cli.Model, executor zessh.CommandExecutor) {
+	for _, v := range cli.RegisteredViews() {
+		switch v.Key {
+		case cli.ViewKeyDashboard:
+			m.SetViewFactory(v.Key, dashboardFactoryFromExecutor(executor))
+		case cli.ViewKeyTraceroute:
+			m.SetViewFactory(v.Key, cli.TracerouteFactory(streamingTracerouteFactory))
+		case cli.ViewKeyPing:
+			m.SetViewFactory(v.Key, cli.PingFactory(streamingPingFactory))
+		}
+	}
 }
 
 // dashboardFactoryFromExecutor creates a DashboardFactory from a CommandExecutor.

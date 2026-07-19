@@ -318,29 +318,13 @@ func (m Model) View() tea.View {
 		return paddedAltView(m.monitorSession.RenderFunc(m.width, m.height))
 	}
 
-	// Dashboard mode renders its own full screen.
-	if m.dashboard != nil {
-		return paddedAltView(m.renderDashboard())
-	}
-
-	// Traceroute monitor mode renders its own full screen.
-	if m.traceroute != nil {
-		return paddedAltView(m.renderTraceroute())
-	}
-
-	// Piped traceroute in replace mode renders its own full screen.
-	if m.traceroutePiped != nil && !m.traceroutePiped.logMode {
-		return paddedAltView(m.renderTraceroutePiped())
-	}
-
-	// Ping monitor mode renders its own full screen.
-	if m.pingMonitor != nil {
-		return paddedAltView(m.renderPingMonitor())
-	}
-
-	// Piped ping in replace mode renders its own full screen.
-	if m.pingMonitorPiped != nil && !m.pingMonitorPiped.logMode {
-		return paddedAltView(m.renderPingMonitorPiped())
+	// Active live view (dashboard / ping / traceroute) renders its own full
+	// screen. A "" result means the view is in a scrollback ("| log") mode and
+	// falls through to the normal viewport render below.
+	if m.activeView != nil {
+		if content := m.activeView.render(&m); content != "" {
+			return paddedAltView(content)
+		}
 	}
 
 	// Use fixed height to prevent scrolling when dropdown appears

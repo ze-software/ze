@@ -135,13 +135,13 @@ func TestParsePingMonitorArgsCountSizeBounds(t *testing.T) {
 func TestStartPingMonitorPassesCountAndSize(t *testing.T) {
 	var gotCount, gotSize int
 	m := NewCommandModel()
-	m.pingFactory = func(_ context.Context, _ string, _, _ time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
+	m.SetPingFactory(func(_ context.Context, _ string, _, _ time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
 		gotCount, gotSize = count, size
 		ch := make(chan map[string]any)
 		close(ch)
 		_, cancel := context.WithCancel(context.Background())
 		return ch, cancel, nil
-	}
+	})
 
 	m.startPingMonitor("monitor ping 192.0.2.1 count 7 size 512")
 	assert.Equal(t, 7, gotCount)
@@ -241,15 +241,15 @@ func pingTestFactory(replies []map[string]any) PingFactory {
 // PREVENTS: pipe flags parsed but dropped before the | log render path.
 func TestStartPingMonitorPiped_CapturesEnrichmentFlags(t *testing.T) {
 	m := NewCommandModel()
-	m.pingFactory = pingTestFactory(nil)
+	m.SetPingFactory(pingTestFactory(nil))
 
 	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | resolve | origin | log")
 	require.NotNil(t, cmd)
-	require.NotNil(t, m.pingMonitorPiped)
-	assert.True(t, m.pingMonitorPiped.logMode)
-	assert.True(t, m.pingMonitorPiped.pipeResolve)
-	assert.True(t, m.pingMonitorPiped.pipeOrigin)
-	assert.False(t, m.pingMonitorPiped.hasFormatPipe)
+	require.NotNil(t, m.activePingPiped())
+	assert.True(t, m.activePingPiped().logMode)
+	assert.True(t, m.activePingPiped().pipeResolve)
+	assert.True(t, m.activePingPiped().pipeOrigin)
+	assert.False(t, m.activePingPiped().hasFormatPipe)
 }
 
 // VALIDATES: monitor ping | resolve | log enriches the target legend with the
@@ -259,10 +259,10 @@ func TestHandlePingPipedPoll_LogResolveEnrichesLegend(t *testing.T) {
 	setStubResolvers(t)
 
 	m := NewCommandModel()
-	m.pingFactory = pingTestFactory([]map[string]any{
+	m.SetPingFactory(pingTestFactory([]map[string]any{
 		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
 		{"seq": 1, "status": "timeout"},
-	})
+	}))
 
 	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | resolve | log")
 	require.NotNil(t, cmd)
@@ -281,9 +281,9 @@ func TestHandlePingPipedPoll_LogOriginEnrichesLegend(t *testing.T) {
 	setStubResolvers(t)
 
 	m := NewCommandModel()
-	m.pingFactory = pingTestFactory([]map[string]any{
+	m.SetPingFactory(pingTestFactory([]map[string]any{
 		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
-	})
+	}))
 
 	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | origin | log")
 	require.NotNil(t, cmd)
@@ -299,9 +299,9 @@ func TestHandlePingPipedPoll_LogPlainLegend(t *testing.T) {
 	setStubResolvers(t)
 
 	m := NewCommandModel()
-	m.pingFactory = pingTestFactory([]map[string]any{
+	m.SetPingFactory(pingTestFactory([]map[string]any{
 		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
-	})
+	}))
 
 	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | log")
 	require.NotNil(t, cmd)

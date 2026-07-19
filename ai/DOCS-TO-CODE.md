@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 295 design docs, 3007 files
+Total: 295 design docs, 3011 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -149,6 +149,10 @@ Total: 295 design docs, 3007 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/cli/register_view_dashboard.go` | registration over hardcoding |
+| `internal/component/cli/register_view_ping.go` | registration over hardcoding |
+| `internal/component/cli/register_view_traceroute.go` | registration over hardcoding |
+| `internal/component/cli/view_registry.go` | "Registration over hardcoding (the CLI client too)" |
 | `internal/component/web/register_gokrazy.go` | gokrazy portal web route self-registration |
 | `internal/component/web/register_isis.go` | IS-IS web routes self-registration |
 | `internal/component/web/register_l2tp.go` | L2TP web routes self-registration |
