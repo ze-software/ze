@@ -34,6 +34,20 @@ func init() { //nolint:gochecknoinits // logger bootstrap only
 type Backend interface {
 	// Apply receives full desired state and reconciles against kernel.
 	// Only ze_* tables are touched. Non-ze_* tables are never modified.
+	//
+	// Single-writer contract: the registry serializes Apply behind reconcileMu
+	// (registry.go, ApplyAll), so an implementation is NEVER called
+	// concurrently. It may therefore keep un-synchronized per-backend state
+	// (e.g. an applied-tables map) without its own mutex. Do NOT rely on being
+	// called from a single goroutine identity -- rely only on the guarantee
+	// that no two Apply calls overlap.
+	//
+	// Apply MUST NOT block indefinitely. Because reconcileMu is the outermost
+	// firewall lock and is held for the whole reconcile, a kernel or netlink
+	// round-trip that never returns would hold reconcileMu forever and stall
+	// every firewall owner -- and any command handler that also needs a lock
+	// the calling plugin holds across ApplyAll. Bound every kernel call with a
+	// deadline and surface a timeout as an error rather than blocking.
 	Apply(desired []Table) error
 
 	// ListTables returns current ze_* tables from the kernel. For CLI show.
@@ -60,6 +74,10 @@ type Backend interface {
 type Verifier func(desired []Table) error
 
 // backendsMu protects the backends map, activeBackend, and verifiers.
+// Lock order: backendsMu sits UNDER reconcileMu (registry.go) -- ApplyAll holds
+// reconcileMu across its backendsMu section -- and is never held across a
+// backend kernel call (ApplyAll releases it before b.Apply). It nests below no
+// other firewall lock.
 var backendsMu sync.Mutex
 
 // backends maps backend names to factory functions. Populated by

@@ -59,6 +59,27 @@ var tableRegistry = struct {
 	owners: make(map[string][]Table),
 }
 
+// reconcileMu serializes the ENTIRE ApplyAll body -- snapshot AND apply -- so
+// that at most one owner is ever inside Backend.Apply at a time. It is the
+// OUTERMOST firewall lock; the lock order is:
+//
+//	reconcileMu -> tableRegistry.mu -> backendsMu -> backend-internal
+//
+// No ApplyAll call site holds tableRegistry.mu or backendsMu on entry (every
+// caller releases both first; FlushAllTables unlocks tableRegistry.mu before
+// calling ApplyAll), so acquiring reconcileMu first never inverts an existing
+// order and cannot self-deadlock.
+//
+// It must span the whole body, not just b.Apply: the desired-state snapshot is
+// taken under tableRegistry.mu and released before b.Apply runs. Locking only
+// around b.Apply would let two callers apply STALE snapshots out of order and
+// converge the kernel to a superseded state (owner A's older snapshot landing
+// after owner B's newer one). Serializing snapshot+apply together makes each
+// reconcile observe every registration that completed before it and forbids
+// concurrent Backend.Apply, which no backend is required to tolerate (see the
+// single-writer contract on Backend.Apply in backend.go).
+var reconcileMu sync.Mutex
+
 // RegisterTables stores a component's desired nftables tables under an
 // owner key. Call ApplyAll to reconcile the merged set against the kernel.
 func RegisterTables(owner string, tables []Table) {
@@ -77,6 +98,12 @@ func RegisterTables(owner string, tables []Table) {
 // are concatenated so that e.g. a plugin can register sets for a table
 // whose chains are owned by the firewall engine.
 func ApplyAll() error {
+	// Serialize the whole snapshot-plus-apply so at most one owner is inside
+	// Backend.Apply at a time and no stale snapshot lands out of order. See the
+	// reconcileMu doc for the lock order and rationale.
+	reconcileMu.Lock()
+	defer reconcileMu.Unlock()
+
 	tableRegistry.mu.Lock()
 	totalCap := 0
 	for _, t := range tableRegistry.owners {

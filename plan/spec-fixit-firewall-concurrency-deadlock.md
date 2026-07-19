@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Task
 
@@ -680,21 +680,31 @@ section already admits as IN.
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
 
-### Run 1 (initial)
+**Scope of this review:** the `internal/component/firewall/*` slice only (D-1 registry
+serialization + in-scope D-5 interface/lock-order docs). D-2/D-3/D-4/core-design.md/.ci are
+disjoint sibling-agent scopes and reviewed under their own gates.
+
+### Run 1 (initial) — 2 independent reviewer subagents
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | NOTE | `reconcileMu` now held across `b.Apply`, so a hung Apply stalls every firewall owner, not just concurrent reconciles. Intended single-writer design; makes the nft deadline (D-2) load-bearing | `registry.go` ApplyAll, `backend.go` Apply doc | acknowledged (documented in the Backend.Apply contract; D-2 is a sibling scope) |
+| 2 | NOTE | `FlushAllTables` releases `tableRegistry.mu` before `ApplyAll` acquires `reconcileMu`; a plugin could re-add an owner in that gap during shutdown | `registry.go:40-45` | acknowledged (pre-existing shutdown-ordering assumption; engine is the single ordered actor at clean stop; out of scope for this fix) |
+| 3 | NOTE | `TestApplyAllSerialisesBackendApply` RED signal relies on a 1ms sleep making overlap probable; GREEN invariant (`maxSeen==1`) is deterministic | `registry_concurrency_test.go` | acknowledged (test's job is to lock the GREEN invariant; observed max=8 without the lock) |
+| 4 | NOTE | D-1 tests live in `registry_concurrency_test.go`, spec TDD plan named `registry_test.go` | same package | acknowledged (filename divergence only, no functional impact) |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE]
+- None required: both reviewers returned 0 BLOCKER, 0 ISSUE on the first pass. All four
+  NOTEs are non-blocking and acknowledged above.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | Not needed; Run 1 was already 0 BLOCKER / 0 ISSUE | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (achieved on Run 1; scope = firewall slice)
+- [ ] All NOTEs recorded above (or explicitly "none")  (4 NOTEs recorded)
+- Artifact: `tmp/review/fixit-firewall-concurrency-deadlock-58c51aab-79d8-400d-b779-2c0cf322a274.md`
 
 ## Pre-Commit Verification
 
