@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+// TestMPReachNLRI_WriteTo checks that WriteTo emits the RFC 4760 Section 3 wire form.
+//
+// RFC requirement: RFC4760-3-1 positive -- WriteTo emits the Reserved octet as 0x00 at wire
+// offset 4+NH_len; every case asserts that byte is 0x00, and the producer writes it as 0
+// unconditionally (internal/core/bgp/attribute/mpnlri.go:182).
+//
+// RFC requirement: RFC4760-3-2 positive -- WriteTo encodes the Network Address of Next Hop with
+// a family-determined length (NH_Len 0x10 for a 16-byte IPv6 hop, 0x0c/0x18 for VPN RD+IPv4/IPv6,
+// 0x20 for the 32-byte global+link-local pair), the field that lets a receiver determine the next
+// hop's network-layer protocol; each case asserts the NH_Len byte and the next-hop bytes
+// (internal/core/bgp/attribute/mpnlri.go:137-151,163-179).
 func TestMPReachNLRI_WriteTo(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -111,6 +122,12 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 	}
 }
 
+// TestParseMPReachNLRI checks that ParseMPReachNLRI reads the RFC 4760 Section 3 wire form.
+//
+// RFC requirement: RFC4760-3-2 positive -- ParseMPReachNLRI derives the next-hop count and family
+// from the Length of Next Hop Address field (wantNHLen 1 for a 16-byte IPv6 hop, 2 for a 32-byte
+// global+link-local pair), reading the length to determine the network-layer protocol of the next
+// hop rather than assuming it from the NLRI AFI (internal/core/bgp/attribute/mpnlri.go:328 parseNextHops).
 func TestParseMPReachNLRI(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -475,6 +492,11 @@ func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 // RFC requirement: RFC5549-3-1 negative -- the Length of Next Hop Address field is authoritative: a
 // 5-byte next-hop for IPv4 NLRI is neither a valid IPv6 length (16/32) nor a multiple of 4, so
 // parseNextHops rejects it with ErrInvalidNextHopLen rather than defaulting by AFI
+// (internal/core/bgp/attribute/mpnlri.go:342,366).
+//
+// RFC requirement: RFC4760-3-2 negative -- a 5-byte next-hop for IPv4 NLRI maps to no valid
+// network-layer protocol encoding (not an IPv6 16/32 length, not a multiple of 4), so parseNextHops
+// rejects it with ErrInvalidNextHopLen rather than guessing the next hop's protocol
 // (internal/core/bgp/attribute/mpnlri.go:342,366).
 func TestParseMPReachNLRI_InvalidNextHopLength(t *testing.T) {
 	t.Parallel()

@@ -127,6 +127,9 @@ func TestISISAuthSignVerifyCleartext(t *testing.T) {
 
 // VALIDATES: TestISISAuthSignVerifyHMACMD5 (TDD plan) -- type 54 HMAC-MD5
 // sign/verify per PDU class; digest length 16 (RFC 5304 sec 2).
+//
+// RFC requirement: RFC5304-2-6 positive -- a PDU whose Authentication Value is
+// CORRECT is accepted (not discarded) by VerifyPDU, per PDU class (RFC 5304 sec 2).
 func TestISISAuthSignVerifyHMACMD5(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACMD5, Secret: []byte("md5-key")}
 	for name, build := range pduBuilders() {
@@ -422,16 +425,28 @@ func TestISISAuthPurge(t *testing.T) {
 		t.Fatalf("SignPDU purge: %v", err)
 	}
 	// The signed purge round-trips and verifies (AC-13).
+	// RFC requirement: RFC5304-2-8 positive -- an AUTHENTICATED (signed) purge is
+	// accepted (RFC 5304 sec 2: purges must be authenticated to be honored).
+	// RFC requirement: RFC5304-2-9 positive -- a clean signed purge carrying only
+	// the auth TLV is accepted (no extra TLV to reject) (RFC 5304 sec 2).
 	if err := VerifyPDU(signed, []Key{key}); err != nil {
 		t.Fatalf("VerifyPDU signed purge: %v", err)
 	}
 	// It must carry ONLY TLV 10.
+	// RFC requirement: RFC5304-2-7 positive -- an initiated purge has its body
+	// removed and the authentication TLV added, so the signed purge carries only
+	// TLV 10 (RFC 5304 sec 2).
 	sdec, _ := DecodePDU(signed)
 	if len(sdec.LSP.TLVs) != 1 || sdec.LSP.TLVs[0].Type != TLVAuthentication {
 		t.Fatalf("signed purge TLVs = %+v, want only TLV 10", sdec.LSP.TLVs)
 	}
 
 	// AC-14: an unauthenticated purge (no TLV 10) is rejected.
+	// RFC requirement: RFC5304-2-8 negative -- an unauthenticated purge (no auth
+	// TLV) is not accepted (RFC 5304 sec 2: MUST NOT accept unauthenticated purges).
+	// RFC requirement: RFC5304-2-7 negative -- a purge lacking the added
+	// authentication TLV is rejected, so the "add the authentication TLV" rule is
+	// enforced on receive (RFC 5304 sec 2).
 	if err := VerifyPDU(purgePDU, []Key{key}); !errors.Is(err, ErrAuthMissing) {
 		t.Fatalf("unauthenticated purge = %v, want ErrAuthMissing", err)
 	}
@@ -446,6 +461,9 @@ func TestISISAuthPurge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SignPDU purge-with-extra: %v", err)
 	}
+	// RFC requirement: RFC5304-2-9 negative -- a purge carrying any TLV other than
+	// the authentication TLV is not accepted (RFC 5304 sec 2: MUST NOT accept
+	// purges that contain TLVs other than the authentication TLV).
 	if err := VerifyPDU(signedExtra, []Key{key}); !errors.Is(err, ErrAuthPurgeExtraTLV) {
 		t.Fatalf("purge with non-auth TLV = %v, want ErrAuthPurgeExtraTLV", err)
 	}
@@ -567,6 +585,9 @@ func TestISISAuthVerifyScratchReuse(t *testing.T) {
 // uses hmac.Equal by confirming a one-bit digest difference is rejected (a
 // non-constant-time bytes.Equal would also reject, so this is a smoke test for
 // rejection; the source-grep gate in the spec enforces hmac.Equal directly).
+//
+// RFC requirement: RFC5304-2-6 negative -- a PDU whose Authentication Value is
+// INCORRECT (one digest bit flipped) is discarded by VerifyPDU (RFC 5304 sec 2).
 func TestISISAuthConstantTimeCompare(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("k"), KeyID: 1}
 	signed, err := SignPDU(testCSNP(t), key)
@@ -589,6 +610,9 @@ func TestISISAuthConstantTimeCompare(t *testing.T) {
 // VALIDATES: TestISISAuthWrongKeyRejected (TDD plan, AC-2, AC-6, AC-7) -- a PDU
 // signed with one key is rejected when verified against a different key, per PDU
 // class and per algorithm.
+//
+// RFC requirement: RFC5304-2-6 negative -- a PDU whose Authentication Value is
+// INCORRECT (signed with a different key) is discarded by VerifyPDU (RFC 5304 sec 2).
 func TestISISAuthWrongKeyRejected(t *testing.T) {
 	algos := []AuthAlgorithm{AuthAlgoHMACMD5, AuthAlgoHMACSHA256}
 	for _, algo := range algos {

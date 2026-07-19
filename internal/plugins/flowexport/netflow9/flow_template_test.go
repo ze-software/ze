@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// RFC requirement: RFC3954-x-9 positive -- the per-flow Template FlowSet carries Template ID 257, the compile-time constant FlowTemplateID (flow_template.go:10) that is never reassigned for the life of the process.
 func TestNetflow9FlowTemplate(t *testing.T) {
 	tmpl := BuildFlowTemplate()
 

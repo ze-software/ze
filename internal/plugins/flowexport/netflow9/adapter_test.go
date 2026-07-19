@@ -55,6 +55,7 @@ func TestNetflow9EncodeChunksManyInterfaces(t *testing.T) {
 // number only advances when a datagram is actually sent. Advancing on a failed
 // send would open a phantom gap at the collector (RFC 3954: the sequence counts
 // packets sent). The sender's socket is closed up front so Send fails.
+// RFC requirement: RFC3954-x-8 negative -- a failed Send does not advance the export sequence number (adapter.go:33-65); the cumulative per-observation-domain counter counts packets actually sent, so a send error opens no phantom gap.
 func TestNetflow9SeqNumNotAdvancedOnSendError(t *testing.T) {
 	s, err := flowexport.NewSender("127.0.0.1", 65000, "")
 	if err != nil {

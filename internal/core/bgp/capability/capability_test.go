@@ -59,6 +59,12 @@ func TestCodeString(t *testing.T) {
 // VALIDATES: Correct parsing of capability parameters.
 //
 // PREVENTS: Capability negotiation failures from parse errors.
+//
+// RFC requirement: RFC4760-8-1 positive -- a Multiprotocol Extensions capability (Code 1,
+// Length 4, AFI/Reserved/SAFI per RFC 4760 Section 8) parses into AFI=IPv4/SAFI=Unicast; this is
+// the Capability Advertisement wire form a speaker uses to announce an AFI/SAFI it supports
+// (parseMultiprotocol internal/core/bgp/capability/capability.go:310-318, the same layout
+// Multiprotocol.WriteTo emits at internal/core/bgp/capability/capability.go:299-305).
 func TestParseCapabilities(t *testing.T) {
 	t.Parallel()
 	// Two capabilities: Multiprotocol IPv4/Unicast + ASN4

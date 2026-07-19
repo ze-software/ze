@@ -104,6 +104,13 @@ func authTestLANHello(level lsdbLevel) []byte {
 
 // VALIDATES: the per-level signer signs an LSP with the area key (L1) and the
 // domain key (L2), and the engine verify hook accepts the result.
+//
+// RFC requirement: RFC5304-2-1 positive -- a Level 1 level PDU signed with the AREA
+// authentication string (the L1 chain, levelChain(levelOne)) verifies; L1 PDUs use
+// the area string as in L1 Link State PDUs (RFC 5304 sec 2).
+// RFC requirement: RFC5304-2-2 positive -- a Level 2 level PDU signed with the DOMAIN
+// authentication string (the L2 chain, levelChain(levelTwo)) verifies; L2 PDUs use
+// the domain string as in L2 Link State PDUs (RFC 5304 sec 2).
 func TestISISAuthEngineSignLevel(t *testing.T) {
 	e := newEngine(transport.New(transport.NewBackend()))
 	e.setKeyStore(authTestConfig())
@@ -139,12 +146,16 @@ func TestISISAuthReject(t *testing.T) {
 	e.registerTestCircuit(t, "eth0", 10)
 
 	// Positive case: a correctly signed IIH on eth0 verifies (adjacency may form).
+	// RFC requirement: RFC5304-2-3 positive -- an IIH signed with the per-interface
+	// Link Level Authentication String (the circuit's IIH chain) verifies (RFC 5304 sec 2).
 	signedHello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello(levelOne))
 	if !e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: signedHello}) {
 		t.Fatal("correctly signed IIH rejected")
 	}
 
 	// Negative case (AC-1): an IIH with no TLV 10 is rejected.
+	// RFC requirement: RFC5304-2-3 negative -- an IIH lacking the Link Level
+	// Authentication String (no TLV 10) is rejected under configured IIH auth (RFC 5304 sec 2).
 	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: authTestLANHello(levelOne)}) {
 		t.Fatal("unauthenticated IIH accepted under configured auth")
 	}
@@ -173,6 +184,9 @@ func TestISISAuthChainSelection(t *testing.T) {
 
 	// An LSP signed with the IIH key (wrong chain) is rejected: the verify path
 	// selects the area chain for an LSP, whose key differs.
+	// RFC requirement: RFC5304-2-1 negative -- an L1 level PDU signed with a
+	// non-area string (the per-interface IIH key) is rejected; only the Area
+	// authentication string authenticates an L1 PDU (RFC 5304 sec 2).
 	iihKey := packet.Key{Algorithm: packet.AuthAlgoHMACSHA256, Secret: []byte("iihsecret"), KeyID: 3}
 	crossLSP, _ := packet.SignPDU(authTestLSP(levelOne), iihKey)
 	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: crossLSP}) {
@@ -229,6 +243,33 @@ func TestISISAuthUnconfigured(t *testing.T) {
 	}
 	if e.dispatch.verify != nil {
 		t.Fatal("verify hook should be detached with no auth configured")
+	}
+}
+
+// VALIDATES: the L2 mirror of TestISISAuthChainSelection -- a Level 2 level PDU is
+// authenticated against the DOMAIN chain (RFC 5304 sec 2: L2 PDUs use the domain
+// authentication string as in L2 Link State PDUs). A domain-signed L2 LSP verifies;
+// an L2 LSP signed with any other string (the per-interface IIH key) is rejected.
+func TestISISAuthLevelChainCrossUseL2(t *testing.T) {
+	e := newEngine(transport.New(transport.NewBackend()))
+	e.setKeyStore(authTestConfig())
+	e.registerTestCircuit(t, "eth0", 10)
+
+	// An L2 LSP signed with the DOMAIN (level-2) key verifies as an L2 LSP.
+	signedL2 := e.signLevelPDU(authTestLSP(levelTwo))
+	if !e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: signedL2}) {
+		t.Fatal("domain-signed L2 LSP rejected")
+	}
+
+	// An L2 LSP signed with the IIH key (a non-domain string) is rejected: the
+	// verify path selects the domain chain for an L2 PDU, whose key differs.
+	// RFC requirement: RFC5304-2-2 negative -- an L2 level PDU signed with a
+	// non-domain string (the per-interface IIH key) is rejected; only the domain
+	// authentication string authenticates an L2 PDU (RFC 5304 sec 2).
+	iihKey := packet.Key{Algorithm: packet.AuthAlgoHMACSHA256, Secret: []byte("iihsecret"), KeyID: 3}
+	crossL2, _ := packet.SignPDU(authTestLSP(levelTwo), iihKey)
+	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: crossL2}) {
+		t.Fatal("IIH-key-signed L2 LSP accepted (cross-use should be rejected)")
 	}
 }
 

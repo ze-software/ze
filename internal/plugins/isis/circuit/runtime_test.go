@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
 )
 
@@ -29,6 +30,56 @@ type recordSigner struct {
 func (r *recordSigner) sign(level adjacency.Level, pdu []byte) []byte {
 	r.levels = append(r.levels, level)
 	return pdu
+}
+
+// captureSigner records the exact bytes SendHello hands to the signer, so a test
+// can assert the signer runs over the already-PADDED IIH (RFC 5304 sec 2).
+type captureSigner struct {
+	pdu []byte
+}
+
+func (s *captureSigner) sign(_ adjacency.Level, pdu []byte) []byte {
+	s.pdu = append([]byte(nil), pdu...)
+	return pdu
+}
+
+// TestISISHelloSignedOverPaddedPDU: the IIH signer runs over the PADDED Hello, not
+// the unpadded one. SendHello builds and pads the IIH to MTU - LLC and THEN calls
+// the signer (circuit/runtime.go:273-276), so the HMAC covers the padding. This
+// asserts the bytes handed to the signer are the padded bytes: the full pad-target
+// length AND a Padding TLV 8 present.
+// PREVENTS: reordering to sign-before-pad, which would compute the digest over the
+// unpadded PDU and break RFC 5304 sec 2 ("The HMAC-MD5 result for the IS-IS Hello
+// PDUs SHALL be calculated after the packet is padded to the MTU size").
+func TestISISHelloSignedOverPaddedPDU(t *testing.T) {
+	const mtu = 1497
+	const wantPDU = mtu - transport.LLCHeaderLen // LLC + PDU must fill the link MTU
+	s := &fakeSender{mtu: mtu}
+	c := lanCircuit(t, s)
+	cs := &captureSigner{}
+	c.SetSigner(cs.sign)
+
+	if err := c.SendHello(); err != nil {
+		t.Fatal(err)
+	}
+	if cs.pdu == nil {
+		t.Fatal("signer was never invoked")
+	}
+	// RFC requirement: RFC5304-2-4 positive -- the PDU the signer receives is
+	// already padded to the MTU (length == MTU - LLC), so the HMAC is computed
+	// AFTER padding, not before (RFC 5304 sec 2).
+	if len(cs.pdu) != wantPDU {
+		t.Fatalf("signer received a %d-octet PDU, want %d (padded to MTU %d - LLC %d); signing ran before padding",
+			len(cs.pdu), wantPDU, mtu, transport.LLCHeaderLen)
+	}
+	// The bytes the signer saw carry a Padding TLV 8: padding preceded signing.
+	p, err := packet.DecodePDU(cs.pdu)
+	if err != nil {
+		t.Fatalf("captured PDU does not decode: %v", err)
+	}
+	if !hasTLV(p.LANHello.TLVs, packet.TLVPadding) {
+		t.Fatal("signer received an UNPADDED IIH (no Padding TLV 8): the HMAC would not cover the padding (RFC 5304 sec 2)")
+	}
 }
 
 // l1l2P2PCircuit builds a point-to-point circuit configured for BOTH levels

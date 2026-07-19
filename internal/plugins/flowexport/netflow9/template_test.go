@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// RFC requirement: RFC3954-x-9 positive -- the counter Template FlowSet carries Template ID 256, the compile-time constant CounterTemplateID (template.go:8) that is never reassigned for the life of the process.
 func TestNetflow9Template(t *testing.T) {
 	tmpl := BuildCounterTemplate()
 

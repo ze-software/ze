@@ -50,6 +50,7 @@ func newLoopbackEncoderTarget(t *testing.T) (net.PacketConn, *flowexport.Sender)
 // one per export packet. RFC 3954 Section 5.1: the sequence number counts
 // export packets. Two EncodeFlows calls (3 then 2 IPv4 flows) must produce
 // datagrams whose header sequence numbers differ by exactly 1.
+// RFC requirement: RFC3954-x-8 positive -- two EncodeFlows calls from one FlowEncoder (one observation domain) produce datagrams whose header sequence numbers differ by exactly 1 (flow_adapter.go:96-147); the counter is cumulative and advances per export packet.
 func TestNetflow9FlowSeqNumPerPacket(t *testing.T) {
 	pc, s := newLoopbackEncoderTarget(t)
 	defer func() { _ = pc.Close() }()

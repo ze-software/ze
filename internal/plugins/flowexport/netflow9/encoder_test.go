@@ -7,6 +7,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
 )
 
+// RFC requirement: RFC3954-x-3 positive -- header integer fields (version, count, sysUpTime, unixSecs, seq, sourceID) decode big-endian to their asymmetric written values (encoder.go:17-24); a little-endian write would fail these BigEndian reads.
 func TestNetflow9Header(t *testing.T) {
 	buf := make([]byte, 64)
 	n := WritePacketHeader(buf, 0, 3, 1000, 1716900000, 42, 1)
@@ -65,6 +66,7 @@ func TestNetflow9HeaderOffset(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC3954-x-1 positive -- WriteExportPacket with needTemplate=true packs the Template FlowSet before the Data FlowSet in one packet (encoder.go:36-56); count==2 (1 template + 1 data record) confirms the template precedes the data it describes.
 func TestWriteExportPacketWithTemplate(t *testing.T) {
 	buf := make([]byte, 1400)
 	tmpl := BuildCounterTemplate()

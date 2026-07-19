@@ -7,6 +7,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
 )
 
+// RFC requirement: RFC3954-x-3 positive -- counter record integers (INPUT_SNMP, IN_BYTES, IN_PKTS, OUT_BYTES, OUT_PKTS) decode big-endian to their written values (data.go writeCounterRecord); a little-endian encode would fail these BigEndian reads.
 func TestNetflow9DataFlowSet(t *testing.T) {
 	buf := make([]byte, 1400)
 

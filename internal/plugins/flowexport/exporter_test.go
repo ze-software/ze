@@ -63,6 +63,55 @@ func newTestExporter(t *testing.T, protocol string) *exporter {
 	return exp
 }
 
+// orderRecordingEncoder records the order of EncodeTemplate / Encode calls so a
+// test can assert the exporter never asks for a Data FlowSet before its Template.
+type orderRecordingEncoder struct {
+	events []string
+}
+
+func (e *orderRecordingEncoder) Encode(snap CounterSnapshot, _ *Sender) (int, error) {
+	e.events = append(e.events, "data")
+	return len(snap.Interfaces), nil
+}
+
+func (e *orderRecordingEncoder) EncodeTemplate(_ *Sender) error {
+	e.events = append(e.events, "template")
+	return nil
+}
+
+// TestExporterSendsTemplateBeforeData drives notifySnapshot on a fresh collector
+// (lastTemplate is zero) and asserts the exporter emits the Template FlowSet
+// before any Data FlowSet: a data FlowSet is never sent while no template has
+// been sent, which is the guard at exporter.go:193-204.
+// RFC requirement: RFC3954-x-1 negative -- on a fresh collector (lastTemplate zero) notifySnapshot sends the Template FlowSet before any Data FlowSet (exporter.go:193-204); the first emission the encoder is asked for is the template, so a data FlowSet is never emitted while no template has been sent.
+func TestExporterSendsTemplateBeforeData(t *testing.T) {
+	exp := newTestExporter(t, "netflow9")
+	enc := &orderRecordingEncoder{}
+	exp.setEncoder("c1", enc)
+
+	exp.notifySnapshot(CounterSnapshot{
+		Time:       time.Now(),
+		Interfaces: []InterfaceCounters{{IfIndex: 1}},
+	})
+
+	if len(enc.events) == 0 {
+		t.Fatal("encoder was never invoked; expected a template then data")
+	}
+	// The first thing the exporter emits on a fresh collector must be the template.
+	if enc.events[0] != "template" {
+		t.Fatalf("first emission was %q, want \"template\" (a Data FlowSet must never precede its Template)", enc.events[0])
+	}
+	// No data emission may appear before the first template emission.
+	for i, ev := range enc.events {
+		if ev == "template" {
+			break
+		}
+		if ev == "data" {
+			t.Fatalf("data FlowSet emitted at position %d before any template: %v", i, enc.events)
+		}
+	}
+}
+
 func TestExportFlowsAppliesEnrichment(t *testing.T) {
 	exp := newTestExporter(t, "netflow9")
 
