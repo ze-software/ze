@@ -9,7 +9,7 @@ last-known value, a cache, a hash).
 
 Persist runtime state through the managed zefs store, never as a loose file.
 
-- **Do:** `internal/core/statestore.Put(key, data)` / `statestore.Get(key)`,
+- **Do:** `statestore.Put(key, data)` / `statestore.Get(key)` (package `internal/core/statestore`),
   keyed by a registered `pkg/zefs` key (`meta/<subsystem>/<name>` in
   `pkg/zefs/keys.go`).
 - **Don't:** `os.WriteFile` / `os.Create` / `os.OpenFile(..., O_CREATE...)` /

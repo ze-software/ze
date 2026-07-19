@@ -115,3 +115,4 @@ Run `/ze-status` for the live backlog.
 | 2026-07-19 | spec-fixit-recent-cache-buffer-reclaim functional-proof | no privileged pool-pressure QEMU proof; unit-tested via fake pool ratio | live-server/QEMU constraint, deferred to CI | plan/spec-finish-appliance-qemu-evidence.md | deferred |
 | 2026-07-19 | spec-fixit-plugin-event-subscription functional-proof | functional .ci for the SDK-fork end-to-end path not authored (unrunnable here) | live-server/QEMU constraint, deferred to CI | plan/spec-finish-ci-coverage.md | deferred |
 | 2026-07-19 | spec-fixit-agent-tooling-misleads functional-proof | none beyond the corrected gates | live-server/QEMU constraint, deferred to CI | plan/spec-finish-ci-coverage.md | deferred |
+| 2026-07-19 | spec-fixit-doc-gate-and-refs functional-proof | the optional local check-doc-drift.sh hook is owned by a separate follow-up | live-server/QEMU constraint, deferred to CI | plan/spec-finish-ci-coverage.md | deferred |

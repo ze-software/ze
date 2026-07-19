@@ -30,7 +30,7 @@ modcache go.sum hashes.
    (`https://proxy.golang.org/github.com/gokrazy/gokrazy/@v/<version>.mod` or `@latest`)
    and confirm it `require`s the fixed dependency version. Only then bump.
 2. **Bump the version string in the 7 builddir modules** under
-   `gokrazy/ze/builddir/`: the `require` in `gokrazy` + `cmd/{dhcp,ntp,heartbeat,randomd}`,
+   `gokrazy/ze/builddir/`: the `require` in `gokrazy` + `cmd/{dhcp,ntp,heartbeat,randomd}`, <!-- doc-links: ignore (cmd/{dhcp,ntp,heartbeat,randomd} are gokrazy submodules under gokrazy/ze/builddir/github.com/gokrazy/gokrazy/, not top-level cmd/) -->
    and the `replace` RHS in `serial-busybox` + `rtr7/kernel`.
 3. **Remove any now-false workaround pin/comment** (e.g. an explicit `x/net` pin added
    because "upstream pins the old version"). Verify it is safe: `go list -m <dep>` in each

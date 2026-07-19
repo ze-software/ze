@@ -118,6 +118,70 @@ func TestDocDriftAllowsScannerTextParserDoc(t *testing.T) {
 	}
 }
 
+// VALIDATES: scripts/docvalid/doc_drift.go's checkReadmeMD flags BARE exact
+// README test-count claims in both directions (over-claim AND undercount), while
+// still tolerating soft `N+` at-least claims whose floor is met
+// (spec-fixit-doc-gate-and-refs AC-3). Before this, only `([\d,]+)\+`-style
+// over-claims were caught, so a bare `57 fuzz targets` or a bare `10,000 unit
+// tests` slipped through unseen.
+// PREVENTS: a bare headline count in README drifting from the live tree without
+// the doc gate noticing, and PREVENTS a regression that would start flagging the
+// soft `N+` phrasing the project deliberately uses to avoid count re-drift (R-1).
+func TestCheckReadmeMDFlagsBareAndUndercount(t *testing.T) {
+	root := t.TempDir()
+
+	// Mini source tree so doc_drift's live counts are deterministic:
+	// countFuzzTargets walks the whole root (3 `func Fuzz`), countGoTestFunctions
+	// walks internal/pkg/cmd (5 `func Test`). doc_drift only text-scans for the
+	// `^func Fuzz`/`^func Test` prefixes, so the file need not compile.
+	writeTempDoc(t, root, "internal/z/z_test.go",
+		"package z\n\n"+
+			"func FuzzA()\nfunc FuzzB()\nfunc FuzzC()\n"+
+			"func TestA()\nfunc TestB()\nfunc TestC()\nfunc TestD()\nfunc TestE()\n")
+
+	// One README exercises all four cases in a single run:
+	//   bare over-claim (5 vs 3), bare exact-match (3 vs 3, tolerated),
+	//   at-least over-claim (9+ vs 3, flagged), at-least met (1+ vs 3, tolerated),
+	//   bare undercount for a second unit (2 unit tests vs 5, flagged).
+	writeTempDoc(t, root, "README.md",
+		"# Ze\n\n"+
+			"bare over-claim: 5 fuzz targets in the tree\n"+
+			"bare exact match: 3 fuzz targets in the tree\n"+
+			"at-least over-claim: 9+ fuzz targets in the tree\n"+
+			"at-least tolerated: 1+ fuzz targets in the tree\n"+
+			"bare undercount: 2 unit tests in the tree\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go", "--root", root)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("doc_drift.go accepted bare mismatched README counts:\n%s", out)
+	}
+	s := string(out)
+
+	mustFlag := []string{
+		"claims 5 fuzz targets (bare exact count), actual is 3", // bare over-claim
+		"claims 9+ fuzz targets, actual is 3",                   // at-least over-claim
+		"claims 2 unit tests (bare exact count), actual is 5",   // bare undercount
+	}
+	for _, want := range mustFlag {
+		if !strings.Contains(s, want) {
+			t.Errorf("doc_drift.go did not flag expected drift %q:\n%s", want, s)
+		}
+	}
+	mustNotFlag := []string{
+		"claims 3 fuzz targets (bare exact count)", // bare exact match: tolerated
+		"claims 1+ fuzz targets",                   // at-least floor met: tolerated
+	}
+	for _, unwanted := range mustNotFlag {
+		if strings.Contains(s, unwanted) {
+			t.Errorf("doc_drift.go wrongly flagged tolerated claim %q:\n%s", unwanted, s)
+		}
+	}
+}
+
 // VALIDATES: scripts/dev/code_to_docs.py accepts the source-anchor separators
 // already used by docs.
 // PREVENTS: false stale references when anchors use a single hyphen separator.

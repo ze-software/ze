@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -244,3 +244,49 @@ AC-3's example "undercount `10,000+ unit tests`" CONTRADICTS the soft-`N+` defau
 
 ### Count-unification target values (soft, AC-4)
 Prefer: unit → single `10,000+` claim everywhere; functional → `roughly 800 functional tests` (wording the `roughly N` regex sees); fuzz → `50+` (both `README.md` and `docs/comparison.md`; drop bare `57`); interop → reconcile the headline: `35 Docker-based interop scenarios` vs `101 interop scenarios` describe different scopes (Docker-only vs `test/interop`+`test/exabgp`), so state both distinctly or unify to one soft `N+` — do NOT leave `35` and `101` reading as the same metric.
+
+## Review Gate (2026-07-19)
+
+Independent review: `general-purpose` subagent over the full diff (author's own
+inline reasoning is NOT the review). Artifact:
+`tmp/review/fixit-doc-gate-and-refs-58c51aab-79d8-400d-b779-2c0cf322a274.md`
+(18 files, content-hash pinned, verdict=clean) recorded via
+`scripts/dev/review_gate.py record`.
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE.** NOTES only (all optional, none a live bug):
+- `doc_drift.go` per-line `regexp.MustCompile` / string-concat unit could hoist
+  or `QuoteMeta`; safe because all three call-sites pass metachar-free literals.
+- LEARNED-INDEX:1165 per-line `doc-links: ignore` also suppresses other refs on
+  that long line; acceptable given the tool's per-line granularity.
+- `docs/comparison.md` still says "1,200+ end-to-end tests" vs README's
+  "roughly 1,400 functional tests" (different labels, not a contradiction;
+  outside this spec's comparison edits) — follow-up.
+
+### AC status (all demonstrated; ze-verify NOT run — it kills live servers)
+- AC-1: `mk("ze-doc-test")` + `mk("ze-doc-links")` in BOTH `stagesForMode`
+  branches; `TestStagesForModeIncludesDocGate` + `...Changed...` PASS.
+- AC-2: 19 refs / 9 files resolved; `check_doc_links.py` (md-only and full) EXIT 0.
+- AC-3: `checkReadmeCount` flags bare exact (both directions), keeps `N+` soft;
+  `TestCheckReadmeMDFlagsBareAndUndercount` PASS (red-on-revert verified).
+- AC-4: README + comparison counts unified and gate-clean; `bgpgen.py` uncited.
+- AC-5: wired gate proven red-on-injection / green-on-revert (check_doc_links +
+  doc_drift each EXIT 1 broken, 0 clean).
+
+### Deviations from the spec plan (autonomous, see DECISION.md)
+- **Counts**: functional set to `roughly 1,400 functional tests` (live `.ci`≈1444),
+  NOT the spec's stale `roughly 800` (accurate in 2026-04, since drifted).
+- **Hook phase** (`.claude/hooks/check-doc-drift.sh` + `.claude/settings.json` +
+  `hook-fixture`): NOT done here — `.claude/hooks/*` is owned by a separate parked
+  agent. The CI `stagesForMode` wiring is the real fix; the hook is the optional
+  local-feedback backstop.
+- **Curated-index override**: `ai/INDEX.md` + `ai/LEARNED-INDEX.md` are curated,
+  not generated (only `LEARNED-FULL-INDEX.md` has a generator); their refs were
+  hand-fixed because AC-2 is otherwise unreachable.
+- **Bonus**: fixed `readMakefileLines` nested-include resolution (CWD-relative,
+  matches GNU make); required for the wired gate to derive functional suites.
+
+### Not this spec (shared-tree, other agents' UNCOMMITTED work)
+`doc_drift` still reports 3 issues in `docs/functional-tests.md` + `Makefile`
+("22 vs 23 release-gate suites" / `runner` suite) — the concurrent runner-suite
+change, on this session's avoid-list. Gate goes fully green once that agent
+updates its suite count. My README/comparison count drifts are already 0.

@@ -31,6 +31,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func main() {
@@ -198,7 +199,6 @@ func readMakefileLines(root, rel string, seen map[string]bool) ([]string, error)
 	}
 
 	var out []string
-	base := filepath.Dir(rel)
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		fields := strings.Fields(trimmed)
@@ -212,10 +212,17 @@ func readMakefileLines(root, rel string, seen map[string]bool) ([]string, error)
 				out = append(out, line)
 				continue
 			}
+			// GNU make resolves include paths relative to the directory make
+			// was invoked from (repo root here), NOT relative to the including
+			// makefile. A nested `include mk/test-fuzz-targets.mk` inside
+			// mk/test-fuzz.mk therefore means <root>/mk/test-fuzz-targets.mk,
+			// not <root>/mk/mk/test-fuzz-targets.mk. Joining with the including
+			// file's dir mis-resolved it, made the hard include fail to read,
+			// and aborted the whole Makefile parse -- which silently emptied
+			// the derived ze-functional-test suite list ("could not derive
+			// ze-functional-test suites from Makefile"). Resolve relative to
+			// root, matching make.
 			incRel := filepath.Clean(inc)
-			if !filepath.IsAbs(incRel) && base != "." {
-				incRel = filepath.Join(base, incRel)
-			}
 			incLines, err := readMakefileLines(root, incRel, seen)
 			if err != nil {
 				if fields[0] == "-include" || fields[0] == "sinclude" {
@@ -546,11 +553,8 @@ func checkReadmeMD(root string, ciTotal, interopCount, fuzzCount, goTestCount in
 	var issues []issue
 	for i, line := range lines {
 		lineNum := i + 1
-		if m := extractAtLeast(line, `([\d,]+)\+ unit tests`); m > 0 && goTestCount < m {
-			issues = append(issues, issue{
-				File: "README.md", Line: lineNum,
-				Message: fmt.Sprintf("claims %d+ unit tests, actual is %d", m, goTestCount),
-			})
+		if iss, ok := checkReadmeCount(line, lineNum, `unit tests`, "unit tests", goTestCount); ok {
+			issues = append(issues, iss)
 		}
 		if m := extractApprox(line, `(?i)roughly ([\d,]+).*functional tests`); m > 0 && !withinThreshold(m, ciTotal, 0.20) {
 			issues = append(issues, issue{
@@ -558,20 +562,52 @@ func checkReadmeMD(root string, ciTotal, interopCount, fuzzCount, goTestCount in
 				Message: fmt.Sprintf("claims roughly %d functional tests, actual is %d", m, ciTotal),
 			})
 		}
-		if m := extractAtLeast(line, `([\d,]+)\+ fuzz targets`); m > 0 && fuzzCount < m {
-			issues = append(issues, issue{
-				File: "README.md", Line: lineNum,
-				Message: fmt.Sprintf("claims %d+ fuzz targets, actual is %d", m, fuzzCount),
-			})
+		if iss, ok := checkReadmeCount(line, lineNum, `fuzz targets`, "fuzz targets", fuzzCount); ok {
+			issues = append(issues, iss)
 		}
-		if m := extractAtLeast(line, `([\d,]+)\+ Docker-based interop scenarios`); m > 0 && interopCount < m {
-			issues = append(issues, issue{
-				File: "README.md", Line: lineNum,
-				Message: fmt.Sprintf("claims %d+ Docker-based interop scenarios, actual is %d", m, interopCount),
-			})
+		if iss, ok := checkReadmeCount(line, lineNum, `Docker-based interop scenarios`, "Docker-based interop scenarios", interopCount); ok {
+			issues = append(issues, iss)
 		}
 	}
 	return issues
+}
+
+// checkReadmeCount evaluates one `<number>[+] <unit>` headline test-count claim
+// on a README line with modifier-aware semantics:
+//   - `N+ <unit>` (at-least, soft): drift only when actual < N. This keeps the
+//     R-1 anti-re-drift default -- headroom above the claimed floor is intended
+//     and tolerated as the tree grows.
+//   - bare `N <unit>` (exact): drift when actual != N in EITHER direction. This
+//     catches bare over-claims AND undercounts that the previous
+//     `([\d,]+)\+`-only regex could not see (e.g. a bare `57 fuzz targets` or a
+//     bare `10,000 unit tests`).
+//
+// RE2 has no look-ahead, so the optional `+` is captured as its own group and
+// inspected to tell bare from at-least apart.
+func checkReadmeCount(line string, lineNum int, unit, label string, actual int) (issue, bool) {
+	re := regexp.MustCompile(`([\d,]+)(\+?)\s+` + unit)
+	m := re.FindStringSubmatch(line)
+	if len(m) < 3 {
+		return issue{}, false
+	}
+	n, err := strconv.Atoi(strings.ReplaceAll(m[1], ",", ""))
+	if err != nil || n <= 0 {
+		return issue{}, false
+	}
+	if m[2] == "+" {
+		if actual < n {
+			var tb textbuf.Buffer
+			tb.Str("claims ").Int(int64(n)).Str("+ ").Str(label).Str(", actual is ").Int(int64(actual))
+			return issue{File: "README.md", Line: lineNum, Message: tb.String()}, true
+		}
+		return issue{}, false
+	}
+	if n != actual {
+		var tb textbuf.Buffer
+		tb.Str("claims ").Int(int64(n)).Byte(' ').Str(label).Str(" (bare exact count), actual is ").Int(int64(actual))
+		return issue{File: "README.md", Line: lineNum, Message: tb.String()}, true
+	}
+	return issue{}, false
 }
 
 func checkFeaturesMD(root string) []issue {
@@ -800,10 +836,6 @@ func extractCount(line, pattern string) int {
 }
 
 func extractApprox(line, pattern string) int {
-	return extractCount(line, pattern)
-}
-
-func extractAtLeast(line, pattern string) int {
 	return extractCount(line, pattern)
 }
 

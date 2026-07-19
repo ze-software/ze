@@ -25,7 +25,7 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 Read these before drafting:
 
 1. `scripts/zeledon/STYLE.md`.
-2. The latest one or two files in `scripts/zeledon/weekly/`.
+2. The latest one or two files in `scripts/zeledon/weekly/`. <!-- doc-links: ignore (archive dir created at runtime by post_weekly.py; absent on a clean tree) -->
 3. `../gh-pages/AI.md`, especially `Weekly Update Checklist`.
 4. `../gh-pages/data/topics.json` for allowed update tags.
 5. The latest `../gh-pages/changes/posts/*.md` post, to keep format and coverage continuity.
@@ -34,7 +34,7 @@ If your working directory is `../gh-pages`, then the main repo is `../main`. If 
 
 ## Phase 1: Establish the week
 
-1. Find the newest archived Discord post in `scripts/zeledon/weekly/` and the newest website post in `../gh-pages/changes/posts/`.
+1. Find the newest archived Discord post in `scripts/zeledon/weekly/` and the newest website post in `../gh-pages/changes/posts/`. <!-- doc-links: ignore (runtime archive dir + gh-pages sibling worktree) -->
 2. Determine the new `covers:` range from the previous post's end date unless Thomas gives a different range.
 3. Gather what shipped during the range from `../main`:
    - inspect `git log` for the range,
@@ -117,7 +117,7 @@ In `../gh-pages`, apply the checklist from `AI.md`:
    - `changes/index.html`,
    - `changes/feed.xml`,
    - `index.html` homepage `Latest updates` cards, when the new week is within the rendered latest set.
-8. Do not assume the homepage card count. Read `tools/render-index.py` and check `sitelib.latest_blog_posts(N)`. If Thomas expects four cards and the renderer still uses a different number, update the renderer before claiming the homepage is correct.
+8. Do not assume the homepage card count. Read `tools/render-index.py` and check `sitelib.latest_blog_posts(N)`. <!-- doc-links: ignore (tools/render-index.py lives in the ../gh-pages sibling repo, not this tree) --> If Thomas expects four cards and the renderer still uses a different number, update the renderer before claiming the homepage is correct.
 9. Link-check the changed site. Reuse an existing local checker if available, otherwise use a temporary script that walks published `*.html` and `*.md` files, excludes `presentations/`, and resolves local `href` and `src` targets.
 
 ## Phase 5: Report

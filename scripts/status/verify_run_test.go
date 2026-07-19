@@ -362,6 +362,67 @@ func TestStagesForModeIncludesStaticAnalysisGates(t *testing.T) {
 	}
 }
 
+// VALIDATES: the alloc-ceiling gate (ze-alloc-gate) is registered in the full
+// `ze-verify` stage list -- the ACTUAL source of truth CI runs via
+// `make ze-verify` (.woodpecker/verify.yml) -- and is deliberately absent from
+// the fast `ze-verify-changed` inline loop (spec-fixit-perf-alloc-ci-gate AC-3).
+// PREVENTS: the perf-alloc regression gate merging a per-op heap allocation
+// undetected because the stage was never wired into the runner CI executes,
+// and PREVENTS it silently bloating the per-edit dev loop.
+func TestStagesIncludeAllocGate(t *testing.T) {
+	full := map[string]bool{}
+	for _, st := range stagesForMode("ze-verify", "make") {
+		full[st.Name] = true
+	}
+	if !full["ze-alloc-gate"] {
+		t.Errorf("stagesForMode(\"ze-verify\") missing ze-alloc-gate; CI would never run the alloc gate")
+	}
+
+	changed := map[string]bool{}
+	for _, st := range stagesForMode("ze-verify-changed", "make") {
+		changed[st.Name] = true
+	}
+	if changed["ze-alloc-gate"] {
+		t.Errorf("stagesForMode(\"ze-verify-changed\") must NOT include ze-alloc-gate (keeps the inline dev loop fast)")
+	}
+}
+
+// VALIDATES: the documentation-consistency gate (doc drift + corpus path
+// references) is wired into the ACTUAL stage list CI runs via `make ze-verify`
+// (.woodpecker/verify.yml), for the default full mode. Before this the gate was
+// dark: stagesForMode enumerated every ze-verify stage and named no ze-doc-*
+// target, so `check_doc_links.py` could exit 1 with broken discovery-layer refs
+// while CI stayed green (spec-fixit-doc-gate-and-refs AC-1).
+// PREVENTS: a broken index/rule path reference or a doc count drift merging
+// undetected because no gate that CI runs ever exercised the doc checks.
+func TestStagesForModeIncludesDocGate(t *testing.T) {
+	names := map[string]bool{}
+	for _, st := range stagesForMode("ze-verify", "make") {
+		names[st.Name] = true
+	}
+	for _, want := range []string{"ze-doc-test", "ze-doc-links"} {
+		if !names[want] {
+			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; the doc checks would never run under CI", "ze-verify", want)
+		}
+	}
+}
+
+// VALIDATES: the doc gate is ALSO wired into the fast `ze-verify-changed` inline
+// loop, not only the full run (spec-fixit-doc-gate-and-refs AC-1, R-3). A single
+// wired branch would let changed-mode sessions stay green on a broken reference.
+// PREVENTS: the changed-mode verify path skipping the doc-consistency gate.
+func TestStagesForModeChangedIncludesDocGate(t *testing.T) {
+	names := map[string]bool{}
+	for _, st := range stagesForMode("ze-verify-changed", "make") {
+		names[st.Name] = true
+	}
+	for _, want := range []string{"ze-doc-test", "ze-doc-links"} {
+		if !names[want] {
+			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; changed-mode would skip the doc checks", "ze-verify-changed", want)
+		}
+	}
+}
+
 func fixedNow() time.Time {
 	return time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 }

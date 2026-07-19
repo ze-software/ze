@@ -135,14 +135,14 @@ plan/spec-<source>-deferred-<subtask>.md
 |------|---------|---------|
 | `<source>` | Stem of the spec the work was deferred FROM, without the `spec-` prefix | `bgp-rib-flush` |
 | `<subtask>` | Short kebab-case name of the specific deferred work | `ipv6-coverage` |
-| Result | | `plan/spec-bgp-rib-flush-deferred-ipv6-coverage.md` |
+| Result | | `plan/spec-bgp-rib-flush-deferred-ipv6-coverage.md` | <!-- doc-links: ignore (illustrative naming example, not a live spec) -->
 
 - One subtask per file. Two deferrals from the same source spec are two files,
   not one file with two tasks.
 - The name carries the provenance: a reader knows what dropped it and why the
   file exists without opening it.
 - For ad-hoc deferrals with no source spec, `<source>` is the subsystem
-  (`plan/spec-l2tp-deferred-session-teardown-race.md`).
+  (`plan/spec-l2tp-deferred-session-teardown-race.md`). <!-- doc-links: ignore (illustrative naming example, not a live spec) -->
 - **A source spec does not outlive the deferral.** Spec closure `git rm`s the
   spec (`ai/rules/planning.md` "Spec Closure"), so `<source>` will usually name
   a file that no longer exists by the time someone picks the work up. That is

@@ -441,8 +441,8 @@ visitor shouldn't have to hunt for it.
 
 **Ze is pre-release — why should I trust it yet?**
 
-Don't take that on faith: it's backed by 13,700+ unit tests, 1,200+ end-to-end
-tests, 55+ fuzz targets, and interop testing against seven independent BGP
+Don't take that on faith: it's backed by 10,000+ unit tests, 1,200+ end-to-end
+tests, 50+ fuzz targets, and interop testing against seven independent BGP
 implementations. That's evidence you can check, not a promise. What it
 doesn't have yet is operational mileage — real deployments, over real time,
 on real networks. Use it in labs first.

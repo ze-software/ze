@@ -9,13 +9,11 @@ Python dependencies in ze are installed via `uv run --with <pkg>` (see
 --break-system-packages` fails on modern systems (PEP 668 externally-managed
 environment) and must not be introduced.
 
-**Stress test generator:** `test/stress/bgpgen.py` is a pure-stdlib BGP raw
-UPDATE file generator (RFC 4271 / 4760 wire format) that replaced the
-upstream scapy-based `bgpupdate` tool. It is ~500x faster (1M /24 prefixes
-in ~1 s vs. ~500 s under scapy). There is no remaining scapy dependency in
-the stress test path.
-
-`test/stress/setup.py` no longer installs scapy; `test/stress/run.py` no
-longer checks for it. If a new scenario needs features bgpgen does not
-cover (MPLS labels, withdraw, ADD_PATH, multi-ASN paths), extend
-`bgpgen.py` rather than reintroducing scapy.
+**Stress test path:** the BGP UPDATE stream for stress scenarios is generated
+in memory by the Go injector (`ze-test peer --mode inject`), not a Python tool.
+The earlier stdlib byte-level oracle (which had replaced the upstream
+scapy-based `bgpupdate` tool) has been removed now that the Go builder is
+trusted. `test/stress/` holds the Python harness (`test/stress/harness.py`,
+`test/stress/run.py`, `test/stress/setup.py`, `test/stress/scenarios/`); no
+scapy dependency remains in the stress path. Extend the Go injector for new
+scenarios rather than reintroducing scapy.

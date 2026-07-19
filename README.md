@@ -2,7 +2,7 @@
 
 **[ze-software.net](https://ze-software.net)**
 
-> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (as of 2026-04: 12,800+ unit tests, 900+ functional tests, 57 fuzz targets, chaos testing, and 35 Docker-based interop scenarios against FRR, BIRD, GoBGP, OpenBGPd, FreeRtr, RustyBGP, and rustbgpd), but some advanced features are still incomplete. APIs and config syntax may change.
+> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (10,000+ unit tests, roughly 1,400 functional tests, 50+ fuzz targets, chaos testing, and 35+ Docker-based interop scenarios against FRR, BIRD, GoBGP, OpenBGPd, FreeRtr, RustyBGP, and rustbgpd), but some advanced features are still incomplete. APIs and config syntax may change.
 
 Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
 
@@ -58,7 +58,7 @@ If you are an ExaBGP user, we would love your feedback on the migration experien
 |------|-------|
 | Unit tests | 10,000+ test functions as of 2026-04 |
 | Linting | 26 linters |
-| Functional tests | Roughly 800 `.ci` files as of 2026-04: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
+| Functional tests | Roughly 1,400 `.ci` files: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
 | Fuzz testing | 50+ targets covering external input parsing as of 2026-04 |
 | Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
 

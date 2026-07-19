@@ -53,7 +53,7 @@ and the false positives already known from prior sweeps.
 Unknown wire code/keyword silently routed to a default value instead of an error.
 
 - Grep `default:` in wire-facing packages, then inspect the branch body:
-  `internal/component/bgp/{wireu,message,attribute,capability}`,
+  `internal/component/bgp/{wireu,message}`, `internal/core/bgp/{attribute,capability}`,
   `internal/component/bgp/plugins/nlri`.
 - **Real shape:** `default:` returns a *value* (`return nil`, `return netip.Addr{}`,
   `return false`, or assigns the most common enum) with no error and no log,
