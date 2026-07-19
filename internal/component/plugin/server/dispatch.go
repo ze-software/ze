@@ -133,36 +133,81 @@ func parseEventString(event string) (events.EventTypeID, events.Direction) {
 // registerSubscriptions registers event subscriptions for a process.
 // Parses event strings (e.g. "update direction sent") into EventType + Direction.
 func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.SubscribeEventsInput) {
+	// Resolve the namespace FIRST so a rejected block (unknown namespace) has
+	// no side effects. Format/Encoding/Envelope are per-process state (last
+	// writer wins); a skipped subscribe block must not silently reconfigure
+	// delivery for subscriptions already registered on this process.
+	nsID, namespace, ok := s.resolveSubscriptionNamespace(proc, input.Namespace)
+	if !ok {
+		return
+	}
+
 	if input.Format != "" {
 		proc.SetFormat(input.Format)
 	}
 	if input.Encoding != "" {
 		proc.SetEncoding(input.Encoding)
 	}
+	if input.Envelope {
+		proc.SetEnvelope(true)
+	}
 
-	// The subscribe-events RPC carries no namespace; subscriptions go into
-	// the default event namespace registered by the owning protocol
-	// component ("bgp" today). Without a registration the namespace ID is
-	// NamespaceUnknown and the subscription cannot match: log so the gap is
-	// visible instead of silently dropping events.
+	var peerFilter *PeerFilter
+	if len(input.Peers) > 0 {
+		peerFilter = &PeerFilter{Selector: input.Peers[0]}
+	}
+
+	for _, event := range input.Events {
+		// Gap C: a "*" event expands at REGISTRATION time into one concrete
+		// subscription per registered event type of the namespace (the
+		// event_monitor precedent), instead of adding a wildcard branch to
+		// Subscription.Matches on the per-event hot path. Without this "*"
+		// resolves to EventTypeUnknown (0) and can never match an event whose
+		// ID starts at 1.
+		if event == "*" {
+			for _, et := range allEventTypes()[namespace] {
+				s.subscriptions.Add(proc, &Subscription{
+					Namespace:  nsID,
+					EventType:  events.LookupEventTypeID(et),
+					Direction:  events.DirBoth,
+					PeerFilter: peerFilter,
+				})
+			}
+			continue
+		}
+		eventType, direction := parseEventString(event)
+		s.subscriptions.Add(proc, &Subscription{
+			Namespace:  nsID,
+			EventType:  eventType,
+			Direction:  direction,
+			PeerFilter: peerFilter,
+		})
+	}
+}
+
+// resolveSubscriptionNamespace resolves the namespace for a subscribe block.
+// An explicit namespace (Gap A) wins and is validated against the registry:
+// an unknown one is logged and the whole block is skipped (ok=false) rather
+// than registering silently-dead subscriptions under NamespaceUnknown. An
+// empty namespace falls back to the default registered by the owning protocol
+// component ("bgp" today) -- the exact pre-Gap-A behavior; a missing default
+// is logged but still returns ok=true to preserve that legacy warn-and-continue.
+func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested string) (events.NamespaceID, string, bool) {
+	if requested != "" {
+		if !events.IsValidNamespace(requested) {
+			logger().Warn("rpc event subscription: unknown namespace, skipping subscriptions",
+				"plugin", proc.Name(), "namespace", requested, "valid", events.ValidNamespaceNames())
+			return events.NamespaceUnknown, "", false
+		}
+		return events.LookupNamespaceID(requested), requested, true
+	}
+
 	namespace := plugin.DefaultEventNamespace()
 	if namespace == "" {
 		logger().Warn("rpc event subscription: no default event namespace registered, subscriptions will not match (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
 			"plugin", proc.Name())
 	}
-	nsID := events.LookupNamespaceID(namespace)
-	for _, event := range input.Events {
-		eventType, direction := parseEventString(event)
-		sub := &Subscription{
-			Namespace: nsID,
-			EventType: eventType,
-			Direction: direction,
-		}
-		if len(input.Peers) > 0 {
-			sub.PeerFilter = &PeerFilter{Selector: input.Peers[0]}
-		}
-		s.subscriptions.Add(proc, sub)
-	}
+	return events.LookupNamespaceID(namespace), namespace, true
 }
 
 // emitEvent is the JSON wrapper for emit-event (RPC and Direct).
@@ -260,18 +305,56 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		return 0, &rpc.RPCCallError{Message: tb.Str("marshal event payload: ").Err(err).String()}
 	}
 
+	// Gap B: subscribers that opted into enveloped delivery receive the bare
+	// payload wrapped with its (namespace, event) identity. Render the envelope
+	// AT MOST ONCE, and only if some matching proc actually opted in, so the
+	// default (no opt-in) path keeps marshaling exactly once -- byte-identical
+	// to before. Subscribers that did not opt in still get eventJSON verbatim.
+	var envelopeJSON string
+	var envelopeBuilt bool
+
 	delivered := 0
 	for _, p := range procs {
 		// Skip self-delivery to prevent loops.
 		if p == emitter {
 			continue
 		}
-		if p.Deliver(process.EventDelivery{Output: eventJSON}) {
+		output := eventJSON
+		if p.Envelope() {
+			if !envelopeBuilt {
+				envelopeJSON, err = buildEventEnvelope(namespace, eventType, eventJSON)
+				if err != nil {
+					var tb textbuf.Buffer
+					return 0, &rpc.RPCCallError{Message: tb.Str("marshal event envelope: ").Err(err).String()}
+				}
+				envelopeBuilt = true
+			}
+			output = envelopeJSON
+		}
+		if p.Deliver(process.EventDelivery{Output: output}) {
 			delivered++
 		}
 	}
 
 	return delivered, nil
+}
+
+// buildEventEnvelope wraps a bare event payload JSON string in an EventEnvelope
+// carrying the (namespace, event) identity, marshaled to the JSON string that
+// rides inside the delivered event (transparent to the deliver-event and
+// deliver-batch string paths). bareJSON is a valid JSON document ("null", a
+// string-passthrough, or a marshaled value), so embedding it as json.RawMessage
+// re-marshals without a second decode.
+func buildEventEnvelope(namespace, eventType, bareJSON string) (string, error) {
+	b, err := json.Marshal(rpc.EventEnvelope{
+		Namespace: namespace,
+		Event:     eventType,
+		Payload:   json.RawMessage(bareJSON),
+	})
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 // payloadToJSON converts a bus payload into the JSON string delivered to

@@ -491,6 +491,40 @@ type SubscribeEventsInput struct {
 	Peers    []string `json:"peers,omitempty"`
 	Format   string   `json:"format,omitempty"`
 	Encoding string   `json:"encoding,omitempty"` // "json" (default) or "text"
+	// Namespace names the event namespace these subscriptions belong to.
+	// Empty (the default and the wire-compatible value for every pre-existing
+	// caller) resolves to the default namespace registered by the owning
+	// protocol component ("bgp" today). A non-empty value lets a plugin
+	// subscribe to a non-bgp namespace (e.g. "vpn-ipsec") at startup.
+	Namespace string `json:"namespace,omitempty"`
+	// Envelope, when true, asks the engine to wrap each delivered event in an
+	// EventEnvelope ({namespace, event, payload}) so a plugin subscribed to
+	// several event types can discriminate which one arrived without parsing
+	// payload-specific fields. Empty/false preserves the bare-payload delivery
+	// that every pre-existing consumer relies on.
+	Envelope bool `json:"envelope,omitempty"`
+}
+
+// EventEnvelope is the JSON shape delivered to a subscriber that opted into
+// enveloped delivery (SubscribeEventsInput.Envelope). It wraps the bare event
+// payload JSON with its (namespace, event) identity so a multi-subscription
+// plugin can tell which event arrived -- impossible for two events that share
+// a payload type (e.g. vpn-ipsec sa-up vs sa-down). The envelope rides INSIDE
+// the delivered event string, so it is transparent to both the deliver-event
+// and deliver-batch wire paths (both carry the event as a JSON string).
+type EventEnvelope struct {
+	Namespace string          `json:"namespace"`
+	Event     string          `json:"event"`
+	Payload   json.RawMessage `json:"payload"`
+}
+
+// ParseEventEnvelope unmarshals an enveloped delivered event string produced
+// when the subscription opted into SubscribeEventsInput.Envelope. Plugins that
+// did not opt in receive the bare payload and must not call this.
+func ParseEventEnvelope(event string) (EventEnvelope, error) {
+	var env EventEnvelope
+	err := json.Unmarshal([]byte(event), &env)
+	return env, err
 }
 
 // ReadyInput is the input for ze-plugin-engine:ready (Stage 5).

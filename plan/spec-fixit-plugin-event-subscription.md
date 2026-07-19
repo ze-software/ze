@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -517,13 +517,18 @@ JSON key changes meaning, no existing default delivery byte changes.
 
 ## Implementation Summary
 ### What Was Implemented
-- (fill at completion)
+- **Gap A** — `rpc.SubscribeEventsInput.Namespace` (additive, omitempty). `registerSubscriptions` resolves it via new `resolveSubscriptionNamespace`: explicit namespace validated with `events.IsValidNamespace` (unknown -> warn + skip whole block, no dead sub); empty -> `plugin.DefaultEventNamespace()` (legacy). SDK `SetStartupSubscriptionsIn(namespace, events, peers, format)` added; `SetStartupSubscriptions` untouched.
+- **Gap B** — `rpc.SubscribeEventsInput.Envelope` (additive, omitempty) -> per-process `process.Envelope()`/`SetEnvelope()` (`atomic.Bool`). `deliverEvent` renders the bare payload once (unchanged) and, only when a matching proc opted in, builds `rpc.EventEnvelope{namespace,event,payload}` at most once via `buildEventEnvelope`. SDK `SetEnvelope(true)` + `rpc.ParseEventEnvelope` for the consumer.
+- **Gap C** — `"*"` in a startup subscription expands at registration time into one sub per event type of the namespace using the server-package `allEventTypes()` (filters the bgp `"sent"` pseudo type); no wildcard branch added to `Subscription.Matches`.
+- **Files:** `internal/component/plugin/server/dispatch.go`, `internal/component/plugin/process/process.go`, `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_callbacks.go`. Tests: `internal/component/plugin/server/startup_subscription_test.go`, `pkg/plugin/rpc/event_envelope_test.go`, `pkg/plugin/sdk/startup_subscriptions_in_test.go`.
 ### Bugs Found/Fixed
-- (fill at completion)
+- Review ISSUE: rejected (unknown-namespace) subscribe block mutated per-process delivery state before the reject — reordered so reject has zero side effects.
 ### Documentation Updates
-- (fill at completion)
+- `docs/architecture/api/process-protocol.md` (Subscription Namespace + Enveloped Delivery + SubscribeEventsInput field table).
+- `ai/rules/plugin-design.md` (external-plugin startup subscription namespace/envelope note).
 ### Deviations from Plan
-- (fill at completion)
+- **Functional `.ci` fixtures NOT authored/run** (`plugin-startup-subscribe-namespace.ci`, `plugin-event-discriminable.ci`, exabgp Gap C extension). This was a parked background job forbidden from running functional/QEMU suites; every AC's MECHANISM is proven by scoped unit tests through the real production entry points, but the end-to-end SDK-fork path (spec Wiring rows 3–5, AC-8 "reaches exabgp script") remains to be authored + run in a live env before spec closure. See `tmp/drain-fixit-plugin-event-subscription.md`. Spec is NOT closed.
+- Multi-namespace startup (D-3) intentionally out of first pass.
 
 ## Implementation Audit
 ### Requirements from Task
@@ -556,21 +561,25 @@ JSON key changes meaning, no existing default delivery byte changes.
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
 
-### Run 1 (initial)
+### Run 1 (initial) — independent general-purpose subagent over the 7 code+test files
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | ISSUE | Fail-closed skip ran AFTER SetFormat/SetEncoding/SetEnvelope, so a rejected (unknown-namespace) block still reconfigured per-process delivery state | `dispatch.go` registerSubscriptions | fixed: resolveSubscriptionNamespace + `if !ok { return }` moved above the Set* calls; new test `TestUnknownNamespaceBlockHasNoSideEffects` |
+| 2 | NOTE | SDK→engine end-to-end wiring (`SetStartupSubscriptionsIn`/`SetEnvelope` -> ready RPC -> registerSubscriptions) unproven; the spec's `.ci` files were not authored | pkg/plugin/sdk, test/plugin | acknowledged: PARKED. Mechanism is compositionally proven by unit tests through the real entry points; the fork/ready-RPC transport needs a live env (see drain recipe). Recorded as remaining work, spec NOT closed. |
+| 3 | NOTE | Envelope path is stricter than bare path for a non-JSON string-passthrough payload (would fail the whole emit); untested for "null"/passthrough | `dispatch.go` buildEventEnvelope | addressed: added `TestEnvelopeWithNilSignalPayload` (null passthrough). Non-JSON-string producers already violate the documented payloadToJSON contract. |
+| 4 | NOTE | Mixed `["*", "<explicit>"]` registers duplicate subs but GetMatching breaks after first match per proc — safe | subscribe.go GetMatching | acknowledged, no action (no double delivery) |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE]
+- Reordered `registerSubscriptions` so an unknown-namespace block is rejected with zero side effects (no per-process format/encoding/envelope mutation). Added `TestUnknownNamespaceBlockHasNoSideEffects`.
+- Added `TestEnvelopeWithNilSignalPayload` covering the signal (nil -> "null") payload through the envelope.
 
 ### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+Re-verified after fix: `go test` + `golangci-lint` on all 4 packages clean; the ISSUE's producer reordered and guarded by a test. No new findings.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Independent review shows 0 BLOCKER, 0 ISSUE (the one ISSUE fixed and re-verified)
+- [x] All NOTEs recorded above (wiring NOTE = parked `.ci`, documented in drain recipe)
+- Review artifact: `tmp/review/fixit-plugin-event-subscription-<SID>.md` (verdict=clean, 7 files) via `review_gate.py record`
 
 ## Pre-Commit Verification
 

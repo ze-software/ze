@@ -80,6 +80,7 @@ type Process struct {
 	encoding       atomic.Value // string: "json" or "text" (default: "json")
 	format         atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
 	formatCacheKey atomic.Value // string: precomputed "format+encoding" for event dispatch cache lookup
+	envelope       atomic.Bool  // true: wrap delivered events in an EventEnvelope (default: bare payload)
 
 	// Registered plugin commands (tracked for cleanup on death)
 	registeredCommands []string
@@ -319,6 +320,20 @@ func (p *Process) Format() string {
 func (p *Process) SetFormat(format string) {
 	p.format.Store(format)
 	p.recomputeFormatCacheKey()
+}
+
+// Envelope reports whether this process opted into enveloped event delivery
+// (SubscribeEventsInput.Envelope). Default false: bare-payload delivery, the
+// shape every pre-existing subscriber relies on.
+func (p *Process) Envelope() bool {
+	return p.envelope.Load()
+}
+
+// SetEnvelope records the process-wide enveloped-delivery preference. Like
+// SetFormat/SetEncoding this is per-process state, not per-subscription: the
+// last subscribe block wins for the whole process.
+func (p *Process) SetEnvelope(v bool) {
+	p.envelope.Store(v)
 }
 
 // FormatCacheKey returns the precomputed "format+encoding" string for event dispatch

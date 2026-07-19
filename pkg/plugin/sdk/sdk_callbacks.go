@@ -601,6 +601,39 @@ func (p *Plugin) SetStartupSubscriptions(events, peers []string, format string) 
 	}
 }
 
+// SetStartupSubscriptionsIn is SetStartupSubscriptions with an explicit event
+// namespace, letting a plugin subscribe to a non-bgp namespace (e.g.
+// "vpn-ipsec") at startup. An empty namespace behaves exactly like
+// SetStartupSubscriptions (resolves to the engine's default namespace, "bgp"
+// today). Must be called before Run(). Added rather than changing
+// SetStartupSubscriptions so out-of-tree plugins keep compiling unchanged.
+func (p *Plugin) SetStartupSubscriptionsIn(namespace string, events, peers []string, format string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.startupSubscription = &rpc.SubscribeEventsInput{
+		Namespace: namespace,
+		Events:    events,
+		Peers:     peers,
+		Format:    format,
+	}
+}
+
+// SetEnvelope opts this plugin into enveloped event delivery: each delivered
+// event string becomes an rpc.EventEnvelope ({namespace, event, payload}) so a
+// plugin subscribed to several event types can discriminate which one arrived
+// without parsing payload-specific fields (parse with rpc.ParseEventEnvelope).
+// Like SetEncoding it applies process-wide. Default false preserves the
+// bare-payload delivery every pre-existing consumer relies on. Must be called
+// after SetStartupSubscriptions[In] and before Run().
+func (p *Plugin) SetEnvelope(enabled bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.startupSubscription == nil {
+		p.startupSubscription = &rpc.SubscribeEventsInput{}
+	}
+	p.startupSubscription.Envelope = enabled
+}
+
 // SetEncoding sets the event encoding preference ("json" or "text").
 // Must be called after SetStartupSubscriptions and before Run().
 // Text encoding uses space-delimited output parseable by strings.Fields
