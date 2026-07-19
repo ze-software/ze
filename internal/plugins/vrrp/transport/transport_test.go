@@ -199,6 +199,7 @@ func TestUpdateAdvertReencodes(t *testing.T) {
 }
 
 func TestSendAdvertUsesParentPrimaryV4Source(t *testing.T) {
+	// RFC requirement: RFC3768-7.2-3 positive -- the transmitted advert's source IP is the parent unit's primary IPv4 address, re-resolved on update and on an address-change event (resolveParentPrimaryV4 transport.go:573).
 	// VALIDATES: AC-3 / A-7 -- the IPv4 source is the parent unit's first IPv4
 	// address, re-resolved on UpdateAdvert and on an address-change event.
 	old := resolveIfaceAddresses
@@ -248,6 +249,45 @@ func TestSendAdvertUsesParentPrimaryV4Source(t *testing.T) {
 	}
 	if src := netip.AddrFrom4([4]byte(h.lastAdvert()[12:16])); src != netip.MustParseAddr("192.0.2.30") {
 		t.Fatalf("source after address event = %v, want 192.0.2.30", src)
+	}
+}
+
+// TestSendAdvertIPv4HeaderTTLProtoDst asserts the IPv4 header ze builds for a v2
+// advertisement carries the RFC-mandated TTL, protocol, and destination.
+func TestSendAdvertIPv4HeaderTTLProtoDst(t *testing.T) {
+	// RFC requirement: RFC3768-5.2.3-1 positive -- the transmitted IPv4 datagram carries TTL 255 (buildIPv4Header transport.go:562).
+	// RFC requirement: RFC3768-7.2-4 positive -- the transmitted datagram carries IP protocol 112 and destination 224.0.0.18 (buildIPv4Header transport.go:563; SendAdvert targets MulticastV4).
+	withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.10", Family: "ipv4"}})
+	fb := &fakeBackend{}
+	tr := New(fb)
+	key, err := tr.OpenInstance(v4Spec())
+	if err != nil {
+		t.Fatalf("OpenInstance: %v", err)
+	}
+	h := fb.last()
+	if err := tr.UpdateAdvert(key, AdvertParams{
+		Version:         packet.VersionV2,
+		Priority:        100,
+		AdverIntervalMS: 1000,
+		VIPs:            []netip.Addr{netip.MustParseAddr("192.0.2.1")},
+	}); err != nil {
+		t.Fatalf("UpdateAdvert: %v", err)
+	}
+	if err := tr.SendAdvert(key); err != nil {
+		t.Fatalf("SendAdvert: %v", err)
+	}
+	frame := h.lastAdvert()
+	if len(frame) < ipv4HeaderLen {
+		t.Fatalf("frame too short: %d bytes", len(frame))
+	}
+	if frame[8] != 255 {
+		t.Errorf("TTL = %d, want 255", frame[8])
+	}
+	if frame[9] != packet.ProtoNumber {
+		t.Errorf("protocol = %d, want %d", frame[9], packet.ProtoNumber)
+	}
+	if dst := netip.AddrFrom4([4]byte(frame[16:20])); dst != packet.MulticastV4 {
+		t.Errorf("dst = %v, want 224.0.0.18", dst)
 	}
 }
 

@@ -307,6 +307,8 @@ func TestBoundaryVRID(t *testing.T) {
 // TestBoundaryPriority covers the priority range: 1..254 configurable, 0 and
 // 255 rejected (255 is the owner's, assigned by ze -- RFC 9568 Section 5.2.4).
 func TestBoundaryPriority(t *testing.T) {
+	// RFC requirement: RFC3768-5.3.4-2 positive -- a Backup priority in 1..254 is accepted (validateGroup groups.go:503).
+	// RFC requirement: RFC3768-5.3.4-2 negative -- priority 0 (resignation) and 255 (owner-reserved) are rejected, so a Backup can never be configured outside 1..254 (groups.go:503).
 	cases := []struct {
 		priority float64
 		wantErr  bool
@@ -700,6 +702,8 @@ func TestExtractRequiresVRID(t *testing.T) {
 }
 
 func TestOwnerAutoDetection(t *testing.T) {
+	// RFC requirement: RFC3768-5.3.4-1 positive -- the router that owns the virtual address runs with priority 255 (EffectivePriority groups.go:141).
+	// RFC requirement: RFC3768-5.3.4-1 negative -- a non-owner is NOT forced to 255; it keeps its configured Backup priority, so 255 marks only the address owner (groups.go:141).
 	// VIP equals a real address on the same unit+family -> owner.
 	owner := oneGroup(familyIPv4, "5", map[string]any{"virtual-address": vips("192.0.2.10"), "priority": float64(120)}, "192.0.2.10/24")
 	specs, err := extractGroupSpecs([]configSection{mkSection(t, owner)})

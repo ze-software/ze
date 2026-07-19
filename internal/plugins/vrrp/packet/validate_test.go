@@ -34,6 +34,20 @@ func reChecksum(buf []byte, src, dst netip.Addr) {
 // -----------------------------------------------------------------------------
 
 // VALIDATES: AC-3 -- v2 golden decodes field-equal, interval 1000 ms.
+//
+// A conformant v2 advertisement passes every §7.1 receive-validation MUST, so this
+// golden decode is the positive case for each ladder row (the matching negatives
+// live in TestValidationOrder, TestNegativeReferenceBugs, TestDecodeV2IntervalMismatchDiscard
+// and TestDecodeV2ChecksumCorrupt):
+// RFC requirement: RFC3768-7.1-1 positive -- wire version 2 accepted (Decode validate.go:133,149)
+// RFC requirement: RFC3768-7.1-2 positive -- complete packet incl the 8-byte auth trailer accepted (validate.go:179-185)
+// RFC requirement: RFC3768-7.1-3 positive -- a valid v2 checksum verifies (verifyReceived checksum.go:132)
+// RFC requirement: RFC3768-7.1-4 positive -- the configured VRID resolves via lookup (validate.go:143)
+// RFC requirement: RFC3768-7.1-5 positive -- Auth Type 0 (No Authentication) matches and passes (validate.go:191)
+// RFC requirement: RFC3768-7.1-8 positive -- Adver Interval equal to the local config accepted (validate.go:205)
+// RFC requirement: RFC3768-5.2.3-2 positive -- TTL 255 accepted (validate.go:163)
+// RFC requirement: RFC3768-5.3.2-1 positive -- Type 1 ADVERTISEMENT accepted (validate.go:138)
+// RFC requirement: RFC3768-5.3.6-1 positive -- Auth Type 0 accepted; a non-zero type would discard (validate.go:191).
 func TestDecodeGoldenV2(t *testing.T) {
 	adv, err := Decode(mustHex(t, goldenV2Hex), metaV2(t), lookupConst(VersionV2, 1000))
 	if err != nil {
@@ -111,6 +125,7 @@ func TestValidationOrder(t *testing.T) {
 	})
 
 	t.Run("3<4 type beats vrid", func(t *testing.T) {
+		// RFC requirement: RFC3768-5.3.2-1 negative -- a non-ADVERTISEMENT type (2) is discarded with ErrType (validate.go:138)
 		b := encodeValid(t, advV3v4(t), src4, dst4)
 		b[0] = 0x32 // version 3 + type 2 (bad)
 		_, err := Decode(b, metaV3v4(t), func(uint8) (Local, bool) { return Local{}, false })
@@ -120,6 +135,7 @@ func TestValidationOrder(t *testing.T) {
 	})
 
 	t.Run("4<5 vrid beats version-match", func(t *testing.T) {
+		// RFC requirement: RFC3768-7.1-4 negative -- a VRID not configured on the interface is discarded with ErrUnknownVRID (validate.go:143)
 		b := encodeValid(t, advV3v4(t), src4, dst4)
 		_, err := Decode(b, metaV3v4(t), func(uint8) (Local, bool) { return Local{Version: VersionV2}, false })
 		if !errors.Is(err, ErrUnknownVRID) {
@@ -173,6 +189,7 @@ func TestValidationOrder(t *testing.T) {
 	})
 
 	t.Run("9<10 length beats auth-type", func(t *testing.T) {
+		// RFC requirement: RFC3768-7.1-2 negative -- a v2 packet whose length does not match Count IP Addrs plus the 8-byte auth trailer is discarded as incomplete with ErrLength (validate.go:183)
 		b := encodeValid(t, advV2(t), src4, dst4) // v2, 24 bytes
 		b[3] = 3                                  // count lies (says 3, only 2 present)
 		b[4] = 1                                  // auth type 1 (bad)
@@ -205,6 +222,7 @@ func TestValidationOrder(t *testing.T) {
 	})
 
 	t.Run("12 v2 interval mismatch", func(t *testing.T) {
+		// RFC requirement: RFC3768-7.1-8 negative -- a v2 Adver Interval differing from the local config is discarded with ErrV2IntervalMismatch (validate.go:205)
 		b := encodeValid(t, advV2(t), src4, dst4) // interval 1 s = 1000 ms
 		_, err := Decode(b, metaV2(t), lookupConst(VersionV2, 2000))
 		if !errors.Is(err, ErrV2IntervalMismatch) {
@@ -245,12 +263,24 @@ func TestDecodeV3IntervalMismatchNotError(t *testing.T) {
 
 // VALIDATES: AC-5 -- a v2 advert with mismatched interval is discarded.
 func TestDecodeV2IntervalMismatchDiscard(t *testing.T) {
+	// RFC requirement: RFC3768-7.1-8 negative -- a v2 Adver Interval differing from the local config discards the packet (validate.go:205).
 	adv := advV2(t)
 	adv.AdverIntervalMS = 2000 // 2 s, differs from local 1000
 	b := encodeValid(t, adv, addr(t, "192.0.2.251"), MulticastV4)
 	_, err := Decode(b, metaV2(t), lookupConst(VersionV2, 1000))
 	if !errors.Is(err, ErrV2IntervalMismatch) {
 		t.Fatalf("got %v, want ErrV2IntervalMismatch", err)
+	}
+}
+
+// TestDecodeV2ChecksumCorrupt is the negative for the v2 receive-checksum MUST: a
+// v2 advertisement whose checksum does not verify is discarded.
+func TestDecodeV2ChecksumCorrupt(t *testing.T) {
+	// RFC requirement: RFC3768-7.1-3 negative -- a v2 packet with a corrupted checksum is discarded with ErrChecksum (verifyReceived checksum.go:132, Decode validate.go:157).
+	b := mustHex(t, goldenV2Hex)
+	b[7] ^= 0xff // flip the checksum low byte so the one's-complement sum no longer folds to all-ones
+	if _, err := Decode(b, metaV2(t), lookupConst(VersionV2, 1000)); !errors.Is(err, ErrChecksum) {
+		t.Fatalf("corrupted v2 checksum: got %v, want ErrChecksum", err)
 	}
 }
 
@@ -471,6 +501,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	})
 
 	t.Run("N4 ttl-not-255", func(t *testing.T) {
+		// RFC requirement: RFC3768-5.2.3-2 negative -- a received packet with TTL != 255 is discarded with ErrTTL (validate.go:163)
 		meta := metaV3v4(t)
 		meta.TTL = 64
 		if _, err := Decode(mustHex(t, goldenV3v4Hex), meta, lookupConst(VersionV3, 1000)); !errors.Is(err, ErrTTL) {
@@ -531,6 +562,8 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	})
 
 	t.Run("N8 v2-auth-type-1", func(t *testing.T) {
+		// RFC requirement: RFC3768-5.3.6-1 negative -- a v2 Auth Type != 0 (1 = simple password) is discarded with ErrAuthType (validate.go:191)
+		// RFC requirement: RFC3768-7.1-5 negative -- a v2 Auth Type not matching the only supported method (0 = No Authentication) is discarded (validate.go:191)
 		b := encodeValid(t, advV2(t), src4, dst4)
 		b[4] = 1 // simple-password auth
 		reChecksum(b, src4, dst4)
@@ -540,6 +573,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	})
 
 	t.Run("N9 v2-at-v3-group-and-inverse", func(t *testing.T) {
+		// RFC requirement: RFC3768-7.1-1 negative -- a wire version that is not 2 (v2 packet at a v3-configured group, and the inverse) is discarded with ErrVersion (validate.go:133,149)
 		if _, err := Decode(mustHex(t, goldenV2Hex), metaV2(t), lookupConst(VersionV3, 1000)); !errors.Is(err, ErrVersion) {
 			t.Fatalf("v2@v3: got %v, want ErrVersion", err)
 		}

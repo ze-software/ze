@@ -87,6 +87,9 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 
 	cs := cfg.CacheServers[0]
 	assert.Equal(t, "10.0.0.1", cs.Address)
+	// RFC requirement: RFC6810-7-1 positive -- a cache server configured with no explicit port
+	// defaults to the rpki-rtr port 323, the unprotected-TCP transport ze dials (rtr_session.go
+	// DialContext "tcp"). This is the mandatory-to-implement transport for an RTR router.
 	assert.Equal(t, uint16(323), cs.Port)             // RTR default
 	assert.Equal(t, uint8(100), cs.Preference)        // YANG default
 	assert.Equal(t, uint16(0), cfg.ValidationTimeout) // not set

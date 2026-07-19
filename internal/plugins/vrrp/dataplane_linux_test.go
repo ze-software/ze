@@ -53,6 +53,13 @@ func (f *fakeSysctl) get(path string) string { return f.values[path] }
 // TestDataplaneApplyIPv4SetsRecipe proves an IPv4 group sets the full virtual-MAC
 // recipe on the parent, the macvlan, and the global knob.
 func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
+	// The recipe is how a Master answers ARP for the VIP with the virtual MAC and
+	// not the physical MAC: the parent gets arp_ignore=1/arp_filter=1 so it stops
+	// answering for the VIP, and the virtual-MAC macvlan (arp_ignore=1, rp_filter=0)
+	// becomes the sole responder (proven end-to-end under QEMU in
+	// plan/learned/1122-vrrp-macvlan-vmac-dataplane.md).
+	// RFC requirement: RFC3768-6.4.3-1 positive -- the virtual-MAC macvlan is made the sole ARP responder for the VIP, so a Master answers ARP requests for the virtual address with the virtual MAC (dataplane_linux.go:64,73).
+	// RFC requirement: RFC3768-8.2-1 positive -- the parent's arp_ignore/arp_filter are set so the parent's physical MAC never answers ARP for the virtual address (dataplane_linux.go:73).
 	f := newFakeSysctl(map[string]string{
 		allRPFilterPath():              "1",
 		ipv4Conf("eth0", "arp_ignore"): "0",
@@ -108,6 +115,8 @@ func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 // TestDataplaneRestoreOnLastGroup proves the parent and global knobs are restored
 // to their pre-VRRP values only when the last group on the parent is torn down.
 func TestDataplaneRestoreOnLastGroup(t *testing.T) {
+	// RFC requirement: RFC3768-6.4.3-1 negative -- the sole-responder recipe is not permanent: on the last group's teardown the parent's ARP knobs are restored, so the virtual-MAC ARP ownership is scoped to a live VRRP group (dataplane_linux.go revertDataplaneSysctls).
+	// RFC requirement: RFC3768-8.2-1 negative -- the parent's arp_ignore/arp_filter are restored to their pre-VRRP values on the last teardown, so the physical-MAC suppression is scoped to a live VRRP group, not a permanent host change (dataplane_linux.go revertDataplaneSysctls).
 	f := newFakeSysctl(map[string]string{
 		allRPFilterPath():              "1",
 		ipv4Conf("eth0", "arp_ignore"): "0",

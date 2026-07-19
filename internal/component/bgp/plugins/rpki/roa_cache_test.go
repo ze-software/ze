@@ -125,6 +125,32 @@ func TestROACacheFindCoveringIPv6(t *testing.T) {
 	assert.Equal(t, uint32(65003), entries[0].ASN)
 }
 
+// TestValidationDoesNotDistinguishCacheSource verifies that origin validation is driven purely by
+// VRP content, never by which cache session supplied a VRP.
+//
+// VALIDATES: RFC 6810 Section 8 -- when VRPs from multiple caches are held together, validation must
+// not distinguish between their sources. ze holds a single merged ROACache (no per-source field), so
+// ApplyDelta calls standing in for two distinct caches contribute VRPs that validate identically.
+// PREVENTS: A per-source code path leaking into validation and making a route's state depend on which
+// cache announced the covering VRP.
+func TestValidationDoesNotDistinguishCacheSource(t *testing.T) {
+	c := NewROACache()
+
+	// Two independent ApplyDelta batches stand in for two cache sessions writing the shared cache.
+	c.ApplyDelta(nil, []VRP{makeVRP("10.0.0.0/8", 24, 65001)})     // "cache A"
+	c.ApplyDelta(nil, []VRP{makeVRP("192.168.0.0/16", 24, 65002)}) // "cache B"
+
+	// RFC requirement: RFC6810-8-2 positive -- a route covered by either source's VRP is Valid; the
+	// verdict comes from the merged cache content, with no source discriminator consulted.
+	assert.Equal(t, ValidationValid, c.Validate("10.0.0.0/8", 65001), "cache A's VRP validates its origin")
+	assert.Equal(t, ValidationValid, c.Validate("192.168.0.0/16", 65002), "cache B's VRP validates its origin")
+
+	// RFC requirement: RFC6810-8-2 negative -- a route whose origin AS does not match the covering
+	// VRP is Invalid regardless of source: the state is determined by VRP content, not by which cache
+	// supplied it. A source-aware path could not produce this content-only verdict.
+	assert.Equal(t, ValidationInvalid, c.Validate("10.0.0.0/8", 65099), "origin mismatch is Invalid on content alone")
+}
+
 // TestROACacheClear verifies clear removes all entries.
 //
 // VALIDATES: Clear empties both IPv4 and IPv6 tables.

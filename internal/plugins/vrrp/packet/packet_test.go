@@ -84,6 +84,7 @@ func advV3v6(t testing.TB) Advertisement {
 // Int byte = 1 second, 8-byte zero auth trailer, checksum 0x92ED).
 // PREVENTS: field shift, wrong unit, missing trailer, wrong checksum.
 func TestEncodeGoldenV2(t *testing.T) {
+	// RFC requirement: RFC3768-7.2-1 positive -- WriteTo fills every VRRP field from the advertisement state and FillChecksum computes the checksum, producing the exact golden bytes (packet.go:251, checksum.go:86).
 	adv := advV2(t)
 	buf := make([]byte, MaxLenV2)
 	n := adv.WriteTo(buf, 0)
@@ -373,6 +374,7 @@ func TestConstants(t *testing.T) {
 	if MulticastV4 != addr(t, "224.0.0.18") || MulticastV6 != addr(t, "ff02::12") {
 		t.Fatalf("multicast drift: v4=%v v6=%v", MulticastV4, MulticastV6)
 	}
+	// RFC requirement: RFC3768-7.2-2 positive -- the virtual-router MAC is 00-00-5E-00-01-{VRID}, the L2 source identity the tx socket egresses by binding to this vMAC macvlan (packet.go:97; backend_linux.go:133).
 	mac := VirtualMAC(V4, 10)
 	if mac != [6]byte{0x00, 0x00, 0x5e, 0x00, 0x01, 0x0a} {
 		t.Fatalf("v4 VirtualMAC = % x", mac)

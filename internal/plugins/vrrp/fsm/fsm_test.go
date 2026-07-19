@@ -82,6 +82,26 @@ func skewDur(cfg Config, activeMs int) time.Duration {
 //
 // VALIDATES: State Transition Table (every row) + AC-1,2,3,4,5,6,8,9,10,11,12,13.
 // PREVENTS: R-4 (order-insensitive tests hiding AnnounceFailover-before-VIPs bugs).
+//
+// The state-machine rows are shared by VRRPv2 and VRRPv3 except where noted; each
+// tag names the exact row that pins the requirement:
+// RFC requirement: RFC3768-6.4.2-4 positive -- row backup/shutdown: Backup Shutdown cancels the master-down timer (StopTimers) and transitions to Initialize (fsm.go:172)
+// RFC requirement: RFC3768-6.4.2-4 negative -- row backup/advert-timer-expired/stale: a non-Shutdown event does not transition Backup to Initialize (fsm.go:194)
+// RFC requirement: RFC3768-6.4.2-6 positive -- row backup/advert/priority-zero: a Priority-0 advert sets the master-down timer to Skew_Time (fsm.go:207)
+// RFC requirement: RFC3768-6.4.2-6 negative -- row backup/advert/adopt/equal-priority: a non-zero-priority advert sets master-down to Master_Down_Interval, not Skew_Time (fsm.go:217)
+// RFC requirement: RFC3768-6.4.2-7 positive -- row backup/advert/adopt/equal-priority: a non-zero advert with priority >= local resets the master-down timer (fsm.go:217)
+// RFC requirement: RFC3768-6.4.2-7 negative -- row backup/advert/discard/preempt-lower-priority-no-delay: preempt on and advertised priority < local does not reset master-down (fsm.go:227)
+// RFC requirement: RFC3768-6.4.2-8 positive -- row backup/advert/discard/preempt-lower-priority-no-delay: preempt on and advertised priority < local discards the advert (no actions) (fsm.go:227)
+// RFC requirement: RFC3768-6.4.2-8 negative -- row backup/advert/adopt/equal-priority: an advert with priority >= local is accepted, not discarded (fsm.go:217)
+// RFC requirement: RFC3768-6.4.3-5 positive -- row master/shutdown: Master Shutdown cancels the advert timer, sends a Priority-0 advert, and transitions to Initialize (fsm.go:264)
+// RFC requirement: RFC3768-6.4.3-5 negative -- row backup/shutdown: a Backup Shutdown sends no Priority-0 advert (fsm.go:172)
+// RFC requirement: RFC3768-6.4.3-6 positive -- row master/advert-timer-expired/matching-gen: the advert timer firing sends an advert and resets the timer (fsm.go:276)
+// RFC requirement: RFC3768-6.4.3-7 positive -- row master/advert/priority-zero/reset-advert-timer: a Priority-0 advert makes the Master send an advert and reset the advert timer (fsm.go:303)
+// RFC requirement: RFC3768-6.4.3-7 negative -- row master/advert/losing-lower-priority/v2-silent: a non-zero losing advert does not trigger the send-and-reset (fsm.go:330)
+// RFC requirement: RFC3768-6.4.3-8 positive -- rows master/advert/higher-priority/demote and .../tie-break-lost: a higher-priority advert (or equal priority with greater sender IP) cancels the advert timer, arms master-down, and demotes to Backup (fsm.go:314)
+// RFC requirement: RFC3768-6.4.3-8 negative -- row master/advert/losing-lower-priority/v2-silent: a lower-priority advert does not demote the Master (fsm.go:330)
+// RFC requirement: RFC3768-6.4.3-9 positive -- row master/advert/losing-lower-priority/v2-silent: a v2 Master silently discards a losing advert (no actions, stays Master) (fsm.go:330)
+// RFC requirement: RFC3768-6.4.3-9 negative -- row master/advert/higher-priority/demote: a winning advert is not silently discarded, it demotes the Master (fsm.go:314).
 func TestFSMTransitionMatrix(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -385,6 +405,7 @@ func TestFSMBackupReceivesAdvert(t *testing.T) {
 //
 // VALIDATES: Wiring row 2 + AC-3 + R-4 (exact order, not membership).
 func TestFSMMasterDownPromotion(t *testing.T) {
+	// RFC requirement: RFC3768-6.4.2-5 positive -- when the Master_Down_Timer fires, the Backup sends an ADVERTISEMENT, installs VIPs, announces failover (gratuitous ARP), starts the advert timer, and transitions to Master, in that order (promoteToMaster fsm.go:368).
 	i := backupInstance(baseCfg())
 	got := i.Handle(MasterDownExpired{Gen: 100})
 	if len(got) != 5 {
@@ -572,6 +593,8 @@ func TestFSMNoPanicInInitialize(t *testing.T) {
 //
 // VALIDATES: AC-17, Timer Generations table; holo bug 10 replacement.
 func TestFSMStaleTimerGenerationIgnored(t *testing.T) {
+	// RFC requirement: RFC3768-6.4.2-5 negative -- a stale (non-armed generation) Master_Down expiry does not promote the Backup, so promotion is bound to the live timer, not any expiry event (fsm.go:178).
+	// RFC requirement: RFC3768-6.4.3-6 negative -- a stale advert-timer expiry in Master does not send an advert or reset the timer; only the armed generation does (fsm.go:276).
 	// Backup: arm master-down (gen 100), re-arm via advert (gen 101), then a stale
 	// expiry with gen 100 must be ignored.
 	i := backupInstance(baseCfg())

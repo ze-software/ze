@@ -13,6 +13,9 @@ import (
 // VALIDATES: Reset Query is 8 bytes with version=1, type=2, zero session, length=8.
 // PREVENTS: Malformed Reset Query causing cache rejection.
 func TestWriteResetQuery(t *testing.T) {
+	// RFC requirement: RFC6810-5-1 positive -- the Reset Query has no Session ID; that field is
+	// "unspecified content" for this PDU and writeResetQuery emits it as zero on transmission
+	// (buf[2:4] == 0), while the version/type/length fields still carry their real values.
 	buf := make([]byte, 16)
 	n := writeResetQuery(buf, 0, rtrVersionMax)
 	assert.Equal(t, 8, n)
@@ -27,6 +30,10 @@ func TestWriteResetQuery(t *testing.T) {
 // VALIDATES: Serial Query is 12 bytes with correct session ID and serial.
 // PREVENTS: Wrong session/serial causing cache to reset instead of incremental.
 func TestWriteSerialQuery(t *testing.T) {
+	// RFC requirement: RFC6810-5-1 negative -- the same header bytes 2-3 are SPECIFIED content in a
+	// Serial Query (the Session ID), so they are NOT forced to zero: writeSerialQuery emits 0x1234
+	// there. This pins the "unspecified fields MUST be zero" rule to unspecified fields only, not a
+	// blanket zeroing of the header.
 	buf := make([]byte, 16)
 	n := writeSerialQuery(buf, 0, rtrVersionMax, 0x1234, 0xABCD0001)
 	assert.Equal(t, 12, n)
@@ -42,6 +49,8 @@ func TestWriteSerialQuery(t *testing.T) {
 // VALIDATES: Correct extraction of flags, prefix, max-length, ASN.
 // PREVENTS: Wrong prefix length or ASN from RTR data.
 func TestParseIPv4Prefix(t *testing.T) {
+	// RFC requirement: RFC6810-5.1-1 positive -- a Prefix PDU whose Max Length (24) is >= its Prefix
+	// Length (8) is accepted by parsePrefixPDU and yields a usable VRP.
 	// Build a valid IPv4 Prefix PDU: 10.0.0.0/8, maxLen=24, ASN=65001, announce
 	buf := make([]byte, 20)
 	buf[0] = rtrVersionMin
@@ -111,6 +120,8 @@ func TestParseIPv4PrefixInvalidLength(t *testing.T) {
 // VALIDATES: maxLength < prefixLength rejected.
 // PREVENTS: Impossible VRP from entering cache.
 func TestParseIPv4PrefixMaxLenLessThanPrefixLen(t *testing.T) {
+	// RFC requirement: RFC6810-5.1-1 negative -- a Prefix PDU whose Max Length (16) is LESS than its
+	// Prefix Length (24) is rejected by parsePrefixPDU, so the impossible VRP never enters the cache.
 	buf := make([]byte, 20)
 	buf[0] = rtrVersionMin
 	buf[1] = pduIPv4Prefix
