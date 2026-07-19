@@ -44,13 +44,21 @@ func init() {
 	registerStaticSources()
 
 	reg := registry.Registration{
-		Name:                    pluginName,
-		Description:             "Static routes: config-driven kernel/VPP route programming with ECMP",
-		Features:                "yang",
-		YANG:                    staticyang.ZeStaticConfYANG,
-		ConfigRoots:             []string{pluginName},
-		Dependencies:            []string{"routing-table"},
+		Name:         pluginName,
+		Description:  "Static routes: config-driven kernel/VPP route programming with ECMP",
+		Features:     "yang",
+		YANG:         staticyang.ZeStaticConfYANG,
+		ConfigRoots:  []string{pluginName},
+		Dependencies: []string{"routing-table"},
+		// OptionalDependencies orders static AFTER the iface component when an
+		// `interface` stanza is present, so the iface backend is loaded before
+		// static applies a route whose next-hop names an interface. Without it
+		// both plugins land in the same startup tier and static's resolve races
+		// LoadBackend (spec-fixit-static-interface-nexthops A-1c). Optional, so
+		// a config with no `interface` stanza leaves static unconstrained.
+		OptionalDependencies:    []string{"interface"},
 		InProcessConfigVerifier: verifyStaticConfig,
+		DoctorChecks:            staticDoctorChecks(),
 		RunEngine:               runStaticPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -221,7 +229,13 @@ func runStaticPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{pluginName},
+		// The "interface" root is requested so config-time validation of an
+		// interface-only next-hop's reference is possible (the payload is
+		// otherwise blind to interface config: BuildPluginConfigSections sends
+		// only declared roots). The verify/configure handlers below still skip
+		// non-"static" sections, so an interface-only reload is a parse + diff
+		// no-op (spec-fixit-static-interface-nexthops C-8/R-10/R-11).
+		WantsConfig:  []string{pluginName, "interface"},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{

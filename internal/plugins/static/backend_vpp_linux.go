@@ -9,6 +9,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	staticvpp "codeberg.org/thomas-mangin/ze/internal/plugins/static/vpp"
 )
@@ -67,9 +68,17 @@ func (v *vppStaticBackend) close() error {
 }
 
 // toVPPRoute translates a parent staticRoute into the static/vpp Route type.
-// Interface-only next-hops are rejected: mapping a logical interface name to a
-// VPP sw_if_index is not yet wired, so failing loudly beats programming a wrong
-// (index-0) path silently.
+// An interface-only next-hop (no gateway address) is resolved to a VPP
+// sw_if_index through the SAME shared iface.Resolve the netlink backend uses:
+// the VPP iface backend publishes its sw_if_index through iface.Resolve's
+// Binding.Ifindex (query.go detailsToInfo -> resolve.go bindingFromInfo), so no
+// second resolver is needed (spec-fixit-static-interface-nexthops C-3, A-3a).
+//
+// Resolution is gated on the active iface backend being vpp (C-4/R-7):
+// iface.Resolve reports whatever backend is loaded, and a netlink backend would
+// return a KERNEL ifindex, which must never be programmed as a VPP sw_if_index.
+// An unresolved or invalid index is rejected rather than emitting index 0
+// (the wrong-path trap the original rejection guarded).
 func toVPPRoute(r staticRoute) (staticvpp.Route, error) {
 	out := staticvpp.Route{
 		Prefix: r.Prefix,
@@ -90,15 +99,46 @@ func toVPPRoute(r staticRoute) (staticvpp.Route, error) {
 
 	for i := range r.NextHops {
 		nh := r.NextHops[i]
-		if !nh.Address.IsValid() {
-			return staticvpp.Route{}, fmt.Errorf("static/vpp: interface-only next-hop %q needs a VPP sw_if_index (not yet supported)", nh.Interface)
+		if nh.Address.IsValid() {
+			out.Paths = append(out.Paths, staticvpp.Path{
+				NextHop: nh.Address,
+				Weight:  capWeight(nh.Weight),
+			})
+			continue
+		}
+
+		idx, err := resolveVPPSwIfIndex(nh.Interface)
+		if err != nil {
+			return staticvpp.Route{}, err
 		}
 		out.Paths = append(out.Paths, staticvpp.Path{
-			NextHop: nh.Address,
-			Weight:  capWeight(nh.Weight),
+			SwIfIndex: idx,
+			Weight:    capWeight(nh.Weight),
 		})
 	}
 	return out, nil
+}
+
+// resolveVPPSwIfIndex maps an interface-only next-hop's logical name to a VPP
+// sw_if_index via the shared iface resolver, gated on the active iface backend
+// being vpp so a kernel ifindex can never be programmed as a VPP index (R-7).
+// It never returns a zero index without an error: index 0 is VPP's local0 and
+// programming it for an unresolved name would silently install a wrong path.
+func resolveVPPSwIfIndex(name string) (uint32, error) {
+	if backend := iface.ActiveBackendName(); backend != "vpp" {
+		if backend == "" {
+			return 0, fmt.Errorf("static/vpp: interface-only next-hop %q needs the vpp iface backend, but no iface backend is loaded", name)
+		}
+		return 0, fmt.Errorf("static/vpp: interface-only next-hop %q needs the vpp iface backend, but the active iface backend is %q (a kernel ifindex must not be programmed as a VPP sw_if_index)", name, backend)
+	}
+	binding, err := iface.Resolve(name)
+	if err != nil {
+		return 0, fmt.Errorf("static/vpp: interface-only next-hop %q: %w", name, err)
+	}
+	if binding.Ifindex <= 0 {
+		return 0, fmt.Errorf("static/vpp: interface-only next-hop %q resolved to invalid sw_if_index %d", name, binding.Ifindex)
+	}
+	return uint32(binding.Ifindex), nil
 }
 
 // capWeight narrows the parent's uint16 ECMP weight to VPP's uint8 (max 255).

@@ -51,7 +51,7 @@ func TestToVPPPrefixBoundaryLengths(t *testing.T) {
 }
 
 func TestToFibPathIPv4(t *testing.T) {
-	fp := toFibPath(Path{NextHop: netip.MustParseAddr("192.168.1.1"), Weight: 5, SwIfIndex: 3})
+	fp := toFibPath(Path{NextHop: netip.MustParseAddr("192.168.1.1"), Weight: 5, SwIfIndex: 3}, netip.MustParsePrefix("10.0.0.0/24"))
 	if fp.Proto != fib_types.FIB_API_PATH_NH_PROTO_IP4 {
 		t.Fatalf("Proto: got %d, want IP4", fp.Proto)
 	}
@@ -68,7 +68,7 @@ func TestToFibPathIPv4(t *testing.T) {
 }
 
 func TestToFibPathIPv6(t *testing.T) {
-	fp := toFibPath(Path{NextHop: netip.MustParseAddr("fe80::1"), Weight: 1})
+	fp := toFibPath(Path{NextHop: netip.MustParseAddr("fe80::1"), Weight: 1}, netip.MustParsePrefix("2001:db8::/32"))
 	if fp.Proto != fib_types.FIB_API_PATH_NH_PROTO_IP6 {
 		t.Fatalf("Proto: got %d, want IP6", fp.Proto)
 	}
@@ -81,9 +81,38 @@ func TestToFibPathIPv6(t *testing.T) {
 // TestToFibPathWeightZeroCoerced covers the weight boundary: VPP rejects
 // weight 0, so the translator must coerce it to 1.
 func TestToFibPathWeightZeroCoerced(t *testing.T) {
-	fp := toFibPath(Path{NextHop: netip.MustParseAddr("10.0.0.1"), Weight: 0})
+	fp := toFibPath(Path{NextHop: netip.MustParseAddr("10.0.0.1"), Weight: 0}, netip.MustParsePrefix("10.0.0.0/24"))
 	if fp.Weight != 1 {
 		t.Errorf("weight-0 coercion: got %d, want 1", fp.Weight)
+	}
+}
+
+// TestToFibPathInterfaceOnlyIPv4UsesIP4Proto pins AC-9 / A-2a: an interface-only
+// path (zero next-hop, SwIfIndex set) on an IPv4 route must encode PROTO_IP4, not
+// the PROTO_IP6 the zero netip.Addr would otherwise default to. The next-hop
+// address stays zero; the sw_if_index scopes the path.
+func TestToFibPathInterfaceOnlyIPv4UsesIP4Proto(t *testing.T) {
+	fp := toFibPath(Path{SwIfIndex: 7, Weight: 1}, netip.MustParsePrefix("10.0.0.0/24"))
+	if fp.Proto != fib_types.FIB_API_PATH_NH_PROTO_IP4 {
+		t.Fatalf("Proto: got %d, want IP4 for an IPv4 route with an interface-only next-hop", fp.Proto)
+	}
+	if fp.SwIfIndex != 7 {
+		t.Errorf("SwIfIndex: got %d, want 7", fp.SwIfIndex)
+	}
+	if ip4 := fp.Nh.Address.GetIP4(); ip4 != (ip_types.IP4Address{}) {
+		t.Errorf("Nh.Address: got %v, want zero (interface-only path carries no gateway)", ip4)
+	}
+}
+
+// TestToFibPathInterfaceOnlyIPv6UsesIP6Proto is the IPv6 sibling: an
+// interface-only path on an IPv6 route encodes PROTO_IP6.
+func TestToFibPathInterfaceOnlyIPv6UsesIP6Proto(t *testing.T) {
+	fp := toFibPath(Path{SwIfIndex: 9, Weight: 1}, netip.MustParsePrefix("2001:db8::/48"))
+	if fp.Proto != fib_types.FIB_API_PATH_NH_PROTO_IP6 {
+		t.Fatalf("Proto: got %d, want IP6 for an IPv6 route with an interface-only next-hop", fp.Proto)
+	}
+	if fp.SwIfIndex != 9 {
+		t.Errorf("SwIfIndex: got %d, want 9", fp.SwIfIndex)
 	}
 }
 

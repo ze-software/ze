@@ -1,4 +1,5 @@
 // Design: plan/learned/650-static-routes.md -- Linux netlink backend with multipath
+// Related: doctor.go -- pre-flight readiness check for interface-only next-hops
 
 //go:build linux
 
@@ -97,6 +98,14 @@ func (b *netlinkStaticBackend) listRoutes() ([]installedStaticRoute, error) {
 func resolveNexthopIndex(name string) (int, error) {
 	b, err := iface.Resolve(name)
 	if err != nil {
+		// Distinguish the no-backend case (the whole iface component is
+		// absent because the config has no `interface { backend ... }`
+		// stanza) from a device-absent case, so the operator sees an
+		// actionable message instead of the bare "iface: no backend loaded"
+		// (spec-fixit-static-interface-nexthops C-2).
+		if iface.GetBackend() == nil {
+			return 0, fmt.Errorf("interface %q: no interface backend loaded; add an `interface { backend ... }` stanza so static next-hop interfaces can be resolved: %w", name, err)
+		}
 		return 0, fmt.Errorf("interface %q: %w", name, err)
 	}
 	return b.Ifindex, nil

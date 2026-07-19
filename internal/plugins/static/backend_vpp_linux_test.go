@@ -17,6 +17,7 @@ import (
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ip"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	staticvpp "codeberg.org/thomas-mangin/ze/internal/plugins/static/vpp"
 )
 
@@ -104,14 +105,21 @@ func TestToVPPRouteActionMapping(t *testing.T) {
 	}
 }
 
-func TestToVPPRouteInterfaceNexthopRejected(t *testing.T) {
+// TestToVPPRouteInterfaceNexthopRejectedNoBackend: with no iface backend loaded
+// (the default unit-test state), an interface-only next-hop cannot resolve to a
+// VPP sw_if_index, so toVPPRoute must reject it rather than emit an index-0
+// path. The positive resolve case is covered in backend_vpp_iface_linux_test.go.
+func TestToVPPRouteInterfaceNexthopRejectedNoBackend(t *testing.T) {
+	if iface.ActiveBackendName() != "" {
+		_ = iface.CloseBackend() // ensure the no-backend precondition
+	}
 	r := staticRoute{
 		Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 		Action:   actionForward,
 		NextHops: []nextHop{{Interface: "eth0"}},
 	}
 	if _, err := toVPPRoute(r); err == nil {
-		t.Fatal("interface-only next-hop must be rejected (no sw_if_index mapping)")
+		t.Fatal("interface-only next-hop must be rejected when no vpp iface backend is loaded")
 	}
 }
 

@@ -1,9 +1,39 @@
 # Test: Static routes with named tables and interface-only next-hops.
 # VALIDATES: spec-gap-2 AC-1 (table route), AC-2 (interface-only),
 #            AC-4 (table + interface), AC-5 (gateway unchanged),
-#            AC-8 (same prefix different tables).
+#            AC-8 (same prefix different tables);
+#            spec-fixit-static-interface-nexthops AC-1/AC-7 (interface-only
+#            next-hop resolves to an ifindex and programs on the linux backend).
 # PREVENTS: table name not resolved, interface-only route rejected,
 #           same prefix in different tables collides.
+#
+# Requires a Linux kernel (netlink route programming) AND a loaded iface
+# backend to resolve the interface-only next-hop: gated needs-linux and
+# validated under QEMU (make ze-qemu-needs-linux-test). setup.py creates a
+# dummy interface carrying the gateway subnets (so the address next-hops
+# resolve) and the tun100 device the interface-only next-hop names. The config
+# carries an `interface { backend netlink }` stanza so iface.Resolve has a
+# backend to resolve tun100 against (spec-fixit-static-interface-nexthops C-6).
+
+option=needs-linux
+
+tmpfs=setup.py:mode=755:terminator=EOF_SETUP
+#!/usr/bin/env python3
+# Create the devices the routes need. Idempotent: "exists" errors are ignored
+# so repeat/parallel runs are safe.
+#   zens0  carries 192.168.1.0/24 and 10.0.0.0/8 so the gateway next-hops
+#          (192.168.1.1, 10.0.0.1) resolve on-link (else RouteReplace ENETUNREACH).
+#   tun100 is the interface-only next-hop's outgoing device (a dummy suffices).
+import subprocess
+def ip(*args):
+    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
+ip("link", "add", "zens0", "type", "dummy")
+ip("addr", "add", "192.168.1.2/24", "dev", "zens0")
+ip("addr", "add", "10.0.0.100/8", "dev", "zens0")
+ip("link", "set", "zens0", "up")
+ip("link", "add", "tun100", "type", "dummy")
+ip("link", "set", "tun100", "up")
+EOF_SETUP
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
@@ -50,6 +80,10 @@ os.kill(pid, signal.SIGTERM)
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
+interface {
+    backend netlink
+}
+
 routing-table {
     table lns {
         id 100
@@ -76,8 +110,9 @@ EOF_CONF
 option=env:var=ze.log.static:value=info
 option=env:var=ze.log.routing-table:value=info
 
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=1:exec=python3 setup.py
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes loaded
 expect=stderr:contains=routing-table registry loaded

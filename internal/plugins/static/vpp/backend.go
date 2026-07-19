@@ -101,14 +101,20 @@ func buildFibPaths(r Route) []fib_types.FibPath {
 	case ActionForward:
 		paths := make([]fib_types.FibPath, len(r.Paths))
 		for i, p := range r.Paths {
-			paths[i] = toFibPath(p)
+			paths[i] = toFibPath(p, r.Prefix)
 		}
 		return paths
 	}
 	return nil
 }
 
-func toFibPath(p Path) fib_types.FibPath {
+// toFibPath encodes one ECMP path. The path proto (address family) comes from
+// the next-hop address when it is set; for an interface-only path the next-hop
+// is the zero netip.Addr, whose Is4() and Is6() are both false, so the proto
+// MUST come from the ROUTE's family (dst) instead. Deriving it from the zero
+// address would default an IPv4 route to PROTO_IP6 with an all-zero v6 next-hop
+// -- a silent wrong-path encode (spec-fixit-static-interface-nexthops C-5, A-2a).
+func toFibPath(p Path, dst netip.Prefix) fib_types.FibPath {
 	fp := fib_types.FibPath{
 		Weight:    p.Weight,
 		SwIfIndex: p.SwIfIndex,
@@ -116,18 +122,28 @@ func toFibPath(p Path) fib_types.FibPath {
 	if fp.Weight == 0 {
 		fp.Weight = 1
 	}
-	if p.NextHop.Is4() {
+	switch {
+	case p.NextHop.Is4():
 		fp.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP4
 		a4 := p.NextHop.As4()
 		var ip4 ip_types.IP4Address
 		copy(ip4[:], a4[:])
 		fp.Nh.Address = ip_types.AddressUnionIP4(ip4)
-	} else {
+	case p.NextHop.Is6():
 		fp.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP6
 		a16 := p.NextHop.As16()
 		var ip6 ip_types.IP6Address
 		copy(ip6[:], a16[:])
 		fp.Nh.Address = ip_types.AddressUnionIP6(ip6)
+	default:
+		// Interface-only path: no next-hop address. The sw_if_index scopes the
+		// path to the interface; the proto follows the route's own family so an
+		// IPv4 route stays IPv4. Nh.Address is left zero.
+		if dst.Addr().Is4() {
+			fp.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP4
+		} else {
+			fp.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP6
+		}
 	}
 	return fp
 }

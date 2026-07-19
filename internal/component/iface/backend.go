@@ -249,6 +249,14 @@ var backends = map[string]func() (Backend, error){}
 // during OnConfigure. Nil until a backend is loaded.
 var activeBackend Backend
 
+// activeBackendName is the registered name of the currently loaded backend
+// (e.g. "netlink" or "vpp"). Set by LoadBackend alongside activeBackend and
+// cleared by CloseBackend. Empty when no backend is loaded. Exposed via
+// ActiveBackendName so a consumer that resolves logical names for a specific
+// data plane (e.g. the VPP static backend) can confirm the active iface
+// backend matches its data plane before trusting a resolved index.
+var activeBackendName string
+
 // RegisterBackend registers a backend factory under the given name.
 // Called from init() in backend packages (e.g., ifacenetlink).
 // MUST be called before LoadBackend. Duplicate names are rejected.
@@ -289,6 +297,7 @@ func LoadBackend(name string) error {
 	// Swap first, then close old so a failed apply still has the new backend active.
 	prev := activeBackend
 	activeBackend = b
+	activeBackendName = name
 	if prev != nil {
 		if closeErr := prev.Close(); closeErr != nil {
 			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
@@ -304,6 +313,19 @@ func GetBackend() Backend {
 	return activeBackend
 }
 
+// ActiveBackendName returns the registered name of the active iface backend
+// (e.g. "netlink" or "vpp"), or "" when no backend is loaded. It lets a
+// data-plane-specific consumer confirm the active iface backend matches its
+// data plane before trusting a resolved index: resolving a logical name
+// against a netlink backend yields a KERNEL ifindex, which must never be
+// programmed into VPP as a sw_if_index. Companion to DefaultBackendName (the
+// build-time fallback); this reports what is actually loaded now.
+func ActiveBackendName() string {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+	return activeBackendName
+}
+
 // CloseBackend shuts down the active backend and clears it.
 func CloseBackend() error {
 	backendsMu.Lock()
@@ -314,5 +336,6 @@ func CloseBackend() error {
 	}
 	err := activeBackend.Close()
 	activeBackend = nil
+	activeBackendName = ""
 	return err
 }

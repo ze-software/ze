@@ -1,0 +1,34 @@
+# Test: a static route with an interface-only next-hop but NO iface backend.
+# VALIDATES: spec-fixit-static-interface-nexthops AC-2 / C-2 -- with no
+#            `interface { backend ... }` stanza the next-hop interface cannot
+#            be resolved, and the failure names the interface AND the missing
+#            stanza, not the bare "iface: no backend loaded".
+# PREVENTS: R-1 -- keeps the no-backend gap visible so 005 adding an interface
+#           stanza cannot quietly become the workaround. An operator must be
+#           told an interface backend is required, in actionable terms.
+#
+# Requires a Linux kernel (it boots a daemon that applies static config on the
+# netlink backend): gated needs-linux, validated under QEMU
+# (make ze-qemu-needs-linux-test). No setup.py: the interface is intentionally
+# unresolvable because no iface backend is configured.
+
+option=needs-linux
+
+# The "default" table resolves without a routing-table stanza (it is the
+# built-in main table), so this config reaches resolveNexthopIndex for tun404
+# and fails there -- exactly the no-backend path under test.
+stdin=ze-bgp:terminator=EOF_CONF
+static {
+    table default {
+        route 0.0.0.0/0 {
+            next { interface tun404 { } }
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=stderr:contains=tun404
+expect=stderr:contains=no interface backend loaded

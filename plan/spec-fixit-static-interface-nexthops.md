@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 **DESIGN (research complete, NOT approved).** Research was run 2026-07-16. Every Open
 Question below is answered in place, every A-N carries evidence, and the design below is
@@ -1078,6 +1078,45 @@ D-1 = (a): Phase 5 adds the `iface.ActiveBackendName()` gate. D-3 = (a): Phase 6
   **→ AUTONOMOUS DEFAULT (2026-07-17, [STAKES: scope]): OUT OF SCOPE for this spec -- do not
   change the gate here; flagged for Thomas as a separate decision. Smaller-scope, self-contained
   default. Not implementation-blocking.**
+
+## Review Gate
+
+**Implemented 2026-07-19. Status: parked (not committed).**
+
+| Field | Value |
+|-------|-------|
+| Independent review | CLEAN -- 0 BLOCKER, 0 ISSUE, 3 NIT (informational) |
+| Reviewer | independent subagent over the full diff (ai/rules/critical-review.md) |
+| Artifact | `tmp/review/fixit-static-interface-nexthops-58c51aab-79d8-400d-b779-2c0cf322a274.md` (verdict=clean, 7 files) |
+
+**Verification performed (scoped, safe):**
+- `go test ./internal/component/iface/... ./internal/plugins/static/...` -- PASS (all new/updated unit tests run and pass).
+- `go test ./internal/component/doctor -run 'TestDoctorCoverageCodesRegistered|TestRunChecksExecutesRegisteredPluginCheck'` -- PASS (doctor code registered + explainable).
+- `go vet` on touched packages -- clean. `make ze-lint-changed` -- my files clean (the 6 reds are all in files this spec does not touch: iface/netlink/show_linux.go, ping/cmd/stream_test.go, bgp/reactor/recent_cache.go x4 -- concurrent agents' WIP).
+
+**NOT run (QEMU forbidden in the implementing environment -- PARKED for a QEMU pass):**
+- `test/static/005-table-interface.ci`, `test/static/006-interface-nexthop-no-backend.ci` (both `needs-linux`; AC-7). Run `make ze-qemu-needs-linux-test` before closure.
+- VPP FIB write is a Known Limitation (no rail); proven only at the translation seams.
+
+**AC coverage:**
+
+| AC | Evidence |
+|----|----------|
+| AC-1 | `test/static/005-table-interface.ci` (needs-linux, PARKED); linux resolve path unchanged mechanism (`backend_linux.go`) |
+| AC-2 | `TestResolveNexthopIndexNoBackendErrorIsDiagnosable`; `test/static/006-*.ci` (PARKED); doctor check `TestCheckInterfaceNexthopBackendMissing` |
+| AC-3 | Documentation deliverable: blast-radius section in `plan/learned/650-static-routes.md` (D-3=(a), inject.go untouched) |
+| AC-4 | `TestToVPPRouteInterfaceOnlyNextHopResolvesIndex`, `TestToVPPRouteMixedAddressAndInterfaceNextHops` |
+| AC-5 | `TestToVPPRouteInterfaceOnlyUnknownInterfaceErrors`, `TestToVPPRouteInterfaceOnlyZeroIndexRejected` |
+| AC-6 | Unchanged: existing action/ECMP/weight tests still pass; BFD excluded at `config.go` (untouched) |
+| AC-7 | `005`/`006` `.ci` written; PARKED (QEMU) |
+| AC-8 | `TestStaticDeclaresOptionalInterfaceDependency` |
+| AC-9 | `TestToFibPathInterfaceOnlyIPv4UsesIP4Proto`, `TestToFibPathInterfaceOnlyIPv6UsesIP6Proto` |
+| AC-10 | `TestToVPPRouteRefusesResolveWhenIfaceBackendNotVPP`; `TestActiveBackendNameTracksLoadAndClose` |
+
+**NITs (reviewer, no action required except #2, applied):**
+1. TOCTOU between the backend check and `iface.Resolve` -- message-only (linux) / theoretical (vpp); mitigated by C-1 ordering + serialized config transactions. No change.
+2. `006.ci` implicit dependency on the built-in `default` table -- APPLIED: added a clarifying comment.
+3. `toFibPath` IPv4-mapped-v6 next-hop takes the Is6 branch -- pre-existing behavior, not introduced by C-5. No change.
 
 ## Checklist
 
