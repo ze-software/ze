@@ -205,6 +205,7 @@ func TestNewStreamable_OAuth_RejectsMissingBearer(t *testing.T) {
 		t.Fatal("missing WWW-Authenticate header")
 	}
 	// BLOCKER 2 fix: resource_metadata MUST be present on the challenge.
+	// RFC requirement: RFC9728-5.1-1 positive -- the 401 WWW-Authenticate includes resource_metadata (auth.go:177 appends it; oauth.go:122 sets it on the challenge)
 	if !strings.Contains(wa, `resource_metadata="https://mcp.example/`) {
 		t.Fatalf("WWW-Authenticate missing resource_metadata pointing at the well-known URL: %q", wa)
 	}
@@ -267,6 +268,7 @@ func TestNewStreamable_OAuth_MetadataEndpoint(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 
+	// RFC requirement: RFC9728-3.1-1 positive -- an unauthenticated GET (no Authorization header) of the well-known metadata path returns 200 with the document; ServeHTTP dispatches it before any auth (streamable.go:226-229, 335-364)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -274,9 +276,11 @@ func TestNewStreamable_OAuth_MetadataEndpoint(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+	// RFC requirement: RFC9728-2-1 positive -- the served metadata document contains the resource field (writeResourceMetadata, oauth.go:170-171,184-192)
 	if got["resource"] != "https://mcp.example/" {
 		t.Fatalf("resource = %v", got["resource"])
 	}
+	// RFC requirement: RFC9728-2-2 positive -- the served metadata document contains authorization_servers as a JSON array (writeResourceMetadata, oauth.go:172,190)
 	servers, ok := got["authorization_servers"].([]any)
 	if !ok || len(servers) != 1 || servers[0] != as.Issuer() {
 		t.Fatalf("authorization_servers = %v, want [%q]", got["authorization_servers"], as.Issuer())
@@ -781,6 +785,7 @@ func TestResourceMetadataURL_RejectsMalformedBase(t *testing.T) {
 		{Audience: "https://user@mcp.example/"},
 		{Audience: "not-a-url"},
 	}
+	// RFC requirement: RFC9728-5.1-2 negative -- a base carrying query/fragment/userinfo or a non-URL is rejected to "" rather than emitted as a malformed resource_metadata URL (resourceMetadataURL rejects via canonicalAuthServerURL, streamable_auth.go:279-283)
 	for _, cfg := range cases {
 		t.Run(cfg.Audience, func(t *testing.T) {
 			if got := resourceMetadataURL(cfg); got != "" {
@@ -789,6 +794,7 @@ func TestResourceMetadataURL_RejectsMalformedBase(t *testing.T) {
 		})
 	}
 	// Well-formed audience produces the expected URL.
+	// RFC requirement: RFC9728-5.1-2 positive -- a well-formed absolute audience yields an absolute resource_metadata URL (resourceMetadataURL, streamable_auth.go:279-283)
 	cfg := OAuthConfig{Audience: "https://mcp.example/"}
 	want := "https://mcp.example/.well-known/oauth-protected-resource"
 	if got := resourceMetadataURL(cfg); got != want {

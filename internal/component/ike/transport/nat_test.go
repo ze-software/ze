@@ -71,6 +71,11 @@ func TestNATDetectionAbsent(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC3948-2.2-1 positive -- AddNonESPMarker prepends the 4-byte zero
+// Non-ESP Marker to an IKE message on port 4500 (nat.go:58), and StripNonESPMarker recovers
+// the original IKE bytes from a marked packet (nat.go:67,76-77).
+// RFC requirement: RFC3948-2.1-3 positive -- demultiplexing recognizes a leading 4-zero-byte
+// marker as IKE: StripNonESPMarker returns the IKE payload with ok=true (nat.go:67,76-77).
 func TestNonESPMarker(t *testing.T) {
 	ikeMsg := []byte{0x01, 0x02, 0x03, 0x04}
 	marked := AddNonESPMarker(ikeMsg)
@@ -95,6 +100,11 @@ func TestNonESPMarker(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC3948-2.2-1 negative -- a packet whose first bytes are a non-zero ESP
+// SPI is NOT treated as a marked IKE packet: StripNonESPMarker returns ok=false (nat.go:79-80),
+// so the marker is never falsely stripped off ESP payload.
+// RFC requirement: RFC3948-2.1-3 negative -- demultiplexing does not misclassify ESP as IKE:
+// non-zero leading bytes yield ok=false, so the packet is routed as ESP, not IKE (nat.go:79-80).
 func TestNonESPMarkerESPPacket(t *testing.T) {
 	espData := []byte{0x00, 0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab}
 	_, ok := StripNonESPMarker(espData)
@@ -103,10 +113,15 @@ func TestNonESPMarkerESPPacket(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC3948-2.1-3 positive -- demultiplexing classifies a single 0xFF byte as
+// a NAT-keepalive (IsNATKeepalive true), the third packet type sharing port 4500 (nat.go:85).
 func TestIsNATKeepalive(t *testing.T) {
 	if !IsNATKeepalive([]byte{0xFF}) {
 		t.Fatal("single 0xFF should be keepalive")
 	}
+	// RFC requirement: RFC3948-2.1-3 negative -- demultiplexing does not over-classify as a
+	// keepalive: a 2-byte payload or a single 0x00 byte is NOT a keepalive (nat.go:86), so only
+	// the exact 1-byte 0xFF form is consumed as one.
 	if IsNATKeepalive([]byte{0xFF, 0x00}) {
 		t.Fatal("two bytes should not be keepalive")
 	}

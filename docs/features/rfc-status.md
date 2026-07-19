@@ -100,7 +100,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 | RFC 5880 | BFD base | Partial | BFD FSM, timers, jitter, echo advertisement, authentication, metrics, show commands. | Feature remains Partial; demand mode is intentionally skipped and IPv6 transport coverage is not complete. |
 | RFC 5881 | BFD single-hop | Partial | Single-hop UDP 3784 sessions, TTL/GTSM gate, interface binding. | IPv6 dual-bind and wider deployment proof remain tracked with BFD. |
 | RFC 5882 | BFD generic application | Partial | BFD integration model used by BGP and static next-hop tracking. | Same BFD partial status. |
-| RFC 5883 | BFD multi-hop | Partial | Multi-hop UDP 4784 sessions and min-TTL floor. | Same BFD partial status. |
+| RFC 5883 | BFD multi-hop | Partial | Multi-hop UDP 4784 sessions, single-hop/multihop port separation (3784/4784), Active/Passive roles, echo-on-multihop rejection, and min-TTL floor; tests bound per requirement in `ai/RFC-REQUIREMENTS.md`. | No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5883 / RFC 5880 Section 7); IPv6 dual-bind and wider deployment proof are tracked with BFD. |
 | RFC 9384 | BFD-triggered BGP Cease | Supported within BFD | BGP peer opt-in sends Cease subcode 10 when BFD reports forwarding path loss. | No tracked gap beyond BFD feature status. |
 
 <!-- source: docs/guide/bmp.md -- BMP receiver and sender behavior -->

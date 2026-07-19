@@ -45,6 +45,7 @@ func TestOAuth_Authenticate_MissingHeader(t *testing.T) {
 	if aerr.ErrorCode != "invalid_request" {
 		t.Fatalf("error_code = %q, want invalid_request", aerr.ErrorCode)
 	}
+	// RFC requirement: RFC9728-5.1-1 positive -- the 401 challenge's WWW-Authenticate carries resource_metadata pointing at the well-known URL (auth.go:177 appends it; oauth.go:122 sets it on the challenge)
 	if !strings.Contains(aerr.WWWAuthenticate(), `resource_metadata="https://mcp.example/`) {
 		t.Fatalf("WWW-Authenticate missing resource_metadata: %q", aerr.WWWAuthenticate())
 	}
@@ -208,9 +209,11 @@ func TestResourceMetadata_Document(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+	// RFC requirement: RFC9728-2-1 positive -- writeResourceMetadata emits the resource field carrying the canonical resource URL (oauth.go:170-171,184-192)
 	if got["resource"] != "https://mcp.example/" {
 		t.Fatalf("resource = %v", got["resource"])
 	}
+	// RFC requirement: RFC9728-2-2 positive -- writeResourceMetadata emits authorization_servers as a JSON array of AS issuer URLs (oauth.go:172,190)
 	as, ok := got["authorization_servers"].([]any)
 	if !ok || len(as) != 1 || as[0] != "https://as.example/" {
 		t.Fatalf("authorization_servers = %v", got["authorization_servers"])
@@ -272,6 +275,7 @@ func TestStreamable_MetadataEndpoint_Gated(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, OAuthMetadataPath, http.NoBody)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
+	// RFC requirement: RFC9728-3.1-1 negative -- when AuthMode is not OAuth the well-known metadata path is not served (handleResourceMetadata 404s at streamable.go:353-355), proving the endpoint is not unconditionally exposed
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("metadata status = %d for AuthMode=Bearer, want 404", w.Code)
 	}
