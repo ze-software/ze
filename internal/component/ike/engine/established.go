@@ -25,10 +25,22 @@ func (ps *PeerSession) runEstablished(
 ) error {
 	dp := dataplane.Get()
 
-	// maintainSA now owns the SA: route established-SA inbound to the owner loop.
-	// Cleared on return so a reconnect handshake is handled inline again.
-	ps.established.Store(true)
-	defer ps.established.Store(false)
+	// Drain any stale supersede token left by a previous cycle: it belongs to the SA
+	// that just relinquished, not this one. Without this, a token signaled while the
+	// prior owner loop was already exiting (e.g. DPD) would fire on THIS SA's first
+	// select and tear it down with nothing to promote. maintainSA is the sole receiver
+	// of ps.supersede, so a len>0 check guarantees the receive cannot block.
+	if len(ps.supersede) > 0 {
+		<-ps.supersede
+		log.Debug("ike: drained stale supersede token", "peer", ps.peerName)
+	}
+
+	// maintainSA now owns this exact SA: routeInbound hands established-SA packets to
+	// the owner loop by SA identity (ownedSA == packet's SA). Cleared on return so a
+	// reconnect handshake is handled inline again. RFC 7296 Section 2.4: a parallel
+	// half-open SA of the same peer has a different identity and is never routed here.
+	ps.ownedSA.Store(sa)
+	defer ps.ownedSA.Store(nil)
 
 	ifID := resolveIfID(peer)
 
@@ -104,7 +116,25 @@ func (ps *PeerSession) maintainSA(
 	for {
 		select {
 		case <-ps.stopCh:
+			// RFC 7296 Section 1.4: on an operator `clear` (graceful) say goodbye so the
+			// peer tears its SA down at once instead of waiting for the DPD timeout. Built
+			// and sent HERE, on the owner goroutine, because sendDeleteIKE mutates
+			// sa.NextMsgID and reads sa.SKKeys -- state owned solely by maintainSA (A-5);
+			// TerminateAllSAs runs on the RPC goroutine and must not touch it. Best-effort
+			// UDP: a lost Delete falls back to the DPD self-heal path (R-4).
+			if ps.graceful.Load() {
+				ps.sendDeleteIKE(sa, tr, log)
+			}
 			ps.cleanupChild(dp, bus, log)
+			return nil
+		case <-ps.supersede:
+			// RFC 7296 Section 2.4: a parallel IKE_SA_INIT authenticated (the new SA
+			// reached IKE_AUTH), so relinquish this old SA and let runResponder promote
+			// the new one. The new Child SA is already installed in ps.pendingChild;
+			// remove only ours (make-before-break, so traffic is not dropped before the
+			// new tunnel is up, R-2).
+			ps.cleanupChild(dp, bus, log)
+			log.Info("ike: superseded by a re-initiated SA, relinquishing owner loop", "peer", ps.peerName)
 			return nil
 		case <-routeReannounce.C:
 			if child := ps.getChildSA(); child != nil {
@@ -119,12 +149,15 @@ func (ps *PeerSession) maintainSA(
 				handleDPDResponse(dpd, log, ps.peerName)
 			}
 			if out.newSA != nil {
-				// RFC 7296 §2.8: rekeyed IKE SA has new SPIs; re-key the table so
-				// dispatchInbound routes to it, then swap the loop's SA.
-				table.Insert(out.newSA)
-				table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+				// RFC 7296 §2.8: rekeyed IKE SA has new SPIs. Point routing at the new SA
+				// BEFORE it is discoverable in the table, so a packet for it is never
+				// briefly handled inline instead of on this owner loop; then re-key the
+				// table and swap the loop's SA.
 				oldSA := sa
 				sa = out.newSA
+				ps.ownedSA.Store(sa)
+				table.Insert(sa)
+				table.Remove(oldSA.InitiatorSPI, oldSA.ResponderSPI)
 				oldSA.SKKeys.Clear()
 				ikeLT = newLifetimeState(ikeGroup.Lifetime)
 				ps.incRekeyCount()
@@ -136,6 +169,11 @@ func (ps *PeerSession) maintainSA(
 				emitRouteAdd(bus, out.newChild.TSRemote, log)
 			}
 		case now := <-ticker.C:
+			// Drop a parallel half-open handshake the peer abandoned before it could
+			// authenticate, so responderBusy and its SATable slot free up (AC-6 for the
+			// parallel path). A pending SA that DID authenticate returns us via the
+			// supersede case above, so anything still pending past the timeout is dead.
+			ps.reapStalePending(now, table, dp, log)
 			if sa.State == StateDead {
 				log.Info("ike: SA marked dead by peer", "peer", ps.peerName)
 				ps.cleanupChild(dp, bus, log)
@@ -245,6 +283,58 @@ func (ps *PeerSession) serviceRekeyRetransmit(sa *SA, tr *transport.UDPTransport
 	sendRaw(sa, tr, p.sentMsg, log)
 	log.Debug("ike: rekey retransmit", "peer", ps.peerName, "attempt", p.retransmits)
 	return nil
+}
+
+// reapStalePending drops a parallel responder handshake (pendingSA) that the peer
+// abandoned before authenticating -- stuck past responderHandshakeTimeout -- so
+// responderBusy and the SATable slot free up for a future re-initiation. It reads
+// only pendingSA.CreatedAt (immutable) and never pendingSA.State: a pending SA that
+// authenticated would have returned the owner loop via the supersede case before this
+// runs, so a pending still present past the timeout is dead. Runs on the owner loop.
+// RFC 7296 Section 2.4.
+func (ps *PeerSession) reapStalePending(now time.Time, table *SATable, dp dataplane.Dataplane, log *slog.Logger) {
+	pending := ps.getPendingSA()
+	if pending == nil || now.Sub(pending.CreatedAt) <= responderHandshakeTimeout {
+		return
+	}
+	// The dispatch goroutine may have authenticated this handshake between the select
+	// picking the ticker and here (finishResponderEstablish sets State=Established +
+	// pendingChild + signals supersede, but select is random when both ticker and
+	// supersede are ready). Never reap an established pending: that would destroy the
+	// freshly installed make-before-break child and, with the supersede token still
+	// buffered, tear the old SA down too with nothing to promote. Mirrors
+	// reapStaleHandshake (fsm.go). The supersede case adopts it on the next cycle.
+	if pending.State == StateEstablished {
+		return
+	}
+	log.Warn("ike: parallel responder handshake timed out, dropping", "peer", ps.peerName)
+	if table != nil {
+		table.Remove(pending.InitiatorSPI, pending.ResponderSPI)
+	}
+	ps.setPendingSA(nil)
+	if pc := ps.getPendingChild(); pc != nil {
+		removeChildSA(pc, dp, log)
+		ps.setPendingChild(nil)
+	}
+	ps.responderBusy.Store(false)
+}
+
+// cleanupPendingSA removes a parallel second-slot SA (and its make-before-break Child
+// SA) from the SATable and dataplane when the whole session is torn down (operator
+// clear / config change), so it is not leaked. Called after Stop() has joined the
+// owner goroutine, so no goroutine is still advancing pendingSA.
+func (ps *PeerSession) cleanupPendingSA(table *SATable, dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {
+	if pending := ps.getPendingSA(); pending != nil {
+		if table != nil {
+			table.Remove(pending.InitiatorSPI, pending.ResponderSPI)
+		}
+		emitSADown(bus, pending, log)
+		ps.setPendingSA(nil)
+	}
+	if pc := ps.getPendingChild(); pc != nil {
+		removeChildSA(pc, dp, log)
+		ps.setPendingChild(nil)
+	}
 }
 
 func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {

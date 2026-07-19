@@ -84,16 +84,23 @@ func TerminateAllSAs() int {
 	log := getLogger()
 	count := 0
 	for name, ps := range snapshot {
-		ps.Stop()
+		// Delete from the active map BEFORE stopping (like TerminatePeerSA), so the
+		// shared dispatch goroutine cannot accept a fresh IKE_SA_INIT for this peer that
+		// would escape the cleanup below and leak.
+		peersMu.Lock()
+		delete(activePeersMap, name)
+		peersMu.Unlock()
+		// StopGraceful: the owner loop sends an authenticated INFORMATIONAL Delete on
+		// its way out (RFC 7296 Section 1.4) so the peer tears down at once instead of
+		// waiting for the DPD timeout -- the operator-visible half of the fix.
+		ps.StopGraceful()
 		// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch
 		// goroutine, not joined by Stop() (Finding 3).
 		if sa := ps.getSA(); sa != nil && table != nil {
 			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
 			emitSADown(bus, sa, log)
 		}
-		peersMu.Lock()
-		delete(activePeersMap, name)
-		peersMu.Unlock()
+		ps.cleanupPendingSA(table, dataplane.Get(), bus, log)
 		count++
 	}
 
@@ -117,16 +124,17 @@ func TerminatePeerSA(name string) bool {
 	delete(activePeersMap, name)
 	peersMu.Unlock()
 
-	ps.Stop()
+	ps.StopGraceful()
 	table := ActiveTable()
+	bus := getEventBus()
+	log := getLogger()
 	// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch goroutine,
 	// not joined by Stop() (Finding 3).
 	if sa := ps.getSA(); sa != nil && table != nil {
 		table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
-		bus := getEventBus()
-		log := getLogger()
 		emitSADown(bus, sa, log)
 	}
+	ps.cleanupPendingSA(table, dataplane.Get(), bus, log)
 
 	if fn := reEstablishFn.Load(); fn != nil {
 		(*fn)()
@@ -332,8 +340,10 @@ func runEngine(conn net.Conn) int {
 	shutdownPeers := make(map[string]*PeerSession, len(activePeers))
 	maps.Copy(shutdownPeers, activePeers)
 	peersMu.Unlock()
+	shutdownBus := getEventBus()
 	for name, ps := range shutdownPeers {
 		ps.Stop()
+		ps.cleanupPendingSA(table, dataplane.Get(), shutdownBus, log)
 		peersMu.Lock()
 		delete(activePeers, name)
 		peersMu.Unlock()
@@ -474,16 +484,20 @@ func lookupPeerSession(name string) *PeerSession {
 	return activePeersMap[name]
 }
 
-// routeInbound delivers a received packet to the correct handler. For an
-// ESTABLISHED SA it hands the packet to the owning session's maintainSA loop
-// (single-owner model, spec-ipsec-13) via a non-blocking send; otherwise (during
-// the initial handshake) it is handled inline as before. If the owner queue is
-// full the packet is dropped and the peer will retransmit.
+// routeInbound delivers a received packet to the correct handler. For the SA that
+// maintainSA currently owns it hands the packet to that owner loop (single-owner
+// model, spec-ipsec-13) via a non-blocking send; every other SA -- an initial or a
+// PARALLEL half-open handshake (spec-fixit-ipsec-clear-reestablish) -- is handled
+// inline on the dispatch goroutine. If the owner queue is full the packet is dropped
+// and the peer will retransmit.
 func routeInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.UDPTransport, log *slog.Logger) {
-	// Route to the owner loop only once maintainSA owns the SA. `ps.established`
-	// is an atomic set by the session goroutine, so reading it here (on the shared
-	// dispatch goroutine) does not race with owner-side sa.State writes.
-	if ps := lookupPeerSession(sa.PeerName); ps != nil && ps.established.Load() && ps.inbound != nil {
+	// Key the owner-loop hand-off on SA identity, not the peer name: `ps.ownedSA` is
+	// an atomic.Pointer the session goroutine keeps pointed at the exact SA maintainSA
+	// owns (updated on an IKE-SA rekey swap too), so reading it here on the shared
+	// dispatch goroutine does not race owner-side sa.State writes, and a parallel
+	// half-open SA of the same peer is NOT misdelivered to the established SA's owner
+	// loop (which would decrypt it under the wrong keys). RFC 7296 Section 2.4.
+	if ps := lookupPeerSession(sa.PeerName); ps != nil && ps.inbound != nil && ps.ownedSA.Load() == sa {
 		select {
 		case ps.inbound <- pkt:
 		default:
@@ -541,8 +555,13 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		log.Debug("ike: unsolicited IKE_SA_INIT from unconfigured source", "src", pkt.RemoteAddr)
 		return false
 	}
-	// One in-flight handshake per responder peer (AC-6). A genuine retransmit finds
-	// the SA already in the SATable and never reaches this path.
+	// One in-flight HALF-OPEN handshake per responder peer (AC-6). A genuine
+	// retransmit finds the SA already in the SATable and never reaches this path.
+	// RFC 7296 Section 2.4: the busy gate is NOT held across an established SA's
+	// lifetime, so a fresh IKE_SA_INIT that arrives while a tunnel is up passes the
+	// CAS and is accepted in PARALLEL; the established SA is never touched by this
+	// unauthenticated message and is superseded only once the new SA authenticates
+	// (finishResponderEstablish). This is the AC-3 / AC-7 accept-in-parallel path.
 	if !ps.responderBusy.CompareAndSwap(false, true) {
 		log.Debug("ike: responder busy, dropping concurrent IKE_SA_INIT", "peer", ps.peerName)
 		return true
@@ -558,8 +577,16 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		ps.responderBusy.Store(false)
 		return true
 	}
-	ps.setSA(sa)
-	log.Info("ike: accepting inbound IKE_SA_INIT", "peer", ps.peerName, "src", pkt.RemoteAddr)
+	if ps.ownedSA.Load() != nil {
+		// An established SA already owns the loop: the new handshake coexists in the
+		// second slot and drives inline on the dispatch goroutine (routeInbound keys
+		// on SA identity, so it is not delivered to the old SA's owner loop).
+		ps.setPendingSA(sa)
+		log.Info("ike: accepting parallel inbound IKE_SA_INIT alongside established SA", "peer", ps.peerName, "src", pkt.RemoteAddr)
+	} else {
+		ps.setSA(sa)
+		log.Info("ike: accepting inbound IKE_SA_INIT", "peer", ps.peerName, "src", pkt.RemoteAddr)
+	}
 	routeInbound(sa, pkt, table, tr, log)
 	return true
 }

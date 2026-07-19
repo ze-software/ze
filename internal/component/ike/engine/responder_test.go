@@ -596,3 +596,195 @@ func TestRunResponderAcceptsInboundAndBounds(t *testing.T) {
 		t.Errorf("busy responder created %d SAs, want 1", table.Len())
 	}
 }
+
+// ownedResponder returns a PeerSession whose established responder SA (old) is owned
+// by the (simulated) owner loop -- ownedSA set, responderBusy cleared, in the SATable,
+// registered as the active `respond` peer -- exactly the state a live tunnel is in
+// just before a fresh IKE_SA_INIT arrives from the peer.
+func ownedResponder(t *testing.T) (ps *PeerSession, old *SA, table *SATable) {
+	t.Helper()
+	_, old, ps = establishPSK(t)
+	ps.stopCh = make(chan struct{})
+	ps.done = make(chan struct{})
+	ps.supersede = make(chan struct{}, 1)
+	ps.inbound = make(chan transport.Packet, inboundQueueDepth)
+	table = NewSATable()
+	table.Insert(old)
+	ps.setSA(old)
+	ps.ownedSA.Store(old)         // maintainSA owns this SA
+	ps.responderBusy.Store(false) // cleared at adoption, so a parallel init is accepted
+	setActivePeers(map[string]*PeerSession{ps.peerName: ps})
+	t.Cleanup(func() { setActivePeers(nil) })
+	return ps, old, table
+}
+
+// freshInitiatorInit builds a brand-new initiator SA and its IKE_SA_INIT request from
+// the configured peer's source address (10.0.0.1), for feeding tryResponderSAInit.
+func freshInitiatorInit(t *testing.T) (*SA, transport.Packet) {
+	t.Helper()
+	ini, err := newInitiatorSA("ze", func() ipsec.SiteToSitePeer {
+		p, _ := responderTestPeers(ipsec.AuthPreSharedSecret, "rekey-psk")
+		return p
+	}(), testIKEGroup(), testESPGroup())
+	if err != nil {
+		t.Fatalf("newInitiatorSA: %v", err)
+	}
+	req := buildSAInitRequest(ini, testIKEGroup())
+	ini.InitiatorSAInitMsg = req
+	ini.State = StateSAInitSent
+	pkt := transport.Packet{Data: req, RemoteAddr: &net.UDPAddr{IP: net.ParseIP("10.0.0.1"), Port: 500}}
+	return ini, pkt
+}
+
+// VALIDATES: AC-3 (accept-in-parallel). A fresh IKE_SA_INIT (new initiator SPI) that
+// arrives while an established SA owns the loop is accepted as a PARALLEL half-open SA
+// in the second slot; the established SA and its Child SA are NOT touched (RFC 7296
+// Section 2.4: never act on the unauthenticated message). Red before the fix: the old
+// responderBusy gate stayed true for the SA's whole life and dropped the init.
+func TestResponderAcceptsReinitAfterStaleSA(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, table := ownedResponder(t)
+	oldChild := ps.getChildSA()
+	if oldChild == nil {
+		t.Fatal("setup: established responder has no child SA")
+	}
+
+	ini, pkt := freshInitiatorInit(t)
+	var iSPI, rSPI [8]byte
+	copy(iSPI[:], ini.InitiatorSPI[:])
+
+	if !tryResponderSAInit(pkt, iSPI, rSPI, table, nil, log) {
+		t.Fatal("a fresh IKE_SA_INIT alongside an established SA must be accepted, not dropped")
+	}
+
+	// Established SA untouched (coexist, not supersede -- the RFC Section 2.4 assertion).
+	if ps.getSA() != old {
+		t.Error("established SA slot was clobbered by the parallel init")
+	}
+	if old.State != StateEstablished {
+		t.Errorf("established SA state changed to %v on an unauthenticated init", old.State)
+	}
+	if ps.getChildSA() != oldChild {
+		t.Error("established Child SA was disturbed by the parallel init")
+	}
+
+	// New SA present in the second slot, advanced, and in the table alongside the old.
+	pending := ps.getPendingSA()
+	if pending == nil || pending == old {
+		t.Fatal("parallel init did not create a distinct pending SA")
+	}
+	if pending.State != StateSAInitReceived {
+		t.Errorf("pending SA state = %v, want sa-init-responded", pending.State)
+	}
+	if table.Len() != 2 {
+		t.Errorf("table has %d SAs, want 2 (old + parallel)", table.Len())
+	}
+	if !ps.responderBusy.Load() {
+		t.Error("responderBusy must be set while the parallel half-open handshake is in flight")
+	}
+}
+
+// VALIDATES: AC-6 / R-1 (the DoS guard). An IKE_SA_INIT that is accepted in parallel
+// but never authenticates leaves the established SA and its Child SA untouched, and the
+// half-open SA is reaped after responderHandshakeTimeout -- freeing responderBusy so a
+// later genuine re-init is not wedged. No unauthenticated message ever deletes an SA.
+func TestResponderKeepsOldSAOnUnauthenticatedInit(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, table := ownedResponder(t)
+	oldChild := ps.getChildSA()
+
+	ini, pkt := freshInitiatorInit(t)
+	var iSPI, rSPI [8]byte
+	copy(iSPI[:], ini.InitiatorSPI[:])
+	if !tryResponderSAInit(pkt, iSPI, rSPI, table, nil, log) {
+		t.Fatal("parallel init not accepted")
+	}
+	pending := ps.getPendingSA()
+	if pending == nil {
+		t.Fatal("no pending SA created")
+	}
+
+	// The peer abandons the handshake (never sends IKE_AUTH). Age it past the timeout
+	// and let the owner-loop reaper run.
+	pending.CreatedAt = time.Now().Add(-2 * responderHandshakeTimeout)
+	ps.reapStalePending(time.Now(), table, nil, log)
+
+	if ps.getPendingSA() != nil {
+		t.Error("abandoned parallel handshake was not reaped")
+	}
+	if ps.responderBusy.Load() {
+		t.Error("responderBusy not cleared after reaping -- a future re-init would wedge")
+	}
+	if table.Len() != 1 {
+		t.Errorf("table has %d SAs after reap, want 1 (only the established SA)", table.Len())
+	}
+	// The established SA and its Child SA survived the whole unauthenticated episode.
+	if ps.getSA() != old || old.State != StateEstablished {
+		t.Error("established SA did not survive an unauthenticated parallel init")
+	}
+	if ps.getChildSA() != oldChild {
+		t.Error("established Child SA did not survive an unauthenticated parallel init")
+	}
+}
+
+// VALIDATES: AC-3 (supersede-on-authentication) + INITIAL_CONTACT emit/honor. A full
+// parallel handshake that reaches IKE_AUTH: the responder honors the initiator's
+// INITIAL_CONTACT, stages the new Child SA in the second slot, and signals the owner
+// loop to supersede -- but only now, on the AUTHENTICATED message, and still without
+// touching the old SA until the owner loop relinquishes it. RFC 7296 Section 2.4.
+func TestResponderSupersedesOnAuthenticatedInit(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, table := ownedResponder(t)
+	oldChild := ps.getChildSA()
+
+	ini, pkt := freshInitiatorInit(t)
+	var iSPI, rSPI [8]byte
+	copy(iSPI[:], ini.InitiatorSPI[:])
+	table1 := NewSATable()
+	table1.Insert(ini)
+	if !tryResponderSAInit(pkt, iSPI, rSPI, table, nil, log) {
+		t.Fatal("parallel init not accepted")
+	}
+	pending := ps.getPendingSA()
+	if pending == nil {
+		t.Fatal("no pending SA")
+	}
+
+	// Initiator processes the responder's IKE_SA_INIT reply and builds IKE_AUTH.
+	handleSAInitResponse(ini, parseMsg(t, pending.LastSentMsg), pending.LastSentMsg, table1, nil, nil, log)
+	if ini.State != StateAuthSent {
+		t.Fatalf("initiator state = %v, want auth-sent", ini.State)
+	}
+	// Responder processes the parallel IKE_AUTH -> it authenticates and establishes.
+	handleInbound(pending, transport.Packet{Data: ini.LastSentMsg}, table, nil, log)
+
+	if pending.State != StateEstablished {
+		t.Fatalf("parallel SA state = %v, want established (its IKE_AUTH must verify)", pending.State)
+	}
+	if !pending.InitialContact {
+		t.Error("responder did not honor the initiator's INITIAL_CONTACT (RFC 7296 Section 2.4)")
+	}
+	if ps.getPendingChild() == nil {
+		t.Error("new Child SA not staged in the pending slot (make-before-break)")
+	}
+	if len(ps.supersede) != 1 {
+		t.Error("owner loop was not signaled to supersede on the authenticated init")
+	}
+	// Until the owner loop relinquishes, the old SA and its child are still intact.
+	if ps.getSA() != old || old.State != StateEstablished {
+		t.Error("old SA was torn down on the parallel establishment instead of by the owner loop")
+	}
+	if ps.getChildSA() != oldChild {
+		t.Error("old Child SA was removed before the owner loop relinquished (breaks make-before-break)")
+	}
+}
+
+// VALIDATES: INITIAL_CONTACT is emitted on the initiator's first IKE_AUTH request and
+// honored by the responder. A normal PSK handshake round-trips it end to end (RFC 7296
+// Section 2.4: "MUST be in the first IKE_AUTH request").
+func TestInitiatorEmitsInitialContact(t *testing.T) {
+	_, resp, _ := establishPSK(t)
+	if !resp.InitialContact {
+		t.Fatal("responder did not receive/parse INITIAL_CONTACT from the initiator's first IKE_AUTH")
+	}
+}

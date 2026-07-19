@@ -1,4 +1,5 @@
 // Design: plan/learned/740-ipsec-7-ikev2-engine.md -- config reconciliation
+// RFC: rfc/short/rfc7296.md -- Section 1.4 (Delete), Section 2.4 (state sync / re-init)
 package engine
 
 import (
@@ -21,17 +22,46 @@ type PeerSession struct {
 	espGroup ipsec.ESPGroup
 	sa       *SA
 
-	// responderBusy gates a `respond` peer to one in-flight handshake. The shared
-	// dispatchInbound goroutine CAS-sets it true when it creates the responder SA
-	// on an unsolicited IKE_SA_INIT; runResponder clears it once the SA establishes
-	// or dies. A concurrent/duplicate IKE_SA_INIT while busy is dropped (AC-6); a
-	// genuine retransmit finds the SA already in the SATable and never reaches the
-	// creation path. Initiator sessions never touch it.
+	// responderBusy gates a `respond` peer to ONE in-flight half-open handshake --
+	// its documented meaning. The shared dispatchInbound goroutine CAS-sets it true
+	// when it creates a responder SA on an unsolicited IKE_SA_INIT; it is cleared
+	// once that SA reaches StateEstablished (runResponder adoption, or promotion of a
+	// parallel SA) or dies/is reaped. RFC 7296 Section 2.4: it is NOT held across the
+	// established lifetime, so a fresh IKE_SA_INIT that arrives while an SA is up is
+	// accepted in parallel (pendingSA) rather than dropped. A concurrent second
+	// half-open attempt while busy is dropped (AC-6); a genuine retransmit finds the
+	// SA already in the SATable and never reaches the creation path. Initiator
+	// sessions never touch it.
 	responderBusy atomic.Bool
+
+	// ownedSA is the SA maintainSA currently owns (runEstablished sets it, clears it
+	// on return, and updates it on an IKE-SA rekey swap). routeInbound keys the
+	// owner-loop hand-off on SA identity (ownedSA == packet's SA), not the peer name,
+	// so a parallel half-open SA's handshake packets are handled inline on the
+	// dispatch goroutine while the established SA's traffic goes to the owner loop
+	// (spec-fixit-ipsec-clear-reestablish, coupling #1). Atomic: read on the shared
+	// dispatch goroutine, written by the session goroutine.
+	ownedSA atomic.Pointer[SA]
+
+	// graceful marks a session that operator `clear` is bouncing (vs a config-change
+	// stop). Set by StopGraceful before Stop; the owner loop reads it in its stopCh
+	// case and sends an authenticated INFORMATIONAL Delete (RFC 7296 Section 1.4) so
+	// the peer tears down at once instead of waiting for DPD. Kept distinct from
+	// Stop()'s meaning (R-6).
+	graceful atomic.Bool
 
 	mu         sync.Mutex
 	childSA    *ChildSA
 	rekeyCount uint64
+
+	// pendingSA / pendingChild are the single explicit second slot for a parallel
+	// responder handshake accepted while an established SA still owns the loop
+	// (RFC 7296 Section 2.4 coexist-then-supersede-on-authentication). Guarded by mu.
+	// The new SA supersedes the old only once it authenticates (finishResponderEstablish
+	// signals supersede); the new Child SA lives in pendingChild until promotion so the
+	// old owner loop's cleanupChild removes only its own child (make-before-break).
+	pendingSA    *SA
+	pendingChild *ChildSA
 
 	// inbound carries packets for an ESTABLISHED SA from the shared
 	// dispatchInbound goroutine to this session's maintainSA owner loop, so
@@ -53,15 +83,13 @@ type PeerSession struct {
 	// the maintainSA loop.
 	pendingIKESwap *SA
 
-	// established gates owner-loop routing. Set true when maintainSA owns the SA
-	// and false during (re)handshake. routeInbound reads it on the shared dispatch
-	// goroutine, so it is atomic and set-once-per-cycle: this avoids reading the
-	// lockless sa.State across goroutines (which raced with owner-side State writes).
-	established atomic.Bool
-
 	stopCh   chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
+
+	// supersede signals the owner loop (maintainSA) to relinquish the established SA
+	// because a parallel IKE_SA_INIT authenticated (RFC 7296 Section 2.4). Buffered 1.
+	supersede chan struct{}
 }
 
 // setSA / getSA guard the ps.sa pointer for the responder handoff: the shared
@@ -80,6 +108,54 @@ func (ps *PeerSession) getSA() *SA {
 	sa := ps.sa
 	ps.mu.Unlock()
 	return sa
+}
+
+// setPendingSA / getPendingSA guard the second SA slot for a parallel responder
+// handshake accepted while an established SA still owns the loop. Written by the
+// dispatch goroutine (tryResponderSAInit), read by the session goroutine
+// (runResponder promotion) and the owner loop's stale-pending reaper.
+func (ps *PeerSession) setPendingSA(sa *SA) {
+	ps.mu.Lock()
+	ps.pendingSA = sa
+	ps.mu.Unlock()
+}
+
+func (ps *PeerSession) getPendingSA() *SA {
+	ps.mu.Lock()
+	sa := ps.pendingSA
+	ps.mu.Unlock()
+	return sa
+}
+
+// setPendingChild / getPendingChild guard the parallel handshake's installed Child
+// SA until the old SA is superseded and the pending SA is promoted (make-before-break).
+func (ps *PeerSession) setPendingChild(c *ChildSA) {
+	ps.mu.Lock()
+	ps.pendingChild = c
+	ps.mu.Unlock()
+}
+
+func (ps *PeerSession) getPendingChild() *ChildSA {
+	ps.mu.Lock()
+	c := ps.pendingChild
+	ps.mu.Unlock()
+	return c
+}
+
+// signalSupersede tells the owner loop that a parallel IKE_SA_INIT authenticated, so
+// it should relinquish the old SA and let runResponder promote the new one. RFC 7296
+// Section 2.4: this happens only on an AUTHENTICATED message (IKE_AUTH), never on the
+// unauthenticated IKE_SA_INIT. Non-blocking: the channel is buffered 1 and the owner
+// loop consumes at most one supersede per established SA.
+func (ps *PeerSession) signalSupersede(log *slog.Logger) {
+	if ps.supersede == nil {
+		return
+	}
+	select {
+	case ps.supersede <- struct{}{}:
+	default:
+		log.Debug("ike: supersede already pending", "peer", ps.peerName)
+	}
 }
 
 // setPendingIKESwap records the new IKE SA built while responding to a peer's IKE
@@ -171,6 +247,16 @@ func (ps *PeerSession) Stop() {
 	<-ps.done
 }
 
+// StopGraceful stops the session like Stop but first marks it graceful, so the owner
+// loop sends an authenticated INFORMATIONAL Delete on its way out (RFC 7296 Section
+// 1.4). Used only by the operator `clear` path (TerminateAllSAs / TerminatePeerSA) so
+// the peer tears its SA down at once instead of waiting for the DPD timeout; a plain
+// config-change Stop stays silent (R-6).
+func (ps *PeerSession) StopGraceful() {
+	ps.graceful.Store(true)
+	ps.Stop()
+}
+
 // reconcilePeers diffs the new config against running peers and starts/stops
 // peer sessions as needed. Follows the PPPoE reconciliation pattern.
 func reconcilePeers(
@@ -218,6 +304,9 @@ func reconcilePeers(
 			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
 			emitSADown(bus, sa, log)
 		}
+		// A parallel responder handshake in flight at reconcile time has its own SATable
+		// entry and possibly an installed Child SA in the second slot; free them too.
+		r.ps.cleanupPendingSA(table, dp, bus, log)
 		peersMu.Lock()
 		delete(active, r.name)
 		peersMu.Unlock()
@@ -273,13 +362,14 @@ func startPeerSession(
 	log *slog.Logger,
 ) *PeerSession {
 	ps := &PeerSession{
-		peerName: name,
-		peerCfg:  peer,
-		ikeGroup: ikeGroup,
-		espGroup: espGroup,
-		inbound:  make(chan transport.Packet, inboundQueueDepth),
-		stopCh:   make(chan struct{}),
-		done:     make(chan struct{}),
+		peerName:  name,
+		peerCfg:   peer,
+		ikeGroup:  ikeGroup,
+		espGroup:  espGroup,
+		inbound:   make(chan transport.Packet, inboundQueueDepth),
+		stopCh:    make(chan struct{}),
+		done:      make(chan struct{}),
+		supersede: make(chan struct{}, 1),
 	}
 	go ps.run(peer, ikeGroup, table, tr, bus, log)
 	return ps

@@ -110,6 +110,12 @@ type SA struct {
 	EAPSession any // *eap.Session, stored as any to avoid import cycle
 	EAPMSK     [64]byte
 
+	// InitialContact records that the peer's first IKE_AUTH carried an INITIAL_CONTACT
+	// notify (RFC 7296 Section 2.4): it asserts this is the only IKE SA to the peer
+	// identity, authorizing us to delete any stale SA to it without waiting for a
+	// timeout. Set on the responder in handleAuthRequest.
+	InitialContact bool
+
 	// Remote peer identity from IKE_AUTH response IDr payload.
 	RemoteIDPayload *wire.PayloadID
 

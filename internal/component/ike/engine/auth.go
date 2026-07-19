@@ -114,6 +114,17 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		}
 	}
 
+	// RFC 7296 Section 2.4: INITIAL_CONTACT "MUST be in the first IKE_AUTH request or
+	// response" and "asserts that this IKE SA is the only IKE SA currently active
+	// between the authenticated identities", letting the responder delete any stale SA
+	// to us without waiting for a timeout. ze is one-SA-per-configured-peer, so this
+	// assertion is truthful on every first IKE_AUTH and is emitted unconditionally
+	// (spec-fixit-ipsec-clear-reestablish, open question 3). Rekey never reaches here
+	// (it uses CREATE_CHILD_SA on the existing SA).
+	innerPayloads = append(innerPayloads,
+		wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyInitialContact}},
+	)
+
 	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa)
 	if err != nil {
 		return nil, fmt.Errorf("ike auth: child SA payloads: %w", err)

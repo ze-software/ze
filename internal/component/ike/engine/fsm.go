@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
@@ -72,9 +73,9 @@ func (ps *PeerSession) runOnce(
 	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
-	// Not yet owned by maintainSA: (re)handshake packets are handled inline on the
-	// dispatch goroutine, not routed to the owner loop.
-	ps.established.Store(false)
+	// Not yet owned by maintainSA (ownedSA is nil until runEstablished adopts an SA):
+	// (re)handshake packets are handled inline on the dispatch goroutine, not routed
+	// to the owner loop.
 	if peer.ConnectionType == ipsec.ConnectionInitiate {
 		return ps.runInitiator(peer, ikeGroup, table, tr, bus, log)
 	}
@@ -215,13 +216,24 @@ func (ps *PeerSession) runResponder(
 					log.Warn("ike: emit sa-up failed", "error", emitErr)
 				}
 			}
+			// This half-open handshake is now established: clear the busy gate so a
+			// fresh IKE_SA_INIT can be accepted in PARALLEL during this SA's life
+			// (RFC 7296 Section 2.4). runEstablished owns the SA until it goes down or
+			// is superseded by a re-initiated SA that authenticated.
+			ps.responderBusy.Store(false)
 			err := ps.runEstablished(sa, peer, ikeGroup, table, tr, bus, log)
-			// Tunnel down (peer Delete, DPD timeout, lifetime): tear down and wait
-			// for the next inbound IKE_SA_INIT.
+			// Tunnel down (peer Delete, DPD timeout, lifetime, operator clear, or
+			// supersede): tear this SA down.
 			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
 			emitSADown(bus, sa, log)
 			ps.setSA(nil)
-			ps.responderBusy.Store(false)
+			// Resolve any parallel (second-slot) SA. On stop it is freed (its Child SA
+			// cannot be promoted-then-leaked); otherwise it is promoted into the primary
+			// slot so the poll loop adopts it. Extracted so the operator-clear +
+			// parallel-auth race is unit-tested at its entry point (fail-closed-guards).
+			if ps.resolvePendingAfterOwnerLoop(table, dataplane.Get(), bus, log) == pendingContinue {
+				continue
+			}
 			if ps.stopped() {
 				if err != nil {
 					return err
@@ -239,6 +251,46 @@ func (ps *PeerSession) runResponder(
 			ps.reapStaleHandshake(sa, table, log)
 		}
 	}
+}
+
+// pendingResolution is the runResponder decision after the owner loop returns.
+type pendingResolution int
+
+const (
+	pendingContinue pendingResolution = iota // a parallel SA was promoted; keep polling
+	pendingReturn                            // nothing to promote; caller checks stop/loop
+)
+
+// resolvePendingAfterOwnerLoop runs after the just-owned responder SA is torn down.
+// If the session is stopping it frees any parallel (second-slot) SA and its
+// make-before-break Child SA -- so a Child SA installed by a parallel handshake that
+// authenticated in the operator-clear race is NEVER promoted-then-leaked -- and returns
+// pendingReturn. Otherwise it promotes a parallel SA into the primary slot so the poll
+// loop adopts it (pendingContinue), or, if none, clears the half-open gate
+// (pendingReturn). RFC 7296 Section 2.4.
+func (ps *PeerSession) resolvePendingAfterOwnerLoop(table *SATable, dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) pendingResolution {
+	if ps.stopped() {
+		ps.cleanupPendingSA(table, dp, bus, log)
+		return pendingReturn
+	}
+	pending := ps.getPendingSA()
+	if pending == nil {
+		ps.responderBusy.Store(false)
+		return pendingReturn
+	}
+	// Adopt the parallel SA (authenticated supersede, or half-open relocated because this
+	// SA died independently) so the poll loop tracks it and it is not orphaned. Its Child
+	// SA -- installed only once it authenticated -- moves with it (make-before-break).
+	ps.setPendingSA(nil)
+	if pc := ps.getPendingChild(); pc != nil {
+		ps.setChildSA(pc)
+		ps.setPendingChild(nil)
+	}
+	ps.setSA(pending)
+	log.Info("ike: promoting re-initiated SA", "peer", ps.peerName,
+		"ispi", SPIHex(pending.InitiatorSPI), "rspi", SPIHex(pending.ResponderSPI),
+		"state", pending.State.String())
+	return pendingContinue
 }
 
 // reapStaleHandshake tears down a responder SA whose handshake the peer abandoned

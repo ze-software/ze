@@ -119,3 +119,50 @@ func TestReconcilePeersUnchanged(t *testing.T) {
 		ps.Stop()
 	}
 }
+
+// VALIDATES: AC-1 (clear triggers re-initiation). TerminateAllSAs stops each session,
+// removes it from the SATable, deletes it from the active map, and calls reEstablishFn;
+// because activePeersMap and reconcilePeers' `active` are the SAME map object (A-1's
+// load-bearing identity), the reEstablish closure sees the peer absent and starts a
+// fresh session. A refactor that copies the map would silently break `clear`.
+func TestTerminateAllSAsReinitiates(t *testing.T) {
+	log := slog.Default()
+	active := make(map[string]*PeerSession)
+	setActivePeers(active)
+	t.Cleanup(func() { setActivePeers(nil) })
+	table := NewSATable()
+	SetActiveTable(table)
+	t.Cleanup(func() { SetActiveTable(nil) })
+
+	peer := testPeer() // connection-type initiate, so it re-initiates on reconcile
+	cfg := testIPsecConfig(peer)
+	reconcilePeers(cfg, nil, active, table, nil, nil, log)
+	first := active[peer.Name]
+	if first == nil {
+		t.Fatal("setup: peer session was not started")
+	}
+
+	// reEstablish re-runs reconcile against the SAME active map (as runEngine's closure
+	// does), so a peer TerminateAllSAs removed is started again.
+	reEst := func() { reconcilePeers(cfg, nil, active, table, nil, nil, log) }
+	reEstablishFn.Store(&reEst)
+	t.Cleanup(func() { reEstablishFn.Store(nil) })
+
+	count := TerminateAllSAs()
+	if count != 1 {
+		t.Fatalf("TerminateAllSAs terminated %d, want 1", count)
+	}
+
+	second := active[peer.Name]
+	if second == nil {
+		t.Fatal("clear did not re-initiate the peer (no session after reEstablish)")
+	}
+	if second == first {
+		t.Error("re-initiation must be a fresh session, not the terminated one")
+	}
+
+	// Cleanup.
+	for _, ps := range active {
+		ps.Stop()
+	}
+}

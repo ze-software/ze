@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -783,7 +783,30 @@ a summary that does not contain the rule is a dangling citation.
 ### Documentation Updates
 - (fill at completion)
 ### Deviations from Plan
-- (fill at completion)
+- **RFC summary landed by direct edit, not `/ze-rfc`.** The RFC Documentation section
+  asked for `/ze-rfc` to add the §2.4 quotes to `rfc/short/rfc7296.md`. In this parked
+  session I edited the file directly (added the "MUST NOT conclude ... without
+  cryptographic protection" quote, the INITIAL_CONTACT "only IKE SA" + "MUST be in the
+  first IKE_AUTH" quotes, and checklist rows RFC7296-2.4-3/-4). If a concurrent RFC agent
+  owns that file, reconcile at drain (the content is already present; re-run `/ze-rfc` to
+  canonicalize if preferred). Recorded in the drain recipe.
+- **The `.ci` cannot assert the strict <=10s bound or a changed SPI** (AC-1). The `.ci`
+  predicate format has no capture-and-compare, so `ipsec-clear-reestablish{,-peer}.ci`
+  gate on re-establishment (negotiated aes-cbc/sha256) within 60s -- well under the ~150s
+  DPD fallback, so they still discriminate fixed vs unfixed. The changed-SPI proof is
+  asserted by the interop `check.py` (which compares strongSwan ESP SPIs), and the exact
+  <=10s bound is unit-proven (the mechanism costs 1 Delete + 1 handshake). Not a scope cut.
+- **Interop scenario 11's "no Delete reaches Ze" step may need charon tuning at CI.** The
+  crash reproduction (break_link + `swanctl --terminate` + restore_link + `--initiate`)
+  relies on charon abandoning the queued Delete while the link is broken; flagged in the
+  scenario header and drain recipe. Could not be run here (needs Docker + strongSwan).
+- **Promotion is NOT guarded on `pending.State==StateEstablished`.** A reviewer suggested
+  that guard; it would reintroduce an orphan for the (rare) case where the old SA dies via
+  DPD/lifetime while a parallel handshake is still half-open (the half-open would never be
+  relocated to the primary slot and would establish unowned). Instead the stop-path leak
+  the reviewer worried about is closed by `resolvePendingAfterOwnerLoop`, which frees the
+  pending SA+child when stopping and promotes only otherwise. Locked by
+  `TestResolvePendingCleansPromotedChildOnStop` / `TestResolvePendingPromotesOnSupersede`.
 
 ## Implementation Audit
 ### Requirements from Task
@@ -816,21 +839,40 @@ a summary that does not contain the rule is a dangling citation.
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
 
-### Run 1 (initial)
+### Run 1 (initial) -- two independent reviewer subagents (concurrency; RFC/security/tests)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | ISSUE | `reapStalePending` had no established-guard: if a parallel handshake authenticated at the ~30s boundary and the ticker won the select over supersede, it reaped a just-established SA -- destroying the make-before-break child and, with the supersede token still buffered, tearing the old SA down with nothing to promote (both tunnels lost). | `established.go` reapStalePending | fixed: added `if pending.State == StateEstablished { return }` (mirrors reapStaleHandshake) |
+| 2 | ISSUE | Promotion in `runResponder` fired on ANY runEstablished return with a pending present, incl. operator-clear/DPD stop; on the stop path the promoted child was never cleaned (no `defer cleanupChild`), leaking XFRM state. | `fsm.go` runResponder | fixed: stop-first branch cleans pendingSA+pendingChild and returns; promotion only when not stopping |
+| 3 | ISSUE | Config-change removal (`reconcilePeers`) and engine shutdown did not `cleanupPendingSA`, leaking a parallel handshake's SATable entry / child. | `reconcile.go`, `register.go` | fixed: both paths now call `cleanupPendingSA` |
+| 4 | ISSUE | Stale supersede token: a token signaled while the prior owner loop was already exiting (DPD) could fire on the promoted SA's first select and tear it down. | `established.go` runEstablished | fixed: drain a stale token at owner-loop entry (sole receiver, len-based) |
+| 5 | ISSUE | Dangling RFC citation: code comments cite RFC 7296 §2.4 quotes the local summary did not carry. | `rfc/short/rfc7296.md` | fixed: added §2.4 State Synchronization normative quotes + 2 checklist rows |
+| 6 | NOTE | Rekey swap set `ownedSA` after `table.Insert(newSA)`, a sub-µs window where the rekeyed SA's packet routes inline. | `established.go` | fixed: store `ownedSA` before `table.Insert` |
+| 7 | NOTE | `TerminateAllSAs` deleted from the peer map after cleanup (dispatch could create an escaping pending). | `register.go` | fixed: delete-before-stop, matching `TerminatePeerSA` |
+| 8 | NOTE | `.ci` asserts re-establishment within 60s but not the strict <=10s bound or a changed SPI (format cannot capture/compare). | `test/ipsec/*.ci` | acknowledged: interop check.py DOES assert a changed ESP SPI; the <=10s/SPI is CI/executor scope; recorded as a deviation in the drain recipe |
+| 9 | NOTE | Scenario 11's "no Delete reaches Ze" repro depends on charon abandoning the queued Delete during break_link. | `11-.../check.py` | acknowledged: flagged in the scenario header + drain recipe for CI tuning |
+
+Security invariant (RFC 7296 §2.4: no unauthenticated message deletes an SA): **both reviewers confirmed PASS** -- supersede has a single caller (`finishResponderEstablish`, post-`verifyRemoteAuth`); no teardown is reachable from `tryResponderSAInit` / the IKE_SA_INIT path. No BLOCKER found.
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE]
+- reapStalePending established-guard; runResponder stop-first pending cleanup; cleanupPendingSA in reconcile-removal + shutdown; stale-supersede-token drain; ownedSA-before-Insert on rekey; TerminateAllSAs delete-before-stop.
+- RFC 7296 §2.4 State Synchronization + INITIAL_CONTACT placement quotes added to `rfc/short/rfc7296.md` (citations no longer dangling).
+- Two new locking unit tests: `TestReapStalePendingSkipsEstablished`, `TestCleanupPendingSA`.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| R2-1 | ISSUE (2nd reviewer, re-raised via coordinator) | Promotion child-leak: on the operator-clear + parallel-auth race the promoted Child SA could leak because runResponder had no defer cleanup and TerminateAllSAs cleans neither childSA nor removeChildSA. | `fsm.go` runResponder | fixed BEFORE re-raise (stop-first branch), then hardened: extracted `resolvePendingAfterOwnerLoop` (frees pending SA+child on stop, promotes only otherwise) so it is unit-tested at the entry point; added `TestResolvePendingCleansPromotedChildOnStop` (asserts NO Child SA leak) + `TestResolvePendingPromotesOnSupersede` |
+| R2-2 | ISSUE (2nd reviewer) | Dangling RFC citation: code cites RFC 7296 §2.4 quotes absent from `rfc/short/rfc7296.md`. | `rfc/short/rfc7296.md` | fixed: the three quoted MUSTs + checklist rows RFC7296-2.4-3/-4 are present and the file is in the changeset (verified by grep). See Deviations for the `/ze-rfc` reconciliation note. |
+| R2-3 | NOTE (2nd reviewer) | `.ci` SPI-change assertion; scenario-11 charon caveat. | `test/ipsec*` | acknowledged in Deviations. |
+
+All re-review ISSUEs resolved. `go test -race ./internal/component/ike/...` clean (incl. the 4 new leak/reap/promotion regression tests); `golangci-lint run ./internal/component/ike/{engine,cmd}/` 0 issues.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Reviewer findings resolved: 0 BLOCKER, 0 ISSUE remaining (5 ISSUEs fixed, 4 NOTEs fixed/acknowledged)
+- [x] All NOTEs recorded above
+- Artifact: `tmp/review/fixit-ipsec-clear-reestablish-58c51aab-79d8-400d-b779-2c0cf322a274.md` (review_gate.py record, verdict=clean)
+- Note: functional (`test/ipsec`) + interop (strongSwan) suites NOT run in this parked session (they kill live servers / need Docker); AC-1/2/5/7 end-to-end validation left for CI (drain recipe).
 
 ## Pre-Commit Verification
 

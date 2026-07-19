@@ -347,6 +347,13 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 			if p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0 {
 				sa.RemoteCertRaw = p.CertData
 			}
+		case *wire.PayloadNotify:
+			// RFC 7296 Section 2.4: honor INITIAL_CONTACT -- the peer asserts this is the
+			// only IKE SA to its identity, so we may drop any stale SA to it once this
+			// IKE_AUTH authenticates (finishResponderEstablish supersede).
+			if p.NotifyMsgType == wire.NotifyInitialContact {
+				sa.InitialContact = true
+			}
 		case *wire.PayloadSA:
 			remoteSAi2 = p
 		case *wire.PayloadTS:
@@ -535,7 +542,18 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 // post-IKE_AUTH each side's request counter resumes at 2), and marks the SA
 // established. runResponder observes the state change and takes over the owner loop.
 func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byte, child *ChildSA, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
-	ps.setChildSA(child)
+	// A different SA already owns the loop => this is a PARALLEL re-initiation that has
+	// now authenticated (we reached finishResponderEstablish only after verifyRemoteAuth).
+	// RFC 7296 Section 2.4: the old SA is superseded ONLY here, on this authenticated
+	// message -- never on the unauthenticated IKE_SA_INIT. Keep the new Child SA in the
+	// second slot until the owner loop relinquishes and runResponder promotes it, so the
+	// old owner's cleanupChild removes only its own child (make-before-break, R-2).
+	parallel := ps.ownedSA.Load() != nil
+	if parallel {
+		ps.setPendingChild(child)
+	} else {
+		ps.setChildSA(child)
+	}
 	cacheResponse(sa, msgID, resp) // advances ExpectedMsgID to msgID+1 (=2)
 	sa.NextMsgID = msgID + 1       // our next self-initiated request (DPD/Delete)
 	sa.LastSentMsg = resp
@@ -547,7 +565,16 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 	sa.State = StateEstablished
 	sa.EstablishedAt = time.Now()
 	log.Info("ike: responder established SA", "peer", sa.PeerName,
-		"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI))
+		"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI),
+		"parallel", parallel, "initial-contact", sa.InitialContact)
+	if parallel {
+		// RFC 7296 Section 2.4: "The INITIAL_CONTACT notification asserts that this IKE
+		// SA is the only IKE SA currently active between the authenticated identities";
+		// the recipient "MAY use this information to delete any other IKE SAs it has to
+		// the same authenticated identity without waiting for a timeout." ze is
+		// one-SA-per-configured-peer, so an authenticated re-initiation always supersedes.
+		ps.signalSupersede(log)
+	}
 }
 
 // sendAuthFailed sends an SK-encrypted IKE_AUTH response carrying

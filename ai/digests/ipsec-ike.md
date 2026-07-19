@@ -194,6 +194,27 @@ tree.
   ID selection). EAP-server is the real `eap.Session` (`eap/eap.go`) wired via
   `NewEAPSession`; `startResponderEAP`/`handleResponderEAP` mirror the initiator EAP flow.
   Interop-verified as responder vs strongSwan 5.9.14 (`scenarios/07-responder-psk`).
+- **Operator `clear` is a graceful, bounded bounce (spec-fixit-ipsec-clear-reestablish).**
+  `clear vpn ipsec sa[ peer <name>]` → `TerminateAllSAs`/`TerminatePeerSA` call
+  `ps.StopGraceful()` (not bare `Stop()`); the owner loop's stopCh case sends an
+  authenticated INFORMATIONAL Delete (`sendDeleteIKE`, RFC 7296 Section 1.4) on the
+  owner goroutine before `cleanupChild`, so the peer tears down at once instead of
+  after its ~150s DPD timeout. Best-effort UDP; a lost Delete falls back to DPD.
+- **Responder accepts a parallel re-init (RFC 7296 Section 2.4).** `responderBusy` now
+  gates ONE *half-open* handshake only (its documented meaning) and is cleared at
+  adoption/establishment, NOT held across the SA's established life (that hold was the
+  clear/re-establish bug). A fresh IKE_SA_INIT arriving while a tunnel is up is accepted
+  into a second slot (`pendingSA`/`pendingChild`) and drives inline; the established SA
+  is never touched by the unauthenticated init. Routing keys on SA identity
+  (`ps.ownedSA atomic.Pointer[SA]`, replacing the old `established` bool) so the parallel
+  half-open SA's packets are not misdelivered to the established SA's owner loop, and it
+  stays correct across an IKE-rekey swap. On the AUTHENTICATED IKE_AUTH,
+  `finishResponderEstablish` stages the new child and signals `ps.supersede`; `maintainSA`
+  relinquishes (removing only the old child, make-before-break) and `runResponder`
+  promotes the pending SA. Abandoned parallel handshakes are reaped by time
+  (`reapStalePending`, immutable CreatedAt only — never reads pending.State). The
+  initiator emits INITIAL_CONTACT on every first IKE_AUTH request (`auth.go`,
+  one-SA-per-peer model); the responder parses/honors it (`sa.InitialContact`).
 - **IKE IDs: IP literals use ID_IPV4_ADDR/ID_IPV6_ADDR.** `encodeIKEID` (`auth.go`)
   packs an IP-literal `local-id` as the address ID type; peers constrain the remote
   id by type and reject an IP value sent as ID_FQDN ("constraint check failed").
