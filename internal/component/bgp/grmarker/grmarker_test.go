@@ -255,6 +255,13 @@ func TestMaxRestartTime(t *testing.T) {
 
 // VALIDATES: 0x80 OR'd into byte 0 of copied code-64 Value.
 // PREVENTS: R-bit not set, peers don't know we restarted.
+//
+// RFC requirement: RFC4724-4.1-4 positive -- the Restarting Speaker sets the Restart State (R) bit
+// on the code-64 capability of its OPEN via SetRBit (internal/component/bgp/grmarker/grmarker.go:112),
+// which peer.go:574 invokes while inside the restart window.
+// RFC requirement: RFC4724-4.2-6 negative -- the contrast case for the "R bit MUST NOT be set unless
+// restarted" guard: when the restart mechanism does run (speaker has restarted), the R bit IS set, so
+// the guard in TestSetRBitTimeGatePattern is not a blanket suppression.
 func TestSetRBitOnCapability(t *testing.T) {
 	caps := []plugin.InjectedCapability{
 		{Code: grCapCode, Value: makeGRCapValue(120), Plugin: "gr", PeerAddr: "1.1.1.1"},
@@ -469,7 +476,13 @@ func TestMaxRestartTimeWithRBitSet(t *testing.T) {
 
 // VALIDATES: The time-gated R-bit logic: SetRBit called only when before deadline.
 // PREVENTS: R-bit applied when it shouldn't be (after deadline).
-// NOTE: The actual time gate lives in peer.go:480; this tests the decision pattern.
+// NOTE: The actual time gate lives in peer.go:574 (RestartUntil window); this tests the decision pattern.
+//
+// RFC requirement: RFC4724-4.2-6 positive -- the Restart State bit is NOT set unless the speaker has
+// restarted: after the restart deadline, and for a zero RestartUntil (cold start), the caps are used
+// unmodified with R=0 (the peer.go:574 window check `!RestartUntil.IsZero() && now.Before(RestartUntil)`).
+// RFC requirement: RFC4724-4.1-4 negative -- the same gate proves the R bit is not blanket-set: outside
+// the restart window the Restarting Speaker leaves R=0, so R=1 is emitted only within the window.
 func TestSetRBitTimeGatePattern(t *testing.T) {
 	caps := []plugin.InjectedCapability{
 		{Code: grCapCode, Value: makeGRCapValue(120)},

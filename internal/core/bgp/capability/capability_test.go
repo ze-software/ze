@@ -402,6 +402,54 @@ func TestGracefulRestartCapability(t *testing.T) {
 	assert.True(t, gr.Families[0].ForwardingState)
 }
 
+// TestGracefulRestartEncodeReservedBits verifies the sender zeroes the reserved bits of the
+// Restart Flags and Address Family Flags fields (RFC 4724 Section 3).
+func TestGracefulRestartEncodeReservedBits(t *testing.T) {
+	t.Parallel()
+
+	gr := &GracefulRestart{
+		RestartState: true,
+		RestartTime:  120,
+		Families: []GracefulRestartFamily{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, ForwardingState: true},
+		},
+	}
+	buf := make([]byte, gr.Len())
+	gr.WriteTo(buf, 0)
+	// Layout: [code, len, flags_hi, flags_lo, afi_hi, afi_lo, safi, af_flags].
+	require.Len(t, buf, 8)
+
+	// RFC requirement: RFC4724-3-2 positive -- WriteTo (internal/core/bgp/capability/capability.go:557-561)
+	// sets only the R bit (0x8000) and masks Restart Time to 12 bits, so the three reserved bits of the
+	// Restart Flags nibble (mask 0x70 of byte 0) are zero on send.
+	assert.Equal(t, byte(0x00), buf[2]&0x70, "restart-flags reserved bits must be zero on send")
+	assert.Equal(t, byte(0x80), buf[2]&0x80, "R bit set when RestartState is true")
+
+	// RFC requirement: RFC4724-3-3 positive -- WriteTo (capability.go:567-571) sets only the F bit (0x80)
+	// per AFI/SAFI, leaving the seven reserved Address Family Flag bits (mask 0x7F) zero on send.
+	assert.Equal(t, byte(0x00), buf[7]&0x7F, "AF-flags reserved bits must be zero on send")
+	assert.Equal(t, byte(0x80), buf[7]&0x80, "F bit set when ForwardingState is true")
+
+	// RFC requirement: RFC4724-3-2 negative -- an over-range Restart Time does not leak into the reserved
+	// Restart Flags bits: WriteTo masks it (val & 0x0FFF), so the reserved bits stay zero while the 12-bit
+	// value is preserved.
+	over := &GracefulRestart{RestartTime: 0xFFFF}
+	obuf := make([]byte, over.Len())
+	over.WriteTo(obuf, 0)
+	assert.Equal(t, byte(0x00), obuf[2]&0x70, "over-range restart-time must not set reserved restart-flag bits")
+	assert.Equal(t, byte(0x0F), obuf[2]&0x0F, "12-bit restart-time high nibble preserved")
+
+	// RFC requirement: RFC4724-3-3 negative -- an AFI/SAFI with the F bit clear encodes an all-zero AF
+	// flags byte, so a cleared forwarding state does not spuriously set any reserved AF-flag bit.
+	noF := &GracefulRestart{
+		RestartTime: 30,
+		Families:    []GracefulRestartFamily{{AFI: AFIIPv6, SAFI: SAFIUnicast, ForwardingState: false}},
+	}
+	nbuf := make([]byte, noF.Len())
+	noF.WriteTo(nbuf, 0)
+	assert.Equal(t, byte(0x00), nbuf[7], "F-bit clear encodes an all-zero AF flags byte")
+}
+
 // TestCapabilityRoundTrip verifies pack/parse round-trip.
 //
 // VALIDATES: Serialization correctness.

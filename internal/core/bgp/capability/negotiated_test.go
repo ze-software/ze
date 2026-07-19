@@ -39,6 +39,40 @@ func TestNegotiateBasic(t *testing.T) {
 	assert.Equal(t, uint32(65002), neg.PeerASN)
 }
 
+// TestNegotiateGracefulRestartLastInstance verifies that when a peer advertises more than one
+// Graceful Restart capability, only the last instance is used (RFC 4724 Section 3).
+func TestNegotiateGracefulRestartLastInstance(t *testing.T) {
+	t.Parallel()
+
+	// Peer's OPEN carries TWO Graceful Restart capabilities with different restart times/families.
+	remote := []Capability{
+		&GracefulRestart{
+			RestartTime: 90,
+			Families:    []GracefulRestartFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, ForwardingState: false}},
+		},
+		&GracefulRestart{
+			RestartTime: 240,
+			Families:    []GracefulRestartFamily{{AFI: AFIIPv6, SAFI: SAFIUnicast, ForwardingState: true}},
+		},
+	}
+
+	neg := Negotiate(nil, remote, 65001, 65002)
+	require.NotNil(t, neg.GracefulRestart)
+
+	// RFC requirement: RFC4724-3-4 positive -- Negotiate keeps the LAST Graceful Restart instance: the
+	// loop over remote capabilities overwrites neg.GracefulRestart on each match
+	// (internal/core/bgp/capability/negotiated.go:178-179), so the negotiated restart time and family
+	// come from the second instance.
+	assert.Equal(t, uint16(240), neg.GracefulRestart.RestartTime, "last GR instance must win")
+	require.Len(t, neg.GracefulRestart.Families, 1)
+	assert.Equal(t, AFIIPv6, neg.GracefulRestart.Families[0].AFI, "last GR instance's family is retained")
+
+	// RFC requirement: RFC4724-3-4 negative -- the first (superseded) instance is ignored, not merged:
+	// its distinct restart time (90) and IPv4 family do not appear in the negotiated capability.
+	assert.NotEqual(t, uint16(90), neg.GracefulRestart.RestartTime, "first GR instance must be ignored")
+	assert.NotEqual(t, AFIIPv4, neg.GracefulRestart.Families[0].AFI, "first GR instance's family must not be used")
+}
+
 // TestNegotiateAddPath verifies ADD-PATH negotiation.
 //
 // VALIDATES: ADD-PATH mode intersection.

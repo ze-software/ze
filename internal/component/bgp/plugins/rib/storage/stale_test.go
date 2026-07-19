@@ -143,6 +143,10 @@ func TestFamilyRIB_PurgeStaleEmpty(t *testing.T) {
 //
 // VALIDATES: INSERT after mark-stale clears StaleLevel to fresh.
 // PREVENTS: Updated routes remaining marked as stale.
+//
+// RFC requirement: RFC4724-4.2-10 positive -- a routing update received from the peer for a stale
+// prefix replaces the stale route: FamilyRIB.Insert (internal/component/bgp/plugins/rib/storage/familyrib.go:182,199,208)
+// clears StaleLevel back to Fresh (or installs the new entry), so the refreshed route is no longer stale.
 func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	t.Parallel()
 
@@ -171,6 +175,11 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 //
 // VALIDATES: New routes during GR window are not stale.
 // PREVENTS: Brand new routes being incorrectly marked stale.
+//
+// RFC requirement: RFC4724-4.2-10 negative -- the replacement is targeted, not blanket: a stale prefix
+// that is NOT re-advertised stays stale, while only the prefix carried by a new update is refreshed to
+// fresh (internal/component/bgp/plugins/rib/storage/familyrib.go:182), so unrefreshed stale routes are
+// left for the End-of-RIB / timer purge rather than being cleared wholesale.
 func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 	t.Parallel()
 

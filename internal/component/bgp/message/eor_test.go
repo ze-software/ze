@@ -12,6 +12,15 @@ import (
 // VALIDATES: Empty UPDATE (no withdrawn, no attributes, no NLRI) for IPv4 unicast
 //
 // PREVENTS: Wrong EOR format for IPv4 unicast family.
+//
+// RFC requirement: RFC4724-4-1 positive -- ze sends an End-of-RIB marker on completing the
+// initial routing update: BuildEOR (internal/component/bgp/message/eor.go:79), invoked per
+// negotiated family after the initial route send (internal/component/bgp/reactor/peer_initial_sync.go:277,334),
+// produces the RFC 4724 IPv4-unicast empty UPDATE that IsEndOfRIB detects.
+// RFC requirement: RFC4724-4.1-7 positive -- same producer: once the Restarting Speaker's initial
+// update is complete the End-of-RIB marker built here is emitted for the family.
+// RFC requirement: RFC4724-4.2-9 positive -- same producer: the Receiving Speaker emits this End-of-RIB
+// marker once its initial update to the peer completes.
 func TestBuildEOR_IPv4Unicast(t *testing.T) {
 	fam := family.Family{AFI: 1, SAFI: 1}
 	update := BuildEOR(fam)
@@ -212,6 +221,12 @@ func TestBuildEOR_WireFormat(t *testing.T) {
 //
 // PREVENTS: egress route filters suppressing per-family EoR markers (RFC 4724),
 // which would strand a peer waiting for graceful-restart completion.
+// RFC requirement: RFC4724-4-1 negative -- a real UPDATE (legacy IPv4 NLRI present, or an
+// MP_UNREACH carrying a withdrawn prefix) is NOT reported as an End-of-RIB marker, so the marker
+// ze sends after the initial update genuinely signals completion rather than being confused with a
+// route (internal/component/bgp/message/eor.go:23 IsEndOfRIBAnyFamily).
+// RFC requirement: RFC4724-4.1-7 negative -- same discrimination: a route-bearing UPDATE is not an EoR.
+// RFC requirement: RFC4724-4.2-9 negative -- same discrimination: a withdrawal-bearing UPDATE is not an EoR.
 func TestIsEndOfRIBAnyFamily(t *testing.T) {
 	ipv4flow := family.Family{AFI: 1, SAFI: 133}
 	ipv6 := family.Family{AFI: 2, SAFI: 1}

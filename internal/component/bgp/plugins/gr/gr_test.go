@@ -108,6 +108,11 @@ func TestExtractGRCapabilities_ParseBGPConfig(t *testing.T) {
 //
 // VALIDATES: Returned CapabilityDecl has correct Code, Encoding, Payload, and Peers.
 // PREVENTS: Malformed GR capability causing OPEN rejection.
+// RFC requirement: RFC4724-3-1 positive -- ze emits exactly one Graceful Restart (code 64)
+// capability declaration per peer: extractGRCapabilities (internal/component/bgp/plugins/gr/gr.go:703)
+// appends a single CapabilityDecl per peer, so a single-peer config yields wantLen 1 with code 64.
+// The single-polarity annotation in rfc/short/rfc4724.md records why the more-than-one case cannot
+// be constructed on the send path.
 func TestExtractGRCapabilities_CapabilityDecl(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -36,6 +36,14 @@ var (
 //
 // VALIDATES: GR-capable peer session drops → routes retained, marked stale, timer started.
 // PREVENTS: Routes being deleted immediately when peer has GR capability.
+//
+// RFC requirement: RFC4724-4.2-3 positive -- on a non-NOTIFICATION session drop of a GR-capable peer,
+// onSessionDown (internal/component/bgp/plugins/gr/gr_state.go:114) activates GR, building the stale
+// family set from the peer's GR capability so its routes are retained and marked stale
+// (the gr.go handler then dispatches retain-routes + mark-stale).
+// RFC requirement: RFC4724-4-2 negative -- the contrast to NOTIFICATION teardown: a plain TCP failure
+// (wasNotification=false) DOES retain routes, so the no-retention-on-NOTIFICATION rule is specific to
+// NOTIFICATION and not a blanket "never retain".
 func TestGRStateManagerRouteRetention(t *testing.T) {
 	var expired []string
 	mgr := newGRStateManager(func(peer string) {
@@ -53,6 +61,10 @@ func TestGRStateManagerRouteRetention(t *testing.T) {
 //
 // VALIDATES: Restart timer expires without reconnect → all stale routes deleted.
 // PREVENTS: Stale routes lingering indefinitely after peer disappears.
+//
+// RFC requirement: RFC4724-4.2-7 positive -- when the Restart Time elapses without the session being
+// re-established, handleTimerExpired (internal/component/bgp/plugins/gr/gr_state.go:324) with no LLGR
+// clears the peer and fires onTimerExpired, which releases (deletes) all retained stale routes.
 func TestGRStateManagerTimerExpiry(t *testing.T) {
 	var mu sync.Mutex
 	var expired []string
@@ -79,6 +91,13 @@ func TestGRStateManagerTimerExpiry(t *testing.T) {
 //
 // VALIDATES: Peer reconnects with GR capability and F-bit set → stale kept until EOR.
 // PREVENTS: Premature deletion of stale routes when peer advertises forwarding state preserved.
+//
+// RFC requirement: RFC4724-4.2-8 negative -- the contrast to F-bit=0/missing: when the peer re-advertises
+// the family with F-bit=1, onSessionReestablished (internal/component/bgp/plugins/gr/gr_state.go:176)
+// keeps the stale routes (purges nothing), so the immediate purge is confined to non-preserved families.
+// RFC requirement: RFC4724-4.2-7 negative -- the contrast to Restart-Time expiry: when the session is
+// re-established before the timer fires, the stale routes are retained (not deleted), so deletion is
+// specific to timer expiry, not any reconnection.
 func TestGRStateManagerReconnectWithFBit(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
@@ -113,6 +132,11 @@ func TestGRStateManagerReconnectNoGR(t *testing.T) {
 //
 // VALIDATES: Peer reconnects with GR but F-bit=0 → stale routes for that family deleted.
 // PREVENTS: Stale routes persisting when peer says forwarding state NOT preserved.
+//
+// RFC requirement: RFC4724-4.2-8 positive -- on re-establishment, onSessionReestablished
+// (internal/component/bgp/plugins/gr/gr_state.go:176) purges the stale routes of any family whose new
+// GR capability clears the F-bit (here IPv4), while keeping families whose F-bit stays set (IPv6);
+// the sibling cases (no GR cap, missing family) exercise the other two purge triggers of this requirement.
 func TestGRStateManagerReconnectFBitZero(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
@@ -150,6 +174,11 @@ func TestGRStateManagerReconnectMissingFamily(t *testing.T) {
 //
 // VALIDATES: EOR received for a family → remaining stale routes for that family deleted.
 // PREVENTS: Stale routes surviving after peer signals initial update complete.
+//
+// RFC requirement: RFC4724-4.2-11 positive -- once End-of-RIB is received for a family, onEORReceived
+// (internal/component/bgp/plugins/gr/gr_state.go:246) removes that family from the stale set and the
+// gr.go handler dispatches purge-stale for it, so any routes still marked stale for the family are
+// immediately removed (per-family, IPv4 then IPv6).
 func TestGRStateManagerEORPurge(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
@@ -180,6 +209,10 @@ func TestGRStateManagerEORPurge(t *testing.T) {
 //
 // VALIDATES: NOTIFICATION triggers session down → routes deleted immediately (no GR).
 // PREVENTS: Route retention when session ended due to NOTIFICATION (RFC 4724 Section 4).
+//
+// RFC requirement: RFC4724-4-2 positive -- when the session terminates due to a NOTIFICATION,
+// onSessionDown (internal/component/bgp/plugins/gr/gr_state.go:118, wasNotification branch) clears any
+// GR state and does NOT activate retention, so normal BGP procedures (route deletion) apply.
 func TestGRStateManagerNotificationBypass(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
@@ -207,10 +240,56 @@ func TestGRStateManagerConsecutiveRestarts(t *testing.T) {
 	assert.True(t, mgr.peerActive(testPeer))
 }
 
+// TestGRConsecutiveRestartClearsPriorStale verifies a consecutive restart deletes the
+// previously-stale families before marking the current ones.
+//
+// VALIDATES: Second session-down replaces the prior GR cycle's stale set rather than accumulating it.
+// PREVENTS: Stale-route accumulation across restart cycles (RFC 4724 Section 4.2).
+func TestGRConsecutiveRestartClearsPriorStale(t *testing.T) {
+	mgr := newGRStateManager(nil)
+
+	// Cycle 1: down staling both IPv4 and IPv6.
+	require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4, famIPv6), nil, false))
+	mgr.mu.Lock()
+	first := len(mgr.peers[testPeer].staleFamilies)
+	mgr.mu.Unlock()
+	require.Equal(t, 2, first, "cycle 1 should stale both families")
+
+	// Cycle 2 (consecutive): down carrying only IPv4.
+	require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4), nil, false))
+	mgr.mu.Lock()
+	_, hasV6 := mgr.peers[testPeer].staleFamilies[family.IPv6Unicast]
+	_, hasV4 := mgr.peers[testPeer].staleFamilies[family.IPv4Unicast]
+	total := len(mgr.peers[testPeer].staleFamilies)
+	mgr.mu.Unlock()
+	// RFC requirement: RFC4724-4.2-4 positive -- on a consecutive restart, clearPeerLocked
+	// (internal/component/bgp/plugins/gr/gr_state.go:125) deletes the prior cycle's stale state before
+	// the new one is built, so the previously-stale IPv6 family is gone after a second down that carries
+	// only IPv4.
+	assert.False(t, hasV6, "previously-stale IPv6 must be deleted on consecutive restart")
+	assert.True(t, hasV4, "current IPv4 remains stale")
+	assert.Equal(t, 1, total, "only the current cycle's family remains stale")
+
+	// A fresh peer's first (non-consecutive) down deletes no prior stale.
+	fresh := newGRStateManager(nil)
+	require.True(t, fresh.onSessionDown("10.9.9.9", testCap(120, famIPv4), nil, false))
+	fresh.mu.Lock()
+	freshTotal := len(fresh.peers["10.9.9.9"].staleFamilies)
+	fresh.mu.Unlock()
+	// RFC requirement: RFC4724-4.2-4 negative -- a first restart has no prior stale to delete, so the
+	// stale set is exactly the current capability's families; the prior-stale deletion is specific to
+	// consecutive restarts, not any session-down.
+	assert.Equal(t, 1, freshTotal, "first restart stale set is exactly the current capability")
+}
+
 // TestGRStateManagerNoGRCapability verifies no state created for non-GR peers.
 //
 // VALIDATES: Non-GR peer session down produces no GR state.
 // PREVENTS: GR state pollution for peers without GR capability.
+//
+// RFC requirement: RFC4724-4.2-3 negative -- a peer that advertised no GR capability does NOT get its
+// routes retained: onSessionDown (internal/component/bgp/plugins/gr/gr_state.go:118, cap==nil branch)
+// returns without activating, so retention is confined to peers that sent the Graceful Restart capability.
 func TestGRStateManagerNoGRCapability(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
@@ -224,6 +303,10 @@ func TestGRStateManagerNoGRCapability(t *testing.T) {
 //
 // VALIDATES: EOR received for peer without GR state returns false.
 // PREVENTS: Spurious purge actions for non-GR peers.
+//
+// RFC requirement: RFC4724-4.2-11 negative -- an End-of-RIB for a peer with no active stale state
+// triggers no purge: onEORReceived (internal/component/bgp/plugins/gr/gr_state.go:246) returns false,
+// so the immediate stale removal fires only for a peer that actually has stale routes pending.
 func TestGRStateManagerEORForNonGRPeer(t *testing.T) {
 	mgr := newGRStateManager(nil)
 

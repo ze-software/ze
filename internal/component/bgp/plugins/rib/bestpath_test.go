@@ -772,6 +772,10 @@ func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 //
 // VALIDATES: ComparePair returns correct values for LLGR-stale combinations.
 // PREVENTS: Inverted LLGR depreference.
+// RFC requirement: RFC4724-4.2-5 negative -- the stale-differentiation mechanism exists but engages
+// only at or above DepreferenceThreshold=2 (LLGR, RFC 9494): a level-2 stale route loses to a normal
+// route (bestpath.go:311-316), confirming GR-stale level 1 is deliberately kept below the threshold
+// so it is never differentiated during forwarding.
 func TestComparePair_LLGRStale(t *testing.T) {
 	t.Parallel()
 	normal := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
@@ -794,6 +798,10 @@ func TestComparePair_LLGRStale(t *testing.T) {
 //
 // VALIDATES: RFC 4724: GR-stale routes below DepreferenceThreshold are NOT deprioritized.
 // PREVENTS: GR-stale routes losing to fresh routes when they have better attributes.
+// RFC requirement: RFC4724-4.2-5 positive -- a GR-stale (level 1) route is not differentiated from
+// other routing information during best-path/forwarding: level 1 is below DepreferenceThreshold
+// (bestpath.go:309), so comparePair's stale step (bestpath.go:308-322) does not fire and the stale
+// route competes and wins on LOCAL_PREF exactly like a fresh route.
 func TestComparePair_GRStaleCompetesNormally(t *testing.T) {
 	t.Parallel()
 	// Level 1 (GR-stale) with higher LOCAL_PREF should beat level 0 (fresh)
