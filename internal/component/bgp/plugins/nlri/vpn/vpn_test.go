@@ -43,6 +43,8 @@ func TestVPNv4WireRoundTrip(t *testing.T) {
 //
 // VALIDATES: VPNv6 NLRI encodes to wire format and decodes back correctly.
 // PREVENTS: IPv6 address handling errors, prefix length issues.
+//
+// RFC requirement: RFC4659-3.2-1 positive -- a labeled VPNv6 NLRI carries its MPLS label through a wire round-trip, i.e. the PE distributes a label with the IPv6 VPN route.
 func TestVPNv6WireRoundTrip(t *testing.T) {
 	t.Parallel()
 	// Build a VPNv6 NLRI: RD 2:65000:1, label 200, prefix 2001:db8::/32
@@ -64,6 +66,31 @@ func TestVPNv6WireRoundTrip(t *testing.T) {
 	assert.Equal(t, original.rd.String(), parsed.rd.String())
 	assert.Equal(t, original.prefix.String(), parsed.prefix.String())
 	assert.Equal(t, original.labels, parsed.labels)
+
+	// RFC 4659 Section 3.2: the MPLS label MUST travel with the IPv6 VPN route.
+	require.NotEmpty(t, parsed.labels)
+	assert.Equal(t, uint32(200), parsed.labels[0])
+}
+
+// TestVPNv6RejectsLabellessEncode verifies a VPNv6 NLRI cannot be encoded without
+// an MPLS label.
+//
+// VALIDATES: EncodeNLRIHex refuses a VPNv6 route that carries no label.
+// PREVENTS: Emitting a labelless IPv6 VPN NLRI, which would break MPLS forwarding.
+//
+// RFC requirement: RFC4659-3.2-1 negative -- encoding a VPNv6 NLRI with an RD and prefix but no MPLS label is rejected (a labelless IPv6 VPN route is refused).
+func TestVPNv6RejectsLabellessEncode(t *testing.T) {
+	t.Parallel()
+	// RD + prefix present, but no "label" token: the encoder must refuse.
+	_, err := EncodeNLRIHex("ipv6/mpls-vpn", []string{"rd", "2:65000:1", "prefix", "2001:db8::/32"})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errLabelRequiredForVpn)
+
+	// A labeled VPNv6 NLRI with the same RD and prefix encodes successfully,
+	// confirming the rejection is specific to the missing label.
+	hexStr, err := EncodeNLRIHex("ipv6/mpls-vpn", []string{"rd", "2:65000:1", "label", "200", "prefix", "2001:db8::/32"})
+	require.NoError(t, err)
+	require.NotEmpty(t, hexStr)
 }
 
 // TestVPNAllRDTypes verifies all three RD types parse and encode correctly.

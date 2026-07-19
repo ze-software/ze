@@ -359,6 +359,26 @@ func extractAttributeCodes(data []byte) ([]attribute.AttributeCode, error) {
 	return codes, nil
 }
 
+// extractMPReachValue returns the value bytes of the MP_REACH_NLRI attribute in
+// data, failing the test if it is absent. The value layout (RFC 4760 Section 3 /
+// RFC 4659 Section 3.2) is AFI(2) + SAFI(1) + NHLen(1) + NextHop + Reserved(1) + NLRI.
+func extractMPReachValue(t *testing.T, data []byte) []byte {
+	t.Helper()
+	offset := 0
+	for offset < len(data) {
+		_, code, length, hdrLen, err := attribute.ParseHeader(data[offset:])
+		if err != nil {
+			t.Fatalf("ParseHeader failed: %v", err)
+		}
+		if code == attribute.AttrMPReachNLRI {
+			return data[offset+hdrLen : offset+hdrLen+int(length)]
+		}
+		offset += hdrLen + int(length)
+	}
+	t.Fatal("MP_REACH_NLRI attribute not found")
+	return nil
+}
+
 // TestUpdateBuilder_BuildUnicast_AttributeOrder verifies RFC 4271 attribute ordering.
 //
 // VALIDATES: Attributes are ordered by type code (ORIGIN=1, AS_PATH=2, NEXT_HOP=3, MED=4, LOCAL_PREF=5).
@@ -573,6 +593,8 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 // VALIDATES: IPv6 VPN route produces UPDATE with MP_REACH_NLRI (AFI=2, SAFI=128).
 //
 // PREVENTS: IPv6 VPN using wrong AFI.
+//
+// RFC requirement: RFC4659-3.2-2 positive -- BuildVPN emits MP_REACH_NLRI with AFI=2 (IPv6) and SAFI=128 (MPLS VPN) for a VPNv6 route.
 func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
 
 	ub := NewUpdateBuilder(65001, false, true, false)
@@ -599,6 +621,73 @@ func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
 	// Should have path attributes
 	if len(update.PathAttributes) == 0 {
 		t.Error("missing path attributes")
+	}
+
+	// RFC 4659 Section 3.2: VPN-IPv6 uses AFI=2 (IPv6) and SAFI=128 (MPLS VPN).
+	value := extractMPReachValue(t, update.PathAttributes)
+	if len(value) < 4 {
+		t.Fatalf("MP_REACH value too short: %d bytes", len(value))
+	}
+	if afi := uint16(value[0])<<8 | uint16(value[1]); afi != 2 {
+		t.Errorf("MP_REACH AFI = %d, want 2 (IPv6)", afi)
+	}
+	if value[2] != 128 {
+		t.Errorf("MP_REACH SAFI = %d, want 128 (MPLS VPN)", value[2])
+	}
+}
+
+// TestUpdateBuilder_BuildVPN_IPv6_NextHop verifies the VPNv6 MP_REACH next-hop encoding.
+//
+// VALIDATES: buildMPReachVPN emits a 24-octet next-hop of 8 zero RD bytes followed
+// by the 16-byte global IPv6 address for a VPNv6 route with an IPv6 next-hop.
+//
+// PREVENTS: Wrong next-hop length or a non-zero RD prefix on the VPNv6 next-hop.
+//
+// RFC requirement: RFC4659-3.2.1.1-1 positive -- the VPN-IPv6 Next Hop field is 24 octets: an 8-octet zero RD followed by the 16-octet global IPv6 address.
+func TestUpdateBuilder_BuildVPN_IPv6_NextHop(t *testing.T) {
+
+	ub := NewUpdateBuilder(65001, false, true, false)
+
+	nh := netip.MustParseAddr("2001:db8::1")
+	params := VPNParams{
+		Prefix:  netip.MustParsePrefix("2001:db8:1::/48"),
+		NextHop: nh,
+		Origin:  attribute.OriginIGP,
+		Labels:  []uint32{200},
+		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+	}
+
+	update := ub.BuildVPN(&params)
+	if update == nil {
+		t.Fatal("BuildVPN returned nil")
+		return
+	}
+
+	value := extractMPReachValue(t, update.PathAttributes)
+	// value = AFI(2) + SAFI(1) + NHLen(1) + NextHop + Reserved(1) + NLRI.
+	if len(value) < 4 {
+		t.Fatalf("MP_REACH value too short: %d bytes", len(value))
+	}
+
+	nhLen := int(value[3])
+	if nhLen != 24 {
+		t.Errorf("next-hop length = %d, want 24 (8 RD + 16 IPv6)", nhLen)
+	}
+	if len(value) < 4+nhLen {
+		t.Fatalf("MP_REACH value truncated: %d bytes, need at least %d", len(value), 4+nhLen)
+	}
+
+	nextHop := value[4 : 4+nhLen]
+	// First 8 octets: RD, must be all zero (RFC 4659 Section 3.2.1.1).
+	for i, b := range nextHop[:8] {
+		if b != 0 {
+			t.Errorf("next-hop RD byte %d = 0x%02x, want 0x00", i, b)
+		}
+	}
+	// Remaining 16 octets: the global IPv6 next-hop address.
+	wantIP := nh.As16()
+	if !bytes.Equal(nextHop[8:24], wantIP[:]) {
+		t.Errorf("next-hop IPv6 = %x, want %x", nextHop[8:24], wantIP[:])
 	}
 }
 
