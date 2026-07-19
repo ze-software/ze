@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // TestFlowSpecComponentTypes verifies component type constants.
@@ -396,6 +398,12 @@ func TestFlowSpecIPv4Basic(t *testing.T) {
 
 	assert.Equal(t, IPv4FlowSpec, fs.Family())
 	assert.Len(t, fs.Components(), 2)
+
+	// RFC 5575 Section 4: IPv4 Flow Specification rules use the (AFI=1, SAFI=133) pair,
+	// which is what the encoder writes to the wire (encode.go afi=1/SAFI=133).
+	// RFC requirement: RFC5575-4-2 positive -- IPv4 FlowSpec uses AFI 1 with SAFI 133 (§4)
+	assert.Equal(t, AFI(1), fs.Family().AFI, "IPv4 FlowSpec AFI must be 1")
+	assert.Equal(t, SAFI(133), fs.Family().SAFI, "IPv4 FlowSpec SAFI must be 133")
 }
 
 // TestFlowSpecIPv6Basic verifies basic IPv6 FlowSpec NLRI.
@@ -617,8 +625,13 @@ func TestFlowSpecVPNSAFI(t *testing.T) {
 // PREVENTS: AFI/SAFI mismatch between IPv4 and IPv6 VPN variants.
 func TestFlowSpecVPNFamily(t *testing.T) {
 	t.Parallel()
+	// RFC 5575 Section 8 / RFC 8955 Section 9.4: IPv4 L3VPN Flow Specification rules
+	// use the (AFI=1, SAFI=134) pair matching the FlowSpec VPN application.
+	// RFC requirement: RFC5575-4-2 positive -- IPv4 FlowSpec L3VPN uses AFI 1 with SAFI 134 (§4)
 	assert.Equal(t, AFIIPv4, IPv4FlowSpecVPN.AFI)
+	assert.Equal(t, AFI(1), IPv4FlowSpecVPN.AFI, "IPv4 FlowSpec VPN AFI must be 1")
 	assert.Equal(t, SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
+	assert.Equal(t, SAFI(134), IPv4FlowSpecVPN.SAFI, "IPv4 FlowSpec VPN SAFI must be 134")
 
 	// RFC 8956 Section 2: IPv6 L3VPN Flow Specification rules use the (AFI=2, SAFI=134) pair.
 	// RFC requirement: RFC8956-2-2 positive -- IPv6 FlowSpec L3VPN uses AFI 2 with SAFI 134 (§2)
@@ -1136,5 +1149,189 @@ func TestBitmaskComponentString(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tt.expected, tt.comp.String())
 		})
+	}
+}
+
+// walkComponentOps walks a numeric/bitmask component's wire bytes (as produced by
+// FlowComponent.Bytes()) and returns the operator byte and value bytes of every
+// {op, value} pair. The first byte is the component type; each pair is an operator
+// byte whose len field (bits 2-3) encodes value length as 1<<lenCode octets
+// (RFC 8955 Section 4.2.1.1 / 4.2.1.2), followed by that many value octets.
+func walkComponentOps(t *testing.T, b []byte) (ops []byte, values [][]byte) {
+	t.Helper()
+	require.GreaterOrEqual(t, len(b), 1, "component must have at least a type byte")
+	i := 1 // skip the component type byte
+	for i < len(b) {
+		op := b[i]
+		i++
+		lenCode := (op >> 4) & 0x03
+		valueLen := 1 << lenCode
+		require.LessOrEqual(t, i+valueLen, len(b), "value must fit within component bytes")
+		ops = append(ops, op)
+		values = append(values, b[i:i+valueLen])
+		i += valueLen
+	}
+	require.NotEmpty(t, ops, "component must encode at least one {op, value} pair")
+	return ops, values
+}
+
+// TestFlowSpecComponentsAscendingOrder verifies components are emitted in strictly
+// ascending type order regardless of the order they were added.
+//
+// VALIDATES: FlowSpec.WriteTo (via writeComponentsSorted, types.go) emits components
+// sorted by increasing component type, so a lower-type component always precedes any
+// higher-type component on the wire.
+//
+// PREVENTS: Out-of-order component emission that a strict decoder would treat as
+// malformed NLRI; the sort being dropped so add-order leaks onto the wire.
+func TestFlowSpecComponentsAscendingOrder(t *testing.T) {
+	t.Parallel()
+
+	// Add components deliberately OUT of type order: 5, 12, 3, 1.
+	fs := NewFlowSpec(IPv4FlowSpec)
+	fs.AddComponent(NewFlowDestPortComponent(443))                                    // Type 5
+	fs.AddComponent(NewFlowFragmentComponent(FlowFragIsFragment))                     // Type 12
+	fs.AddComponent(NewFlowIPProtocolComponent(6))                                    // Type 3
+	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))) // Type 1
+
+	// Encode to the wire (routes through WriteTo -> writeComponentsSorted) and parse
+	// back; ParseFlowSpec appends components in the exact order they appear on the wire,
+	// so the parsed order reflects the emitted order.
+	data := fs.Bytes()
+	parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+	require.NoError(t, err)
+	comps := parsed.Components()
+	require.Len(t, comps, 4)
+
+	// RFC 5575 Section 4.2: "Components MUST follow strict type ordering by increasing
+	// numerical order." Each present component must precede any higher-type component.
+	// RFC requirement: RFC5575-4-3 positive -- emitted component types are strictly ascending (§4.2)
+	// RFC requirement: RFC5575-4-4 positive -- a present component precedes any higher-type component (§4.2)
+	for i := 1; i < len(comps); i++ {
+		assert.Less(t, comps[i-1].Type(), comps[i].Type(),
+			"component %d (type %d) must precede higher-type component %d (type %d)",
+			i-1, comps[i-1].Type(), i, comps[i].Type())
+	}
+	// Concretely, the out-of-order add above must serialize as 1, 3, 5, 12.
+	assert.Equal(t, FlowDestPrefix, comps[0].Type())
+	assert.Equal(t, FlowIPProtocol, comps[1].Type())
+	assert.Equal(t, FlowDestPort, comps[2].Type())
+	assert.Equal(t, FlowFragment, comps[3].Type())
+}
+
+// TestFlowSpecNumericOperatorReservedBitZero verifies the numeric operator byte
+// leaves reserved bit 4 clear across value lengths and comparison operators.
+//
+// VALIDATES: numericComponent.Bytes() builds the operator as lenCode<<4 | AND | END |
+// comparison bits (types_numeric.go), so RFC 8955 Section 4.2.1.1 reserved bit 4 (0x08)
+// is never set.
+//
+// PREVENTS: reserved bit contamination that would corrupt the len field or be rejected
+// by a strict peer.
+func TestFlowSpecNumericOperatorReservedBitZero(t *testing.T) {
+	t.Parallel()
+
+	// One component exercising all three encoder len codes (1, 2, 4 octet values) and
+	// several comparison operators, plus the AND and END bits.
+	comp := NewFlowNumericComponent(FlowPacketLength, []FlowMatch{
+		{Op: FlowOpEqual, Value: 6},                 // 1-octet value (lenCode 0)
+		{Op: FlowOpGreater, Value: 1024, And: true}, // 2-octet value (lenCode 1)
+		{Op: FlowOpLess, Value: 0x12345, And: true}, // 4-octet value (lenCode 2), END set
+	})
+	ops, _ := walkComponentOps(t, comp.Bytes())
+	require.Len(t, ops, 3)
+
+	// RFC 5575 Section 4 numeric operator format [e][a][len][0][lt][gt][eq]: bit 4 (0x08)
+	// is reserved and MUST be 0.
+	// RFC requirement: RFC5575-4-5 positive -- numeric operator reserved bit 4 (0x08) is clear (§4)
+	for i, op := range ops {
+		assert.Zero(t, op&0x08, "numeric operator %d (0x%02x) reserved bit 4 must be 0", i, op)
+	}
+}
+
+// TestFlowSpecBitmaskOperatorReservedBitsZero verifies the bitmask operator byte
+// leaves reserved bits 4-5 clear.
+//
+// VALIDATES: numericComponent.Bytes() for a bitmask type (TCP flags) builds the
+// operator as lenCode<<4 | AND | END | NOT/MATCH bits (types_numeric.go), so RFC 8955
+// Section 4.2.1.2 reserved bits 4-5 (0x0C) are never set.
+//
+// PREVENTS: reserved-bit contamination in the bitmask operand that a strict peer would
+// reject or misinterpret.
+func TestFlowSpecBitmaskOperatorReservedBitsZero(t *testing.T) {
+	t.Parallel()
+
+	// TCP flags (Type 9) uses the bitmask operator; exercise MATCH, NOT and AND/END bits.
+	comp := NewFlowTCPFlagsMatchComponent([]FlowMatch{
+		{Op: FlowOpMatch, Value: 0x02},                        // =syn
+		{Op: FlowOpNot | FlowOpMatch, Value: 0x04, And: true}, // AND !=rst, END set
+	})
+	ops, _ := walkComponentOps(t, comp.Bytes())
+	require.Len(t, ops, 2)
+
+	// RFC 5575 Section 4 bitmask operator format [e][a][len][0][0][not][m]: bits 4-5
+	// (0x0C) are reserved and MUST be 0.
+	// RFC requirement: RFC5575-4-6 positive -- bitmask operator reserved bits 4-5 (0x0C) are clear (§4)
+	for i, op := range ops {
+		assert.Zero(t, op&0x0C, "bitmask operator %d (0x%02x) reserved bits 4-5 must be 0", i, op)
+	}
+}
+
+// TestFlowSpecFragmentReservedHighNibbleZero verifies the Type-12 Fragment bitmask
+// value leaves its reserved high nibble clear.
+//
+// VALIDATES: A fragment component (types_numeric.go NewFlowFragment*Component) encodes
+// its value from the low-nibble FlowFragmentFlag constants (types.go), so the RFC 8955
+// Section 4.2.2.12 reserved high nibble (bits 0-3, 0xF0) stays zero on the wire.
+//
+// PREVENTS: stray high-nibble bits in the fragment operand that would be interpreted as
+// undefined fragment match flags.
+func TestFlowSpecFragmentReservedHighNibbleZero(t *testing.T) {
+	t.Parallel()
+
+	// Fragment (Type 12) with combined and single flags across two {op, value} pairs.
+	comp := NewFlowFragmentMatchComponent([]FlowMatch{
+		{Op: FlowOpMatch, Value: uint64(FlowFragIsFragment | FlowFragFirstFragment)},
+		{Op: FlowOpMatch, Value: uint64(FlowFragDontFragment), And: true},
+	})
+	_, values := walkComponentOps(t, comp.Bytes())
+	require.Len(t, values, 2)
+
+	// RFC 5575 Section 4 fragment bitmask [0][0][0][0][LF][FF][IsF][DF]: the high nibble
+	// (0xF0) is reserved and MUST be 0.
+	// RFC requirement: RFC5575-4-7 positive -- fragment bitmask reserved high nibble (0xF0) is zero (§4)
+	for i, v := range values {
+		require.Len(t, v, 1, "fragment value must encode as a single octet")
+		assert.Zero(t, v[0]&0xF0, "fragment value %d (0x%02x) reserved high nibble must be 0", i, v[0])
+	}
+}
+
+// TestFlowSpecTrafficMarkingReservedBytesZero verifies the DSCP Traffic-Marking
+// extended community leaves its reserved bytes zero.
+//
+// VALIDATES: flowSpecActionExtComm (encode.go) encodes a DSCP marking action as the
+// 8-byte extended community 0x80,0x09,0x00,0x00,0x00,0x00,0x00,DSCP, so the reserved
+// bytes 2..6 are zero and only the final octet carries the DSCP value.
+//
+// PREVENTS: reserved bytes leaking data into the Traffic Marking community, which a
+// receiver would treat as an out-of-spec / different action.
+func TestFlowSpecTrafficMarkingReservedBytesZero(t *testing.T) {
+	t.Parallel()
+
+	const dscp = uint8(46) // Expedited Forwarding
+	ec, err := flowSpecActionExtComm(bgptypes.FlowSpecRoute{
+		Actions: bgptypes.FlowSpecActions{MarkDSCP: dscp},
+	})
+	require.NoError(t, err)
+	require.Len(t, ec, 8, "traffic-marking extended community is 8 octets")
+
+	// RFC 5575 Section 7: the Traffic Marking extended community (type 0x80, subtype
+	// 0x09) carries the DSCP in the last octet; the intervening octets are reserved 0.
+	assert.Equal(t, byte(0x80), ec[0], "high-order type octet must be 0x80")
+	assert.Equal(t, byte(0x09), ec[1], "subtype must be 0x09 (traffic marking)")
+	assert.Equal(t, dscp, ec[7], "final octet carries the DSCP value")
+	// RFC requirement: RFC5575-7-1 positive -- Traffic-Marking reserved bytes 2..6 are zero (§7)
+	for i := 2; i <= 6; i++ {
+		assert.Zero(t, ec[i], "traffic-marking reserved byte %d must be 0", i)
 	}
 }

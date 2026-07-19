@@ -114,3 +114,5 @@ rfc7012	IPFIX Information Model: exporter role; 8 not-applicable (no enterprise 
 rfc9582	RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play)
 draft-ietf-sidrops-aspa-verification	ASPA AS_PATH verification: 4 MET + 2 single-polarity (6-1, 7-2) + 2 gap (6-4 per-AFI records, 8-1 Invalid-not-preferred)
 rfc4090	Fast Reroute Extensions to RSVP-TE for LSP Tunnels: 11 MUSTs all MET (FAST_REROUTE/SESSION_ATTRIBUTE flags, RRO protection flags, PLR local repair, label-stacking bypass, merge-point selection, PathErr Notify), positive+negative tags
+rfc5575	BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capability/family/component-ordering/reserved-bits) + 4 gap (Section 6 validation unimplemented, same root cause as RFC8956-5-1)
+rfc9086	BGP-LS Egress Peer Engineering SIDs: 2 single-polarity positive (reserved ignored on receipt) + 10 gap (EPE SID origination not implemented; decode only)

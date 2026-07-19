@@ -826,6 +826,38 @@ func TestPeerSetSIDRoundTrip(t *testing.T) {
 	require.True(t, ok)
 }
 
+// TestRFC9086PeerSIDIgnoresReservedFields verifies the BGP-EPE Peer SID decoder
+// (RFC 9086 Section 5, TLVs 1101/1102/1103) ignores reserved fields on receipt:
+// a Peer Node SID whose Flags-octet reserved bits AND 2-octet Reserved field are
+// both non-zero still decodes to the correct meaningful flags, weight, and SID.
+// RFC 9086 requires ignore-on-receipt (never reject), so this is a single-polarity
+// positive requirement -- there is no negative case for the gate.
+//
+// VALIDATES: RFC9086-5-5 (reserved Flags bits ignored) and RFC9086-5-6 (2-octet
+// Reserved field ignored) on decode.
+// PREVENTS: reserved bits leaking into or rejecting the decode; the 2-octet
+// Reserved field being folded into the SID (a 2-byte misalignment).
+// Producer: decodePeerSID (attr_link.go:554-572).
+func TestRFC9086PeerSIDIgnoresReservedFields(t *testing.T) {
+	// TLV 1101 value bytes (RFC 9086 Section 5: Flags(1) + Weight(1) + Reserved(2) +
+	// SID(4)). Flags 0xCF = meaningful V(0x80) and L(0x40) bits set AND all four
+	// low-nibble reserved bits (0x0F) set; Weight 0x05; the 2-octet Reserved field
+	// 0xFFFF set non-zero; SID 0x00005DC0 = 24000.
+	decode := decodePeerSID(TLVPeerNodeSID)
+	tlv, err := decode([]byte{0xCF, 0x05, 0xFF, 0xFF, 0x00, 0x00, 0x5D, 0xC0})
+	require.NoError(t, err) // non-zero reserved bits/field must NOT reject the TLV.
+	ps, ok := tlv.(*LsPeerSID)
+	require.True(t, ok)
+
+	// RFC requirement: RFC9086-5-5 positive -- reserved bits in the Flags octet are ignored on receipt: they neither reject the TLV nor disturb the meaningful V/L flags or the decoded SID.
+	assert.Equal(t, uint8(0xC0), ps.Flags&0xF0) // meaningful V/L flags survive; the low-nibble reserved bits do not corrupt them.
+	assert.Equal(t, uint32(24000), ps.SID)      // reserved Flags bits do not leak into the SID.
+
+	// RFC requirement: RFC9086-5-6 positive -- the 2-octet Reserved field (value bytes [2:4], here 0xFFFF) is ignored on receipt: it is skipped, not folded into the SID, and does not reject the TLV.
+	assert.Equal(t, uint32(24000), ps.SID) // SID is read from value[4:], so the 0xFFFF Reserved field is skipped, not misaligned into it.
+	assert.Equal(t, uint8(5), ps.Weight)   // the meaningful Weight octet decodes intact alongside the non-zero Reserved field.
+}
+
 // TestSRv6LANEndXOSPFRoundTrip tests TLV 1108 with 4-byte neighbor ID.
 //
 // VALIDATES: OSPFv3 LAN End.X SID with 4-byte neighbor ID round-trip.

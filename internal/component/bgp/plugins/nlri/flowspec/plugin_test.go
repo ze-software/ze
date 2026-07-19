@@ -755,3 +755,40 @@ func TestIPv6FlowSpecNegotiatesMultiprotocolCapability(t *testing.T) {
 	assert.Equal(t, capability.AFI(2), mp.AFI, "IPv6 FlowSpec MP capability AFI must be 2")
 	assert.Equal(t, capability.SAFI(133), mp.SAFI, "IPv6 FlowSpec MP capability SAFI must be 133")
 }
+
+// TestIPv4FlowSpecNegotiatesMultiprotocolCapability verifies RFC 5575 Section 4:
+// an implementation advertising IPv4 Flow Specification negotiates the
+// (AFI=1, SAFI=133) Multiprotocol Extension (Code 1) capability.
+//
+// This is the IPv4 sibling of TestIPv6FlowSpecNegotiatesMultiprotocolCapability.
+// The flowspec plugin declares "ipv4/flow" as a decode family (register.go);
+// OPEN negotiation (internal/component/bgp/reactor/session_negotiate.go sendOpen)
+// resolves each declared decode family via family.LookupFamily and emits a
+// capability.Multiprotocol{AFI, SAFI} for it. This test pins the declared family
+// through that mapping to the Multiprotocol (Code 1) capability with AFI 1 / SAFI 133.
+//
+// VALIDATES: ipv4/flow yields an (AFI 1, SAFI 133) Multiprotocol capability.
+// PREVENTS: IPv4 FlowSpec silently omitted from the OPEN capability set; the
+// negotiated pair drifting from the RFC-mandated (AFI 1, SAFI 133).
+func TestIPv4FlowSpecNegotiatesMultiprotocolCapability(t *testing.T) {
+	t.Parallel()
+
+	// The flowspec plugin advertises ipv4/flow as a decode family (register.go),
+	// which is what OPEN negotiation offers as a Multiprotocol capability.
+	reg := registry.Lookup("bgp-nlri-flowspec")
+	require.NotNil(t, reg, "flowspec plugin must be registered")
+	require.Contains(t, reg.Families, "ipv4/flow",
+		"flowspec must advertise ipv4/flow so OPEN negotiation offers it")
+
+	// sendOpen resolves the declared family string, exactly as negotiation does.
+	fam, ok := family.LookupFamily("ipv4/flow")
+	require.True(t, ok, "ipv4/flow must resolve to a registered family")
+
+	// RFC 5575 Section 4: the pair carried in the Multiprotocol capability MUST be
+	// (AFI=1, SAFI=133) for IPv4 Flow Specification rules.
+	// RFC requirement: RFC5575-4-1 positive -- ipv4/flow negotiates the (AFI 1, SAFI 133) Multiprotocol capability (§4)
+	mp := &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}
+	assert.Equal(t, capability.CodeMultiprotocol, mp.Code(), "must be a Multiprotocol capability (Code 1)")
+	assert.Equal(t, capability.AFI(1), mp.AFI, "IPv4 FlowSpec MP capability AFI must be 1")
+	assert.Equal(t, capability.SAFI(133), mp.SAFI, "IPv4 FlowSpec MP capability SAFI must be 133")
+}
