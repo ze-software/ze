@@ -11,20 +11,31 @@
 //   2. feedPeerData must wake a Read that is blocked on an empty buffer.
 //   3. verifyServerChain validates the authenticator chain against the trust
 //      anchor with no hostname check (EAP-TLS has no server name).
+//   4. deriveTLSMSK fail-closes (all-zero MSK, no panic) on an incomplete handshake.
+//
+// This file is deliberately SELF-CONTAINED: it builds its own tiny PKI rather
+// than reusing the handshake harness's helpers, so the fixes and their tests
+// land as one coherent, independently-compilable unit.
 //
 // VALIDATES: the wakeup path delivers every signal when the buffer is empty and
 // never blocks when it is full; a blocked Read is woken by feedPeerData; the
 // peer's server-chain verification accepts a trusted chain and rejects an
-// untrusted one and an empty presentation.
-// PREVENTS: regressing notifyCh back to a lossy select (handshake deadlock), or
-// weakening the peer's RFC 5216 Section 5.3 server-certificate validation.
+// untrusted one and an empty presentation; deriveTLSMSK never panics on an
+// incomplete handshake and yields an unusable all-zero MSK.
+// PREVENTS: regressing notifyCh back to a lossy select (handshake deadlock),
+// weakening the peer's RFC 5216 Section 5.3 server-certificate validation, or
+// re-introducing the ExportKeyingMaterial panic on a failed handshake.
 
 package eap
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
+	"crypto/x509/pkix"
+	"math/big"
 	"testing"
 	"time"
 )
@@ -105,14 +116,53 @@ func TestTransportFeedWakesBlockedRead(t *testing.T) {
 	}
 }
 
-// certDER decodes a single PEM CERTIFICATE block to its DER bytes.
-func certDER(t *testing.T, certPEM []byte) []byte {
+// regrCA generates a self-signed CA certificate and its key.
+func regrCA(t *testing.T, cn string, serial int64) (*x509.Certificate, *ecdsa.PrivateKey) {
 	t.Helper()
-	block, _ := pem.Decode(certPEM)
-	if block == nil || block.Type != "CERTIFICATE" {
-		t.Fatalf("certDER: input is not a PEM CERTIFICATE block")
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ca key: %v", err)
 	}
-	return block.Bytes
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(serial),
+		Subject:               pkix.Name{CommonName: cn},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("ca cert: %v", err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("parse ca: %v", err)
+	}
+	return cert, key
+}
+
+// regrServerLeafDER returns the DER of a server-auth leaf signed by caCert/caKey.
+func regrServerLeafDER(t *testing.T, caCert *x509.Certificate, caKey *ecdsa.PrivateKey, cn string, serial int64) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("leaf key: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(serial),
+		Subject:      pkix.Name{CommonName: cn},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, caCert, &key.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("leaf cert: %v", err)
+	}
+	return der
 }
 
 // TestVerifyServerChain covers the peer's RFC 5216 Section 5.3 server-chain
@@ -120,17 +170,20 @@ func certDER(t *testing.T, certPEM []byte) []byte {
 // accepted, one signed by an untrusted CA is rejected, and an empty presentation
 // is rejected. The end-to-end counterpart is TestEAPTLSPeerRejectsUntrustedServerChain.
 func TestVerifyServerChain(t *testing.T) {
-	pki := newEAPTLSPKI(t)
+	trustedCA, trustedKey := regrCA(t, "regr-trusted-ca", 1)
+	untrustedCA, untrustedKey := regrCA(t, "regr-untrusted-ca", 2)
+
 	roots := x509.NewCertPool()
-	if !roots.AppendCertsFromPEM(pki.trustedCAPEM) {
-		t.Fatal("failed to load trusted CA into the roots pool")
-	}
+	roots.AddCert(trustedCA)
 	verify := verifyServerChain(roots)
 
-	if err := verify([][]byte{certDER(t, pki.serverCertPEM)}, nil); err != nil {
+	trustedLeaf := regrServerLeafDER(t, trustedCA, trustedKey, "regr-server", 3)
+	untrustedLeaf := regrServerLeafDER(t, untrustedCA, untrustedKey, "regr-rogue-server", 4)
+
+	if err := verify([][]byte{trustedLeaf}, nil); err != nil {
 		t.Fatalf("trusted server chain rejected: %v", err)
 	}
-	if err := verify([][]byte{certDER(t, pki.untrustedServerCertPEM)}, nil); err == nil {
+	if err := verify([][]byte{untrustedLeaf}, nil); err == nil {
 		t.Fatal("untrusted server chain accepted: peer server-cert validation is not enforced")
 	}
 	if err := verify(nil, nil); err == nil {
@@ -146,9 +199,8 @@ func TestVerifyServerChain(t *testing.T) {
 // all-zero result is an invalid key that cannot yield a passing EAP-Success.
 func TestDeriveTLSMSKFailsClosedOnIncompleteHandshake(t *testing.T) {
 	// A freshly wrapped tls.Client has HandshakeComplete == false (no handshake
-	// was ever driven), which is the same observable state as a failed handshake.
-	// The config is never used: no handshake is driven, so tls.Client just wraps
-	// the transport and ConnectionState() reports HandshakeComplete == false.
+	// was ever driven), the same observable state as a failed handshake. The
+	// config is never used because no handshake is performed.
 	ps := &PeerSession{
 		tlsConn: tls.Client(newEAPTLSTransport(), &tls.Config{MinVersion: tls.VersionTLS12}),
 	}
