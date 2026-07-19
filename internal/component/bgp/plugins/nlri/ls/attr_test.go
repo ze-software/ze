@@ -858,6 +858,86 @@ func TestRFC9086PeerSIDIgnoresReservedFields(t *testing.T) {
 	assert.Equal(t, uint8(5), ps.Weight)   // the meaningful Weight octet decodes intact alongside the non-zero Reserved field.
 }
 
+// TestRFC9085SIDLabelMasksLeftmostFourBits verifies the SID/Label TLV decoder
+// (RFC 9085 Section 2.1.1, TLV 1161) enforces the 3-octet "4 leftmost bits MUST
+// be 0" rule by masking the value to its 20 rightmost bits on receipt. The input
+// value 0xF12345 has its top nibble (0xF) set, so a decoder that failed to mask
+// would return 0xF12345; the masking decoder returns 0x12345.
+//
+// The existing round-trip values (16001, 100000) already have their top 4 bits
+// zero, so &0xFFFFF is a no-op there and cannot prove the mask. A top-nibble-set
+// value is required so the assertion genuinely fails if the mask were removed.
+// RFC 9085 requires the receiver to treat those 4 bits as zero (mask, never
+// reject), so this is a single-polarity positive requirement -- there is no
+// negative case for the gate.
+//
+// VALIDATES: RFC9085-2.1.1-1 (3-octet SID/Label: 4 leftmost bits masked to 0).
+// PREVENTS: the top nibble of a 3-octet label leaking into the decoded SID.
+// Producer: decodeSIDLabel (attr_prefix.go:234-245, mask at :242).
+func TestRFC9085SIDLabelMasksLeftmostFourBits(t *testing.T) {
+	// TLV 1161 value bytes (RFC 9085 Section 2.1.1): a 3-octet label 0xF12345
+	// whose 4 leftmost bits (top nibble 0xF) are set. Per the RFC the receiver
+	// treats them as zero, so the decoded label is the 20 rightmost bits: 0x12345.
+	tlv, err := decodeSIDLabel([]byte{0xF1, 0x23, 0x45})
+	require.NoError(t, err) // a 3-octet value with high bits set must NOT be rejected.
+	sl, ok := tlv.(*LsSIDLabel)
+	require.True(t, ok)
+
+	// RFC requirement: RFC9085-2.1.1-1 positive -- 3-octet SID/Label with its 4 leftmost bits set (0xF12345) decodes to the 20 rightmost bits (0x12345); the leftmost 4 bits are masked off, not folded into the SID.
+	assert.Equal(t, uint32(0x12345), sl.SID) // 0xF12345 & 0xFFFFF == 0x12345; without the mask this would be 0xF12345.
+	assert.Equal(t, 3, sl.wireLen)           // the 3-octet encoding is what triggers the 20-bit mask.
+}
+
+// TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags verifies the SR
+// Capabilities decoder (RFC 9085 Section 3, TLV 1034) ignores both reserved
+// fields and undefined flag bits on receipt: an SR Capabilities TLV whose
+// Reserved octet is non-zero AND whose Flags octet carries an undefined bit still
+// decodes to the correct meaningful flags and label range. RFC 9085 requires
+// ignore-on-receipt (never reject), so these are single-polarity positive
+// requirements -- there is no negative case for the gate.
+//
+// VALIDATES: RFC9085-2.1.2-3 (Reserved field skipped, not folded into the ranges)
+// and RFC9085-2.1.2-4 (undefined Flags bits stored without branching or rejecting).
+// PREVENTS: a non-zero Reserved octet being consumed as range data (a 1-byte
+// misalignment that corrupts or rejects the decode); an undefined Flags bit
+// rejecting the TLV or masking away the meaningful I/V flags.
+// Producer: decodeSRCapabilities (attr_node.go:358-368; Flags stored at :367,
+// reserved octet skipped by decodeSrLabelRanges(data[2:]) at :363).
+func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
+	// TLV 1034 value bytes (RFC 9085 Section 3: Flags(1) + Reserved(1) +
+	// N x {Range(3) + SID/Label sub-TLV}).
+	// Flags 0x82 = meaningful I-flag (0x80, IPv4 MPLS) set AND an undefined
+	// reserved-area bit (0x02) set; Reserved octet 0xFF set non-zero; one range
+	// {Range=1000, SID/Label sub-TLV (1161) len 4, FirstSID=16000}.
+	srCapValue := []byte{
+		0x82,             // Flags: I-flag (0x80) meaningful + undefined bit (0x02) set
+		0xFF,             // Reserved octet -- non-zero on purpose (must be ignored)
+		0x00, 0x03, 0xE8, // Range = 1000
+		0x04, 0x89, // sub-TLV type = TLVSIDLabel (1161 = 0x0489)
+		0x00, 0x04, // sub-TLV length = 4
+		0x00, 0x00, 0x3E, 0x80, // SID/Label = 16000
+	}
+	tlv, err := decodeSRCapabilities(srCapValue)
+	require.NoError(t, err) // non-zero reserved octet / undefined flag bit must NOT reject the TLV.
+	caps, ok := tlv.(*LsSRCapabilities)
+	require.True(t, ok)
+	require.Len(t, caps.Ranges, 1)
+
+	// RFC requirement: RFC9085-2.1.2-4 positive -- an undefined flag bit (0x02) in the SR Capabilities Flags octet is ignored on receipt: it is stored verbatim without branching or rejecting, and does not disturb the meaningful I-flag.
+	assert.Equal(t, uint8(0x82), caps.Flags) // full Flags byte stored as-is; the undefined 0x02 bit is neither rejected nor masked away.
+	j := caps.ToJSON()
+	capsJSON, ok := j["sr-capabilities"].(map[string]any)
+	require.True(t, ok)
+	flags, ok := capsJSON["flags"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 1, flags["I"])   // meaningful I-flag (IPv4 MPLS) survives intact.
+	assert.Equal(t, 2, flags["RSV"]) // the undefined 0x02 bit is preserved in the reserved-flag field.
+
+	// RFC requirement: RFC9085-2.1.2-3 positive -- the Reserved octet (value byte [1], here 0xFF) is ignored on receipt: it is skipped, not consumed as range data, so the label range decodes correctly and the TLV is not rejected.
+	assert.Equal(t, uint32(1000), caps.Ranges[0].Range)     // range parses from data[2:]; the 0xFF reserved octet at data[1] was skipped, not folded in.
+	assert.Equal(t, uint32(16000), caps.Ranges[0].FirstSID) // FirstSID intact -- a 1-byte misalignment from consuming the reserved octet would corrupt or reject this.
+}
+
 // TestSRv6LANEndXOSPFRoundTrip tests TLV 1108 with 4-byte neighbor ID.
 //
 // VALIDATES: OSPFv3 LAN End.X SID with 4-byte neighbor ID round-trip.
