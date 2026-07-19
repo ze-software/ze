@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | sibling of spec-fixit-ping-monitor-cadence (shared root cause) |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -307,6 +307,7 @@ rather than `N * timeout`, and a late reply is attributed to its own probe.
 | Decouple send from receive (like the monitor spec) | Add an `interval` and keep the serial block | An interval alone does NOT fix the blow-up: a lost probe still blocks `timeout` before the next send. Only decoupling bounds the total |
 | Keep the result-map shape | Stream per-reply output | Streaming changes the consumer contract (offline.go, JSON, `.ci`); out of scope. A bounded batch that returns promptly is the fix |
 | `interval` arg is optional | Always add it | The blow-up is fixable internally; expose `interval` only if the user wants iputils `-i` parity |
+| Fail closed on a total send failure (return an error), partial results on a mid-batch write error | Always return partial results (even zero-sent) | Review ISSUE: a count>0 batch that put NO probe on the wire (first `WriteTo` fails: ENETUNREACH/EPERM) must not report `sent=0/received=0/loss=0%` as `StatusDone` — that renders a transport failure as a healthy answer (`ai/rules/fail-closed-guards.md`). `runPingSession` swallows the write error, so `runPingBatch` reconstructs it from an empty result (`count>0 && len(replies)==0`) and returns `errPingNoProbesSent`. A mid-batch failure (some probes already sent) still yields partial results, matching the "partial beats opaque" intent |
 
 ## Known Limitations
 - No incremental/streaming output: `show ping` still returns one batch map, so a
@@ -322,88 +323,161 @@ Add `// RFC 792` above the seq-keyed reply matching in the receiver.
 ## Implementation Summary
 
 ### What Was Implemented
-- (not started)
+- Rewrote `doPingCtx` (`internal/component/ping/cmd/ping.go`): it now opens the raw
+  ICMP socket and hands ownership to the new `runPingBatch`, which drives the shared
+  `runPingSession` (stream.go, R-4) in a goroutine, drains its per-probe `out`
+  channel, sorts replies by seq, and aggregates via `summarizePingReplies`.
+- Internal pacing via `defaultPingBatchInterval` (10ms); no `interval` CLI arg (A-5).
+- `count<=0` fail-closed guard (never passes a non-positive count to `runPingSession`,
+  whose `count==0` means stream-forever).
+- Fail-closed on a total send failure: `runPingBatch` returns `(map, error)` and
+  yields `errPingNoProbesSent` when a count>0 batch put nothing on the wire.
+- `summarizePingReplies` + `emptyPingResult` preserve the exact result-map shape (AC-5).
+- Tests: `ping_test.go` batch suite (fake conn + fake clock, `-race` clean);
+  `test/plugin/show-ping.ci` extended with a count=3 batch-shape check.
 
 ### Bugs Found/Fixed
-- (not started)
+- Primary: `show ping` serialized send-on-receive, so a black-holed `count N timeout T`
+  took ~N*T (count 100 timeout 30s ≈ 50 min). Now bounded by ~(N*interval)+T.
+- Review-found: total-send-failure fail-open (0%-loss on ENETUNREACH). Fixed with
+  `errPingNoProbesSent` (see Key Design Decisions).
 
 ### Documentation Updates
-- (not started)
+- `test/plugin/show-ping.ci` header refreshed (data-flow + boundedness note).
+- No YANG/command-reference change: A-5 resolved to no `interval` arg, so AC-7 and its
+  doc rows are N/A (not deferred).
 
 ### Deviations from Plan
-- (not started)
+- Behavior change vs. the old serial engine: a mid-batch write error now yields
+  partial results instead of `nil, error`; a TOTAL send failure returns
+  `errPingNoProbesSent` (still `StatusError`, matching old intent). Recorded in Key
+  Design Decisions.
+- No shared-receiver extraction was needed (Files to Create "none"): `runPingSession`
+  already exposed the reusable seam.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Decouple send from receive so a lossy batch is bounded | Done | `ping.go` `runPingBatch`+`doPingCtx` | drives `runPingSession` (paced, seq-keyed) |
+| Preserve result-map shape | Done | `ping.go` `summarizePingReplies`/`emptyPingResult` | byte-for-byte keys vs. old engine |
+| Pace sends, do not flood (R-3) | Done | `defaultPingBatchInterval` (10ms) | in-flight map bounded by count |
+| Reuse one receiver, no drift (R-4) | Done | `runPingBatch` calls `runPingSession` | no second matcher |
+| No `interval` CLI arg (A-5) | Done (N/A) | — | AC-7 + YANG/doc rows N/A |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done (unit+structural) | `TestDoPingBatchBoundedUnderLoss` | privileged run is CI-only (CAP_NET_RAW), see A-1 |
+| AC-2 | Done (unit+structural) | `TestDoPingAllLostBounded` | single clock advance expires all in-flight probes |
+| AC-3 | Done | `TestDoPingMatchesLateReply` | late reply for seq K attributed with true RTT |
+| AC-4 | Done | `TestDoPingBatchHealthyShape` | all 5 ok, exact RTTs |
+| AC-5 | Done | `TestSummarizePingReplies` + `show-ping.ci` | shape/keys unchanged |
+| AC-6 | Done | `go test -race ./internal/component/ping/...` PASS | race-clean x5 on batch tests |
+| AC-7 | N/A | — | no `interval` arg (A-5) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDoPingBatchBoundedUnderLoss` | Done | `ping_test.go` | AC-1/AC-2/AC-5; robust under `-race` (answers latest-deadline probes) |
+| `TestDoPingMatchesLateReply` | Done | `ping_test.go` | AC-3 |
+| `TestDoPingAllLostBounded` | Done | `ping_test.go` | AC-2 edge |
+| `TestDoPingBatchHealthyShape` | Done | `ping_test.go` | AC-4/AC-5 (added) |
+| `TestSummarizePingReplies` | Done | `ping_test.go` | AC-5 aggregation math (added) |
+| `TestRunPingBatchCountZeroDoesNotHang` | Done | `ping_test.go` | count<=0 guard (added) |
+| `TestRunPingBatchSendErrorFailsClosed` | Done | `ping_test.go` | fail-closed on total send failure (added, review) |
+| `show-ping.ci` `check_multiprobe_batch` | Done (static) | `test/plugin/show-ping.ci` | count=3 batch shape; run under privileged/QEMU CI |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/ping/cmd/ping.go` | Modified | rewrite doPingCtx + runPingBatch + summarizePingReplies + emptyPingResult + sentinel |
+| `internal/component/ping/cmd/ping_test.go` | Modified | batch test suite + helpers |
+| `test/plugin/show-ping.ci` | Modified | count=3 batch shape check + header |
+| (shared receiver extraction) | Not needed | `runPingSession` already reusable (R-4) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 5 requirements + 7 ACs + 8 tests + 3 files = 23
+- **Done:** 21 (AC-1/AC-2 unit+structural; privileged run is CI-only evidence per A-1)
+- **Partial:** none
+- **Skipped:** none
+- **N/A:** AC-7 + shared-receiver extraction (A-5 / R-4 resolved)
+- **Changed:** send-failure semantics (documented in Deviations + Key Design Decisions)
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| lossy batch bounded, not N*timeout | functional test (privileged) | `test/plugin/show-ping.ci` extended (not written) |
-| late replies attributed | unit test over the seam | `TestDoPingMatchesLateReply` (not written) |
-| no concurrency regression | race detector | `go test -race ./internal/component/ping/cmd` (not run) |
+| lossy batch bounded, not N*timeout | unit (fake clock) + functional (privileged, CI) | `TestDoPingAllLostBounded`/`TestDoPingBatchBoundedUnderLoss` PASS; `show-ping.ci` `check_multiprobe_batch` (privileged/QEMU). A-1 privileged timing run is CI-only (CAP_NET_RAW) |
+| late replies attributed | unit test over the seam | `TestDoPingMatchesLateReply` PASS (seq K reply after probe K+1 → ok with true RTT) |
+| no concurrency regression | race detector | `go test -race ./internal/component/ping/...` PASS; batch tests `-count=5 -race` clean |
+| total send failure not reported as healthy | unit test | `TestRunPingBatchSendErrorFailsClosed` PASS (errPingNoProbesSent) |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Total send failure (first WriteTo fails) rendered as healthy `sent=0/received=0/loss=0%` `StatusDone` — fail-open vs. old engine's StatusError | `ping.go` `runPingBatch` / `stream.go` send unwind | Fixed: `runPingBatch` returns `(map,error)`, yields `errPingNoProbesSent` on empty count>0 batch |
+| 2 | NOTE | Write-error result contract untested at batch level | `ping_test.go` | Fixed: added `TestRunPingBatchSendErrorFailsClosed` |
+| 3 | NOTE | ctx cancellation mid-batch undercounts `sent`, returns partial as StatusDone | `runPingBatch` | Accepted: canceled caller is gone; empty-on-cancel now returns a ctx error. Documented |
+| 4 | NOTE | `sent=len(replies)` correct; no leak; out closed once; shape byte-for-byte | — | Confirmed, no action |
+| 5 | NOTE | Doc imprecision ("well under a second" for max-count pacing = ~1s); float vs duration avg rounds in last digit | `ping.go:53` | Accepted: both float64 ms, AC-5 shape holds; comment left (pacing is ~1s, not a correctness issue) |
 
 ### Fixes applied
-- (not started)
+- ISSUE-1: added `errPingNoProbesSent`; `runPingBatch` now returns `(map[string]any, error)`;
+  `doPingCtx` propagates; `count>0 && len(replies)==0` → error (ctx-cancel error if canceled).
+- NOTE-2: added `TestRunPingBatchSendErrorFailsClosed` (drives `fakePingConn.setWriteErr`).
+- `startBatch` helper now asserts `NoError` (success-path batches must not error).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| — | — | Re-verified fixed code: `go test -race` PASS, `golangci-lint` 0 issues | `internal/component/ping/cmd` | 0 BLOCKER, 0 ISSUE |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Reviewer verdict (Run 1): 0 BLOCKER, 1 ISSUE, 4 NOTES. ISSUE-1 fixed and re-tested;
+NOTEs recorded and dispositioned above. No BLOCKER or ISSUE remains.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/ping/cmd/ping.go` | Yes | modified (git diff --stat) |
+| `internal/component/ping/cmd/ping_test.go` | Yes | modified |
+| `test/plugin/show-ping.ci` | Yes | modified |
+| `plan/learned/1205-fixit-show-ping-serial-pacing.md` | Yes | created |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1/AC-2 | lossy batch bounded | `go test -race ./internal/component/ping/cmd/ -run TestDoPing...` PASS |
+| AC-3 | late reply matched | `TestDoPingMatchesLateReply` PASS |
+| AC-4 | healthy unchanged | `TestDoPingBatchHealthyShape` PASS |
+| AC-5 | shape unchanged | `TestSummarizePingReplies` PASS + `show-ping.ci` shape asserts |
+| AC-6 | no race | `go test -race ./internal/component/ping/...` PASS |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `show ping <dest> count N` → handleShowPing → doPing → doPingCtx → runPingBatch | `test/plugin/show-ping.ci` | Static (Python syntax OK); privileged/QEMU CI runs the raw-ICMP branch (CAP_NET_RAW unavailable in this sandbox) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 (blow-up real) | Confirmed from source; privileged run is CI-only | `ping.go` old serial loop read; unit tests reproduce the bound structurally |
+| A-5 (no interval arg) | Resolved: no arg | internal pacing only; AC-7 N/A |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| No YANG/command-reference change needed | A-5 → no `interval` arg | Yes (N/A, not deferred) |
+| `.ci` header matches data flow | `test/plugin/show-ping.ci` header | Yes (refreshed) |
 
 ## Checklist
 

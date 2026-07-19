@@ -1,16 +1,23 @@
 # Test: show ping to localhost via dispatch-command
-# Exercises: dispatch-command -> ze-show:ping -> handleShowPing (ping.go:44) -> doPing (raw ICMP)
-# Verifies: when privileged, JSON has destination/sent/received/loss-percent/replies[]
-#           (fields built at ping.go:202-227). When the daemon lacks CAP_NET_RAW
-#           (unprivileged runner) the handler returns a deterministic error that
-#           names CAP_NET_RAW (ping.go:129); both branches are asserted, so the
-#           test is green unprivileged and green under a privileged/QEMU-root run.
+# Exercises: dispatch-command -> ze-show:ping -> handleShowPing -> doPing ->
+#            doPingCtx -> runPingBatch (paced, seq-keyed batch over raw ICMP).
+# Verifies: when privileged, JSON has destination/sent/received/loss-percent/
+#           replies[] (each reply seq/status[/rtt-ms]). When the daemon lacks
+#           CAP_NET_RAW (unprivileged runner) the handler returns a deterministic
+#           error that names CAP_NET_RAW; both branches are asserted, so the test
+#           is green unprivileged and green under a privileged/QEMU-root run.
 #           Also asserts the `size` argument is wired: a valid size is accepted
 #           (never a parse error) and an out-of-range size is rejected by name.
 #           parsePingArgs runs before any socket, so the rejection is
-#           deterministic even unprivileged.
+#           deterministic even unprivileged. Finally a count=3 batch exercises the
+#           multi-probe paced path runPingBatch introduced (spec
+#           fixit-show-ping-serial-pacing): count 1 alone never spaced two sends,
+#           so it could not catch a shape regression under a real batch.
 # NOTE: raw ICMP (ip4:icmp) needs CAP_NET_RAW; the default bin/ze-test runner is
-#       unprivileged, so the error branch is what executes here.
+#       unprivileged, so the error branch is what executes here. The boundedness
+#       the spec targets (a lossy batch finishing in ~timeout, not count*timeout)
+#       is proven by the fake-clock unit tests (TestDoPing* in ping_test.go); a
+#       privileged/QEMU run against a black hole is what turns it into evidence.
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER
@@ -77,6 +84,41 @@ def check_size_accepted(api):
         runtime_fail(f'ping size: size not wired, got parse/other error: {err!r}')
     print(f'OK: show ping size 1400 reached doPing: {err}', file=sys.stderr)
 
+def check_multiprobe_batch(api):
+    # A count=3 batch drives the paced multi-probe path (runPingBatch): the old
+    # single-probe test never spaced two sends, so it could not catch a shape
+    # regression under a real batch. Loopback answers every probe, so privileged
+    # the run is sent=3/received=3 with 3 seq-ordered replies; unprivileged it is
+    # the same deterministic CAP_NET_RAW error. Either way the map shape must hold.
+    resp = dispatch(api, 'show ping 127.0.0.1 count 3 timeout 2s')
+    status = resp.get('status')
+    if status == 'error':
+        err = resp.get('error') or ''
+        if 'CAP_NET_RAW' not in err:
+            runtime_fail(f'ping batch: unexpected error (want CAP_NET_RAW): {err!r}')
+        print(f'OK: show ping count 3 wired; raw ICMP needs CAP_NET_RAW: {err}', file=sys.stderr)
+        return
+    if status != 'done':
+        runtime_fail(f'ping batch: unexpected status={status!r} resp={resp}')
+    data = result_text_data(resp)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    if not isinstance(data, dict):
+        runtime_fail(f'ping batch: expected dict, got {type(data).__name__}')
+    if data.get('sent') != 3:
+        runtime_fail(f'ping batch: expected sent=3, got {data.get("sent")!r}')
+    if data.get('received') != 3:
+        runtime_fail(f'ping batch: expected received=3 (loopback), got {data.get("received")!r}')
+    replies = data.get('replies')
+    if not isinstance(replies, list) or len(replies) != 3:
+        runtime_fail(f'ping batch: expected 3 replies, got {replies!r}')
+    for i, r in enumerate(replies):
+        if r.get('seq') != i:
+            runtime_fail(f'ping batch: reply {i} out of order, seq={r.get("seq")!r} (runPingBatch must sort by seq)')
+        if 'status' not in r:
+            runtime_fail(f'ping batch: reply {i} missing status: {r}')
+    print(f'OK: show ping count 3 batch shape held received={data["received"]}', file=sys.stderr)
+
 def check_size_rejected(api):
     # Rejection happens before any socket, so this is deterministic regardless
     # of CAP_NET_RAW. Two layers can reject, and either is a pass as long as the
@@ -118,6 +160,7 @@ def main():
 
         check_size_accepted(api)
         check_size_rejected(api)
+        check_multiprobe_batch(api)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

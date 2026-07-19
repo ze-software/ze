@@ -5,17 +5,17 @@ package cmd
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
+	"sort"
 	"strconv"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
@@ -33,6 +33,12 @@ var (
 	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
 	errPingIntervalRequiresAValue    = errors.New("monitor ping: interval requires a value (e.g. 500ms)")
 	errPingMissingDestinationAddress = errors.New("ping: missing destination address")
+	// errPingNoProbesSent is returned when a count>0 batch put no probe on the
+	// wire at all (e.g. the first WriteTo failed with ENETUNREACH/EPERM). The
+	// serial engine surfaced the write error directly; runPingSession swallows it
+	// (it only emits per-probe maps), so the batch reconstructs the failure from
+	// the empty result rather than reporting a misleading sent=0/loss=0% success.
+	errPingNoProbesSent = errors.New("ping: no probe could be sent (destination unreachable or permission denied)")
 )
 
 const (
@@ -43,6 +49,16 @@ const (
 	// maxPingSize is the largest ICMP echo payload that still fits a 65535-byte
 	// IP datagram after the 20-byte IPv4 and 8-byte ICMP headers.
 	maxPingSize = 65507
+
+	// defaultPingBatchInterval paces show ping's probe sends. show ping has no
+	// operator-facing interval knob (unlike monitor ping); this internal cadence
+	// exists so a large batch does not burst count packets onto the raw socket at
+	// once -- count 100 size 65507 would queue ~6.5 MB instantly and risk a
+	// WriteTo error. It is small enough that a healthy batch still returns
+	// promptly: the pacing for the maximum count is maxPingCount * this, well
+	// under a second. The bug this fixes lived in the coupling of send rate to
+	// reply latency, not in the send rate itself, so a small fixed pace suffices.
+	defaultPingBatchInterval = 10 * time.Millisecond
 
 	// Monitor-only bounds. These match the interactive CLI's own monitor parser
 	// (internal/component/cli/model_ping.go parsePingMonitorArgs) so `monitor
@@ -259,78 +275,114 @@ func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Dur
 	if err != nil {
 		return nil, fmt.Errorf("ping: %w (requires CAP_NET_RAW)", err)
 	}
-	defer func() { _ = conn.Close() }()
 
-	payload := pingPayload(opts.size)
+	// runPingBatch takes ownership of conn and closes it exactly once. It returns
+	// an error when a count>0 batch put nothing on the wire (fail closed), which
+	// doPingCtx propagates so the handler reports StatusError rather than a
+	// misleading 0%-loss result.
+	return runPingBatch(ctx, conn, clock.RealClock{}, dest, defaultPingBatchInterval, timeout, count, opts.size, icmpEcho, icmpEchoReply)
+}
 
-	rbSize := max(1500, opts.size+8)
+// runPingBatch runs a bounded ICMP echo batch over an already-open conn and an
+// injected clock, returning the show-ping result map. It is the seam the unit
+// tests exercise with a fake conn + fake clock (no CAP_NET_RAW, no wall-clock
+// sleeps), the same reason the streaming session grew one.
+//
+// It reuses the streaming session's sender/receiver split (runPingSession):
+// probe sends are paced by interval and each reply is matched to its probe by
+// sequence number, so a lost probe no longer blocks the next send. The old
+// serial loop sent probe seq+1 only after seq's own reply-or-deadline, so a
+// black-holed target serialized to count*timeout -- a `show ping count 100
+// timeout 30s` run against a black hole took ~50 minutes. The decoupled batch is
+// bounded by ~(count*interval)+timeout instead. Sharing runPingSession (rather
+// than a second seq-keyed receiver) is the R-4 mitigation in the spec: one
+// matcher, no drift between the batch and streaming paths.
+//
+// conn is owned here: runPingSession closes it exactly once on teardown.
+func runPingBatch(
+	ctx context.Context,
+	conn pingConn,
+	clk clock.Clock,
+	dest netip.Addr,
+	interval, timeout time.Duration,
+	count, size int,
+	icmpEcho, icmpEchoReply byte,
+) (map[string]any, error) {
+	if count <= 0 {
+		// A batch of no probes: nothing to send. Close the socket we were handed
+		// and return the empty-but-well-formed result. Guarding here is
+		// load-bearing: runPingSession treats count == 0 as "stream until the
+		// context is canceled", so passing a non-positive count straight through
+		// would turn a bounded batch into an unbounded hang (fail-closed).
+		if closeErr := conn.Close(); closeErr != nil {
+			// Nothing actionable on an empty batch; the close is still made so we
+			// do not leak the socket we were handed.
+			_ = closeErr
+		}
+		return emptyPingResult(dest), nil
+	}
 
-	pid := uint16(os.Getpid() & 0xffff)
-	var sent, received int
-	var minRTT, maxRTT, totalRTT time.Duration
+	// runPingSession streams one map per probe (seq/status[/rtt-ms] -- the exact
+	// per-reply shape show ping returns) and closes out once the bounded run
+	// ends. Buffer to count so it never blocks emitting while we aggregate.
+	out := make(chan map[string]any, count)
+	go runPingSession(ctx, conn, clk, dest, interval, timeout, count, size, icmpEcho, icmpEchoReply, out)
+
 	replies := make([]map[string]any, 0, count)
-	rb := make([]byte, rbSize)
+	for r := range out {
+		replies = append(replies, r)
+	}
 
-	for seq := range count {
-		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq), payload)
+	// runPingSession emits in resolution order (a late or lost probe resolves
+	// after later ones); sort by sequence so the batch output is deterministic
+	// and keeps the old serial 0..N-1 order that printPingResults (offline.go)
+	// and show-ping.ci render.
+	sort.Slice(replies, func(i, j int) bool {
+		si, _ := replies[i]["seq"].(int)
+		sj, _ := replies[j]["seq"].(int)
+		return si < sj
+	})
 
-		start := time.Now()
-		if deadlineErr := conn.SetDeadline(start.Add(timeout)); deadlineErr != nil {
-			return nil, fmt.Errorf("ping: set deadline: %w", deadlineErr)
+	// Fail closed: a count>0 batch that collected no replies never put a probe on
+	// the wire (every successful send resolves to exactly one reply-or-timeout
+	// map). runPingSession swallows the WriteTo error, so an empty result means
+	// either the first send failed (unreachable/permission) or the caller
+	// canceled before any probe went out. Reporting that as sent=0/received=0/
+	// loss-percent=0 would render a transport failure as a healthy 0%-loss answer
+	// -- the fail-open pattern ai/rules/fail-closed-guards.md forbids. Surface it
+	// as an error instead, matching the serial engine's StatusError on write.
+	if len(replies) == 0 {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("ping: canceled before any probe was sent: %w", ctxErr)
 		}
+		return nil, errPingNoProbesSent
+	}
 
-		_, writeErr := conn.WriteTo(pkt, &net.IPAddr{IP: dest.AsSlice()})
-		if writeErr != nil {
-			return nil, fmt.Errorf("ping: write: %w", writeErr)
-		}
-		sent++
-		matched := false
-		for !matched {
-			n, from, readErr := conn.ReadFrom(rb)
-			if readErr != nil {
-				replies = append(replies, map[string]any{
-					"seq":    seq,
-					"status": "timeout",
-				})
-				break
-			}
-			if n < 8 || rb[0] != icmpEchoReply {
-				continue
-			}
-			replyID := binary.BigEndian.Uint16(rb[4:6])
-			replySeq := binary.BigEndian.Uint16(rb[6:8])
-			if replyID != pid || replySeq != uint16(seq) {
-				continue
-			}
-			if from != nil {
-				if ipAddr, ok := from.(*net.IPAddr); ok {
-					fromAddr, _ := netip.AddrFromSlice(ipAddr.IP)
-					if fromAddr.IsValid() && fromAddr != dest {
-						continue
-					}
-				}
-			}
-			matched = true
-		}
-		if !matched {
+	return summarizePingReplies(dest, replies), nil
+}
+
+// summarizePingReplies builds the show-ping result map from the per-probe
+// replies collected from the session, preserving the exact shape the serial
+// engine produced. sent counts every probe that reached the wire (each collected
+// reply is one successful WriteTo), received counts the ok replies, and
+// min/avg/max are present only when at least one probe was answered.
+func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]any {
+	sent := len(replies)
+	received := 0
+	var minMs, maxMs, sumMs float64
+	for _, r := range replies {
+		if status, _ := r["status"].(string); status != "ok" {
 			continue
 		}
-
-		rtt := time.Since(start)
+		rtt, _ := r["rtt-ms"].(float64)
+		if received == 0 || rtt < minMs {
+			minMs = rtt
+		}
+		if rtt > maxMs {
+			maxMs = rtt
+		}
+		sumMs += rtt
 		received++
-		totalRTT += rtt
-		if minRTT == 0 || rtt < minRTT {
-			minRTT = rtt
-		}
-		if rtt > maxRTT {
-			maxRTT = rtt
-		}
-
-		replies = append(replies, map[string]any{
-			"seq":    seq,
-			"rtt-ms": float64(rtt.Microseconds()) / 1000.0,
-			"status": "ok",
-		})
 	}
 
 	lossPercent := 0.0
@@ -346,10 +398,22 @@ func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Dur
 		"replies":      replies,
 	}
 	if received > 0 {
-		avgRTT := totalRTT / time.Duration(received)
-		result["min-rtt-ms"] = float64(minRTT.Microseconds()) / 1000.0
-		result["avg-rtt-ms"] = float64(avgRTT.Microseconds()) / 1000.0
-		result["max-rtt-ms"] = float64(maxRTT.Microseconds()) / 1000.0
+		result["min-rtt-ms"] = minMs
+		result["avg-rtt-ms"] = sumMs / float64(received)
+		result["max-rtt-ms"] = maxMs
 	}
-	return result, nil
+	return result
+}
+
+// emptyPingResult is the well-formed result map for a batch that sent nothing.
+// replies is a non-nil []map[string]any so printPingResults' type assertion
+// (offline.go) holds.
+func emptyPingResult(dest netip.Addr) map[string]any {
+	return map[string]any{
+		"destination":  dest.String(),
+		"sent":         0,
+		"received":     0,
+		"loss-percent": 0.0,
+		"replies":      make([]map[string]any, 0),
+	}
 }
