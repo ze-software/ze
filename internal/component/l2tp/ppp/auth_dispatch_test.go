@@ -147,6 +147,12 @@ func authProtoReplyPeer(
 // AuthProto == 0 branch of BuildLocalConfigRequest
 // (internal/component/l2tp/ppp/lcp_options.go:263), proving the option is
 // emitted conditionally rather than unconditionally.
+//
+// RFC requirement: RFC1994-1-1 negative -- CHAP is selected via the same RFC 1661
+// Auth-Protocol option; when authentication is no longer desired (the peer
+// Configure-Rejects Auth-Protocol so configuredAuthMethod becomes None) the
+// resent CONFREQ omits the Auth-Protocol option, proving the option is
+// advertised only while authentication is desired.
 func TestAuthProtoRejectClearsMethod(t *testing.T) {
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
@@ -671,6 +677,7 @@ func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 		wantAlgo1 bool
 	}{
 		{"PAP", AuthMethodPAP, 0xC023, 0, false},
+		// RFC requirement: RFC1994-1-1 positive -- with CHAP-MD5 configured (authentication desired), ze's CONFREQ carries the LCP Auth-Protocol option (0xC223, Algorithm 0x05).
 		{"CHAP-MD5", AuthMethodCHAPMD5, 0xC223, 0x05, true},
 		{"MS-CHAPv2", AuthMethodMSCHAPv2, 0xC223, 0x81, true},
 	}

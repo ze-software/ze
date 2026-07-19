@@ -147,6 +147,11 @@ func writeCHAPResponseFrame(t *testing.T, peerEnd net.Conn, identifier uint8, di
 //
 //	restored, which would kill the session on any stale or
 //	duplicated CHAP Response packet.
+//
+// RFC requirement: RFC1994-4.1-10 positive -- a CHAP Response that does not
+// correspond to the outstanding Challenge (mismatched Identifier) is silently
+// discarded: no EventAuthRequest is emitted and the session is not torn down;
+// the handler resumes normally once a matching Response arrives.
 func TestCHAPIdentifierMismatchSilentDiscard(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
@@ -380,4 +385,115 @@ func awaitAuthEventOfType[T AuthEvent](t *testing.T, ch <-chan AuthEvent, timeou
 			return zero
 		}
 	}
+}
+
+// VALIDATES: RFC 1994 Section 4.1 Implementation Notes -- the
+//
+//	authenticator MUST allow repeated Response packets during
+//	the Network-Layer Protocol phase after Authentication
+//	completes. After CHAP-MD5 auth succeeds and the session
+//	reaches the Network-Layer phase (LCP Opened, EventSessionUp),
+//	a duplicate CHAP Response arriving on the wire is dropped by
+//	handleFrame (session_run.go:681-683 non-control-plane
+//	default, returns term=false) and the session stays up: no
+//	EventSessionDown fires and the session still answers an LCP
+//	Echo-Request.
+//
+// PREVENTS: regression where a stray or replayed CHAP Response after
+//
+//	Success tears the session down, making any long-lived L2TP
+//	session fragile to a duplicated auth packet.
+//
+// RFC requirement: RFC1994-4.1-8 positive -- a repeated CHAP Response received
+// during the Network-Layer Protocol phase is silently dropped and the session
+// remains up (no teardown), proving the authenticator allows repeated Responses.
+func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 18101)
+	defer closeConn(pair.peerEnd)
+
+	ops, _, _ := newFakeOps()
+	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer d.Stop()
+
+	peerDone := make(chan struct{})
+	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
+	t.Cleanup(func() { <-peerDone })
+
+	d.SessionsIn() <- StartSession{
+		TunnelID:      421,
+		SessionID:     521,
+		ChanFD:        18101,
+		UnitFD:        921,
+		UnitNum:       32,
+		LNSMode:       true,
+		MaxMRU:        1500,
+		AuthMethod:    AuthMethodCHAPMD5,
+		AuthTimeout:   3 * time.Second,
+		DisableIPCP:   true,
+		DisableIPv6CP: true,
+	}
+
+	<-peerDone
+
+	// Initial CHAP auth -> Success; session enters the Network-Layer phase.
+	readCHAPChallengeAndRespond(t, pair.peerEnd)
+	awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
+	if err := d.AuthResponse(421, 521, true, "", nil); err != nil {
+		t.Fatalf("AuthResponse(accept): %v", err)
+	}
+	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeSuccess {
+		t.Fatalf("initial reply code = %d, want CHAPCodeSuccess", code)
+	}
+	awaitAuthEventOfType[EventAuthSuccess](t, d.AuthEventsOut(), 2*time.Second)
+	// EventLCPUp + EventSessionUp fire after initial auth; drain them so a
+	// later EventSessionDown (if any) cannot be mistaken for a queued event.
+	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
+
+	// Network-Layer phase: deliver a repeated CHAP Response. The
+	// authenticator MUST allow it -- handleFrame drops the frame and the
+	// session must NOT tear down (RFC 1994 Section 4.1).
+	digest := bytes.Repeat([]byte{0x44}, chapMD5DigestLen)
+	writeCHAPResponseFrame(t, pair.peerEnd, 0x99, digest)
+
+	// No EventSessionDown (or any other lifecycle event) may fire because
+	// of the stray Response.
+	select {
+	case ev := <-d.EventsOut():
+		if _, ok := ev.(EventSessionDown); ok {
+			t.Fatalf("session tore down on a repeated CHAP Response during the Network-Layer phase")
+		}
+		t.Fatalf("unexpected lifecycle event after repeated CHAP Response: %T", ev)
+	case <-time.After(300 * time.Millisecond):
+		// Good: the repeated Response was dropped; the session stays up.
+	}
+
+	// Prove the session is still alive in Opened state: it answers an LCP
+	// Echo-Request with an Echo-Reply.
+	echo := make([]byte, MaxFrameLen)
+	off := WriteFrame(echo, 0, ProtoLCP, nil)
+	off += WriteLCPEcho(echo, off, LCPEchoRequest, 0x07, 0, nil)
+	if _, err := pair.peerEnd.Write(echo[:off]); err != nil {
+		t.Fatalf("peer write Echo-Request: %v", err)
+	}
+	proto, payload := readPeerFrame(t, pair.peerEnd)
+	if proto != ProtoLCP {
+		t.Fatalf("liveness reply proto = 0x%04x, want ProtoLCP", proto)
+	}
+	pkt, err := ParseLCPPacket(payload)
+	if err != nil {
+		t.Fatalf("ParseLCPPacket(liveness reply): %v", err)
+	}
+	if pkt.Code != LCPEchoReply {
+		t.Fatalf("liveness reply code = %d, want LCPEchoReply (session not alive/Opened after repeated Response)", pkt.Code)
+	}
+
+	if err := d.StopSession(421, 521); err != nil {
+		t.Logf("StopSession: %v", err)
+	}
+	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
 }

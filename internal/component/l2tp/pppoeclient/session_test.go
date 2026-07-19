@@ -16,6 +16,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 )
 
+// RFC requirement: RFC1994-4.1-4 positive -- on receiving a Challenge the peer
+// builds a CHAP Response packet with Code=2 carrying the MD5 digest and its Name.
+// RFC requirement: RFC1994-4.1-6 positive -- the Response Identifier is copied
+// from the Challenge Identifier (resp[1] == challenge.Identifier).
 func TestBuildCHAPResponse(t *testing.T) {
 	challengeValue := []byte{0x01, 0x02, 0x03, 0x04}
 	challenge := ppp.LCPPacket{
@@ -50,6 +54,9 @@ func TestBuildCHAPResponse(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC1994-4.1-4 negative -- a malformed Challenge (missing or
+// truncated Value) yields no Response: buildCHAPResponse returns nil, so the peer
+// does not transmit a Response packet for an invalid Challenge.
 func TestBuildCHAPResponseMalformed(t *testing.T) {
 	cfg := sessionConfig{username: "u", password: "p"}
 	// Empty data: no value-size byte.

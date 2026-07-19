@@ -44,6 +44,11 @@ func TestLocalAuthPAPReject(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC1994-4.2-1 positive -- when the CHAP Response equals the
+// expected MD5(Identifier||secret||Challenge), verifyCHAPMD5 accepts: this is the
+// "Response Value equals expected value" comparison that drives a Success reply.
+// RFC requirement: RFC1994-4.2-2 negative -- a Response that matches the expected
+// value does NOT yield a Failure/reject; verifyCHAPMD5 accepts it.
 func TestLocalAuthCHAPMD5Accept(t *testing.T) {
 	a := newLocalAuth()
 	a.setUsers(map[string]userEntry{
@@ -74,6 +79,11 @@ func TestLocalAuthCHAPMD5Accept(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC1994-4.2-1 negative -- a Response that does not equal the
+// expected value does NOT yield accept/Success; verifyCHAPMD5 rejects it.
+// RFC requirement: RFC1994-4.2-2 positive -- when the CHAP Response Value != the
+// expected value, verifyCHAPMD5 rejects: this is the mismatch that drives a
+// Failure reply.
 func TestLocalAuthCHAPMD5Reject(t *testing.T) {
 	a := newLocalAuth()
 	a.setUsers(map[string]userEntry{

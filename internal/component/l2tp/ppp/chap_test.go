@@ -381,6 +381,11 @@ func TestCHAPWriteFailure(t *testing.T) {
 //	the Identifier is not echoed into Success, or the
 //	Challenge bytes reported in the event do not match the
 //	wire Value.
+//
+// RFC requirement: RFC1994-4.1-1 positive -- runCHAPAuthPhase (the authenticator) transmits a CHAP packet with Code=1 (Challenge) on the wire.
+// RFC requirement: RFC1994-4.1-3 positive -- on an accept decision the authenticator sends a Success packet (Success/Failure is chosen per the Response comparison).
+// RFC requirement: RFC1994-4.2-1 positive -- an accept (Response == expected) decision yields a Success frame with Code=3.
+// RFC requirement: RFC1994-4.2-3 positive -- the Success reply Identifier is copied from the Response Identifier (the challengeID the peer echoed).
 func TestCHAPResponseEmitsEvent(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
@@ -512,6 +517,10 @@ func TestCHAPResponseEmitsEvent(t *testing.T) {
 // PREVENTS: regression where the reject path sends Success or drops
 //
 //	the Message.
+//
+// RFC requirement: RFC1994-4.1-3 negative -- a reject decision yields a Failure packet, not Success (Success/Failure is chosen per the Response comparison).
+// RFC requirement: RFC1994-4.2-1 negative -- a reject (Response != expected) decision does NOT yield Success; the authenticator writes Failure Code=4.
+// RFC requirement: RFC1994-4.2-2 positive -- a reject (Response != expected) decision yields a Failure packet with Code=4.
 func TestCHAPRejectWritesFailure(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
@@ -822,6 +831,8 @@ func TestCHAPHandlerWireErrors(t *testing.T) {
 //
 //	on a per-draw stack variable -- all of which would let an
 //	attacker replay a previous Response.
+//
+// RFC requirement: RFC1994-4.1-5 positive -- two consecutive Challenges from the same session carry different Identifiers (ids[1] == ids[0]+1, so they differ).
 func TestCHAPIdentifierMonotonic(t *testing.T) {
 	ids := make([]uint8, 0, 2)
 	for range 2 {
@@ -865,6 +876,8 @@ func TestCHAPIdentifierMonotonic(t *testing.T) {
 // PREVENTS: regression where the counter is clamped to 0xFF and
 //
 //	re-sends 0xFF forever after overflow.
+//
+// RFC requirement: RFC1994-4.1-5 positive -- the Challenge Identifier changes across the uint8 boundary (0xFF -> 0x00 is still a change per RFC 1994 Section 4.1).
 func TestCHAPIdentifierWraps(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	s, _ := newAuthTestSession(driverEnd)
@@ -930,6 +943,8 @@ func TestCHAPParseResponseMaxName(t *testing.T) {
 // PREVENTS: regression where the Value is hard-coded, derived from
 //
 //	a predictable seed, or reused across Challenges.
+//
+// RFC requirement: RFC1994-4.1-7 positive -- two consecutive Challenges carry different Value bytes (a fresh random Value is drawn each send per RFC 1994 Section 4.1).
 func TestCHAPChallengeRandom(t *testing.T) {
 	values := make([][]byte, 0, 2)
 	for range 2 {

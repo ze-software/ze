@@ -164,6 +164,11 @@ func TestNegotiatePeerMRUWrongLength(t *testing.T) {
 }
 
 // VALIDATES: 6a default rejects peer-proposed Auth-Protocol.
+//
+// RFC requirement: RFC1994-1.1-1 positive -- ze (which does not itself require
+// the Auth-Protocol option) still interoperates with a peer that DOES include it:
+// the peer's Auth-Protocol option is handled (here, rejected) via normal LCP
+// option negotiation rather than aborting the exchange.
 func TestNegotiatePeerAuthProtoRejected(t *testing.T) {
 	opts := []LCPOption{{Type: LCPOptAuthProto, Data: []byte{0xC0, 0x23}}} // PAP
 	policy := LCPNegPolicy{AcceptAuthProto: false}
@@ -176,6 +181,11 @@ func TestNegotiatePeerAuthProtoRejected(t *testing.T) {
 // VALIDATES: When AcceptAuthProto=true, peer auth is acked (handed to
 //
 //	6b for real handling).
+//
+// RFC requirement: RFC1994-1.1-1 positive -- ze interoperates with a peer that
+// DOES include the Auth-Protocol option: with AcceptAuthProto=true the peer's
+// option is acked, so a peer using the option and ze not requiring it still
+// negotiate successfully.
 func TestNegotiatePeerAuthProtoAccepted(t *testing.T) {
 	opts := []LCPOption{{Type: LCPOptAuthProto, Data: []byte{0xC0, 0x23}}}
 	policy := LCPNegPolicy{AcceptAuthProto: true}
