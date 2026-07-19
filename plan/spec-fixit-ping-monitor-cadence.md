@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -100,7 +100,7 @@ attributed to the probe it answers instead of being discarded.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Session ↔ consumer | buffered `chan map[string]any`, closed on end | [ ] |
-| Sender ↔ receiver (NEW) | shared in-flight map keyed by seq, mutex-guarded | [ ] |
+| Sender ↔ receiver (NEW) | in-flight map keyed by seq, SINGLE-OWNER (main goroutine only); receiver + reaper signal over channels, never touch the map | [ ] |
 | Process ↔ kernel | `net.ListenConfig.ListenPacket` raw ICMP; needs `CAP_NET_RAW` | [ ] |
 
 ### Integration Points
@@ -274,7 +274,7 @@ attributed to the probe it answers instead of being discarded.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
-| Correctness | Exactly one goroutine closes `out` (R-3); the in-flight map is mutex-guarded everywhere |
+| Correctness | Exactly one goroutine closes `out` (R-3); the in-flight map is single-owner (main goroutine only) — receiver + reaper only signal over channels, so no mutex is needed and the race AC holds by construction |
 | Data flow | `NewPingSession`'s signature and the reply map shape are unchanged (AC-8) |
 | Concurrency | `go test -race` green; no goroutine leak after cancel; no send on a closed channel |
 | Rule: no-layering | The old serial loop is fully deleted, not left behind a flag |
@@ -354,16 +354,46 @@ in the receiver, which is the mechanism the fix depends on.
 ## Implementation Summary
 
 ### What Was Implemented
-- (not started)
+- `streamPing` rewritten (`internal/component/ping/cmd/stream.go`) as a
+  sender/receiver split behind a `pingConn` seam (`WriteTo`/`ReadFrom`/`Close`,
+  satisfied by `net.PacketConn`) plus an injected `clock.Clock`. `streamPing`
+  opens the raw socket and calls `runPingSession(ctx, conn, clock.RealClock{}, …)`.
+- Sender: probes paced by `clk.NewTicker(interval)`; first probe immediate.
+- Receiver goroutine: pure reader; forwards `{seq, arrivalTime}`; never touches
+  `out` or the in-flight map.
+- Matching: main goroutine owns a single-owner in-flight map keyed by wire seq;
+  a reply is attributed to its own seq; per-probe `clk.AfterFunc(timeout)` reaper
+  signals timeouts on an `expire` channel.
+- Completion: ends when all sent AND in-flight empty (no trailing idle).
+- Teardown: `Close` unblocks receiver `ReadFrom`; `done` unblocks a pending
+  reply-send; join receiver; close `out` exactly once. `ListenPacket` error path
+  closes `out` itself.
+- `stream_test.go` (new): 13 tests over the fake conn + `sim.FakeClock`, plus one
+  `clock.RealClock` test exercising the real reaper goroutine + teardown; all
+  green under `-race`.
 
 ### Bugs Found/Fixed
-- (not started)
+- Cadence degraded to ~`max(interval, timeout)` under loss (serial send/recv).
+  Fixed: ticker-driven sends decoupled from reply latency.
+- Late reply for seq N (arriving after N+1 sent) was discarded at the old
+  `:102` seq check. Fixed: seq-keyed matching against the in-flight map.
+- Stray probe could be written on an already-canceled context (the first send
+  ran before the select loop observed cancellation). Fixed: `ctx.Err()` guard in
+  `send()` (found in review).
 
 ### Documentation Updates
-- (not started)
+- None to user docs: this is a fix; behavior now matches what the docs already
+  imply. `docs/architecture/api/commands.md` describes the streaming surface at a
+  level unaffected by the internal goroutine split; no anchor references
+  `streamPing`/`NewPingSession` internals (grep clean).
 
 ### Deviations from Plan
-- (not started)
+- Spec floated a "mutex-guarded shared in-flight map"; implemented as
+  single-owner + channel signalling instead (strictly better: race AC holds by
+  construction). Spec Data Flow + Critical Review rows updated to match.
+- `test/ping/monitor-ping-cadence.ci` (privileged/QEMU) NOT written: outside this
+  task's file scope and unrunnable without CAP_NET_RAW/QEMU (see Known
+  Limitations, Assumption A-1).
 
 ## Implementation Audit
 
@@ -374,44 +404,94 @@ in the receiver, which is the mechanism the fix depends on.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStreamPingCadenceHoldsUnderLoss` | 100% loss, sends 1s apart |
+| AC-2 | Done | `TestStreamPingTimeoutAtOwnDeadline`, `TestStreamPingMixedLossOutOfOrder` | timeout pinned to own deadline; cadence holds under mixed loss |
+| AC-3 | Done | `TestStreamPingMatchesLateReply`, `TestStreamPingMixedLossOutOfOrder`, `TestStreamPingDuplicateAndUnknownReplyIgnored` | late/out-of-order attributed; dup/unknown dropped |
+| AC-4 | Done | `TestStreamPingCountCompletesAfterLastReply` | all 5 emitted, then channel closes |
+| AC-5 | Done | `TestStreamPingCountNoTrailingIdle` | closes without advancing the 30s interval |
+| AC-6 | Done | `TestStreamPingCancelClosesOnce`, `TestStreamPingRealClockReaperTeardown` | single close, no leak (fake + real clock) |
+| AC-7 | Done | whole suite under `go test -race` | green |
+| AC-8 | Done | id/source/v6 tests + `./internal/component/cli/...`; NewPingSession signature + map shape unchanged | consumers untouched |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestStreamPingCadenceHoldsUnderLoss` | Done | `stream_test.go` | AC-1/AC-2 |
+| `TestStreamPingMatchesLateReply` | Done | `stream_test.go` | AC-3 |
+| `TestStreamPingCountCompletesAfterLastReply` | Done | `stream_test.go` | AC-4 |
+| `TestStreamPingCountNoTrailingIdle` | Done | `stream_test.go` | AC-5 |
+| `TestStreamPingCancelClosesOnce` | Done | `stream_test.go` | AC-6/AC-7 |
+| (added) `TestStreamPingTimeoutAtOwnDeadline` | Done | `stream_test.go` | AC-2 deadline pinning |
+| (added) `TestStreamPingMixedLossOutOfOrder` | Done | `stream_test.go` | AC-2/AC-3 recovering path |
+| (added) `TestStreamPingRealClockReaperTeardown` | Done | `stream_test.go` | AC-6/AC-7 real reaper under -race |
+| (added) `TestStreamPingIDMismatchIgnored`/`WrongSourceIgnored`/`IPv6Matching` | Done | `stream_test.go` | AC-8 preserved filters |
+| (added) `TestStreamPingWriteErrorEndsSession` | Done | `stream_test.go` | write-error unwind |
+| (added) `TestStreamPingDuplicateAndUnknownReplyIgnored` | Done | `stream_test.go` | AC-3 hardening |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/ping/cmd/stream.go` | Done | rewritten |
+| `internal/component/ping/cmd/stream_test.go` | Done | new, 13 tests |
+| `docs/guide/command-reference.md` | Not changed | behavior now matches existing docs; no operator-facing change |
+| `test/ping/monitor-ping-cadence.ci` | Not done | out of task file scope + unrunnable without QEMU/CAP_NET_RAW |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 8 ACs + 5 planned tests + 3 files
+- **Done:** 8/8 ACs; all 5 planned tests + 8 added; 2/3 files (stream.go, stream_test.go)
+- **Partial:** none
+- **Skipped:** `test/ping/monitor-ping-cadence.ci` (privileged/QEMU, out of scope — see Deviations/Known Limitations)
+- **Changed:** in-flight map is single-owner not mutex-guarded (documented in Deviations)
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Cadence stays at `interval` under loss | functional test (privileged) | `test/ping/monitor-ping-cadence.ci` (not written) |
-| Late replies are attributed, not dropped | unit test over the seam | `TestStreamPingMatchesLateReply` (not written) |
-| No regression in concurrency | race detector | `go test -race ./internal/component/ping/cmd` (not run) |
+| Cadence stays at `interval` under loss | unit test over the seam (deterministic) | `TestStreamPingCadenceHoldsUnderLoss`, `TestStreamPingMixedLossOutOfOrder` green under `-race`. Privileged `.ci` still owed (A-1) but out of task scope |
+| Late replies are attributed, not dropped | unit test over the seam | `TestStreamPingMatchesLateReply`, `TestStreamPingMixedLossOutOfOrder` |
+| No regression in concurrency | race detector | `go test -race ./internal/component/ping/cmd` -> ok (13 tests, incl. real-clock reaper) |
 
 ## Review Gate
+
+Two independent reviewer subagents (concurrency + test-rigor) over the diff.
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | none | - | - |
+| 2 | ISSUE | Real-clock reaper goroutine + teardown never exercised (all tests FakeClock, which spawns no reaper) — R-1/AC-7 demand it be observed under -race | `stream_test.go` | Added `TestStreamPingRealClockReaperTeardown` (clock.RealClock, real AfterFunc goroutines) |
+| 3 | ISSUE | Timeout test did not pin the deadline (would pass even if reaper armed with `interval`) | `stream_test.go` timeout test | Assert nothing just below deadline, timeout exactly at it |
+| 4 | ISSUE | id + source-address filter branches never exercised (dead in tests) | `stream_test.go` | Added `TestStreamPingIDMismatchIgnored`, `TestStreamPingWrongSourceIgnored` |
+| 5 | ISSUE | AC-2 mixed-loss / out-of-order recovery not tested | `stream_test.go` | Added `TestStreamPingMixedLossOutOfOrder` |
+| 6 | NOTE | Stray probe could be written on already-canceled ctx | `stream.go` send() | Added `ctx.Err()` guard |
+| 7 | NOTE | IPv6 type selection + write-error unwind uncovered | `stream_test.go` | Added `TestStreamPingIPv6Matching`, `TestStreamPingWriteErrorEndsSession` |
+| 8 | NOTE | Spec text said "mutex-guarded" map; impl is single-owner | spec | Reconciled Data Flow + Critical Review rows |
+| 9 | NOTE | Goroutine-leak baseline is process-global/lenient | `stream_test.go` | Accepted (repo convention); real-clock test + -race provide the strong coverage; a genuine hang is still caught by the 2s deadline |
 
 ### Fixes applied
-- (not started)
+- `stream.go`: `ctx.Err()` guard in `send()`.
+- `stream_test.go`: fake conn generalized (`clock.Clock`, per-packet source addr);
+  added 8 tests (real-clock reaper, deadline pinning, mixed-loss/out-of-order,
+  id/source/v6 filters, write-error); all 13 green under `go test -race`.
+- spec: mutex-guarded wording reconciled to single-owner.
 
 ### Run 2+ (re-runs until clean)
+Focused re-review over the delta (new tests + `ctx.Err()` guard).
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | none | - | - |
+| 2 | ISSUE | id/source/v6 filter tests were false-greens: bad+good reply on SAME seq, no clock advance, so accept == reject observationally | `stream_test.go` filter tests | Rewrote as two-probe ordering (bad reply for seq 0, good for seq 1; assert first `out` msg is seq 1). MUTATION-VERIFIED: disabling the id check makes `TestStreamPingIDMismatchIgnored` FAIL |
+| 3 | ISSUE | RealClock test latent teardown deadlock: a probe mid-WriteTo when `stopDrain` closed could wedge main (write unconsumed, conn.Close can't run) | `stream_test.go` real-clock test | Drain `fc.wrote` until `fc.closed` (conn actually closed), not a separate signal. Verified: `-race -count=20` clean, no hang |
+| 4 | NOTE | ctx.Err() guard correct, no hang (both count cases terminate via `<-ctx.Done()`) | `stream.go` send() | Confirmed, no change |
+| 5 | NOTE | MixedLossOutOfOrder timings exactly right vs fake clock; waitGoroutines baseline sound | `stream_test.go` | Confirmed, no change |
 
 ### Final status
+Result (prose; checkboxes left as template markers per repo rule):
+- Re-review shows 0 BLOCKER, 0 ISSUE. Both Run-2 ISSUEs fixed and verified
+  (mutation test disabling the id check fails the filter test; 20x -race clean
+  for the real-clock teardown).
+- All NOTEs recorded above: Run 1 NOTEs 6-9 actioned; Run 2 NOTEs 4-5 confirmed
+  no-change.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 
