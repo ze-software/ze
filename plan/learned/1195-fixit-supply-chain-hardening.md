@@ -41,8 +41,7 @@ Assigned slice was AC-3 only. AC-1 (Makefile `ze-vulncheck` + `.github/workflows
 (appliance-dep-bumps.md cadence), AC-6 (GPLv2 sign-off) touch shared contended files
 (Makefile already `M` by a sibling; go.mod needs heavy tidy/vendor) and were left for
 their owning sessions. Scope decision recorded here and in the drain recipe
-(`tmp/drain-fixit-supply-chain-hardening.md`); DECISION.md is a shared untracked
-scratchpad concurrently edited by siblings and was deliberately NOT touched.
+(`tmp/drain-fixit-supply-chain-hardening.md`).
 
 ## Trap for next time
 Do not trust spec file paths for a "fresh area": verify the package exists before

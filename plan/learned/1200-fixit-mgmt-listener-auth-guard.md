@@ -50,8 +50,7 @@ spec stays open.
   bind), NOT before `eng.Start` as the spec text suggested: the engine is not a
   management listener and hoisting all of apiCfg/apiUsers/sshCfg/lm resolution
   across engine startup is higher regression risk than the NIT warrants. Every
-  in-scope guarded surface still binds strictly after the guard. Accepted +
-  documented in DECISION.md.
+  in-scope guarded surface still binds strictly after the guard. Accepted.
 - gNMI boot enforcement is via the guard's `mgmtListener` declaration
   (`authenticated: gnmiToken != ""`), NOT a boot `gnmiCfg.Validate()` call: the
   env-set token would false-positive Validate. `GNMIListenConfig.Validate` is

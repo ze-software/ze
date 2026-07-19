@@ -387,7 +387,7 @@ reviewed the diff from the guard entry point.
   - [correctness] `GNMIListenConfig.Validate` doc comment claimed
     validate/doctor/boot wiring that this phase defers (AC-6). Comment corrected
     to state it is unwired pending AC-6.
-- NIT: 2, ACCEPTED + documented in DECISION.md:
+- NIT: 2, ACCEPTED:
   - Guard call site is before every in-scope management bind but after
     `eng.Start`/SSH/dropPrivileges (not a fail-open; hoisting further is higher
     regression risk than the NIT warrants).

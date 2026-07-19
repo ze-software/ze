@@ -43,7 +43,7 @@ tested fail-closed-miss precedent is `slog.Warn` (api_sync.go:202, asserted by
 `TestSignalPeerAPIReadyUnknownPeerWarns`). So the guard uses `slog.Warn`, which is
 production-established in this same package (api_sync.go:107,110,169,171,202) and makes
 the "or say something" assertion real. Behavior matches the sibling (WARN naming the
-peer + suppress); only the emit mechanism differs. Recorded in DECISION.md.
+peer + suppress); only the emit mechanism differs.
 
 **Trap for the next agent:** `reactorLogger()` warns are NOT capturable via
 `slog.SetDefault`. If you need to assert a reactor warn in a test, the code must use

@@ -56,7 +56,7 @@ redact SSH exec credential logs.
 - **The `.et` editor harness cannot load `system authentication` configs.** Both file-load and
   `set system authentication user ...` return "unknown path" even though the same binary's
   `ze config validate` accepts it and the daemon loads it. AC-5 display masking is proven
-  end-to-end instead by `test/parse/config-dump-masks-bcrypt.ci` + the unit tests. See DECISION.md.
+  end-to-end instead by `test/parse/config-dump-masks-bcrypt.ci` + the unit tests.
 - **R-3 blast radius was empty.** Audit of every `KeySSHPassword` writer/consumer found NO real
   flow breaks: `ze cli --remote` with a stored super-admin hash is the only theoretical break and
   it requires `ze connect add`, which is already non-functional (fresh salt, so the stored hash

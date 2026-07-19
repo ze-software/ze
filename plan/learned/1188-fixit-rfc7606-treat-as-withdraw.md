@@ -30,8 +30,7 @@ exposed on the production receive path.
   `peerRIB.addPath[fam]`), mirroring the JSON path exactly.
 - Did NOT expand into the reactor for AC-8/AC-9 (out of this park's scope; the committed
   single-body synthesis design diverges from the spec's D-8/D-5). Documented both with
-  producer evidence in DECISION.md and the drain recipe rather than half-fixing or hiding
-  them.
+  producer evidence in the drain recipe rather than half-fixing or hiding them.
 
 ## Consequences
 
@@ -64,4 +63,3 @@ exposed on the production receive path.
 
 - internal/component/bgp/plugins/rib/rib_structured.go (SetAddPath on structured receive path: IPv4 + MP_REACH announce blocks)
 - internal/component/bgp/plugins/rib/rib_structured_test.go (NEW: TestRIBTreatAsWithdrawRemovesInstalledRoute AC-1/AC-5; TestRIBTreatAsWithdrawAddPathPreservesPathID AC-6)
-- DECISION.md (findings + AC-8/AC-9 divergences, append-only)

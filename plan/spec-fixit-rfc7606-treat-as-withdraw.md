@@ -315,7 +315,7 @@ AC status:
 - AC-7: COVERED (prior `TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal`).
 - AC-8: **NOT met end-to-end** — `withdrawMPAttrs` emits two MP_UNREACH in one body but the
   RIB reads only the first (`AttributesWire.GetRaw` first-match). Reactor-scope divergence
-  from spec D-8 (two UPDATEs); flagged in DECISION.md + drain recipe. Follow-up required.
+  from spec D-8 (two UPDATEs); flagged in the drain recipe. Follow-up required.
 - AC-9: **NOT met** — `validateUpdateFamilies` runs on the synthesized body and strict-mode
   teardown contradicts "no teardown"; spec D-5 (skip non-negotiated families at synthesis)
   not implemented. Reactor-scope divergence; flagged. Follow-up required.
