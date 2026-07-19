@@ -10,13 +10,13 @@
 # engine -- the operator teardown command exercised against a live SA.
 #
 # // test-relax: the original revision asserted the sa-up EVENT before the clear
-# and a second sa-up after it (re-establishment). Both are dropped here: (1) the
-# sa-up event path is namespace-locked to bgp (dispatch.go registerSubscriptions),
-# a product gap deferred to spec-fixit-plugin-event-subscription; (2) post-clear
-# re-establishment does not complete because the responder, still holding the
-# peer's old SA, drops the initiator's re-sent IKE_SA_INIT -- a distinct product
-# gap deferred to spec-fixit-ipsec-clear-reestablish (deferrals.md, AC-6). The
-# clear-command DISPATCH is asserted here via the clear-all output.
+# and a second sa-up after it (re-establishment). The event leg is dropped here:
+# the sa-up event path is namespace-locked to bgp (dispatch.go
+# registerSubscriptions), a product gap deferred to
+# spec-fixit-plugin-event-subscription. This test asserts the clear-command
+# DISPATCH via the clear-all output; the post-clear RE-ESTABLISHMENT (previously
+# deferred to spec-fixit-ipsec-clear-reestablish) is now FIXED and covered end to
+# end by test/ipsec/ipsec-clear-reestablish.ci.
 
 option=env:var=ze_test_ike_port:value=$PORT2
 # noop dataplane: unprivileged XFRM install is EPERM-fatal by design.

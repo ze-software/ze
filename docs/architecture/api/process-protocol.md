@@ -415,6 +415,40 @@ events are delivered as a batch of 1.
 The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleDeliverBatch -->
 
+### Subscription Namespace
+
+`SubscribeEventsInput` carries an optional `namespace` field. Empty (the default,
+and the wire-compatible value for every pre-existing caller) resolves to the
+namespace registered by the owning protocol component (`bgp` today). A non-empty
+value subscribes to another namespace (e.g. `vpn-ipsec`) at startup; an
+unregistered namespace is logged and the subscribe block is skipped rather than
+registered as a silently-dead `NamespaceUnknown` subscription. The SDK exposes
+this via `SetStartupSubscriptionsIn(namespace, events, peers, format)`;
+`SetStartupSubscriptions` (namespace `""`) is unchanged.
+<!-- source: internal/component/plugin/server/dispatch.go -- registerSubscriptions, resolveSubscriptionNamespace -->
+
+A `"*"` event in a startup subscription expands at registration time into one
+subscription per registered event type of the namespace (no wildcard branch on
+the per-event match path).
+
+### Enveloped Delivery
+
+`SubscribeEventsInput.envelope` (opt-in, default false; SDK `SetEnvelope(true)`)
+wraps each delivered event string in an `EventEnvelope`:
+
+```
+{"namespace":"vpn-ipsec","event":"sa-up","payload":<bare payload JSON>}
+```
+
+The envelope rides INSIDE the delivered event string, so it is transparent to
+both `deliver-event` and `deliver-batch` (both still carry a JSON string). It
+lets a plugin subscribed to several event types discriminate which one arrived
+even when two events share a payload type (e.g. `sa-up` vs `sa-down`). Without
+the opt-in, delivery is byte-identical to before: the bare payload. The engine
+renders the envelope at most once per emit and only when a matching subscriber
+opted in, preserving the lazy-marshal-once cost of the default path.
+<!-- source: internal/component/plugin/server/dispatch.go -- deliverEvent, buildEventEnvelope; pkg/plugin/rpc/types.go -- EventEnvelope -->
+
 ### DirectBridge Optimization
 
 For internal plugins with an active `DirectBridge`, `deliverBatch()` calls
@@ -505,10 +539,12 @@ destinations within the family.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `events` | `[]string` | Event types (e.g., `["update","state"]`) |
+| `events` | `[]string` | Event types (e.g., `["update","state"]`); `"*"` expands to all event types of the namespace |
 | `peers` | `[]string` | Peer filter (e.g., `["*"]` for all) |
 | `format` | `string` | Format preference (e.g., `"json"`) |
 | `encoding` | `string` | `"json"` (default) or `"text"` |
+| `namespace` | `string` | Event namespace; empty resolves to the protocol component's default (`bgp`), non-empty (e.g. `vpn-ipsec`) subscribes to another namespace (see Subscription Namespace) |
+| `envelope` | `bool` | When true, deliveries are wrapped in an `EventEnvelope` (see Enveloped Delivery); default false = bare payload |
 
 ---
 

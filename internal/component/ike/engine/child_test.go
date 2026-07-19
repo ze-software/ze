@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -203,6 +204,9 @@ func TestChildSANoIKEKeys(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC3948-2.1-1 positive -- GenerateESPSPI (child.go:77 loops until spi != 0)
+// yields a valid, non-zero ESP SPI on every call; 100 generated SPIs are all non-zero and
+// near-unique, so a compliant SPI is what the generator produces.
 func TestGenerateESPSPI(t *testing.T) {
 	seen := make(map[uint32]bool)
 	for range 100 {
@@ -210,6 +214,9 @@ func TestGenerateESPSPI(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GenerateESPSPI: %v", err)
 		}
+		// RFC requirement: RFC3948-2.1-1 negative -- the generator NEVER emits the forbidden
+		// zero SPI (zero is reserved for the Non-ESP Marker that distinguishes IKE from ESP on
+		// port 4500, RFC 3948 S2.1); a produced spi == 0 fails the test.
 		if spi == 0 {
 			t.Fatal("SPI must not be zero (RFC 4303)")
 		}
@@ -217,6 +224,41 @@ func TestGenerateESPSPI(t *testing.T) {
 	}
 	if len(seen) < 90 {
 		t.Errorf("too many SPI collisions: %d unique out of 100", len(seen))
+	}
+}
+
+// RFC requirement: RFC3948-2.1-2 positive -- when NAT is detected, the Child SA install sets
+// the UDP-encapsulation source and destination ports to the IKE NAT-T port 4500
+// (transport.NATTPort) on both the inbound and outbound SA (child.go:235-238,263-267), so
+// ESP is encapsulated on the same port pair IKE floated to (register.go:285 listens on :4500).
+func TestChildSANATTEncapPorts(t *testing.T) {
+	sa := testSA()
+	sa.NATDetected = true
+	dp := &mockDP{}
+	log := slogutil.DiscardLogger()
+
+	if _, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 1, dp, log); err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+	if len(dp.sas) != 2 {
+		t.Fatalf("installed SAs = %d, want 2 (inbound + outbound)", len(dp.sas))
+	}
+	if transport.NATTPort != 4500 {
+		t.Fatalf("transport.NATTPort = %d, want 4500 (IKE NAT-T port)", transport.NATTPort)
+	}
+	for _, dir := range []struct {
+		label string
+		p     dataplane.SAParams
+	}{{"inbound", dp.sas[0]}, {"outbound", dp.sas[1]}} {
+		if !dir.p.UDPEncap {
+			t.Errorf("%s: UDPEncap = false, want true (RFC 3948 UDP encapsulation on NAT)", dir.label)
+		}
+		if dir.p.UDPEncapSPort != transport.NATTPort {
+			t.Errorf("%s: UDPEncapSPort = %d, want %d (must match IKE NAT-T port)", dir.label, dir.p.UDPEncapSPort, transport.NATTPort)
+		}
+		if dir.p.UDPEncapDPort != transport.NATTPort {
+			t.Errorf("%s: UDPEncapDPort = %d, want %d (must match IKE NAT-T port)", dir.label, dir.p.UDPEncapDPort, transport.NATTPort)
+		}
 	}
 }
 

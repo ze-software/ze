@@ -164,11 +164,13 @@ cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
 # spec-test-coverage-gaps follow-up: the initial establishment fires before
 # any runtime subscription can exist (the startup subscribe-events RPC is
 # namespace-less -- dispatch.go registerSubscriptions only reaches the "bgp"
-# default), and `clear vpn ipsec sa` does not re-establish because the
-# responder, still holding the peer's old SA, drops the initiator's re-sent
-# IKE_SA_INIT (verified: 2 inits sent, 1 accepted). Event DELIVERY itself is
-# proven by the unit test TestEmitEngineEventDeliversToProcessSubscriber; the
-# operator-clear re-negotiation behavior is the follow-up.
+# default). Event DELIVERY itself is proven by the unit test
+# TestEmitEngineEventDeliversToProcessSubscriber.
+#
+# The operator-clear re-negotiation gap this note used to describe (the
+# responder dropping the initiator's re-sent IKE_SA_INIT) is FIXED by
+# spec-fixit-ipsec-clear-reestablish and is now covered end to end by
+# test/ipsec/ipsec-clear-reestablish.ci.
 command=show vpn ipsec sa
 expect=output:contains=peer-1:timeout=20
 # Gate on the negotiated ESP encryption algorithm (aes-cbc), which the SA row
