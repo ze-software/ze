@@ -138,9 +138,12 @@ func TestEVPNType3(t *testing.T) {
 // PREVENTS: Incorrect variable-length prefix parsing that violates RFC 9136.
 func TestEVPNType5IPv4(t *testing.T) {
 	t.Parallel()
+	// RFC requirement: RFC9136-3.1-1 positive -- a valid 34-octet IPv4 RT-5 NLRI decodes
+	// RFC requirement: RFC9136-3.1-5 positive -- IP prefix length 24 (<= 32) decodes to a valid IPv4 prefix
+	// RFC requirement: RFC9136-3.1-3 positive -- RD and Ethernet Tag fields decode per RFC 7432/8365
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
-	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	ethTag := []byte{0x00, 0x00, 0x00, 0x0A}
 	ipLen := byte(24)
 	ip := []byte{10, 1, 2, 0}
 	gw := []byte{0, 0, 0, 0}
@@ -158,6 +161,7 @@ func TestEVPNType5IPv4(t *testing.T) {
 
 	assert.Equal(t, EVPNRouteType5, evpn.RouteType())
 	assert.Equal(t, "0:65000:100", evpn.RD().String())
+	assert.Equal(t, uint32(10), evpn.EthernetTag())
 	assert.Equal(t, netip.MustParsePrefix("10.1.2.0/24"), evpn.Prefix())
 	assert.Equal(t, netip.MustParseAddr("0.0.0.0"), evpn.Gateway())
 	assert.Equal(t, L2VPNEVPN, evpn.Family())
@@ -169,6 +173,8 @@ func TestEVPNType5IPv4(t *testing.T) {
 // PREVENTS: Incorrect variable-length prefix parsing for IPv6.
 func TestEVPNType5IPv6(t *testing.T) {
 	t.Parallel()
+	// RFC requirement: RFC9136-3.1-1 positive -- a valid 58-octet IPv6 RT-5 NLRI decodes
+	// RFC requirement: RFC9136-3.1-5 positive -- IP prefix length 64 (<= 128) decodes to a valid IPv6 prefix
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -195,6 +201,7 @@ func TestEVPNType5IPv6(t *testing.T) {
 // PREVENTS: Accepting malformed Type 5 routes with incorrect lengths.
 func TestEVPNType5InvalidLength(t *testing.T) {
 	t.Parallel()
+	// RFC requirement: RFC9136-3.1-1 negative -- an RT-5 NLRI whose length is neither 34 nor 58 is rejected
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -208,6 +215,45 @@ func TestEVPNType5InvalidLength(t *testing.T) {
 
 	_, _, err := ParseEVPN(data, false)
 	require.Error(t, err, "should reject non-standard Type 5 length")
+}
+
+// TestEVPNType5PrefixLengthTooLong verifies rejection of an IP Prefix Length that
+// exceeds the host address width, even when the total NLRI length is well-formed.
+//
+// VALIDATES: RFC 9136 Section 3.1 - IP Prefix Length MUST NOT exceed 32 (IPv4) / 128 (IPv6).
+// PREVENTS: Accepting an RT-5 route whose prefix length field is longer than the address.
+func TestEVPNType5PrefixLengthTooLong(t *testing.T) {
+	t.Parallel()
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	label := []byte{0x00, 0x01, 0x01}
+
+	t.Run("ipv4", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC9136-3.1-5 negative -- IPv4 RT-5 (length 34) with prefix length 33 (> 32) is rejected
+		ip := []byte{10, 1, 2, 0}
+		gw := []byte{0, 0, 0, 0}
+		data := buildEVPNData(EVPNRouteType5, byte(34),
+			rd, esi, ethTag, []byte{byte(33)}, ip, gw, label)
+
+		_, _, err := ParseEVPN(data, false)
+		require.ErrorIs(t, err, ErrEVPNInvalidPrefix,
+			"IPv4 prefix length 33 must be rejected as invalid")
+	})
+
+	t.Run("ipv6", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC9136-3.1-5 negative -- IPv6 RT-5 (length 58) with prefix length 129 (> 128) is rejected
+		ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		gw := make([]byte, 16)
+		data := buildEVPNData(EVPNRouteType5, byte(58),
+			rd, esi, ethTag, []byte{byte(129)}, ip, gw, label)
+
+		_, _, err := ParseEVPN(data, false)
+		require.ErrorIs(t, err, ErrEVPNInvalidPrefix,
+			"IPv6 prefix length 129 must be rejected as invalid")
+	})
 }
 
 // TestEVPNRouteTypeString verifies route type string representation.
@@ -592,6 +638,10 @@ func TestEVPNType5RoundTripIPv4(t *testing.T) {
 	evpn, ok := parsed.(*EVPNType5)
 	require.True(t, ok)
 
+	// RFC requirement: RFC9136-3.1-2 positive -- gateway IP and IP prefix share the same address family (both IPv4)
+	assert.Equal(t, evpn.Prefix().Addr().Is4(), evpn.Gateway().Is4(),
+		"gateway IP address family must match the IP prefix address family")
+
 	encoded := evpn.Bytes()
 	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
 }
@@ -618,6 +668,10 @@ func TestEVPNType5RoundTripIPv6(t *testing.T) {
 
 	evpn, ok := parsed.(*EVPNType5)
 	require.True(t, ok)
+
+	// RFC requirement: RFC9136-3.1-2 positive -- gateway IP and IP prefix share the same address family (both IPv6)
+	assert.Equal(t, evpn.Prefix().Addr().Is4(), evpn.Gateway().Is4(),
+		"gateway IP address family must match the IP prefix address family")
 
 	encoded := evpn.Bytes()
 	assert.Equal(t, original, encoded, "round-trip encoding mismatch")

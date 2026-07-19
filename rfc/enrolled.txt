@@ -124,3 +124,4 @@ rfc9514	BGP-LS SRv6 extensions: 13 gap (all origination/encode MUSTs plus one re
 rfc3623	Graceful OSPF Restart (RFC 3623): restarter + helper roles; 4 MET (Grace-LSA mandatory TLVs, shared-media type-3, unplanned toggle) + 5 single-polarity positive + 2 gap (virtual-link V-bit, changed-retx-list refusal) + 2 not-applicable
 rfc3209	RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABEL, SE make-before-break, soft-state; 5 MET + 6 single-polarity positive + 2 gap (ERO strict-hop adjacency check, IP Router Alert option)
 rfc6396	MRT Routing Information Export Format (RFC 6396): both-way encoder/decoder; 7 single-polarity positive + 1 gap (BGP4MP_MESSAGE_AS4 mislabels 2-byte-peer AS_PATH) + 5 not-applicable
+rfc9136	EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire codec; 2 MET (length 34/58, prefix-length bound) + 2 single-polarity positive (same-family, RD/etag) + 5 gap (overlay-index validations) + 5 not-applicable (forwarding/install/Router's-MAC EC)
