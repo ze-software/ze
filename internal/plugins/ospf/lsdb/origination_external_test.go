@@ -73,6 +73,8 @@ func TestOSPFASBRBitFromNSSAType7(t *testing.T) {
 	if db.SelfIsASBR(router) {
 		t.Fatalf("SelfIsASBR true with nothing originated")
 	}
+	// RFC requirement: RFC3101-3.1-1 negative -- with no external/Type-7 originated, the
+	// Router-LSA in the (non-stub) backbone area carries the E-bit clear.
 	if routerLSAEBit(t, db, router) {
 		t.Fatalf("E-bit set with no Type 5 or Type 7 originated")
 	}
@@ -85,6 +87,8 @@ func TestOSPFASBRBitFromNSSAType7(t *testing.T) {
 	}
 	clock.now = clock.now.Add(6 * time.Second) // past MinLSInterval (5s)
 	db.OriginateFromTopology(router, false)
+	// RFC requirement: RFC3101-3.1-1 positive -- once this NSSA border router originates a
+	// Type-7, its Router-LSA in the (non-stub) backbone area sets the E-bit.
 	if !routerLSAEBit(t, db, router) {
 		t.Fatalf("E-bit not set after Type 7 originated (Type-7 originator is an ASBR)")
 	}

@@ -31,7 +31,11 @@ func TestOSPFNSSATranslatorElection(t *testing.T) {
 	higher := ridOf("10.0.0.9")
 	lower := ridOf("10.0.0.1")
 
+	// RFC requirement: RFC3101-3.1-2 positive -- a candidate ABR with the highest Router ID
+	// among the reachable candidates is elected translator.
 	assert.True(t, electNSSATranslator(self, translateRoleCandidate, []types.RouterID{self, lower}), "candidate with the highest Router ID translates")
+	// RFC requirement: RFC3101-3.1-2 negative -- a candidate defers to a reachable candidate
+	// ABR with a higher Router ID and is not elected.
 	assert.False(t, electNSSATranslator(self, translateRoleCandidate, []types.RouterID{self, higher}), "candidate defers to a higher Router ID")
 	assert.True(t, electNSSATranslator(self, translateRoleAlways, []types.RouterID{self, higher}), "always translates regardless of Router ID")
 	assert.False(t, electNSSATranslator(self, translateRoleNever, []types.RouterID{self}), "never does not translate even as the only ABR")
@@ -76,6 +80,9 @@ func TestOSPFNSSATranslation(t *testing.T) {
 
 	// RFC 3101 sec 3.2: the translated Type 5 preserves metric / metric-type / route tag and
 	// clears the P-bit (Type 5 has no NSSA P-bit; the LSA carries only OptionE).
+	// RFC requirement: RFC3101-3.2-1 positive -- the translated Type-5 sets the advertising
+	// router to the translator's Router ID (the lookup key uses self) and preserves the source
+	// Type-7's mask/path-type/metric/forwarding-address/route-tag.
 	key := types.LSAKey{Type: types.LSTypeASExternal, LinkStateID: types.LinkStateID(ip4Of("10.20.0.0")), AdvertisingRouter: self}
 	t5, ok := eng.lsdb.LookupLSA(types.BackboneArea, key)
 	require.True(t, ok, "translated Type 5 present in the AS-external store")
@@ -87,6 +94,8 @@ func TestOSPFNSSATranslation(t *testing.T) {
 	assert.Equal(t, uint32(7), body.ExternalRouteTag, "source route tag preserved")
 
 	// Withdraw the source Type 7 -> the translated Type 5 is purged.
+	// RFC requirement: RFC3101-3.2-1 negative -- when the source Type-7 is withdrawn, the
+	// translated Type-5 is not retained; it is withdrawn (no translation is fabricated).
 	eng.lsdb.PurgeNSSA(nssa, asbr, ip4Of("10.20.0.0"))
 	eng.translateNSSA(transTime)
 	require.Equal(t, 0, eng.lsdb.SelfExternalCount(self), "translation withdrawn once the source Type 7 is gone")
@@ -131,6 +140,8 @@ func TestOSPFNSSAPbitNotTranslated(t *testing.T) {
 	self := ridOf("10.0.6.9")
 	asbr := ridOf("10.0.6.2")
 
+	// RFC requirement: RFC3101-3.2-1 negative -- a P=0 Type-7 and a P=1 Type-7 with a zero
+	// forwarding address are not translated into a Type-5 (there is nothing to preserve).
 	// P=0 Type 7 -> not translated.
 	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.21.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, false)
 	// P=1 but zero forwarding address -> not translatable.
@@ -201,6 +212,8 @@ func TestOSPFNSSANoTranslateWhenNotElected(t *testing.T) {
 	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.23.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)
 	eng.translateNSSA(transTime)
 
+	// RFC requirement: RFC3101-3.1-2 negative -- with a reachable higher-Router-ID Nt-capable
+	// ABR present, a candidate self is not elected and does not translate.
 	assert.Equal(t, 0, eng.lsdb.SelfExternalCount(self), "a non-elected candidate ABR does not translate (no duplicate Type 5)")
 }
 
@@ -219,5 +232,8 @@ func TestOSPFNSSANonCandidateDoesNotWedge(t *testing.T) {
 	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.24.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)
 	eng.translateNSSA(transTime)
 
+	// RFC requirement: RFC3101-3.1-2 positive -- election counts only Nt-advertising (candidate)
+	// ABRs, so a willing lower-Router-ID candidate is elected despite a higher-Router-ID
+	// non-candidate ABR.
 	assert.Equal(t, 1, eng.lsdb.SelfExternalCount(self), "the willing lower-Router-ID candidate translates despite a higher-RID non-candidate ABR")
 }

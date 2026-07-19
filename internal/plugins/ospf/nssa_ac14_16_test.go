@@ -43,6 +43,8 @@ func TestOSPFNSSAHigherRIDType5Suppresses(t *testing.T) {
 	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of(net), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)
 
 	// Control: as the highest-Router-ID translator, self translates it to a Type 5.
+	// RFC requirement: RFC3101-3.2-2 positive -- as the highest-Router-ID translator, self
+	// translates the Type-7 into a Type-5 (no equivalent higher-RID Type-5 exists to suppress it).
 	eng.translateNSSA(transTime)
 	require.Equal(t, 1, eng.lsdb.SelfExternalCount(self), "control: self translates when it is the highest-Router-ID translator")
 
@@ -51,6 +53,8 @@ func TestOSPFNSSAHigherRIDType5Suppresses(t *testing.T) {
 	_, _, _ = eng.lsdb.OriginateExternal(higher, ip4Of(net), ip4Of("255.255.0.0"), types.OptionE, false, 10, ip4Of("10.5.0.2"), 0)
 
 	// RFC 3101 §3.6: self yields -- it must not also inject a Type 5, and withdraws its own.
+	// RFC requirement: RFC3101-3.2-2 negative -- when a strictly-higher-Router-ID translator
+	// advertises an equivalent Type-5, self suppresses (and withdraws) its duplicate translation.
 	eng.translateNSSA(transTime)
 	assert.Equal(t, 0, eng.lsdb.SelfExternalCount(self), "suppressed and withdrawn once a higher-Router-ID Type 5 appears")
 }

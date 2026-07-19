@@ -6,6 +6,7 @@
 package spf
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,4 +72,30 @@ func TestOSPFTotallyStubbyOnlyDefault(t *testing.T) {
 
 	_, ok = db.LookupLSA(stub, types.LSAKey{Type: types.LSTypeSummaryNetwork, LinkStateID: testLSID(t, "10.10.0.0"), AdvertisingRouter: root})
 	assert.False(t, ok, "no-summary suppresses every inter-area Type 3 except the default")
+}
+
+// TestOSPFNSSAType3SummaryImport pins RFC 3101 sec 2.7: a regular NSSA (summary import is the
+// default) still imports inter-area Type-3 summary-LSAs, while a no-summary (totally-)NSSA
+// suppresses them. A Type-4 ASBR-summary is never imported into an NSSA in either case.
+func TestOSPFNSSAType3SummaryImport(t *testing.T) {
+	root := testRID(t, "1.1.1.1")
+	type3 := summaryDesired{Type: types.LSTypeSummaryNetwork, LSID: testLSID(t, "10.10.0.0"), Mask: [4]byte{255, 255, 0, 0}, Metric: 7}
+	type4 := summaryDesired{Type: types.LSTypeSummaryASBR, LSID: types.LinkStateID(root), Metric: 3}
+	desired := []summaryDesired{type3, type4}
+
+	// Regular NSSA: summary import is the default, so the inter-area Type-3 survives; the
+	// Type-4 ASBR-summary is dropped.
+	// RFC requirement: RFC3101-2.7-1 positive -- a regular NSSA imports the inter-area Type-3
+	// summary-LSA (the ABR keeps it in the desired set it originates into the NSSA).
+	imported := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA})
+	assert.True(t, slices.Contains(imported, type3), "a regular NSSA imports the inter-area Type-3 summary")
+	assert.False(t, slices.Contains(imported, type4), "a Type-4 ASBR-summary is not imported into an NSSA")
+
+	// No-summary (totally-)NSSA: the inter-area Type-3 is suppressed (and the Type-4 is still
+	// dropped).
+	// RFC requirement: RFC3101-2.7-1 negative -- a no-summary (totally-)NSSA suppresses the
+	// inter-area Type-3 summary-LSA (import is off), and still drops the Type-4 ASBR-summary.
+	suppressed := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA, NoSummary: true})
+	assert.False(t, slices.Contains(suppressed, type3), "a no-summary NSSA suppresses the inter-area Type-3 summary")
+	assert.False(t, slices.Contains(suppressed, type4), "a Type-4 ASBR-summary is not imported into a no-summary NSSA")
 }

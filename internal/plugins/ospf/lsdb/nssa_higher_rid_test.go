@@ -25,12 +25,16 @@ func TestOSPFHigherRIDType5Exists(t *testing.T) {
 	}
 
 	// A strictly-higher Router ID advertises a Type 5 for the network -> true.
+	// RFC requirement: RFC3101-3.2-2 negative -- a strictly-higher-Router-ID Type-5 for the
+	// same network is detected, which gates the translator to suppress its duplicate.
 	_, _, _ = db.OriginateExternal(rid("9.9.9.9"), net, mask, types.OptionE, false, 10, [4]byte{}, 0)
 	if !db.HigherRIDType5Exists(net, self) {
 		t.Fatalf("AC-16: a higher-Router-ID Type 5 for the network must be detected")
 	}
 
 	// A lower Router ID does not count -> self stays the elected translator.
+	// RFC requirement: RFC3101-3.2-2 positive -- a lower-Router-ID Type-5 does not suppress:
+	// self remains the highest-Router-ID translator and translates.
 	dbLower := newTestDB(clock)
 	_, _, _ = dbLower.OriginateExternal(rid("0.0.0.1"), net, mask, types.OptionE, false, 10, [4]byte{}, 0)
 	if dbLower.HigherRIDType5Exists(net, self) {
