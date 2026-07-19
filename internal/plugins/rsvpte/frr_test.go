@@ -32,6 +32,7 @@ func TestEncodeDecodeFastReroute(t *testing.T) {
 	n := encodeFastReroute(buf, fr)
 	require.Equal(t, objHdrLen+frrBodyLen, n, "FAST_REROUTE is 24 bytes")
 
+	// RFC requirement: RFC4090-4.1-1 positive -- FAST_REROUTE encodes/decodes as Class 205, C-Type 1, fixed Length 24.
 	hdr, err := decodeObjectHeader(buf)
 	require.NoError(t, err)
 	assert.Equal(t, ClassFastReroute, hdr.ClassNum)
@@ -45,6 +46,7 @@ func TestEncodeDecodeFastReroute(t *testing.T) {
 
 // TestFastRerouteShortBody rejects a truncated FAST_REROUTE body.
 func TestFastRerouteShortBody(t *testing.T) {
+	// RFC requirement: RFC4090-4.1-1 negative -- a FAST_REROUTE body shorter than the fixed 24-byte object is rejected (errShortObject), not decoded.
 	_, err := decodeFastReroute(make([]byte, frrBodyLen-1))
 	assert.ErrorIs(t, err, errShortObject)
 }
@@ -58,6 +60,7 @@ func TestSessionAttributeProtectionFlags(t *testing.T) {
 	}
 	sa := pr.sessionAttr()
 	assert.NotZero(t, sa.Flags&SessAttrLocalProtection, "local protection always desired")
+	// RFC requirement: RFC4090-4.3-2 positive -- SESSION_ATTRIBUTE carries the node-protection-desired bit (0x10) when node protection is requested.
 	assert.NotZero(t, sa.Flags&SessAttrNodeProtection, "node protection desired set")
 	assert.NotZero(t, sa.Flags&SessAttrBandwidthProtection, "bandwidth protection desired set")
 
@@ -85,6 +88,7 @@ func TestSessionAttributeEmptyName(t *testing.T) {
 	got, err := decodeSessionAttr(buf[objHdrLen:n], CTypeSessionAttr)
 	require.NoError(t, err)
 	assert.Equal(t, "", got.Name)
+	// RFC requirement: RFC4090-4.3-2 negative -- a SESSION_ATTRIBUTE without node protection has flags equal to local-protection only, so the node-protection bit (0x10) stays clear.
 	assert.Equal(t, SessAttrLocalProtection, got.Flags)
 }
 
@@ -154,11 +158,14 @@ func TestBuildPathIncludesFastReroute(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, msg.HasFastReroute, "PATH carries a FAST_REROUTE object")
+	// RFC requirement: RFC4090-4.1-2 positive -- a facility-backup request sets the FAST_REROUTE facility method flag (0x02).
 	assert.NotZero(t, msg.FastReroute.Flags&FRRFlagFacilityBackup, "facility backup requested")
 	assert.Equal(t, uint8(16), msg.FastReroute.HopLimit)
 
 	require.True(t, msg.HasSessionAttr, "PATH carries a SESSION_ATTRIBUTE object")
+	// RFC requirement: RFC4090-4.3-1 positive -- a protection-desired PATH carries SESSION_ATTRIBUTE with the local-protection-desired bit (0x01) set.
 	assert.NotZero(t, msg.SessionAttr.Flags&SessAttrLocalProtection, "local protection desired")
+	// RFC requirement: RFC4090-4.3-2 positive -- the same PATH sets the node-protection-desired bit (0x10) when node protection is requested.
 	assert.NotZero(t, msg.SessionAttr.Flags&SessAttrNodeProtection, "node protection desired")
 }
 
@@ -171,6 +178,7 @@ func TestBuildPathNoProtection(t *testing.T) {
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 	assert.False(t, msg.HasFastReroute)
+	// RFC requirement: RFC4090-4.3-1 negative -- a PSB without a protection request emits no SESSION_ATTRIBUTE, so the local-protection-desired bit is never set.
 	assert.False(t, msg.HasSessionAttr)
 }
 
@@ -296,6 +304,7 @@ func TestPLRArmsBypass(t *testing.T) {
 	lsp, ok := e.table.Get(keyFromMessage(fwd))
 	require.True(t, ok)
 	require.NotNil(t, lsp.Bypass, "PLR armed a bypass")
+	// RFC requirement: RFC4090-3.2-2 positive -- for link protection the PLR selects the bypass whose merge point is the NHOP.
 	assert.Equal(t, netip.MustParseAddr("10.0.0.3"), lsp.Bypass.TunnelEndpoint, "bypass merges at the NHOP")
 	assert.True(t, lsp.Bypass.TunnelID >= bypassTunnelIDBase, "bypass uses the reserved tunnel-id range")
 
@@ -311,6 +320,7 @@ func TestPLRArmsBypass(t *testing.T) {
 	require.True(t, relayed.HasRRO)
 	require.NotEmpty(t, relayed.RRO)
 	assert.Equal(t, netip.MustParseAddr("10.0.0.2"), relayed.RRO[0].Address, "PLR's own RRO subobject is first")
+	// RFC requirement: RFC4090-4.4-1 positive -- once a bypass is armed the PLR's RRO subobject reports "local protection available" (0x01).
 	assert.NotZero(t, relayed.RRO[0].Flags&RROFlagProtectionAvailable, "RRO reports local protection available")
 }
 
@@ -328,6 +338,7 @@ func TestPLRNoBypassWithoutProtection(t *testing.T) {
 	lsp, ok := e.table.Get(keyFromMessage(fwd))
 	require.True(t, ok)
 	assert.Nil(t, lsp.Bypass, "no bypass armed")
+	// RFC requirement: RFC4090-4.4-1 negative -- with no bypass armed rroProtectionFlags is 0, so the RRO reports no "local protection available" bit.
 	assert.Zero(t, rroProtectionFlags(lsp), "no protection flags")
 }
 
@@ -403,9 +414,11 @@ func TestLocalRepairSwitchesFIB(t *testing.T) {
 	require.Len(t, fib.backups, 1, "local repair programs exactly one backup swap")
 	bk := fib.backups[0]
 	assert.Equal(t, protectedIn, bk.in, "keyed by the protected in-label")
+	// RFC requirement: RFC4090-3.2-1 positive -- facility backup stacks the bypass label on top of the swapped protected label.
 	assert.Equal(t, []uint32{5000, 18000}, bk.out, "bypass label outermost, then the swapped protected label")
 	assert.Equal(t, netip.MustParseAddr("10.0.1.3"), bk.nextHop, "forwarded via the bypass next hop")
 
+	// RFC requirement: RFC4090-6.5-2 positive -- on a successful local repair the protected LSP is retained (not torn down).
 	repaired, ok := e.table.Get(protectedKey())
 	require.True(t, ok, "protected LSP is retained, not torn down")
 	repaired.mu.Lock()
@@ -431,6 +444,7 @@ func TestLocalRepairSendsNotify(t *testing.T) {
 	perr, dst, ok := ft.lastByType(MsgTypePathErr)
 	require.True(t, ok, "PLR sends a PathErr on local repair")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), dst, "Notify goes toward the head-end (prev hop)")
+	// RFC requirement: RFC4090-6.5-1 positive -- a local repair sends a PathErr Notify (Error Code 25, value 3 "Tunnel locally repaired") toward the head-end.
 	assert.Equal(t, ErrCodeNotify, perr.ErrorSpec.ErrorCode, "Error Code 25 (Notify)")
 	assert.Equal(t, ErrValueTunnelLocallyRepaired, perr.ErrorSpec.ErrorValue, "value 3 (Tunnel locally repaired)")
 }
@@ -445,11 +459,14 @@ func TestLocalRepairFallsBackToTeardown(t *testing.T) {
 
 	e.handleLinkDown("eth0")
 
+	// RFC requirement: RFC4090-3.2-1 negative -- with no usable bypass no label-stacked backup swap is programmed.
 	assert.Empty(t, fib.backups, "no backup programmed when the bypass is not ready")
 	_, alive := e.table.Get(protectedKey())
+	// RFC requirement: RFC4090-6.5-2 negative -- an unrepairable protected LSP falls back to teardown (the LSP is removed).
 	assert.False(t, alive, "unrepairable protected LSP is torn down")
 	perr, _, ok := ft.lastByType(MsgTypePathErr)
 	require.True(t, ok)
+	// RFC requirement: RFC4090-6.5-1 negative -- an unrepairable failure sends the base no-route PathErr (Error Code 24), not a Notify.
 	assert.Equal(t, ErrCodeRoutingProblem, perr.ErrorSpec.ErrorCode, "base no-route PathErr, not a Notify")
 }
 
@@ -730,6 +747,7 @@ func TestNodeProtectionLocalRepair(t *testing.T) {
 	lsp, ok := e.table.Get(protectedKey())
 	require.True(t, ok)
 	require.NotNil(t, lsp.Bypass, "node-protection bypass armed")
+	// RFC requirement: RFC4090-3.2-2 positive -- for node protection the PLR selects the bypass whose merge point is the NNHOP (not the NHOP).
 	assert.Equal(t, netip.MustParseAddr("10.0.0.4"), lsp.Bypass.TunnelEndpoint, "bypass merges at the NNHOP, not the NHOP")
 
 	// RESV from the NHOP carrying label recording: NHOP label 18000, NNHOP 7777.
@@ -770,6 +788,7 @@ func TestNodeProtectionNeedsNodeBypass(t *testing.T) {
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: buildPath(nodeProtectionPSB(), netip.MustParseAddr("10.0.0.1"), 64)})
 	lsp, ok := e.table.Get(protectedKey())
 	require.True(t, ok)
+	// RFC requirement: RFC4090-3.2-2 negative -- a node-protection request is not satisfied by a link-only bypass merging at the NHOP, so no bypass is armed.
 	assert.Nil(t, lsp.Bypass, "node protection is not satisfied by a link-only bypass")
 }
 
@@ -803,4 +822,43 @@ func TestHeadEndIgnoresNonNotifyPathErr(t *testing.T) {
 	newKey.LSPID = 2
 	_, exists := e.table.Get(newKey)
 	assert.False(t, exists, "a non-Notify PathErr must not trigger a reroute")
+}
+
+// TestFastRerouteOneToOneMethodFlag: the one-to-one (detour) backup method sets the
+// FAST_REROUTE one-to-one Flags bit and leaves the facility bit clear -- the
+// complement of the facility case (RFC 4090 Section 4.1 method flags). This exercises
+// the non-facility branch of protectionRequest.fastReroute (frr.go).
+func TestFastRerouteOneToOneMethodFlag(t *testing.T) {
+	fr := (&protectionRequest{Facility: false}).fastReroute()
+	// RFC requirement: RFC4090-4.1-2 negative -- a one-to-one backup request sets FRR Flags 0x01 and leaves the facility bit 0x02 clear (the other method's flag).
+	assert.NotZero(t, fr.Flags&FRRFlagOneToOneBackup, "one-to-one backup flag set")
+	assert.Zero(t, fr.Flags&FRRFlagFacilityBackup, "facility bit clear for a one-to-one request")
+}
+
+// TestRROProtectionFlagsReflectState drives rroProtectionFlags (frr.go) through the
+// PLR states so each RFC 4090 Section 4.4 RRO subobject flag tracks the LSP:
+// protection-in-use only after a local repair, and node protection only when the
+// head-end requested it.
+func TestRROProtectionFlagsReflectState(t *testing.T) {
+	bp := lspKey{TunnelEndpoint: netip.MustParseAddr("10.0.0.3"), TunnelID: bypassTunnelIDBase, LSPID: 1}
+
+	// A link-protected LSP: bypass armed, no local repair yet, node protection not requested.
+	linkOnly := &LSP{Bypass: &bp, PSB: &pathStateBlock{Protection: &protectionRequest{Facility: true}}}
+	linkFlags := rroProtectionFlags(linkOnly)
+	require.NotZero(t, linkFlags&RROFlagProtectionAvailable, "available once a bypass is armed")
+	// RFC requirement: RFC4090-4.4-2 negative -- "local protection in use" (0x02) stays clear while a bypass is armed but no local repair has redirected traffic.
+	assert.Zero(t, linkFlags&RROFlagProtectionInUse, "in-use clear before local repair")
+	// RFC requirement: RFC4090-4.4-3 negative -- "node protection" (0x08) stays clear for a link-only protection request.
+	assert.Zero(t, linkFlags&RROFlagNodeProtection, "node bit clear for link-only protection")
+
+	// Once a local repair marks the LSP in use (tryLocalRepair sets ProtectionInUse),
+	// the RRO reports "local protection in use".
+	linkOnly.ProtectionInUse = true
+	// RFC requirement: RFC4090-4.4-2 positive -- "local protection in use" (0x02) is set once traffic is on the backup (ProtectionInUse set).
+	assert.NotZero(t, rroProtectionFlags(linkOnly)&RROFlagProtectionInUse, "in-use set once on the backup")
+
+	// A node-protection request sets the node-protection bit.
+	nodeProt := &LSP{Bypass: &bp, PSB: &pathStateBlock{Protection: &protectionRequest{Facility: true, NodeProtection: true}}}
+	// RFC requirement: RFC4090-4.4-3 positive -- "node protection" (0x08) is set when the head-end requested node protection.
+	assert.NotZero(t, rroProtectionFlags(nodeProt)&RROFlagNodeProtection, "node bit set when node protection requested")
 }
