@@ -190,6 +190,7 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 			},
 			wantOptLen: 0,
 		},
+		// RFC requirement: RFC9072-2-2 negative -- a standard-form OPEN (Non-Ext OP Len 4, first optional-parameter type 0x02) is decoded as classic with 4 optional-parameter octets, so the extended-form acceptance is gated on the 0xFF markers and does not misfire on a standard OPEN.
 		{
 			name: "standard format - with params",
 			data: []byte{
@@ -202,6 +203,7 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 			},
 			wantOptLen: 4,
 		},
+		// RFC requirement: RFC9072-2-2 positive -- an extended-form OPEN whose Extended Opt. Parm. Length is 0 (a length of 255 or less) is accepted and parsed through the extended branch, not rejected.
 		{
 			name: "extended format - empty params",
 			data: []byte{
@@ -216,6 +218,7 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 			wantOptLen:   0,
 			wantExtended: true,
 		},
+		// RFC requirement: RFC9072-2-2 positive -- an extended-form OPEN with a 6-octet Extended Opt. Parm. Length (255 or less) is accepted: the 2-octet length is honored and 6 optional-parameter octets are extracted, which a classic decode reading Non-Ext OP Len 255 could never produce.
 		{
 			name: "extended format - with params",
 			data: []byte{
@@ -403,7 +406,11 @@ func TestOpenPackExtendedParams(t *testing.T) {
 	assert.GreaterOrEqual(t, len(body), 10+4+len(largeParams))
 
 	// Check extended format markers
+	// RFC requirement: RFC9072-2-1 positive -- Optional Parameters of 300 octets exceed 255, so the OPEN is encoded with the extended procedure: the Non-Ext markers and 2-octet Extended Opt. Parm. Length are emitted instead of the classic single-octet length.
+	// RFC requirement: RFC9072-2-3 positive -- the extended-form Non-Ext OP Len octet is the non-zero 0xFF marker, never 0.
 	assert.Equal(t, byte(0xFF), body[9], "Non-Ext OP Len should be 0xFF")
+	// RFC requirement: RFC9072-2-4 positive -- the extended-form Non-Ext OP Type octet is set to 255 on transmission.
+	// RFC requirement: RFC9072-3-2 positive -- 255 appears only as the extended-length indicator in the Non-Ext OP Type position; the encoder never writes 255 as an optional-parameter type code.
 	assert.Equal(t, byte(0xFF), body[10], "Non-Ext OP Type should be 0xFF")
 
 	// Check extended length

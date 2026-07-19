@@ -14,6 +14,8 @@ func TestEncodeUserPassword(t *testing.T) {
 	password := []byte("mypassword")
 	encoded := EncodeUserPassword(password, secret, auth)
 
+	// RFC requirement: RFC2865-5.2-2 positive -- the encoded User-Password is padded to a
+	// multiple of 16 octets.
 	// RFC 2865 Section 5.2: result must be multiple of 16 bytes.
 	if len(encoded)%16 != 0 {
 		t.Errorf("encoded length %d not multiple of 16", len(encoded))
@@ -30,6 +32,8 @@ func TestEncodeUserPassword(t *testing.T) {
 		decoded[i] = encoded[i] ^ block[i]
 	}
 
+	// RFC requirement: RFC2865-5.2-1 positive -- reversing the first block with MD5(S+RA)
+	// recovers the plaintext, confirming the c[0] = p[0] XOR MD5(S+RA) chain.
 	// First 10 bytes should be "mypassword", rest should be zero padding.
 	if string(decoded[:10]) != "mypassword" {
 		t.Errorf("decoded first block: got %q, want %q", decoded[:10], "mypassword")
@@ -45,6 +49,8 @@ func TestEncodeUserPasswordEmpty(t *testing.T) {
 	secret := []byte("secret")
 	var auth [AuthenticatorLen]byte
 
+	// RFC requirement: RFC2865-5.2-2 positive -- an empty password still pads up to the
+	// 16-octet minimum block.
 	encoded := EncodeUserPassword(nil, secret, auth)
 	if len(encoded) != 16 {
 		t.Errorf("empty password should pad to 16 bytes, got %d", len(encoded))
@@ -60,6 +66,10 @@ func TestEncodeUserPasswordMultiBlock(t *testing.T) {
 	password := []byte("12345678901234567890")
 	encoded := EncodeUserPassword(password, secret, auth)
 
+	// RFC requirement: RFC2865-5.2-1 positive -- a password spanning two blocks is XOR-chained
+	// into a full 2-block ciphertext (c[i] = p[i] XOR MD5(S+c[i-1])).
+	// RFC requirement: RFC2865-5.2-2 positive -- a 20-octet password pads up to the next
+	// multiple of 16 (32 octets).
 	if len(encoded) != 32 {
 		t.Errorf("20-byte password should produce 32 bytes, got %d", len(encoded))
 	}

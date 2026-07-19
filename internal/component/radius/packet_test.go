@@ -138,6 +138,8 @@ func TestPacketRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// RFC requirement: RFC2865-3-1 positive -- a packet whose Length lies within the
+	// 20..4096 bound decodes successfully.
 	decoded, err := Decode(buf[:n])
 	if err != nil {
 		t.Fatal(err)
@@ -166,6 +168,8 @@ func TestPacketRoundTrip(t *testing.T) {
 }
 
 func TestDecodeTooShort(t *testing.T) {
+	// RFC requirement: RFC2865-3-1 negative -- a 19-octet packet (below the 20-octet
+	// minimum) is rejected.
 	_, err := Decode(make([]byte, 19))
 	if err == nil {
 		t.Fatal("expected error for packet < 20 bytes")
@@ -173,6 +177,8 @@ func TestDecodeTooShort(t *testing.T) {
 }
 
 func TestDecodeTooLong(t *testing.T) {
+	// RFC requirement: RFC2865-3-1 negative -- a 4097-octet packet (above the 4096-octet
+	// maximum) is rejected.
 	_, err := Decode(make([]byte, 4097))
 	if err == nil {
 		t.Fatal("expected error for packet > 4096 bytes")
@@ -184,6 +190,8 @@ func TestDecodeBadLength(t *testing.T) {
 	buf[0] = CodeAccessAccept
 	// Set length to 5000, which exceeds data length.
 	binary.BigEndian.PutUint16(buf[2:4], 5000)
+	// RFC requirement: RFC2865-3-1 negative -- a Length field pointing past the datagram
+	// (outside the valid 20..len bound) is rejected.
 	_, err := Decode(buf)
 	if err == nil {
 		t.Fatal("expected error for invalid length field")
@@ -195,12 +203,16 @@ func TestResponseAuthenticator(t *testing.T) {
 	copy(reqAuth[:], "0123456789abcdef")
 	secret := []byte("testing123")
 
+	// RFC requirement: RFC2865-3-3 positive -- the Response Authenticator is the deterministic
+	// MD5(Code+ID+Length+RequestAuth+Attrs+Secret): identical inputs yield an identical value.
 	auth1 := ResponseAuthenticator(CodeAccessAccept, 1, 20, reqAuth, nil, secret)
 	auth2 := ResponseAuthenticator(CodeAccessAccept, 1, 20, reqAuth, nil, secret)
 	if auth1 != auth2 {
 		t.Error("same inputs should produce same authenticator")
 	}
 
+	// RFC requirement: RFC2865-3-3 negative -- the shared secret is folded into the hash, so
+	// a different secret produces a different authenticator (not a value independent of it).
 	auth3 := ResponseAuthenticator(CodeAccessAccept, 1, 20, reqAuth, nil, []byte("different"))
 	if auth1 == auth3 {
 		t.Error("different secrets should produce different authenticator")
@@ -225,10 +237,14 @@ func TestVerifyResponseAuth(t *testing.T) {
 	correct := ResponseAuthenticator(buf[0], buf[1], pktLen, reqAuth, buf[HeaderLen:n], secret)
 	copy(buf[4:4+AuthenticatorLen], correct[:])
 
+	// RFC requirement: RFC2865-3-3 positive -- a response signed with the RFC 2865 formula
+	// verifies against the request authenticator and shared secret.
 	if !VerifyResponseAuth(buf[:n], reqAuth, secret) {
 		t.Error("valid response auth should verify")
 	}
 
+	// RFC requirement: RFC2865-3-3 negative -- a single-octet corruption of the computed
+	// Response Authenticator fails verification.
 	// Corrupt one byte.
 	buf[4]++
 	if VerifyResponseAuth(buf[:n], reqAuth, secret) {

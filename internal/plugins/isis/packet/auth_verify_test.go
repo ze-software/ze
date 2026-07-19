@@ -130,6 +130,8 @@ func TestISISAuthSignVerifyCleartext(t *testing.T) {
 //
 // RFC requirement: RFC5304-2-6 positive -- a PDU whose Authentication Value is
 // CORRECT is accepted (not discarded) by VerifyPDU, per PDU class (RFC 5304 sec 2).
+//
+// RFC requirement: RFC1195-3.9-1 positive -- a PDU whose authentication information is valid is accepted (not discarded) by VerifyPDU (RFC 1195 sec 3.9).
 func TestISISAuthSignVerifyHMACMD5(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACMD5, Secret: []byte("md5-key")}
 	for name, build := range pduBuilders() {
@@ -605,6 +607,8 @@ func TestISISAuthVerifyScratchReuse(t *testing.T) {
 //
 // RFC requirement: RFC5304-2-6 negative -- a PDU whose Authentication Value is
 // INCORRECT (one digest bit flipped) is discarded by VerifyPDU (RFC 5304 sec 2).
+//
+// RFC requirement: RFC1195-3.9-1 negative -- a PDU with invalid authentication information (one digest bit flipped) is discarded by VerifyPDU (RFC 1195 sec 3.9: a packet with invalid authentication information MUST be discarded).
 func TestISISAuthConstantTimeCompare(t *testing.T) {
 	key := Key{Algorithm: AuthAlgoHMACSHA256, Secret: []byte("k"), KeyID: 1}
 	signed, err := SignPDU(testCSNP(t), key)

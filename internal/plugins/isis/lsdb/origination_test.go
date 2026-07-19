@@ -107,6 +107,7 @@ func TestISISOriginateOnAdjacencyUp(t *testing.T) {
 		t.Error("originated LSP checksum invalid")
 	}
 
+	// RFC requirement: RFC1195-5.2-2 positive -- the originated LSP fragment 0 carries the IP Interface Address TLV 132 (RFC 1195 sec 5.2: every IP-capable router MUST include TLV 132 in its LSPs).
 	// AC-1: TLV 1, 129, 22, 132, 135, 137 all present.
 	have := tlvTypes(lsp)
 	for _, want := range []uint8{
@@ -118,6 +119,7 @@ func TestISISOriginateOnAdjacencyUp(t *testing.T) {
 		}
 	}
 
+	// RFC requirement: RFC1195-5.2-1 positive -- the originated LSP fragment 0 carries the Protocols Supported TLV 129 advertising NLPID 0xCC for IPv4 (RFC 1195 sec 5.2: TLV 129 MUST be included in every IP-capable router's LSP number 0).
 	// TLV 129 advertises NLPID IPv4 (0xCC).
 	for _, tl := range lsp.TLVs {
 		if tl.Type == packet.TLVProtocolsSupported {

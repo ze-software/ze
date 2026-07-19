@@ -187,6 +187,8 @@ func TestISISTLV22Truncated(t *testing.T) {
 }
 
 // VALIDATES: AC-12 -- TLV 129 (Protocols Supported) round-trips the NLPID list.
+//
+// RFC requirement: RFC1195-5.2-1 positive -- the Protocols Supported TLV 129 round-trips its NLPID list (0xCC for IPv4 among them) through encode/decode, so an IP-capable router can advertise TLV 129 with NLPID 0xCC (RFC 1195 sec 5.2).
 func TestISISTLVProtocolsSupported(t *testing.T) {
 	in := ProtocolsSupportedTLV{NLPIDs: []uint8{NLPIDIPv4, NLPIDIPv6}}
 	buf := make([]byte, 16)

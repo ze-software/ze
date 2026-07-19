@@ -74,6 +74,7 @@ func TestISISEngineOriginateOnAdjacencyUp(t *testing.T) {
 	node := eng.cfg.SystemID
 	area := eng.cfg.NETs[0].AreaID()
 
+	// RFC requirement: RFC1195-5.2-3 positive -- the node originates its own fragment 0 at BOTH Level 1 and Level 2 (checked here at L2, and at L1 below); interface addresses (TLV 132) are collected level-independently (internal/plugins/isis/lsdb_wiring.go:436-448), so the same IP address set is advertised at both levels by construction (RFC 1195 sec 5.2).
 	// The initial origination (in openCircuits) already produced the node's own
 	// fragment 0 at both levels (l1-l2 default).
 	frag0L2 := types.NewLSPID(types.NewSourceID(node, 0), 0)

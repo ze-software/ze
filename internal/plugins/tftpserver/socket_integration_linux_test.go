@@ -140,6 +140,12 @@ func createDummyForTest(t *testing.T, name string) {
 
 // TestListenTFTPLoopbackRoundTrip binds the TFTP listener to lo with
 // SO_BINDTODEVICE and performs a real multi-block RRQ transfer over UDP.
+//
+// RFC requirement: RFC1350-4-3 positive -- the transfer completes over the server's distinct
+// transfer TID: handleRRQ dials a fresh socket per RRQ (internal/plugins/tftpserver/handler.go:287)
+// so DATA arrives from an ephemeral port rather than port 69, and tftpFetch fixes that TID
+// from the first DATA and ACKs to it (socket_integration_linux_test.go:104-118) to drive the
+// transfer to completion.
 func TestListenTFTPLoopbackRoundTrip(t *testing.T) {
 	conn, err := listenTFTP("lo")
 	if err != nil {

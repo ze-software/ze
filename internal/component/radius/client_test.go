@@ -102,6 +102,8 @@ func TestClientExchangeAccept(t *testing.T) {
 		},
 	}
 
+	// RFC requirement: RFC2865-3-5 positive -- a response arriving from the server address
+	// the request was sent to is accepted (the waiter is keyed by that resolved address).
 	resp, err := client.Exchange(context.Background(), pkt, sharedKey, srv.addr)
 	if err != nil {
 		t.Fatal(err)
@@ -189,6 +191,9 @@ func TestClientRetransmit(t *testing.T) {
 		Authenticator: auth,
 	}
 
+	// RFC requirement: RFC2865-2.5-1 positive -- Exchange resends the identical pre-encoded
+	// request buffer on retransmit, so the Identifier and Request Authenticator are unchanged
+	// across attempts and the server can still match the reply.
 	resp, err := client.Exchange(context.Background(), pkt, sharedKey, addr)
 	if err != nil {
 		t.Fatal(err)
@@ -375,9 +380,14 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// RFC requirement: RFC2865-3-4 positive -- the client trusts and returns the response
+	// whose Response Authenticator verifies against the shared secret.
 	if resp.Code != CodeAccessAccept {
 		t.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
 	}
+	// RFC requirement: RFC2865-3-4 negative -- the first reply, signed with the wrong secret,
+	// fails Response Authenticator verification and is silently discarded, so the client must
+	// retransmit (>= 2 attempts) before it accepts the correctly signed reply.
 	if attempts.Load() < 2 {
 		t.Errorf("expected at least 2 attempts (first had bad auth), got %d", attempts.Load())
 	}

@@ -12,6 +12,8 @@ import (
 // LSPs carrying TLVs Ze does not understand (ISO/IEC 10589 clause 7.3.14).
 // PREVENTS: dropping or mangling unknown TLVs on re-flood, which corrupts the
 // link-state database of every downstream router.
+//
+// RFC requirement: RFC1195-3.1-1 positive -- unrecognized TLV codes (199, 250) are retained as opaque spans and re-encoded byte-for-byte, so a forwarded LSP passes them on unchanged (RFC 1195 sec 3.1: unrecognized codes MUST be ignored and, in forwarded LSPs, passed on unchanged).
 func TestISISUnknownTLVPassthrough(t *testing.T) {
 	// A region mixing a known TLV (1, area) with two unknown types (199, 250).
 	region := []byte{

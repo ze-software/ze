@@ -329,6 +329,12 @@ func startTestTFTPServer(t *testing.T, rootDir string, maxTransfers int) *net.UD
 	return addr
 }
 
+// RFC requirement: RFC1350-4-1 positive -- the first DATA block carries block number 1
+// (asserts buf[2:4] == 1; producer numbers from 1 at
+// internal/plugins/tftpserver/handler.go:362).
+// RFC requirement: RFC1350-5-2 positive -- an octet transfer returns the file bytes
+// unchanged (asserts bytes.Equal(buf[4:n], content); producer copies bytes verbatim into
+// DATA at internal/plugins/tftpserver/handler.go:360,373).
 func TestTFTPReadRequest(t *testing.T) {
 	t.Parallel()
 
@@ -381,6 +387,16 @@ func TestTFTPReadRequest(t *testing.T) {
 // RFC requirement: RFC2348-x-5 negative -- when the transfer size is NOT an exact
 // multiple of the blocksize (1500 vs 512), NO extra zero-length data packet is sent:
 // the short final block itself ends the transfer (only three blocks total).
+// RFC requirement: RFC1350-2-1 positive -- a 1500-byte octet file is framed in fixed
+// 512-byte blocks with a short final block ending the transfer (512+512+476); producer
+// internal/plugins/tftpserver/handler.go:360,373,379.
+// RFC requirement: RFC1350-2-2 positive -- lockstep: the client ACKs each DATA block before
+// the next is read, so the server advances only after the ACK
+// (internal/plugins/tftpserver/handler.go:374,382).
+// RFC requirement: RFC1350-4-1 positive -- block numbers are consecutive (1,2,3), asserted
+// gotBlock == block each iteration (internal/plugins/tftpserver/handler.go:362,382).
+// RFC requirement: RFC1350-5-2 positive -- the reassembled octet bytes are identical to the
+// source file, asserted byte-for-byte (internal/plugins/tftpserver/handler.go:360,373).
 func TestTFTPReadLargeFile(t *testing.T) {
 	t.Parallel()
 
@@ -452,6 +468,12 @@ func TestTFTPReadLargeFile(t *testing.T) {
 // RFC requirement: RFC2348-x-4 negative -- a FULL block (exactly the blocksize) does NOT
 // signal end of transfer: block 1 is 512 bytes and the transfer continues to block 2, so
 // only a shorter-than-blocksize block ends it.
+// RFC requirement: RFC1350-2-1 positive -- a full 512-byte block does not end the transfer:
+// block 1 carries 512 bytes and the transfer continues, only a short/zero block ends it
+// (internal/plugins/tftpserver/handler.go:379).
+// RFC requirement: RFC1350-5-3 positive -- a file that is an exact multiple of the block
+// size ends with a zero-length DATA block: a 512-byte file yields block 1 (512B) then
+// block 2 (0B) (internal/plugins/tftpserver/handler.go:364-383).
 func TestTFTPReadExact512(t *testing.T) {
 	t.Parallel()
 
@@ -512,6 +534,9 @@ func TestTFTPReadExact512(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC1350-5-3 positive -- an empty file (the zero-length exact-multiple
+// case) is served as a single zero-length DATA block 1 that ends the transfer
+// (internal/plugins/tftpserver/handler.go:364-383).
 func TestTFTPReadEmptyFile(t *testing.T) {
 	t.Parallel()
 
@@ -698,6 +723,10 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 	if _, _, err := client1.ReadFromUDP(buf); err != nil {
 		t.Fatalf("first transfer didn't start: %v", err)
 	}
+	// RFC requirement: RFC1350-2-2 negative -- the client receives DATA block 1 but sends no
+	// ACK, so the server does not advance to block 2: it stays blocked in sendAndWaitACK
+	// (internal/plugins/tftpserver/handler.go:386-413) holding the semaphore, which is what
+	// lets the second transfer below be rejected.
 	// Don't ACK - keeps the transfer alive and holding the semaphore
 
 	// Try second transfer - should get rejected
@@ -725,6 +754,12 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 	_ = n
 }
 
+// RFC requirement: RFC1350-6-1 positive -- when the last DATA goes unacknowledged the server
+// retransmits the identical block after the ACK timeout (asserts the retransmit equals the
+// original; internal/plugins/tftpserver/handler.go:387-400).
+// RFC requirement: RFC1350-7-1 positive -- the server uses a read timeout to detect the
+// missing ACK: the deadline expiry (internal/plugins/tftpserver/handler.go:392,398) is what
+// triggers the retransmission this test observes.
 func TestTFTPRetransmitOnTimeout(t *testing.T) {
 	t.Parallel()
 
