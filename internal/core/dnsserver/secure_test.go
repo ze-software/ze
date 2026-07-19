@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,6 +113,8 @@ func mustPack(t *testing.T, name string, qtype uint16) []byte {
 
 // VALIDATES: AC-4 -- a Manager with a DoH endpoint answers both POST and GET
 // (RFC 8484) with application/dns-message, driving the same shared handler.
+// RFC requirement: RFC8484-4.1-2 positive -- the server implements BOTH POST and GET; each returns a well-formed application/dns-message answer.
+// RFC requirement: RFC8484-5-1 positive -- the DoH endpoint is served over the https URI scheme (a TLS listener) and a certificate-verifying HTTPS client succeeds.
 func TestDoHListener(t *testing.T) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
@@ -127,6 +130,8 @@ func TestDoHListener(t *testing.T) {
 	client := dohClient(roots)
 
 	// POST
+	// RFC requirement: RFC8484-4.2-1 positive -- a POST carrying Content-Type application/dns-message is processed into a DNS answer.
+	// RFC requirement: RFC8484-6-4 positive -- the POST body is the raw wire-format DNS message used directly (no base64 encoding), and the server answers it.
 	postReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
 		dohURL(port, nil), bytes.NewReader(mustPack(t, "post.test", dns.TypeA)))
 	if err != nil {
@@ -141,6 +146,8 @@ func TestDoHListener(t *testing.T) {
 	assertDoHAnswer(t, resp, "10.0.0.8")
 
 	// GET
+	// RFC requirement: RFC8484-6-2 positive -- the GET query carries the wire message base64url-encoded in the "dns" variable and is answered.
+	// RFC requirement: RFC8484-6-3 positive -- the "dns" value is base64url WITHOUT padding (RawURLEncoding); the compliant unpadded request is accepted.
 	getReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
 		dohURL(port, mustPack(t, "get.test", dns.TypeA)), http.NoBody)
 	if err != nil {
@@ -159,6 +166,7 @@ func assertDoHAnswer(t *testing.T, resp *http.Response, wantIP string) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
+	// RFC requirement: RFC8484-5.4-1 positive -- the DoH response body uses the application/dns-message media type.
 	if ct := resp.Header.Get("Content-Type"); ct != dohContentType {
 		t.Fatalf("content-type = %q, want %q", ct, dohContentType)
 	}
@@ -212,6 +220,7 @@ func TestDoHRefusedYields403(t *testing.T) {
 }
 
 // VALIDATES: an unsupported HTTP method returns 405.
+// RFC requirement: RFC8484-4.1-2 negative -- a method that is neither POST nor GET (PUT) is rejected with 405, so "implement both methods" is not vacuously met by accepting everything.
 func TestDoHMethodNotAllowed(t *testing.T) {
 	port := freePort(t)
 	srvTLS, roots := testTLSPair(t)
@@ -399,5 +408,194 @@ func TestSecureWithoutTLSSkipsSecure(t *testing.T) {
 	resp := exchangeA(t, "udp", hostPort(port), "plainonly.test")
 	if len(resp.Answer) != 1 {
 		t.Fatalf("expected plain listener to answer, got %d answers", len(resp.Answer))
+	}
+}
+
+// startDoH brings up a DoH-only Manager serving handler on a fresh port and
+// returns the bound port plus a certificate-verifying HTTPS client. It reuses
+// the same listener setup as TestDoHListener so the RFC 8484 request/response
+// tests below do not each re-spell it.
+func startDoH(t *testing.T, handler dns.Handler) (uint16, *http.Client) {
+	t.Helper()
+	port := freePort(t)
+	srvTLS, roots := testTLSPair(t)
+	mgr := New(testLogger(), handler, Options{})
+	if err := mgr.ApplyListeners(true, Listeners{
+		DoH:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
+		TLSConfig: srvTLS,
+	}); err != nil {
+		t.Fatalf("ApplyListeners: %v", err)
+	}
+	t.Cleanup(mgr.Stop)
+	return port, dohClient(roots)
+}
+
+// dohPost issues a DoH POST to the default path with the given Content-Type
+// (skipped when empty) and raw body.
+func dohPost(t *testing.T, client *http.Client, port uint16, contentType string, body []byte) *http.Response {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		dohURL(port, nil), bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("new POST request: %v", err)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("DoH POST: %v", err)
+	}
+	return resp
+}
+
+// dohGet issues a DoH GET to a fully-formed URL.
+func dohGet(t *testing.T, client *http.Client, rawURL string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, rawURL, http.NoBody)
+	if err != nil {
+		t.Fatalf("new GET request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("DoH GET: %v", err)
+	}
+	return resp
+}
+
+// VALIDATES: a POST whose Content-Type is not application/dns-message is
+// rejected with 415 rather than processed, pinning "process
+// application/dns-message requests" to that one media type.
+// RFC requirement: RFC8484-4.2-1 negative -- a POST body sent with a non application/dns-message Content-Type is refused (415), not processed as a DNS query.
+// RFC requirement: RFC8484-5.4-1 negative -- text/plain is not honored as the DoH media type; only application/dns-message is supported.
+func TestDoHRejectsWrongContentType(t *testing.T) {
+	port, client := startDoH(t, echoHandler("10.0.0.8"))
+	resp := dohPost(t, client, port, "text/plain", mustPack(t, "wrongct.test", dns.TypeA))
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want 415", resp.StatusCode)
+	}
+}
+
+// VALIDATES: a GET missing the "dns" variable, and a GET whose "dns" value is
+// not valid base64url, are each rejected with 400 -- the base64url "dns"
+// variable is required and validated, not merely tolerated.
+// RFC requirement: RFC8484-6-2 negative -- a GET missing the "dns" variable, or carrying a non-base64url value, is rejected (400) rather than answered.
+func TestDoHGetRejectsBadDNSParam(t *testing.T) {
+	port, client := startDoH(t, echoHandler("10.0.0.8"))
+
+	// Missing dns variable.
+	missing := url.URL{Scheme: "https", Host: hostPort(port), Path: DefaultDoHPath}
+	resp := dohGet(t, client, missing.String())
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("missing dns: status = %d, want 400", resp.StatusCode)
+	}
+
+	// Present but not valid base64url ('*' is outside the base64url alphabet).
+	bad := url.URL{Scheme: "https", Host: hostPort(port), Path: DefaultDoHPath}
+	q := bad.Query()
+	q.Set("dns", "not*valid*base64url")
+	bad.RawQuery = q.Encode()
+	badResp := dohGet(t, client, bad.String())
+	defer func() { _ = badResp.Body.Close() }()
+	if badResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid base64url: status = %d, want 400", badResp.StatusCode)
+	}
+}
+
+// VALIDATES: a GET whose "dns" value carries base64 padding ('=') is rejected
+// with 400 -- the decoder is RawURLEncoding, which forbids padding, so a padded
+// value cannot be answered.
+// RFC requirement: RFC8484-6-3 negative -- a "dns" value that INCLUDES base64url padding ('=') is rejected (400); padded encodings are not accepted.
+func TestDoHGetRejectsPaddedDNSParam(t *testing.T) {
+	port, client := startDoH(t, echoHandler("10.0.0.8"))
+	query := mustPack(t, "padded.test", dns.TypeA)
+	padded := base64.URLEncoding.EncodeToString(query) // URLEncoding, unlike RawURLEncoding, appends '=' padding.
+	if !strings.Contains(padded, "=") {
+		t.Fatalf("expected a padded encoding to contain '=', got %q", padded)
+	}
+	u := url.URL{Scheme: "https", Host: hostPort(port), Path: DefaultDoHPath}
+	q := u.Query()
+	q.Set("dns", padded)
+	u.RawQuery = q.Encode()
+	resp := dohGet(t, client, u.String())
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 for a padded dns value", resp.StatusCode)
+	}
+}
+
+// VALIDATES: the Cache-Control max-age of a DoH response equals the smallest
+// TTL in the Answer section, so the HTTP freshness lifetime never exceeds it.
+// RFC requirement: RFC8484-5.1-1 positive -- with answers at TTL 300 and 30, the response's Cache-Control max-age equals the smallest Answer-section TTL (30).
+func TestDoHCacheControlMatchesSmallestTTL(t *testing.T) {
+	handler := dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.Answer = append(m.Answer,
+			&dns.A{Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300}, A: net.ParseIP("10.0.0.1")},
+			&dns.A{Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 30}, A: net.ParseIP("10.0.0.2")},
+		)
+		_ = w.WriteMsg(m)
+	})
+	port, client := startDoH(t, handler)
+	resp := dohPost(t, client, port, dohContentType, mustPack(t, "ttl.test", dns.TypeA))
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Cache-Control"); got != "max-age=30" {
+		t.Fatalf("Cache-Control = %q, want %q (smallest Answer TTL)", got, "max-age=30")
+	}
+}
+
+// VALIDATES: a DoH query advertising a tiny EDNS UDP payload size (512) whose
+// reply far exceeds it still returns the FULL response, untruncated -- the DoH
+// path ignores the advertised EDNS UDP size rather than shrinking or setting TC.
+// RFC requirement: RFC8484-6-1 positive -- a query advertising EDNS UDP size 512 with a >512-byte reply returns every answer with TC=0; the advertised UDP size is ignored.
+func TestDoHIgnoresEDNSUDPSize(t *testing.T) {
+	const answers = 50
+	handler := dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		for i := range answers {
+			m.Answer = append(m.Answer, &dns.A{
+				Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+				A:   net.IPv4(10, 0, 0, byte(i)),
+			})
+		}
+		_ = w.WriteMsg(m)
+	})
+	port, client := startDoH(t, handler)
+
+	q := new(dns.Msg)
+	q.SetQuestion(dns.Fqdn("ednssize.test"), dns.TypeA)
+	q.SetEdns0(512, false) // advertise a tiny UDP payload size the server must ignore
+	wire, err := q.Pack()
+	if err != nil {
+		t.Fatalf("pack EDNS query: %v", err)
+	}
+	resp := dohPost(t, client, port, dohContentType, wire)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if len(body) <= 512 {
+		t.Fatalf("response is %d bytes; expected it to exceed the advertised 512-byte UDP size", len(body))
+	}
+	m := new(dns.Msg)
+	if err := m.Unpack(body); err != nil {
+		t.Fatalf("unpack response: %v", err)
+	}
+	if m.Truncated {
+		t.Fatalf("response has TC=1; the DoH path must not truncate on the advertised EDNS UDP size")
+	}
+	if len(m.Answer) != answers {
+		t.Fatalf("got %d answers, want %d (full response, untruncated)", len(m.Answer), answers)
 	}
 }
