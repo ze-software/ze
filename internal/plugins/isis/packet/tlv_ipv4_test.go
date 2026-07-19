@@ -55,6 +55,7 @@ func TestISISTLVIPv4RoundTrip(t *testing.T) {
 			UpDown: true, // up/down bit in the CONTROL octet, not the metric
 			Prefix: netip.PrefixFrom(netip.MustParseAddr("10.1.0.0"), 16),
 		}},
+		// RFC requirement: RFC5305-2-1 positive -- an unknown sub-TLV (type 1; RFC 5305 defines no sub-TLVs for TLV 135) is retained and round-trips through TLV 135 decode/encode rather than being rejected (RFC 5305 sec 2).
 		{"with-subtlv", ExtIPReachEntry{
 			Metric:  types.NewPrefixMetric(30),
 			Prefix:  netip.PrefixFrom(netip.MustParseAddr("172.16.0.0"), 24),

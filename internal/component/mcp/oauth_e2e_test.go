@@ -127,6 +127,7 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error on issuer mismatch")
 	}
+	// RFC requirement: RFC8414-3.3-2 negative -- an AS whose metadata issuer differs from the configured authorization-server is rejected
 	if !strings.Contains(err.Error(), "does not match configured") {
 		t.Fatalf("error should name issuer mismatch, got %v", err)
 	}
@@ -137,6 +138,7 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
+	// RFC requirement: RFC8414-3.3-2 positive -- when the AS-reported issuer equals the configured authorization-server, NewStreamable builds and the minted token verifies
 	as := newTestAS(t)
 	s, err := NewStreamable(StreamableConfig{
 		AuthMode: AuthOAuth,

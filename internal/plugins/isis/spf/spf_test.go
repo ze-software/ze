@@ -247,6 +247,8 @@ func TestISISSPFLANPseudonodeFirstHop(t *testing.T) {
 //
 // RFC requirement: RFC5308-5-2 positive -- clampMetric returns the exact sum when it stays below MAX_PATH_METRIC (0xFE000000 == MAX_V6_PATH_METRIC).
 // RFC requirement: RFC5308-5-2 negative -- clampMetric saturates to MAX_PATH_METRIC when the sum would exceed it.
+// RFC requirement: RFC5305-3-2 positive -- clampMetric returns the exact wide-metric sum while it stays below MAX_PATH_METRIC (0xFE000000), so a normal path is not spuriously saturated.
+// RFC requirement: RFC5305-3-2 negative -- a near-ceiling wide-metric sum saturates to MAX_PATH_METRIC instead of overflowing/wrapping (RFC 5305 sec 3 SHALL treat metrics >= MAX_PATH_METRIC as MAX_PATH_METRIC).
 func TestISISMetricWidth(t *testing.T) {
 	// clampMetric: a sum below the ceiling is exact; a sum at/over saturates.
 	if got := clampMetric(1000, 2000); got != 3000 {
@@ -288,10 +290,12 @@ func TestISISMetricWidth(t *testing.T) {
 	g2 := BuildGraph(src2, Level1)
 	res2 := Compute(g2, sysID(1), Level1)
 	// B itself is still reachable (edge 10) -- it is the prefix that drops out.
+	// RFC requirement: RFC5305-4-1 positive -- a node/prefix whose total cost stays below MAX_PATH_METRIC (edge 10) remains reachable and installable; the exclusion does not drop valid routes.
 	if _, ok := res2.Nodes[b]; !ok {
 		t.Fatal("B should be reachable at edge metric 10")
 	}
 	routes := BuildRoutes([]*Result{res2}, map[Level]*Graph{Level1: g2}, stubResolver{})
+	// RFC requirement: RFC5305-4-1 negative -- a prefix whose total metric reaches MAX_PATH_METRIC is excluded from the installed route set (RFC 5305 sec 4), never installed.
 	for _, r := range routes {
 		if r.Prefix.String() == "10.99.0.0/24" {
 			t.Errorf("prefix at MAX_PATH_METRIC total was installed (metric %d), want excluded", r.Metric)

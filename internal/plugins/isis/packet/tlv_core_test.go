@@ -153,6 +153,7 @@ func TestISISTLV22RoundTrip(t *testing.T) {
 	if out.Entries[1].Metric.Value() != types.MaxMetric {
 		t.Errorf("entry1 metric = %d, want %d (24-bit boundary)", out.Entries[1].Metric.Value(), types.MaxMetric)
 	}
+	// RFC requirement: RFC5305-2-1 positive -- sub-TLVs the codec does not interpret are retained opaquely and re-emitted verbatim (round-trip), never dropped or rejected (RFC 5305 sec 2: unknown sub-TLVs are ignored and skipped, not fatal).
 	if len(out.Entries[0].SubTLVs) != 3 {
 		t.Fatalf("entry0 got %d sub-TLVs, want 3", len(out.Entries[0].SubTLVs))
 	}
@@ -179,6 +180,7 @@ func TestISISTLV22Truncated(t *testing.T) {
 	// 7 neighbor + 3 metric + subLen=200 but no sub-TLV bytes.
 	v := make([]byte, types.SourceIDLen+types.MetricLen+1)
 	v[len(v)-1] = 200
+	// RFC requirement: RFC5305-2-1 negative -- a sub-TLV length that overruns the entry value is rejected, not silently skipped as if the (unknown) sub-TLV were absent.
 	if _, err := DecodeExtendedISReachTLV(v); err == nil {
 		t.Fatal("expected truncation error for over-long sub-TLV length")
 	}

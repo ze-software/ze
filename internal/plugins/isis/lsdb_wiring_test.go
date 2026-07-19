@@ -247,6 +247,7 @@ func TestISISEngineLeakOrigination(t *testing.T) {
 
 	// L1 LSP: the L2-derived prefix is present with the up/down bit SET.
 	l1LSP, l1Seq := frag0(lsdb.Level1)
+	// RFC requirement: RFC5305-4.1-1 positive -- a prefix leaked from L2 down into L1 carries the TLV 135 up/down bit SET (RFC 5305 sec 4.1: advertised from a higher level to a lower level).
 	if present, up := tlv135UpDown(l1LSP, l2Derived); !present || !up {
 		t.Errorf("L1 LSP: leaked %s present=%v up/down=%v, want present with up/down SET (RFC 2966 down leak)", l2Derived, present, up)
 	}
@@ -257,6 +258,7 @@ func TestISISEngineLeakOrigination(t *testing.T) {
 
 	// L2 LSP: the L1-derived prefix is present with the up/down bit CLEAR.
 	l2LSP, l2Seq := frag0(lsdb.Level2)
+	// RFC requirement: RFC5305-4.1-1 negative -- a prefix leaked UP from L1 into L2 leaves the up/down bit CLEAR; the bit is set only on a down-the-hierarchy advertisement (RFC 5305 sec 4.1).
 	if present, up := tlv135UpDown(l2LSP, l1Derived); !present || up {
 		t.Errorf("L2 LSP: leaked %s present=%v up/down=%v, want present with up/down CLEAR (up leak)", l1Derived, present, up)
 	}

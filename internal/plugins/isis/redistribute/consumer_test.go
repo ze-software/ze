@@ -166,6 +166,7 @@ func TestISISRedistConsumerConnected(t *testing.T) {
 		if got[0].Metric.Value() != DefaultRedistMetric {
 			t.Fatalf("level %v: metric = %d, want fixed default %d", lvl, got[0].Metric.Value(), DefaultRedistMetric)
 		}
+		// RFC requirement: RFC5305-4.1-1 negative -- a first-injected (not down-leaked) prefix has the TLV 135 up/down bit 0; the bit is set only when advertising down the hierarchy (RFC 5305 sec 4.1).
 		if got[0].UpDown {
 			t.Fatalf("level %v: up/down bit set on first injection; TLV 135 has no external bit and up/down is only set on down-level leak", lvl)
 		}

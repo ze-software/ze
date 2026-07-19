@@ -53,6 +53,7 @@ func TestFetchASMetadata_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fetchASMetadata: %v", err)
 	}
+	// RFC requirement: RFC8414-2-1 positive -- a metadata document carrying issuer decodes it into asMetadata.Issuer
 	if md.Issuer != "https://as.example/" {
 		t.Fatalf("issuer = %q", md.Issuer)
 	}
@@ -71,6 +72,7 @@ func TestFetchASMetadata_MissingIssuer(t *testing.T) {
 	defer srv.Close()
 
 	_, err := fetchASMetadata(t.Context(), nil, srv.URL)
+	// RFC requirement: RFC8414-2-1 negative -- a metadata document with no issuer is rejected
 	if err == nil || !strings.Contains(err.Error(), "missing issuer") {
 		t.Fatalf("expected missing issuer, got %v", err)
 	}
