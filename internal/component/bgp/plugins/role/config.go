@@ -6,9 +6,6 @@ package role
 
 import (
 	"fmt"
-	"math"
-	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -148,22 +145,6 @@ var validExportTokens = map[string]bool{
 	roleRS: true, roleRSClient: true,
 }
 
-// extractRemoteIP extracts the remote IP address from a peer or group config map.
-// Returns empty string if not found. Peer config takes precedence over group.
-func extractRemoteIP(peerMap, groupMap map[string]any) string {
-	for _, m := range []map[string]any{peerMap, groupMap} {
-		if m == nil {
-			continue
-		}
-		if remote, ok := m["remote"].(map[string]any); ok {
-			if ip, ok := remote["ip"].(string); ok && ip != "" {
-				return ip
-			}
-		}
-	}
-	return ""
-}
-
 // extractPeerRoleConfigs parses BGP config JSON and returns per-peer role configs
 // and a name-to-IP mapping for resolving peer names to addresses.
 // Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
@@ -207,7 +188,9 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 		}
 
 		// Key by IP address for filter lookups. Fall back to peer name.
-		ip := extractRemoteIP(peerMap, groupMap)
+		// configjson.PeerRemoteIP reads connection>remote>ip (the delivered shape); role's old
+		// local reader used the stale flat remote/ip path and silently returned "" on real config.
+		ip := configjson.PeerRemoteIP(peerMap, groupMap)
 		key := peerAddr
 		if ip != "" {
 			key = ip
@@ -223,40 +206,6 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 	}
 
 	return configs, nameToIP
-}
-
-// extractLocalASN extracts the local-as value from the BGP config JSON.
-// Returns 0 if not found or not a valid number.
-func extractLocalASN(jsonStr string) uint32 {
-	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
-	if !ok {
-		logger().Warn("extractLocalASN: failed to parse BGP subtree")
-		return 0
-	}
-	switch v := bgpSubtree["local-as"].(type) {
-	case float64:
-		if v < 0 || v > math.MaxUint32 {
-			logger().Warn("extractLocalASN: local-as out of uint32 range", "value", v)
-			return 0
-		}
-		return uint32(v)
-	case int:
-		if v < 0 || v > math.MaxUint32 {
-			logger().Warn("extractLocalASN: local-as out of uint32 range", "value", v)
-			return 0
-		}
-		return uint32(v)
-	case string:
-		// The plugin config framework delivers YANG leaf values as JSON strings
-		// (e.g. "65001"); without this case local-as silently resolves to 0.
-		n, err := strconv.ParseUint(strings.TrimSpace(v), 10, 32)
-		if err != nil {
-			logger().Warn("extractLocalASN: local-as not a valid uint32", "value", v)
-			return 0
-		}
-		return uint32(n)
-	}
-	return 0
 }
 
 // extractRoleCapabilities parses BGP config JSON and returns per-peer Role capabilities.

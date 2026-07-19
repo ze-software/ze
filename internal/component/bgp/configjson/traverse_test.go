@@ -170,6 +170,33 @@ func TestForEachPeer_EmptyTree(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+// TestPeerRemoteIP verifies remote-IP extraction from connection>remote>ip.
+//
+// VALIDATES: PeerRemoteIP reads the nested connection>remote>ip path, peer wins
+// over group, and returns "" when absent (AC-11).
+// PREVENTS: Regression to the stale flat remote/ip path that silently returns "".
+func TestPeerRemoteIP(t *testing.T) {
+	peerWithIP := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.1"}},
+	}
+	groupWithIP := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "198.51.100.9"}},
+	}
+
+	// Peer's own remote IP.
+	assert.Equal(t, "192.0.2.1", PeerRemoteIP(peerWithIP, nil))
+	// Peer wins over group.
+	assert.Equal(t, "192.0.2.1", PeerRemoteIP(peerWithIP, groupWithIP))
+	// Falls back to group when peer lacks it.
+	assert.Equal(t, "198.51.100.9", PeerRemoteIP(map[string]any{}, groupWithIP))
+	// Empty when neither has it.
+	assert.Equal(t, "", PeerRemoteIP(map[string]any{}, nil))
+	// The flat remote/ip path (role's old bug) is NOT read.
+	assert.Equal(t, "", PeerRemoteIP(map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}}, nil))
+	// Nil-safe.
+	assert.Equal(t, "", PeerRemoteIP(nil, nil))
+}
+
 // TestGetCapability_Present verifies capability extraction from session config.
 //
 // VALIDATES: GetCapability navigates session.capability correctly.

@@ -14,15 +14,15 @@ bgp {
 			preference 20
 		}
 		validation-timeout 30
-		policy {
-			invalid-action reject
-			not-found-action accept
+		action {
+			invalid reject
+			not-found accept
 		}
 		aspa {
 			validation true
-			policy {
-				invalid-action log-only
-				unknown-action accept
+			action {
+				invalid log-only
+				unknown accept
 			}
 		}
 	}

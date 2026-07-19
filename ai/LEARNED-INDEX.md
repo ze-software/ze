@@ -148,6 +148,7 @@ YANG schema, migration, config reload, editor, environment variables.
 - [759](plan/learned/759-archive-pruning.md) -- Archive commit-revisions pruning: stable prefix from dual-timestamp diff, mtime-oldest-first, file:// only, uint16 max-keep
 - [860](plan/learned/860-yang-required-generic.md) -- Generic ze:required enforcement: anchor-scoped walker, ValidateTreeAllModules for multi-module YANG sections, bare-form migration to mandatory true
 - [1058](plan/learned/1058-redist-source-registration.md) -- Registry-backed config validation must be populated at init(), not engine-run (config validate imports plugins but never starts them); walkTree now validates list KEYS not just children (ze:validate on a list key was dead code); producer↔source parity test
+- [1180](plan/learned/1180-rpki-per-peer-action.md) -- Per-peer config keyed by remote IP: delivered tree keys peers by NAME with IP at connection>remote>ip, so plugins keying by peer identity MUST use configjson.PeerRemoteIP (role read the stale flat remote/ip -> silently keyed by name -> OTC filter miss); "config that does nothing" bug class (a parsed leaf with no consumer: RPKI not-found + role remote-IP both found inert); a vacuous test assertion (total>=0 not ==0) hides the bug
 
 ## CLI/API
 

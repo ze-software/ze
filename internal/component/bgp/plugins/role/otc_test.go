@@ -1,7 +1,9 @@
 package role
 
 import (
+	"bytes"
 	"encoding/binary"
+	"log/slog"
 	"net/netip"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // buildTestAttrs creates raw attributes with ORIGIN + optional OTC.
@@ -419,12 +422,12 @@ func TestOTCIngressFilter(t *testing.T) {
 		"10.0.0.1": {role: roleProvider},
 		"10.0.0.2": {role: roleCustomer},
 		"10.0.0.3": {role: rolePeer},
-	}, nil, 0)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.2", roleProvider)
 	setFilterRemoteRole("10.0.0.3", rolePeer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -445,7 +448,7 @@ func TestOTCIngressFilter(t *testing.T) {
 	t.Run("config_but_no_remote_role", func(t *testing.T) {
 		setFilterState(map[string]*peerRoleConfig{
 			"10.0.0.50": {role: roleProvider},
-		}, nil, 0)
+		}, nil)
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65050}
 		meta := make(map[string]any)
 		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
@@ -458,7 +461,7 @@ func TestOTCIngressFilter(t *testing.T) {
 			"10.0.0.1": {role: roleProvider},
 			"10.0.0.2": {role: roleCustomer},
 			"10.0.0.3": {role: rolePeer},
-		}, nil, 0)
+		}, nil)
 		setFilterRemoteRole("10.0.0.1", roleCustomer)
 		setFilterRemoteRole("10.0.0.2", roleProvider)
 		setFilterRemoteRole("10.0.0.3", rolePeer)
@@ -514,13 +517,13 @@ func TestOTCEgressFilter(t *testing.T) {
 		"10.0.0.5": {role: roleProvider, export: []string{"customer", "peer"}, resolvedExport: resolveExport(roleProvider, []string{"customer", "peer"})},
 		"10.0.0.6": {role: roleProvider, export: []string{"default", "unknown"}, resolvedExport: resolveExport(roleProvider, []string{"default", "unknown"})},
 		"10.0.0.7": {role: roleProvider},
-	}, nil, 0)
+	}, nil)
 	setFilterRemoteRole("10.0.0.10", roleCustomer)
 	setFilterRemoteRole("10.0.0.11", roleProvider)
 	setFilterRemoteRole("10.0.0.12", rolePeer)
 	setFilterRemoteRole("10.0.0.13", roleRSClient)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -800,8 +803,8 @@ func TestIsPayloadUnicast(t *testing.T) {
 // PREVENTS: OTC routes from IBGP being silently dropped.
 func TestLooseIngressFilter_IBGPNoRole_RouteWithOTC(t *testing.T) {
 	// No config for the IBGP peer.
-	setFilterState(nil, nil, 0)
-	defer setFilterState(nil, nil, 0)
+	setFilterState(nil, nil)
+	defer setFilterState(nil, nil)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.100"), PeerAS: 65000}
 	payload := buildTestPayload(buildTestAttrs(65001), nil) // route has OTC
@@ -827,14 +830,14 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 	// Dest: EBGP provider, peer, RS, customer, rs-client.
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.100": {role: roleProvider}, // we are provider to 10.0.0.100 but the route doesn't come from here
-	}, nil, 0)
+	}, nil)
 	setFilterRemoteRole("10.0.0.200", roleProvider) // EBGP dest: provider
 	setFilterRemoteRole("10.0.0.201", roleCustomer) // EBGP dest: customer
 	setFilterRemoteRole("10.0.0.202", rolePeer)     // EBGP dest: peer
 	setFilterRemoteRole("10.0.0.203", roleRS)       // EBGP dest: RS
 	setFilterRemoteRole("10.0.0.204", roleRSClient) // EBGP dest: RS-client
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -901,13 +904,13 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
 		// 10.0.0.2 has NO role config (IBGP or legacy peer)
-	}, nil, 0)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer) // EBGP: we are provider, they are customer
 	// 10.0.0.2: no remote role
 	setFilterRemoteRole("10.0.0.10", roleProvider) // dest with role
 	// 10.0.0.20: dest without role
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -944,11 +947,11 @@ func TestOTCEgressStampMod(t *testing.T) {
 	// Route has no OTC -> should write mod to stamp OTC with local ASN.
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleCustomer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -956,7 +959,8 @@ func TestOTCEgressStampMod(t *testing.T) {
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	// dest.LocalAS is the reactor-supplied effective per-peer local AS used to stamp OTC.
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
 	meta := map[string]any{"src-role": roleCustomer} // Our role for src peer is provider
 
 	var mods filterapi.ModAccumulator
@@ -977,11 +981,11 @@ func TestOTCEgressStampMod(t *testing.T) {
 func TestOTCEgressNoStampProvider(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleProvider)
 	setFilterRemoteRole("10.0.0.5", roleProvider)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1002,11 +1006,11 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 func TestOTCEgressPreserveExisting(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleCustomer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1028,19 +1032,21 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, nil, 64999) // local ASN = 64999
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleCustomer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	// dest.LocalAS 64999 is the reactor-supplied local AS; it must be stamped,
+	// not the src peer AS (65001) or the dest peer AS (65002).
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 65002}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 65002, LocalAS: 64999}
 	meta := map[string]any{"src-role": roleCustomer}
 
 	var mods filterapi.ModAccumulator
@@ -1049,7 +1055,7 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 	ops := mods.Ops()
 	require.Len(t, ops, 1)
 	asn := binary.BigEndian.Uint32(ops[0].Buf)
-	assert.Equal(t, uint32(64999), asn, "must use local ASN (64999), not src (65001) or dest (65002)")
+	assert.Equal(t, uint32(64999), asn, "must use local ASN (64999), not src (65001) or dest peer AS (65002)")
 }
 
 // VALIDATES: AC-7 — Non-unicast egress skips OTC processing entirely.
@@ -1057,11 +1063,11 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 func TestOTCEgressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleCustomer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1090,10 +1096,10 @@ func TestOTCEgressUnicastOnly(t *testing.T) {
 func TestOTCIngressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleProvider)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1175,11 +1181,11 @@ func TestOTCAttrModHandlerOverflow(t *testing.T) {
 func TestOTCEgressStampPeer(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: rolePeer},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", rolePeer)
 	setFilterRemoteRole("10.0.0.5", rolePeer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1202,11 +1208,11 @@ func TestOTCEgressStampPeer(t *testing.T) {
 func TestOTCEgressStampRSClient(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleRS},
-	}, nil, 65000)
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleRSClient)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1214,7 +1220,8 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	// dest.LocalAS is the reactor-supplied effective per-peer local AS used to stamp OTC.
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
 	meta := map[string]any{"src-role": roleCustomer}
 
 	var mods filterapi.ModAccumulator
@@ -1233,11 +1240,11 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 func TestOTCEgressStampLocalASNZero(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, nil, 0) // localASN = 0
+	}, nil) // localASN = 0
 	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleCustomer)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -1252,6 +1259,46 @@ func TestOTCEgressStampLocalASNZero(t *testing.T) {
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	assert.True(t, accept)
 	assert.Equal(t, 0, mods.Len(), "no mod when localASN is 0")
+}
+
+// TestOTCEgressStampFailClosedObservability is the AC-4 fail-closed proof
+// (plan/spec-fixit-local-asn-config-key.md, ai/rules/fail-closed-guards.md):
+// when a Customer/Peer/RS-client destination has no local AS (dest.LocalAS==0),
+// the OTC stamp is skipped AND the skip is observable (a WARN is emitted), so a
+// missing local AS is never a silent, valid-looking zero. Driven from the
+// caller entry point OTCEgressFilter, not the guard helper alone.
+func TestOTCEgressStampFailClosedObservability(t *testing.T) {
+	// Install a capturing WARN-level logger; restore the discard default after.
+	var buf bytes.Buffer
+	prev := logger()
+	ConfigureLogger(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer func() { ConfigureLogger(prev); loggerPtr.Store(slogutil.DiscardLogger()) }()
+
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleProvider},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	// dest.LocalAS deliberately 0: a peer with no local AS cannot be established
+	// (config parsing rejects it), so a zero here is a wiring failure, not "AS 0".
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 0}
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
+	assert.True(t, accept, "route still accepted; only the stamp is skipped")
+	assert.Equal(t, 0, mods.Len(), "no OTC stamped when dest.LocalAS is 0")
+	assert.Contains(t, buf.String(), "OTC egress stamp skipped",
+		"fail-closed: a missing local AS must be observable, not a silent zero")
 }
 
 // VALIDATES: isPayloadUnicast handles extended-length MP_REACH_NLRI.
@@ -1302,13 +1349,13 @@ func TestIsPayloadUnicastTruncatedMPReach(t *testing.T) {
 // PREVENTS: OTC-bearing routes leaking to Provider/Peer/RS when source has no role config.
 func TestOTCEgressWireBytesCheck(t *testing.T) {
 	// Only destination peer has role config. Source peer has none.
-	setFilterState(nil, nil, 0)
+	setFilterState(nil, nil)
 	setFilterRemoteRole("10.0.0.200", roleProvider)
 	setFilterRemoteRole("10.0.0.201", roleCustomer)
 	setFilterRemoteRole("10.0.0.202", rolePeer)
 	setFilterRemoteRole("10.0.0.203", roleRS)
 	defer func() {
-		setFilterState(nil, nil, 0)
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()

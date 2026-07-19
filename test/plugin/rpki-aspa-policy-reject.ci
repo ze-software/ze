@@ -121,8 +121,8 @@ bgp {
 		}
 		aspa {
 			validation true;
-			policy {
-				invalid-action reject;
+			action {
+				invalid reject;
 			}
 		}
 	}

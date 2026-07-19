@@ -514,44 +514,25 @@ func TestExtractRoleCapabilities_StrictMode(t *testing.T) {
 	}
 }
 
-// TestExtractRemoteIP verifies IP extraction from peer and group config maps.
-//
-// VALIDATES: extractRemoteIP correctly extracts remote.ip from peer or group config.
-// PREVENTS: Key mismatch between config (keyed by name) and filters (keyed by IP).
-func TestExtractRemoteIP(t *testing.T) {
-	tests := []struct {
-		name     string
-		peerMap  map[string]any
-		groupMap map[string]any
-		wantIP   string
-	}{
-		{"peer_has_ip", map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}}, nil, "10.0.0.1"},
-		{"group_has_ip", nil, map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}}, "10.0.0.2"},
-		{"peer_overrides_group", map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}}, map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}}, "10.0.0.1"},
-		{"no_remote", map[string]any{"peer-as": "65001"}, nil, ""},
-		{"remote_no_ip", map[string]any{"remote": map[string]any{"as": "65001"}}, nil, ""},
-		{"both_nil", nil, nil, ""},
-		{"empty_ip", map[string]any{"remote": map[string]any{"ip": ""}}, nil, ""},
-	}
+// test-relax: TestExtractRemoteIP removed -- it exercised role's local extractRemoteIP, which was
+// deleted. That reader used the stale flat remote/ip path and silently returned "" on real config
+// (peers are delivered keyed by name with the IP at connection>remote>ip). Remote-IP extraction now
+// lives in configjson.PeerRemoteIP, covered by configjson.TestPeerRemoteIP with the correct path.
+// Replaced coverage, not weakened coverage.
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractRemoteIP(tt.peerMap, tt.groupMap)
-			assert.Equal(t, tt.wantIP, got)
-		})
-	}
-}
-
-// TestExtractPeerRoleConfigs_NamedPeerKeyedByIP verifies named peers are keyed by IP.
+// TestExtractPeerRoleConfigs_RealShape verifies a named peer delivered in the REALISTIC shape
+// (keyed by name, remote IP nested at connection>remote>ip) is keyed by its remote IP, so the OTC
+// filter lookup by IP hits. Regression guard: this FAILS on the pre-fix code (role's flat remote/ip
+// reader returned "" and keyed by name), passes with configjson.PeerRemoteIP.
 //
-// VALIDATES: extractPeerRoleConfigs keys configs by remote.ip, not peer name.
-// PREVENTS: Filter lookups by IP missing config stored by name.
-func TestExtractPeerRoleConfigs_NamedPeerKeyedByIP(t *testing.T) {
-	jsonStr := `{"bgp":{"peer":{"my-upstream":{"remote":{"ip":"10.0.0.1"},"role":{"import":"provider"}}}}}`
+// VALIDATES: extractPeerRoleConfigs keys configs by connection>remote>ip, not peer name.
+// PREVENTS: RFC 9234 OTC config-role filtering being silently disabled on real configs.
+func TestExtractPeerRoleConfigs_RealShape(t *testing.T) {
+	jsonStr := `{"bgp":{"peer":{"my-upstream":{"connection":{"remote":{"ip":"10.0.0.1"}},"role":{"import":"provider"}}}}}`
 	configs, nameToIP := extractPeerRoleConfigs(jsonStr)
 
 	// Config should be keyed by IP, not name.
-	require.Contains(t, configs, "10.0.0.1", "config should be keyed by IP")
+	require.Contains(t, configs, "10.0.0.1", "config should be keyed by remote IP (connection>remote>ip)")
 	assert.Nil(t, configs["my-upstream"], "config should NOT be keyed by name")
 	assert.Equal(t, "provider", configs["10.0.0.1"].role)
 
@@ -568,8 +549,8 @@ func TestNameToIPResolution(t *testing.T) {
 	// Set up name-to-IP mapping.
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, map[string]string{"my-upstream": "10.0.0.1"}, 0)
-	defer setFilterState(nil, nil, 0)
+	}, map[string]string{"my-upstream": "10.0.0.1"})
+	defer setFilterState(nil, nil)
 
 	// Store remote role by NAME (as OnValidateOpen does).
 	setFilterRemoteRole("my-upstream", roleCustomer)
@@ -586,45 +567,23 @@ func TestNameToIPResolution(t *testing.T) {
 	assert.Equal(t, roleCustomer, remoteRole, "remote role should be found by IP after name resolution")
 }
 
-// VALIDATES: extractLocalASN parses local-as from BGP config JSON.
-// PREVENTS: Wrong ASN used for OTC egress stamping.
-func TestExtractLocalASN(t *testing.T) {
-	tests := []struct {
-		name string
-		json string
-		want uint32
-	}{
-		{"valid_float64", `{"bgp":{"local-as":65001}}`, 65001},
-		{"max_asn", `{"bgp":{"local-as":4294967295}}`, 4294967295},
-		{"zero", `{"bgp":{"local-as":0}}`, 0},
-		{"missing_key", `{"bgp":{}}`, 0},
-		{"string_value", `{"bgp":{"local-as":"not-a-number"}}`, 0},
-		{"invalid_json", `not json`, 0},
-		{"empty_json", `{}`, 0},
-		{"negative", `{"bgp":{"local-as":-1}}`, 0},
-		{"overflow", `{"bgp":{"local-as":4294967296}}`, 0},
-		{"very_large", `{"bgp":{"local-as":5000000000}}`, 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, extractLocalASN(tt.json))
-		})
-	}
-}
+// test-relax: TestExtractLocalASN removed -- the role plugin's extractLocalASN
+// reader was DELETED (removed feature, not weakened). Per
+// plan/spec-fixit-local-asn-config-key.md the local AS for OTC egress stamping
+// now comes from the reactor via filterapi.PeerFilterInfo.LocalAS, not from a
+// raw-config-JSON read in this package. Coverage moved to the reactor's
+// TestForwardFactsFilterInfo (real tree -> PeerSettings.LocalAS -> filterInfo)
+// and the role OTC stamp tests that read dest.LocalAS (otc_test.go).
 
 // TestParseConfig_StringValuedDelivery pins the ACTUAL config format the plugin
 // config framework delivers: YANG leaf values arrive as JSON strings, because
-// Tree.values is map[string]string. A numeric local-as ("65001") previously hit
-// neither the float64 nor the int arm of extractLocalASN's switch and silently
-// resolved to 0. The pre-existing TestExtractLocalASN only covered a
-// non-numeric string ("not-a-number"), which returns 0 both before and after
-// the fix, so it never exercised the bug. strict "true" is coerced by parseBool.
+// Tree.values is map[string]string. strict "true" is coerced by parseBool.
+//
+// test-relax: the former extractLocalASN assertion here is dropped because that
+// reader was deleted (see the note above). The role/strict string-valued
+// delivery coverage below is preserved and still exercises the real JSON shape.
 func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	js := `{"bgp":{"local-as":"65001","peer":{"192.0.2.1":{"remote":{"ip":"192.0.2.1"},"role":{"import":"customer","strict":"true"}}}}}`
-
-	if asn := extractLocalASN(js); asn != 65001 {
-		t.Errorf("extractLocalASN = %d, want 65001 (string-valued local-as)", asn)
-	}
 
 	configs, _ := extractPeerRoleConfigs(js)
 	cfg, ok := configs["192.0.2.1"]

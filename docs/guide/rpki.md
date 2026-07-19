@@ -57,14 +57,42 @@ bgp {
 | `rpki / cache-server / port` | uint16 | 323 | RTR TCP port |
 | `rpki / cache-server / preference` | uint8 | 100 | Server preference (lower preferred) |
 | `rpki / validation-timeout` | uint16 | 30 | Seconds before fail-open on pending routes |
-| `rpki / policy / invalid-action` | enum | reject | Action for Invalid routes: reject, log-only, accept |
-| `rpki / policy / not-found-action` | enum | accept | Action for NotFound routes: accept, reject, log-only |
+| `rpki / action / invalid` | enum | reject | Action for Invalid routes: reject, log-only, accept |
+| `rpki / action / not-found` | enum | accept | Action for NotFound routes: accept, reject, log-only |
 | `rpki / aspa / validation` | boolean | false | Enable ASPA path verification using RTR v2 ASPA records |
-| `rpki / aspa / policy / invalid-action` | enum | log-only | Action for ASPA Invalid routes: reject, log-only, accept |
-| `rpki / aspa / policy / unknown-action` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
+| `rpki / aspa / action / invalid` | enum | log-only | Action for ASPA Invalid routes: reject, log-only, accept |
+| `rpki / aspa / action / unknown` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
 
 Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).
 <!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
+
+#### Per-peer and per-group actions
+
+The `action` block (both the origin `action` and the ASPA `action`) can also be set under a
+`peer` or a `group`, overriding the global `rpki / action` for routes learned from that peer.
+Only the action blocks are per-peer; `cache-server`, `validation-timeout`, and `aspa / validation`
+remain global. Resolution is **peer > group > global, per leaf**: a leaf left unset on the peer
+inherits the group's value, then the global value. Peers with a static `connection / remote / ip`
+can be overridden; dynamically-addressed peers use the global actions.
+
+```
+bgp {
+    rpki {                                  /* global: caches + baseline actions */
+        cache-server 192.0.2.1 { port 323; }
+        action { invalid reject; not-found accept; }
+    }
+    group transit {
+        rpki { action { invalid reject; } }        /* group default for members */
+        peer customer-a {
+            rpki { action { invalid log-only; } }  /* per-peer override; not-found inherits global */
+        }
+    }
+}
+```
+
+`show bgp rpki status` reports the effective global actions (`actions`) and the resolved per-peer
+overrides with the source of each leaf (`peer-actions`).
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
 
 ### Plugin Bindings
 
@@ -211,8 +239,8 @@ bgp {
         }
         aspa {
             validation true;
-            policy {
-                invalid-action reject;
+            action {
+                invalid reject;
             }
         }
     }
@@ -223,12 +251,12 @@ bgp {
 
 | Setting | Values | Default | Effect |
 |---------|--------|---------|--------|
-| `invalid-action` | reject, log-only, accept | log-only | Action when a route's AS_PATH fails ASPA verification |
-| `unknown-action` | accept, reject, log-only | accept | Action when ASPA records are missing for some ASes in the path |
+| `aspa / action / invalid` | reject, log-only, accept | log-only | Action when a route's AS_PATH fails ASPA verification |
+| `aspa / action / unknown` | accept, reject, log-only | accept | Action when ASPA records are missing for some ASes in the path |
 
-The default for `invalid-action` is `log-only` (conservative) rather than `reject` because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to `reject` once your upstream providers have published ASPA records.
+The default for `invalid` is `log-only` (conservative) rather than `reject` because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to `reject` once your upstream providers have published ASPA records.
 
-ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when `invalid-action` is set to `reject`.
+ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when `invalid` is set to `reject`.
 
 ### ASPA Validation States
 

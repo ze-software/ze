@@ -97,19 +97,18 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 	assert.Equal(t, ASPAPolicyAccept, cfg.OriginNotFoundAction, "default not-found-action is accept")
 }
 
-// TestParseRPKIConfigOriginPolicy verifies the rpki/policy container (RFC 6811 origin-validation
-// action) is parsed. The YANG leaf existed but was never read before this wiring, so the
-// operator-facing action was a no-op.
-func TestParseRPKIConfigOriginPolicy(t *testing.T) {
+// TestParseRPKIConfigOriginAction verifies the rpki/action container (RFC 6811 origin-validation
+// action) is parsed under the new `action { invalid; not-found }` syntax.
+func TestParseRPKIConfigOriginAction(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
 		"rpki": {
-			"policy": {"invalid-action": "accept", "not-found-action": "reject"},
+			"action": {"invalid": "accept", "not-found": "reject"},
 			"cache-server": {"10.0.0.1": {}}
 		}
 	}`)
 	require.NoError(t, err)
-	assert.Equal(t, ASPAPolicyAccept, cfg.OriginInvalidAction, "invalid-action=accept is parsed")
-	assert.Equal(t, ASPAPolicyReject, cfg.OriginNotFoundAction, "not-found-action=reject is parsed")
+	assert.Equal(t, ASPAPolicyAccept, cfg.OriginInvalidAction, "action/invalid=accept is parsed")
+	assert.Equal(t, ASPAPolicyReject, cfg.OriginNotFoundAction, "action/not-found=reject is parsed")
 }
 
 func TestParseRPKIConfigMultipleServers(t *testing.T) {
@@ -192,13 +191,13 @@ func TestParseRPKIConfigASPAValidationDisabled(t *testing.T) {
 	assert.False(t, cfg.ASPAValidation)
 }
 
-func TestParseRPKIConfigASPAPolicy(t *testing.T) {
+func TestParseRPKIConfigASPAAction(t *testing.T) {
 	jsonStr := `{"rpki": {
 		"aspa": {
 			"validation": "true",
-			"policy": {
-				"invalid-action": "reject",
-				"unknown-action": "reject"
+			"action": {
+				"invalid": "reject",
+				"unknown": "reject"
 			}
 		},
 		"cache-server": {"10.0.0.1": {}}
@@ -219,9 +218,9 @@ func TestParseRPKIConfigASPAPolicyDefaults(t *testing.T) {
 	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAUnknownAction)
 }
 
-func TestParseRPKIConfigASPAPolicyPartial(t *testing.T) {
+func TestParseRPKIConfigASPAActionPartial(t *testing.T) {
 	jsonStr := `{"rpki": {
-		"aspa": {"policy": {"invalid-action": "accept"}},
+		"aspa": {"action": {"invalid": "accept"}},
 		"cache-server": {"10.0.0.1": {}}
 	}}`
 
@@ -229,4 +228,126 @@ func TestParseRPKIConfigASPAPolicyPartial(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAInvalidAction)
 	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAUnknownAction) // default preserved
+}
+
+// TestParseRPKIConfig_PerPeerOverride verifies a per-peer action override is parsed and keyed
+// by the peer's remote IP (connection>remote>ip), with unset leaves falling back to global (AC-2/5).
+func TestParseRPKIConfig_PerPeerOverride(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"peer": {
+			"customer-a": {
+				"connection": {"remote": {"ip": "192.0.2.1"}},
+				"rpki": {"action": {"invalid": "accept"}}
+			}
+		}
+	}`)
+	require.NoError(t, err)
+	require.NotNil(t, cfg.PeerActions)
+	set, ok := cfg.PeerActions["192.0.2.1"]
+	require.True(t, ok, "per-peer map is keyed by remote IP, not peer name")
+	assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
+	assert.Equal(t, sourcePeer, set.OriginInvalid.Source)
+	// Unset not-found falls through to the global default (accept).
+	assert.Equal(t, ASPAPolicyAccept, set.OriginNotFound.Action)
+	assert.Equal(t, sourceGlobal, set.OriginNotFound.Source)
+}
+
+// TestParseRPKIConfig_GroupInheritance verifies a group-level action applies to a member peer
+// that sets nothing of its own (AC-3).
+func TestParseRPKIConfig_GroupInheritance(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"group": {
+			"transit": {
+				"rpki": {"action": {"invalid": "reject"}},
+				"peer": {"member": {"connection": {"remote": {"ip": "198.51.100.2"}}}}
+			}
+		}
+	}`)
+	require.NoError(t, err)
+	set, ok := cfg.PeerActions["198.51.100.2"]
+	require.True(t, ok)
+	assert.Equal(t, ASPAPolicyReject, set.OriginInvalid.Action)
+	assert.Equal(t, sourceGroup, set.OriginInvalid.Source)
+}
+
+// TestParseRPKIConfig_PeerBeatsGroup verifies peer overrides win over group (AC-4).
+func TestParseRPKIConfig_PeerBeatsGroup(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"group": {
+			"transit": {
+				"rpki": {"action": {"invalid": "reject"}},
+				"peer": {"member": {
+					"connection": {"remote": {"ip": "198.51.100.2"}},
+					"rpki": {"action": {"invalid": "accept"}}
+				}}
+			}
+		}
+	}`)
+	require.NoError(t, err)
+	set := cfg.PeerActions["198.51.100.2"]
+	assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
+	assert.Equal(t, sourcePeer, set.OriginInvalid.Source)
+}
+
+// TestParseRPKIConfig_PerLeafFallback verifies unset leaves fall through per-leaf: a peer that
+// overrides only invalid keeps the global not-found (AC-5).
+func TestParseRPKIConfig_PerLeafFallback(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"action": {"not-found": "reject"}, "cache-server": {"10.0.0.1": {}}},
+		"peer": {"p": {
+			"connection": {"remote": {"ip": "203.0.113.5"}},
+			"rpki": {"action": {"invalid": "accept"}}
+		}}
+	}`)
+	require.NoError(t, err)
+	set := cfg.PeerActions["203.0.113.5"]
+	assert.Equal(t, ASPAPolicyAccept, set.OriginInvalid.Action)
+	assert.Equal(t, sourcePeer, set.OriginInvalid.Source)
+	// not-found inherits the configured GLOBAL value (reject), not the YANG default.
+	assert.Equal(t, ASPAPolicyReject, set.OriginNotFound.Action)
+	assert.Equal(t, sourceGlobal, set.OriginNotFound.Source)
+}
+
+// TestParseRPKIConfig_ASPAPerPeer verifies a per-peer ASPA action override (AC-6).
+func TestParseRPKIConfig_ASPAPerPeer(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"aspa": {"validation": "true"}, "cache-server": {"10.0.0.1": {}}},
+		"peer": {"p": {
+			"connection": {"remote": {"ip": "203.0.113.9"}},
+			"rpki": {"aspa": {"action": {"invalid": "accept"}}}
+		}}
+	}`)
+	require.NoError(t, err)
+	set := cfg.PeerActions["203.0.113.9"]
+	assert.Equal(t, ASPAPolicyAccept, set.ASPAInvalid.Action)
+	assert.Equal(t, sourcePeer, set.ASPAInvalid.Source)
+}
+
+// TestParseRPKIConfig_NoOverrideNotInMap verifies a peer with no override is absent from the
+// per-peer map (falls back to global at decision time), keeping the map minimal.
+func TestParseRPKIConfig_NoOverrideNotInMap(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"peer": {"p": {"connection": {"remote": {"ip": "203.0.113.1"}}}}
+	}`)
+	require.NoError(t, err)
+	assert.Nil(t, cfg.PeerActions, "no overrides -> nil per-peer map")
+}
+
+// TestParseRPKIConfig_DynamicPeerSkipped verifies a peer without a static remote IP cannot be
+// keyed and is skipped (documented Known Limitation), so its override is not recorded.
+func TestParseRPKIConfig_DynamicPeerSkipped(t *testing.T) {
+	cfg, err := parseRPKIConfig(`{
+		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"group": {"dyn": {
+			"connection": {"remote": {"ip": "dynamic"}},
+			"rpki": {"action": {"invalid": "accept"}},
+			"peer": {"d": {"rpki": {"action": {"invalid": "accept"}}}}
+		}}
+	}`)
+	require.NoError(t, err)
+	assert.Nil(t, cfg.PeerActions, "dynamic peer without static IP is not keyed")
 }

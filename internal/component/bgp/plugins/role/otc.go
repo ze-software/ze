@@ -426,13 +426,22 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 		attrs := extractAttrsFromPayload(payload)
 		_, hasOTC, _ := findOTC(attrs)
 		if !hasOTC {
-			localASN := getLocalASN()
+			// RFC 9234 R008: stamp OTC with our local AS for this session. The
+			// reactor hands the effective per-peer local AS in dest.LocalAS
+			// (peer_forward_facts.go); it is never re-parsed from raw config here.
+			localASN := dest.LocalAS
 			if localASN > 0 {
 				var asnBuf [otcAttrLen]byte
 				binary.BigEndian.PutUint32(asnBuf[:], localASN)
 				mods.Op(otcAttrCode, filterapi.AttrModSet, asnBuf[:]) // value bytes only (4-byte ASN)
 				logger().Debug("OTC egress stamp mod",
 					"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole, "otc-asn", localASN)
+			} else {
+				// Fail closed and say so (ai/rules/fail-closed-guards.md): a peer
+				// with no local AS cannot be established (config parsing rejects
+				// it), so a zero here signals a wiring gap, not a valid answer.
+				logger().Warn("OTC egress stamp skipped: no local AS for destination peer",
+					"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole)
 			}
 		}
 	}

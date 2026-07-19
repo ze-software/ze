@@ -61,6 +61,35 @@ func ForEachPeer(bgpTree map[string]any, visit PeerVisitor) {
 	}
 }
 
+// PeerRemoteIP returns a peer's remote IP address from its delivered config map,
+// reading connection > remote > ip. peerMap takes precedence over the enclosing
+// groupMap (a peer's own remote IP always wins); returns "" when neither has it.
+//
+// This is the single correct reader for a peer's remote IP. The config delivered
+// to plugins keys peers by NAME (Tree.ToMap emits a keyed YANG list keyed by the
+// entry name), with the address nested at connection > remote > ip. Plugins that
+// identify peers by IP at runtime (RPKI, watchdog, role) MUST key on this value,
+// not on the ForEachPeer map key (which is the peer name).
+func PeerRemoteIP(peerMap, groupMap map[string]any) string {
+	for _, m := range []map[string]any{peerMap, groupMap} {
+		if m == nil {
+			continue
+		}
+		conn, ok := m["connection"].(map[string]any)
+		if !ok {
+			continue
+		}
+		remote, ok := conn["remote"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if ip, ok := remote["ip"].(string); ok && ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
+
 // GetCapability returns the capability map for a peer or group config map.
 // Capabilities live under session > capability in the YANG peer config structure.
 // Returns nil if no capability container exists.

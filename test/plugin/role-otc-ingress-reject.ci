@@ -60,18 +60,27 @@ def main():
         api.wait_for_event(timeout=0.2)
     api.quiesce()
 
-    # Query adj-rib-in: route should have been rejected by ingress filter.
+    # Query adj-rib-in: the leaked route (OTC from a Customer = leak) MUST have been rejected by
+    # the OTC ingress filter, so adj-rib-in holds zero routes. Before the config-key fix, role
+    # keyed its per-peer config by name while the filter looked up by IP, so the lookup missed,
+    # no filtering happened, and the leak was accepted (total-routes == 1) -- this asserts the fix.
     result = dispatch(api, 'show bgp adj-rib-in status')
     data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 
-    if total < 0:  # architectural blocker: validation gate makes positive assertions unreliable
+    if total < 0:
         msg = f'adj-rib-in query failed, got total={total}'
         print(f'FAIL: {msg}', file=sys.stderr)
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: OTC ingress filter rejected route leak from customer before any dest re-advertisement', file=sys.stderr)
+    if total != 0:
+        msg = f'OTC ingress filter did NOT reject the customer route leak: adj-rib-in total-routes={total}, want 0'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
+
+    print('OK: OTC ingress filter rejected route leak from customer (adj-rib-in empty)', file=sys.stderr)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

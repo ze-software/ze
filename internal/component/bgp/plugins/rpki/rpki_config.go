@@ -40,6 +40,42 @@ func aspaActionFromString(s string) (uint8, bool) {
 	}
 }
 
+// actionSource identifies the config level a resolved per-peer action came from.
+type actionSource uint8
+
+const (
+	sourceGlobal actionSource = iota
+	sourceGroup
+	sourcePeer
+)
+
+// String renders the source for the `show bgp rpki status` peer-actions display.
+func (s actionSource) String() string {
+	switch s {
+	case sourcePeer:
+		return "peer"
+	case sourceGroup:
+		return "group"
+	default:
+		return "global"
+	}
+}
+
+// resolvedAction is an action value plus the config level it was resolved from.
+type resolvedAction struct {
+	Action uint8
+	Source actionSource
+}
+
+// peerActionSet holds the fully-resolved RPKI actions for one peer, merged
+// peer > group > global per leaf, with each leaf's source retained for display.
+type peerActionSet struct {
+	OriginInvalid  resolvedAction
+	OriginNotFound resolvedAction
+	ASPAInvalid    resolvedAction
+	ASPAUnknown    resolvedAction
+}
+
 // rpkiConfig holds the parsed RPKI plugin configuration.
 type rpkiConfig struct {
 	CacheServers      []cacheServerConfig
@@ -54,6 +90,10 @@ type rpkiConfig struct {
 	OriginInvalidAction uint8
 	// OriginNotFoundAction is the action for the NotFound origin-validation state (default: accept).
 	OriginNotFoundAction uint8
+	// PeerActions holds per-peer resolved action overrides, keyed by the peer's remote IP
+	// (matching the route's peerAddr at decision time). A peer is present only when peer- or
+	// group-level config overrode at least one leaf; absent peers use the global actions above.
+	PeerActions map[string]peerActionSet
 }
 
 // parseRPKIConfig extracts RPKI configuration from a BGP config JSON string.
@@ -86,19 +126,15 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		}
 	}
 
-	// Parse origin-validation policy from rpki/policy container. RFC 6811 Section 3: the action
+	// Parse origin-validation actions from rpki/action container. RFC 6811 Section 3: the action
 	// for each validation state is operator-configurable. The YANG defaults are
-	// invalid-action=reject and not-found-action=accept.
-	if policyMap, ok := rpkiMap["policy"].(map[string]any); ok {
-		if actionStr, ok := policyMap["invalid-action"].(string); ok {
-			if action, valid := aspaActionFromString(actionStr); valid {
-				cfg.OriginInvalidAction = action
-			}
+	// action/invalid=reject and action/not-found=accept.
+	if actionMap, ok := rpkiMap["action"].(map[string]any); ok {
+		if action, set := parseActionLeaf(actionMap, "invalid"); set {
+			cfg.OriginInvalidAction = action
 		}
-		if actionStr, ok := policyMap["not-found-action"].(string); ok {
-			if action, valid := aspaActionFromString(actionStr); valid {
-				cfg.OriginNotFoundAction = action
-			}
+		if action, set := parseActionLeaf(actionMap, "not-found"); set {
+			cfg.OriginNotFoundAction = action
 		}
 	}
 
@@ -107,19 +143,19 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		if valStr, ok := aspaMap["validation"].(string); ok {
 			cfg.ASPAValidation = valStr == "true" || valStr == "1"
 		}
-		if policyMap, ok := aspaMap["policy"].(map[string]any); ok {
-			if actionStr, ok := policyMap["invalid-action"].(string); ok {
-				if action, valid := aspaActionFromString(actionStr); valid {
-					cfg.ASPAInvalidAction = action
-				}
+		if actionMap, ok := aspaMap["action"].(map[string]any); ok {
+			if action, set := parseActionLeaf(actionMap, "invalid"); set {
+				cfg.ASPAInvalidAction = action
 			}
-			if actionStr, ok := policyMap["unknown-action"].(string); ok {
-				if action, valid := aspaActionFromString(actionStr); valid {
-					cfg.ASPAUnknownAction = action
-				}
+			if action, set := parseActionLeaf(actionMap, "unknown"); set {
+				cfg.ASPAUnknownAction = action
 			}
 		}
 	}
+
+	// Parse per-peer / per-group action overrides. Uses the final global actions above as the
+	// fallback for unset leaves, so the resolved sets are what enforcement applies.
+	cfg.PeerActions = parsePeerActions(bgpTree, cfg)
 
 	// Parse cache-server list (YANG list keyed by address)
 	csMap, ok := rpkiMap["cache-server"].(map[string]any)
@@ -161,4 +197,111 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// parseActionLeaf reads a single action enum leaf ("reject"/"log-only"/"accept") from a
+// container map. Returns (action, true) when the leaf is present and valid, (0, false) otherwise.
+func parseActionLeaf(m map[string]any, key string) (uint8, bool) {
+	s, ok := m[key].(string)
+	if !ok {
+		return 0, false
+	}
+	return aspaActionFromString(s)
+}
+
+// actionOverride holds the optionally-set action leaves from one rpki container
+// (peer- or group-level). A nil pointer means the leaf was not set at that level.
+type actionOverride struct {
+	originInvalid  *uint8
+	originNotFound *uint8
+	aspaInvalid    *uint8
+	aspaUnknown    *uint8
+}
+
+// parseActionOverride extracts the four action leaves from a peer/group `rpki` container map.
+// rpkiMap is the value of the peer's or group's "rpki" key (nil when absent).
+func parseActionOverride(rpkiMap map[string]any) actionOverride {
+	var o actionOverride
+	if rpkiMap == nil {
+		return o
+	}
+	if actionMap, ok := rpkiMap["action"].(map[string]any); ok {
+		if action, set := parseActionLeaf(actionMap, "invalid"); set {
+			o.originInvalid = &action
+		}
+		if action, set := parseActionLeaf(actionMap, "not-found"); set {
+			o.originNotFound = &action
+		}
+	}
+	if aspaMap, ok := rpkiMap["aspa"].(map[string]any); ok {
+		if actionMap, ok := aspaMap["action"].(map[string]any); ok {
+			if action, set := parseActionLeaf(actionMap, "invalid"); set {
+				o.aspaInvalid = &action
+			}
+			if action, set := parseActionLeaf(actionMap, "unknown"); set {
+				o.aspaUnknown = &action
+			}
+		}
+	}
+	return o
+}
+
+// parsePeerActions walks every peer in the config and builds the per-peer resolved action map,
+// keyed by remote IP. Each leaf resolves peer > group > global. A peer is recorded only when at
+// least one leaf came from peer or group config (an all-global peer uses the global path).
+func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) map[string]peerActionSet {
+	result := make(map[string]peerActionSet)
+
+	configjson.ForEachPeer(bgpTree, func(_ string, peerMap, groupMap map[string]any) {
+		var peerRPKI, groupRPKI map[string]any
+		if peerMap != nil {
+			peerRPKI, _ = peerMap["rpki"].(map[string]any)
+		}
+		if groupMap != nil {
+			groupRPKI, _ = groupMap["rpki"].(map[string]any)
+		}
+
+		peerOv := parseActionOverride(peerRPKI)
+		groupOv := parseActionOverride(groupRPKI)
+
+		set := peerActionSet{
+			OriginInvalid:  resolveLeaf(global.OriginInvalidAction, groupOv.originInvalid, peerOv.originInvalid),
+			OriginNotFound: resolveLeaf(global.OriginNotFoundAction, groupOv.originNotFound, peerOv.originNotFound),
+			ASPAInvalid:    resolveLeaf(global.ASPAInvalidAction, groupOv.aspaInvalid, peerOv.aspaInvalid),
+			ASPAUnknown:    resolveLeaf(global.ASPAUnknownAction, groupOv.aspaUnknown, peerOv.aspaUnknown),
+		}
+
+		// All-global: no override, so the global path already covers this peer.
+		if set.OriginInvalid.Source == sourceGlobal && set.OriginNotFound.Source == sourceGlobal &&
+			set.ASPAInvalid.Source == sourceGlobal && set.ASPAUnknown.Source == sourceGlobal {
+			return
+		}
+
+		// Key on the remote IP so buildDecisions' req.peerAddr matches. Dynamic/range peers have
+		// no static remote IP (connection>remote>ip == "dynamic" or absent) and cannot be keyed;
+		// they fall back to the global actions (documented Known Limitation).
+		ip := configjson.PeerRemoteIP(peerMap, groupMap)
+		if ip == "" || ip == "dynamic" {
+			logger().Warn("rpki: per-peer action override ignored: peer has no static remote IP")
+			return
+		}
+		result[ip] = set
+	})
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// resolveLeaf merges one action leaf with peer > group > global precedence,
+// recording the source for display.
+func resolveLeaf(global uint8, group, peer *uint8) resolvedAction {
+	if peer != nil {
+		return resolvedAction{Action: *peer, Source: sourcePeer}
+	}
+	if group != nil {
+		return resolvedAction{Action: *group, Source: sourceGroup}
+	}
+	return resolvedAction{Action: global, Source: sourceGlobal}
 }

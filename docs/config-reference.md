@@ -318,15 +318,18 @@ Route-based IPsec. The `if-id` must match the IPsec SA's interface ID.
 ```
 bgp {
     rpki {
-        aspa-validation true;
-        aspa-policy {
-            invalid-action reject;   # reject | log-only | accept
+        aspa {
+            validation true;
+            action {
+                invalid reject;   # reject | log-only | accept
+            }
         }
     }
 }
 ```
 
 ASPA path verification with configurable policy enforcement. Requires RTR v2 cache server.
+The `action` block can also be set per-peer or per-group (peer > group > global, per leaf).
 
 ## Environment Variables
 

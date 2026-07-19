@@ -116,7 +116,14 @@ type RPKIPlugin struct {
 	// originInvalidAction is the RFC 6811 operator-configured action for the Invalid state
 	// (ASPAPolicyReject/LogOnly/Accept); only Reject excludes the route (RFC 6811 Section 2/3).
 	originInvalidAction atomic.Uint32
-	mu                  sync.RWMutex
+	// originNotFoundAction is the operator-configured action for the NotFound state.
+	// Reject excludes the route; LogOnly keeps it with a warning; Accept keeps it silently.
+	originNotFoundAction atomic.Uint32
+	// perPeerActions holds per-peer resolved action overrides keyed by remote IP, swapped
+	// atomically on each config reload. nil (or a miss) means the route uses the global actions.
+	// Read lock-free from the single validationWorker goroutine; written from OnConfigure.
+	perPeerActions atomic.Pointer[map[string]peerActionSet]
+	mu             sync.RWMutex
 
 	// sessions holds active RTR sessions to cache servers.
 	sessions []*RTRSession
@@ -272,6 +279,11 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	rp.aspaInvalidAction.Store(uint32(cfg.ASPAInvalidAction))
 	rp.aspaUnknownAction.Store(uint32(cfg.ASPAUnknownAction))
 	rp.originInvalidAction.Store(uint32(cfg.OriginInvalidAction))
+	rp.originNotFoundAction.Store(uint32(cfg.OriginNotFoundAction))
+	// Swap in the per-peer action map (may be nil when no peer/group overrides exist).
+	// atomic.Pointer publishes an immutable map; buildDecisions reads it lock-free.
+	peerActions := cfg.PeerActions
+	rp.perPeerActions.Store(&peerActions)
 
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
@@ -641,13 +653,20 @@ func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 	m := rpkiMetricsPtr.Load()
 
 	decisions := make([]rpc.ValidationDecision, len(batch))
-	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8, fits
-	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8, fits
-	// RFC 6811 Section 2/3: excluding an Invalid origin-validation route is an operator policy
-	// choice, not an automatic side effect. Only originInvalidAction == ASPAPolicyReject excludes
-	// it; LogOnly and Accept keep the route (still marked with its Invalid state) in the
+	// Global actions -- the fallback for any peer without an override.
+	// RFC 6811 Section 2/3: excluding an Invalid (or NotFound) origin-validation route is an
+	// operator policy choice, not an automatic side effect. Only action == ASPAPolicyReject
+	// excludes it; LogOnly and Accept keep the route (still marked with its state) in the
 	// Adj-RIB-In and the decision process.
-	originInvalidAction := uint8(rp.originInvalidAction.Load()) //nolint:gosec // stored as uint8, fits
+	gInvalidAction := uint8(rp.aspaInvalidAction.Load())     //nolint:gosec // stored as uint8, fits
+	gUnknownAction := uint8(rp.aspaUnknownAction.Load())     //nolint:gosec // stored as uint8, fits
+	gOriginInvalid := uint8(rp.originInvalidAction.Load())   //nolint:gosec // stored as uint8, fits
+	gOriginNotFound := uint8(rp.originNotFoundAction.Load()) //nolint:gosec // stored as uint8, fits
+	// Per-peer overrides (keyed by remote IP). nil map => every route uses the global actions.
+	var perPeer map[string]peerActionSet
+	if p := rp.perPeerActions.Load(); p != nil {
+		perPeer = *p
+	}
 
 	for i := range batch {
 		req := &batch[i]
@@ -659,10 +678,33 @@ func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 			}
 		}
 
-		reject := req.state == ValidationInvalid && originInvalidAction == ASPAPolicyReject
-		if req.state == ValidationInvalid && originInvalidAction == ASPAPolicyLogOnly {
-			logger().Warn("rpki: Invalid origin retained under log-only policy",
-				"prefix", req.prefix, "peer", req.peerAddr)
+		// Resolve the effective actions for this route's source peer: a per-peer override
+		// (already merged peer > group > global at config time) wins, else the global values.
+		originInvalidAction, originNotFoundAction := gOriginInvalid, gOriginNotFound
+		invalidAction, unknownAction := gInvalidAction, gUnknownAction
+		if perPeer != nil {
+			if set, ok := perPeer[req.peerAddr]; ok {
+				originInvalidAction = set.OriginInvalid.Action
+				originNotFoundAction = set.OriginNotFound.Action
+				invalidAction = set.ASPAInvalid.Action
+				unknownAction = set.ASPAUnknown.Action
+			}
+		}
+
+		var reject bool
+		switch req.state {
+		case ValidationInvalid:
+			reject = originInvalidAction == ASPAPolicyReject
+			if originInvalidAction == ASPAPolicyLogOnly {
+				logger().Warn("rpki: Invalid origin retained under log-only policy",
+					"prefix", req.prefix, "peer", req.peerAddr)
+			}
+		case ValidationNotFound:
+			reject = originNotFoundAction == ASPAPolicyReject
+			if originNotFoundAction == ASPAPolicyLogOnly {
+				logger().Warn("rpki: NotFound origin retained under log-only policy",
+					"prefix", req.prefix, "peer", req.peerAddr)
+			}
 		}
 		if !reject && req.aspaState != aspaStateNone {
 			reject = aspaOverridesAccept(req.aspaState, invalidAction, unknownAction)
@@ -958,6 +1000,14 @@ func (rp *RPKIPlugin) statusCommand() (string, any, error) {
 		}
 		b.Byte(']')
 	}
+
+	// Effective global actions and the per-peer resolved overrides, read from the same atomic
+	// sources buildDecisions enforces, so the display reflects the enforced policy. These are
+	// independent atomic loads (not one snapshot), so a config reload landing mid-serialization
+	// could briefly mix generations in the OUTPUT; each value stays individually valid and
+	// enforcement is unaffected (display-only).
+	rp.appendGlobalActions(b)
+	rp.appendPeerActions(b)
 
 	b.Byte('}')
 	return statusDone, json.RawMessage(b.String()), nil
