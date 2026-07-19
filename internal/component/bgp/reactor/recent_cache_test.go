@@ -3,6 +3,7 @@ package reactor
 import (
 	"errors"
 	"net/netip"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 	"codeberg.org/thomas-mangin/ze/internal/test/sim"
 )
@@ -1751,4 +1753,326 @@ func TestPendingCacheNeverExpires(t *testing.T) {
 		}
 		require.Equal(t, 0, cache.Len())
 	})
+}
+
+// --- Load-aware reclamation (pressure valve, fixit-recent-cache-buffer-reclaim) ---
+
+// gapCacheUnderPressure builds a cache with a fake clock, a stubbed pressure source
+// reporting `ratio`, and the pressure feature enabled at `highWater` with the given
+// shortened `pressureValve`. It registers a "stalled" consumer, adds `stalledID`
+// (only "stalled" consumes it), then registers "healthy", adds `healthyID`, and acks
+// it so a gap forms (highestFullyAcked = healthyID > stalledID). The stalled entry is
+// left passed-over with one non-acking consumer. Returns the cache; caller advances the
+// clock and drives runGapScan.
+func gapCacheUnderPressure(t *testing.T, fc *sim.FakeClock, ratio, highWater float64, pressureValve time.Duration, stalledID, healthyID uint64) *RecentUpdateCache {
+	t.Helper()
+	cache := NewRecentUpdateCache(100)
+	cache.SetClock(fc)
+	cache.SetSafetyValveDuration(5 * time.Minute)
+	cache.SetPressureValve(pressureValve)
+	cache.SetPressureHighWater(highWater)
+	cache.SetPressureSource(func() float64 { return ratio })
+
+	cache.RegisterConsumer("stalled")
+	cache.Add(newTestUpdate(stalledID))
+	cache.Activate(stalledID, 1) // only "stalled" consumes this — it never acks
+
+	cache.RegisterConsumer("healthy")
+	cache.Add(newTestUpdate(healthyID))
+	cache.Activate(healthyID, 1)
+	// healthy acks — creates the gap (highestFullyAcked = healthyID > stalledID).
+	require.NoError(t, cache.Ack(healthyID, "healthy"))
+	require.True(t, cache.Contains(stalledID), "stalled entry must survive the ack (own consumer pending)")
+	return cache
+}
+
+// TestCacheReclaimsUnderPoolPressure proves AC-1: under pool pressure a passed-over
+// (gap-evictable) stalled entry aged past the SHORTENED pressure valve (but well short
+// of the 5-minute safety valve) is force-evicted on the next scan, and its pooled read
+// buffer is returned to the multiplexer (ReturnReadBuffer observed).
+//
+// VALIDATES: Load-aware reclamation shortens eviction *timing* for passed-over entries
+// (AC-1). PREVENTS: A stuck consumer pinning shared read buffers for minutes.
+func TestCacheReclaimsUnderPoolPressure(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	// High-water 0.80, pressure valve 10s, stubbed utilization 0.95 (above high-water).
+	cache := gapCacheUnderPressure(t, fc, 0.95, 0.80, 10*time.Second, 100, 200)
+	defer cache.Stop()
+
+	// Give the stalled entry a REAL pooled read buffer so eviction's ReturnReadBuffer
+	// is observable via the multiplexer's in-use slot count.
+	h := bufMuxStd.Get()
+	require.NotNil(t, h.Buf, "read buffer pool must hand out a buffer")
+	upd, ok := cache.Get(100)
+	require.True(t, ok)
+	upd.poolBuf = h
+	_, inUseBefore := bufMuxStd.Stats()
+
+	// Age past the 10s pressure valve, but far short of the 5-minute safety valve.
+	fc.Add(11 * time.Second)
+	cache.runGapScan()
+
+	require.False(t, cache.Contains(100),
+		"passed-over stalled entry must be reclaimed on the shortened pressure valve")
+	_, inUseAfter := bufMuxStd.Stats()
+	require.Equal(t, inUseBefore-1, inUseAfter,
+		"evicted entry's pooled read buffer must be returned to the multiplexer")
+}
+
+// TestCacheFrontierRetainedUnderPressure proves AC-2: a slow-but-progressing consumer
+// at the processing frontier (nothing later fully acked) is NEVER evicted, even under
+// maximum pool pressure and after aging past the shortened pressure valve. The pressure
+// path changes timing, never the isGapEvictable criteria.
+//
+// VALIDATES: Frontier protection preserved under pressure (AC-2, regression on
+// isGapEvictable). PREVENTS: Dropping cached data a well-behaved consumer still needs.
+func TestCacheFrontierRetainedUnderPressure(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.SetClock(fc)
+	cache.SetSafetyValveDuration(5 * time.Minute)
+	cache.SetPressureValve(10 * time.Second)
+	cache.SetPressureHighWater(0.80)
+	cache.SetPressureSource(func() float64 { return 0.99 }) // maximum pressure
+
+	// Single entry with a live consumer at the frontier: no later entry fully acked.
+	cache.Add(newTestUpdate(1))
+	cache.Activate(1, 1)
+
+	// Age well past the shortened pressure valve.
+	fc.Add(1 * time.Minute)
+	cache.runGapScan()
+
+	require.True(t, cache.Contains(1),
+		"frontier entry must never be evicted; pressure changes timing, not criteria")
+}
+
+// TestCacheSoftLimitStaysWarnOnlyUnderPressure proves AC-3 (valve-only supersession):
+// Add past the soft limit never rejects, and pinning is bounded not by a hard cap but
+// by the shortened pressure valve reclaiming passed-over entries — so Len() drains once
+// consumers stall under pressure.
+//
+// VALIDATES: Soft limit stays warn-only; Len() drains via the pressure valve (AC-3).
+// PREVENTS: A reintroduced hard cap that sheds/rejects at Add.
+func TestCacheSoftLimitStaysWarnOnlyUnderPressure(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(3) // soft limit 3
+	defer cache.Stop()
+	cache.SetClock(fc)
+	cache.SetSafetyValveDuration(5 * time.Minute)
+	cache.SetPressureValve(10 * time.Second)
+	cache.SetPressureHighWater(0.80)
+	cache.SetPressureSource(func() float64 { return 0.95 })
+
+	// Add 5 entries past the soft limit of 3 — Add must NEVER reject.
+	cache.RegisterConsumer("stalled")
+	for i := uint64(1); i <= 5; i++ {
+		cache.Add(newTestUpdate(i))
+		cache.Activate(i, 1) // consumer "stalled" — never acks
+	}
+	require.Equal(t, 5, cache.Len(), "soft limit warns but never rejects (Add always succeeds)")
+
+	// A healthy consumer acks a later entry, forming a gap over all of 1..5.
+	cache.RegisterConsumer("healthy")
+	cache.Add(newTestUpdate(6))
+	cache.Activate(6, 1)
+	require.NoError(t, cache.Ack(6, "healthy")) // highestFullyAcked = 6
+	require.Equal(t, 5, cache.Len(), "entries 1..5 still pinned by the stalled consumer")
+
+	// Under pressure, aging past the shortened pressure valve drains the passed-over
+	// entries — pinning is bounded without any hard cap.
+	fc.Add(11 * time.Second)
+	cache.runGapScan()
+	require.Equal(t, 0, cache.Len(),
+		"passed-over entries drain on the pressure valve; Len() bounded without a hard cap")
+}
+
+// TestCacheHighWaterConfigured proves AC-4: the configured high-water threshold gates
+// the reclaim path. Below the mark the shortened valve is NOT applied (only the full
+// safety valve would evict); at/above the mark it is. Also asserts the two env keys are
+// registered on the config surface (not hardcoded constants).
+//
+// VALIDATES: Reclaim path reads the configured threshold; env vars registered (AC-4).
+// PREVENTS: A magic-constant threshold, or the pressure valve firing regardless of load.
+func TestCacheHighWaterConfigured(t *testing.T) {
+	// The threshold must be a registered env var, not a hardcoded constant.
+	require.True(t, env.IsRegistered("ze.cache.pressure.highwater"),
+		"ze.cache.pressure.highwater must be registered on the config surface")
+	require.True(t, env.IsRegistered("ze.cache.pressure.valve"),
+		"ze.cache.pressure.valve must be registered on the config surface")
+
+	newGap := func(ratio float64) *RecentUpdateCache {
+		fc := sim.NewFakeClock(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC))
+		c := gapCacheUnderPressure(t, fc, ratio, 0.80, 10*time.Second, 100, 200)
+		// Age past the pressure valve, short of the safety valve, then scan once.
+		fc.Add(11 * time.Second)
+		c.runGapScan()
+		return c
+	}
+
+	t.Run("below_high_water_not_reclaimed", func(t *testing.T) {
+		c := newGap(0.50) // 0.50 < 0.80 high-water
+		defer c.Stop()
+		require.True(t, c.Contains(100),
+			"below high-water: pressure valve must NOT apply; entry survives the shortened valve")
+	})
+
+	t.Run("at_high_water_reclaimed", func(t *testing.T) {
+		c := newGap(0.80) // exactly at the high-water mark (>= comparison)
+		defer c.Stop()
+		require.False(t, c.Contains(100),
+			"at high-water: pressure valve applies; passed-over entry reclaimed")
+	})
+
+	t.Run("above_high_water_reclaimed", func(t *testing.T) {
+		c := newGap(0.95)
+		defer c.Stop()
+		require.False(t, c.Contains(100),
+			"above high-water: pressure valve applies; passed-over entry reclaimed")
+	})
+}
+
+// TestCacheNormalLoadUnchanged proves AC-5: with the feature disabled (high-water 0,
+// the default) behavior is unchanged — the 5-minute safety valve governs even when the
+// pressure signal is high and the entry has aged past the shortened valve window. Once
+// aged past the full safety valve, normal gap eviction still fires.
+//
+// VALIDATES: Feature-disabled default preserves legacy 5-minute valve behavior (AC-5).
+// PREVENTS: Load-aware reclamation firing when it was never enabled.
+func TestCacheNormalLoadUnchanged(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.SetClock(fc)
+	cache.SetSafetyValveDuration(5 * time.Minute)
+	// High-water left at the default 0 = feature DISABLED.
+	// A high pressure signal must be ignored while the feature is off.
+	cache.SetPressureSource(func() float64 { return 0.99 })
+
+	cache.RegisterConsumer("stalled")
+	cache.Add(newTestUpdate(100))
+	cache.Activate(100, 1)
+	cache.RegisterConsumer("healthy")
+	cache.Add(newTestUpdate(200))
+	cache.Activate(200, 1)
+	require.NoError(t, cache.Ack(200, "healthy")) // gap: highestFullyAcked = 200
+
+	// Age past the 30s default pressure valve, but under the 5-minute safety valve.
+	// With the feature disabled, the entry must NOT be reclaimed early.
+	fc.Add(40 * time.Second)
+	cache.runGapScan()
+	require.True(t, cache.Contains(100),
+		"feature disabled: high pressure signal must not shorten the valve")
+
+	// Age past the full 5-minute safety valve — normal gap eviction still works.
+	fc.Add(5 * time.Minute)
+	cache.runGapScan()
+	require.False(t, cache.Contains(100),
+		"disabled feature must not break the normal 5-minute safety valve")
+}
+
+// TestCachePressureValveBoundary proves the aging boundary is exact: the pressure valve
+// uses a strict `now.Sub(retainedAt) > valve` comparison, so a passed-over entry aged
+// just UNDER (and exactly AT) the shortened valve must survive, and only an entry aged
+// just OVER is reclaimed — under identical maximum pool pressure.
+//
+// VALIDATES: strict-inequality boundary of load-aware reclamation (AC-1 boundary).
+// PREVENTS: an off-by-one that reclaims (or spares) an entry a tick early/late.
+func TestCachePressureValveBoundary(t *testing.T) {
+	const valve = 10 * time.Second
+
+	newAged := func(age time.Duration) *RecentUpdateCache {
+		fc := sim.NewFakeClock(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC))
+		c := gapCacheUnderPressure(t, fc, 0.95, 0.80, valve, 100, 200)
+		fc.Add(age)
+		c.runGapScan()
+		return c
+	}
+
+	t.Run("just_under_survives", func(t *testing.T) {
+		c := newAged(valve - time.Second) // 9s < 10s
+		defer c.Stop()
+		require.True(t, c.Contains(100), "entry aged under the pressure valve must survive")
+	})
+
+	t.Run("exactly_at_survives", func(t *testing.T) {
+		c := newAged(valve) // strict > means equal is NOT evicted
+		defer c.Stop()
+		require.True(t, c.Contains(100), "entry aged exactly at the pressure valve must survive (strict >)")
+	})
+
+	t.Run("just_over_reclaimed", func(t *testing.T) {
+		c := newAged(valve + time.Second) // 11s > 10s
+		defer c.Stop()
+		require.False(t, c.Contains(100), "entry aged past the pressure valve must be reclaimed")
+	})
+}
+
+// TestReactorWiresPressureValveFromEnv proves AC-4 end-to-end through the PRODUCTION
+// path: the reactor constructor reads ze.cache.pressure.highwater (int percent) and
+// ze.cache.pressure.valve (duration) from the env surface and wires them into the cache,
+// converting percent->ratio (80 -> 0.80). Covers the env.GetInt/100.0/SetPressureHighWater
+// path and the hw>0 gate that the direct-setter tests do not exercise.
+//
+// VALIDATES: env->reactor->cache wiring and percent conversion (AC-4, ISSUE-1).
+// PREVENTS: a wrong divisor, wrong key, or dropped hw>0 gate slipping through.
+func TestReactorWiresPressureValveFromEnv(t *testing.T) {
+	// Restore the env surface for other tests sharing this binary.
+	defer func() {
+		_ = os.Unsetenv("ze.cache.pressure.highwater")
+		_ = os.Unsetenv("ze.cache.pressure.valve")
+		env.ResetCache()
+	}()
+
+	require.NoError(t, env.Set("ze.cache.pressure.highwater", "80")) // 80% -> 0.80
+	require.NoError(t, env.Set("ze.cache.pressure.valve", "10s"))
+
+	r := New(&Config{})
+	c := r.recentUpdates
+
+	c.mu.RLock()
+	hw := c.pressureHighWater
+	pv := c.pressureValve
+	c.mu.RUnlock()
+
+	require.InDelta(t, 0.80, hw, 1e-9,
+		"reactor must convert the integer percent env value to a 0..1 ratio (80 -> 0.80)")
+	require.Equal(t, 10*time.Second, pv,
+		"reactor must wire ze.cache.pressure.valve into the cache")
+}
+
+// TestReactorPressureDisabledByDefault proves AC-4/AC-5 default: with no env override the
+// reactor leaves load-aware reclamation disabled (high-water 0), so the pressure valve
+// never overrides the 5-minute safety valve.
+//
+// VALIDATES: disabled-by-default env wiring (AC-4 default, AC-5).
+// PREVENTS: the feature silently activating without operator opt-in.
+func TestReactorPressureDisabledByDefault(t *testing.T) {
+	defer func() {
+		_ = os.Unsetenv("ze.cache.pressure.highwater")
+		_ = os.Unsetenv("ze.cache.pressure.valve")
+		env.ResetCache()
+	}()
+	// Ensure no stray value leaks in from another test in this binary.
+	_ = os.Unsetenv("ze.cache.pressure.highwater")
+	_ = os.Unsetenv("ze.cache.pressure.valve")
+	env.ResetCache()
+
+	r := New(&Config{})
+	c := r.recentUpdates
+
+	c.mu.RLock()
+	hw := c.pressureHighWater
+	c.mu.RUnlock()
+
+	require.Equal(t, 0.0, hw, "load-aware reclamation must be disabled by default (high-water 0)")
 }

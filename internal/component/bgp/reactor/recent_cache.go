@@ -33,6 +33,15 @@ const defaultSafetyValveDuration = 5 * time.Minute
 // The scan only matters for fault detection — normal eviction is immediate via Ack().
 const gapScanInterval = 30 * time.Second
 
+// defaultPressureValveDuration is the shortened safety-valve duration applied to
+// already-passed-over (gap-evictable) entries while the shared read-buffer pool is
+// under pressure (utilization >= the configured high-water mark). It reclaims pinned
+// read buffers sooner than the 5-minute safety valve without ever touching frontier
+// entries. Configurable via SetPressureValve(); overridable at startup via the
+// ze.cache.pressure.valve environment variable. Only takes effect when the high-water
+// mark is configured (> 0); high-water 0 disables load-aware reclamation entirely.
+const defaultPressureValveDuration = 30 * time.Second
+
 // warnInterval controls how often the soft-limit warning is logged.
 const warnInterval = 30 * time.Second
 
@@ -64,6 +73,17 @@ type RecentUpdateCache struct {
 	maxEntries   int           // Soft limit — warns but never rejects
 	safetyValve  time.Duration // Per-cache safety valve duration
 	lastWarnTime time.Time     // Rate-limits soft-limit warnings
+
+	// Load-aware reclamation (pressure valve). When the shared read-buffer pool is
+	// under pressure (pressureSource() >= pressureHighWater and pressureHighWater > 0),
+	// runGapScan applies pressureValve in place of safetyValve when testing entries
+	// for gap eviction. This shortens only the *timing* of reclamation for entries
+	// that are already gap-evictable (passed over); the eviction *criteria*
+	// (isGapEvictable) are unchanged, so frontier entries are never affected.
+	// pressureHighWater == 0 disables the feature (default), preserving legacy behavior.
+	pressureSource    func() float64 // 0.0..1.0 pool utilization; default CombinedBufMuxUsedRatio
+	pressureHighWater float64        // 0 = feature disabled (default); else 0.0..1.0 threshold
+	pressureValve     time.Duration  // Shortened valve applied under pressure
 
 	// Per-plugin FIFO tracking: last acked message ID per plugin.
 	// Acks for IDs <= this value are silently accepted as no-ops
@@ -153,11 +173,14 @@ func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked ui
 // Call Start() to launch the background gap scan goroutine.
 func NewRecentUpdateCache(maxEntries int) *RecentUpdateCache {
 	return &RecentUpdateCache{
-		clock:         clock.RealClock{},
-		entries:       seqmap.New[uint64, *cacheEntry](),
-		maxEntries:    maxEntries,
-		safetyValve:   defaultSafetyValveDuration,
-		pluginLastAck: make(map[string]uint64),
+		clock:          clock.RealClock{},
+		entries:        seqmap.New[uint64, *cacheEntry](),
+		maxEntries:     maxEntries,
+		safetyValve:    defaultSafetyValveDuration,
+		pluginLastAck:  make(map[string]uint64),
+		pressureSource: CombinedBufMuxUsedRatio,
+		pressureValve:  defaultPressureValveDuration,
+		// pressureHighWater defaults to 0 = load-aware reclamation disabled.
 	}
 }
 
@@ -231,10 +254,24 @@ func (c *RecentUpdateCache) runGapScan() {
 
 	now := c.clock.Now()
 
+	// Load-aware reclamation: while the shared read-buffer pool is under pressure,
+	// apply the shortened pressureValve to gap-evictable entries so pinned buffers
+	// return sooner. The feature is disabled unless a high-water mark is configured
+	// (pressureHighWater > 0). Only the valve *duration* shrinks — the eviction
+	// *criteria* in isGapEvictable are unchanged, so frontier entries (nothing later
+	// fully acked) are never affected. The guard pressureValve < c.safetyValve ensures
+	// the pressure path can only ever shorten, never lengthen, the effective valve.
+	valve := c.safetyValve
+	if c.pressureHighWater > 0 && c.pressureSource != nil && c.pressureValve < valve {
+		if c.pressureSource() >= c.pressureHighWater {
+			valve = c.pressureValve
+		}
+	}
+
 	// Collect entries to evict (cannot modify seqmap during Range iteration).
 	var toEvict []uint64
 	c.entries.Range(func(id uint64, _ uint64, e *cacheEntry) bool {
-		if e.isGapEvictable(now, id, c.highestFullyAcked, c.safetyValve) {
+		if e.isGapEvictable(now, id, c.highestFullyAcked, valve) {
 			toEvict = append(toEvict, id)
 		}
 		return true
@@ -268,6 +305,44 @@ func (c *RecentUpdateCache) SetSafetyValveDuration(d time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.safetyValve = d
+}
+
+// SetPressureHighWater sets the shared read-buffer pool utilization high-water mark
+// (0.0..1.0) at or above which runGapScan applies the shortened pressureValve to
+// gap-evictable entries. A value of 0 (the default) disables load-aware reclamation
+// entirely, preserving legacy behavior. Values are clamped to [0.0, 1.0].
+func (c *RecentUpdateCache) SetPressureHighWater(ratio float64) {
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.pressureHighWater = ratio
+}
+
+// SetPressureValve sets the shortened safety-valve duration applied to gap-evictable
+// entries while pool utilization is at or above the high-water mark. Zero or negative
+// values are ignored (the default 30s is kept). Only shortens reclamation timing; the
+// eviction criteria in isGapEvictable are unchanged.
+func (c *RecentUpdateCache) SetPressureValve(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.pressureValve = d
+}
+
+// SetPressureSource overrides the pool-pressure signal used by load-aware reclamation.
+// Production wires CombinedBufMuxUsedRatio (set in the constructor); tests use this to
+// stub utilization deterministically. A nil source disables the pressure path.
+func (c *RecentUpdateCache) SetPressureSource(fn func() float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.pressureSource = fn
 }
 
 // Add inserts an update into the cache with pending=true and zero consumers.

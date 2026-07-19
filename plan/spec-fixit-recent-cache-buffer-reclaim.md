@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -174,6 +174,29 @@ Note (env-var value type): `internal/core/env` has `GetInt`/`GetInt64`/`GetBool`
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary cases (at/above/below high-water; feature disabled = high-water 0; entry aged just under vs just over the shortened pressure valve) present
+
+## Review Gate
+
+- Verdict: CLEAN (0 BLOCKER, 0 ISSUE after loop). Artifact:
+  `tmp/review/fixit-recent-cache-buffer-reclaim-58c51aab-79d8-400d-b779-2c0cf322a274.md`
+  (recorded via `scripts/dev/review_gate.py record --spec fixit-recent-cache-buffer-reclaim --verdict clean`).
+- Independent reviewer (subagent over the diff) confirmed: frontier protection preserved
+  (`isGapEvictable` criteria unchanged, only the valve *duration* substituted in `runGapScan`);
+  no lock-ordering hazard (`pressureSource()` under `c.mu` follows the pre-existing
+  `c.mu → bufmux.mu` order used by `evictLocked → ReturnReadBuffer`); guard
+  `pressureHighWater>0 && pressureSource!=nil && pressureValve<safetyValve` correctly disables by
+  default and can only ever SHORTEN; percent→ratio conversion (`hw/100.0`) correct.
+- Reviewer raised ISSUE-1 (production env→reactor wiring + percent conversion untested) and
+  NIT-2 (only "just over" aging tested). BOTH FIXED in the loop:
+  - `TestReactorWiresPressureValveFromEnv` + `TestReactorPressureDisabledByDefault` construct a
+    real `Reactor` with the env vars set and assert the converted ratio/valve reach the cache
+    (covers `env.GetInt → /100.0 → SetPressureHighWater`, the `hw>0` gate, and the disabled default).
+  - `TestCachePressureValveBoundary` (just_under / exactly_at / just_over) locks the strict
+    `now.Sub(retainedAt) > valve` inequality.
+- Evidence: `go test -tags "ze_core $ZE_FEATURES" ./internal/component/bgp/reactor/...` PASSES
+  (ok, 3.9s). `golangci-lint` of `./internal/component/bgp/reactor/` + `./internal/component/config/`
+  → 0 issues. (`make ze-lint-changed` was red ONLY from a concurrent session's unrelated
+  `internal/test/runner` WIP, not this change.)
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Distinct from the separately-specced forward-path buffer LEAK: this is legitimate retention with coarse reclamation.

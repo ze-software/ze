@@ -527,6 +527,18 @@ func New(config *Config) *Reactor {
 		r.recentUpdates.SetSafetyValveDuration(d)
 	}
 
+	// ze.cache.pressure.* enables load-aware reclamation of passed-over cache entries.
+	// When read-buffer pool utilization reaches the high-water percent, gap-evictable
+	// entries are reclaimed on the shorter pressure valve instead of the 5-minute
+	// safety valve, bounding how long a stuck consumer can pin pool buffers. High-water
+	// 0 (default) leaves the feature disabled, preserving legacy behavior.
+	if hw := env.GetInt("ze.cache.pressure.highwater", 0); hw > 0 {
+		r.recentUpdates.SetPressureHighWater(float64(hw) / 100.0)
+		if d := env.GetDuration("ze.cache.pressure.valve", 30*time.Second); d > 0 {
+			r.recentUpdates.SetPressureValve(d)
+		}
+	}
+
 	return r
 }
 

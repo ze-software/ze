@@ -116,6 +116,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)", Deprecated: "YANG reactor/forward-pool-headroom"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.dest.cap", Type: "int", Default: "4096", Description: "Max destinations per Plugin.ForwardCached call (bounds per-call allocation)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.pressure.highwater", Type: "int", Default: "0", Description: "Read-buffer pool utilization percent (0-100) at or above which passed-over UPDATE cache entries are reclaimed on the shorter ze.cache.pressure.valve (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.pressure.valve", Type: "duration", Default: "30s", Description: "Shortened safety-valve duration applied to passed-over UPDATE cache entries while pool utilization is at or above ze.cache.pressure.highwater"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)", Deprecated: "YANG reactor/read-buffer-size"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)", Deprecated: "YANG reactor/write-buffer-size"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: "duration", Default: "10s", Description: "Periodic metrics refresh interval"})
