@@ -16,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -75,12 +76,7 @@ const (
 // Supports returns whether the target is known to support the specified update
 // protocol feature.
 func (t *Target) Supports(feature ProtocolFeature) bool {
-	for _, f := range t.supports {
-		if f == string(feature) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(t.supports, string(feature))
 }
 
 // StreamTo streams from the specified io.Reader to the specified destination:
@@ -122,7 +118,7 @@ func (t *Target) StreamTo(ctx context.Context, dest string, r io.Reader) error {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected HTTP status code: got %v, want %v (body %q)", resp.Status, want, string(body))
 	}
-	remoteHash, err := io.ReadAll(resp.Body)
+	remoteHash, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return err
 	}
@@ -166,7 +162,7 @@ func (t *Target) Put(ctx context.Context, dest string, r io.Reader) error {
 // Switch changes the active root partition from the currently running root
 // partition to the currently inactive root partition.
 func (t *Target) Switch(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "POST", t.baseURL+"update/switch", nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", t.baseURL+"update/switch", http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -185,7 +181,7 @@ func (t *Target) Switch(ctx context.Context) error {
 // Testboot marks the inactive root partition to be tested upon the next boot,
 // and made active if the test boot succeeds.
 func (t *Target) Testboot(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "POST", t.baseURL+"update/testboot", nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", t.baseURL+"update/testboot", http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -249,7 +245,7 @@ func (t *Target) Reboot(ctx context.Context, opts ...RebootOption) error {
 		url += "?" + strings.Join(params, "&")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -339,7 +335,7 @@ func (t *Target) InstalledEEPROM() EEPROMVersion {
 }
 
 func (t *Target) requestFeatures(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", t.baseURL+"update/features", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", t.baseURL+"update/features", http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -361,7 +357,7 @@ func (t *Target) requestFeatures(ctx context.Context) error {
 		return fmt.Errorf("unexpected HTTP status code: got %d, want %d (body %q)", got, want, string(body))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return err
 	}
@@ -403,7 +399,7 @@ type EEPROMVersion struct {
 }
 
 func (t *Target) getEEPROMFromStatus(ctx context.Context) (*EEPROMVersion, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", t.baseURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", t.baseURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

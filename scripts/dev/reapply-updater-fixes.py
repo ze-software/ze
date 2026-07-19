@@ -16,6 +16,8 @@ and the patch file.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -63,7 +65,10 @@ def apply_resp_body_close(src: str) -> str:
         print(f"  [fix] Added {fixed} defer resp.Body.Close() calls")
     else:
         print("  [ok] All resp.Body.Close() calls present")
-    return "\n".join(out) + "\n" if not src.endswith("\n") else "\n".join(out)
+    # Rejoining split lines drops the terminator, so re-add a trailing newline
+    # whenever the source had one. A Go file without it is not gofmt-clean.
+    joined = "\n".join(out)
+    return joined + "\n" if src.endswith("\n") else joined
 
 
 def apply_http_nobody(src: str) -> str:
@@ -104,9 +109,20 @@ def apply_slices_contains(src: str) -> str:
     )
     if re.search(old_pattern, src):
         src = re.sub(old_pattern, new_code, src)
-        # Ensure slices import
+        # slices.Contains needs the "slices" import. Insert it after the
+        # "net/url" anchor; the final gofmt pass (see main) only re-sorts
+        # imports, it CANNOT add a missing one, so we must add it here and
+        # fail loud if the anchor is gone -- otherwise the package would emit
+        # slices.Contains with no import and fail to compile.
         if '"slices"' not in src:
-            src = src.replace('"io"\n', '"io"\n\t"slices"\n', 1)
+            before = src
+            src = src.replace('"net/url"\n', '"net/url"\n\t"slices"\n', 1)
+            if src == before:
+                raise RuntimeError(
+                    'could not insert "slices" import: anchor \'"net/url"\' not '
+                    "found in the import block. The vendored import block changed "
+                    "upstream; update the anchor in apply_slices_contains()."
+                )
         print("  [fix] Replaced Supports() loop with slices.Contains")
     else:
         print("  [ok] Supports() already uses slices.Contains")
@@ -142,6 +158,18 @@ def apply_limitreader(src: str) -> str:
     return src
 
 
+def gofmt(path: Path) -> None:
+    """Normalize the rewritten file with gofmt so import order and the trailing
+    newline stay canonical regardless of how the text transforms above mangle
+    formatting. No-op (with a warning) if gofmt is not on PATH."""
+    tool = shutil.which("gofmt")
+    if tool is None:
+        print("  [warn] gofmt not found on PATH -- skipping format normalization")
+        return
+    subprocess.run([tool, "-w", str(path)], check=True)
+    print("  [ok] gofmt normalized")
+
+
 def main() -> int:
     if not VENDOR.exists():
         print(f"error: {VENDOR} not found (run go mod vendor first)", file=sys.stderr)
@@ -162,6 +190,7 @@ def main() -> int:
         return 0
 
     VENDOR.write_text(src)
+    gofmt(VENDOR)
     print(f"\nWrote {VENDOR}")
     print("Run: go test ./internal/appliance/...")
     return 0

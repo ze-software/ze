@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-19 |
 
 ## Post-Compaction Recovery
 
@@ -156,7 +156,7 @@ literals are present (fails the unit gate if a re-vendor drops them).
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | ~~`TestStagesForModeIncludesVulncheck`~~ `TestGovulncheckScheduledWorkflow` (SCHEDULED default, 2026-07-17) | `scripts/status/verify_run_test.go` (or workflow lint) | AC-1 | |
-| `TestUpdaterHardeningMarkersPresent` | `internal/appliance/updater/hardening_markers_test.go` | AC-3 | |
+| `TestUpdaterHardeningMarkersPresent` + `TestUpdaterHardeningMarkersDetectRegression` | `internal/appliance/updater_hardening_markers_test.go` (DONE 2026-07-19) | AC-3 | PASS |
 | `TestCodeQLBuildUsesShippedTags` | `scripts/status/verify_run_test.go` (or workflow lint) | AC-2 | |
 
 ### Functional Tests
@@ -176,7 +176,14 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 - `scripts/dev/reapply-updater-fixes.py` - only if upstreaming the PR lets us delete the fork + script
 
 ## Files to Create
-- `internal/appliance/updater/hardening_markers_test.go` - asserts the 4 updater fix markers survive re-vendor
+- ~~`internal/appliance/updater/hardening_markers_test.go`~~ `internal/appliance/updater_hardening_markers_test.go`
+  (CORRECTED 2026-07-19: the `internal/appliance/updater/` subpackage does NOT exist in the tree; the vendored
+  updater is consumed via `internal/appliance/cmd_push.go`, so the guard lives in package `appliance`.
+  It gates the 3 DoS-hardening markers -- `io.LimitReader(resp.Body, 1<<20)` x2, `http.NoBody`, `defer resp.Body.Close()`;
+  the 4th script rewrite, `slices.Contains`, is a cosmetic refactor and is deliberately NOT gated. Also found the
+  vendored copy had already regressed (lost LimitReader + NoBody); restored via `reapply-updater-fixes.py`, and fixed
+  three latent bugs in that script: dropped trailing newline, wrong `slices` import position, and a missing final gofmt
+  normalization pass with a fail-loud anchor check.)
 - `.github/workflows/govulncheck.yml` - NEW scheduled (`schedule: cron`) CI workflow that runs `make ze-vulncheck` (`govulncheck ./...`); mirrors the `codeql.yml` cron precedent, does NOT run on push/PR blocking the dev loop (SCHEDULED default, 2026-07-17)
 
 ## Implementation Steps
@@ -215,6 +222,40 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary cases (missing marker, ~~missing stage~~ missing/mis-triggered scheduled workflow, untagged build) present
+
+## Review Gate
+
+**Scope of this gate: AC-3 ONLY (partial slice).** AC-1, AC-2, AC-4, AC-5, AC-6 are
+NOT implemented in this session (they touch shared, sibling-contended files -- see
+"AC status" below). This spec stays **in-progress**; do NOT close it on the AC-3 commit.
+
+### AC status (2026-07-19)
+| AC | Status | Note |
+|----|--------|------|
+| AC-1 (govulncheck scheduled job) | NOT DONE | needs `Makefile` (already `M` by a sibling), `.github/workflows/govulncheck.yml`, `go.mod` x/vuln tool dep, `verify_run_test.go` |
+| AC-2 (CodeQL shipped tag set) | NOT DONE | `.github/workflows/codeql.yml` + `TestCodeQLBuildUsesShippedTags` |
+| AC-3 (updater marker guard) | **DONE + reviewed clean** | vendored copy had regressed (lost `io.LimitReader`+`http.NoBody`); restored via reapply script; added `TestUpdaterHardeningMarkersPresent` + non-vacuous `TestUpdaterHardeningMarkersDetectRegression`; fixed 3 script bugs |
+| AC-4 (pin -> tag hygiene) | NOT DONE | `go.mod`; needs heavy tidy/vendor |
+| AC-5 (builddir review cadence) | NOT DONE | `ai/rules/appliance-dep-bumps.md` |
+| AC-6 (GPLv2 source-offer sign-off) | NOT DONE | flag-only note |
+
+### Review record (AC-3 slice)
+- Independent reviewer (subagent), 2 passes. Pass 1: 0 BLOCKER, 1 ISSUE, 3 NIT.
+  ISSUE (misleading gofmt "backstop" comment -- gofmt re-sorts imports but cannot
+  ADD a missing one) FIXED: comment corrected + fail-loud anchor check added to
+  `apply_slices_contains` (proven to raise when the `"net/url"` anchor is absent).
+  NIT-1 (four-vs-three markers) reconciled in-code. NIT-3 (loose `min` for
+  `http.NoBody`/`Body.Close`) and NIT-4 (`runtime.Caller` under `-trimpath`) left
+  as-is: both fail-closed, low risk. Pass 2: re-review of the delta CONFIRMED
+  **0 BLOCKER, 0 ISSUE**.
+- Artifact: `tmp/review/fixit-supply-chain-hardening-58c51aab-79d8-400d-b779-2c0cf322a274.md` (verdict=clean, 3 files).
+- Verification: `internal/appliance/` lints 0 issues; `go vet` clean; `gofmt -l` clean
+  on both changed files; both guard tests PASS. (`make ze-lint-changed` reports 4
+  issues, ALL in sibling-owned files outside this slice: `macvlan.go`,
+  `show_linux.go`, `ping_test.go`, `reconcile.go`.)
+- Drain recipe (parked, not committed): `tmp/drain-fixit-supply-chain-hardening.md`.
+  Learned summary: `plan/learned/1195-fixit-supply-chain-hardening.md` (NNN contended;
+  run `scripts/dev/learned_numbers.py --fix` at drain).
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Finding = the **absence** of a dependency-vulnerability
