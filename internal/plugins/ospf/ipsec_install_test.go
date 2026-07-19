@@ -66,9 +66,13 @@ func TestIPsecInstallOnInterfaceUp(t *testing.T) {
 
 	// RFC 4552 §7: one shared wildcard SA (the same (::, spi, proto) state protects
 	// egress and verifies ingress), plus out/in/fwd require-policies.
+	// RFC requirement: RFC4552-3-2 positive -- an esp interface installs a kernel SA (Proto
+	// resolves to ProtoESP), so ESP is supported (ipsecProtoNumber, ipsec_install.go:454-459).
 	if len(fake.sas) != 1 {
 		t.Fatalf("InstallSA count = %d, want 1 (shared wildcard SA)", len(fake.sas))
 	}
+	// RFC requirement: RFC4552-11-3 positive -- an IPsec-enabled interface installs the
+	// out/in/fwd protect (require) policies into the SPD (installLocked, ipsec_install.go:329-337).
 	if len(fake.pols) != 3 {
 		t.Fatalf("InstallPolicy count = %d, want 3 (out/in/fwd)", len(fake.pols))
 	}
@@ -132,6 +136,9 @@ func TestIPsecSAIsWildcardWithOSPFSelector(t *testing.T) {
 	inst.setConfig([]interfaceConfig{espIface(256)})
 	inst.onInterfaceUp(testIfIndex, "eth1")
 
+	// RFC requirement: RFC4552-7-1 positive -- one manually configured SPI/key drives a single shared
+	// SA that both protects egress and verifies ingress with the same parameters (installed once,
+	// ipsec_install.go:316-328), so exactly one SA is installed for both directions.
 	if len(fake.sas) != 1 {
 		t.Fatalf("want 1 shared SA, got %d: %+v", len(fake.sas), fake.sas)
 	}
@@ -142,6 +149,9 @@ func TestIPsecSAIsWildcardWithOSPFSelector(t *testing.T) {
 	// RFC requirement: RFC4301-4.1-1 positive -- Ze supports both IPsec modes; this asserts the
 	// transport-mode half: the OSPFv3 (RFC 4552) SA is installed with Mode == ModeTransport
 	// (the tunnel-mode half is TestChildSAInstallsInDataplane, the IKE Child SA).
+	// RFC requirement: RFC4552-2-2 positive -- transport-mode SA MUST be supported: the installed
+	// OSPFv3 SA carries Mode == ModeTransport (buildIPsecSA Mode=ModeTransport, ipsec_install.go:413),
+	// and there is no tunnel-mode SA path for OSPFv3 to reject.
 	if sa.Mode != dataplane.ModeTransport {
 		t.Errorf("SA mode = %d, want transport (RFC 4552 §2)", sa.Mode)
 	}
@@ -177,6 +187,20 @@ func TestIPsecPoliciesInterfaceScopedWildcard(t *testing.T) {
 	inst.setConfig([]interfaceConfig{espIface(256)})
 	inst.onInterfaceUp(testIfIndex, "eth1")
 
+	// RFC requirement: RFC4552-6-1 positive -- IPsec in transport mode is supported: every installed
+	// policy is Mode == ModeTransport (asserted in the loop; buildIPsecPolicies, ipsec_install.go:441).
+	// RFC requirement: RFC4552-6-2 positive -- multiple SPDs with interface-based selection: each policy
+	// is scoped by IfIndex (asserted in the loop; buildIPsecPolicies IfIndex, ipsec_install.go:444), so
+	// the per-interface policy set is the interface-selected SPD.
+	// RFC requirement: RFC4552-6-3 positive -- source, destination, protocol and direction are all used
+	// as selectors: each policy carries wildcard Src/Dst, UpperProto 89, and a Dir (asserted in the loop
+	// and the direction-completeness check; buildIPsecPolicies, ipsec_install.go:436-445).
+	// RFC requirement: RFC4552-6-4 positive -- inbound packets are tagged with the arrival interface: the
+	// in/out/fwd policies (including the inbound one) carry IfIndex == testIfIndex (asserted in the loop;
+	// ipsec_install.go:444-449), the interface selector the kernel uses to tag arrivals.
+	// RFC requirement: RFC4552-11-1 positive -- the IPsec barrier is around all OSPF traffic: the out/in/
+	// fwd proto-89 policies cover every inbound and outbound OSPF flow on the interface (all three
+	// directions asserted below; buildIPsecPolicies, ipsec_install.go:447-451).
 	dirs := map[dataplane.SADir]bool{}
 	for _, p := range fake.pols {
 		dirs[p.Dir] = true
@@ -221,6 +245,9 @@ func TestSAParamsSharedKey(t *testing.T) {
 	if len(fake.sas) != 1 {
 		t.Fatalf("want 1 shared SA, got %d", len(fake.sas))
 	}
+	// RFC requirement: RFC4552-6-5 positive -- manually configured keys secure the specified traffic:
+	// the SA is keyed from the statically configured SPI+key with no IKE (buildIPsecSA,
+	// ipsec_install.go:401-424), asserted by the configured auth key and SPI flowing into the SA.
 	if len(fake.sas[0].AuthKey) == 0 {
 		t.Error("shared SA must carry the configured auth key (RFC 4552 §7)")
 	}
@@ -244,6 +271,19 @@ func TestIPsecAHNoEncryptionParams(t *testing.T) {
 		if len(sa.EncKey) != 0 {
 			t.Errorf("AH SA must carry no encryption key, got %d bytes", len(sa.EncKey))
 		}
+	}
+}
+
+func TestIPsecDisabledInterfaceBypass(t *testing.T) {
+	// RFC requirement: RFC4552-11-2 positive -- an interface with OSPFv3 authentication/confidentiality
+	// disabled (no ipsec block) installs no require-policy, so its OSPF is bypassed by the kernel default
+	// SPD: setConfig registers only interfaces that carry an ipsec block (ipsec_install.go:190-200), so
+	// onInterfaceUp on a plain interface installs neither an SA nor a policy.
+	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
+	inst.setConfig([]interfaceConfig{{Name: "eth1"}}) // no IPsec block => disabled
+	inst.onInterfaceUp(testIfIndex, "eth1")
+	if len(fake.sas) != 0 || len(fake.pols) != 0 {
+		t.Fatalf("disabled interface must install nothing (SPD bypass); got %d SAs, %d policies", len(fake.sas), len(fake.pols))
 	}
 }
 

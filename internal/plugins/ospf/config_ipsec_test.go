@@ -39,9 +39,15 @@ func TestParseOSPFIPsecConfig(t *testing.T) {
 	if ips.SPI != 256 || ips.Protocol != "esp" || ips.AuthAlgo != "sha256" {
 		t.Errorf("parsed IPsec = %+v, want spi=256 esp sha256", ips)
 	}
+	// RFC requirement: RFC4552-12-1 positive -- a cryptographic/authentication key configured as a
+	// hexadecimal string is accepted and decoded to bytes (authKeyBytes -> hex.DecodeString,
+	// config_ipsec.go:68-70), so configuring keys in hexadecimal format is supported.
 	if want, _ := hex.DecodeString(key); len(ips.authKeyBytes()) != len(want) {
 		t.Errorf("authKeyBytes len = %d, want %d", len(ips.authKeyBytes()), len(want))
 	}
+	// RFC requirement: RFC4552-3-1 positive -- a well-formed ESP interface with an HMAC-SHA integrity
+	// algorithm+key validates, so OSPFv3 authentication is supported (validateIPsecInterface always
+	// requires an auth algorithm+key, config_ipsec.go:114-124).
 	if err := validateConfig(cfg); err != nil {
 		t.Fatalf("validateConfig(well-formed ESP): %v", err)
 	}
@@ -78,6 +84,9 @@ func TestIPsecAHWithEncryptionRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
+	// RFC requirement: RFC4552-4-2 negative -- confidentiality on AH is rejected with
+	// ErrIPsecAHConfidentiality (config_ipsec.go:125-129), enforcing that when confidentiality is
+	// provided ESP MUST be used, never AH.
 	if err := validateConfig(cfg); !errors.Is(err, ErrIPsecAHConfidentiality) {
 		t.Fatalf("validateConfig(ah+enc) = %v, want ErrIPsecAHConfidentiality", err)
 	}
@@ -92,6 +101,9 @@ func TestIPsecESPRequiresIntegrity(t *testing.T) {
 	// RFC requirement: RFC4301-4.2-1 negative -- an esp interface with NULL encryption and NO
 	// integrity algorithm is rejected with ErrIPsecAuthAlgo, so a null-cipher/no-auth ESP SA
 	// can never be instantiated (validateIPsecInterface, config_ipsec.go:114-124).
+	// RFC requirement: RFC4552-3-1 negative -- the same rejection proves OSPFv3 authentication cannot
+	// be silently omitted: an interface with no valid integrity algorithm is refused with
+	// ErrIPsecAuthAlgo, so authentication support is mandatory (config_ipsec.go:114-116).
 	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
 		`"protocol":"esp","spi":256,"encryption-algorithm":"null"`, "")), nil)
 	if err != nil {
@@ -173,6 +185,11 @@ func TestIPsecSPIBoundary(t *testing.T) {
 
 func TestIPsecESPConfidentialityValid(t *testing.T) {
 	// AC-3: ESP with a valid encryption-algorithm + matching key parses and validates.
+	// RFC requirement: RFC4552-4-2 positive -- confidentiality is provided via ESP: an esp interface
+	// with a valid encryption-algorithm+key validates and installs an ESP SA (config_ipsec.go:130-166).
+	// RFC requirement: RFC4552-6-6 positive -- the accepted encryption algorithm aes256 is a block
+	// cipher; the encryption-algorithm enum admits only null/aes128/aes256 (config_ipsec.go:143-148),
+	// so no stream cipher is selectable.
 	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
 		`"protocol":"esp","spi":256,"algorithm":"sha256","key":"`+hexKey(32)+`","encryption-algorithm":"aes256","encryption-key":"`+hexKey(32)+`"`, "")), nil)
 	if err != nil {
@@ -184,5 +201,34 @@ func TestIPsecESPConfidentialityValid(t *testing.T) {
 	ips := cfg.V6.Interfaces[0].IPsec
 	if !ips.hasConfidentiality() || len(ips.encKeyBytes()) != 32 {
 		t.Errorf("encKeyBytes len = %d, want 32", len(ips.encKeyBytes()))
+	}
+}
+
+func TestIPsecStreamCipherRejected(t *testing.T) {
+	// RFC 4552 §6: stream ciphers MUST NOT be selectable as the OSPFv3 encryption algorithm.
+	// RFC requirement: RFC4552-6-6 negative -- an encryption-algorithm outside the block-cipher
+	// enum (here the stream cipher "rc4") is rejected with ErrIPsecEncAlgo, so the user cannot
+	// choose a stream cipher (validateESPConfidentiality, config_ipsec.go:143-148).
+	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
+		`"protocol":"esp","spi":256,"algorithm":"sha256","key":"`+hexKey(32)+`","encryption-algorithm":"rc4","encryption-key":"`+hexKey(16)+`"`, "")), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig (rc4): %v", err)
+	}
+	if err := validateConfig(cfg); !errors.Is(err, ErrIPsecEncAlgo) {
+		t.Fatalf("validateConfig(rc4 stream cipher) = %v, want ErrIPsecEncAlgo", err)
+	}
+}
+
+func TestIPsecNonHexKeyRejected(t *testing.T) {
+	// RFC requirement: RFC4552-12-1 negative -- a key that is not valid hexadecimal is rejected with
+	// ErrIPsecKeyHex (hex.DecodeString failure, config_ipsec.go:118-120), so the hexadecimal key
+	// format is enforced rather than silently mis-decoded.
+	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
+		`"protocol":"esp","spi":256,"algorithm":"sha256","key":"`+strings.Repeat("zz", 32)+`"`, "")), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig (non-hex key): %v", err)
+	}
+	if err := validateConfig(cfg); !errors.Is(err, ErrIPsecKeyHex) {
+		t.Fatalf("validateConfig(non-hex key) = %v, want ErrIPsecKeyHex", err)
 	}
 }
