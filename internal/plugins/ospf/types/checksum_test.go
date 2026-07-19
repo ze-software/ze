@@ -57,6 +57,9 @@ func TestFletcherIgnoresLSAge(t *testing.T) {
 
 // VALIDATES: AC-11 - RFC 1071 Internet checksum sums words and verifies to 0xFFFF.
 // PREVENTS: OSPF packets from being rejected because checksum generation and verification disagree.
+//
+// RFC requirement: RFC1071-1-3 positive -- internetChecksum stores the bitwise-NOT of the folded 16-bit sum; the exact vector 0x1411 fails if the complement is omitted (internetChecksum, checksum.go:97-103).
+// RFC requirement: RFC1071-1-6 positive -- the carry-producing vector drives the fold loop until no high bits remain before inverting (internetChecksum fold, checksum.go:99-101).
 func TestInternetChecksumRFC1071Vectors(t *testing.T) {
 	data := []byte{0x00, 0x01, 0x00, 0x00, 0xf4, 0xf5, 0xf6, 0xf7}
 	checksum := internetChecksum(data)
@@ -90,6 +93,8 @@ func TestInternetChecksumPairMatchesConcatenatedWindow(t *testing.T) {
 
 // VALIDATES: AC-11 - odd-length Internet checksum windows are padded with zero for the sum only.
 // PREVENTS: losing the final odd byte when summing OSPF packets.
+//
+// RFC requirement: RFC1071-1-4 positive -- an odd-length window is padded with one zero octet for the sum only (transmitted length unchanged); the exact vector 0x97cb fails if the trailing byte is dropped (internetSum odd-byte path, checksum.go:146-148).
 func TestInternetChecksumOddLength(t *testing.T) {
 	data := []byte{0x12, 0x34, 0x56}
 	checksum := internetChecksum(data)

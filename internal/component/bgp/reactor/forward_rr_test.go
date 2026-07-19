@@ -233,6 +233,12 @@ func TestReactorForwardRRNonClientRule(t *testing.T) {
 // (internal/component/bgp/reactor/peer_forward_facts.go:226-229), and the MP re-encode rewrites the
 // attribute only when the NLRI framing changes between encoding contexts, which it does not here
 // because source and destination share one context (internal/component/bgp/reactor/forward_body.go:217).
+//
+// RFC requirement: RFC5549-5-1 positive -- when a next-hop is passed along unchanged (Route Reflector),
+// its encoding MUST NOT be changed: the reflected MP_REACH_NLRI, including its 16-byte IPv6 next-hop for
+// IPv4 NLRI, is byte-identical to the received attribute. nhMode is nhModeNone so applyFactsNextHop leaves
+// attribute 14 untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode
+// rewrites nothing when the NLRI framing is unchanged (internal/component/bgp/reactor/forward_body.go:217).
 func TestReactorForwardRRPreservesExtendedNextHop(t *testing.T) {
 	// MP_REACH_NLRI value: AFI=IPv4, SAFI=unicast, 16-byte IPv6 next-hop (2001:db8::1), NLRI 192.0.2.0/24.
 	mpReach := []byte{

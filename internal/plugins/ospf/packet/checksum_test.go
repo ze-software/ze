@@ -10,6 +10,8 @@ import (
 
 // VALIDATES: AC-3 - packet checksum is backfilled and verifies over packet minus auth field.
 // PREVENTS: peers rejecting every non-authenticated OSPF packet.
+//
+// RFC requirement: RFC1071-1-1 positive -- WriteTo zeroes the Checksum field then stores the complemented PacketChecksum; the round-trip (backfilled non-zero, VerifyPacketChecksum accepts) proves the RFC 1071 generate procedure (header.go:301,322-323, PacketChecksum checksum.go:13-17).
 func TestOSPFPacketChecksum(t *testing.T) {
 	hello := sampleHello(t)
 	p := Packet{Header: sampleHeader(t, PacketTypeHello), Hello: &hello}
@@ -24,6 +26,9 @@ func TestOSPFPacketChecksum(t *testing.T) {
 
 // VALIDATES: AC-3 - the 8-byte Authentication field is outside packet-checksum coverage.
 // PREVENTS: simple/auth data changes invalidating an otherwise correct packet checksum.
+//
+// RFC requirement: RFC1071-x-1 positive -- mutating the excluded 8-byte Auth field leaves the packet checksum valid, proving coverage excludes buf[16:24] (PacketChecksum two-segment sum, checksum.go:13-17).
+// RFC requirement: RFC1071-x-1 negative -- mutating a covered body byte makes VerifyPacketChecksum reject the packet (VerifyPacketChecksum, checksum.go:23-32).
 func TestOSPFPacketChecksumExcludesAuth(t *testing.T) {
 	h := sampleHeader(t, PacketTypeHello)
 	h.AuType = AuTypeSimple
@@ -45,6 +50,8 @@ func TestOSPFPacketChecksumExcludesAuth(t *testing.T) {
 
 // VALIDATES: AC-4 - AuType 2 leaves the packet checksum field zero.
 // PREVENTS: ospf-12 signing packets that peers reject because Checksum is non-zero.
+//
+// RFC requirement: RFC1071-x-2 positive -- an AuType2 packet leaves the Checksum field zero and VerifyPacketChecksum accepts the zero checksum (WriteTo header.go:317-321, VerifyPacketChecksum checksum.go:28-30).
 func TestOSPFPacketChecksumZeroForAuType2(t *testing.T) {
 	h := sampleHeader(t, PacketTypeHello)
 	h.AuType = AuTypeCryptographic

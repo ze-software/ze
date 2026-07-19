@@ -13,6 +13,9 @@ import (
 // VALIDATES: Capability codes are correct per IANA assignments.
 //
 // PREVENTS: Protocol errors from wrong capability codes.
+//
+// RFC requirement: RFC5549-4-3 positive -- the Extended Next Hop Encoding capability is bound to
+// code 5: this table asserts uint8(CodeExtendedNextHop) == 5 (internal/core/bgp/capability/capability.go:70).
 func TestCapabilityCodeConstants(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -438,6 +441,12 @@ func TestCapabilityRoundTrip(t *testing.T) {
 // RFC requirement: RFC8950-4-3 positive -- a capability TLV with code 0x05 parses as an
 // ExtendedNextHop capability; ze binds the Extended Next Hop Encoding capability to code 5
 // (CodeExtendedNextHop = 5, internal/core/bgp/capability/capability.go:70).
+//
+// RFC requirement: RFC5549-4-2 positive -- the capability is carried via the RFC 5492 capability TLV
+// framework: a code-5 TLV parses back into an ExtendedNextHop with its AFI/SAFI/NextHop-AFI tuple
+// (internal/core/bgp/capability/capability.go:667 parseExtendedNextHop).
+// RFC requirement: RFC5549-4-3 positive -- the parsed capability's on-wire Capability Code is 5 (0x05),
+// matching CodeExtendedNextHop (internal/core/bgp/capability/capability.go:70).
 func TestExtendedNextHopCapability(t *testing.T) {
 	t.Parallel()
 	data := []byte{
@@ -465,6 +474,13 @@ func TestExtendedNextHopCapability(t *testing.T) {
 // RFC requirement: RFC8950-4-3 positive -- WriteTo emits the capability with code 5
 // (writeCapabilityTo(..., CodeExtendedNextHop, ...) at internal/core/bgp/capability/capability.go:644)
 // and Parse reads it back as an ExtendedNextHop, so the on-wire Capability Code is 5 in both directions.
+//
+// RFC requirement: RFC5549-4-2 positive -- WriteTo emits and Parse reads back the capability using the
+// RFC 5492 capability TLV procedures, round-tripping the tuple (internal/core/bgp/capability/capability.go:644
+// WriteTo, :667 parseExtendedNextHop).
+// RFC requirement: RFC5549-4-3 positive -- WriteTo emits the capability with Code 5
+// (writeCapabilityTo(..., CodeExtendedNextHop, ...) at internal/core/bgp/capability/capability.go:646) and
+// Parse reads it back, so the Capability Code is 5 in both directions.
 func TestExtendedNextHopRoundTrip(t *testing.T) {
 	t.Parallel()
 	original := &ExtendedNextHop{

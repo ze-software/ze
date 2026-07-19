@@ -152,6 +152,9 @@ func testRIBEntries() []mrt.RIBEntry {
 	}
 }
 
+// RFC requirement: RFC8050-4.1-1 negative -- a base RIB subtype (RIB_IPV4_UNICAST, 2)
+// has no Path Identifier field, so every decoded entry reports PathID 0: DecodeRIBEntries
+// reads no path id for a non-add-path subtype (internal/mrt/decode.go:294).
 func TestRIBRecordRoundTrip(t *testing.T) {
 	seq := uint32(42)
 	prefixLen := uint8(24)
@@ -197,6 +200,14 @@ func TestRIBRecordRoundTrip(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8050-4.1-1 positive -- an add-path RIB subtype (RIB_IPV4_UNICAST_ADDPATH,
+// 8) carries a 4-byte Path Identifier between Originated Time and Attribute Length:
+// WriteRIBEntryAddPath places it there (internal/mrt/encode.go:107) and DecodeRIBEntries reads
+// it back (decode.go:295), so PathID 1 and 2 round-trip.
+// RFC requirement: RFC8050-x-2 positive -- the 4-byte Path Identifier is encoded and decoded
+// big-endian: WriteRIBEntryAddPath writes it with be.PutUint32 (internal/mrt/encode.go:107) and
+// DecodeRIBEntries reads it with binary.BigEndian.Uint32 (decode.go:295), so PathID 1 and 2
+// survive the round-trip byte-for-byte.
 func TestRIBRecordAddPathRoundTrip(t *testing.T) {
 	seq := uint32(100)
 	prefixLen := uint8(32)
@@ -237,6 +248,10 @@ func TestRIBRecordAddPathRoundTrip(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8050-4.2-1 negative -- the base RIB_GENERIC subtype (6) carries no Path
+// Identifier in its NLRI blob: DecodeRIBGenericRecord skips no bytes before the prefix length
+// for a non-add-path subtype (internal/mrt/decode.go:235), so the NLRI decodes verbatim and the
+// entries stay in their RFC 6396 form.
 func TestRIBGenericRoundTrip(t *testing.T) {
 	seq := uint32(7)
 	afi := uint16(1)
@@ -288,6 +303,10 @@ func testBGP4MPHeader() mrt.BGP4MPHeader {
 	}
 }
 
+// RFC requirement: RFC8050-x-3 positive -- a BGP4MP MESSAGE record copies the encapsulated BGP
+// message verbatim (WriteBGP4MPMessage internal/mrt/encode.go:170, DecodeBGP4MPMessage
+// decode.go:325-328), so a Path Identifier carried in the message's own NLRI is preserved inside
+// the message body and the MRT layer never relocates it into the header.
 func TestBGP4MPMessageRoundTrip(t *testing.T) {
 	hdr := testBGP4MPHeader()
 	bgpMsg := []byte{
@@ -349,6 +368,11 @@ func TestBGP4MPMessage2ByteAS(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8050-x-3 negative -- the BGP4MP MRT header carries no Path Identifier
+// field: decodeBGP4MPHeader (internal/mrt/decode.go:352-403), shared by the message and
+// state-change paths, consumes only the AS, interface, AFI and IP fields, so a state-change
+// record (which has no encapsulated message) decodes with no path id anywhere -- the path id
+// exists only inside an encapsulated message's NLRI.
 func TestBGP4MPStateChangeRoundTrip(t *testing.T) {
 	hdr := testBGP4MPHeader()
 	oldState := mrt.FSMActive
@@ -432,6 +456,10 @@ func TestTableDumpRoundTrip(t *testing.T) {
 // Regression: BLOCKER 1 — RIB_GENERIC_ADDPATH must skip the 4-byte Path ID
 // before reading the prefix length byte. Previously data[off] read the first
 // byte of the Path ID as the prefix length, corrupting the parse.
+// RFC requirement: RFC8050-4.2-1 positive -- RIB_GENERIC_ADDPATH (subtype 12) does not redefine
+// the RIB Entry: the 4-byte Path Identifier lives in the raw NLRI blob (decoded by skipping it
+// before the prefix length, internal/mrt/decode.go:235-239) while the entries are parsed with
+// add-path off (decode.go:261), so the NLRI keeps the Path ID and the entry carries only attributes.
 func TestRIBGenericAddPathRoundTrip(t *testing.T) {
 	// Build a RIB_GENERIC_ADDPATH record manually.
 	// NLRI blob for add-path: [PathID(4)][PrefixLen(1)][Prefix(bytes)]
@@ -578,11 +606,19 @@ func TestIsAddPathHelpers(t *testing.T) {
 		mrt.TDV2PeerIndexTable, mrt.TDV2RIBIPv4Unicast, mrt.TDV2RIBIPv6Unicast,
 		mrt.TDV2RIBGeneric, mrt.TDV2GeoPeerTable,
 	}
+	// RFC requirement: RFC8050-x-4 positive -- add-path is distinguished purely by the MRT
+	// subtype value: IsAddPathRIBSubtype (internal/mrt/types.go:131) and IsAddPathBGP4MPSubtype
+	// (types.go:161) take only a subtype and classify the RFC 8050 add-path subtypes as add-path,
+	// with no session or capability argument.
 	for _, s := range addPathRIB {
 		if !mrt.IsAddPathRIBSubtype(s) {
 			t.Errorf("IsAddPathRIBSubtype(%d) = false, want true", s)
 		}
 	}
+	// RFC requirement: RFC8050-x-4 negative -- the base (non-add-path) RIB and BGP4MP subtypes are
+	// classified not-add-path by the same subtype-only helpers (internal/mrt/types.go:131,161),
+	// confirming the add-path decision comes from the subtype code alone and never from a
+	// negotiated capability lookup.
 	for _, s := range notAddPathRIB {
 		if mrt.IsAddPathRIBSubtype(s) {
 			t.Errorf("IsAddPathRIBSubtype(%d) = true, want false", s)

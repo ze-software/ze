@@ -84,6 +84,7 @@ func TestRFC792EchoRequestCode(t *testing.T) {
 
 // RFC requirement: RFC792-Echo-3 positive -- the built echo carries a checksum that makes
 // the one's-complement sum over the whole message fold to 0xffff.
+// RFC requirement: RFC1071-1-5 positive -- summing every 16-bit word including the checksum field folds to 0xffff, the RFC 1071 receive test; icmpChecksum makes it hold (probe/icmp.go:34,39-49).
 func TestRFC792ChecksumValid(t *testing.T) {
 	pkt := BuildICMPEcho(8, 0x1234, 7, []byte("ze-ping"))
 	if got := checksumOnesFold(pkt); got != 0xffff {
@@ -93,6 +94,7 @@ func TestRFC792ChecksumValid(t *testing.T) {
 
 // RFC requirement: RFC792-Echo-3 negative -- altering a message byte after the checksum is
 // computed breaks the property, so a corrupted echo does not carry a valid checksum.
+// RFC requirement: RFC1071-1-5 negative -- flipping a payload byte makes the whole-message one's-complement sum no longer fold to 0xffff, so the RFC 1071 verify test rejects it (invariant established by icmpChecksum, probe/icmp.go:34).
 func TestRFC792ChecksumRejectsCorruption(t *testing.T) {
 	pkt := BuildICMPEcho(8, 0x1234, 7, []byte("ze-ping"))
 	pkt[9] ^= 0xff // flip a payload byte; leave the checksum field intact
@@ -103,6 +105,7 @@ func TestRFC792ChecksumRejectsCorruption(t *testing.T) {
 
 // RFC requirement: RFC792-Echo-4 positive -- an odd total length is padded with one zero
 // octet for the computation, so an odd-length payload still yields a valid checksum.
+// RFC requirement: RFC1071-1-4 positive -- the packet stays odd length (the pad is not transmitted) yet its one's-complement sum with a single implicit zero-octet pad folds to 0xffff (icmpChecksum odd-byte path, probe/icmp.go:44-45).
 func TestRFC792ChecksumOddLength(t *testing.T) {
 	pkt := BuildICMPEcho(8, 0x1234, 7, []byte("odd")) // 8 + 3 = 11 bytes, odd
 	if len(pkt)%2 == 0 {

@@ -320,6 +320,10 @@ func TestParseMPUnreachNLRI(t *testing.T) {
 // RFC requirement: RFC8950-3-1 positive -- an IPv4 NLRI (AFI=1) advertisement with a 16-byte
 // next-hop is parsed as an IPv6 next-hop: parseNextHops keys off the Next Hop Length (16 -> IPv6)
 // regardless of the NLRI AFI (internal/core/bgp/attribute/mpnlri.go:342-349).
+//
+// RFC requirement: RFC5549-3-1 positive -- a receiver uses the Length of Next Hop Address field to
+// determine the next-hop protocol: an IPv4 NLRI (AFI=1) with a 16-byte next-hop is decoded as an IPv6
+// next-hop, parseNextHops keying off the length regardless of NLRI AFI (internal/core/bgp/attribute/mpnlri.go:342).
 func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
 	t.Parallel()
 	// RFC 5549 Section 3: IPv4 NLRI with 16-byte (IPv6) next-hop
@@ -374,6 +378,10 @@ func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
 // VALIDATES: VPN-IPv4 NLRI with IPv6 next-hop parses correctly.
 //
 // PREVENTS: Parsing failures for VPN routes over IPv6 infrastructure.
+//
+// RFC requirement: RFC5549-3-1 positive -- a VPN-IPv4 NLRI (SAFI=128) with a legacy 16-byte next-hop
+// (no Route Distinguisher) is decoded as an IPv6 next-hop by length, per RFC 5549's obsolete VPN
+// encoding accepted for backwards compatibility (internal/core/bgp/attribute/mpnlri.go:419 parseVPNNextHops).
 func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
 	t.Parallel()
 	// RFC 5549 Section 6.2: VPN-IPv4 NLRI with IPv6 next-hop
@@ -416,6 +424,10 @@ func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
 // RFC requirement: RFC8950-3-1 positive -- an IPv4 NLRI advertisement with a 32-byte next-hop is
 // parsed as two IPv6 addresses (global + link-local): parseNextHops selects the family from the
 // Next Hop Length (32 -> dual IPv6) regardless of NLRI AFI (internal/core/bgp/attribute/mpnlri.go:351-358).
+//
+// RFC requirement: RFC5549-3-1 positive -- the receiver uses the Length of Next Hop Address field: an
+// IPv4 NLRI with a 32-byte next-hop is decoded as two IPv6 addresses (global + link-local), parseNextHops
+// selecting the family from the length regardless of NLRI AFI (internal/core/bgp/attribute/mpnlri.go:342).
 func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 	t.Parallel()
 	// RFC 5549 Section 3 + RFC 2545: 32-byte next-hop = global + link-local
@@ -459,6 +471,11 @@ func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 // IPv6 length (16/32) nor a multiple of 4, so parseNextHops rejects it with ErrInvalidNextHopLen
 // (internal/core/bgp/attribute/mpnlri.go:342,366). The length field determines the protocol and
 // an unsupported length is not defaulted or ignored.
+//
+// RFC requirement: RFC5549-3-1 negative -- the Length of Next Hop Address field is authoritative: a
+// 5-byte next-hop for IPv4 NLRI is neither a valid IPv6 length (16/32) nor a multiple of 4, so
+// parseNextHops rejects it with ErrInvalidNextHopLen rather than defaulting by AFI
+// (internal/core/bgp/attribute/mpnlri.go:342,366).
 func TestParseMPReachNLRI_InvalidNextHopLength(t *testing.T) {
 	t.Parallel()
 	data := []byte{

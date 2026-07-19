@@ -238,6 +238,10 @@ func TestMismatchString(t *testing.T) {
 // RFC requirement: RFC8950-4-2 positive -- the tuple (NLRI AFI/SAFI, NH AFI) is negotiated only
 // because both local and remote advertise the same IPv4/Unicast -> IPv6 tuple; Negotiate records
 // it in the intersection (internal/core/bgp/capability/negotiated.go:302).
+//
+// RFC requirement: RFC5549-4-1 positive -- the IPv4/Unicast -> IPv6 tuple is usable only because both
+// peers advertised it via Capability Advertisement; Negotiate records it in the intersection, so peer
+// support is ascertained before any IPv6-next-hop-for-IPv4 advertisement (internal/core/bgp/capability/negotiated.go:302).
 func TestNegotiateExtendedNextHop(t *testing.T) {
 	t.Parallel()
 	// Both peers advertise IPv4/Unicast can use IPv6 next-hop
@@ -273,6 +277,10 @@ func TestNegotiateExtendedNextHop(t *testing.T) {
 // RFC requirement: RFC8950-4-2 negative -- when only the local peer advertises the tuple and the
 // remote does not, the tuple is absent from the negotiated intersection, so it is not usable
 // (internal/core/bgp/capability/negotiated.go:302).
+//
+// RFC requirement: RFC5549-4-1 negative -- when only the local peer advertises the tuple, it is absent
+// from the negotiated intersection, so the speaker has not ascertained peer support and must not
+// advertise the IPv6 next-hop for IPv4 NLRI (internal/core/bgp/capability/negotiated.go:302).
 func TestNegotiateExtendedNextHopMismatch(t *testing.T) {
 	t.Parallel()
 	// Only local advertises ExtNH

@@ -26,6 +26,8 @@ func referenceChecksum(data []byte, initial uint32) uint16 {
 // reference on even- and odd-length inputs, and that summing a packet including
 // its own correct checksum folds to 0xFFFF (the rx verification invariant).
 // PREVENTS: carry-fold bugs and odd-byte-padding bugs (R-3).
+//
+// RFC requirement: RFC1071-1-2 positive -- checksum16's 16-bit one's-complement sum with end-around carry matches an independent straight-line RFC 1071 reference on even- and odd-length inputs (onesComplementSum + fold, checksum.go:19-38).
 func TestChecksumRFC1071(t *testing.T) {
 	inputs := [][]byte{
 		{},

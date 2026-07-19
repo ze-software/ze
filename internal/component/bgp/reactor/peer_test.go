@@ -1196,6 +1196,13 @@ func TestCanUseNextHopFor_IPv6Natural(t *testing.T) {
 // RFC requirement: RFC8950-4-1 positive -- when the Extended Next Hop capability for
 // IPv4/Unicast -> IPv6 next-hop is present in the send context, canUseNextHopFor permits an
 // IPv6 next-hop for IPv4 NLRI, so the speaker may advertise it (internal/component/bgp/reactor/peer.go:694).
+//
+// RFC requirement: RFC5549-4-1 positive -- with Extended Next Hop negotiated for IPv4/Unicast -> IPv6,
+// canUseNextHopFor permits the IPv6 next-hop for IPv4 NLRI, so the speaker may advertise it; RFC 5549
+// shares ze's RFC 8950 extended-next-hop code path (internal/component/bgp/reactor/peer.go:694).
+// RFC requirement: RFC5549-4-4 positive -- the MUST NOT does not fire when ExtNH is negotiated:
+// canUseNextHopFor returns true, permitting the IPv6-next-hop-for-IPv4 advertisement
+// (internal/component/bgp/reactor/peer.go:694).
 func TestCanUseNextHopFor_ExtendedNH(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
@@ -1220,6 +1227,12 @@ func TestCanUseNextHopFor_ExtendedNH(t *testing.T) {
 // RFC requirement: RFC8950-4-1 negative -- without the Extended Next Hop capability negotiated,
 // canUseNextHopFor denies an IPv6 next-hop for IPv4 NLRI, so the speaker MUST NOT advertise it
 // (internal/component/bgp/reactor/peer.go:694).
+//
+// RFC requirement: RFC5549-4-1 negative -- without Extended Next Hop negotiated, canUseNextHopFor
+// denies an IPv6 next-hop for IPv4 NLRI, so peer support has not been ascertained and the speaker
+// must not advertise it (internal/component/bgp/reactor/peer.go:694).
+// RFC requirement: RFC5549-4-4 negative -- a peer that has not advertised ExtNH must not be sent an
+// IPv6 next-hop for IPv4 NLRI: canUseNextHopFor returns false (internal/component/bgp/reactor/peer.go:694).
 func TestCanUseNextHopFor_CrossFamilyNoCap(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
@@ -1237,6 +1250,10 @@ func TestCanUseNextHopFor_CrossFamilyNoCap(t *testing.T) {
 //
 // RFC requirement: RFC8950-4-1 negative -- with no send context at all there is no negotiated
 // Extended Next Hop capability, so canUseNextHopFor denies an IPv6 next-hop for IPv4 NLRI
+// (internal/component/bgp/reactor/peer.go:694,704).
+//
+// RFC requirement: RFC5549-4-4 negative -- with no send context there is no negotiated ExtNH, so
+// canUseNextHopFor denies the IPv6 next-hop for IPv4 NLRI and the speaker MUST NOT send it
 // (internal/component/bgp/reactor/peer.go:694,704).
 func TestCanUseNextHopFor_NilSendCtx(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
