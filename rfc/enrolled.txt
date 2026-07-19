@@ -120,3 +120,4 @@ rfc9085	BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Label
 rfc2759	MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN-strip, UTF-16LE hash) + 3 single-polarity positive (uppercase S=, 16-octet random challenges) + 3 gap (no MS-CHAPv2 Failure/C= packet, peer skips authenticator-response check, no E=691)
 rfc7770	OSPF Router Information LSA (RFC 7770): 1 MET (capabilities reflect config) + 3 single-polarity positive (TLV ordering, functional-cap zero) + 7 not-applicable (IETF document-author / IANA-process obligations)
 rfc5392	OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6; 3 MET (Remote-AS required, Link-ID prohibited, re-advert rate-limit) + 5 single-polarity positive + 4 gap (OSPFv3 Inter-AS-TE-v3 function code 13 unimplemented)
+rfc9514	BGP-LS SRv6 extensions: 13 gap (all origination/encode MUSTs plus one receive-side SID-Structure sum validation; decode-only plugin, TLVs 1038/1162 unimplemented)
