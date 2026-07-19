@@ -141,6 +141,7 @@ func TestOSPFAuthType3SequenceTrailer(t *testing.T) {
 	require.NoError(t, err)
 
 	// 8-byte field: 24-bit reserved 0, Auth Data Length (= 8 + digest), 32-bit Key ID.
+	// RFC requirement: RFC7474-3-1 positive -- the AuType 3 auth field is 24-bit reserved 0 | 8-bit Auth Data Len | 32-bit Key ID in the former sequence-number position (Sign auth_verify.go:186-189, asserted below).
 	af := signed[offAuth : offAuth+AuthFieldLen]
 	assert.Equal(t, []byte{0, 0, 0}, af[0:3], "24-bit reserved")
 	assert.Equal(t, byte(8+authDigestLen(AuthHMACSHA256)), af[3], "auth data length includes the 8 sequence octets")
@@ -150,6 +151,9 @@ func TestOSPFAuthType3SequenceTrailer(t *testing.T) {
 	assert.Len(t, signed, plen+8+authDigestLen(AuthHMACSHA256))
 	assert.Equal(t, seq, readUint64(signed[plen:], 0), "64-bit sequence appended high-word first")
 
+	// RFC requirement: RFC7474-2-1 positive -- the 64-bit sequence occupies the 8 octets after the OSPF packet and is included in the digest, so the round-trip verify below proves it is present and covered (Sign auth_verify.go:196-199, Verify :260-263).
+	// RFC requirement: RFC7474-5-1 positive -- the 64-bit sequence is part of the First-Hash (packet || 8-octet seq), which the round-trip verify confirms (Verify auth_verify.go:262).
+	// RFC requirement: RFC7474-6-1 positive -- the AuType 3 round-trip exercises the Section 6 protocol-ID suffix path, since Sign and Verify both append ospfv2CryptoProtocolID to the key before hashing (Sign auth_verify.go:195, Verify :261).
 	got, ok := Verify(signed, AuTypeCryptographicESN, key, src)
 	assert.True(t, ok)
 	assert.Equal(t, seq, got, "verify returns the 64-bit sequence")
@@ -168,9 +172,11 @@ func TestOSPFAuthType3SourceBinding(t *testing.T) {
 	signed, err := Sign(helloWire(t, AuTypeCryptographicESN), AuTypeCryptographicESN, key, seq, signSrc)
 	require.NoError(t, err)
 
+	// RFC requirement: RFC7474-5-2 negative -- Apad's first 4 octets are the IP source address (remainder 0x878FE1F3), so a spoofed receive source yields a different Apad and the digest is rejected (apadSrc auth_verify.go:96-102, Verify :262).
 	_, spoofed := Verify(signed, AuTypeCryptographicESN, key, spoofSrc)
 	assert.False(t, spoofed, "a different (spoofed) source address fails the AuType 3 digest")
 
+	// RFC requirement: RFC7474-5-2 positive -- when the receive source matches the sign-time source, the first 4 Apad octets match on both sides and the digest verifies (apadSrc auth_verify.go:96-102, Sign :196, Verify :262).
 	got, matched := Verify(signed, AuTypeCryptographicESN, key, signSrc)
 	assert.True(t, matched, "the matching source address verifies")
 	assert.Equal(t, seq, got)
@@ -195,6 +201,7 @@ func TestOSPFAuthCryptoRejectsExtraTrailerBytes(t *testing.T) {
 		_, ok := Verify(signed, au, key, [4]byte{})
 		require.True(t, ok, "exact-length packet verifies")
 
+		// RFC requirement: RFC7474-2-1 negative -- the AuType 3 trailer is exactly the 8-octet sequence plus the digest; an extra byte after it breaks the strict framing (plen+8+l != len(wire)) and Verify rejects it, so the sequence octets are load-bearing (Verify auth_verify.go:252).
 		padded := append(bytes.Clone(signed), 0x00)
 		_, bad := Verify(padded, au, key, [4]byte{})
 		assert.False(t, bad, "extra byte after the digest trailer is rejected for AuType %d", au)
@@ -219,8 +226,82 @@ func TestOSPFAuthCryptoRejectsKeyIDMismatch(t *testing.T) {
 	a3 := helloWire(t, AuTypeCryptographicESN)
 	signedA3, err := Sign(a3, AuTypeCryptographicESN, AuthKey{KeyID: 0x11223344, Algorithm: AuthHMACSHA256, Secret: secret}, 0x0000000100000001, [4]byte{})
 	require.NoError(t, err)
+	// RFC requirement: RFC7474-3-1 negative -- the 32-bit Key ID in the AuType 3 auth field selects the key; a packet whose Key ID does not match the verifying key is rejected even with the right secret (Verify auth_verify.go:257-259).
 	_, mismatch3 := Verify(signedA3, AuTypeCryptographicESN, AuthKey{KeyID: 0x55667788, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
 	assert.False(t, mismatch3, "AuType 3: a non-matching 32-bit Key ID must not verify even with the right secret")
 	_, match3 := Verify(signedA3, AuTypeCryptographicESN, AuthKey{KeyID: 0x11223344, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
 	assert.True(t, match3, "AuType 3: matching Key ID verifies")
+}
+
+// TestOSPFAuthType3SequenceTamperRejected proves the RFC 7474 §5 requirement that the
+// 64-bit sequence number is part of the First-Hash: flipping a single octet of the
+// 8-octet sequence trailer after signing makes the digest mismatch, so a correct Verify
+// rejects the packet. A Verify that failed to cover the sequence in its hash would still
+// accept the tampered packet, so this guards the "include the sequence in First-Hash"
+// obligation directly.
+func TestOSPFAuthType3SequenceTamperRejected(t *testing.T) {
+	key := AuthKey{KeyID: 0x0A0B0C0D, Algorithm: AuthHMACSHA256, Secret: []byte("rfc7474-first-hash-covers-seq")}
+	src := [4]byte{192, 0, 2, 55}
+	const seq = uint64(0x0000000700000011)
+	wire := helloWire(t, AuTypeCryptographicESN)
+	plen := len(wire)
+	signed, err := Sign(wire, AuTypeCryptographicESN, key, seq, src)
+	require.NoError(t, err)
+
+	// Baseline: the untampered packet verifies (the sequence is part of the hash).
+	_, ok := Verify(signed, AuTypeCryptographicESN, key, src)
+	require.True(t, ok, "the untampered AuType 3 packet verifies")
+
+	// Flip one octet inside the 8-byte sequence trailer (signed[plen:plen+8]). The auth-data
+	// length and Key ID fields are untouched, so Verify passes framing/key-id and reaches the
+	// digest compare, which must fail because the sequence is covered by the First-Hash.
+	tampered := bytes.Clone(signed)
+	tampered[plen+3] ^= 0xff
+	require.NotEqual(t, seq, readUint64(tampered, plen), "the flipped octet actually changed the carried sequence")
+	// RFC requirement: RFC7474-5-1 negative -- tampering one octet of the 8-byte sequence trailer breaks the First-Hash digest (which covers packet || 8-octet seq), so Verify rejects the packet (Verify auth_verify.go:262 hashes wire[:plen+8]).
+	_, bad := Verify(tampered, AuTypeCryptographicESN, key, src)
+	assert.False(t, bad, "a tampered sequence octet fails the First-Hash digest")
+}
+
+// TestOSPFAuthType3RequiresProtocolIDSuffix proves the RFC 7474 §6 requirement that the
+// two-octet OSPFv2 Cryptographic Protocol ID is appended to the authentication key before
+// the digest is computed. A digest built from the bare key (no suffix) must be rejected by
+// Verify, which appends the suffix; a Verify that skipped §6 would accept this cross-protocol
+// forgery. The control below signs the same key/seq/src through the real signer (which does
+// append the suffix) and shows it verifies, isolating the protocol-ID suffix as the only
+// difference between accept and reject.
+func TestOSPFAuthType3RequiresProtocolIDSuffix(t *testing.T) {
+	key := AuthKey{KeyID: 0x21324354, Algorithm: AuthHMACSHA256, Secret: []byte("rfc7474-protocol-id-suffix")}
+	src := [4]byte{198, 51, 100, 22}
+	const seq = uint64(0x0000000200000003)
+	l := authDigestLen(key.Algorithm)
+
+	// Build the AuType 3 packet + auth field exactly as Sign does (reserved, auth-data-len,
+	// 32-bit Key ID, and the 8-octet sequence trailer).
+	wire := helloWire(t, AuTypeCryptographicESN)
+	plen := len(wire)
+	af := wire[offAuth : offAuth+AuthFieldLen]
+	af[0], af[1], af[2] = 0, 0, 0
+	af[3] = byte(8 + l)
+	writeUint32(wire, offAuth+4, key.KeyID)
+	var seqb [8]byte
+	writeUint64(seqb[:], 0, seq)
+
+	// Digest over the BARE key (no RFC 7474 §6 protocol-ID suffix); source-bound Apad and the
+	// sequence in the hash are otherwise identical to the real signer.
+	bareDigest := cryptoDigest(key, append(append([]byte{}, wire...), seqb[:]...), apadSrc(l, src))
+	forged := make([]byte, 0, plen+8+l)
+	forged = append(forged, wire...)
+	forged = append(forged, seqb[:]...)
+	forged = append(forged, bareDigest...)
+	// RFC requirement: RFC7474-6-1 negative -- a digest computed from the bare key WITHOUT the two-octet OSPFv2 Cryptographic Protocol ID suffix is rejected, because Verify appends ospfv2CryptoProtocolID to the key before hashing (Verify auth_verify.go:261).
+	_, bad := Verify(forged, AuTypeCryptographicESN, key, src)
+	assert.False(t, bad, "a digest without the protocol-ID suffix is rejected")
+
+	// Control: the real signer (which appends the suffix) over the SAME key/seq/src verifies,
+	// so the appended protocol ID is the only thing separating accept from reject.
+	signed, err := Sign(helloWire(t, AuTypeCryptographicESN), AuTypeCryptographicESN, key, seq, src)
+	require.NoError(t, err)
+	_, ok := Verify(signed, AuTypeCryptographicESN, key, src)
+	require.True(t, ok, "the suffix-appending signer verifies, isolating the protocol ID as the cause")
 }

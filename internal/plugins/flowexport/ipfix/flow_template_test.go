@@ -6,6 +6,8 @@ import (
 )
 
 func TestIPFIXFlowTemplate(t *testing.T) {
+	// RFC requirement: RFC7012-4-1 positive -- the emitted template references only non-zero IANA IE IDs; IE identifier 0 (reserved) is never used
+
 	tmpl := BuildFlowTemplate()
 
 	// Set ID = 2 (Template Set)

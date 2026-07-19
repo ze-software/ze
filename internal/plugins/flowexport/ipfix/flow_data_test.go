@@ -7,6 +7,8 @@ import (
 )
 
 func TestIPFIXFlowData(t *testing.T) {
+	// RFC requirement: RFC7012-x-5 positive -- each data record field is written at exactly the width declared for its IE in the template
+
 	buf := make([]byte, 256)
 	flows := []FlowRecord{
 		{

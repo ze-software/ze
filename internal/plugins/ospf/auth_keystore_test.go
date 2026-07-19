@@ -122,10 +122,13 @@ func TestOSPFAuthReplay(t *testing.T) {
 		return signed
 	}
 
+	// RFC requirement: RFC7474-2-5 positive -- a strictly-increasing sequence (10 then 11) is accepted against the per-neighbor/per-type high-water mark (authStore.verify auth_keystore.go:354-361).
 	_, ok := s.verify("eth0", peer, [4]byte{}, mk(10))
 	require.True(t, ok, "seq 10 accepted")
 	_, ok2 := s.verify("eth0", peer, [4]byte{}, mk(11))
 	require.True(t, ok2, "seq 11 (>10) accepted")
+	// RFC requirement: RFC7474-2-5 negative -- a sequence lower than the last accepted (5 < 11) is dropped as a replay (authStore.verify auth_keystore.go:357-359).
+	// RFC requirement: RFC7474-2-6 negative -- a same-type sequence at or below the per-type high-water mark is rejected, proving the mark actually gates packets of that type (authStore.verify auth_keystore.go:357-359).
 	reason, replayOK := s.verify("eth0", peer, [4]byte{}, mk(5))
 	assert.False(t, replayOK, "seq 5 (< last accepted 11) rejected as replay")
 	assert.Equal(t, "replay", reason)
@@ -154,6 +157,7 @@ func TestOSPFAuthReplayPerType(t *testing.T) {
 	hello := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello}, Hello: &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}}
 	ack := packet.Packet{Header: packet.Header{Type: packet.PacketTypeLSAck}, LSAck: &packet.LSAck{}}
 
+	// RFC requirement: RFC7474-2-6 positive -- the high-water mark is per neighbor AND per packet type: a Hello at seq 100 does not block an LS-Ack at the lower seq 5, so each packet type keeps its own mark (replayKey.pktType auth_keystore.go:42, verify :352).
 	_, ok := s.verify("eth0", peer, [4]byte{}, signType(hello, 100))
 	require.True(t, ok, "Hello seq 100 accepted")
 	_, ok2 := s.verify("eth0", peer, [4]byte{}, signType(ack, 5))
@@ -329,6 +333,7 @@ func (f *fakeBootStore) WriteFile(name string, data []byte, _ fs.FileMode) error
 // TestBootCountMonotonicAcrossRestart drives AC-18 / RFC 7474 §3: a persisted boot
 // count strictly increases on each load (each load models one cold restart).
 func TestBootCountMonotonicAcrossRestart(t *testing.T) {
+	// RFC requirement: RFC7474-2-4 positive -- the persisted boot count strictly increases on each cold restart (each load models one restart), preserving the aggregate 64-bit sequence's strictly-increasing property for the router's deployed life (loadOSPFBootCount auth_keystore.go:124-132).
 	store := newFakeBootStore()
 	first := loadOSPFBootCount(store)
 	second := loadOSPFBootCount(store)
@@ -366,6 +371,7 @@ func TestSetBootCountSeedsSequence(t *testing.T) {
 	_, au, seq, _, ok := s.signKey("eth0")
 	require.True(t, ok)
 	assert.Equal(t, packet.AuTypeCryptographicESN, au)
+	// RFC requirement: RFC7474-2-2 positive -- the 64-bit sequence is composed as high-order boot count | low-order counter (0x1234<<32 | 1) by signKey (auth_keystore.go:314).
 	assert.Equal(t, uint64(0x1234)<<32|1, seq, "boot count is the high word, per-packet counter the low word")
 }
 
@@ -388,6 +394,7 @@ func TestOSPFAuthESNCounterWrapAdvancesBootCount(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, uint64(0x1235)<<32, seq, "boot count advanced to 0x1235 and the counter wrapped to 0")
 
+	// RFC requirement: RFC7474-2-3 positive -- every packet sent increments the low-order 32-bit counter (successive signKey calls advance seq2 = seq + 1), so the sequence increments per packet (auth_keystore.go:303,314).
 	// The following packet continues strictly increasing from the bumped boot count.
 	_, _, seq2, _, ok := s.signKey("eth0")
 	require.True(t, ok)
