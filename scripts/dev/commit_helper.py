@@ -760,6 +760,17 @@ DEFERRAL_PATTERNS = (
 )
 
 
+# Directories whose markdown DISCUSSES deferral as policy rather than performing
+# it: the rule corpus (ai/rules/deferral-tracking.md, no-parking.md, planning.md,
+# handoff.md, ...) and the generated ai/rules/CONDENSED.md digest that flattens
+# their prose. A bare "future work" / "out of scope" phrase there is the subject
+# under discussion, not an act of parking work, so it is exempt from the
+# added-prose scan. Specs (plan/spec-*.md) and code stay in scope -- that is where
+# a real deferral gets written and must be homed. See ai/rules/deferral-tracking.md,
+# ai/rules/friction-reporting.md, plan/learned/HOOK-FRICTION.md.
+DEFERRAL_SCAN_EXEMPT_DIRS = ("ai/rules/", ".claude/rules/")
+
+
 DEFERRAL_NO_DESTINATION_NEEDED = frozenset({"cancelled", "user-approved-drop"})
 
 # A destination names a markdown file: a full `plan/...md` path (which may be
@@ -919,13 +930,16 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
 
 def _prospective_added_lines(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
-) -> list[str]:
-    """The '+' lines this commit would introduce (added/modified files).
+) -> list[tuple[str, str]]:
+    """The (path, '+' line) pairs this commit would introduce (added/modified files).
 
     Computed in a THROWAWAY index (GIT_INDEX_FILE) so the real staging area is
     never touched: read HEAD's tree, apply this commit's add/remove set, then
     diff --cached -U0 --diff-filter=AM. That is exactly what the generated
     `git add ... ; git commit` will record, and it captures brand-new files too.
+
+    Each returned line is paired with the repo-relative path of the file it belongs
+    to (from the diff's `+++ b/<path>` header) so a caller can path-scope the scan.
     """
     (repo / "tmp").mkdir(exist_ok=True)
     fd, index = tempfile.mkstemp(prefix="ze-commit-index-", dir=str(repo / "tmp"))
@@ -956,11 +970,16 @@ def _prospective_added_lines(
             os.unlink(index)
         except OSError:
             pass
-    return [
-        line
-        for line in diff.splitlines()
-        if line.startswith("+") and not line.startswith("+++") and line != "+"
-    ]
+    result: list[tuple[str, str]] = []
+    current = ""
+    for line in diff.splitlines():
+        if line.startswith("+++ "):
+            hdr = line[4:]  # "b/<path>" for A/M files, "/dev/null" never here
+            current = hdr[2:] if hdr.startswith("b/") else hdr
+            continue
+        if line.startswith("+") and not line.startswith("+++") and line != "+":
+            result.append((current, line))
+    return result
 
 
 def _deferral_prose(line: str) -> str:
@@ -987,15 +1006,18 @@ def deferral_in_diff_problems(
     `DEFERRAL_PATTERNS` list, the rule docs that quote it, and the fixtures that
     test it -- all of which now ride the gated commit path -- do not self-trip:
     their trigger phrases live inside quotes or backticks. Go's `defer f()` is
-    also skipped. This prose-only match is the one intentional divergence from
+    also skipped. Lines from `DEFERRAL_SCAN_EXEMPT_DIRS` (the rule corpus and its
+    generated digest, which discuss deferral policy in bare prose) are skipped by
+    path. This prose-only, path-scoped match is the intentional divergence from
     the dead `check-deferral-in-diff.sh`, which never met its own list.
     """
     if "plan/deferrals.md" in add_paths:
         return []
     prose = [
         (line, _deferral_prose(line))
-        for line in _prospective_added_lines(repo, add_paths, remove_paths)
-        if not re.match(r"^\+\s*defer [a-zA-Z]", line)
+        for path, line in _prospective_added_lines(repo, add_paths, remove_paths)
+        if not path.startswith(DEFERRAL_SCAN_EXEMPT_DIRS)
+        and not re.match(r"^\+\s*defer [a-zA-Z]", line)
     ]
     if not prose:
         return []

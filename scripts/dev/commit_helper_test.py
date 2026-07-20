@@ -378,6 +378,64 @@ class TestDeferralGateSeverity(unittest.TestCase):
             )
 
 
+class TestDeferralInDiff(unittest.TestCase):
+    """deferral_in_diff_problems scans added prose for un-homed deferral language,
+    but exempts the rule corpus (ai/rules/, .claude/rules/), which DISCUSSES
+    deferral policy rather than parking work. Code and specs stay in scope
+    (ai/rules/deferral-tracking.md, ai/rules/friction-reporting.md).
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init")
+        _git(root, "config", "user.email", "t@e.st")
+        _git(root, "config", "user.name", "t")
+        (root / "README.md").write_text("seed\n")
+        _git(root, "add", "README.md")
+        _git(root, "commit", "-q", "-m", "seed")
+        return root
+
+    def test_bare_deferral_in_code_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "internal").mkdir()
+            (root / "internal" / "x.go").write_text(
+                "package x\n// out of scope for this change; future work\n"
+            )
+            self.assertTrue(ch.deferral_in_diff_problems(root, ("internal/x.go",), ()))
+
+    def test_bare_deferral_in_rule_doc_is_exempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "ai" / "rules").mkdir(parents=True)
+            (root / "ai" / "rules" / "foo.md").write_text(
+                "# Foo\n\nThis rule governs future work and out of scope items.\n"
+            )
+            self.assertEqual(
+                ch.deferral_in_diff_problems(root, ("ai/rules/foo.md",), ()), []
+            )
+
+    def test_bare_deferral_in_generated_condensed_is_exempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "ai" / "rules").mkdir(parents=True)
+            (root / "ai" / "rules" / "CONDENSED.md").write_text(
+                "# Condensed\n\nRisks: new coupling, follow-up work, future work.\n"
+            )
+            self.assertEqual(
+                ch.deferral_in_diff_problems(root, ("ai/rules/CONDENSED.md",), ()), []
+            )
+
+    def test_bare_deferral_in_spec_still_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "plan").mkdir()
+            (root / "plan" / "spec-x.md").write_text(
+                "# Spec\n\nThe IPv6 path is future work.\n"
+            )
+            self.assertTrue(ch.deferral_in_diff_problems(root, ("plan/spec-x.md",), ()))
+
+
 class TestStagingGuard(unittest.TestCase):
     """render_staging_guard aborts a generated commit script when the shared index
     holds files this commit did not stage (concurrent-session cross-commit guard)."""

@@ -117,6 +117,38 @@ The single fix corrects all four consumers (`.lsp-invoked-`, `.source-read-`,
 
 ---
 
+## Filed 2026-07-20: `deferral-in-diff` gate false-positives on the rule corpus
+
+**Trigger.** `commit_helper.py`'s `deferral_in_diff_problems` scans a commit's
+added prose for un-homed deferral language (`DEFERRAL_PATTERNS`: `future work`,
+`out of scope`, `postpone`, `follow-up work`, ...) and BLOCKS unless
+`plan/deferrals.md` rides along. It already blanks quoted/backticked spans, so it
+fires only on BARE prose — but the rule corpus is full of bare prose that
+DISCUSSES deferral policy: `no-parking.md` ("genuinely separable, out-of-scope
+`future work`"), `planning.md` (status vocab, Consequences), `handoff.md`
+("Speculative `future work`"), `config-design.md` ("as `follow-up work`"), and
+one true word-sense collision — `no-sprintf-alloc.md`'s "buffer goes `out of
+scope`" (lexical scope, unrelated to deferring work). The generated
+`ai/rules/CONDENSED.md` flattens all of them, so every `make ze-rules-condensed`
+regeneration commit re-tripped the gate.
+
+**Old workaround (bad).** Pass `plan/deferrals.md` in `--file`. This is
+all-or-nothing: it disables the ENTIRE gate for that commit, so a genuine un-homed
+deferral elsewhere in the same commit would sail through, and it forces staging a
+shared file (cross-commit hazard per `git-safety.md`).
+
+**Fix (2026-07-20, at the source).** `_prospective_added_lines` now carries each
+`+` line's file path (from the diff's `+++ b/<path>` header), and
+`deferral_in_diff_problems` skips lines whose path is under
+`DEFERRAL_SCAN_EXEMPT_DIRS` = (`ai/rules/`, `.claude/rules/`). Those trees discuss
+deferral as policy; the generated digest lives there too, so the recurring case is
+covered by one directory rule. Specs (`plan/spec-*.md`), code, and comments stay
+in scope — that is where a real deferral gets written and must be homed. Proven by
+`TestDeferralInDiff` (rule-doc + CONDENSED exempt; code + spec still block) and the
+`commit-gate` fixtures (`prose-still-caught`, `code-literal-exempt` unchanged).
+
+---
+
 ## Filed 2026-07-16: seven frictions, one session, zero reports
 
 One long session hit every friction below and filed none of them at the time.
