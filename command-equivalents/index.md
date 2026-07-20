@@ -1,6 +1,6 @@
 # Command Equivalents
 
-386 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+387 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -539,6 +539,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `update firewall irr all` | Daemon | - | - | - | - | [details](update-firewall-irr-all/) |
 | `update firewall irr as-set <as-set>` | Daemon | - | - | - | - | [details](update-firewall-irr-as-set/) |
 | `update firewall irr asn <asn>` | Daemon | - | - | - | - | [details](update-firewall-irr-asn/) |
+| `update serve` | Offline | - | - | - | - | [details](update-serve/) |
 | `update system firmware apply` | Daemon | - | - | - | - | [details](update-system-firmware-apply/) |
 | `update system firmware check` | Daemon | - | - | - | - | [details](update-system-firmware-check/) |
 | `update system firmware download` | Daemon | - | - | - | - | [details](update-system-firmware-download/) |

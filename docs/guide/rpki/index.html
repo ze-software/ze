@@ -40,7 +40,10 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
-<li><a href="#config-reference">Config Reference</a></li>
+<li><a href="#config-reference">Config Reference</a>
+<ol>
+<li><a href="#per-peer-and-per-group-actions">Per-peer and per-group actions</a></li>
+</ol></li>
 <li><a href="#plugin-bindings">Plugin Bindings</a></li>
 </ol></li>
 <li><a href="#how-it-works">How It Works</a>
@@ -147,13 +150,13 @@ bgp {
 <td>Seconds before fail-open on pending routes</td>
 </tr>
 <tr>
-<td><code>rpki / policy / invalid-action</code></td>
+<td><code>rpki / action / invalid</code></td>
 <td>enum</td>
 <td>reject</td>
 <td>Action for Invalid routes: reject, log-only, accept</td>
 </tr>
 <tr>
-<td><code>rpki / policy / not-found-action</code></td>
+<td><code>rpki / action / not-found</code></td>
 <td>enum</td>
 <td>accept</td>
 <td>Action for NotFound routes: accept, reject, log-only</td>
@@ -165,13 +168,13 @@ bgp {
 <td>Enable ASPA path verification using RTR v2 ASPA records</td>
 </tr>
 <tr>
-<td><code>rpki / aspa / policy / invalid-action</code></td>
+<td><code>rpki / aspa / action / invalid</code></td>
 <td>enum</td>
 <td>log-only</td>
 <td>Action for ASPA Invalid routes: reject, log-only, accept</td>
 </tr>
 <tr>
-<td><code>rpki / aspa / policy / unknown-action</code></td>
+<td><code>rpki / aspa / action / unknown</code></td>
 <td>enum</td>
 <td>accept</td>
 <td>Action for ASPA Unknown routes: accept, reject, log-only</td>
@@ -180,6 +183,30 @@ bgp {
 </table>
 <p>Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).</p>
 <!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
+
+<h4 id="per-peer-and-per-group-actions">Per-peer and per-group actions</h4>
+<p>The <code>action</code> block (both the origin <code>action</code> and the ASPA <code>action</code>) can also be set under a
+<code>peer</code> or a <code>group</code>, overriding the global <code>rpki / action</code> for routes learned from that peer.
+Only the action blocks are per-peer; <code>cache-server</code>, <code>validation-timeout</code>, and <code>aspa / validation</code>
+remain global. Resolution is <strong>peer &gt; group &gt; global, per leaf</strong>: a leaf left unset on the peer
+inherits the group's value, then the global value. Peers with a static <code>connection / remote / ip</code>
+can be overridden; dynamically-addressed peers use the global actions.</p>
+<pre><code>bgp {
+    rpki {                                  /* global: caches + baseline actions */
+        cache-server 192.0.2.1 { port 323; }
+        action { invalid reject; not-found accept; }
+    }
+    group transit {
+        rpki { action { invalid reject; } }        /* group default for members */
+        peer customer-a {
+            rpki { action { invalid log-only; } }  /* per-peer override; not-found inherits global */
+        }
+    }
+}
+</code></pre>
+<p><code>show bgp rpki status</code> reports the effective global actions (<code>actions</code>) and the resolved per-peer
+overrides with the source of each leaf (<code>peer-actions</code>).</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
 
 <h3 id="plugin-bindings">Plugin Bindings</h3>
 <p>The rpki plugin must be bound to peers with <code>process rpki { receive [ update ] }</code>. The adj-rib-in plugin must also be bound with <code>process adj-rib-in { receive [ update state ] }</code> -- it provides the validation gate that holds routes pending validation.</p>
@@ -358,8 +385,8 @@ bgp {
         }
         aspa {
             validation true;
-            policy {
-                invalid-action reject;
+            action {
+                invalid reject;
             }
         }
     }
@@ -377,21 +404,21 @@ bgp {
 </thead>
 <tbody>
 <tr>
-<td><code>invalid-action</code></td>
+<td><code>aspa / action / invalid</code></td>
 <td>reject, log-only, accept</td>
 <td>log-only</td>
 <td>Action when a route's AS_PATH fails ASPA verification</td>
 </tr>
 <tr>
-<td><code>unknown-action</code></td>
+<td><code>aspa / action / unknown</code></td>
 <td>accept, reject, log-only</td>
 <td>accept</td>
 <td>Action when ASPA records are missing for some ASes in the path</td>
 </tr>
 </tbody>
 </table>
-<p>The default for <code>invalid-action</code> is <code>log-only</code> (conservative) rather than <code>reject</code> because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to <code>reject</code> once your upstream providers have published ASPA records.</p>
-<p>ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when <code>invalid-action</code> is set to <code>reject</code>.</p>
+<p>The default for <code>invalid</code> is <code>log-only</code> (conservative) rather than <code>reject</code> because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to <code>reject</code> once your upstream providers have published ASPA records.</p>
+<p>ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when <code>invalid</code> is set to <code>reject</code>.</p>
 <h3 id="aspa-validation-states">ASPA Validation States</h3>
 <p>Each route receives one of three ASPA states:</p>
 <table>

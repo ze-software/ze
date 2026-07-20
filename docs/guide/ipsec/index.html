@@ -200,6 +200,14 @@ vpn {
 <h2 id="ikev2-responder-role">IKEv2 responder role</h2>
 <p>Ze can act as the IKEv2 responder as well as the initiator. A peer with <code>connection-type respond</code> waits for an unsolicited inbound IKE_SA_INIT from its configured <code>remote-address</code>, answers IKE_AUTH, and installs the first Child SA. <code>connection-type initiate</code>, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.</p>
 <p>As responder, Ze authenticates with a pre-shared key, X.509 certificate, or EAP. For EAP it acts as the EAP-MSCHAPv2 or EAP-TLS server for a road-warrior client. It presents its own certificate or PSK first, runs the EAP method, and derives session keys from the EAP MSK.</p>
+<p>A new inbound IKE_SA_INIT can proceed while an older established SA for the
+same peer is still being maintained. Once the replacement authenticates, its
+INITIAL_CONTACT notification tells the remote endpoint to discard the stale SA.
+This lets a responder recover immediately after an operator clear or peer
+restart instead of waiting for Dead Peer Detection.</p>
+<!-- source: internal/component/ike/engine/established.go -- owned SA routing -->
+<!-- source: internal/component/ike/engine/auth.go -- INITIAL_CONTACT -->
+
 <pre><code class="language-text">vpn {
     ipsec {
         interface eth0;
@@ -230,6 +238,12 @@ vpn {
 }
 </code></pre>
 <p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code> or <code>eap-tls</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. The <code>remote-access</code> container assigns client addresses from a <code>pool</code> and holds per-user EAP credentials in an <code>eap-user</code> list.</p>
+<p>When a CA certificate is configured, the EAP peer validates the authenticator's
+certificate chain against that trust anchor. EAP-TLS has no server hostname, so
+the check validates the chain without DNS-name matching. With no CA configured,
+server-certificate validation is disabled explicitly.</p>
+<!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
+
 <h2 id="rekeying">Rekeying</h2>
 <p>Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries <code>N(REKEY_SA)</code> with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.</p>
 <p>Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule, where the lower nonce wins, so both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by <code>ze_ipsec_rekey_total{peer}</code> and streamed as <code>child-rekey</code> events by <code>monitor vpn ipsec</code>.</p>
@@ -305,6 +319,11 @@ vpn {
 </tr>
 </tbody>
 </table>
+<p><code>clear vpn ipsec sa</code> sends a best-effort encrypted IKE Delete before removing
+local state. Initiator peers then re-establish immediately. If the UDP Delete is
+lost, the normal DPD path still removes the stale remote SA.</p>
+<!-- source: internal/component/ike/engine/established.go -- graceful stop and sendDeleteIKE -->
+
 <h2 id="health-and-metrics">Health and metrics</h2>
 <p>The IPsec component registers with the health registry. It reports <code>healthy</code> when all configured tunnels are established, <code>degraded</code> when some are down, and <code>down</code> when critical tunnels fail.</p>
 <p>Prometheus exposes <code>ze_ipsec_sa_count</code>, <code>ze_ipsec_tunnel_up{peer}</code>, and <code>ze_ipsec_rekey_total{peer}</code>.</p>

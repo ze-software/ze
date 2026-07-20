@@ -39,6 +39,8 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#address-families">Address Families</a></li>
 <li><a href="#capabilities">Capabilities</a></li>
+<li><a href="#multipath-installation">Multipath installation</a></li>
+<li><a href="#long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</a></li>
 <li><a href="#path-attributes">Path Attributes</a></li>
 </ol></nav>
 <h3 id="address-families">Address Families</h3>
@@ -354,6 +356,29 @@
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
+
+<h3 id="multipath-installation">Multipath installation</h3>
+<p>When several BGP candidates tie under multipath selection, Ze carries the
+winner and its equal-cost sibling next hops into the shared Loc-RIB. The system
+RIB then emits one ECMP group to the active FIB backend. Membership-only
+changes, such as one equal-cost peer disappearing, update the installed group
+without requiring the winning peer to change.</p>
+<p><code>show rib</code> reports the primary <code>next-hop</code> and the additional <code>ecmp-paths</code>.
+Together they are the complete installed next-hop set.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SelectMultipath, mirrorToLocRIB -->
+<!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
+<!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
+
+<h3 id="long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</h3>
+<p>RFC 9494 stale-route handling is applied per destination on both normal
+forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
+route unchanged. A non-LLGR eBGP peer receives a withdrawal. A non-LLGR iBGP
+peer receives the route with <code>NO_EXPORT</code> and <code>LOCAL_PREF=0</code>, allowing partial
+deployments to retain reachability without preferring stale information.</p>
+<p>Only the LLGR filter runs during stale readvertisement. Other export policy has
+already run on the original announcement and is not applied twice.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertise -->
 
 <h3 id="path-attributes">Path Attributes</h3>
 <table>

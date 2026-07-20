@@ -1,5 +1,87 @@
 [
   {
+    "slug": "2026-07-13",
+    "intro": "A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "VRRP",
+        "category": "routing",
+        "key": "VRRP"
+      },
+      {
+        "label": "RPKI",
+        "category": "routing",
+        "key": "RPKI"
+      },
+      {
+        "label": "BMP",
+        "category": "routing",
+        "key": "BMP"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Looking Glass",
+        "category": "observe",
+        "key": "Looking Glass"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "AAA",
+        "category": "secure",
+        "key": "AAA"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Performance",
+        "category": "platform",
+        "key": "Performance"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
+      }
+    ]
+  },
+  {
     "slug": "2026-07-06",
     "intro": "A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.",
     "is_draft": false,

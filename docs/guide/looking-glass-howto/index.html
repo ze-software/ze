@@ -185,6 +185,30 @@ curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0
 </tbody>
 </table>
 <p>Additional endpoints exist for filtered, exported, and no-export routes, route counts, and BMP-derived tables.</p>
+<p>The BGP protocol entry is keyed by the configured peer name. It includes the
+last state transition, the last session error, and live route counts:</p>
+<pre><code class="language-json">{
+  &quot;protocols&quot;: {
+    &quot;rs1&quot;: {
+      &quot;state&quot;: &quot;established&quot;,
+      &quot;state_changed&quot;: &quot;2026-07-15T10:30:00Z&quot;,
+      &quot;last_error&quot;: &quot;&quot;,
+      &quot;routes_received&quot;: 600,
+      &quot;routes_imported&quot;: 600,
+      &quot;routes_exported&quot;: 580,
+      &quot;routes_filtered&quot;: 0
+    }
+  }
+}
+</code></pre>
+<p><code>routes_received</code> and <code>routes_imported</code> both report the retained Adj-RIB-In
+size because Ze does not keep routes rejected by import policy.
+<code>routes_exported</code> is the Adj-RIB-Out size. <code>routes_filtered</code> remains zero for
+the same reason, and the filtered-routes endpoint returns an empty list. Route
+counts are present only when the <code>bgp-rib</code> plugin is loaded.</p>
+<!-- source: internal/component/lg/handler_api.go -- transformProtocols -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
+
 <p>The UI under <code>/lg/</code> uses the same data and adds the peer table, route lookup, route search, and AS-path graph.</p>
 <h2 id="5-publish-it-safely">5. Publish it safely</h2>
 <p>The looking glass is read-only, but it still publishes topology and routing information. Common deployment choices:</p>

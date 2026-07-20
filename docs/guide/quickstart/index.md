@@ -19,7 +19,7 @@ build tags `make build` uses:
 <!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
 
 ```bash
-go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
+go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
 ```
 
 This tracks the module's default branch (development version), not a
@@ -155,7 +155,7 @@ a prefix into BGP:
 
 > Advanced: a `process` binding attaches a plugin or your own external program to a peer (the
 > ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
-> received routes. It is not needed for the config above; see [Plugins](https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md).
+> received routes. It is not needed for the config above; see [Plugins](../plugins/index.md).
 
 ## Validate
 
@@ -251,7 +251,7 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
 ## Next Steps
 
 - [Configuration](https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md) -- peer groups, capabilities, static routes
-- [Plugins](https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md) -- RIB, route server, RPKI, graceful restart
+- [Plugins](../plugins/index.md) -- RIB, route server, RPKI, graceful restart
 - [CLI Reference](https://github.com/ze-software/ze/blob/main/docs/guide/cli.md) -- interactive CLI, route injection, monitoring
 - [Logging](https://github.com/ze-software/ze/blob/main/docs/guide/logging.md) -- log levels, backends, per-subsystem tuning
 - [Operations](https://github.com/ze-software/ze/blob/main/docs/guide/operations.md) -- SSH setup, signals, health checks, troubleshooting

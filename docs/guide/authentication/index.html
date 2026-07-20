@@ -53,6 +53,8 @@ passwords, and connecting as them with the <code>ze</code> CLI.</p>
 </ol></li>
 <li><a href="#logging-in-as-a-yang-user">Logging in as a YANG user</a>
 <ol>
+<li><a href="#the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</a></li>
+<li><a href="#remote-management-listener-guard">Remote management listener guard</a></li>
 <li><a href="#tab-completion-ze-completion">Tab completion (ze completion)</a></li>
 </ol></li>
 <li><a href="#ssh-public-key-authentication">SSH public key authentication</a>
@@ -176,6 +178,68 @@ ze cli -u alice -c &quot;show version&quot;
 
 <p>The same flag works on <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>,
 <code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
+<h3 id="the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</h3>
+<p>The zefs-stored super-admin bcrypt hash may be presented directly as the SSH
+password (the on-box <code>ze</code> CLI does this), but <strong>only over a local transport</strong>: a
+loopback TCP peer (<code>127.0.0.1</code>/<code>::1</code>, the default <code>ze</code> dial) or a unix-socket
+peer. Over any remote transport (non-loopback SSH, all web logins, the REST/gRPC
+bearer path) the hash is <strong>rejected</strong> as a credential, so a leaked config backup
+or zefs copy cannot be replayed as a password from another machine. Remote
+logins must supply the real plaintext password (via <code>ze.ssh.password</code> or an
+interactive prompt); plaintext works from anywhere.</p>
+<!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePassword -->
+<!-- source: internal/component/authz/auth.go -- CheckPassword allowHashToken gate -->
+
+<p>The stored bcrypt hash is also <strong>masked</strong> in every config display: <code>show config</code>,
+the web config views, <code>ze config dump</code>, and CLI search show <code>ze:bcrypt</code> leaves as
+<code>/* SECRET-DATA */</code>, never the hash and never <code>$9$</code>-encoded. The edit-authorized
+raw download (<code>GET /config/download</code>, gated behind edit permission) keeps the real
+hash so a download → edit → upload round-trip is byte-exact; a masked value pasted
+back into a commit or upload is rejected with a clear error.</p>
+<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedBcryptLeaves -->
+<!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
+
+<h3 id="remote-management-listener-guard">Remote management listener guard</h3>
+<p>Ze refuses to start an unauthenticated management service on a non-loopback
+listener. The guard runs before any covered listener binds:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Authentication that permits a remote listener</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Web in insecure mode</td>
+<td>Disable insecure mode and configure users</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>Configure a bearer token or another authenticated <code>auth-mode</code></td>
+</tr>
+<tr>
+<td>gNMI</td>
+<td>Configure <code>ze.gnmi.token</code> or <code>environment.gnmi token</code></td>
+</tr>
+<tr>
+<td>REST and gRPC API</td>
+<td>Configure an API token or initialize zefs users</td>
+</tr>
+</tbody>
+</table>
+<p>Literal addresses in <code>127.0.0.0/8</code> and <code>::1</code> count as loopback. Wildcard
+addresses (<code>0.0.0.0</code>, <code>::</code>, or <code>:port</code>), empty addresses, DNS names, and even
+the name <code>localhost</code> are treated as non-loopback because the guard fails closed
+when it cannot prove an address is local.</p>
+<p>An unsafe web, MCP, REST, or gRPC listener migration on reload is rejected
+before any listener changes; the service keeps its previous addresses. The
+public Looking Glass is a separate, intentionally unauthenticated read-only
+service. Its deployment guidance is in <a href="../looking-glass-howto/">Public looking glass</a>.</p>
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
+<!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
+
 <h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
 <p>Tab completion runs silently in the shell and does not accept flags. To
 have completions resolve as a non-super-admin user, set the env vars in

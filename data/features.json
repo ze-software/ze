@@ -996,6 +996,32 @@
           ]
         },
         {
+          "category": "routing",
+          "status": "experimental",
+          "title": "VRRP",
+          "href": "docs/guide/vrrp/",
+          "external": false,
+          "chips": [
+            {
+              "text": "RFC 9568",
+              "mode": false
+            },
+            {
+              "text": "RFC 3768",
+              "mode": false
+            },
+            {
+              "text": "Virtual MAC",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "First-hop **gateway redundancy**, IPv4 and IPv6",
+            "Per-group **virtual-MAC** macvlan for L2 failover",
+            "**keepalived** interop, compile-out"
+          ]
+        },
+        {
           "category": "observe",
           "status": "experimental",
           "title": "Flow Export",

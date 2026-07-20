@@ -154,6 +154,13 @@
       "category": "secure",
       "blog": "2026-06-25",
       "blurb": "Control-plane survival under attack: GTSM/TTL-security (RFC 5082), CoPP policing on TCP/179, and automatic DDoS detection with attack-characterized auto-mitigation."
+    },
+    {
+      "date": "2026-07-13",
+      "title": "VRRP first-hop redundancy",
+      "category": "routing",
+      "blog": "2026-07-13",
+      "blurb": "First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU."
     }
   ]
 }

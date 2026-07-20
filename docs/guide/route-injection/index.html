@@ -38,7 +38,10 @@
     <p>Ze supports injecting routes at runtime through text, hex, or base64 encoded UPDATE commands. Routes can be sent from the CLI, from external plugins, or from process scripts.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#injecting-into-the-local-rib">Injecting into the Local RIB</a></li>
+<li><a href="#injecting-into-the-local-rib">Injecting into the Local RIB</a>
+<ol>
+<li><a href="#ipv6-next-hops-and-extended-next-hop">IPv6 next hops and extended next hop</a></li>
+</ol></li>
 <li><a href="#text-format">Text Format</a>
 <ol>
 <li><a href="#attribute-keywords">Attribute Keywords</a></li>
@@ -70,6 +73,22 @@ On Linux, the <code>fib-kernel</code> plugin programs selected routes through ne
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/sysrib/sysrib.go -- system RIB arbitration -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- Linux FIB programming -->
+
+<h3 id="ipv6-next-hops-and-extended-next-hop">IPv6 next hops and extended next hop</h3>
+<p>An injected IPv6 route carries its IPv6 next hop in MP_REACH_NLRI. An injected
+IPv4 unicast route can also use an IPv6 next hop when the destination peer
+negotiated Extended Next Hop, the RFC 8950 capability historically defined by
+RFC 5549.</p>
+<pre><code class="language-bash">ze cli -c &quot;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1&quot;
+ze cli -c &quot;show bgp rib best prefix 198.51.100.0/24&quot;
+</code></pre>
+<p>Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
+next hop when selecting and forwarding it. <code>show bgp rib best</code> displays the
+recovered next hop. <code>show bgp rib received</code> currently renders only the legacy
+IPv4 NEXT_HOP attribute, so it omits MP next hops.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute MP_REACH emission -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
+<!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->
 
 <figure class="terminal-demo" data-terminal-demo="rib-fib">
   <div class="terminal-demo__intro">

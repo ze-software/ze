@@ -1374,6 +1374,65 @@
               {
                 "children": [
                   {
+                    "children": [
+                      {
+                        "description": "Action for routes with Invalid validation state (unset: inherit group then global)",
+                        "kind": "leaf",
+                        "name": "invalid",
+                        "source": "config",
+                        "type": "validation-action"
+                      },
+                      {
+                        "description": "Action for routes with NotFound validation state (unset: inherit group then global)",
+                        "kind": "leaf",
+                        "name": "not-found",
+                        "source": "config",
+                        "type": "validation-action"
+                      }
+                    ],
+                    "description": "Origin-validation action overrides for this peer/group",
+                    "kind": "container",
+                    "name": "action",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Action for routes with ASPA Invalid path state (unset: inherit group then global)",
+                            "kind": "leaf",
+                            "name": "invalid",
+                            "source": "config",
+                            "type": "validation-action"
+                          },
+                          {
+                            "description": "Action for routes with ASPA Unknown path state (unset: inherit group then global)",
+                            "kind": "leaf",
+                            "name": "unknown",
+                            "source": "config",
+                            "type": "validation-action"
+                          }
+                        ],
+                        "kind": "container",
+                        "name": "action",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)",
+                    "kind": "container",
+                    "name": "aspa",
+                    "source": "config"
+                  }
+                ],
+                "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
+                "kind": "container",
+                "name": "rpki",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
                     "description": "Accept BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.\nRFC 8669 Section 4: PrefixSID from EBGP outside the SR domain MUST be\ndiscarded unless configured to accept. Has no effect on IBGP (always accepted).",
                     "kind": "leaf",
                     "name": "accept-srv6-prefix-sid",
@@ -2155,6 +2214,65 @@
             "description": "RFC 9234 BGP Role configuration",
             "kind": "container",
             "name": "role",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "description": "Action for routes with Invalid validation state (unset: inherit group then global)",
+                    "kind": "leaf",
+                    "name": "invalid",
+                    "source": "config",
+                    "type": "validation-action"
+                  },
+                  {
+                    "description": "Action for routes with NotFound validation state (unset: inherit group then global)",
+                    "kind": "leaf",
+                    "name": "not-found",
+                    "source": "config",
+                    "type": "validation-action"
+                  }
+                ],
+                "description": "Origin-validation action overrides for this peer/group",
+                "kind": "container",
+                "name": "action",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "description": "Action for routes with ASPA Invalid path state (unset: inherit group then global)",
+                        "kind": "leaf",
+                        "name": "invalid",
+                        "source": "config",
+                        "type": "validation-action"
+                      },
+                      {
+                        "description": "Action for routes with ASPA Unknown path state (unset: inherit group then global)",
+                        "kind": "leaf",
+                        "name": "unknown",
+                        "source": "config",
+                        "type": "validation-action"
+                      }
+                    ],
+                    "kind": "container",
+                    "name": "action",
+                    "source": "config"
+                  }
+                ],
+                "description": "ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)",
+                "kind": "container",
+                "name": "aspa",
+                "source": "config"
+              }
+            ],
+            "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
+            "kind": "container",
+            "name": "rpki",
             "source": "config"
           },
           {
@@ -3440,6 +3558,65 @@
           {
             "children": [
               {
+                "children": [
+                  {
+                    "description": "Action for routes with Invalid validation state (unset: inherit group then global)",
+                    "kind": "leaf",
+                    "name": "invalid",
+                    "source": "config",
+                    "type": "validation-action"
+                  },
+                  {
+                    "description": "Action for routes with NotFound validation state (unset: inherit group then global)",
+                    "kind": "leaf",
+                    "name": "not-found",
+                    "source": "config",
+                    "type": "validation-action"
+                  }
+                ],
+                "description": "Origin-validation action overrides for this peer/group",
+                "kind": "container",
+                "name": "action",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "description": "Action for routes with ASPA Invalid path state (unset: inherit group then global)",
+                        "kind": "leaf",
+                        "name": "invalid",
+                        "source": "config",
+                        "type": "validation-action"
+                      },
+                      {
+                        "description": "Action for routes with ASPA Unknown path state (unset: inherit group then global)",
+                        "kind": "leaf",
+                        "name": "unknown",
+                        "source": "config",
+                        "type": "validation-action"
+                      }
+                    ],
+                    "kind": "container",
+                    "name": "action",
+                    "source": "config"
+                  }
+                ],
+                "description": "ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)",
+                "kind": "container",
+                "name": "aspa",
+                "source": "config"
+              }
+            ],
+            "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
+            "kind": "container",
+            "name": "rpki",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Accept BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.\nRFC 8669 Section 4: PrefixSID from EBGP outside the SR domain MUST be\ndiscarded unless configured to accept. Has no effect on IBGP (always accepted).",
                 "kind": "leaf",
                 "name": "accept-srv6-prefix-sid",
@@ -4504,24 +4681,46 @@
           {
             "children": [
               {
+                "description": "Action for routes with Invalid validation state",
+                "kind": "leaf",
+                "name": "invalid",
+                "source": "config",
+                "type": "validation-action"
+              },
+              {
+                "description": "Action for routes with NotFound validation state",
+                "kind": "leaf",
+                "name": "not-found",
+                "source": "config",
+                "type": "validation-action"
+              }
+            ],
+            "description": "Global origin-validation actions (RFC 6811 Section 3)",
+            "kind": "container",
+            "name": "action",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "children": [
                   {
                     "description": "Action for routes with ASPA Invalid path verification state",
                     "kind": "leaf",
-                    "name": "invalid-action",
+                    "name": "invalid",
                     "source": "config",
-                    "type": "enumeration"
+                    "type": "validation-action"
                   },
                   {
                     "description": "Action for routes with ASPA Unknown path verification state",
                     "kind": "leaf",
-                    "name": "unknown-action",
+                    "name": "unknown",
                     "source": "config",
-                    "type": "enumeration"
+                    "type": "validation-action"
                   }
                 ],
                 "kind": "container",
-                "name": "policy",
+                "name": "action",
                 "source": "config"
               },
               {
@@ -4562,27 +4761,6 @@
             ],
             "kind": "list[address]",
             "name": "cache-server",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "description": "Action for routes with Invalid validation state",
-                "kind": "leaf",
-                "name": "invalid-action",
-                "source": "config",
-                "type": "enumeration"
-              },
-              {
-                "description": "Action for routes with NotFound validation state",
-                "kind": "leaf",
-                "name": "not-found-action",
-                "source": "config",
-                "type": "enumeration"
-              }
-            ],
-            "kind": "container",
-            "name": "policy",
             "source": "config"
           },
           {
@@ -11876,6 +12054,13 @@
                 "description": "Accounting interim-update interval in seconds.",
                 "kind": "leaf",
                 "name": "acct-interval",
+                "source": "config",
+                "type": "uint16"
+              },
+              {
+                "description": "UDP port for the RADIUS CoA/Disconnect listener\n(RFC 5176), commonly 3799. Deliberately has no default: leaving it unset keeps\nthe listener off, so an existing deployment does not start accepting CoA on\nupgrade. Requests are accepted only from the configured RADIUS server addresses.",
+                "kind": "leaf",
+                "name": "coa-port",
                 "source": "config",
                 "type": "uint16"
               },

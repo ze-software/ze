@@ -1,14 +1,14 @@
 {
   "blog_articles": 0,
-  "changes": 31,
-  "cli_commands": 386,
+  "changes": 32,
+  "cli_commands": 387,
   "config_sections": 36,
   "dependencies": 39,
   "features": {
-    "core_experimental": 47,
+    "core_experimental": 48,
     "planned": 6
   },
-  "generated_at": "2026-07-18",
+  "generated_at": "2026-07-20",
   "github_stars": 46,
   "interop": {
     "scenario_dirs_raw": 102,
@@ -17,11 +17,11 @@
     "targets": 8
   },
   "tests": {
-    "e2e": 1436,
+    "e2e": 1443,
     "e2e_display": "1,400+",
-    "fuzz": 575,
+    "fuzz": 576,
     "fuzz_display": "570+",
-    "unit": 121057,
-    "unit_display": "121,000+"
+    "unit": 121570,
+    "unit_display": "121,500+"
   }
 }

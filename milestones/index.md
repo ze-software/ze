@@ -183,3 +183,13 @@ A unified OSPFv2/OSPFv3 engine with IPv6 interop coverage and live SSE state vie
 Control-plane survival under attack: GTSM/TTL-security (RFC 5082), CoPP policing on TCP/179, and automatic DDoS detection with attack-characterized auto-mitigation.
 
 [Read the week](../changes/2026-06-25/)
+
+## Q3 2026
+
+### VRRP first-hop redundancy (Jul 2026)
+
+*routing*
+
+First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU.
+
+[Read the week](../changes/2026-07-13/)

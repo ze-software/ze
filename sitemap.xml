@@ -106,6 +106,9 @@
     <loc>https://ze-software.net/changes/2026-07-06/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/changes/2026-07-13/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/cli/</loc>
   </url>
   <url>
@@ -1252,6 +1255,9 @@
     <loc>https://ze-software.net/command-equivalents/update-firewall-irr-asn/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/command-equivalents/update-serve/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/command-equivalents/update-system-firmware-apply/</loc>
   </url>
   <url>
@@ -1660,6 +1666,12 @@
     <loc>https://ze-software.net/docs/guide/benchmarking/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/bfd/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/bmp/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/command-reference/</loc>
   </url>
   <url>
@@ -1708,6 +1720,9 @@
     <loc>https://ze-software.net/docs/guide/ospf/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/plugins/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/policy-routing/</loc>
   </url>
   <url>
@@ -1738,10 +1753,16 @@
     <loc>https://ze-software.net/docs/guide/terminal-demonstrations/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/traffic-usage/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/ubuntu-build-install/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/vpp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/vrrp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/ze-install/</loc>

@@ -14,15 +14,15 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 47 shipped or experimental feature cards, 6 roadmap cards, 386 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 31 weekly change entries.
-- Test evidence counts: 121,000+ unit tests, 570+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 8 target implementations.
-- Generated date: 2026-07-18.
+- Current generated counts: 48 shipped or experimental feature cards, 6 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 32 weekly change entries.
+- Test evidence counts: 121,500+ unit tests, 570+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 8 target implementations.
+- Generated date: 2026-07-20.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 121,000+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 121,500+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 570+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -79,7 +79,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 - Runs Itself [platform, current]: chips: Update, Systemd; Binary self-update; Built-in readiness checks; No orchestrator needed; link: https://ze-software.net/docs/features/introspection/index.md
 - Docker Support [platform, current]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/docs/features/index.md
 
-### Experimental and growing. (15 cards: 15 experimental)
+### Experimental and growing. (16 cards: 16 experimental)
 Implemented and tested, not yet production-proven.
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; link: https://ze-software.net/docs/features/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/docs/guide/l2tp/index.md
@@ -91,6 +91,7 @@ Implemented and tested, not yet production-proven.
 - MPLS / LDP / RSVP-TE [routing, experimental]: chips: Labels, Signaling; Kernel MPLS FIB, push/swap/pop; LDP discovery and sessions; RSVP-TE ERO, bandwidth admission; link: https://ze-software.net/docs/features/index.md
 - OSPFv2 / OSPFv3 [routing, experimental]: chips: RFC 2328, RFC 5340, ECMP; One ospf engine, IPv4 and IPv6 address families; SPF/ABR, NSSA, virtual links, NBMA/P2MP; Redistribution, SR, BFD, graceful restart; link: https://ze-software.net/docs/guide/ospf/index.md
 - IS-IS [routing, experimental]: chips: ISO 10589, Dual-stack; L1/L2 link-state IGP over Layer 2; RFC 5304/5310 authentication, key chains; Dual-stack IPv6, redistributes with BGP; link: https://ze-software.net/docs/guide/isis/index.md
+- VRRP [routing, experimental]: chips: RFC 9568, RFC 3768, Virtual MAC; First-hop gateway redundancy, IPv4 and IPv6; Per-group virtual-MAC macvlan for L2 failover; keepalived interop, compile-out; link: https://ze-software.net/docs/guide/vrrp/index.md
 - Flow Export [observe, experimental]: chips: sFlow, NetFlow, IPFIX; sFlow v5, NetFlow v9, IPFIX; Packet sampling, conntrack flows; BGP next-hop enrichment; link: https://ze-software.net/docs/guide/flow-export/index.md
 - ISO and PXE Install [platform, experimental]: chips: PXE, ISO; PXE bare-metal provisioning; Installer ISO media; Local systemd install and uninstall; link: https://ze-software.net/docs/guide/ze-install/index.md
 - Kernel Tunables [platform, experimental]: chips: Sysctl, Profiles; Three-layer precedence; Named profiles (DSR, router, hardened); Originals restored on stop; link: https://ze-software.net/docs/features/index.md
@@ -238,7 +239,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `rib`: System RIB: selects best route across protocols by admin distance Config roots: rib. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/sysrib`.
 - `routing-table`: Named routing table registry: maps names to kernel table IDs Config roots: routing-table. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/routingtable`.
 - `rsvp-te-rawsock`: RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) Config roots: rsvp-te. Dependencies: fib-kernel. Optional: none. YANG files: 2. Source: `internal/plugins/rsvpte`.
-- `static`: Static routes: config-driven kernel/VPP route programming with ECMP Config roots: static. Dependencies: routing-table. Optional: none. YANG files: 2. Source: `internal/plugins/static`.
+- `static`: Static routes: config-driven kernel/VPP route programming with ECMP Config roots: static. Dependencies: routing-table. Optional: interface. YANG files: 2. Source: `internal/plugins/static`.
 - `sysctl`: Kernel tunable management: three-layer precedence, restore on stop Config roots: sysctl. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/sysctl`.
 - `tftpserver`: TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/tftpserver`.
 - `traffic`: Traffic control (tc) qdisc, class, and filter management Config roots: traffic/control. Dependencies: none. Optional: vpp. YANG files: 1. Source: `internal/component/traffic`.
@@ -248,7 +249,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 85 daemon, 17 offline, 284 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 85 daemon, 18 offline, 284 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` means the command supports the shared output pipeline.
 
 ### `announce` commands (1)
@@ -661,7 +662,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `system version api` (read-only; wire ze-system:version-api; pipes): Show IPC protocol version
 - `system version software` (read-only; wire ze-system:version-software; pipes): Show ze version
 
-### `update` commands (12)
+### `update` commands (13)
 - `update bgp irr all` (daemon; wire ze-update:irr-all; pipes): Refresh all IRR prefix-lists immediately. Re-queries the IRR server for every enrolled ASN and atomically swaps prefix-lists on success. Failed refreshes preserve the...
 - `update bgp irr as-set` (daemon; wire ze-update:irr-as-set; pipes; args as-set): Refresh IRR prefix-list for a specific AS-SET.
 - `update bgp irr asn` (daemon; wire ze-update:irr-asn; pipes; args asn): Refresh IRR prefix-list for a specific ASN.
@@ -669,6 +670,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `update firewall irr all` (daemon; wire ze-update:firewall-irr-all; pipes): Refresh all cached IRR prefix-lists. Re-queries the IRR server for every cached ASN/AS-SET entry and updates the zefs cache on success. Failed refreshes preserve the...
 - `update firewall irr as-set` (daemon; wire ze-update:firewall-irr-as-set; pipes; args as-set): Fetch or refresh IRR prefix-list for an AS-SET.
 - `update firewall irr asn` (daemon; wire ze-update:firewall-irr-asn; pipes; args asn): Fetch or refresh IRR prefix-list for an ASN.
+- `update serve` (offline): Run a local update server for firmware checks
 - `update system firmware apply` (daemon; wire ze-update:system-firmware-apply; pipes): Full upgrade: download, verify, stage, and restart. Runs the complete update cycle in one command. Only available on platforms where Ze owns the update lifecycle (e.g...
 - `update system firmware check` (daemon; wire ze-update:system-firmware-check; pipes): Check for a new firmware version right now. Bypasses the scheduled interval timer and contacts the update server immediately. Compare the result with 'show system...
 - `update system firmware download` (daemon; wire ze-update:system-firmware-download; pipes): Download the latest firmware image right now. Bypasses the maintenance window and spread timers. The image is staged but not applied. Use 'update system firmware apply'...
@@ -816,7 +818,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Evaluate
 
 ### Capabilities
-- [Features](https://ze-software.net/features/index.md): 47 features, color-coded by category (web: https://ze-software.net/features/)
+- [Features](https://ze-software.net/features/index.md): 48 features, color-coded by category (web: https://ze-software.net/features/)
 - [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
 - [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.net/performance/)
 - [Terminal Demos](https://ze-software.net/docs/guide/terminal-demonstrations/index.md): Reproducible recordings of Ze workflows (web: https://ze-software.net/docs/guide/terminal-demonstrations/)
@@ -868,7 +870,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Reference
 
 ### Generated references
-- [CLI Reference](https://ze-software.net/cli/index.md): 386 commands, generated from the live binary (web: https://ze-software.net/cli/)
+- [CLI Reference](https://ze-software.net/cli/index.md): 387 commands, generated from the live binary (web: https://ze-software.net/cli/)
 - [Configuration Reference](https://ze-software.net/config-reference/index.md): 36 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
 - [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
 - [RFC Status](https://ze-software.net/docs/features/rfc-status/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/docs/features/rfc-status/)
@@ -878,7 +880,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress
 - [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 31 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Changes](https://ze-software.net/changes/index.md): 32 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 ### Community
 - [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)

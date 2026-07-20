@@ -69,6 +69,13 @@
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>RFC 9072</td>
+<td>Extended Optional Parameters Length for BGP OPEN</td>
+<td class="cell-partial">∿</td>
+<td>Extended OPEN encoding when Optional Parameters exceed 255 octets (Non-Ext OP Len/Type 0xFF markers plus 2-octet Extended Opt. Parm. Length), extended-form decode, and classic-form encode/decode; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Four MUST-level gaps, each annotated in: RFC9072-2-5, RFC9072-2-6 and RFC9072-3-1 -- the decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, so it does not ignore that octet, does not consult the following octet for other non-zero lengths, and mis-parses a first type code of 255 with Non-Ext OP Len not 255 as a classic OPEN; and RFC9072-3-3 -- an unrecognized OPEN optional-parameter type is silently skipped (internal/core/bgp/capability/capability.go:867-874) instead of triggering the RFC 4271 Section 6.2 Unsupported Optional Parameter NOTIFICATION. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc9072.md</code></span></span></td>
+</tr>
+<tr>
 <td>RFC 5492</td>
 <td>BGP capability advertisement</td>
 <td>Supported</td>
@@ -101,14 +108,14 @@
 <td>Enhanced Route Refresh</td>
 <td>Supported</td>
 <td>BoRR and EoRR support, capability checks, bounded route resend.</td>
-<td class="cell-no">✕</td>
+<td>Four MUST-level receive-side gaps annotated in: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go:751-756), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7313.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 7911</td>
 <td>ADD-PATH</td>
 <td>Supported</td>
-<td>Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated.</td>
-<td class="cell-no">✕</td>
+<td>Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap, gated in: on re-advertisement ze preserves the ingress Path Identifier (internal/component/bgp/reactor/forward_body.go copies the received path-id and the egress RIB key rib_structured.go carries it) rather than minting its own per RFC7911-2-2, so a re-advertised path is not assigned a fresh Path Identifier. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7911.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 8654</td>
@@ -174,6 +181,13 @@
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>RFC 6608</td>
+<td>BGP FSM Error subcodes</td>
+<td class="cell-partial">∿</td>
+<td>The RFC 6608 FSM Error subcodes (1 OpenSent, 2 OpenConfirm, 3 Established) are defined and decoded for display of a received NOTIFICATION.</td>
+<td>Three MUST gaps, gated in: ze does not originate a code-5 FSM Error NOTIFICATION with these subcodes on an unexpected message; the reactor dispatches received messages by type without an FSM-state guard. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc6608.md</code></span></span></td>
+</tr>
+<tr>
 <td>RFC 7607</td>
 <td>Prefix-limit enforcement context</td>
 <td>Supported</td>
@@ -200,6 +214,13 @@
 <td>Supported</td>
 <td>UTF-8 shutdown message for Cease/Admin Shutdown and Cease/Admin Reset.</td>
 <td>Sender keeps the conservative 128-byte RFC 8203 limit.</td>
+</tr>
+<tr>
+<td>RFC 7947</td>
+<td>BGP Route Server</td>
+<td>Supported</td>
+<td>Transparent RS forwarding for RS clients: no AS_PATH prepend, no NEXT_HOP rewrite, MED preserved (verbatim wire forwarding); per-client import/export policy applied on redistribution.</td>
+<td>Optional per-peer next-hop override and path-hiding mitigation (add-path) are operator-configured.</td>
 </tr>
 <tr>
 <td>RFC 9003</td>
@@ -269,9 +290,9 @@
 <tr>
 <td>RFC 1997</td>
 <td>Standard communities</td>
-<td>Supported</td>
-<td>COMMUNITY attribute parsing, encoding, JSON, and well-known names.</td>
-<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>COMMUNITY attribute parsing (multiple-of-4 length enforced), encoding, JSON, well-known names, and operator community-match policy.</td>
+<td>The well-known egress semantics are not auto-enforced: a received NO_EXPORT / NO_ADVERTISE / NO_EXPORT_SUBCONFED is honored only through an operator-configured community-match reject list, never automatically. Gated per requirement in <code>make ze-rfc-check</code>. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc1997.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 3765</td>
@@ -290,9 +311,9 @@
 <tr>
 <td>RFC 5701</td>
 <td>IPv6 extended communities</td>
-<td>Supported</td>
-<td>IPv6 extended community attribute support.</td>
-<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>IPv6 Address Specific Extended Community (code 25) codec: optional-transitive flags, 20-octet per-community encoding, and length-multiple-of-20 parse validation. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap, gated in: a malformed code-25 attribute is not treat-as-withdrawn per RFC 7606 (the structural validation pass has no validator for code 25), the same code-25 omission already tracked under RFC 7606 §7.15. The lazy parser still rejects a non-multiple-of-20 length on access. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5701.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 8092</td>
@@ -312,8 +333,8 @@
 <td>RFC 7311</td>
 <td>AIGP attribute</td>
 <td class="cell-partial">∿</td>
-<td>AIGP wire encoding, decoding, JSON, and set/increment/decrement filters.</td>
-<td>AIGP is not consumed by best-path selection.</td>
+<td>AIGP wire encoding, decoding, JSON, and set/increment/decrement filters; TLV validation (type-1 length 11, total-length consistency, unknown-TLV preservation) gated per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>AIGP is not consumed by best-path selection, and Ze does not strip AIGP at the eBGP administrative-domain boundary (§3.2 MUST NOT): received AIGP is forwarded verbatim as an optional-transitive attribute, removable only by explicit operator policy. Gated as a gap in. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7311.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 4364</td>
@@ -325,8 +346,8 @@
 <tr>
 <td>RFC 4659</td>
 <td>VPNv6</td>
-<td>Supported</td>
-<td>VPNv6 NLRI and next-hop behavior through VPN family support.</td>
+<td class="cell-partial">∿</td>
+<td>VPNv6 NLRI (RD + MPLS label + IPv6 prefix) encode/decode, AFI=2/SAFI=128 capability negotiation, and the zero-RD + global-IPv6 24-octet next-hop.</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
@@ -366,10 +387,10 @@
 </tr>
 <tr>
 <td>RFC 9136</td>
-<td>EVPN IP Prefix extensions</td>
-<td>Supported in EVPN scope</td>
-<td>EVPN implementation tracks the extension alongside RFC 7432.</td>
-<td class="cell-no">✕</td>
+<td>EVPN IP Prefix (RT-5)</td>
+<td class="cell-partial">∿</td>
+<td>RT-5 (IP Prefix) NLRI encode/decode for IPv4 (len 34) and IPv6 (len 58): RD, ESI, Ethernet Tag, prefix-length bounds (&lt;=32/&lt;=128), prefix, gateway, and MPLS label stack, with length-field and prefix-length validation (internal/component/bgp/plugins/nlri/evpn/types.go:754).</td>
+<td>Five MUST gaps annotated in rfc/short/rfc9136.md (RFC9136-3.1-4/3.1-6 ESI/GW-IP zero-unless-overlay-index, 3.2-1 ESI/GW mutual exclusion, 3.1-7/3.1-9 zero-label-without-overlay-index treat-as-withdraw): ze models no overlay index. Five further MUSTs (3.1-8, 3.2-2, 3-1, 3.2-3, 3.2-4) bind the ingress-NVE/PE forwarding, IP-VRF install, and EVPN Router's-MAC Extended Community roles ze does not play.</td>
 </tr>
 <tr>
 <td>RFC 8955</td>
@@ -381,16 +402,16 @@
 <tr>
 <td>RFC 8956</td>
 <td>IPv6 FlowSpec</td>
-<td>Supported</td>
-<td>IPv6 FlowSpec and FlowSpec VPN family support.</td>
-<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>IPv6 FlowSpec and FlowSpec VPN NLRI structural encode/decode (AFI 2, SAFI 133/134): prefix, numeric, bitmask and Flow Label components, round-trip, family registration, and (AFI 2, SAFI 133/134) Multiprotocol capability negotiation; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Seven MUST-level gaps, each annotated in: RFC8956-3.1-1 -- the prefix encoder does not zero sub-byte padding beyond the prefix length; RFC8956-3.1-2 -- the decoder retains padding bits without masking; RFC8956-3.1-3 -- offset/length (offset &lt; length &lt;= 128) is not validated and the pattern is encoded from the address start, correct only for offset 0; RFC8956-3.6-1 -- minimal single-octet encoding is incidental, not enforced; RFC8956-3.6-2 -- the Fragment component uses the RFC 8955 IPv4 bitmask layout and does not zero the IPv6 reserved bits on transmit; RFC8956-3.6-3 -- the Fragment decoder reads the raw byte without masking the IPv6 reserved bits; and RFC8956-5-1 -- no Section 5 / RFC 8955 Section 6 flowspec validation-against-unicast procedure is implemented. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc8956.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 5575</td>
-<td>Earlier FlowSpec reference</td>
-<td>Supported as legacy reference</td>
-<td>Legacy FlowSpec action community behavior remains documented.</td>
-<td>Main public claim uses RFC 8955 and RFC 8956.</td>
+<td>BGP Flowspec (obsoleted by RFC 8955)</td>
+<td class="cell-partial">∿</td>
+<td>IPv4 Flowspec NLRI encode/decode, MP (Code 1) capability negotiation for (AFI 1, SAFI 133/134), traffic-action extended communities, and lowering to the firewall; component ordering and operator/fragment/traffic-marking reserved bits enforced on encode.</td>
+<td>Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no eBGP AS_PATH leftmost-neighbor enforcement; 6-2 no feasibility validation against the unicast RIB; 6-3 no flow-spec-vs-best-match originator comparison; 6-4 no more-specific/different-neighbor-AS check.</td>
 </tr>
 <tr>
 <td>RFC 7752</td>
@@ -403,22 +424,29 @@
 <td>RFC 9085</td>
 <td>BGP-LS Segment Routing extensions</td>
 <td class="cell-partial">∿</td>
-<td>Decoded as part of BGP-LS TLV coverage.</td>
-<td>Same BGP-LS encode and route-config gaps.</td>
+<td>SR TLVs (SID/Label, Prefix-SID, Adj-SID, SR Capabilities, SRGB/SRLB) decode as part of BGP-LS TLV coverage; the SID/Label 20-bit mask and reserved/undefined-flag fields are ignored on receipt.</td>
+<td>Nine origination/encode MUSTs unmet (decode-only plugin, no config surface): the reserved-and-flags-zero-on-transmit and TLV-placement rules have dormant encoders but no origination path; the LAN-Adjacency-SID (TLV 1100) and Range (TLV 1159) TLVs are not implemented at all.</td>
 </tr>
 <tr>
 <td>RFC 9514</td>
 <td>BGP-LS SRv6 extensions</td>
 <td class="cell-partial">∿</td>
-<td>Decoded as part of BGP-LS SRv6 TLV coverage.</td>
-<td>Same BGP-LS encode and route-config gaps.</td>
+<td>SRv6 End.X SID, Endpoint Behavior, BGP PeerNode SID, and SID Structure TLVs decode as part of BGP-LS SRv6 TLV coverage.</td>
+<td>Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface); the SRv6 Capabilities (TLV 1038) and SRv6 Locator (TLV 1162) TLVs are not implemented at all, and the SID Structure sum-at-most-128 validation is absent on receipt (see rfc/short/rfc9514.md).</td>
+</tr>
+<tr>
+<td>RFC 9086</td>
+<td>BGP-LS Egress Peer Engineering SIDs</td>
+<td class="cell-partial">∿</td>
+<td>PeerNode/Adj/Set SID TLVs (1101-1103) and BGP Router-ID (516) / Member-ASN (517) node descriptors decode as part of BGP-LS TLV coverage; reserved fields ignored on receipt.</td>
+<td>EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SIDs from live sessions, the BGP-LS plugin registers decode mode only, and there is no config surface to enable or disable EPE advertisement. Same BGP-LS encode gap as RFC 7752.</td>
 </tr>
 <tr>
 <td>RFC 4684</td>
 <td>Route Target Constraint</td>
 <td class="cell-partial">∿</td>
-<td>RTC NLRI decode.</td>
-<td class="cell-no">✕</td>
+<td>RTC NLRI decode for display/analysis (<code>ze bgp decode</code>). Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Decode-only: no encode/origination path and no RT-membership distribution. Four MUST gaps gated in: Ze does not advertise RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc4684.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 6514</td>
@@ -443,10 +471,10 @@
 </tr>
 <tr>
 <td>RFC 9252</td>
-<td>BGP SRv6 Service TLV</td>
+<td>BGP SRv6 Service TLV (Prefix-SID)</td>
 <td class="cell-partial">∿</td>
-<td>SRv6 Prefix-SID service TLV validation and RFC 7606 error handling are implemented in the learned closure.</td>
-<td>Shares the RFC 8669 documentation conflict.</td>
+<td>Prefix-SID attribute (code 40) SRv6 L3/L2 Service TLV parse, SID Information Sub-TLV and SID Structure Sub-Sub-TLV extraction with transposition and the errata-7817 sum bound (internal/component/bgp/plugins/rib/pool/srv6sid.go); malformed-Service-TLV treat-as-withdraw (internal/component/bgp/message/rfc7606.go:837); no-valid-SID best-path ineligibility (internal/component/bgp/plugins/rib/rib_bestchange.go:963); next-hop-change Prefix-SID strip vs next-hop-unchanged preserve (internal/component/bgp/reactor/peer_forward_facts.go:241); and SRv6 Prefix-SID config encode with zeroed reserved/flags octets (internal/component/bgp/config/routeattr_prefixsid.go). Requirements bound per line in rfc/short/rfc9252.md.</td>
+<td>Eight MUST gaps annotated in rfc/short/rfc9252.md: RFC9252-4.1-1/6.1-1/6.2-1 -- Transposition Length is never bounded against the 20-bit VPN / 24-bit EVPN label field or against FL/AL; RFC9252-3.2.1-1/3.2.1-2 -- the zero-offset-when-length-zero and zero-when-scheme-not-applicable transposition constraints are not enforced; RFC9252-3.2-5/3.2-6 -- ze keeps no SRv6 Endpoint Behavior registry, so it neither ignores SIDs with a non-zero Argument Length under an unknown behavior nor validates AL against a known behavior; and RFC9252-5-2 -- ze installs the received Service SID into the FIB (kernel SEG6 encap at internal/plugins/fib/kernel/nexthop_linux.go:78, VPP SR steering at internal/plugins/fib/vpp/srv6.go:35) but performs no Section 5 resolvability check on the SID locator before best-path computation (isSRv6Ineligible gates on extraction validity only).</td>
 </tr>
 <tr>
 <td>RFC 9830</td>
@@ -482,7 +510,7 @@
 <td>BMP v3</td>
 <td class="cell-partial">∿</td>
 <td>BMP receiver and sender, peer lifecycle, route monitoring messages, CLI and config.</td>
-<td>Loc-RIB route monitoring is deferred under RFC 9069.</td>
+<td>Loc-RIB route monitoring is provided under RFC 9069.</td>
 </tr>
 <tr>
 <td>RFC 8671</td>
@@ -494,15 +522,15 @@
 <tr>
 <td>RFC 9069</td>
 <td>BMP Loc-RIB monitoring</td>
-<td>Future</td>
-<td>Tracked by BMP learned notes.</td>
-<td>Requires reconstructing wire UPDATEs from structured best-change batches.</td>
+<td>Supported</td>
+<td>Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, empty sent/received OPENs, zero Address and Peer AS, Peer BGP ID set to the local router-id, exactly one Loc-RIB Peer Up per RIB instance, and a full-table replay triggered on monitoring start. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>RFC 6811</td>
 <td>RPKI origin validation</td>
 <td>Supported</td>
-<td>Origin validation states, ROA/VRP lookup, default reject for invalid routes, fail-open guard.</td>
+<td>Origin validation states (Valid/Invalid/NotFound) from ROA/VRP lookup with four-octet ASN support, RTR transport, an operator-configurable per-state action (invalid-action reject/log-only/accept, default reject) so exclusion of Invalid routes is an explicit policy choice, automatic re-validation of installed routes when the VRP set changes, and a fail-open guard.</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
@@ -514,10 +542,10 @@
 </tr>
 <tr>
 <td>RFC 6810</td>
-<td>Earlier RPKI RTR</td>
-<td>Supported as compatibility reference</td>
-<td>Comparison docs group RFC 6810 and RFC 8210 for RTR support.</td>
-<td>Main guide and registration use RFC 8210.</td>
+<td>RPKI-to-Router Protocol v0 (RPKI-RTR)</td>
+<td class="cell-partial">∿</td>
+<td>ze is the RTR router (client): it parses IPv4/IPv6 Prefix, Cache Response, End of Data, Cache Reset, Serial Notify and Error Report PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go, rtr_session.go), sends Reset/Serial Queries, rejects a Prefix PDU whose Max Length is below its Prefix Length on receipt, validates route origins against the merged VRP cache (validate.go), and re-issues a Reset Query on Cache Reset and No Data Available. The v0 wire is reached through these shared router behaviors; ze negotiates RTR v1/v2 (min version 1).</td>
+<td>Four MUST-level gaps, each annotated in rfc/short/rfc6810.md: RFC6810-5.1-2 -- no Session ID mismatch detection or cache flush (rtr_session.go:233 adopts the cache Session ID unconditionally); RFC6810-4-1 -- no most-preferred-cache selection (rpki.go:291-298 runs every configured cache concurrently); RFC6810-8-1 -- VRPs are not marked by source cache (one shared ROACache, rpki.go:292, roa_cache.go:12-15); RFC6810-7-3 -- no protected RTR transport (rtr_session.go:127 dials only unprotected TCP, with no SSH/TLS/TCP-MD5/TCP-AO client).</td>
 </tr>
 <tr>
 <td>RFC 9582</td>
@@ -537,8 +565,8 @@
 <td>RFC 5881</td>
 <td>BFD single-hop</td>
 <td class="cell-partial">∿</td>
-<td>Single-hop UDP 3784 sessions, TTL/GTSM gate, interface binding.</td>
-<td>IPv6 dual-bind and wider deployment proof remain tracked with BFD.</td>
+<td>Single-hop UDP 3784 Control sessions, TTL/GTSM receive gate (TTL=255) plus TTL=255 transmit, first-packet demux by remote address/interface/protocol, Your-Discriminator demultiplexing, Active-role default, stable transmit destination, per-protocol sessions, and echo on UDP 3785; MUST-level requirements bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Six MUST gaps, gated in: RFC5881-4-2 -- the control socket transmits from port 3784 rather than an ephemeral 49152-65535 source port (single-socket design, internal/component/bfd/transport/udp.go:225); RFC5881-2-4/4-6/4-7 -- the echo function is application-level ZEEC reflection to the peer (internal/component/bfd/engine/echo.go:96) rather than the RFC self-addressed, forwarding-plane-looped echo, so self-addressing, forward-back destination, and redirect-avoiding source are unimplemented; and RFC5881-6-3/6-4 -- point-to-point links are not modelled distinctly, so the first-packet demux keys on the peer source address (internal/component/bfd/engine/loop.go:88) instead of accepting any initial source. IPv6 dual-bind and wider deployment proof remain tracked with BFD. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5881.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 5882</td>
@@ -551,8 +579,8 @@
 <td>RFC 5883</td>
 <td>BFD multi-hop</td>
 <td class="cell-partial">∿</td>
-<td>Multi-hop UDP 4784 sessions and min-TTL floor.</td>
-<td>Same BFD partial status.</td>
+<td>Multi-hop UDP 4784 sessions, single-hop/multihop port separation (3784/4784), Active/Passive roles, echo-on-multihop rejection, and min-TTL floor; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>RFC 9384</td>
@@ -600,8 +628,8 @@
 <td>RFC 5303</td>
 <td>IS-IS point-to-point three-way</td>
 <td>Experimental</td>
-<td>Point-to-point adjacency behavior.</td>
-<td>Same IS-IS experimental status.</td>
+<td>Point-to-point IIH three-way handshake: TLV 240 (Point-to-Point Three-Way Adjacency) origination and decode, the mandatory Adjacency Three-Way State and Extended Local Circuit ID fields, the neighbor System ID echo that gates the adjacency to Up, and the legacy two-way fall-back for peers that omit the option. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Gaps gated in: the Extended Local Circuit ID is derived as uint8(ifindex) so it is not unique beyond 256 interfaces (RFC5303-3.2-4); the Neighbor Extended Local Circuit ID is echoed as 0 and never examined (RFC5303-3.2-6, RFC5303-3.2-8); an invalid three-way state is not discarded (RFC5303-3.2-7); the loop-detection neighbor-mismatch discard is absent (RFC5303-3.2-9); and Ze derives the three-way state from the ISO 10589 adjacency state instead of the distinct Section 3.2 state table, so the "Accept" and restart "Down" actions are not modeled (RFC5303-3.2-11, RFC5303-3.2-12). <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5303.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 5304</td>
@@ -621,8 +649,15 @@
 <td>RFC 5305</td>
 <td>IS-IS wide metrics and TE TLVs</td>
 <td>Experimental</td>
-<td>Extended IS reachability and IPv4 reachability TLVs.</td>
-<td>Same IS-IS experimental status.</td>
+<td>Extended IS reachability (TLV 22) and extended IPv4 reachability (TLV 135) with wide metrics and the up/down bit; unknown sub-TLVs retained; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>RFC5305-3-1 gap: a link advertised with the maximum link metric (2^24-1 = 16777215) is still used in normal SPF (spf/graph.go builds the edge with the raw metric and spf/spf.go excludes only metrics at or above MaxPathMetric 0xFE000000), so the Section 3 maximum-link-metric exclusion is not implemented. TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).</td>
+</tr>
+<tr>
+<td>RFC 3787</td>
+<td>IS-IS interoperability guidelines</td>
+<td class="cell-partial">∿</td>
+<td>Obsolete TLV 131/133 are ignored on receipt (no codec decoder, opaque passthrough, TLV 133 never treated as auth); the originated IIH carries the Protocols Supported TLV (129, IPv4 NLPID) and IP Interface Address TLV (132) for mixed-environment interoperability. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap, gated in: Ze originates ONLY wide metrics (TLV 22/135) and never the narrow TLV 2, so it does not fall back to narrow-metric origination for a mixed narrow/wide domain -- it requires every device to be wide-capable. Ze still DECODES a legacy neighbor's narrow TLV 2. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc3787.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 2966</td>
@@ -656,8 +691,8 @@
 <td>RFC 3101</td>
 <td>OSPF NSSA</td>
 <td>Experimental</td>
-<td>NSSA Type 7 origination, translator election, Type 7 to Type 5 translation, preference rules.</td>
-<td>Same OSPF experimental status.</td>
+<td>Type-7 origination/flooding, redistribution into NSSA, N/E-bit Hello negotiation, Router-LSA Nt/E/B flags, translator election (Nt-bit candidates, highest-RID, always/never roles, stability grace), Type-7 to Type-5 translation with FA/metric/tag preservation and highest-RID duplicate suppression, source preference, Type-3 summary import policy.</td>
+<td>Two MUST gaps annotated in rfc/short/rfc3101.md: RFC3101-2.4-4 -- an NSSA border router installs a peer Type-7 default as an external route regardless of its P-bit (no install-iff-P gate on the SPF external path, spf/external.go:108-118; origination-side P=0 clause is met); RFC3101-2.4-5 -- a regular NSSA's Type-7 default is operator-gated (no-summary / default-originate) rather than originated into every attached NSSA (nssa.go:91). Same OSPF experimental status.</td>
 </tr>
 <tr>
 <td>RFC 5709</td>
@@ -684,15 +719,15 @@
 <td>RFC 5838</td>
 <td>OSPFv3 multiple address families</td>
 <td>Experimental</td>
-<td>Multi-AF OSPFv3 behavior.</td>
-<td>Same OSPF experimental status.</td>
+<td>AF-bit set in Hello/DD Options plus the AF-bit adjacency gate (non-default AF requires it, base IPv6-unicast AF ignores it), the RFC 5838 §2.1 Instance-ID-range to address-family mapping with one per-AF engine owning its LSDB/neighbors/SPF/install-family, IPv4-over-OSPFv3 prefix decode and route build, IPv4 forwarding-address encode/decode for AS-external and NSSA LSAs, and global-IPv6 virtual-link endpoints; requirements gated in <code>make ze-rfc-check</code>. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5838.md</code></span></span></td>
+<td>Eight MUST gaps annotated in: the AF-bit is not set in originated LSAs (RFC5838-2.2-1); an IPv4-AF Link-LSA carries no IPv4 link-local address (RFC5838-2.5-1); and the RFC 5838 §2.7 per-address-family MTU handling is unimplemented -- no separate AF-versus-IPv6 MTU, no IPv4 interface MTU, and no M6-bit (RFC5838-2.7-1, 2.7-2, 2.7-3, 2.7-4, 2.7-8, 2.7-11). Feature remains under OSPF experimental status. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5838.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 7166</td>
 <td>OSPFv3 authentication trailer</td>
-<td>Experimental</td>
-<td>OSPFv3 Authentication Trailer support.</td>
-<td>Same OSPF experimental status.</td>
+<td>Unsupported</td>
+<td>None: the OSPFv3 Authentication Trailer wire format is not implemented. OSPFv3 carries only the transmit-side checksum-omission hooks (internal/plugins/ospf/v3/packet/checksum.go, header.go); an interface <code>authentication key-chain</code> drives the separate OSPFv2 cryptographic path (RFC 2328/5709/7474) through internal/plugins/ospf/packet/auth_verify.go, not an OSPFv3 trailer.</td>
+<td>The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no 16-byte trailer (Auth Type / Auth Data Len / SA ID / 64-bit sequence / HMAC), no Security Association, no IPv6-source-bound digest, and no receive-side trailer verification or per-packet-type replay for OSPFv3. All 17 MUST-level requirements are annotated <code>{gap}</code> in. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7166.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 4552</td>
@@ -717,10 +752,10 @@
 </tr>
 <tr>
 <td>RFC 5392</td>
-<td>OSPF inter-AS TE extensions</td>
+<td>OSPF inter-AS TE (OSPFv2)</td>
 <td>Experimental</td>
-<td>Inter-AS TE sub-TLV support.</td>
-<td>Same OSPF experimental status.</td>
+<td>OSPFv2 Inter-AS-TE-v2 (Opaque type 6): Remote-AS (21), IPv4/IPv6 Remote-ASBR-ID (22/24) sub-TLVs; Link-ID prohibition and Remote-AS requirement enforced on originate and receive; MinLSInterval-paced proxy origination with no adjacency or Hellos.</td>
+<td>Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemented, so the U-bit=1 rule (RFC5392-3.1.2-1), the v3 Neighbor-ID prohibition (RFC5392-3.2.1-2), and the v3 IPv6/IPv4 Remote-ASBR-ID inclusion rules (RFC5392-3.3.3-1, RFC5392-3.3.3-2) have no v3 carrier to bind.</td>
 </tr>
 <tr>
 <td>RFC 7770</td>
@@ -740,8 +775,8 @@
 <td>RFC 3623</td>
 <td>OSPFv2 Graceful Restart</td>
 <td>Experimental</td>
-<td>Restarter and helper behavior.</td>
-<td>Same OSPF experimental status.</td>
+<td>Restarter (planned + opt-in unplanned) and helper behavior; Grace-LSA Opaque type-3 body codec shared with RFC 5187.</td>
+<td>Two MUST gaps gated in rfc/short/rfc3623.md: the helper does not preserve the transit-area V-bit when helping over a virtual link (RFC3623-3-1), and helper entry does not refuse on a changed retransmission-list LSA (RFC3623-3.1-1, onGraceReceived is hardcoded permissive, mitigated by the Section 3.2 strict-LSA-checking exit). Experimental pending deployment hardening.</td>
 </tr>
 <tr>
 <td>RFC 5187</td>
@@ -776,7 +811,14 @@
 <td>Loop-Free Alternate FRR</td>
 <td>Experimental</td>
 <td>LFA and TI-LFA fast reroute: per-neighbor SPFs, loop-free / node-protecting / downstream backup selection, SR repair lists, multi-area suppression.</td>
-<td>Same OSPF experimental status.</td>
+<td>Two MUST gaps gated in: the LFA backup is attached to every SPF route regardless of address family, so an OSPFv3 multicast AF (RFC 5838) route inherits it (RFC5286-x-5); and no explicit Section 4.1 hold-down timer bounds how long an alternate stays active, only SPF reconvergence (RFC5286-x-6). IS-IS has no LFA. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5286.md</code></span></span></td>
+</tr>
+<tr>
+<td>RFC 5443</td>
+<td>LDP IGP Synchronization (OSPF)</td>
+<td>Experimental</td>
+<td>OSPF LDP-IGP sync state machine (internal/plugins/ospf/ldp_sync.go): per-interface cost-out to LSInfinity (0xFFFF) while LDP is not fully operational, hold-down estimation of label-binding exchange, configured-cost restore, and whole-segment cost-out; Section 4 raises only the IP link cost (ze originates no TE LSA). Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap gated in: ze has no IS-IS LDP-IGP sync, so the IS-IS 2^24-2 max-metric cost-out (RFC5443-2-3) is unimplemented. End-of-LIB (RFC5443-2-6) and the 2^24-1 misuse guard (RFC5443-2-4) are not applicable (no IS-IS sync, no End-of-LIB). <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc5443.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 5036</td>
@@ -789,15 +831,15 @@
 <td>RFC 3209</td>
 <td>RSVP-TE</td>
 <td>Experimental</td>
-<td>PATH and RESV signaling, ERO routing, bandwidth admission, soft-state refresh, teardown.</td>
-<td>Cross-vendor RSVP-TE interop remains constrained by available open daemons.</td>
+<td>PATH and RESV signaling, ERO routing, bandwidth admission, SE-style make-before-break, soft-state refresh/expiry, teardown.</td>
+<td>Two MUST gaps gated in rfc/short/rfc3209.md: RFC3209-4.3.4.1-1 -- the transit next-hop selector (engine.go:407) ignores the ERO L-bit and does no adjacency check, so a non-adjacent strict hop is not rejected; and RFC3209-x-1 -- the raw IP transport (transport_linux.go) sends PATH without the IP Router Alert option (same transport gap as RFC 2205). Cross-vendor interop remains constrained by available open daemons.</td>
 </tr>
 <tr>
 <td>RFC 2205</td>
 <td>RSVP base protocol</td>
 <td>Experimental</td>
-<td>RSVP base message handling used by RSVP-TE.</td>
-<td>Same RSVP-TE experimental status.</td>
+<td>RSVP base common-header and object codec used by RSVP-TE: Version-1 header enforced on decode, reserved octet zeroed on send, every emitted object length a multiple of 4; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Three MUST gaps gated in: the receive path does not verify the RSVP checksum or drop bad-checksum messages (3.1); PATH is sent without the IP Router Alert option; and DecodeMessage does not inspect an unknown Class-Num's high-order bits, so an unknown object with high-order bits 00 is not rejected (3.10). <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc2205.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 4090</td>
@@ -841,8 +883,8 @@
 <td>RFC 3768</td>
 <td>VRRPv2 (IPv4 only)</td>
 <td>Experimental</td>
-<td>Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding, v2 advert format, and the v2 rejection rules (no accept-mode, no IPv6).</td>
-<td>Same VRRP experimental status. RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security.</td>
+<td>Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding, v2 advert format, the v2 receive-validation ladder (version, complete-packet, checksum, VRID, Auth Type 0, interval-mismatch discard, address-list discard), the Section 6.4 state machine (priority/master election, skew time, preemption, silent losing-advert discard), virtual-MAC ownership of the VIP via a per-group macvlan, and the v2 rejection rules (no accept-mode, no IPv6).</td>
+<td>One gap gated in: RFC3768-6.4.3-3 -- Accept_Mode is not enforced on the dataplane (the VIP is installed on any Master transition regardless of ownership, internal/plugins/vrrp/instance.go:369), so a non-owner Master accepts packets addressed to the virtual IP; this is the same dataplane behavior tracked for RFC 9568. RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc3768.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 5798</td>
@@ -873,11 +915,18 @@
 </thead>
 <tbody>
 <tr>
+<td>RFC 8414</td>
+<td>OAuth 2.0 Authorization Server Metadata (MCP resource server)</td>
+<td class="cell-partial">∿</td>
+<td>As an OAuth resource server, ze fetches the AS metadata document, requires <code>issuer</code> and matches it against the token <code>iss</code>, and reads <code>jwks_uri</code> for verification keys. Client-only fields (authorization_endpoint, token_endpoint, response_types_supported) are not consumed. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>internal/component/mcp/as_metadata.go</code>, <code>streamable_auth.go</code></span><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap gated in: ze does not force the AS metadata fetch URL to https; admits an http:// scheme, leaving transport security to the operator-configured scheme. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc8414.md</code></span><span class="ev-ref"><code>internal/component/mcp/streamable_auth.go:122-123</code></span></span></td>
+</tr>
+<tr>
 <td>RFC 2661</td>
 <td>L2TPv2</td>
 <td class="cell-partial">∿</td>
-<td>LNS/LAC tunnel lifecycle (answerer and <strong>initiator</strong>: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden AVPs, challenge/response, reliable control channel, HELLO, StopCCN, data sessions, <strong>LNS-side outgoing call (OCRQ/OCRP/OCCN) via <code>request l2tp outgoing-call</code></strong>, dial-target config, LAC PPPoE→L2TP relay (control plane). <!-- source: internal/component/l2tp/tunnel_initiator.go -- initiate/handleSCCRP; internal/component/l2tp/session_initiator.go -- placeOutgoingCall/handleOCRP --></td>
-<td>Feature remains Partial; see L2TP guide for operational limits. Initiator tunnel interop proven vs xl2tpd (test/l2tp-interop/scenarios/03). LAC data-plane bridge (A-4) is QEMU/CAP_NET_ADMIN-gated.</td>
+<td>LNS/LAC tunnel lifecycle (answerer and <strong>initiator</strong>: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden-AVP MD5 codec (present but not wired into message encode/decode), challenge/response, reliable control channel, HELLO, StopCCN, data sessions, <strong>LNS-side outgoing call (OCRQ/OCRP/OCCN) via <code>request l2tp outgoing-call</code></strong>, dial-target config, LAC PPPoE→L2TP relay (control plane). <!-- source: internal/component/l2tp/tunnel_initiator.go -- initiate/handleSCCRP; internal/component/l2tp/session_initiator.go -- placeOutgoingCall/handleOCRP --></td>
+<td>Feature remains Partial; see L2TP guide for operational limits. One MUST gap gated in rfc/short/rfc2661.md: RFC2661-4.3-1 -- the hidden-AVP MD5 cipher (internal/component/l2tp/hidden.go) is implemented and unit-tested but not wired into any message encoder/decoder, so no Random Vector precedes a hidden AVP on send and precedence is not enforced on receive. Initiator tunnel interop proven vs xl2tpd (test/l2tp-interop/scenarios/03). LAC data-plane bridge (A-4) is QEMU/CAP_NET_ADMIN-gated.</td>
 </tr>
 <tr>
 <td>RFC 1661</td>
@@ -895,10 +944,10 @@
 </tr>
 <tr>
 <td>RFC 1994</td>
-<td>CHAP</td>
+<td>PPP CHAP (MD5)</td>
 <td class="cell-partial">∿</td>
-<td>CHAP-MD5 authentication for PPP and tunnel auth contexts.</td>
-<td>Carries the L2TP and PPPoE Partial status.</td>
+<td>CHAP-MD5 authenticator (LNS) and peer (PPPoE client): Challenge/Response/Success/Failure codec, per-call 16-octet random Challenge, changing Identifier, MD5(id</td>
+<td></td>
 </tr>
 <tr>
 <td>RFC 2759</td>
@@ -911,29 +960,29 @@
 <td>RFC 1332</td>
 <td>IPCP</td>
 <td class="cell-partial">∿</td>
-<td>IPv4 address negotiation and pool integration.</td>
-<td>Carries the L2TP and PPPoE Partial status.</td>
+<td>IPv4 address negotiation and pool integration, IPCP option codec (IP-Address type 3, RFC 1877 DNS 129/131), FSM negotiation to Opened, pppN address/route programming.</td>
+<td>One MUST gap gated in: codes 8-11 received on IPCP are not Code-Rejected (mapped to LCP echo/protocol-reject handling); codes 12 and above are Code-Rejected. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc1332.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 1877</td>
 <td>IPCP DNS options</td>
 <td class="cell-partial">∿</td>
-<td>Primary and secondary DNS option parsing and negotiation.</td>
-<td>Carries the L2TP and PPPoE Partial status.</td>
+<td>Primary and secondary DNS option parsing and negotiation; the Configure-Ack echoes acceptable options verbatim, the Configure-Reject echoes unsupported ones, and the IPv4 link stays usable with or without DNS. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Carries the L2TP and PPPoE Partial status. One MUST gap gated in: a DNS option with a Length other than 6 is answered with a Configure-Nak (correcting the value) rather than a Configure-Reject, because Ze's reject path is keyed on unknown option TYPE, not option length. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc1877.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 5072</td>
 <td>IPv6CP</td>
 <td class="cell-partial">∿</td>
-<td>Interface identifier negotiation and independent IPv6 NCP handling.</td>
-<td>IPv6 address assignment is outside IPv6CP and handled separately.</td>
+<td>Interface-Identifier NCP: independent FSM, generation, Configure-Req/Ack/Nak/Reject, RA/DHCPv6-PD after Opened.</td>
+<td>Gaps in rfc/short/rfc5072.md: the random interface identifier does not zero the u/l bit (4.1-9/4.1-11); no 1280 MTU floor for IPv6 sessions (2-2, minIPMTU=68); the collision Configure-Nak reuses s.peerInterfaceID rather than a fresh different non-zero identifier (4.1-4/4.1-5); no last-Nak-suggestion oscillation break (4.1-8). IPv6 address/prefix assignment is outside IPv6CP (DHCPv6-PD/SLAAC).</td>
 </tr>
 <tr>
 <td>RFC 2516</td>
 <td>PPPoE</td>
 <td class="cell-partial">∿</td>
-<td>Access concentrator discovery state machine, AC-Cookie, session tables, AF_PPPOX kernel sessions, shared PPP driver.</td>
-<td>Feature remains Partial.</td>
+<td>Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer, over the shared PPP driver. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap, gated in: RFC2516-5.2-2 -- BuildPADO (internal/component/l2tp/pppoe/discovery.go:335) can emit a PADO carrying only an AC-Name and no Service-Name tag when the AC has no configured service names (the documented accept-any config) and the client's PADI Service-Name is empty or absent, violating the one-or-more Service-Name MUST. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc2516.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 2865</td>
@@ -967,8 +1016,8 @@
 <td>RFC 8907</td>
 <td>TACACS+</td>
 <td class="cell-partial">∿</td>
-<td>SSH login PAP auth, ordered failover, MD5 pseudo-pad encryption, command accounting, optional authorization, single-connect mode.</td>
-<td>Feature inventory still marks TACACS+ Partial while learned notes record several closed gaps.</td>
+<td>SSH login PAP auth, ordered failover, MD5 pseudo-pad encryption, command accounting, optional authorization, single-connect mode; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Two MUST gaps gated in: RFC8907-4.6-1 -- no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected (ErrBadSecret is defined but unused); and RFC8907-6-1 -- authorization is decided on the response Status alone, and mandatory response arguments (=/*) are never parsed or enforced. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc8907.md</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -993,16 +1042,16 @@
 <tr>
 <td>RFC 7296</td>
 <td>IKEv2</td>
-<td>Supported</td>
-<td>Wire codec, cryptographic primitives, initiator and responder FSM, IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL, rekey, DPD.</td>
-<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>Wire codec, cryptographic primitives, initiator and responder FSM, IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL, rekey, DPD. Section 1.4 authenticated Delete on operator <code>clear</code> (graceful bounce); Section 2.4 state synchronization: the responder accepts a fresh IKE_SA_INIT in parallel with an established SA and supersedes it only once the new SA authenticates (never on the unauthenticated init); INITIAL_CONTACT emitted on the first IKE_AUTH request and honored on receipt.</td>
+<td>Two MUST gaps gated in: RFC7296-2.9-1 -- the responder records and installs the initiator's TSi/TSr but does not narrow them to the configured policy and never sends TS_UNACCEPTABLE (narrowTS is unused in production, engine/child.go:351); RFC7296-1.4-1 -- an inbound Delete is acknowledged with an empty INFORMATIONAL response (engine/inbound.go:270-276) with no reverse-direction Delete payload naming the paired SA. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7296.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 4301</td>
 <td>IPsec architecture</td>
 <td>Supported</td>
-<td>SAD/SPD model projected through XFRM policies and route-based IPsec interfaces.</td>
-<td class="cell-no">✕</td>
+<td>Native control-plane SPD/SAD model projected to kernel XFRM (IKEv2 tunnel-mode + RFC 4552 manual transport-mode); per-packet SPD/SAD processing is kernel-delegated.</td>
+<td>One MUST gap (RFC4301-4.4.1.1-1): SPD selectors are limited to IP-prefix + next-layer-protocol; TCP/UDP/SCTP port and ICMP type/code selectors are not modeled or projected (internal/component/ike/dataplane/dataplane.go:110-130; engine/initiator.go:325 tsToIPNet drops ports).</td>
 </tr>
 <tr>
 <td>RFC 4302</td>
@@ -1040,11 +1089,18 @@
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>RFC 2759</td>
+<td>MS-CHAPv2 (EAP inside IKEv2)</td>
+<td class="cell-partial">∿</td>
+<td>NtPasswordHash (UTF-16LE + MD4), ChallengeHash with DOMAIN-prefix stripping, ChallengeResponse (DES), GenerateAuthenticatorResponse, and authenticator-side Response validation (Value-Size=49, zero Reserved/Flags, uppercase S=); EAP authenticator and peer roles both implemented (internal/component/ike/eap).</td>
+<td>Three MUST gaps: x-6 no MS-CHAPv2 Failure (Code 4) packet is emitted (EAP-Failure used instead), so the C= fresh-challenge field is never produced; x-7 the peer only hex-decodes the S= field and never recomputes the expected Authenticator Response to compare or disconnect on mismatch; x-12 an NT-Response mismatch terminates via EAP-Failure but does not carry the mandated E=691 error code.</td>
+</tr>
+<tr>
 <td>RFC 5216</td>
-<td>EAP-TLS</td>
-<td>Supported in IPsec</td>
-<td>TLS handshake in EAP, fragmentation, MSK derivation feeding IKEv2 AUTH.</td>
-<td class="cell-no">✕</td>
+<td>EAP-TLS (EAP inside IKEv2)</td>
+<td class="cell-partial">∿</td>
+<td>Full EAP-TLS handshake as both authenticator (RequireAndVerifyClientCert + ClientCAs) and peer (RootCAs), L/M/S fragmentation with a 64KB reassembly bound and empty-message fragment ACK, and MSK export via the label "client EAP encryption" feeding the IKEv2 AUTH payload; certs from the PKI store.</td>
+<td>Four MUST gaps in rfc/short/rfc5216.md: RFC5216-5.4-1/5.4-2 no CRL/OCSP/post-auth revocation checking (crypto/tls performs none, no VerifyPeerCertificate callback); RFC5216-2.4-5 the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite is not offered (TLS 1.2+ Go defaults exclude insecure 3DES); RFC5216-2.1.3-1 a peer TLS Alert does not produce an EAP-Failure (tlsMethod.Process never reads the stored handshake error).</td>
 </tr>
 <tr>
 <td>RFC 5282</td>
@@ -1081,11 +1137,32 @@
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>RFC 2181</td>
+<td>DNS clarifications</td>
+<td class="cell-partial">∿</td>
+<td>Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound (internal/plugins/geodns/config.go:344), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging; tests bound per requirement in rfc/short/rfc2181.md.</td>
+<td>One MUST gap (RFC2181-5.1-1): GeoDNS and AS112 never set the TC bit or call miekg Truncate, so an oversized RRSet would be sent unmarked rather than truncated. The recursive-resolver data-ranking, DNSSEC/SIG, AXFR, and CNAME/PTR-authoring MUSTs are not-applicable (ze is authoritative plus a stub resolver only).</td>
+</tr>
+<tr>
+<td>RFC 8484</td>
+<td>DNS Queries over HTTPS (DoH)</td>
+<td class="cell-partial">∿</td>
+<td>DoH server on the shared DNS harness: application/dns-message over TLS, POST and GET (base64url-unpadded ?dns=), the /dns-query path, Cache-Control max-age capped at the smallest Answer-section TTL, and 405/415/400 on bad method/media/body. Server role only -- ze is not a DoH client.</td>
+<td>One MUST gap (RFC8484-5.1-2): for a NODATA response minAnswerTTL reads only the Answer section, so the HTTP freshness lifetime is not capped at the Authority SOA MINIMUM field. Six client-role and media-type-definer MUSTs are not-applicable (ze plays no DoH client and defines no media type beyond application/dns-message).</td>
+</tr>
+<tr>
+<td>RFC 7858</td>
+<td>DNS over TLS (DoT)</td>
+<td class="cell-partial">∿</td>
+<td>DoT server on the shared DNS harness: a TLS-wrapped TCP listener (miekg/dns RFC 7766 two-octet length-prefixed framing) on the DoT port, default 853, sharing the same dns.Handler as cleartext and DoH; TLS 1.2 minimum (BCP 195); cleartext queries to the DoT port are refused. Server role only -- ze is not a DoT client.</td>
+<td>One MUST NOT gap (RFC7858-3.1-3): ze does not reject a DoT listen-port of 53 (internal/core/dnsserver/secure.go:166-172 validates only 1..65535). The DoT client-role MUSTs (connect, response-matching, key-pinning, bootstrap alerting) and the TCP-Fast-Open MUSTs are not-applicable -- ze plays no DoT client and its DoT listener uses no TCP Fast Open.</td>
+</tr>
+<tr>
 <td>RFC 7871</td>
 <td>EDNS0 Client Subnet</td>
-<td>Supported</td>
-<td>GeoDNS client IP selection from EDNS0 client-subnet or packet source.</td>
-<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>GeoDNS consumes the EDNS0 client-subnet ADDRESS (a MAY, sections 7.2.1/11.1) to select a tailored answer by longest-prefix host-set match, or the packet source, per the client-ip-source mode (internal/core/dnsserver/client.go); it emits no ECS option in any query or response and caches nothing by network; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7871.md</code></span></span></td>
+<td>Six MUST gaps, each annotated in: GeoDNS uses ECS to tailor answers but includes no ECS option in its responses, so it neither echoes the option, indicates support, nor sets SCOPE (RFC7871-7.2.1-5, 7.2.2-2, 12.1-4, 12.1-5), and it validates no consumed option's FAMILY nor returns FORMERR for a malformed one (RFC7871-7.2.1-3, 7.2.1-4). The resolver/forwarder origination, ECS-response validation, network-scope caching, and DNSSEC-tailoring MUSTs are not-applicable: ze originates, forwards, and caches no ECS and is a plain stub resolver. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7871.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 7534</td>
@@ -1111,9 +1188,9 @@
 <tr>
 <td>RFC 2132</td>
 <td>DHCP options</td>
-<td>Supported</td>
-<td>DHCP options used by DHCP server and PXE support.</td>
-<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>DHCP server encodes options 1, 3, 6, 15, 51, 53, 54, 58, 59 and PXE options 43/60/66/67; it parses received message type (53), requested IP (50), server identifier (54), and PXE class/arch (60/77/93). Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap, tracked in: RFC2132-9.8-1 -- the server emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55), so it does not honor the client-requested option order. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc2132.md</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 4578</td>
@@ -1127,7 +1204,7 @@
 <td>TFTP</td>
 <td>Supported</td>
 <td>Read-only TFTP server for PXE bootloader delivery.</td>
-<td class="cell-no">✕</td>
+<td>RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go:407) instead of silently ignoring a duplicate or stale ACK.</td>
 </tr>
 <tr>
 <td>RFC 2347</td>
@@ -1141,21 +1218,28 @@
 <td>MRT</td>
 <td>Supported</td>
 <td>Daemon-side MRT recording, TABLE_DUMP_V2 snapshots, BGP4MP messages, analysis tools.</td>
-<td class="cell-no">✕</td>
+<td>One MUST gap gated in rfc/short/rfc6396.md [RFC6396-4.4.3-1]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session's negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte).</td>
+</tr>
+<tr>
+<td>RFC 8050</td>
+<td>MRT ADD-PATH</td>
+<td class="cell-partial">∿</td>
+<td>Add-path MRT subtypes: TABLE_DUMP_V2 RIB_*_ADDPATH (8-11) carry a 4-byte big-endian Path Identifier between Originated Time and Attribute Length; RIB_GENERIC_ADDPATH (12) keeps the Path Identifier in the raw NLRI blob and does not redefine the RIB Entry; BGP4MP add-path subtypes (8-11) preserve the Path Identifier inside the encapsulated message's NLRI; add-path is distinguished purely by MRT subtype. Tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap, gated in: ze selects the MRT add-path subtype from a static operator config toggle (ribSubtype/bgp4mpTypeSubtype, <code>config.go</code> AddPath) rather than from each peer's negotiated RFC 7911 Add-Path capability (OnBGPMessage does not consult it), so a single dump cannot represent a mix of add-path and non-add-path peers. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc8050.md</code></span><span class="ev-ref"><code>internal/plugins/mrt/dump.go</code></span><span class="ev-ref"><code>internal/plugins/mrt/component.go</code></span></span></td>
 </tr>
 <tr>
 <td>RFC 3954</td>
 <td>NetFlow v9</td>
 <td>Experimental</td>
-<td>Flow export templates and records over UDP.</td>
-<td>Flow export feature remains Experimental.</td>
+<td>Flow export templates and records over UDP (exporter): no Data FlowSet before its Template, cumulative per-observation-domain sequence numbers, network byte order, constant Template IDs; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>Template refresh is time-interval-based only, with no packet-count-based refresh interval (RFC3954-x-2 gap). ze is an exporter only; the v9 collector requirements are not applicable.</td>
 </tr>
 <tr>
 <td>RFC 7011</td>
 <td>IPFIX</td>
 <td>Experimental</td>
-<td>IPFIX export templates and records over UDP.</td>
-<td>Flow export feature remains Experimental.</td>
+<td>IPFIX export templates and records over UDP (exporter): version 0x000a, Template IDs &gt;= 256, IANA (E=0) fixed-length field specifiers, zeroed Set padding, and periodic UDP Template refresh at a configurable interval; tests bound per requirement in. <span class="ev-src"><span class="ev-ref"><code>ai/RFC-REQUIREMENTS.md</code></span></span></td>
+<td>One MUST gap in [RFC7011-10-1]: the exporter transmits over UDP only and implements no SCTP transport, so the mandatory SCTP support is absent. ze is an exporter only; IPFIX Collecting Process requirements are not applicable. <span class="ev-src"><span class="ev-ref"><code>rfc/short/rfc7011.md</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -1188,8 +1272,8 @@
 <tr>
 <td>draft-ietf-sidrops-aspa-verification</td>
 <td>ASPA path verification</td>
-<td>Supported</td>
-<td>ASPA validation algorithm, policy actions, and RPKI event output.</td>
+<td class="cell-partial">∿</td>
+<td>Section 6 verification algorithm (upstream/downstream), AS_SET to Unknown, prepend collapse, AS0-in-provider rejection, RTR ASPA PDU (Type 11) consumption, and re-validation on cache change. Two MUSTs unmet: per-AFI ASPA records (6-4, the AFI flag is parsed then discarded and the cache is keyed by customer AS alone, so per-AFI records overwrite each other); Invalid-not-preferred (8-1, ASPA state drives only reject/keep with default LogOnly, so an accepted Invalid route can outrank a Valid one for the same prefix).</td>
 </tr>
 <tr>
 <td>draft-ietf-idr-linklocal-capability</td>
@@ -1210,10 +1294,10 @@
 <td>Base IS-IS protocol reference, paired with the IS-IS RFC rows above.</td>
 </tr>
 <tr>
-<td>sFlow v5</td>
+<td>sflow-v5</td>
 <td>sFlow export</td>
 <td>Experimental</td>
-<td>Flow export protocol alongside NetFlow v9 and IPFIX.</td>
+<td>Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in rfc/short/sflow-v5.md: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9); no expanded sample types, so ifIndex &gt; 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12); unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16).</td>
 </tr>
 </tbody>
 </table>

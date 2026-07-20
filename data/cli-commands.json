@@ -1610,68 +1610,6 @@
     "description": "Reverse-path forwarding lookup in the Loc-RIB.\nPerforms a longest-prefix-match and returns the best-path entry.\nUse this to verify RPF checks would pass for a given source.",
     "mode": "read-only",
     "wire-method": "ze-rib-api:rpf",
-    "pipes": [
-      {
-        "name": "advertised",
-        "description": "Select advertised routes"
-      },
-      {
-        "name": "community",
-        "description": "Filter by standard community",
-        "takes-arg": true
-      },
-      {
-        "name": "count",
-        "description": "Count matching routes without serializing rows"
-      },
-      {
-        "name": "family",
-        "description": "Filter by AFI/SAFI",
-        "takes-arg": true
-      },
-      {
-        "name": "first",
-        "description": "Take first N routes",
-        "takes-arg": true
-      },
-      {
-        "name": "graph",
-        "description": "Render AS-path topology graph"
-      },
-      {
-        "name": "last",
-        "description": "Take last N routes",
-        "takes-arg": true
-      },
-      {
-        "name": "match",
-        "description": "Cross-field structured match",
-        "takes-arg": true
-      },
-      {
-        "name": "path",
-        "description": "Filter by AS path",
-        "takes-arg": true
-      },
-      {
-        "name": "peer",
-        "description": "Filter by peer",
-        "takes-arg": true
-      },
-      {
-        "name": "prefix",
-        "description": "Filter by prefix",
-        "takes-arg": true
-      },
-      {
-        "name": "prefix-summary",
-        "description": "Summarize by family and prefix length"
-      },
-      {
-        "name": "received",
-        "description": "Select received routes"
-      }
-    ],
     "global-pipes": true
   },
   {
@@ -3938,6 +3876,11 @@
     ],
     "global-pipes": true,
     "syntax": "update firewall irr asn <asn>"
+  },
+  {
+    "path": "update serve",
+    "description": "Run a local update server for firmware checks",
+    "mode": "offline"
   },
   {
     "path": "update system firmware apply",

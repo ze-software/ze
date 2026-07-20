@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-07-13](2026-07-13/index.md)
+
+A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.
+
+Areas: BGP, VRRP, RPKI, BMP, CLI, Looking Glass, Security, AAA, IPsec, L2TP, Firewall, Appliance, RFC Compliance, Performance, Under the Hood
+
 ## [Week of 2026-07-06](2026-07-06/index.md)
 
 A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.

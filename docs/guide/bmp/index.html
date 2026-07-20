@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>BMP (BGP Monitoring Protocol) - Ze</title>
+        <meta name="description" content="Ze documentation: guide/bmp.md" />
+        <meta property="og:title" content="BMP (BGP Monitoring Protocol) - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/bmp.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BMP (BGP Monitoring Protocol) - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/bmp.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin -->
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- YANG config -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="bmp-bgp-monitoring-protocol">BMP (BGP Monitoring Protocol)</h1>
+    <p>Ze implements RFC 7854 BMP in both directions: as a <strong>receiver</strong> (accepting
+feeds from routers) and as a <strong>sender</strong> (streaming state to collectors).</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#receiver">Receiver</a></li>
+<li><a href="#sender">Sender</a></li>
+</ol></li>
+<li><a href="#cli-commands">CLI Commands</a></li>
+<li><a href="#protocol-details">Protocol Details</a>
+<ol>
+<li><a href="#message-types">Message Types</a></li>
+<li><a href="#receiver-behavior">Receiver Behavior</a></li>
+<li><a href="#sender-behavior">Sender Behavior</a></li>
+</ol></li>
+<li><a href="#looking-glass-integration">Looking Glass Integration</a>
+<ol>
+<li><a href="#cli">CLI</a></li>
+<li><a href="#api-endpoints">API Endpoints</a></li>
+<li><a href="#route-lifecycle">Route Lifecycle</a></li>
+</ol></li>
+<li><a href="#limitations">Limitations</a></li>
+</ol></nav>
+<h2 id="configuration">Configuration</h2>
+<p>BMP receiver is configured under <code>environment { bmp { ... } }</code> (like SSH,
+web, looking glass). Sender config lives under <code>bgp { bmp { ... } }</code>.</p>
+<h3 id="receiver">Receiver</h3>
+<p>The receiver listens for TCP connections from BMP-enabled routers.
+Configured under <code>environment</code> to follow ze's service listener pattern.</p>
+<pre><code>environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 0.0.0.0;
+            port 11019;
+        }
+        max-sessions 100;
+    }
+}
+</code></pre>
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>false</td>
+<td>Enable BMP receiver</td>
+</tr>
+<tr>
+<td><code>server</code></td>
+<td>-</td>
+<td>Named listener endpoints (key: name)</td>
+</tr>
+<tr>
+<td><code>ip</code></td>
+<td>0.0.0.0</td>
+<td>Listen IP address</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>11019</td>
+<td>Listen TCP port (IANA assigned for BMP)</td>
+</tr>
+<tr>
+<td><code>max-sessions</code></td>
+<td>100</td>
+<td>Maximum concurrent BMP sessions (1-1000)</td>
+</tr>
+<tr>
+<td><code>route-action</code></td>
+<td>monitor</td>
+<td><code>monitor</code> (BMP RIB for visibility) or <code>redistribute</code> (future: also enter best-path)</td>
+</tr>
+</tbody>
+</table>
+<p>Multiple listeners are supported (same pattern as SSH/web):</p>
+<pre><code>environment {
+    bmp {
+        enabled true;
+        server ipv4 {
+            ip 0.0.0.0;
+            port 11019;
+        }
+        server ipv6 {
+            ip &quot;::&quot;;
+            port 11019;
+        }
+    }
+}
+</code></pre>
+<p>Port conflicts with other ze listeners are detected at config commit time
+via the YANG <code>ze:listener</code> extension.</p>
+<h3 id="sender">Sender</h3>
+<p>The sender connects to one or more external BMP collectors and streams
+ze's own BGP peer state changes and route updates.</p>
+<pre><code>bgp {
+    bmp {
+        sender {
+            collector monitoring-station {
+                address 10.0.0.100;
+                port 11019;
+            }
+            route-monitoring-policy pre-policy;
+            loc-rib true;
+            statistics-timeout 0;
+        }
+    }
+}
+</code></pre>
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- sender container -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>collector</code></td>
+<td>-</td>
+<td>Named collector endpoints (key: name)</td>
+</tr>
+<tr>
+<td><code>address</code></td>
+<td>(required)</td>
+<td>Collector IP address</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>11019</td>
+<td>Collector TCP port</td>
+</tr>
+<tr>
+<td><code>route-monitoring-policy</code></td>
+<td>all</td>
+<td><code>pre-policy</code> (Adj-RIB-In), <code>post-policy</code> (Adj-RIB-Out, RFC 8671), or <code>all</code></td>
+</tr>
+<tr>
+<td><code>loc-rib</code></td>
+<td>false</td>
+<td>Stream local RIB best-path changes as Loc-RIB Route Monitoring (RFC 9069, Peer Type 3)</td>
+</tr>
+<tr>
+<td><code>statistics-timeout</code></td>
+<td>0</td>
+<td>Seconds between statistics reports (0 = disabled)</td>
+</tr>
+</tbody>
+</table>
+<p>The sender reconnects automatically with exponential backoff (30s to 720s)
+per RFC 7854 recommendations.</p>
+<h2 id="cli-commands">CLI Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze show bmp sessions</code></td>
+<td>Show active BMP receiver sessions (router address, sysName, uptime)</td>
+</tr>
+<tr>
+<td><code>ze show bmp peers</code></td>
+<td>Show monitored BGP peers (AS, BGP ID, up/down status)</td>
+</tr>
+<tr>
+<td><code>ze show bmp collectors</code></td>
+<td>Show sender collector connection status</td>
+</tr>
+</tbody>
+</table>
+<h2 id="protocol-details">Protocol Details</h2>
+<h3 id="message-types">Message Types</h3>
+<p>Ze handles all 7 BMP message types defined in RFC 7854:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Receiver</th>
+<th>Sender</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Initiation (4)</td>
+<td>Parses sysName/sysDescr</td>
+<td>Sends ze identity on connect</td>
+</tr>
+<tr>
+<td>Termination (5)</td>
+<td>Closes session cleanly</td>
+<td>Sends before disconnect</td>
+</tr>
+<tr>
+<td>Peer Up (3)</td>
+<td>Tracks monitored peer</td>
+<td>Sends on BGP Established</td>
+</tr>
+<tr>
+<td>Peer Down (2)</td>
+<td>Marks peer down</td>
+<td>Sends on BGP session close</td>
+</tr>
+<tr>
+<td>Route Monitoring (0)</td>
+<td>Decodes inner BGP UPDATE</td>
+<td>Wraps received UPDATEs</td>
+</tr>
+<tr>
+<td>Statistics Report (1)</td>
+<td>Stores per-peer counters</td>
+<td>Periodic (if configured)</td>
+</tr>
+<tr>
+<td>Route Mirroring (6)</td>
+<td>Logs raw BGP PDUs</td>
+<td>Not implemented (follow-up)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="receiver-behavior">Receiver Behavior</h3>
+<ul>
+<li>Validates BMP version 3; rejects other versions</li>
+<li>Malformed BMP header closes the session; other sessions unaffected</li>
+<li>Malformed inner BGP messages are logged; session stays open</li>
+<li>Session count capped at <code>max-sessions</code></li>
+<li>30-second read deadline ensures clean shutdown</li>
+</ul>
+<h3 id="sender-behavior">Sender Behavior</h3>
+<ul>
+<li>Sends Initiation with sysName="ze" on each connection</li>
+<li>Sends Peer Up for each BGP peer reaching Established state</li>
+<li>Sends Peer Down with mapped reason code on session close</li>
+<li>Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)</li>
+<li>Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)</li>
+<li>Route-monitoring-policy controls which direction(s) are streamed</li>
+<li>With <code>loc-rib true</code>, streams local RIB best-path changes as Loc-RIB Route
+  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
+  zero-length OPENs and the local router-id as Peer BGP ID, a full-table replay
+  on enable, and a Loc-RIB Peer Down on shutdown</li>
+</ul>
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- RFC 9069 Loc-RIB monitoring -->
+<!-- source: internal/component/bgp/plugins/bmp/header.go -- PeerTypeLocRIB (Peer Type 3) -->
+<!-- source: rfc/short/rfc9069.md -- RFC 9069 requirement summary -->
+<ul>
+<li>Sends Termination before graceful disconnect</li>
+</ul>
+<h2 id="looking-glass-integration">Looking Glass Integration</h2>
+<p>When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
+(a separate protocol namespace). These routes are visible through <code>show bmp rib</code>
+and looking glass endpoints but never enter BGP best-path selection or the FIB.</p>
+<p>The <code>route-action</code> leaf controls future behavior:
+- <code>monitor</code> (default): store in BMP RIB for visibility only
+- <code>redistribute</code>: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)</p>
+<h3 id="cli">CLI</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze show bmp rib</code></td>
+<td>Show all BMP-monitored routes</td>
+</tr>
+</tbody>
+</table>
+<p>BMP routes are separate from BGP routes: <code>ze bgp rib show</code> excludes
+BMP-monitored routes, and <code>ze show bmp rib</code> excludes real BGP routes.</p>
+<h3 id="api-endpoints">API Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /api/looking-glass/protocols/bmp</code></td>
+<td>List BMP-monitored peers</td>
+</tr>
+<tr>
+<td><code>GET /api/looking-glass/routes/bmp/{name}</code></td>
+<td>Routes from a specific BMP peer</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>{name}</code> parameter is the composite peer key in <code>&lt;router&gt;:&lt;peer-address&gt;</code>
+format (e.g., <code>10.0.0.1:12345:192.168.1.1</code>).</p>
+<p>Responses follow the birdwatcher format for compatibility with Alice-LG and
+other looking glass frontends.</p>
+<h3 id="route-lifecycle">Route Lifecycle</h3>
+<ul>
+<li><strong>Injection:</strong> Route Monitoring messages inject BGP UPDATE routes under
+  <code>bmpProtocolID</code> with composite keys <code>&lt;router&gt;:&lt;peer-address&gt;</code>.</li>
+<li><strong>Peer Down:</strong> All routes for the monitored peer are withdrawn.</li>
+<li><strong>Session disconnect:</strong> All routes for all peers of that router are withdrawn.</li>
+<li><strong>Best-path isolation:</strong> BMP routes are stored under a separate ProtocolID.
+  The best-path algorithm only iterates BGP peers, so BMP routes are
+  automatically excluded with zero filter code.</li>
+</ul>
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li><strong>Sender OPEN messages are synthetic:</strong> the plugin event system does not
+  carry raw BGP OPEN PDUs. Peer Up messages contain minimal OPENs built from
+  AS metadata. Capabilities are not reflected. This can be improved when the
+  event schema is extended.</li>
+<li><strong>No per-NLRI ribout dedup:</strong> all UPDATEs are forwarded to collectors
+  as-is. Per-NLRI dedup requires parsing NLRIs from the raw UPDATE,
+  which is a follow-up task.</li>
+<li><strong>Loc-RIB Route Monitoring</strong> (RFC 9069) omits communities and LOCAL_PREF:
+  the best-change feed it is built from does not carry them, and RFC 9069
+  forbids a RIB back-door for the full attribute set.</li>
+<li><strong>Route Mirroring</strong> encoding on the sender side is not implemented.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

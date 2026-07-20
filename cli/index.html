@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 386 commands across 45 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 387 commands across 45 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 386 commands across 45 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 387 commands across 45 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="CLI Reference - Ze" />
-        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 386 commands across 45 groups." />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 387 commands across 45 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -36,7 +36,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Reference</span>
                     <h1 id="cli-title">CLI Reference</h1>
-                    <p>386 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                    <p>387 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
                 </div>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
@@ -583,7 +583,7 @@
 <tr id="cmd-system-version-software"><td><code>system version software</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show ze version</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-update" open>
-<summary>update <span class="cli-group-count">12</span></summary>
+<summary>update <span class="cli-group-count">13</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-update-bgp-irr-all"><td><code>update bgp irr all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh all IRR prefix-lists immediately.<br>Re-queries the IRR server for every enrolled ASN and atomically<br>swaps prefix-lists on success. Failed refreshes preserve the<br>existing prefix-list and report an error.</td></tr>
 <tr id="cmd-update-bgp-irr-as-set"><td><code>update bgp irr as-set &lt;as-set&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh IRR prefix-list for a specific AS-SET.<br>Usage: update bgp irr as-set &lt;as-set&gt;. Re-queries the IRR server<br>for all peers using the given AS-SET name.</td></tr>
@@ -592,6 +592,7 @@
 <tr id="cmd-update-firewall-irr-all"><td><code>update firewall irr all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh all cached IRR prefix-lists.<br>Re-queries the IRR server for every cached ASN/AS-SET entry and<br>updates the zefs cache on success. Failed refreshes preserve the<br>existing cache and report an error.</td></tr>
 <tr id="cmd-update-firewall-irr-as-set"><td><code>update firewall irr as-set &lt;as-set&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Fetch or refresh IRR prefix-list for an AS-SET.<br>Usage: update firewall irr as-set &lt;as-set&gt;. Queries the IRR server<br>and saves resolved prefixes to the zefs cache.</td></tr>
 <tr id="cmd-update-firewall-irr-asn"><td><code>update firewall irr asn &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Fetch or refresh IRR prefix-list for an ASN.<br>Usage: update firewall irr asn &lt;asn&gt;. Queries the IRR server and<br>saves resolved prefixes to the zefs cache. Creates the cache entry<br>if it does not exist.</td></tr>
+<tr id="cmd-update-serve"><td><code>update serve</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Run a local update server for firmware checks</td></tr>
 <tr id="cmd-update-system-firmware-apply"><td><code>update system firmware apply</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Full upgrade: download, verify, stage, and restart.<br>Runs the complete update cycle in one command. Only available on<br>platforms where Ze owns the update lifecycle (e.g. gokrazy).<br>The box will reboot into the new version.</td></tr>
 <tr id="cmd-update-system-firmware-check"><td><code>update system firmware check</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Check for a new firmware version right now.<br>Bypasses the scheduled interval timer and contacts the update server<br>immediately. Compare the result with &#x27;show system update&#x27;.</td></tr>
 <tr id="cmd-update-system-firmware-download"><td><code>update system firmware download</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Download the latest firmware image right now.<br>Bypasses the maintenance window and spread timers. The image is<br>staged but not applied. Use &#x27;update system firmware apply&#x27; or<br>&#x27;restart&#x27; to activate it.</td></tr>

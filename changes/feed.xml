@@ -5,8 +5,14 @@
         <link>https://ze-software.net/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 06 Jul 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 13 Jul 2026 00:00:00 +0000</lastBuildDate>
         <item>
+            <title>Week of 2026-07-13</title>
+            <link>https://ze-software.net/changes/2026-07-13/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-13/</guid>
+            <pubDate>Mon, 13 Jul 2026 00:00:00 +0000</pubDate>
+            <description>A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.</description>
+        </item>        <item>
             <title>Week of 2026-07-06</title>
             <link>https://ze-software.net/changes/2026-07-06/</link>
             <guid isPermaLink="true">https://ze-software.net/changes/2026-07-06/</guid>

@@ -36,14 +36,14 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Project</span>
                     <h1 id="features-title">Every feature Ze ships.</h1>
-                    <p>47 features plus a spec&#x27;d roadmap, color-coded by category.</p>
+                    <p>48 features plus a spec&#x27;d roadmap, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
                 </div>
                 <div class="legend reveal" role="group" aria-label="Filter features by category">
                     <button class="cat-operate" data-cat="operate" aria-pressed="false" aria-label="Filter features by Operate, 6 features">Operate <span class="legend-count" aria-hidden="true">6</span></button>
-                    <button class="cat-routing" data-cat="routing" aria-pressed="false" aria-label="Filter features by Routing, 8 features">Routing <span class="legend-count" aria-hidden="true">8</span></button>
+                    <button class="cat-routing" data-cat="routing" aria-pressed="false" aria-label="Filter features by Routing, 9 features">Routing <span class="legend-count" aria-hidden="true">9</span></button>
                     <button class="cat-services" data-cat="services" aria-pressed="false" aria-label="Filter features by Services, 9 features">Services <span class="legend-count" aria-hidden="true">9</span></button>
                     <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 6 features">Automate <span class="legend-count" aria-hidden="true">6</span></button>
                     <button class="cat-observe" data-cat="observe" aria-pressed="false" aria-label="Filter features by Observe, 9 features">Observe <span class="legend-count" aria-hidden="true">9</span></button>
@@ -640,6 +640,21 @@
                     <li><strong>L1/L2</strong> link-state IGP over Layer 2</li>
                     <li>RFC 5304/5310 <strong>authentication</strong>, key chains</li>
                     <li>Dual-stack <strong>IPv6</strong>, redistributes with BGP</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../docs/guide/vrrp/">VRRP</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 9568</span>
+                    <span class="chip">RFC 3768</span>
+                    <span class="chip">Virtual MAC</span>
+                    </div>
+                    <ul>
+                    <li>First-hop <strong>gateway redundancy</strong>, IPv4 and IPv6</li>
+                    <li>Per-group <strong>virtual-MAC</strong> macvlan for L2 failover</li>
+                    <li><strong>keepalived</strong> interop, compile-out</li>
                     </ul>
                     </article>
                     <article class="card feature-card experimental cat-observe" data-cat="observe">

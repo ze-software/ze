@@ -62,7 +62,7 @@ make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 build tags <code>make build</code> uses:</p>
 <!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
 
-<pre><code class="language-bash">go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
+<pre><code class="language-bash">go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
 </code></pre>
 <p>This tracks the module's default branch (development version), not a
 tagged release -- there are no tagged releases yet.</p>
@@ -207,7 +207,7 @@ a prefix into BGP:</p>
 <blockquote>
 <p>Advanced: a <code>process</code> binding attaches a plugin or your own external program to a peer (the
 ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
-received routes. It is not needed for the config above; see <a href="https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md" target="_blank" rel="noopener">Plugins</a>.</p>
+received routes. It is not needed for the config above; see <a href="../plugins/">Plugins</a>.</p>
 </blockquote>
 <h2 id="validate">Validate</h2>
 <pre><code class="language-bash">bin/ze config validate example.conf
@@ -278,7 +278,7 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
 <h2 id="next-steps">Next Steps</h2>
 <ul>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md" target="_blank" rel="noopener">Configuration</a> -- peer groups, capabilities, static routes</li>
-<li><a href="https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md" target="_blank" rel="noopener">Plugins</a> -- RIB, route server, RPKI, graceful restart</li>
+<li><a href="../plugins/">Plugins</a> -- RIB, route server, RPKI, graceful restart</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/guide/cli.md" target="_blank" rel="noopener">CLI Reference</a> -- interactive CLI, route injection, monitoring</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/guide/logging.md" target="_blank" rel="noopener">Logging</a> -- log levels, backends, per-subsystem tuning</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/guide/operations.md" target="_blank" rel="noopener">Operations</a> -- SSH setup, signals, health checks, troubleshooting</li>

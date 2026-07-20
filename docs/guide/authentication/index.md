@@ -105,6 +105,56 @@ ze cli -u alice -c "show version"
 The same flag works on `ze bgp plugin cli`, `ze signal`, `ze config set`,
 `ze config edit`, and `ze interface migrate`.
 
+### The stored hash is a credential only over a local connection
+
+The zefs-stored super-admin bcrypt hash may be presented directly as the SSH
+password (the on-box `ze` CLI does this), but **only over a local transport**: a
+loopback TCP peer (`127.0.0.1`/`::1`, the default `ze` dial) or a unix-socket
+peer. Over any remote transport (non-loopback SSH, all web logins, the REST/gRPC
+bearer path) the hash is **rejected** as a credential, so a leaked config backup
+or zefs copy cannot be replayed as a password from another machine. Remote
+logins must supply the real plaintext password (via `ze.ssh.password` or an
+interactive prompt); plaintext works from anywhere.
+
+<!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePassword -->
+<!-- source: internal/component/authz/auth.go -- CheckPassword allowHashToken gate -->
+
+The stored bcrypt hash is also **masked** in every config display: `show config`,
+the web config views, `ze config dump`, and CLI search show `ze:bcrypt` leaves as
+`/* SECRET-DATA */`, never the hash and never `$9$`-encoded. The edit-authorized
+raw download (`GET /config/download`, gated behind edit permission) keeps the real
+hash so a download → edit → upload round-trip is byte-exact; a masked value pasted
+back into a commit or upload is rejected with a clear error.
+
+<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedBcryptLeaves -->
+<!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
+
+### Remote management listener guard
+
+Ze refuses to start an unauthenticated management service on a non-loopback
+listener. The guard runs before any covered listener binds:
+
+| Service | Authentication that permits a remote listener |
+|---------|------------------------------------------------|
+| Web in insecure mode | Disable insecure mode and configure users |
+| MCP | Configure a bearer token or another authenticated `auth-mode` |
+| gNMI | Configure `ze.gnmi.token` or `environment.gnmi token` |
+| REST and gRPC API | Configure an API token or initialize zefs users |
+
+Literal addresses in `127.0.0.0/8` and `::1` count as loopback. Wildcard
+addresses (`0.0.0.0`, `::`, or `:port`), empty addresses, DNS names, and even
+the name `localhost` are treated as non-loopback because the guard fails closed
+when it cannot prove an address is local.
+
+An unsafe web, MCP, REST, or gRPC listener migration on reload is rejected
+before any listener changes; the service keeps its previous addresses. The
+public Looking Glass is a separate, intentionally unauthenticated read-only
+service. Its deployment guidance is in [Public looking glass](../looking-glass-howto/index.md).
+
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
+<!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
+
 ### Tab completion (`ze completion`)
 
 Tab completion runs silently in the shell and does not accept flags. To

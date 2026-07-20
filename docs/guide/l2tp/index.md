@@ -247,6 +247,7 @@ l2tp {
             timeout 3;
             retries 3;
             acct-interval 300;
+            coa-port 3799;
             server main {
                 address 10.0.0.10;
                 port 1812;
@@ -256,6 +257,17 @@ l2tp {
     }
 }
 ```
+
+`coa-port` enables the UDP Change of Authorization and Disconnect-Message
+listener. It has no default: leaving it unset keeps the listener off, so an
+upgrade cannot expose a new RADIUS endpoint unexpectedly. Port 3799 is the
+standard deployment choice. Ze accepts CoA/DM requests only from addresses
+listed under `server`; the authentication and accounting destination port on
+each server is configured separately.
+
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation -->
+
 
 Authentication timing is controlled via the `authentication` container under `l2tp`:
 

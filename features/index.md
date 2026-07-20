@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-47 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+48 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -432,6 +432,16 @@ Implemented and tested, not yet production-proven.
 - Dual-stack **IPv6**, redistributes with BGP
 
 [Learn more](https://ze-software.net/docs/guide/isis/)
+
+### VRRP
+
+*routing / Experimental* -- `RFC 9568` `RFC 3768` `Virtual MAC`
+
+- First-hop **gateway redundancy**, IPv4 and IPv6
+- Per-group **virtual-MAC** macvlan for L2 failover
+- **keepalived** interop, compile-out
+
+[Learn more](https://ze-software.net/docs/guide/vrrp/)
 
 ### Flow Export
 

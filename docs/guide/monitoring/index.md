@@ -128,7 +128,7 @@ process my-plugin {
 }
 ```
 
-The plugin receives events through its `OnEvent` callback. See [Plugins guide](https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md) for details.
+The plugin receives events through its `OnEvent` callback. See [Plugins guide](../plugins/index.md) for details.
 <!-- source: internal/component/plugin/server/ -- event dispatch to plugins -->
 
 ## Prometheus Metrics

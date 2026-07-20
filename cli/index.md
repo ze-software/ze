@@ -1,6 +1,6 @@
 # CLI Reference
 
-386 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+387 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -584,7 +584,7 @@
 | `system version api` | Read-only | Show IPC protocol version |
 | `system version software` | Read-only | Show ze version |
 
-## update (12)
+## update (13)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -595,6 +595,7 @@
 | `update firewall irr all` | Daemon | Refresh all cached IRR prefix-lists. Re-queries the IRR server for every cached ASN/AS-SET entry and updates the zefs cache on success. Failed refreshes preserve the existing cache and report an error. |
 | `update firewall irr as-set` | Daemon | Fetch or refresh IRR prefix-list for an AS-SET. Usage: update firewall irr as-set <as-set>. Queries the IRR server and saves resolved prefixes to the zefs cache. |
 | `update firewall irr asn` | Daemon | Fetch or refresh IRR prefix-list for an ASN. Usage: update firewall irr asn <asn>. Queries the IRR server and saves resolved prefixes to the zefs cache. Creates the cache entry if it does not exist. |
+| `update serve` | Offline | Run a local update server for firmware checks |
 | `update system firmware apply` | Daemon | Full upgrade: download, verify, stage, and restart. Runs the complete update cycle in one command. Only available on platforms where Ze owns the update lifecycle (e.g. gokrazy). The box will reboot into the new version. |
 | `update system firmware check` | Daemon | Check for a new firmware version right now. Bypasses the scheduled interval timer and contacts the update server immediately. Compare the result with 'show system update'. |
 | `update system firmware download` | Daemon | Download the latest firmware image right now. Bypasses the maintenance window and spread timers. The image is staged but not applied. Use 'update system firmware apply' or 'restart' to activate it. |

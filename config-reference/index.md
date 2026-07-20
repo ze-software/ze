@@ -392,6 +392,21 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         Declares local role and enables RFC 9234 ingress rules (replaces Phase 1 name keyword)
       - **strict** `boolean`
         Require peer to send Role capability
+    - **rpki** `container`
+      Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)
+      - **action** `container`
+        Origin-validation action overrides for this peer/group
+        - **invalid** `validation-action`
+          Action for routes with Invalid validation state (unset: inherit group then global)
+        - **not-found** `validation-action`
+          Action for routes with NotFound validation state (unset: inherit group then global)
+      - **aspa** `container`
+        ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)
+        - **action** `container`
+          - **invalid** `validation-action`
+            Action for routes with ASPA Invalid path state (unset: inherit group then global)
+          - **unknown** `validation-action`
+            Action for routes with ASPA Unknown path state (unset: inherit group then global)
     - **session** `container`
       BGP session parameters: ASN, capabilities, address families, next-hop policy, and community control. Inherited from group to peer; peer values override.
       - **accept-srv6-prefix-sid** `boolean`
@@ -609,6 +624,21 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       Declares local role and enables RFC 9234 ingress rules (replaces Phase 1 name keyword)
     - **strict** `boolean`
       Require peer to send Role capability
+  - **rpki** `container`
+    Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)
+    - **action** `container`
+      Origin-validation action overrides for this peer/group
+      - **invalid** `validation-action`
+        Action for routes with Invalid validation state (unset: inherit group then global)
+      - **not-found** `validation-action`
+        Action for routes with NotFound validation state (unset: inherit group then global)
+    - **aspa** `container`
+      ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)
+      - **action** `container`
+        - **invalid** `validation-action`
+          Action for routes with ASPA Invalid path state (unset: inherit group then global)
+        - **unknown** `validation-action`
+          Action for routes with ASPA Unknown path state (unset: inherit group then global)
   - **session** `container`
     BGP session parameters: ASN, capabilities, address families, next-hop policy, and community control. Inherited from group to peer; peer values override.
     - **accept-srv6-prefix-sid** `boolean`
@@ -964,6 +994,21 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       Declares local role and enables RFC 9234 ingress rules (replaces Phase 1 name keyword)
     - **strict** `boolean`
       Require peer to send Role capability
+  - **rpki** `container`
+    Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)
+    - **action** `container`
+      Origin-validation action overrides for this peer/group
+      - **invalid** `validation-action`
+        Action for routes with Invalid validation state (unset: inherit group then global)
+      - **not-found** `validation-action`
+        Action for routes with NotFound validation state (unset: inherit group then global)
+    - **aspa** `container`
+      ASPA action overrides for this peer/group (only applies when ASPA validation is enabled globally)
+      - **action** `container`
+        - **invalid** `validation-action`
+          Action for routes with ASPA Invalid path state (unset: inherit group then global)
+        - **unknown** `validation-action`
+          Action for routes with ASPA Unknown path state (unset: inherit group then global)
   - **session** `container`
     BGP session parameters: ASN, capabilities, address families, next-hop policy, and community control. Inherited from group to peer; peer values override.
     - **accept-srv6-prefix-sid** `boolean`
@@ -1256,11 +1301,17 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
 - **router-id** `ipv4-address`
   BGP Router ID (required)
 - **rpki** `container`
+  - **action** `container`
+    Global origin-validation actions (RFC 6811 Section 3)
+    - **invalid** `validation-action`
+      Action for routes with Invalid validation state
+    - **not-found** `validation-action`
+      Action for routes with NotFound validation state
   - **aspa** `container`
-    - **policy** `container`
-      - **invalid-action** `enumeration`
+    - **action** `container`
+      - **invalid** `validation-action`
         Action for routes with ASPA Invalid path verification state
-      - **unknown-action** `enumeration`
+      - **unknown** `validation-action`
         Action for routes with ASPA Unknown path verification state
     - **validation** `boolean`
       Enable ASPA path verification using RTR v2 ASPA records
@@ -1271,11 +1322,6 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       Server preference (lower = preferred)
     - **source-address** `ip-address`
       Source IP address for outbound RTR connections
-  - **policy** `container`
-    - **invalid-action** `enumeration`
-      Action for routes with Invalid validation state
-    - **not-found-action** `enumeration`
-      Action for routes with NotFound validation state
   - **validation-timeout** `uint16`
     Fail-open timeout for pending routes
 - **session** `container`
@@ -3349,6 +3395,8 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
   - **radius** `container`
     - **acct-interval** `uint16`
       Accounting interim-update interval in seconds.
+    - **coa-port** `uint16`
+      UDP port for the RADIUS CoA/Disconnect listener (RFC 5176), commonly 3799. Deliberately has no default: leaving it unset keeps the listener off, so an existing deployment does not start accepting CoA on upgrade. Requests are accepted only from the configured RADIUS server addresses.
     - **nas-identifier** `string`
       NAS-Identifier sent in RADIUS requests.
     - **retries** `uint8`

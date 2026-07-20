@@ -1226,7 +1226,9 @@
     "dependencies": [
       "routing-table"
     ],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "interface"
+    ],
     "source_dir": "internal/plugins/static",
     "yang_files": [
       "internal/plugins/static/yang/ze-static-cmd.yang",
