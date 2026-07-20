@@ -39,6 +39,38 @@ receives** a route with ATOMIC_AGGREGATE, and recording it as an aggregator rule
 let the readvertisement path be cited as evidence of non-applicability when it is
 the bound path.
 
+## What Keeps RFC Testing Valid (the four ratchets)
+
+`make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell
+"never proven" from "stopped being proven". Four comparisons against HEAD supply that
+difference. Each fires only on a real downgrade, so a green run means the evidence held,
+not that nobody looked.
+
+| Ratchet | Producer | Fires when |
+|---------|----------|-----------|
+| Enrolment is monotonic | `check_enrolment` | an RFC whose MUSTs were gated stops being gated |
+| **Proof is monotonic** | `check_coverage_ratchet` | a requirement loses a polarity it had at HEAD. `{gap}` is NOT an escape: it is the move being blocked |
+| **Requirements do not vanish** | `check_retired_requirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is the CHEAPEST route from red to green, cheaper than `{gap}` which costs a public disclosure row, and the ratchet would be pressuring people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
+| **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords |
+
+Summaries that predate HEAD are the existing backlog and are deliberately grandfathered:
+a rule that reds the gate on unrelated work gets removed rather than obeyed. Where git
+cannot answer, every ratchet judges nothing rather than judging everything.
+
+At edit time the `rfc-tagged-test` guard (`_rfc_tagged_change_err`) blocks a behavior
+change to any test carrying an `RFC requirement:` tag, and separately blocks REMOVING the
+tag. Removal is checked first and on its own: a tag is a comment, so a behavior comparison
+waves its deletion through, after which the test is unguarded and `// test-relax:` alone
+buys any later weakening. Scope is the enclosing test function, not the edited hunk (a tag
+sits on the doc comment, so a hunk-scoped guard misses exactly the edit it exists to stop)
+and not the whole file (which blocked 331 of 3220 untagged helper functions).
+
+**What none of this catches:** a tagged test whose assertions are weakened *in place*
+while keeping the same shape. That is `c_test_weakening` and
+`scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet
+(`check_audit_freshness`) wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet
+is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+
 ## Before Implementing BGP Features
 
 1. Find RFC in `rfc/` — if missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`

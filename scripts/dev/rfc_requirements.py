@@ -750,6 +750,368 @@ def _git_baseline_ids() -> Set[str]:
     return ids
 
 
+def _git_baseline_summary_stems() -> Optional[Set[str]]:
+    """The summary stems committed at HEAD, or None when git could not answer.
+
+    Tells a summary that is NEW in this change from one that is part of the existing
+    backlog.
+
+    Returns None, NOT an empty set, when git fails. Its two siblings can conflate the two
+    because they are consumed as `baseline - current` and a high-water map, where an empty
+    baseline accuses nobody. This one is consumed as `stems - baseline_stems`, where an
+    empty baseline accuses EVERY summary in the repository of being new. Same word,
+    opposite polarity: "I could not look" must not render as "nothing was there"
+    (ai/rules/fail-closed-guards.md -- and note that failing CLOSED here would mean a wall
+    of false violations no developer can act on, which teaches people to bypass the gate).
+    """
+    try:
+        res = subprocess.run(
+            ["git", "ls-tree", "-r", "-z", "--name-only", "HEAD", "rfc/short"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if res.returncode != 0:
+        return None
+    stems: Set[str] = set()
+    for path in res.stdout.split("\0"):
+        path = path.strip()
+        if path.endswith(".md"):
+            stems.add(os.path.basename(path)[: -len(".md")])
+    return stems
+
+
+def _git_baseline_tag_polarities() -> Dict[str, Set[str]]:
+    """Which polarities proved each requirement at HEAD: {rid: {"positive", "negative"}}.
+
+    The baseline is re-parsed with the SAME scan_go_tags/scan_ci_tags the working tree
+    goes through, never with a regex over `git grep` output. A .ci `terminator=` block is
+    raw file content that can contain a line looking exactly like a tag
+    (scan_ci_tags:510), so a regex baseline would invent tags that were never there and
+    then report their "loss".
+
+    Only files git already told us contain the marker are read, so the cost tracks the
+    number of tagged files, not the size of the repository.
+    """
+    try:
+        listing = subprocess.run(
+            ["git", "grep", "-l", "-z", "-F", "RFC requirement:", "HEAD", "--"]
+            + list(TEST_ROOTS),
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return {}
+    # git grep exits 1 when nothing matched, which is a real answer ("no tags at HEAD");
+    # any other non-zero is a failure and yields no baseline.
+    if listing.returncode not in (0, 1):
+        return {}
+    paths = []
+    for entry in listing.stdout.split("\0"):
+        # NOT stripped: `-z` emits the path verbatim, and stripping would silently rename
+        # a path with leading or trailing spaces into one that does not exist.
+        # Honest note: no test pins this, because it is not observable here. A path with a
+        # leading or trailing space fails the `_test.go` suffix check with or without the
+        # strip, so both spellings return the same empty baseline. It is kept as
+        # correctness by construction, not as a behaviour someone verified.
+        if not entry.startswith("HEAD:"):
+            continue
+        rel = entry[len("HEAD:") :]
+        if not (rel.endswith("_test.go") or rel.endswith(".ci")):
+            continue
+        # A newline in a path would split one request into two inside the newline-delimited
+        # cat-file protocol and desync every following blob. Excluding it costs a baseline
+        # entry; including it would corrupt all of them.
+        if "\n" in rel:
+            continue
+        # Mirror scan_tree's pruning (:551) exactly. Without this the baseline can hold a
+        # tag from a directory the tree scanner never visits, and the ratchet then reports
+        # "no longer proven" for a test that was never removed.
+        if any(part in (".git", "vendor", "testdata") for part in rel.split("/")):
+            continue
+        paths.append(rel)
+    if not paths:
+        return {}
+
+    out: Dict[str, Set[str]] = {}
+    for rel, blob in _git_cat_blobs(paths).items():
+        for t in _scan_tags_tolerant(blob, rel):
+            out.setdefault(t.rid, set()).add(t.polarity)
+    return out
+
+
+def _scan_tags_tolerant(blob: str, rel: str) -> List[Tag]:
+    """Baseline tags for one HEAD blob, surviving a malformed tag elsewhere in the file.
+
+    The production scanners raise on the FIRST bad tag, discarding the whole file's tags.
+    For the tree that is right (fail closed on malformed input). For the BASELINE it is
+    backwards: the commit that fixes a malformed tag is exactly when the tree parses and
+    HEAD does not, so a whole file would lose its baseline in the one change most likely
+    to be touching those tests.
+
+    Go falls back to a per-line scan that keeps the tags that parse -- safe because
+    scan_go_tags is itself a plain line loop (:501). A .ci does NOT: its terminator= blocks
+    make line position meaningful (:510), and re-implementing that here is precisely the
+    phantom-tag hazard the shared scanner exists to avoid. A .ci with a malformed tag
+    therefore contributes no baseline, and says so.
+
+    The .ci guard is load-bearing, not defensive decoration: the Go fallback matches
+    `// RFC requirement:` (_GO_TAG_RE, :148), and a .ci records shell and config content
+    where such a line can appear without being a tag at all. Running the Go fallback over a
+    .ci would invent exactly the phantom tags this function exists to avoid, and the
+    ratchet would then report the "loss" of a tag that never existed.
+    """
+    scan = scan_go_tags if rel.endswith("_test.go") else scan_ci_tags
+    try:
+        return scan(blob, rel)
+    except ParseError:
+        pass
+    if not rel.endswith("_test.go"):
+        return []
+    out: List[Tag] = []
+    for i, line in enumerate(blob.split("\n"), start=1):
+        m = _GO_TAG_RE.match(line)
+        if not m:
+            continue
+        try:
+            t = _parse_tag_rest(m.group("rest"), f"{rel}:{i}")
+        except ParseError:
+            continue
+        out.append(t._replace(file=rel, line=i))
+    return out
+
+
+def _git_cat_blobs(paths: Sequence[str]) -> Dict[str, str]:
+    """Read many HEAD blobs in ONE git process: {path: contents}.
+
+    A `git show` per file is the obvious spelling and costs ~350 forks here. Measured on
+    this tree: the gate runs 1.7s at HEAD, 3.4s with per-file `git show`, and 2.2s with this
+    batch read -- so the baseline costs +0.5s (~30%) instead of +1.7s (~100%). A gate that
+    doubles the time of every `make ze-verify` is a gate people learn to skip, so the batch
+    interface is a condition of the check being kept rather than an optimization.
+
+    Missing or unreadable paths are simply absent from the result: a blob we cannot read
+    contributes no baseline, exactly like a git failure above.
+    """
+    stdin = "".join(f"HEAD:{p}\n" for p in paths)
+    try:
+        res = subprocess.run(
+            ["git", "cat-file", "--batch"],
+            cwd=PROJECT_DIR,
+            input=stdin.encode("utf-8"),
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return {}
+    if res.returncode != 0:
+        return {}
+
+    out: Dict[str, str] = {}
+    data = res.stdout
+    pos = 0
+    for rel in paths:
+        nl = data.find(b"\n", pos)
+        if nl < 0:
+            return {}  # truncated stream: what we have is a PARTIAL baseline, worse than none
+        header = data[pos:nl].decode("utf-8", "replace").split()
+        pos = nl + 1
+        # "<object> missing" / "<object> ambiguous": git echoes the request and emits NO
+        # body, so there is nothing to skip.
+        if len(header) == 2 and header[1] in ("missing", "ambiguous"):
+            continue
+        # Anything else must be "<sha> <type> <size>" followed by <size> bytes and a LF.
+        # A non-blob type (a tree, if a caller ever passes a directory) still HAS a body:
+        # skipping the header alone would consume that body as the next header and every
+        # following path would be silently dropped. Frame it properly, then ignore it.
+        if len(header) != 3:
+            return {}
+        try:
+            size = int(header[2])
+        except ValueError:
+            return {}  # a header we cannot trust means we no longer know where bodies end
+        body = data[pos : pos + size]
+        pos += size + 1  # trailing newline after each body
+        if header[1] == "blob":
+            out[rel] = body.decode("utf-8", "replace")
+    return out
+
+
+def check_coverage_ratchet(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    baseline_polarities: Dict[str, Set[str]],
+    baseline_enrolled: Set[str],
+) -> List[str]:
+    """Proof is monotonic: a requirement that was proven cannot stop being proven.
+
+    check_enrolment already ratchets which RFCs are gated. This ratchets the evidence one
+    level down, because evaluate() reads only the working tree and a tree cannot tell
+    "never proven" from "stopped being proven" -- the second is a regression and the first
+    is the backlog.
+
+    Compares the SET of polarities per requirement id, so a refactor that renames or moves
+    a test is invisible here and only genuine loss fires. There is deliberately no
+    annotation that satisfies this check: {gap} is precisely the move being blocked. The
+    honest exits are to restore the test or to retire the requirement id.
+
+    Scoped to RFCs that were already enrolled at HEAD: an RFC enrolled in THIS change is
+    judged by evaluate()'s ordinary rules, where a declared {gap} is a legitimate starting
+    position rather than a regression.
+    """
+    errs: List[str] = []
+    current: Dict[str, Set[str]] = {}
+    for t in tags:
+        current.setdefault(t.rid, set()).add(t.polarity)
+
+    seen: Set[str] = set()
+    for req in requirements:
+        if req.rfc not in enrolled or req.rfc not in baseline_enrolled:
+            continue
+        was = baseline_polarities.get(req.rid)
+        if not was:
+            continue
+        lost = was - current.get(req.rid, set())
+        if not lost:
+            continue
+        if req.rid in seen:
+            continue  # two summary lines sharing an id are one loss, not two
+        seen.add(req.rid)
+        where = f"{req.source}:{req.line}" if req.source else req.rid
+        errs.append(
+            f"{where}: {req.rid} is no longer proven -- the {'/'.join(sorted(lost))} "
+            f"test(s) that covered it at HEAD are gone. Coverage is monotonic: evidence "
+            f"that existed cannot quietly stop existing. Restore the test, or retire the "
+            f"requirement id if the obligation itself is gone. An annotation does not "
+            f"substitute for proof that was already there"
+        )
+    return errs
+
+
+def check_retired_requirements(
+    requirements: Sequence[Requirement],
+    enrolled: Set[str],
+    baseline_ids: Set[str],
+    baseline_enrolled: Set[str],
+    stems: Set[str],
+    baseline_stems: Optional[Set[str]] = None,
+    parse_errors: Optional[Dict[str, str]] = None,
+) -> List[str]:
+    """A requirement id of an enrolled RFC cannot simply vanish from its summary.
+
+    check_coverage_ratchet iterates the CURRENT requirements, so a requirement that is no
+    longer listed is never visited and its lost tests are never noticed. That makes
+    deleting the checklist line the cheapest possible route from red to green -- cheaper
+    than {gap}, which costs a public disclosure row. The ratchet would then be pressuring
+    people toward hiding the obligation instead of declaring it, which is worse than not
+    having the ratchet at all.
+
+    The id rule already says ids are permanent and never renumbered or reused
+    (ai/skills/ze-rfc.md); this makes the deletion half enforceable. Correcting a misquoted
+    requirement means editing the TEXT under the same id, which this permits.
+    """
+    errs: List[str] = []
+    live = {r.rid for r in requirements}
+    # An id is attributed by matching against EVERY stem we know of, then judged. Matching
+    # only against the judged stems would let an id whose real owner is un-enrolled be
+    # attributed to whichever enrolled stem happens to share a prefix, and reported against
+    # a summary that never held it (DRAFT-FOO-BAR-3.1-1 blamed on rfc/short/draft-foo.md).
+    # Longest prefix first: a draft stem is itself hyphenated, so splitting the id on "-"
+    # would name the wrong RFC.
+    known = sorted(set(stems) | set(baseline_stems or ()), key=len, reverse=True)
+    # Two ways a stem contributes no requirements without anything being retired, both of
+    # which would otherwise emit one confident wrong message PER ID (39 for rfc7606),
+    # burying the single accurate error that is the real problem. Both are reported
+    # elsewhere -- parse errors by run_check, a deleted summary by check_enrolment -- so
+    # the gate stays red either way.
+    silent = set(parse_errors or {}) | (set(baseline_stems or ()) - set(stems))
+    judged = (enrolled & baseline_enrolled) - silent
+    for rid in sorted(baseline_ids - live):
+        stem = next((s for s in known if rid.startswith(rfc_prefix(s) + "-")), None)
+        if stem is None or stem not in judged:
+            continue
+        errs.append(
+            f"{rid} was in rfc/short/{stem}.md at HEAD and is now gone. Requirement ids "
+            f"are permanent: deleting the line retires the obligation silently, which is "
+            f"exactly the move that makes a compliance claim rot. Restore the line (edit "
+            f"its TEXT under the same id if the wording was wrong), and annotate it if it "
+            f"is not met"
+        )
+    return errs
+
+
+def check_new_summaries(
+    stems: Set[str],
+    baseline_stems: Optional[Set[str]],
+    enrolled: Set[str],
+    requirements: Sequence[Requirement],
+    parse_errors: Dict[str, str],
+) -> List[str]:
+    """Adding an RFC summary must add RFC checking.
+
+    A new rfc/short/*.md is un-enrolled by definition, so without this the gate learns
+    nothing from it: the obligations are written down and enforced nowhere, which is the
+    exact shape of a compliance claim that rots.
+
+    Judges only summaries that are NEW since HEAD. The ones that predate it are the
+    existing backlog; failing on those would block every unrelated commit and the rule
+    would be removed rather than obeyed.
+
+    An absent baseline (None: git could not answer; empty: no rfc/short at HEAD) judges
+    NOTHING. `stems - baseline_stems` against an empty baseline is `stems`, i.e. every
+    summary in the repository accused of being new -- a wall of violations naming files
+    committed years ago, which no developer can act on and which teaches people to bypass
+    the gate. "I could not look" must not render as "nothing was there".
+    """
+    errs: List[str] = []
+    if not baseline_stems:
+        return errs
+    gated_by_rfc: Dict[str, int] = {}
+    for req in requirements:
+        if req.gated:
+            gated_by_rfc[req.rfc] = gated_by_rfc.get(req.rfc, 0) + 1
+
+    for stem in sorted(stems - baseline_stems):
+        if stem in enrolled:
+            continue
+        problem = parse_errors.get(stem)
+        if problem:
+            # Un-enrolled parse errors are suppressed elsewhere because the id migration is
+            # per-RFC and predates most summaries. A NEW summary has no such excuse, and
+            # suppressing it would make the enrolment rule below evadable by shipping a
+            # summary that simply does not parse.
+            errs.append(
+                f"rfc/short/{stem}.md is new and does not parse: {problem}. A new summary "
+                f"must parse before it can be enrolled"
+            )
+            continue
+        gated = gated_by_rfc.get(stem, 0)
+        if gated:
+            errs.append(
+                f"rfc/short/{stem}.md is new and declares {gated} gated MUST-level "
+                f"requirement(s), but is not in rfc/enrolled.txt -- so none of them is "
+                f"checked. Enrol it (see .claude/skills/ze-rfc/SKILL.md), classifying each "
+                f"requirement as tested, {{single-polarity}}, {{gap}} or {{not-applicable}}"
+            )
+            continue
+        src = source_keyword_count(stem)
+        if src:
+            errs.append(
+                f"rfc/short/{stem}.md is new and declares NO MUST-level requirement, but "
+                f"the source text has {src} MUST-level keyword(s). An absent summary is "
+                f"indistinguishable from a compliant one: extract the obligations, or "
+                f"record in the summary why the source keywords are not requirements on a "
+                f"speaker"
+            )
+    return errs
+
+
 # --------------------------------------------------------------------------
 # Status ledger cross-check
 # --------------------------------------------------------------------------
@@ -1226,33 +1588,75 @@ def check_ledger_fresh(
     return []
 
 
-def _collect_for_check() -> Tuple[Set[str], List[Requirement], List[str], List[Tag]]:
+def _collect_for_check() -> Tuple[
+    Set[str], List[Requirement], List[str], List[Tag], Dict[str, str]
+]:
     """Parse every summary tolerantly and scan the tree once.
 
     Shared by run_check and run_check_fresh so both render the ledger from identical
     inputs -- if they diverged, one could call fresh what the other rebuilds.
+
+    Returns the reported parse errors (enrolled summaries only) AND the per-stem map of
+    every parse failure. check_new_summaries needs the suppressed ones: a summary that is
+    new cannot hide behind the migration amnesty the un-enrolled backlog gets.
     """
     enrolled = load_enrolled()
     stems = summary_stems()
     reqs: List[Requirement] = []
     parse_errs: List[str] = []
+    by_stem: Dict[str, str] = {}
     for stem in sorted(stems):
         path = os.path.join(SUMMARY_DIR, stem + ".md")
         try:
             reqs.extend(parse_summary_file(path))
         except ParseError as exc:
+            by_stem[stem] = str(exc)
             if stem in enrolled:
                 parse_errs.append(str(exc))
-    return enrolled, reqs, parse_errs, scan_tree()
+    return enrolled, reqs, parse_errs, scan_tree(), by_stem
 
 
 def run_check() -> int:
     try:
-        enrolled, reqs, parse_errs, tags = _collect_for_check()
+        enrolled, reqs, parse_errs, tags, parse_by_stem = _collect_for_check()
         stems = summary_stems()
+        baseline_enrolled = _git_baseline_enrolment()
+        baseline_ids = _git_baseline_ids()  # read once: it costs a git show per summary
 
         errs: List[str] = []
-        errs.extend(check_enrolment(enrolled, _git_baseline_enrolment(), stems))
+        errs.extend(check_enrolment(enrolled, baseline_enrolled, stems))
+
+        # Adding a summary must add checking, and evidence that existed must keep
+        # existing. Both compare against HEAD: the working tree alone cannot tell a
+        # backlog item from a regression (spec-rfc-gate-regression-ratchets.md).
+        baseline_stems = _git_baseline_summary_stems()
+        errs.extend(
+            check_new_summaries(stems, baseline_stems, enrolled, reqs, parse_by_stem)
+        )
+        if enrolled & baseline_enrolled:
+            # Both ratchets are no-ops with nothing enrolled on both sides, and the tag
+            # baseline costs a git grep plus a batch read of every tagged blob. Do not pay
+            # for an answer that cannot change the verdict.
+            errs.extend(
+                check_retired_requirements(
+                    reqs,
+                    enrolled,
+                    baseline_ids,
+                    baseline_enrolled,
+                    stems,
+                    baseline_stems,
+                    parse_by_stem,
+                )
+            )
+            errs.extend(
+                check_coverage_ratchet(
+                    reqs,
+                    tags,
+                    enrolled,
+                    _git_baseline_tag_polarities(),
+                    baseline_enrolled,
+                )
+            )
         # parse_errs holds only the errors for enrolled summaries; the migration to IDs
         # is per-RFC and un-enrolled summaries have not been converted, so their parse
         # failures are expected and not reported.
@@ -1262,7 +1666,7 @@ def run_check() -> int:
         # committed baseline so "delete 5.3-4, add a different 5.3-4" is caught even though
         # the two are textually indistinguishable (AC-2). Reuse is a bug regardless of
         # enrolment, so this runs over every parsed requirement.
-        errs.extend(check_id_allocation(reqs, _git_baseline_ids()))
+        errs.extend(check_id_allocation(reqs, baseline_ids))
 
         errs.extend(evaluate(reqs, tags, enrolled))
 
@@ -1299,7 +1703,7 @@ def run_check() -> int:
 
 
 def run_write() -> int:
-    enrolled, reqs, _, tags = _collect_for_check()
+    enrolled, reqs, _, tags, _ = _collect_for_check()
     body = render_ledger(reqs, tags, enrolled)
     os.makedirs(os.path.dirname(LEDGER_FILE), exist_ok=True)
     with open(LEDGER_FILE, "w", encoding="utf-8") as fh:
@@ -1314,7 +1718,7 @@ def run_check_fresh() -> int:
     full coverage evaluation. The same check also runs inside `run_check` (ze-rfc-check),
     which is where verify catches it."""
     try:
-        enrolled, reqs, _, tags = _collect_for_check()
+        enrolled, reqs, _, tags, _ = _collect_for_check()
         errs = check_ledger_fresh(reqs, tags, enrolled)
     except (ParseError, OSError) as exc:
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")

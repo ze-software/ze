@@ -1738,7 +1738,135 @@ def _behavior_bytes(text, fp):
     return _WS.sub("", stripped)
 
 
-def _rfc_tagged_change_err(old, new, fp):
+_GO_FUNC_START = re.compile(r"^func\b", re.MULTILINE)
+
+
+def _doc_comment_start(content, at):
+    """Walk back from a `func` offset over its contiguous `//` doc comment."""
+    line_start = at
+    while line_start > 0:
+        prev = content.rfind("\n", 0, line_start - 1) + 1
+        if not content[prev:line_start].lstrip().startswith("//"):
+            break
+        line_start = prev
+    return line_start
+
+
+_GO_FUNC_END = re.compile(r"^\}", re.MULTILINE)
+
+
+def _go_func_scopes(content):
+    """Each top-level func as [doc comment .. closing brace) -- NOT a partition of the file.
+
+    Two boundaries matter, and both were wrong in turn:
+
+    The END is the func's own closing brace, capped at the next func's doc comment. Running
+    to the next `func` KEYWORD swallowed the following function's doc comment, where tags
+    live, and so treated every function that merely precedes a tagged test as tagged: 331
+    of 3220 untagged functions on this repo. Running to the next DOC COMMENT fixed that but
+    left the spans contiguous, which quietly re-homed any tag in the gap between one func's
+    brace and the next func's doc comment -- a tag separated from its func by a blank line,
+    or a table hoisted between two funcs -- onto the PRECEDING function. The gate credits
+    such a tag (scan_go_tags accepts one anywhere, rfc_requirements.py:492) while the hook
+    protected the wrong function, and the caller's "tag outside every scope" fallback could
+    never fire because no gap existed to fall into.
+
+    Column 0 for the closing brace is gofmt's guarantee for a top-level func. A one-line
+    func has none, so the cap keeps its span at the old, safe boundary rather than running
+    to the next func's brace.
+    """
+    starts = [m.start() for m in _GO_FUNC_START.finditer(content)]
+    ends = [m.start() for m in _GO_FUNC_END.finditer(content)]
+    spans = []
+    for i, s in enumerate(starts):
+        begin = _doc_comment_start(content, s)
+        cap = (
+            _doc_comment_start(content, starts[i + 1])
+            if i + 1 < len(starts)
+            else len(content)
+        )
+        brace = next((e for e in ends if e > s), None)
+        end = cap if brace is None else min(brace + 2, cap)  # +2: past "}\n"
+        spans.append((begin, max(end, s + 1)))
+    return spans
+
+
+def _enclosing_tagged_scope(fp, hunks):
+    """The text whose RFC tags govern an edit, widened from the hunk to its context.
+
+    An Edit replaces one hunk, and the hunk is all this guard used to see. A tag lives on
+    the line above the function or on a sibling table case, so editing the BODY of a tagged
+    test met no tag and slipped past the one check written to stop that.
+
+    Scope is the enclosing top-level `func` plus its doc comment, NOT the whole file: a
+    test file holds dozens of functions and typically a handful of tags, and a guard that
+    blocks unrelated work is a guard that gets switched off.
+
+    Returns None when there is nothing to widen (unreadable file, no tag anywhere, or a
+    Write, which already carries the whole file as its own `old`), and the caller then
+    judges the hunk exactly as before.
+
+    Falls back to the WHOLE FILE whenever the narrow answer would be a guess: a hunk that
+    is not found, a hunk outside every function, or -- importantly -- a file holding a tag
+    that no function scope covers. That last case is what keeps this honest against
+    scan_go_tags (rfc_requirements.py:492), which credits a tag ANYWHERE in the file: a
+    hoisted `var cases = []tc{...}` table, a tag separated from its func by a blank line,
+    or a stray `func` inside a raw string all put a real tag outside every span, and the
+    file then gets file-wide scope rather than a silent hole. None of those patterns occurs
+    in the tree today (0 of 2515 Go tags), so the fallback costs nothing now and is there
+    for the day one appears.
+
+    KNOWN LIMIT: the scope cannot follow a call, so an assertion moved into a helper
+    function defined outside the tagged test is not covered.
+    """
+    if not hunks:
+        return None
+    try:
+        with open(fp, encoding="utf-8", errors="replace") as fh:
+            content = fh.read()
+    except OSError:
+        return None
+    if not _RFC_TAG.search(content):
+        return None
+    if fp.endswith(".ci"):
+        return content  # a .ci file has no functions; the file is the test
+
+    spans = _go_func_scopes(content)
+    for m in _RFC_TAG.finditer(content):
+        if not any(a <= m.start() < b for a, b in spans):
+            return content
+
+    picked = []
+    for hunk, replace_all in hunks:
+        if not hunk:
+            continue
+        # With replace_all, EVERY occurrence is rewritten, so every occurrence's scope
+        # counts: inspecting only the first would let "change this assertion everywhere"
+        # reach a tagged test while the guard looked at an untagged one. Without it the
+        # tool itself rejects an ambiguous old_string, so the first occurrence is the only
+        # one that can be edited -- and unioning anyway told the author "BLOCKED:
+        # RFC-tagged test" when the real problem was a non-unique hunk, a wrong-cause
+        # diagnosis on roughly a quarter of ambiguous edits.
+        found = False
+        start = content.find(hunk)
+        while start >= 0:
+            found = True
+            end_at = start + len(hunk)
+            hit = [s for s in spans if s[0] < end_at and start < s[1]]
+            if not hit:
+                return content  # outside every function: no narrower honest scope
+            picked.extend(hit)
+            if not replace_all:
+                break
+            start = content.find(hunk, start + 1)
+        if not found:
+            return content  # unlocatable hunk: err toward asking
+    if not picked:
+        return None
+    return "\n".join(content[a:b] for a, b in sorted(set(picked)))
+
+
+def _rfc_tagged_change_err(old, new, fp, tag_scope=None):
     """Describe an unapproved behavior change to a test carrying an `RFC requirement:` tag.
 
     An RFC-tagged test is the only thing standing between a regression and a shipped
@@ -1758,13 +1886,25 @@ def _rfc_tagged_change_err(old, new, fp):
     NOT satisfied by `// test-relax:`: that token is self-service, and an agent writing its
     own justification is not user approval. It is exactly the loophole this closes.
     """
-    if not _RFC_TAG.search(old):
+    scope = old if tag_scope is None else tag_scope
+    if not _RFC_TAG.search(scope):
         return None
-    if _behavior_bytes(old, fp) == _behavior_bytes(new, fp):
-        return None  # comments/whitespace only
     if _RFC_APPROVED.search(new):
         return None
-    tags = sorted(set(_RFC_TAG.findall(old)))
+    # Removing the TAG is checked before anything else, because a tag is a comment and the
+    # behavior comparison below would wave it through as "comments only" -- after which the
+    # test is unguarded and `// test-relax:` alone buys any later weakening. Deleting the
+    # proof marker is the cheapest way to retire a compliance claim, so it is not a
+    # comment edit; it is the edit this guard exists for.
+    dropped = sorted(set(_RFC_TAG.findall(old)) - set(_RFC_TAG.findall(new)))
+    if dropped:
+        return dropped
+    # Behavior is judged on the HUNK, never on the widened scope: the scope answers "is
+    # this test load-bearing for a compliance claim", the hunk answers "did the assertions
+    # move". Judging the scope would make every reformat inside a tagged function a block.
+    if _behavior_bytes(old, fp) == _behavior_bytes(new, fp):
+        return None  # comments/whitespace only
+    tags = sorted(set(_RFC_TAG.findall(scope)))
     return tags
 
 
@@ -1776,13 +1916,18 @@ def c_test_weakening(ctx):
     if not is_test:
         return None
     tool = ctx["tool"]
+    hunks = []
     if tool == "Edit":
         old = ctx["ti"].get("old_string", "")
         new = ctx["ti"].get("new_string", "")
+        hunks = [(old, bool(ctx["ti"].get("replace_all")))]
     elif tool == "MultiEdit":
         edits = ctx["ti"].get("edits") or []
         old = "\n".join(e.get("old_string", "") for e in edits)
         new = "\n".join(e.get("new_string", "") for e in edits)
+        # Per hunk, not the join: the joined text appears nowhere in the file, so widening
+        # on it would find no context and silently restore the old narrow behavior.
+        hunks = [(e.get("old_string", ""), bool(e.get("replace_all"))) for e in edits]
     elif tool == "Write":
         # Only an overwrite of an existing test file can weaken it.
         if not isfile(fp):
@@ -1798,7 +1943,9 @@ def c_test_weakening(ctx):
     # RFC-tagged tests are checked FIRST, before the test-relax escape hatch below, and
     # deliberately: test-relax is self-service, and an agent writing its own justification
     # is not user approval. Letting it run first would leave the loophole open.
-    tags = _rfc_tagged_change_err(old, new, fp)
+    tags = _rfc_tagged_change_err(
+        old, new, fp, tag_scope=_enclosing_tagged_scope(fp, hunks)
+    )
     if tags:
         named = "\n".join(f"  - {t}" for t in tags)
         return (

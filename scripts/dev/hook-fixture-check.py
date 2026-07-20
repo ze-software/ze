@@ -892,6 +892,248 @@ def run_rfc_test_guard(results: Results) -> None:
     r = edit(ci, ci.replace("FFFF", "DEAD"), "/repo/test/plugin/rfc7606-reset.ci")
     results.check("rfc-guard-covers-ci", r is not None and r[0] == 2, repr(r))
 
+    _run_rfc_guard_enclosing_scope(results, cw)
+
+
+def _run_rfc_guard_enclosing_scope(results: Results, cw) -> None:
+    """The guard must see a tag that the EDIT HUNK does not contain.
+
+    An Edit replaces one hunk, and that hunk is all c_test_weakening used to be given. A
+    tag sits on the line above the function, or on a sibling table case -- so editing the
+    BODY of a tagged test slipped past the one guard written to stop exactly that
+    (spec-rfc-gate-regression-ratchets.md G1/AC-1). Widening needs the file on disk, so
+    these cases write real files rather than the /repo/ paths above.
+    """
+    tmp = tempfile.mkdtemp(prefix="ze-rfc-guard-")
+    try:
+        _rfc_guard_scope_cases(results, cw, tmp)
+    finally:
+        # try/finally, not a trailing call: a failing check must not leak the temp dir.
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
+    fp = os.path.join(tmp, "rfc7606_test.go")
+
+    body = "\trequire.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)\n"
+    other = "\trequire.Equal(t, 1, other)\n"
+    tag = "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n"
+    # The UNTAGGED helper is deliberately FIRST, directly above the tagged test's doc
+    # comment. That ordering is the whole point: a scope that ran to the next `func`
+    # keyword instead of the next func's DOC COMMENT swallowed the tag below and blocked
+    # this helper. With the tagged function first, the bug is invisible.
+    tagged_file = (
+        "package message\n"
+        "\n"
+        "func helperUntagged(t *testing.T) {\n" + other + "}\n"
+        "\n"
+        "// TestTagged proves the withdraw path.\n"
+        + tag
+        + "func TestTagged(t *testing.T) {\n"
+        + body
+        + "}\n"
+    )
+    with open(fp, "w", encoding="utf-8") as fh:
+        fh.write(tagged_file)
+
+    def edit(old: str, new: str, path: str = fp, **extra):
+        ti = {"old_string": old, "new_string": new}
+        ti.update(extra)
+        return cw({"tool": "Edit", "ti": ti, "fp": path})
+
+    def blocked_on_rfc(r):
+        """Exit 2 alone is not proof: the generic test-weakening path returns 2 as well.
+        Only the RFC message proves WHICH guard fired."""
+        return r is not None and r[0] == 2 and "RFC-tagged test" in r[1]
+
+    # AC-1: the hunk is the assertion alone. The tag is two lines above it.
+    r = edit(body, body.replace("TreatAsWithdraw", "None"))
+    results.check(
+        "rfc-guard-blocks-body-edit-tag-outside-hunk", blocked_on_rfc(r), repr(r)
+    )
+
+    # AC-2: the helper directly above a tagged test carries no tag of its own. Measured at
+    # 331 of 3220 untagged functions falsely blocked before the boundary was fixed.
+    r = edit(other, other.replace("require.Equal", "require.NotEqual"))
+    results.check("rfc-guard-untagged-func-in-tagged-file-passes", r is None, repr(r))
+
+    # AC-3: widening must not turn ordinary maintenance into a block.
+    r = edit(body, body.replace("\t", "    "))
+    results.check("rfc-guard-body-edit-reformat-passes", r is None, repr(r))
+
+    r = edit(body, body + "\t// explain the expectation\n")
+    results.check("rfc-guard-body-edit-comment-only-passes", r is None, repr(r))
+
+    # AC-4: the approval token still works when the tag is out of hunk.
+    r = edit(
+        body,
+        "\t// rfc-test-change-approved: 2026-07-20 user confirmed\n"
+        + body.replace("TreatAsWithdraw", "None"),
+    )
+    results.check("rfc-guard-body-edit-approved-passes", r is None, repr(r))
+
+    # Deleting the TAG is not a comment edit. Left unguarded it is the cheapest retirement
+    # of a compliance claim there is: drop the marker, then `// test-relax:` buys every
+    # later weakening on its own.
+    r = edit(tag, "// test-relax: obsolete\n")
+    results.check("rfc-guard-blocks-tag-deletion", blocked_on_rfc(r), repr(r))
+
+    # replace_all rewrites EVERY occurrence. Inspecting only the first would let an edit
+    # aimed at the untagged helper gut the identical assertion inside the tagged test.
+    dup = os.path.join(tmp, "dup_test.go")
+    with open(dup, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package message\n"
+            "\n"
+            "func helperFirst(t *testing.T) {\n" + other + "}\n"
+            "\n" + tag + "func TestTaggedDup(t *testing.T) {\n" + other + "}\n"
+        )
+    r = edit(other, "\trequire.NotNil(t, other)\n", dup, replace_all=True)
+    results.check(
+        "rfc-guard-replace-all-reaches-tagged-copy", blocked_on_rfc(r), repr(r)
+    )
+
+    # A tag that no function scope covers (a hoisted table) must widen to the whole file
+    # rather than leave a silent hole: the gate credits a tag ANYWHERE in the file.
+    hoisted = os.path.join(tmp, "hoisted_test.go")
+    with open(hoisted, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package message\n"
+            "\n"
+            "var cases = []tc{\n"
+            "\t" + tag + '\t{name: "withdraw"},\n'
+            "}\n"
+            "\n"
+            "func TestRunner(t *testing.T) {\n" + other + "}\n"
+        )
+    r = edit(other, other.replace("require.Equal", "require.NotEqual"), hoisted)
+    results.check("rfc-guard-hoisted-tag-widens-to-file", blocked_on_rfc(r), repr(r))
+
+    # The same shape BETWEEN two funcs. While spans were contiguous this tag was silently
+    # re-homed onto the PRECEDING function: the gate credited it, the hook protected the
+    # wrong function, and the "outside every scope" fallback could never fire because there
+    # was no gap to fall into.
+    between = os.path.join(tmp, "between_test.go")
+    with open(between, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package message\n"
+            "\n"
+            "func helperFirst(t *testing.T) {\n" + other + "}\n"
+            "\n"
+            "var cases = []tc{\n"
+            "\t" + tag + '\t{name: "withdraw"},\n'
+            "}\n"
+            "\n"
+            "func TestRunner(t *testing.T) {\n" + body + "}\n"
+        )
+    r = edit(body, body.replace("TreatAsWithdraw", "None"), between)
+    results.check("rfc-guard-tag-between-funcs-widens", blocked_on_rfc(r), repr(r))
+
+    # A blank line between the tag and its func. The doc-comment walk-back stops at the
+    # blank line, so the tag belongs to no func's comment block -- it must widen, not
+    # attach to whichever function happens to sit above it.
+    gapped = os.path.join(tmp, "gapped_test.go")
+    with open(gapped, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package message\n"
+            "\n"
+            "func helperFirst(t *testing.T) {\n" + other + "}\n"
+            "\n" + tag + "\n"
+            "func TestGapped(t *testing.T) {\n" + body + "}\n"
+        )
+    r = edit(body, body.replace("TreatAsWithdraw", "None"), gapped)
+    results.check("rfc-guard-blank-line-tag-widens", blocked_on_rfc(r), repr(r))
+
+    # The inverse of the two above: the helper ABOVE an unowned tag must not be blocked
+    # with an RFC message it has nothing to do with... except that an unowned tag widens to
+    # the whole file, which is the deliberate conservative side. Pin the direction that
+    # matters -- the tagged test IS protected -- and let the helper share the file's scope.
+    r = edit(other, other.replace("require.Equal", "require.NotEqual"), gapped)
+    results.check("rfc-guard-unowned-tag-covers-file", blocked_on_rfc(r), repr(r))
+
+    # A non-unique hunk WITHOUT replace_all: the tool rejects it for being ambiguous, so
+    # only the first occurrence could ever be edited. Blocking on a tagged copy elsewhere
+    # answered a question nobody asked, and told the author the wrong cause.
+    r = edit(other, "\trequire.NotNil(t, other)\n", dup)
+    results.check("rfc-guard-ambiguous-hunk-no-replace-all-passes", r is None, repr(r))
+
+    # A MultiEdit whose hunks land in different functions is judged per hunk: the tagged
+    # one blocks. Joining the hunks and searching the file for that join would find
+    # nothing and silently fall back to the old, narrow behavior.
+    r = cw(
+        {
+            "tool": "MultiEdit",
+            "ti": {
+                "edits": [
+                    {"old_string": other, "new_string": other.replace("1", "2")},
+                    {
+                        "old_string": body,
+                        "new_string": body.replace("TreatAsWithdraw", "None"),
+                    },
+                ]
+            },
+            "fp": fp,
+        }
+    )
+    results.check("rfc-guard-multiedit-tagged-hunk-blocks", blocked_on_rfc(r), repr(r))
+
+    # The .ci branch on a REAL on-disk file: the pre-existing .ci fixture uses a /repo/
+    # path that cannot be opened, so it never reaches this code.
+    # Under test/: c_test_weakening only treats a .ci as a test when the path contains
+    # "/test/" (:1835), so a .ci anywhere else is not judged at all.
+    os.makedirs(os.path.join(tmp, "test", "plugin"), exist_ok=True)
+    ci = os.path.join(tmp, "test", "plugin", "rfc7606-reset.ci")
+    with open(ci, "w", encoding="utf-8") as fh:
+        fh.write(
+            "# RFC requirement: RFC7606-3.a-1 negative - NOTIFICATION on reset.\n"
+            "expect=bgp:conn=1:seq=1:hex=FFFF\n"
+            "expect=bgp:conn=1:seq=2:hex=00AA\n"
+        )
+    r = edit(
+        "expect=bgp:conn=1:seq=2:hex=00AA\n",
+        "expect=bgp:conn=1:seq=2:hex=00BB\n",
+        ci,
+    )
+    results.check("rfc-guard-ci-on-disk-covers-whole-file", blocked_on_rfc(r), repr(r))
+
+    # A ONE-LINE func has no closing brace at column 0, so its span falls back to the cap.
+    # If that cap were the next func KEYWORD instead of the next func's DOC COMMENT, the
+    # one-liner would swallow the tag below it and block. This is the only shape where the
+    # two caps differ, so without it the original 331-false-block boundary bug can be
+    # reintroduced with every other fixture still green.
+    oneline = os.path.join(tmp, "oneline_test.go")
+    with open(oneline, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package message\n"
+            "\n"
+            "func helperOneLine(t *testing.T) { require.Equal(t, 9, nine) }\n"
+            "\n" + tag + "func TestAfterOneLine(t *testing.T) {\n" + body + "}\n"
+        )
+    r = edit(
+        "func helperOneLine(t *testing.T) { require.Equal(t, 9, nine) }\n",
+        "func helperOneLine(t *testing.T) { require.NotEqual(t, 9, nine) }\n",
+        oneline,
+    )
+    results.check("rfc-guard-one-line-func-does-not-absorb-tag", r is None, repr(r))
+
+    # ...and the tagged test below it is still protected.
+    r = edit(body, body.replace("TreatAsWithdraw", "None"), oneline)
+    results.check(
+        "rfc-guard-one-line-func-neighbour-still-blocks", blocked_on_rfc(r), repr(r)
+    )
+
+    # A hunk that is nowhere in the file (a chained MultiEdit, a stale read) cannot be
+    # located, so no narrow scope is honest. Fail closed: the file has tags, so ask.
+    r = edit("\tthis text is not in the file at all\n", "\tsomething else\n", fp)
+    results.check("rfc-guard-unlocatable-hunk-fails-closed", blocked_on_rfc(r), repr(r))
+
+    # A file with no tag at all keeps the cheap path and the old behavior.
+    plain = os.path.join(tmp, "plain_test.go")
+    with open(plain, "w", encoding="utf-8") as fh:
+        fh.write("package message\n\nfunc TestPlain(t *testing.T) {\n" + other + "}\n")
+    r = edit(other, other.replace("require.Equal", "require.NotEqual"), plain)
+    results.check("rfc-guard-untagged-file-unaffected", r is None, repr(r))
+
 
 # --------------------------------------------------------------------------- #
 # mark-source-read: the spec-write gate's evidence set (T-4)

@@ -14,8 +14,13 @@ Generate a structured implementation summary from an RFC text file.
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one
 6. REGISTER: run `make ze-rfc-index` to render the requirement into `ai/RFC-REQUIREMENTS.md`,
-   then `make ze-rfc-check`. A new summary is **un-enrolled** by definition: its requirements
-   are listed but not yet gated, so the check must pass without any test existing yet.
+   then `make ze-rfc-check`. **A summary that is new since HEAD and declares gated MUSTs
+   must be enrolled in the same change** (`check_new_summaries`): writing obligations down
+   and gating none of them is how a compliance claim rots. Enrolling does not mean every
+   MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
+   non-"Supported" `docs/features/rfc-status.md` row) or `{not-applicable}`. The gate also
+   fails a new summary that does not parse, or that captures zero requirements while
+   `rfc/full/<stem>.txt` contains MUST-level keywords.
 7. VERIFY: Re-read RFC and summary, check:
    - ALL wire formats captured with ASCII diagrams?
    - ALL MUST requirements listed?
@@ -281,8 +286,15 @@ Step-by-step, pseudocode if RFC provides it.
 - Never hand-write a test path into a summary — `ai/RFC-REQUIREMENTS.md` is generated
 - Never annotate `{not-applicable}` / `{gap}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
-- Writing a summary does NOT enroll the RFC. Enrollment (`rfc/enrolled.txt`) means "every
-  MUST here is gated", and is a separate, deliberate step taken once tests exist
+- Enrollment (`rfc/enrolled.txt`) means "every MUST here is CLASSIFIED": tested, or
+  annotated with a reason that names what is missing. A NEW summary declaring gated MUSTs
+  must be enrolled in the same change; only the pre-existing backlog is grandfathered
+- Coverage is monotonic. A requirement that had a positive and a negative test cannot be
+  demoted to `{gap}` later: `check_coverage_ratchet` compares against HEAD and an
+  annotation does not substitute for proof that already existed
+- A requirement id of an enrolled RFC cannot be deleted from its summary
+  (`check_retired_requirements`). Fix a misquoted requirement by editing its TEXT under the
+  same id; deleting the line retires the obligation silently
 
 ## Related
 
