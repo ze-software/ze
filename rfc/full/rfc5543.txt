@@ -1,0 +1,339 @@
+
+
+
+
+
+
+Network Working Group                                     H. Ould-Brahim
+Request for Comments: 5543                               Nortel Networks
+Category: Standards Track                                       D. Fedyk
+                                                          Alcatel-Lucent
+                                                              Y. Rekhter
+                                                        Juniper Networks
+                                                                May 2009
+
+
+                   BGP Traffic Engineering Attribute
+
+Status of This Memo
+
+   This document specifies an Internet standards track protocol for the
+   Internet community, and requests discussion and suggestions for
+   improvements.  Please refer to the current edition of the "Internet
+   Official Protocol Standards" (STD 1) for the standardization state
+   and status of this protocol.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (c) 2009 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents in effect on the date of
+   publication of this document (http://trustee.ietf.org/license-info).
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.
+
+Abstract
+
+   This document defines a new BGP attribute, the Traffic Engineering
+   attribute, that enables BGP to carry Traffic Engineering information.
+
+   The scope and applicability of this attribute currently excludes its
+   use for non-VPN reachability information.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ould-Brahim, et al.         Standards Track                     [Page 1]
+
+RFC 5543                    BGP TE Attribute                    May 2009
+
+
+1.  Introduction
+
+   In certain cases (e.g., Layer-1 VPNs (L1VPNs) [RFC5195]), it may be
+   useful to augment the VPN reachability information carried in BGP
+   with Traffic Engineering information.
+
+   This document defines a new BGP attribute, the Traffic Engineering
+   attribute, that enables BGP [RFC4271] to carry Traffic Engineering
+   information.
+
+   Section 4 of [RFC5195] describes one possible usage of this
+   attribute.
+
+   The scope and applicability of this attribute currently excludes its
+   use for non-VPN reachability information.
+
+   Procedures for modifying the Traffic Engineering attribute, when
+   re-advertising a route that carries such an attribute, are outside
+   the scope of this document.
+
+2.  Specification of Requirements
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+3.  Traffic Engineering Attribute
+
+   The Traffic Engineering attribute is an optional, non-transitive BGP
+   attribute.
+
+   The information carried in this attribute is identical to what is
+   carried in the Interface Switching Capability Descriptor, as
+   specified in [RFC4203] and [RFC5307].
+
+   The attribute contains one or more of the following:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ould-Brahim, et al.         Standards Track                     [Page 2]
+
+RFC 5543                    BGP TE Attribute                    May 2009
+
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      | Switching Cap |   Encoding    |           Reserved            |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 0              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 1              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 2              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 3              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 4              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 5              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 6              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Max LSP Bandwidth at priority 7              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |             Switching Capability specific information         |
+      |                           (variable)                          |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The Switching Capability (Switching Cap) field contains one of the
+   values specified in Section 3.1.1 of [RFC3471].
+
+   The Encoding field contains one of the values specified in Section
+   3.1.1 of [RFC3471].
+
+   The Reserved field SHOULD be set to 0 on transmit and MUST be ignored
+   on receive.
+
+   Maximum LSP (Label Switched Path) Bandwidth is encoded as a list of
+   eight 4-octet fields in the IEEE floating point format [IEEE], with
+   priority 0 first and priority 7 last.  The units are bytes (not
+   bits!)  per second.
+
+   The content of the Switching Capability specific information field
+   depends on the value of the Switching Capability field.
+
+   When the Switching Capability field is PSC-1, PSC-2, PSC-3, or PSC-4,
+   the Switching Capability specific information field includes Minimum
+   LSP Bandwidth and Interface MTU.
+
+
+
+
+
+
+Ould-Brahim, et al.         Standards Track                     [Page 3]
+
+RFC 5543                    BGP TE Attribute                    May 2009
+
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Minimum LSP Bandwidth                        |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |           Interface MTU       |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Minimum LSP Bandwidth is encoded in a 4-octet field in the IEEE
+   floating point format.  The units are bytes (not bits!) per second.
+   Interface MTU is encoded as a 2-octet integer.
+
+   When the Switching Capability field is Layer-2 Switch Capable (L2SC),
+   there is no Switching Capability specific information field present.
+
+   When the Switching Capability field is Time-Division-Multiplex (TDM)
+   capable, the Switching Capability specific information field includes
+   Minimum LSP Bandwidth and an indication of whether the interface
+   supports Standard or Arbitrary SONET/SDH (Synchronous Optical
+   Network / Synchronous Digital Hierarchy).
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                  Minimum LSP Bandwidth                        |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |   Indication  |
+      +-+-+-+-+-+-+-+-+
+
+   Minimum LSP Bandwidth is encoded in a 4-octet field in the IEEE
+   floating point format.  The units are bytes (not bits!) per second.
+   The indication of whether the interface supports Standard or
+   Arbitrary SONET/SDH is encoded as 1 octet.  The value of this octet
+   is 0 if the interface supports Standard SONET/SDH, and 1 if the
+   interface supports Arbitrary SONET/SDH.
+
+   When the Switching Capability field is Lambda Switch Capable (LSC),
+   there is no Switching Capability specific information field present.
+
+4.  Implication on Aggregation
+
+   Routes that carry the Traffic Engineering attribute have additional
+   semantics that could affect traffic-forwarding behavior.  Therefore,
+   such routes SHALL NOT be aggregated unless they share identical
+   Traffic Engineering attributes.
+
+
+
+
+
+
+Ould-Brahim, et al.         Standards Track                     [Page 4]
+
+RFC 5543                    BGP TE Attribute                    May 2009
+
+
+   Constructing the Traffic Engineering attribute when aggregating
+   routes with identical Traffic Engineering attributes follows the
+   procedure of [RFC4201].
+
+5.  Implication on Scalability
+
+   The use of the Traffic Engineering attribute does not increase the
+   number of routes, but may increase the number of BGP Update messages
+   required to distribute the routes, depending on whether or not these
+   routes share the same BGP Traffic Engineering attribute (see below).
+
+   When the routes differ other than in the Traffic Engineering
+   attribute (e.g., differ in the set of Route Targets and/or NEXT_HOP),
+   use of the Traffic Engineering attribute has no impact on the number
+   of BGP Update messages required to carry the routes.  There is also
+   no impact when routes share all other attribute information and have
+   an aggregated or identical Traffic Engineering attribute.  When
+   routes share all other attribute information and have different
+   Traffic Engineering attributes, routes must be distributed in
+   per-route BGP Update messages, rather than in a single message.
+
+6.  IANA Considerations
+
+   This document defines a new BGP attribute, Traffic Engineering.  This
+   attribute is optional and non-transitive.
+
+7.  Security Considerations
+
+   This extension to BGP does not change the underlying security issues
+   currently inherent in BGP.  BGP security considerations are discussed
+   in RFC 4271.
+
+8.  Acknowledgements
+
+   The authors would like to thank John Scudder and Jeffrey Haas for
+   their review and comments.
+
+9.  References
+
+9.1.  Normative References
+
+   [IEEE]    IEEE, "IEEE Standard for Binary Floating-Point Arithmetic",
+             Standard 754-1985, 1985 (ISBN 1-5593-7653-8).
+
+   [RFC2119] Bradner, S., "Key words for use in RFCs to Indicate
+             Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+
+
+
+
+Ould-Brahim, et al.         Standards Track                     [Page 5]
+
+RFC 5543                    BGP TE Attribute                    May 2009
+
+
+   [RFC3471] Berger, L., Ed., "Generalized Multi-Protocol Label
+             Switching (GMPLS) Signaling Functional Description", RFC
+             3471, January 2003.
+
+   [RFC4201] Kompella, K., Rekhter, Y., and L. Berger, "Link Bundling in
+             MPLS Traffic Engineering (TE)", RFC 4201, October 2005.
+
+   [RFC4271] Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A Border
+             Gateway Protocol 4 (BGP-4)", RFC 4271, January 2006.
+
+9.2.  Informative References
+
+   [RFC4203] Kompella, K., Ed., and Y. Rekhter, Ed., "OSPF Extensions in
+             Support of Generalized Multi-Protocol Label Switching
+             (GMPLS)", RFC 4203, October 2005.
+
+   [RFC5195] Ould-Brahim, H., Fedyk, D., and Y. Rekhter, "BGP-Based
+             Auto-Discovery for Layer-1 VPNs", RFC 5195, June 2008.
+
+   [RFC5307] Kompella, K., Ed., and Y. Rekhter, Ed., "IS-IS Extensions
+             in Support of Generalized Multi-Protocol Label Switching
+             (GMPLS)", RFC 5307, October 2008.
+
+Authors' Addresses
+
+   Hamid Ould-Brahim
+   Nortel Networks
+   EMail: hbrahim@nortel.com
+
+   Don Fedyk
+   Alcatel-Lucent
+   EMail: donald.fedyk@alcatel-lucent.com
+   Phone: 978-467-5645
+
+   Yakov Rekhter
+   Juniper Networks, Inc.
+   EMail: yakov@juniper.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ould-Brahim, et al.         Standards Track                     [Page 6]
+

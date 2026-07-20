@@ -1,6 +1,6 @@
 {
   "audited": "2026-07-20",
-  "reaudit_note": "2026-07-20: fingerprints refreshed after five tagged test files gained 276 lines (0 deletions) of tags for other RFCs plus new tests. Verified before refreshing: no requirement text moved, and 125 of 126 tagged test functions are byte-identical to the versions judged on 2026-07-17 (the 126th differs only in comments). Two genuinely new RFC7606-2-1 negatives were read and judged; that verdict's note records what they add. No verdict was upgraded, and none was created.",
+  "reaudit_note": "2026-07-20 (second pass): five requirements moved from unimplemented to enforced after being IMPLEMENTED, not after being re-judged -- Sections 7.13, 7.15 (both) and 7.16 gained attribute validators, and Section 6 gained the NLRI+UPDATE debugging facility. Section 5.1-2 was narrowed and stays a disclosed gap; Section 5.4 was excluded by the owner pending a decision on EVPN propagation cost.",
   "requirements": {
     "RFC7606-2-1": {
       "note": "TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at 'a withdrawal-shaped message was dispatched'. Assertions are exact and fail on the old suppression bug.",
@@ -203,7 +203,7 @@
       "verdict": "unimplemented"
     },
     "RFC7606-5.1-2": {
-      "note": "{gap} confirmed: buildUpdatePayload (wireu/split.go:440) fills ipv4Withdraws + mpUnreach + mpReach + ipv4NLRI into one payload, and the slow-path loop split.go:209-283 fills all four NLRI-bearing categories per emitted UPDATE (:281). split_test.go:1014 (TestBuildUpdatePayload_Mixed) builds a payload with BOTH non-empty Withdrawn Routes and non-empty NLRI, violating the MUST NOT. CAVEAT/UNSURE: rfc-status.md gap (1) only discloses the \u00a75.1 *ordering* half ('MP_UNREACH first, MP_REACH last'); the 'more than one NLRI-bearing field' violation is not spelled out in the public row, so this specific gap is under-disclosed there even though the rfc/short annotation is detailed.",
+      "note": "Still unimplemented, but NARROWED 2026-07-20. Ze originates only compliant UPDATEs, and buildCombinedUpdates now emits each NLRI-bearing component in its own message rather than combining them. What remains: a same-context UPDATE that fits is forwarded verbatim (forward_body.go:63-65) and a re-encoded destUpdate that fits is emitted whole (forward_body.go:99), so a received mixed shape is relayed. Closing those costs the zero-copy forward path for every mixed UPDATE.",
       "requirement_sha": "1bf7dcc3e53c0463",
       "tests": {},
       "verdict": "unimplemented"
@@ -291,10 +291,15 @@
       "verdict": "unimplemented"
     },
     "RFC7606-6-1": {
-      "note": "{gap} confirmed: the RFC 7606 log sites log attr code + description only, no NLRI listing and no malformed UPDATE bytes, though body/wu are in scope: attribute-discard session_validation.go:110-113, treat-as-withdraw :148-150, session-reset :178. \u00a76's minimum (log NLRI + entire malformed UPDATE) is not met. Disclosed in rfc-status.md gap (7). (Worksheet correctly flags \u00a76 uses lowercase 'must', kept at MUST as a Ze policy choice, not an RFC 2119 keyword.)",
+      "note": "IMPLEMENTED 2026-07-20. Session.rfc7606Diagnostics (reactor/session_validation.go) logs the NLRI involved (withdrawn and announced IPv4 prefixes, decoded ADD-PATH-aware) and the entire UPDATE body as hex, wired into all three RFC 7606 outcomes: attribute-discard, treat-as-withdraw (logged BEFORE SynthesizeWithdraw rewrites the body, so the dump is what the peer sent) and session-reset. TestRFC7606DiagnosticsListNLRIAndUpdate asserts the prefix and the raw ORIGIN bytes appear; TestRFC7606DiagnosticsCoverSessionReset covers the reset path; TestIPv4PrefixListTolerance pins the decoder on malformed input. The negative is TestRFC7606DiagnosticsCostsNothingWhenDisabled, which asserts zero allocations when the level is off -- that is what pins the Enabled() guard, since slog evaluates arguments eagerly and without the guard a peer could make ze hex-encode every malformed UPDATE it sends. TestRFC7606DiagnosticsSilentWhenDebugDisabled sits alongside it but only shows no line is emitted; a level-filtering handler drops the line with or without the guard, so it does NOT pin it. Note the requirement's 'must' is lowercase in the RFC and so outside RFC 2119; kept at MUST level as a ze policy choice.",
       "requirement_sha": "324d3c47a4278c86",
-      "tests": {},
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/reactor/session_rfc7606_diag_cost_test.go:26": "347b221d8d0e6946",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:103": "0b15793bc48e9ec7",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:59": "0b15793bc48e9ec7",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:85": "0b15793bc48e9ec7"
+      },
+      "verdict": "enforced"
     },
     "RFC7606-7.1-1": {
       "note": "Both malformation clauses are pinned by isolated exact negatives: length!=1 (rfc7606_test.go:13 TestRFC7606MalformedOriginLength, ORIGIN len 2 => require.Equal TreatAsWithdraw + AttrCode 1 + Description '7.1') and undefined value (rfc7606_test.go:481 TestRFC7606OriginValueInvalid, ORIGIN len 1 value 3 => same exact triple). Positives at :430/:447/:464 accept the three valid values 0/1/2 (Action None). Both under- and over-reaction would fail the exact require.Equal on Action and AttrCode.",
@@ -343,10 +348,13 @@
       "verdict": "enforced"
     },
     "RFC7606-7.13-1": {
-      "note": "Honest {gap}. Attribute code 24 (Traffic Engineering, RFC 5543) has no RFC 7606 validator: attrValidators (rfc7606.go:363-379) registers only codes 1-10,14,15,16,32,40, and validateAttribute returns nil for any unregistered code (rfc7606.go:382-387), so a malformed TE attribute of any length is accepted where \u00a77.13 mandates treat-as-withdraw. Annotation accurately describes the code.",
+      "note": "IMPLEMENTED 2026-07-20. validateTrafficEngineeringAttr (message/rfc7606_optional_attrs.go) registers code 24 and rejects anything shorter than one RFC 5543 descriptor (36 octets: SwitchingCap+Encoding+Reserved+8x4 bandwidth). Negative TestRFC7606TrafficEngineeringTooShort pins lengths 0/1/35 to TreatAsWithdraw with AttrCode 24; positive TestRFC7606TrafficEngineeringValid pins 36/44/72 to Action None, so a validator that rejected everything would fail. Both drive ValidateUpdateRFC7606, not the validator directly. The check is deliberately minimal because 7.13 states RFC 5543 'does not detail what constitutes malformation'; over-validating would blackhole valid routes.",
       "requirement_sha": "237bc8c27cb21cac",
-      "tests": {},
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:56": "7e1e6d98714b5f41",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:83": "7e1e6d98714b5f41"
+      },
+      "verdict": "enforced"
     },
     "RFC7606-7.14-1": {
       "note": "Positive rfc7606_test.go:187 (len-8 Extended Community) asserts ActionNone; negative rfc7606_test.go:218 (len-0) asserts exact TreatAsWithdraw + AttrCode 16 + \"7.14\", isolated as the last attribute with no trailing bytes (comment 212-215). Note: only the zero-length ('non-zero') clause is tagged; the 'not a multiple of 8' clause for nonzero lengths (e.g. 12) is untagged, so dropping the `length%8!=0` check while keeping `==0` in validateExtCommunityAttr (rfc7606.go:551) would pass the tagged tests. The code implements both clauses.",
@@ -366,22 +374,35 @@
       "verdict": "enforced"
     },
     "RFC7606-7.15-1": {
-      "note": "Honest {gap}. Attribute code 25 (IPv6 Address Specific Extended Community) is declared in attribute.go:62 but has no validator in attrValidators (rfc7606.go:363-379), so validateAttribute returns nil (:382-387); a zero-length or non-multiple-of-20 IPv6 extended community is silently accepted where \u00a77.15 mandates treat-as-withdraw. Annotation accurate.",
+      "note": "IMPLEMENTED 2026-07-20. validateIPv6ExtCommunityAttr registers code 25 and applies 7.15's exact rule: malformed unless the length is a non-zero multiple of 20. Negative TestRFC7606IPv6ExtCommunityBadLength pins 0/19/21/30; positive TestRFC7606IPv6ExtCommunityValidLength pins 20/40. Zero is covered explicitly because 0 % 20 == 0 would pass a multiple-of-20 test alone.",
       "requirement_sha": "2bf7fb14e345cc40",
-      "tests": {},
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:115": "7e1e6d98714b5f41",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:142": "7e1e6d98714b5f41"
+      },
+      "verdict": "enforced"
     },
     "RFC7606-7.15-2": {
-      "note": "Honest {gap}, though the MUST NOT is technically satisfied by omission: code 25 is entirely unvalidated (attrValidators rfc7606.go:363-379), so an unrecognized IPv6 ext-community Type/Sub-Type is never treated as an error, but by absence of code rather than by design, and no test can pin behaviour no code produces. Annotation is honest about this. (Least-certain id: an alternative reading is 'vacuously satisfied' rather than unimplemented, but the code lacks any deliberate handling of code 25.)",
+      "note": "IMPLEMENTED 2026-07-20, and the basis CHANGED. Previously met by omission (nothing validated code 25, so nothing could error). Now met by design: validateIPv6ExtCommunityAttr takes the attribute value as `_` and tests length alone, so no Type or Sub-Type can reach a rejection. TestRFC7606IPv6ExtCommunityUnrecognizedType pins Type 0x3f / Sub-Type 0xee with a valid length 20 to Action None -- the length clause cannot fire and mask the type question. Positive-only by the same argument as 7.14-2: the rule is a prohibition, so a negative would assert the rejection the RFC forbids.",
       "requirement_sha": "eedc81a2acb3586b",
-      "tests": {},
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:172": "7e1e6d98714b5f41"
+      },
+      "verdict": "enforced"
     },
     "RFC7606-7.16-1": {
-      "note": "Honest {gap}. ATTR_SET (code 128, RFC 6368) has no validator in attrValidators (rfc7606.go:363-379) and code 128 is not even declared in core/bgp/attribute/attribute.go (constants stop at 40, then 252 Tombstone; no 128). A malformed ATTR_SET is therefore accepted where \u00a77.16 mandates treat-as-withdraw. Annotation accurately describes both facts.",
+      "note": "IMPLEMENTED 2026-07-20. validateAttrSetAttr registers code 128 and applies all three RFC 6368 Section 5 malformed conditions: length < 4, contained MP_REACH/MP_UNREACH, and inner attributes malformed themselves (recursing through validateAttribute, so the definition is shared not duplicated). Negative TestRFC7606AttrSetMalformed covers all three plus truncated inner header/length/value and over-deep nesting; positive TestRFC7606AttrSetValid covers Origin-AS-only, valid inner attributes, and one legal nesting level. Recursion is depth-capped at 4 because a peer controls nesting and could otherwise exhaust the stack.",
       "requirement_sha": "5ad4c32d6312e5f5",
-      "tests": {},
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:102": "b97264b03f6a0840",
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:31": "b97264b03f6a0840",
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:55": "b97264b03f6a0840",
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:83": "b97264b03f6a0840",
+        "internal/component/bgp/message/rfc7606_attrset_discard_test.go:25": "64aebe5de15df4b9",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:207": "7e1e6d98714b5f41",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:258": "7e1e6d98714b5f41"
+      },
+      "verdict": "enforced"
     },
     "RFC7606-7.2-1": {
       "note": "All four \u00a77.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 'segment type'), overrun (:366 'overrun'), underrun (:389 'underrun'), zero-length segment (:414 'zero'). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None).",

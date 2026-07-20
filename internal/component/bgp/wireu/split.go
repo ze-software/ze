@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
+// RFC: rfc/short/rfc7606.md — Section 5.1 NLRI encoding restrictions on the sender
+// Related: docs/architecture/wire/mp-nlri-ordering.md — the deliberate MP ordering divergence
 
 package wireu
 
@@ -187,12 +189,8 @@ func buildCombinedUpdates(
 		total += len(baseAttrs) + len(mpReach) + len(ipv4A)
 	}
 
-	if total <= maxSize {
-		if total == updateLengthFieldsSize && len(ipv4W) == 0 && len(mpUnreach) == 0 {
-			return nil, nil // Empty
-		}
-		payload := buildUpdatePayload(ipv4W, baseAttrs, mpUnreach, mpReach, ipv4A)
-		return []*WireUpdate{NewWireUpdate(payload, sourceCtxID)}, nil
+	if total == updateLengthFieldsSize && !hasAnnounces && len(ipv4W) == 0 && len(mpUnreach) == 0 {
+		return nil, nil // Empty
 	}
 
 	// Check if baseAttrs alone exceeds available space (would cause infinite loop)
@@ -202,84 +200,73 @@ func buildCombinedUpdates(
 			len(baseAttrs), maxSize)
 	}
 
-	// Slow path: iteratively fill and emit
+	// RFC 7606 Section 5.1: "An UPDATE message MUST NOT contain more than one of the
+	// following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability
+	// Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute."
+	//
+	// So each component is emitted into its OWN message rather than combined. The order is
+	// load-bearing in two ways: withdrawals precede announcements (a peer must not briefly
+	// see a stale route re-announced), and MP_UNREACH precedes MP_REACH, which is ze's
+	// deliberate Section 5.1 FIRST-bullet divergence documented in
+	// docs/architecture/wire/mp-nlri-ordering.md and left untouched here.
+	//
+	// baseAttrs rides only with the announce-bearing messages, because buildUpdatePayload
+	// omits it when there are no announces. (That also matches what IsEndOfRIBAnyFamily
+	// looks for, though no End-of-RIB reaches here: SplitWireUpdate returns early for any
+	// payload that already fits, and a 3-byte MP_UNREACH value always does.)
 	var results []*WireUpdate
-	remIPv4W, remMPU, remMPR, remIPv4A := ipv4W, mpUnreach, mpReach, ipv4A
 
-	for len(remIPv4W) > 0 || len(remMPU) > 0 || len(remMPR) > 0 || len(remIPv4A) > 0 {
-		// Calculate overhead for this iteration
-		iterHasAnnounces := len(remMPR) > 0 || len(remIPv4A) > 0
+	// splitAll drains one component into as many messages as it needs, calling compose to
+	// place the fitted chunk in the right argument position.
+	splitAll := func(
+		rem []byte, withAttrs bool,
+		split func([]byte, int, *bgpctx.EncodingContext) ([]byte, []byte, error),
+		compose func(fit []byte) []byte,
+		what string,
+	) error {
 		overhead := updateLengthFieldsSize
-		if iterHasAnnounces {
+		if withAttrs {
 			overhead += len(baseAttrs)
 		}
-
 		available := maxSize - overhead
-
-		// Guard: must have space for at least something
-		if available <= 0 {
-			return nil, fmt.Errorf("no space available after overhead (%d bytes)", overhead)
+		if len(rem) > 0 && available <= 0 {
+			return fmt.Errorf("no space available after overhead (%d bytes)", overhead)
 		}
-
-		var fitIPv4W, fitMPU, fitMPR, fitIPv4A []byte
-		madeProgress := false
-
-		// Fill in order: IPv4 withdraws, MP_UNREACH, MP_REACH, IPv4 announces
-		if len(remIPv4W) > 0 && available > 0 {
-			fit, rest, err := splitIPv4NLRIs(remIPv4W, available, srcCtx)
+		for len(rem) > 0 {
+			fit, rest, err := split(rem, available, srcCtx)
 			if err != nil {
-				return nil, fmt.Errorf("split IPv4 withdraws: %w", err)
+				return fmt.Errorf("split %s: %w", what, err)
 			}
-			if len(fit) > 0 {
-				fitIPv4W, remIPv4W = fit, rest
-				available -= len(fit)
-				madeProgress = true
+			if len(fit) == 0 {
+				return fmt.Errorf(
+					"cannot make progress: remaining %s does not fit in available space (%d bytes)",
+					what, available)
 			}
+			results = append(results, NewWireUpdate(compose(fit), sourceCtxID))
+			rem = rest
 		}
+		return nil
+	}
 
-		if len(remMPU) > 0 && available > 0 {
-			fit, rest, err := splitMPUnreach(remMPU, available, srcCtx)
-			if err != nil {
-				return nil, fmt.Errorf("split MP_UNREACH: %w", err)
-			}
-			if len(fit) > 0 {
-				fitMPU, remMPU = fit, rest
-				available -= len(fit)
-				madeProgress = true
-			}
-		}
-
-		if len(remMPR) > 0 && available > 0 {
-			fit, rest, err := splitMPReach(remMPR, available, srcCtx)
-			if err != nil {
-				return nil, fmt.Errorf("split MP_REACH: %w", err)
-			}
-			if len(fit) > 0 {
-				fitMPR, remMPR = fit, rest
-				available -= len(fit)
-				madeProgress = true
-			}
-		}
-
-		if len(remIPv4A) > 0 && available > 0 {
-			fit, rest, err := splitIPv4NLRIs(remIPv4A, available, srcCtx)
-			if err != nil {
-				return nil, fmt.Errorf("split IPv4 announces: %w", err)
-			}
-			if len(fit) > 0 {
-				fitIPv4A, remIPv4A = fit, rest
-				madeProgress = true
-			}
-		}
-
-		// Safety: ensure we made progress to avoid infinite loop
-		if !madeProgress {
-			return nil, fmt.Errorf("cannot make progress: remaining data does not fit in available space (%d bytes)", available)
-		}
-
-		// Emit UPDATE
-		payload := buildUpdatePayload(fitIPv4W, baseAttrs, fitMPU, fitMPR, fitIPv4A)
-		results = append(results, NewWireUpdate(payload, sourceCtxID))
+	if err := splitAll(ipv4W, false, splitIPv4NLRIs, func(fit []byte) []byte {
+		return buildUpdatePayload(fit, baseAttrs, nil, nil, nil)
+	}, "IPv4 withdraws"); err != nil {
+		return nil, err
+	}
+	if err := splitAll(mpUnreach, false, splitMPUnreach, func(fit []byte) []byte {
+		return buildUpdatePayload(nil, baseAttrs, fit, nil, nil)
+	}, "MP_UNREACH"); err != nil {
+		return nil, err
+	}
+	if err := splitAll(mpReach, true, splitMPReach, func(fit []byte) []byte {
+		return buildUpdatePayload(nil, baseAttrs, nil, fit, nil)
+	}, "MP_REACH"); err != nil {
+		return nil, err
+	}
+	if err := splitAll(ipv4A, true, splitIPv4NLRIs, func(fit []byte) []byte {
+		return buildUpdatePayload(nil, baseAttrs, nil, nil, fit)
+	}, "IPv4 announces"); err != nil {
+		return nil, err
 	}
 
 	return results, nil

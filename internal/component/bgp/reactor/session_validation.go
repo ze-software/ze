@@ -5,9 +5,12 @@
 package reactor
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"net"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 
@@ -17,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.
@@ -132,6 +136,8 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			"attr", result.AttrCode,
 			"discard-entries", result.DiscardEntries,
 			"description", result.Description)
+		// RFC 7606 Section 6: the NLRI involved and the entire malformed UPDATE.
+		s.rfc7606Diagnostics("attribute-discard", wu, result.AttrCode, result.Description)
 
 		// draft-mangin-idr-attr-tombstone-00 Section 5.1: "Implementations SHOULD log
 		// the upstream pairs separately before merging to preserve diagnostic
@@ -169,6 +175,10 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
 			"attr", result.AttrCode,
 			"description", result.Description)
+		// RFC 7606 Section 6: logged BEFORE SynthesizeWithdraw rewrites the body, so the
+		// dump is the UPDATE as the peer sent it -- the malformed one, which is the whole
+		// point of the requirement.
+		s.rfc7606Diagnostics("treat-as-withdraw", wu, result.AttrCode, result.Description)
 
 		if newBody, changed := message.SynthesizeWithdraw(body); changed {
 			oldCtxID := wu.SourceCtxID()
@@ -185,6 +195,100 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	return wu, message.RFC7606ActionNone, nil
 }
 
+// rfc7606Diagnostics logs the debugging facility RFC 7606 Section 6 requires.
+//
+// Section 6: "a BGP speaker must provide debugging facilities to permit issues caused by a
+// malformed attribute to be diagnosed. At a minimum, such facilities must include logging
+// an error listing the NLRI involved and containing the entire malformed UPDATE message
+// when such an attribute is detected."
+//
+// Three deliberate choices:
+//
+//   - It is gated on the subsystem's Debug level and returns before building anything when
+//     that level is off. slog evaluates its arguments eagerly, so an unguarded hex dump
+//     would cost a full encode of every malformed UPDATE even with logging disabled --
+//     which is exactly the amplification a hostile peer would aim for. "Debugging
+//     facilities" is what the section asks for, and `ze.log.bgp.reactor.session=debug`
+//     turns it on.
+//   - The dump is the complete UPDATE body, untruncated, because the section says "the
+//     entire malformed UPDATE message". The 19-octet header is omitted: it is a fixed
+//     marker plus length and type, carries no diagnostic information, and wu.Payload() is
+//     the body. The key name says body so the log does not overclaim.
+//   - The IPv4 Withdrawn Routes and NLRI fields are decoded to prefixes as well as hexed,
+//     since "listing the NLRI involved" is the point. MP-family NLRI lives inside the
+//     attributes and is covered by the full body dump.
+func (s *Session) rfc7606Diagnostics(event string, wu *wireu.WireUpdate, attrCode uint8, description string) {
+	lg := sessionLogger()
+	if !lg.Enabled(context.Background(), slog.LevelDebug) {
+		return
+	}
+	body := wu.Payload()
+	if len(body) < 4 {
+		lg.Debug("RFC 7606 diagnostics",
+			"event", event, "attr", attrCode, "description", description,
+			"update-body-hex", textbuf.StringHex(body))
+		return
+	}
+
+	recvCtx := bgpctx.Registry.Get(s.recvCtxID)
+	addPath := recvCtx.AddPathFor(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast})
+
+	var withdrawn, nlri []byte
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	if offset := 2 + withdrawnLen; offset+2 <= len(body) {
+		withdrawn = body[2 : 2+withdrawnLen]
+		attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+		if offset+2+attrLen <= len(body) {
+			nlri = body[offset+2+attrLen:]
+		}
+	}
+
+	lg.Debug("RFC 7606 diagnostics",
+		"event", event,
+		"attr", attrCode,
+		"description", description,
+		"withdrawn-prefixes", ipv4PrefixList(withdrawn, addPath),
+		"nlri-prefixes", ipv4PrefixList(nlri, addPath),
+		"update-body-hex", textbuf.StringHex(body))
+}
+
+// ipv4PrefixList renders an IPv4 unicast NLRI field as prefixes for the Section 6 log.
+//
+// Tolerant by design: this runs on input already known to be malformed, so a field that
+// stops making sense is reported as far as it parsed rather than discarded. Returning
+// nothing would defeat the point of the requirement.
+func ipv4PrefixList(field []byte, addPath bool) []string {
+	var out []string
+	var tb textbuf.Buffer
+	for pos := 0; pos < len(field); {
+		if addPath {
+			if pos+4 > len(field) {
+				break
+			}
+			pos += 4 // RFC 7911 Path Identifier
+		}
+		if pos >= len(field) {
+			break
+		}
+		bits := int(field[pos])
+		pos++
+		if bits > 32 {
+			out = append(out, tb.Reset().Str("invalid-prefix-length/").Int(int64(bits)).String())
+			break
+		}
+		octets := (bits + 7) / 8
+		if pos+octets > len(field) {
+			out = append(out, "truncated-prefix")
+			break
+		}
+		var addr [4]byte
+		copy(addr[:], field[pos:pos+octets])
+		pos += octets
+		out = append(out, textbuf.StringPrefix(netip.PrefixFrom(netip.AddrFrom4(addr), bits)))
+	}
+	return out
+}
+
 // rfc7606SessionReset performs the session-reset action: NOTIFICATION, FSM event, close.
 //
 // RFC 7606 Section 3 (a), which replaces RFC 4271 Section 6.3's first paragraph: "An
@@ -197,6 +301,9 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 // skipped by a caller that returns the action directly.
 func (s *Session) rfc7606SessionReset(wu *wireu.WireUpdate, description string) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	sessionLogger().Warn("RFC 7606 session-reset", "description", description)
+	// RFC 7606 Section 6. A session reset is the most damaging outcome and the one an
+	// operator most needs to diagnose, so it carries the same detail as the other two.
+	s.rfc7606Diagnostics("session-reset", wu, 0, description)
 
 	s.mu.RLock()
 	conn := s.conn
@@ -232,6 +339,11 @@ func (s *Session) rfc7606NLRISyntaxAction(
 		"field", field,
 		"action", result.Action,
 		"description", result.Description)
+	// RFC 7606 Section 6: the only enforcement outcome the facility would otherwise miss.
+	// A Section 5.3 NLRI-syntax failure is not strictly "a malformed attribute", but it is
+	// a malformed UPDATE the operator has to diagnose, and the NLRI is precisely what is
+	// wrong with it.
+	s.rfc7606Diagnostics("nlri-syntax", wu, result.AttrCode, result.Description)
 	return wu, result.Action, nil
 }
 
