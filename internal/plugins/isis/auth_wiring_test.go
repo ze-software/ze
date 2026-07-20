@@ -303,7 +303,7 @@ func nowFn() time.Time { return time.Now() }
 // verifyFrame can resolve the ifindex to the interface name (for the per-
 // interface IIH chain and the auth-failure label). verifyFrame only reads
 // Name(), so a circuit built with no sender suffices.
-func (e *engine) registerTestCircuit(t *testing.T, name string, ifindex int) {
+func (e *engine) registerTestCircuit(t *testing.T, name string, ifindex int) { //nolint:unparam // name pairs with ifindex at every call site and is the key circuitByName resolves; hardcoding it would hide what verifyFrame looks up
 	t.Helper()
 	c := circuit.New(circuit.Config{
 		Name:    name,

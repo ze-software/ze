@@ -24,7 +24,7 @@ var errGRRestarterDisabled = errors.New("ospf: graceful-restart restarter is dis
 // pre-restart Full adjacencies + the OSPFv3 preservation maps, persists the NVS restart fact,
 // and originates one Grace-LSA per interface (LS age 0). The engine then stops; on resume,
 // resumeFromNVS enters in-restart mode. It refuses when the restarter is disabled (AC-25).
-func (m *grManager) prepareRestart(reason uint8) error {
+func (m *grManager) prepareRestart(reason uint8) error { //nolint:unparam // RFC 3623 sec A / RFC 5187 sec 2.2 grace reason code: it is persisted in restartFact.Reason and encoded into the Grace-LSA by grOriginateGraceLSAs. Only grReasonReload has a caller today, but grReasonSoftwareRestart/RedundantCP are protocol-valid; dropping the parameter would hardcode a wire field
 	m.mu.Lock()
 	cfg := m.cfg
 	m.mu.Unlock()

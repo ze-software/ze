@@ -25,7 +25,7 @@ func authCfg(keys ...keyConfig) ospfConfig {
 	}
 }
 
-func signedHello(t *testing.T, s *authStore, iface string) ([]byte, [4]byte) {
+func signedHello(t *testing.T, s *authStore, iface string) ([]byte, [4]byte) { //nolint:unparam // iface selects WHICH interface's key signs the packet (s.signKey(iface)); that is the point of the helper, so it stays explicit
 	t.Helper()
 	key, au, seq, src, ok := s.signKey(iface)
 	require.True(t, ok)
