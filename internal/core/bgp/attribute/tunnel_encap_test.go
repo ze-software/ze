@@ -186,13 +186,14 @@ func TestTunnelTLVSubTLVsEmpty(t *testing.T) {
 }
 
 func TestTunnelTLVPreference(t *testing.T) {
-	// Preference sub-TLV: type=12, length=8, flags(1)+reserved(3)+preference(4)
-	value := make([]byte, 10) // 2 (header) + 8 (value)
+	// Preference sub-TLV (RFC 9830 Section 2.4.1): type=12, length=6,
+	// value = flags(1) + reserved(1) + preference(4).
+	value := make([]byte, 8) // 2 (header) + 6 (value)
 	value[0] = SubTLVPreference
-	value[1] = 8
+	value[1] = preferenceValueLen
 	// value[2] = flags (0)
-	// value[3:5] = reserved (0)
-	binary.BigEndian.PutUint32(value[6:10], 200) // preference
+	// value[3] = reserved (0)
+	binary.BigEndian.PutUint32(value[4:8], 200) // preference
 
 	tlv := TunnelTLV{TunnelType: 15, Value: value}
 	pref, ok := tlv.Preference()
@@ -210,7 +211,7 @@ func TestTunnelTLVPreferenceNotPresent(t *testing.T) {
 }
 
 func TestTunnelTLVPreferenceMalformedValue(t *testing.T) {
-	// Preference sub-TLV with value too short (4 bytes instead of 8).
+	// Preference sub-TLV with value too short (4 bytes instead of the mandated 6).
 	value := []byte{SubTLVPreference, 4, 0x00, 0x00, 0x00, 0x00}
 	tlv := TunnelTLV{TunnelType: 15, Value: value}
 	pref, ok := tlv.Preference()

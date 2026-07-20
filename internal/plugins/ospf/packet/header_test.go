@@ -97,6 +97,7 @@ func TestPacketTypeDerivation(t *testing.T) {
 // decoded RawBytes: a freshly encoded-then-decoded packet verifies, a single flipped body byte
 // fails, and an empty RawBytes (never decoded) is rejected rather than panicking.
 // PREVENTS: accepting a corrupted OSPF packet, or dereferencing an empty raw slice.
+// RFC requirement: RFC2328-A.3.1-2 negative -- corrupting a covered octet makes the header checksum verification fail, so a packet whose checksum does not cover the wire bytes is rejected (VerifyPacketChecksum, checksum.go:23-33).
 func TestPacketVerifyChecksum(t *testing.T) {
 	hello := sampleHello(t)
 	buf := encodePacket(t, Packet{Header: sampleHeader(t, PacketTypeHello), Hello: &hello})
@@ -127,6 +128,7 @@ func TestPacketVerifyChecksum(t *testing.T) {
 
 // VALIDATES: AC-1 - common header encode/decode for all packet types.
 // PREVENTS: packet body dispatch running on malformed common headers.
+// RFC requirement: RFC2328-A.3.1-1 positive -- every OSPF packet type round-trips through the standard 24-octet common header: WriteTo emits Version 2 and DecodeHeader accepts it, returning the body offset CommonHeaderLen (Header.WriteTo header.go:179-193, DecodeHeader header.go:132-175).
 func TestOSPFHeaderRoundTrip(t *testing.T) {
 	for _, typ := range []PacketType{PacketTypeHello, PacketTypeDBDesc, PacketTypeLSReq, PacketTypeLSUpdate, PacketTypeLSAck} {
 		h := sampleHeader(t, typ)
@@ -148,6 +150,7 @@ func TestOSPFHeaderRoundTrip(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-A.3.1-1 negative -- a header whose Version octet is not 2 is rejected with ErrBadVersion before any body parser runs, and a Packet Length shorter than the 24-octet header is rejected with ErrLength (DecodeHeader header.go:136-146).
 func TestOSPFHeaderRejectsBadVersionAndLength(t *testing.T) {
 	h := sampleHeader(t, PacketTypeHello)
 	h.Length = CommonHeaderLen

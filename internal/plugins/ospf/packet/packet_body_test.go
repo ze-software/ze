@@ -142,6 +142,7 @@ func TestDecodeLSAckRejectsMalformed(t *testing.T) {
 // (ErrLength), an LS type wider than one octet (ErrUnknownLSAType), and an in-range but unknown
 // LS type (ErrUnknownLSAType).
 // PREVENTS: an LS Request decoder mis-framing entries or accepting an unimplemented LSA type.
+// RFC requirement: RFC2328-13-1 negative -- only LS types 1-5 (plus the RFC 5250 opaque types) are defined: an in-range but unknown LS type and a type wider than one octet are both rejected with ErrUnknownLSAType, so an unknown-type LSA never reaches the flooding procedure (LSType.Known types/lstype.go:99-119, DecodeLSAHeader lsa.go:40-43).
 func TestDecodeLSReqRejectsMalformed(t *testing.T) {
 	if _, err := DecodeLSReq(make([]byte, types.LSRequestEntryLen-1)); !errors.Is(err, ErrLength) {
 		t.Errorf("DecodeLSReq(non-multiple) err = %v, want ErrLength", err)

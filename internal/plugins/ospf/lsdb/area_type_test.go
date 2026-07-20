@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
+// RFC requirement: RFC2328-13-2 positive -- the send-side filter refuses every stub/NSSA interface for a Type-5 AS-external-LSA while allowing a normal-area interface, so an AS-external-LSA is never flooded into a stub area (eligibleInterface, flooding.go:401-417).
 func TestOSPFStubFloodFilter(t *testing.T) {
 	area := types.AreaID{0, 0, 0, 1}
 	cases := []struct {

@@ -36,6 +36,7 @@ func TestLSAgeBitsAndMaxAge(t *testing.T) {
 
 // VALIDATES: AC-7 - aging arithmetic saturates at MaxAge and preserves DoNotAge.
 // PREVENTS: LS age arithmetic overflowing or aging frozen LSAs.
+// RFC requirement: RFC2328-14-1 positive -- LS age is never incremented past MaxAge: adding beyond the remaining headroom saturates at MaxAge exactly (LSAge.Add, lsage.go:54-63).
 func TestLSAgeAddSaturates(t *testing.T) {
 	age := LSAge(MaxAge - 10)
 	if got := age.Add(20); got.Age() != MaxAge || !got.IsMaxAge() {

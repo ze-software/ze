@@ -40,6 +40,8 @@ func TestOSPFConfiguredAreaRangeCoverage(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-16.2-1 positive -- a router that is not an ABR computes inter-area routes from the summary-LSAs of the area it is attached to (ComputeInterAreaWith, interarea.go:118-158).
+// RFC requirement: RFC2328-16.2-2 positive -- a summary-LSA that is not MaxAge, not self-originated, and whose composed cost is below LSInfinity is used: cost IAC = distance to the advertising ABR (10) + the LSA metric (7) (ComputeInterAreaWith, interarea.go:134-157).
 func TestOSPFInterAreaRoute(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	abr := testRID(t, "2.2.2.2")
@@ -69,6 +71,7 @@ func TestOSPFInterAreaPreference(t *testing.T) {
 	assert.Equal(t, uint64(100), selected[0].Metric)
 }
 
+// RFC requirement: RFC2328-16.2-1 negative -- an ABR REFUSES a non-backbone summary-LSA even when it is the cheaper path: only the backbone summary contributes, so the installed cost is the backbone one (ComputeInterAreaWith abr gate, interarea.go:119, 128-130).
 func TestOSPFABRBackboneOnlyAcceptance(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	backbone := types.BackboneArea
@@ -131,6 +134,7 @@ func TestOSPFBorderRouterSnapshot(t *testing.T) {
 	assert.Equal(t, "10.0.0.3", snap[1].NextHops[0].NextHop)
 }
 
+// RFC requirement: RFC2328-16.2-2 negative -- a summary-LSA whose composed cost reaches LSInfinity is skipped and installs no inter-area route (ComputeInterAreaWith metric gate, interarea.go:146-149).
 func TestOSPFInterAreaLSInfinityDropped(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	abr := testRID(t, "2.2.2.2")

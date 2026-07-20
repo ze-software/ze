@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
+// RFC requirement: RFC2328-13-4 positive -- when the database copy is MaxAge with LS sequence number MaxSequenceNumber, a received older instance is discarded silently: the database copy is not sent back and no acknowledgment is generated (ReceiveUpdate Older branch, flooding.go:231-238).
 func TestOSPFMaxSeqMaxAgeSilentDiscard(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -39,6 +40,7 @@ func TestOSPFMaxSeqMaxAgeSilentDiscard(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.4-1 negative -- a self-originated LSA (Advertising Router == own Router ID) that this router holds no record of originating is not accepted into the database as-is: it is flushed from the routing domain by premature aging (LS age MaxAge) and reflooded (handleSelfReceived/flushReceivedSelfLSA, origination.go:788-806).
 func TestOSPFSelfOriginatedNoLocalCopyFlush(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock) // self router = 1.1.1.1
@@ -75,6 +77,7 @@ func TestOSPFSelfOriginatedNoLocalCopyFlush(t *testing.T) {
 // to AllSPFRouters (so the other DROthers on the segment receive it), queues every neighbor
 // except the sender for retransmit, and sends no acknowledgment (the re-flood is the implicit
 // ack). Without this, broadcast segments with 3+ routers do not converge.
+// RFC requirement: RFC2328-13.5-1 negative -- the acknowledgment is suppressed exactly where Table 19 says it must be: an LSA flooded back out the receiving interface is NOT acknowledged (ackForReceive floodedBack, flooding.go:616-618).
 func TestOSPFDRRefloodsBackOutReceivingInterface(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock) // self/DR router = 1.1.1.1

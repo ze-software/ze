@@ -31,6 +31,8 @@ func TestOSPFLSDBAgeDecrement(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-14-1 positive -- LS age advances with elapsed time and stops at MaxAge, at which point the LSA is reflooded to flush it (Entry.age/LSAge.Add entry.go:87-101 and types/lsage.go:54-63, Tick lsdb/aging.go:28-37).
+// RFC requirement: RFC2328-14-2 positive -- the MaxAge LSA is removed from the database only once every neighbor retransmission list has acknowledged it and no neighbor is in Exchange or Loading (deletePurgedIfAcked, flooding.go:784-814).
 func TestOSPFLSDBAgeToPurge(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)

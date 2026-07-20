@@ -22,6 +22,7 @@ import (
 // PREVENTS: a BGP-LS-specific next-hop shortcut diverging from RFC 4760.
 func TestRFC7752BGPLSNextHopFollowsRFC4760(t *testing.T) {
 	// RFC requirement: RFC7752-3.4-1 positive -- the BGP-LS next-hop is encoded as RFC 4760 Section 3 specifies: length octet, address, then the zero reserved octet before the NLRI (§3.4)
+	// RFC requirement: RFC9552-5.5-1 positive -- the next-hop address is encoded as described in RFC 4760: length octet, address, zero reserved octet, then the NLRI (§5.5)
 	nlri := []byte{0x00, 0x01, 0x00, 0x09, 0x02, 0, 0, 0, 0, 0, 0, 0, 0}
 
 	t.Run("ipv4 next-hop", func(t *testing.T) {

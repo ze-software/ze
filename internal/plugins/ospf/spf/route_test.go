@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// RFC requirement: RFC2328-16.4-1 positive -- an intra-area path is preferred over an AS-external path regardless of metric: the intra-area route at cost 100 wins over the external at cost 1 (routeTypeRank/routeBetter, route.go:52-65, 273-279).
 func TestOSPFRouteTablePreference(t *testing.T) {
 	pfx := netip.MustParsePrefix("10.10.0.0/16")
 	intra := RouteEntry{AreaID: testArea(), Prefix: pfx, Metric: 100, Type: RouteIntraArea, Origin: testRID(t, "2.2.2.2"), NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.2")}}}

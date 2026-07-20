@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// RFC requirement: RFC2328-16.1-1 positive -- a transit link whose neighbor LSA exists, is not MaxAge, and carries a link back to the current vertex passes the two-way check and enters the shortest-path tree (twoWayRouterLink, spf.go:290-302).
 func TestOSPFSPFShortestPath(t *testing.T) {
 	area := testArea()
 	db := baseP2PSource(t, area)
@@ -27,6 +28,7 @@ func TestOSPFSPFShortestPath(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-16.1-1 negative -- a one-way link (the neighbor's Router-LSA has no link back) fails the two-way check, so the neighbor vertex is never reached and no route is installed through it (twoWayRouterLink, spf.go:290-302).
 func TestOSPFTwoWayCheck(t *testing.T) {
 	area := testArea()
 	db := testSource(t, area,

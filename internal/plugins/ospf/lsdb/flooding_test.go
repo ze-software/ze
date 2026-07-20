@@ -27,6 +27,8 @@ func floodTopology() []InterfaceInfo {
 	}
 }
 
+// RFC requirement: RFC2328-13-1 positive -- an LSA with a valid LS checksum and a defined LS type passes the flooding receive checks and is installed in the area database (ReceiveUpdate, flooding.go:161-219).
+// RFC requirement: RFC2328-13.3-1 positive -- the LSA flooded out an eligible interface is added to that adjacency's Link state retransmission list, and the receiving adjacency is not (floodExcept/queueRetransmit, flooding.go:358-374, 448-467).
 func TestOSPFFloodOutOtherInterfaces(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -52,6 +54,7 @@ func TestOSPFFloodOutOtherInterfaces(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.3-1 negative -- a neighbor below Exchange (2-Way) is never added to a retransmission list, so the retransmit obligation is confined to real adjacencies (isFloodEligibleNeighborState, flooding.go:573-580).
 func TestOSPFFloodQueuesExchangeAndLoadingNeighbors(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -87,6 +90,7 @@ func TestOSPFFloodQueuesExchangeAndLoadingNeighbors(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.5-1 positive -- a newly received LSA is acknowledged per Table 19: a more-recent LSA not flooded back yields a delayed acknowledgment, and the Backup acknowledges an implied-ack duplicate received from the DR (ackForReceive, flooding.go:615-639).
 func TestOSPFAckDecisionTable(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -122,6 +126,7 @@ func TestOSPFAckDecisionTable(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.3-1 positive -- an LSA on a retransmission list is resent every RxmtInterval (not before) and is removed from the list once the neighbor acknowledges it (RetransmitTick flooding.go:506-562, clearRetransmit flooding.go:469-485).
 func TestOSPFRetransmitTimer(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -239,6 +244,7 @@ func TestOSPFMinLSArrivalReject(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13-2 negative -- a Type-5 AS-external-LSA arriving on a stub-area interface is discarded and never enters the database, so it cannot be flooded onward inside the stub (shouldDropByArea, flooding.go:270-283).
 func TestOSPFStubAreaDropsType5(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -340,6 +346,7 @@ func TestOSPFASExternalPurgeRetainedAcrossAreas(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.5-1 positive -- a MaxAge LSA with no database copy and no neighbor in Exchange or Loading is acknowledged DIRECTLY and then discarded, which is the Table 19 direct-ack row (ReceiveUpdate MaxAge branch, flooding.go:204-209).
 func TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -362,6 +369,7 @@ func TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-14-2 negative -- a MaxAge LSA is NOT removed while a neighbor is in Loading (or Exchange); the deletion is refused until that neighbor leaves (deletePurgedIfAcked retainForLoading, flooding.go:785, 799-802).
 func TestOSPFPurgeRetainedForExchangeOrLoading(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)

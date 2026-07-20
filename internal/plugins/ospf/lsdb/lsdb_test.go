@@ -123,6 +123,7 @@ func TestOSPFLSDBStoreRetrieve(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.1-1 positive -- the more recent of two instances is determined in order: higher LS sequence number, then larger LS checksum, then the MaxAge instance, then the younger age when the ages differ by more than MaxAgeDiff, else identical (CompareHeaders, entry.go:115-143).
 func TestOSPFFreshnessCompareMatrix(t *testing.T) {
 	base := packet.LSAHeader{Age: 10, Type: types.LSTypeRouter, LinkStateID: lsid("1.1.1.1"), AdvertisingRouter: rid("1.1.1.1"), Sequence: types.InitialSequenceNumber, Checksum: 10, Length: types.LSAHeaderLen}
 	newerSeq := base

@@ -108,6 +108,8 @@ func TestOSPFAuthExtendedSequence(t *testing.T) {
 	assert.Empty(t, reason)
 }
 
+// RFC requirement: RFC2328-D.3-2 positive -- an accepted packet's sequence number becomes the stored value for that neighbor, so a later, higher sequence is accepted against it (authStore.verify, auth_keystore.go:352-362).
+// RFC requirement: RFC2328-D.3-2 negative -- the sequence is treated as non-decreasing: a packet whose sequence is below (or equal to) the last accepted value is discarded as a replay (authStore.verify, auth_keystore.go:356-360).
 func TestOSPFAuthReplay(t *testing.T) {
 	s := newAuthStore()
 	s.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret"}))
@@ -193,6 +195,7 @@ func TestAuType2KeyIDBoundary(t *testing.T) {
 	require.NoError(t, validateConfig(mk(true, 256)), "AuType 3 (extended) allows a 32-bit key-id")
 }
 
+// RFC requirement: RFC2328-D.3-2 positive -- the cryptographic sequence number is per-neighbor state that is reset when the neighbor goes Down, so a neighbor that restarts may re-establish with any sequence (authStore.resetNeighbor, auth_keystore.go:375-383, driven from nsmAdapter.NeighborDown, instance.go:1073).
 func TestNeighborDownResetsCryptoSeq(t *testing.T) {
 	// AC-5 / RFC 2328 App D: when a neighbor goes Down its cryptographic receive-sequence
 	// high-water marks are forgotten so it can re-establish with any sequence (for example

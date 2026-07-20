@@ -62,6 +62,7 @@ func nodeNLRIWithUnknownSubTLV() []byte {
 // PREVENTS: an unknown TLV being silently stripped on re-advertisement.
 func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 	// RFC requirement: RFC7752-3.1-1 positive -- an unrecognized attribute TLV is kept verbatim and an unrecognized NLRI sub-TLV survives decode/re-encode unchanged (§3.1)
+	// RFC requirement: RFC9552-5.1-3 positive -- the unknown type is preserved and propagated in both halves: the attribute keeps its bytes and the NLRI re-encodes identically (§5.1)
 	var attr []byte
 	attr = buildAttrTLV(attr, TLVIPv4RouterIDLocal, []byte{10, 0, 0, 1})
 	attr = buildAttrTLV(attr, unknownAttrTLVType, []byte{0xAA, 0xBB, 0xCC})
@@ -99,6 +100,7 @@ func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 func TestRFC7752MalformedTLVNotPreserved(t *testing.T) {
 	// RFC requirement: RFC7752-3.1-1 negative -- a TLV whose declared length overruns the buffer is rejected, not preserved as an unknown TLV (§3.1)
 	// RFC requirement: RFC7752-6.2.2-2 negative -- a TLV length sum exceeding the attribute length and a wrong-sized fixed-length TLV are both refused (§6.2.2)
+	// RFC requirement: RFC9552-5.1-3 negative -- preservation covers unknown types, not broken framing: a TLV whose declared length overruns the attribute is refused rather than propagated (§5.1)
 	truncated := make([]byte, 6)
 	binary.BigEndian.PutUint16(truncated[0:], unknownAttrTLVType)
 	binary.BigEndian.PutUint16(truncated[2:], 10) // claims 10 value octets, 2 present
@@ -160,6 +162,7 @@ func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 // RFC 7752 Section 3.2.1.4 relies on.
 func TestRFC7752NodeDescriptorSubTLVsAscending(t *testing.T) {
 	// RFC requirement: RFC7752-3.2.1.4-3 positive -- node descriptor sub-TLVs are emitted in ascending sub-TLV type order (§3.2.1.4)
+	// RFC requirement: RFC9552-5.2.1.4-2 positive -- the sub-TLVs within a Node Descriptor are arranged in ascending order by sub-TLV type (§5.2.1.4)
 	nd := NodeDescriptor{
 		ASN:             65001,
 		BGPLSIdentifier: 1,
@@ -198,6 +201,7 @@ func TestRFC7752NodeDescriptorSubTLVsAscending(t *testing.T) {
 // PREVENTS: a width-guessing encoder emitting a short TE metric.
 func TestRFC7752TEDefaultMetricZeroPadded(t *testing.T) {
 	// RFC requirement: RFC7752-3.3.2.3-1 positive -- a metric narrower than 32 bits is emitted with zero-padded high-order octets in a 4-octet TE Default Metric TLV (§3.3.2.3)
+	// RFC requirement: RFC9552-5.3.2.3-1 positive -- the high-order bits of the TE Default Metric are padded with zero when the source metric is narrower than 32 bits (§5.3.2.3)
 	for _, metric := range []uint32{0, 1, 0x3F, 0xFFFF, 0xFFFFFF} {
 		tlv := &LsTEDefaultMetric{Metric: metric}
 		buf := make([]byte, tlv.Len())
@@ -223,6 +227,7 @@ func TestRFC7752TEDefaultMetricZeroPadded(t *testing.T) {
 // PREVENTS: a registry edit silently moving BGP-LS to another SAFI.
 func TestRFC7752NonVPNFamilyIsAFI16388SAFI71(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-5 positive -- non-VPN link-state information uses AFI 16388 with SAFI 71 (§3.2)
+	// RFC requirement: RFC9552-5.2-1 positive -- all non-VPN link, node and prefix information is encoded using AFI 16388 / SAFI 71 (§5.2)
 	assert.Equal(t, AFI(16388), BGPLSFamily.AFI)
 	assert.Equal(t, SAFI(71), BGPLSFamily.SAFI)
 	assert.Equal(t, "bgp-ls/bgp-ls", BGPLSFamily.String())
@@ -240,6 +245,7 @@ func TestRFC7752NonVPNFamilyIsAFI16388SAFI71(t *testing.T) {
 // PREVENTS: VPN link-state being folded into the non-VPN SAFI.
 func TestRFC7752VPNFamilyIsAFI16388SAFI72(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-6 positive -- VPN link-state information uses AFI 16388 with SAFI 72 (§3.2)
+	// RFC requirement: RFC9552-5.2-2 positive -- VPN link, node and prefix information is encoded using AFI 16388 / SAFI 72 (§5.2)
 	assert.Equal(t, AFI(16388), BGPLSVPNFamily.AFI)
 	assert.Equal(t, SAFI(72), BGPLSVPNFamily.SAFI)
 	assert.Equal(t, "bgp-ls/bgp-ls-vpn", BGPLSVPNFamily.String())
@@ -258,6 +264,8 @@ func TestRFC7752VPNFamilyIsAFI16388SAFI72(t *testing.T) {
 func TestRFC7752NonLinkStateFamilyRefused(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-5 negative -- a family that is not (16388, 71) is refused as a carrier of non-VPN link-state NLRI (§3.2)
 	// RFC requirement: RFC7752-3.2-6 negative -- a family that is not (16388, 72) is refused as a carrier of VPN link-state NLRI (§3.2)
+	// RFC requirement: RFC9552-5.2-1 negative -- a family that is not (16388, 71) is refused as a carrier of non-VPN link-state NLRI (§5.2)
+	// RFC requirement: RFC9552-5.2-2 negative -- a family that is not (16388, 72) is refused as a carrier of VPN link-state NLRI (§5.2)
 	for _, fam := range []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn", "bgp-ls/bgp-ls-vpn2", ""} {
 		assert.False(t, isValidBGPLSFamily(fam), "family %q must not be treated as BGP-LS", fam)
 

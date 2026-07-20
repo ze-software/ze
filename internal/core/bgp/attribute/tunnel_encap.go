@@ -131,18 +131,26 @@ func (t *TunnelTLV) SubTLVs() ([]SubTLV, error) {
 	return result, nil
 }
 
+// preferenceValueLen is the Preference sub-TLV value length RFC 9830 Section 2.4.1
+// mandates: Flags(1) + RESERVED(1) + Preference(4).
+const preferenceValueLen = 6
+
 // Preference parses sub-TLVs on demand and returns the Preference value
 // (RFC 9830 Section 2.4.1) if present. Returns 0, false if not found or
 // the sub-TLV value is malformed.
+//
+// RFC 9012 Section 13: a malformed sub-TLV is treated as an unrecognized one, so a
+// Preference sub-TLV whose value is not the mandated 6 octets is skipped rather than
+// read at a guessed offset, and the search continues.
 func (t *TunnelTLV) Preference() (uint32, bool) {
 	stlvs, err := t.SubTLVs()
 	if err != nil {
 		return 0, false
 	}
 	for i := range stlvs {
-		if stlvs[i].Type == SubTLVPreference && len(stlvs[i].Value) >= 8 {
-			// flags(1) + reserved(3) + preference(4)
-			return binary.BigEndian.Uint32(stlvs[i].Value[4:8]), true
+		if stlvs[i].Type == SubTLVPreference && len(stlvs[i].Value) == preferenceValueLen {
+			// flags(1) + reserved(1) + preference(4)
+			return binary.BigEndian.Uint32(stlvs[i].Value[2:preferenceValueLen]), true
 		}
 	}
 	return 0, false

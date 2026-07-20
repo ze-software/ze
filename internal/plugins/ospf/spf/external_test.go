@@ -58,6 +58,7 @@ func TestOSPFExternalE1Cost(t *testing.T) {
 	assert.Empty(t, none, "unreachable ASBR -> LSA skipped")
 }
 
+// RFC requirement: RFC2328-16.2-2 negative -- an AS-external-LSA whose composed cost reaches LSInfinity is skipped by the routing calculation and installs no route (externalCandidateFrom, external.go:169-186).
 func TestOSPFExternalLSInfinityDropped(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	src := testSource(t, types.BackboneArea, externalLSA(t, "10.94.0.0", "2.2.2.2", false, 5, "0.0.0.0"))
@@ -79,6 +80,7 @@ func TestOSPFExternalE2Cost(t *testing.T) {
 	assert.Equal(t, uint64(7), routes[0].Metric, "E2 cost = advertised metric only, NOT + dist-to-ASBR")
 }
 
+// RFC requirement: RFC2328-16.4-1 negative -- the cheaper candidate is REJECTED when it is the lower-preference path type: a Type-2 external at cost 1 loses to a Type-1 external at cost 110, so metric never overrides the E1-over-E2 rule (betterExternal, external.go:234-251).
 func TestOSPFExternalE1PreferredOverE2(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	src := testSource(t, types.BackboneArea,

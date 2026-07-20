@@ -13,6 +13,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
+// RFC requirement: RFC2328-C.3-1 positive -- an interface output cost of 1 (the smallest positive value) is accepted, as is an unset cost that the engine defaults later (validateConfig, config.go:886-889).
+// RFC requirement: RFC2328-C.3-1 negative -- an explicitly configured interface output cost of 0 is rejected with ErrInterfaceCostZero, so a non-positive metric never reaches the engine (validateConfig, config.go:886-889).
 func TestInterfaceCostAndTransmitDelayBoundary(t *testing.T) {
 	mk := func(mut func(*interfaceConfig)) ospfConfig {
 		ic := interfaceConfig{Name: "eth0", AreaID: types.BackboneArea, TransmitDelay: 1}

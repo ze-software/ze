@@ -37,6 +37,7 @@ func TestOSPFGraphBuild(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-14-1 negative -- a MaxAge LSA is excluded from the routing-table calculation: it never becomes a vertex, so no path can be built through it (BuildGraph age filter, graph.go:91-94).
 func TestOSPFGraphSkipsMaxAge(t *testing.T) {
 	area := testArea()
 	lsa := routerLSA(t, "1.1.1.1")

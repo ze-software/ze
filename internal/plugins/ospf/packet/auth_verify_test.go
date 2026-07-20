@@ -43,6 +43,7 @@ func TestOSPFAuthSignVerifySimple(t *testing.T) {
 	assert.False(t, bad, "wrong password rejected")
 }
 
+// RFC requirement: RFC2328-D.3-1 positive -- for Cryptographic authentication the header Checksum is left zero, the message digest is APPENDED after the OSPF packet (16 octets for MD5), and the OSPF header Packet Length still excludes the digest (Packet.WriteTo header.go:317-321, Sign auth_verify.go:169-180).
 func TestOSPFAuthSignVerifyCrypto(t *testing.T) {
 	for _, algo := range []string{AuthMD5, AuthHMACSHA1, AuthHMACSHA256, AuthHMACSHA384, AuthHMACSHA512} {
 		t.Run(algo, func(t *testing.T) {
@@ -210,6 +211,7 @@ func TestOSPFAuthType3SourceBinding(t *testing.T) {
 // the authentication trailer is exactly Auth Data Len octets (plus the 8-octet sequence
 // for AuType 3); a packet with any extra unauthenticated bytes after the digest is
 // rejected rather than silently accepted.
+// RFC requirement: RFC2328-D.3-1 negative -- the trailer is exactly Auth Data Len octets after the Packet Length: a wire buffer carrying extra trailing bytes does not satisfy plen+L == len(wire) and is rejected, so the digest framing is enforced, not assumed (Verify auth_verify.go:228-233).
 func TestOSPFAuthCryptoRejectsExtraTrailerBytes(t *testing.T) {
 	key := AuthKey{KeyID: 7, Algorithm: AuthHMACSHA256, Secret: []byte("trailer-length-key")}
 	for _, au := range []AuType{AuTypeCryptographic, AuTypeCryptographicESN} {

@@ -14,11 +14,12 @@ import (
 
 func TestDecodeTunnelEncapSingleTLV(t *testing.T) {
 	// Tunnel Type 15 (SR Policy) with Preference sub-TLV (type 12, value 200).
-	// Sub-TLV: type=12, length=8, flags(1)+reserved(3)+preference(4)
-	subTLV := make([]byte, 10)
+	// Sub-TLV per RFC 9830 Section 2.4.1: type=12, length=6,
+	// value = flags(1)+reserved(1)+preference(4).
+	subTLV := make([]byte, 8)
 	subTLV[0] = attribute.SubTLVPreference
-	subTLV[1] = 8
-	binary.BigEndian.PutUint32(subTLV[6:10], 200)
+	subTLV[1] = 6
+	binary.BigEndian.PutUint32(subTLV[4:8], 200)
 
 	data := make([]byte, 4+len(subTLV))
 	binary.BigEndian.PutUint16(data[0:2], 15) // tunnel type

@@ -423,6 +423,7 @@ func TestOSPFOriginateMaxMetric(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-13.4-1 positive -- a received self-originated LSA newer than the instance this router last originated is detected by Advertising Router == own Router ID and answered by re-originating with the LS sequence number advanced one past the received one (handleSelfReceived, origination.go:787-833).
 func TestOSPFOriginateSelfReceivedHigherSeq(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)

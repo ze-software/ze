@@ -360,6 +360,7 @@ func TestOSPFLocalMasterSendsNextDDAfterNegotiation(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-10.1-1 positive -- only one Database Description packet is outstanding on an adjacency at a time: the master holds its single unacknowledged DD and retransmits THAT packet each RetransmitInterval rather than issuing a new one (sendDBDescLocked/lastSentDD dd.go:165-181, Table.Retransmit resendLastDDLocked dd.go:194-201).
 func TestOSPFDDRetransmit(t *testing.T) {
 	// The master retransmits its unacked Database Description every RetransmitInterval until the
 	// slave responds (RFC 2328 sec 10.8); the InactivityTimer bounds the retries. Covers the
@@ -427,6 +428,7 @@ func TestOSPFDDMTUIgnore(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-10.1-1 negative -- a duplicate Database Description does not open a second outstanding DD: the slave resends the previously sent DD verbatim (sameDD holds) instead of advancing the sequence and emitting a new one (handleDBDesc duplicate branch, dd.go:52-58).
 func TestOSPFDuplicateDD(t *testing.T) {
 	tbl, cfg := testTable(t, NetworkPointToPoint)
 	sender := &fakeSender{}
@@ -561,6 +563,7 @@ func TestOSPFv3LinkScopedLoadingDrainToFull(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-10.2-1 positive -- an LS Request naming an LSA that is not in the database generates the BadLSReq event: the adjacency is torn down back to ExStart and the Database Exchange restarts with a fresh initial DD (handleLSReq, lsreq.go:69-74).
 func TestOSPFBadLSReqRestart(t *testing.T) {
 	tbl, cfg := testTable(t, NetworkPointToPoint)
 	sender := &fakeSender{}
@@ -715,6 +718,7 @@ func TestOSPFLSReqWithoutLSDBDoesNotRestart(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-10.2-1 negative -- the BadLSReq restart is confined to unsatisfiable requests: an LS Request for an LSA the database holds is answered with an LS Update and does not restart the exchange (handleLSReq, lsreq.go:75-82).
 func TestOSPFValidLSReqSendsLSUpdate(t *testing.T) {
 	tbl, cfg := testTable(t, NetworkPointToPoint)
 	sender := &fakeSender{}

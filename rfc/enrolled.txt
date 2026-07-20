@@ -169,3 +169,8 @@ rfc4035	Protocol Modifications for the DNS Security Extensions
 rfc7752	North-Bound Distribution of Link-State and TE Information Using BGP
 rfc9256	Segment Routing Policy Architecture
 rfc6793	BGP Support for Four-Octet AS Number Space
+rfc8277	Using BGP to Bind MPLS Labels to Address Prefixes
+rfc2328	OSPF Version 2
+rfc9552	Distribution of Link-State and TE Information Using BGP
+draft-ietf-bess-mup-safi	BGP Extensions for Mobile User Plane (MUP) SAFI
+rfc9012	The BGP Tunnel Encapsulation Attribute
