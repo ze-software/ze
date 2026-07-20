@@ -27,7 +27,7 @@ func cmdSet(args []string) int {
 func cmdSetImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config set", flag.ExitOnError)
 	dryRun := fs.Bool("dry-run", false, "show what would change without writing")
-	noReload := fs.Bool("no-reload", false, "do not notify running daemon after save")
+	reload := fs.Bool("reload", false, "notify the running daemon to reload after save")
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
 
@@ -43,7 +43,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 				}},
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--dry-run", Desc: "Show what would change without writing"},
-					{Name: "--no-reload", Desc: "Do not notify running daemon after save"},
+					{Name: "--reload", Desc: "Notify the running daemon to reload after save"},
 				}},
 			},
 			Examples: []string{
@@ -124,9 +124,10 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 
 	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, value)
 
-	// Notify daemon (best-effort) via SSH. A stdin ("-") pipeline stage has no
-	// on-disk config for a daemon to reload, so skip it.
-	if !*noReload && !cliio.IsStdin(configPath) {
+	// Notify daemon (best-effort) via SSH only when --reload is given. Editing a
+	// stored config does not contact the daemon by default; --reload opts in. A
+	// stdin ("-") pipeline stage has no on-disk config for a daemon to reload.
+	if *reload && !cliio.IsStdin(configPath) {
 		creds, credErr := sshclient.LoadCredentialsWithFlags(*user)
 		if credErr == nil {
 			ed.SetReloadNotifier(func() error {

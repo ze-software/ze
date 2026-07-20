@@ -68,7 +68,7 @@ system {
 }
 ```
 
-After `commit` (or `ze config set --no-reload`), the persisted file contains
+After `commit` (or `ze config set`), the persisted file contains
 only the bcrypt hash; the `plaintext-password` leaf is removed and never
 written to disk. This matches Junos's `plain-text-password` behaviour.
 

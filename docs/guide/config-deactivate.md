@@ -44,7 +44,7 @@ Flags:
 | Flag | Purpose |
 |------|---------|
 | `--dry-run` | Show what would change without writing |
-| `--no-reload` | Do not notify the running daemon after save |
+| `--reload` | Notify the running daemon to reload after save (off by default) |
 | `--user` / `-u` | SSH login username (overrides zefs super-admin) |
 
 ## TUI

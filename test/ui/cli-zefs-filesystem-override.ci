@@ -28,6 +28,6 @@ bgp {
 EOF_CONF
 
 option=env:var=ZE_STORAGE_BLOB:value=false
-cmd=foreground:seq=1:exec=ze config set --dry-run --no-reload test.conf bgp session asn local 65001
+cmd=foreground:seq=1:exec=ze config set --dry-run test.conf bgp session asn local 65001
 expect=exit:code=0
 expect=stderr:contains=dry-run: would set

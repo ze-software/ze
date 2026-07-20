@@ -63,7 +63,7 @@ func TestCmdSetBasic(t *testing.T) {
 }
 `)
 
-	code := cmdSet([]string{"--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
+	code := cmdSet([]string{configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
@@ -105,7 +105,7 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 }
 `)
 
-	code := cmdSet([]string{"--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
+	code := cmdSet([]string{configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
@@ -233,7 +233,7 @@ func TestCmdSetWithBlobStorage(t *testing.T) {
 }
 `)
 
-	code := cmdSetWithStorage(store, []string{"--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
+	code := cmdSetWithStorage(store, []string{configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSetWithStorage returned %d, want %d", code, exitOK)
 	}
@@ -270,7 +270,7 @@ func TestRunWithStorageDispatches(t *testing.T) {
 }
 `)
 
-	code := RunWithStorage(store, []string{"set", "--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
+	code := RunWithStorage(store, []string{"set", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("RunWithStorage set returned %d, want %d", code, exitOK)
 	}

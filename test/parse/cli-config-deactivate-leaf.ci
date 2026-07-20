@@ -29,7 +29,7 @@ EOF_FILE
 
 option=env:var=ze.storage.blob:value=false
 
-cmd=foreground:seq=1:exec=ze config deactivate --no-reload test.conf bgp router-id
+cmd=foreground:seq=1:exec=ze config deactivate test.conf bgp router-id
 expect=exit:code=0
 
 cmd=foreground:seq=2:exec=ze config validate test.conf

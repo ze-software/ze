@@ -47,7 +47,6 @@ func TestCmdDeactivateLeaf(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
 	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload",
 		configPath,
 		"bgp", "router-id",
 	})
@@ -70,7 +69,6 @@ func TestCmdDeactivateContainer(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
 	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload",
 		configPath,
 		"bgp", "peer", "peer1",
 	})
@@ -92,7 +90,6 @@ func TestCmdDeactivateLeafListValue(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
 	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload",
 		configPath,
 		"bgp", "filter", "import", "no-self-as",
 	})
@@ -115,12 +112,12 @@ func TestCmdActivateRoundTrip(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
 	if rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload", configPath, "bgp", "router-id",
+		configPath, "bgp", "router-id",
 	}); rc != exitOK {
 		t.Fatalf("deactivate rc = %d", rc)
 	}
 	if rc := cmdActivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload", configPath, "bgp", "router-id",
+		configPath, "bgp", "router-id",
 	}); rc != exitOK {
 		t.Fatalf("activate rc = %d", rc)
 	}
@@ -147,7 +144,7 @@ func TestCmdDeactivateBadPath(t *testing.T) {
 	}
 
 	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload", configPath, "no", "such", "path",
+		configPath, "no", "such", "path",
 	})
 	if rc == exitOK {
 		t.Fatalf("expected non-zero exit on bad path")
@@ -170,13 +167,13 @@ func TestCmdDeactivateAlreadyInactive(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
 	if rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload", configPath, "bgp", "router-id",
+		configPath, "bgp", "router-id",
 	}); rc != exitOK {
 		t.Fatalf("first deactivate rc = %d", rc)
 	}
 
 	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload", configPath, "bgp", "router-id",
+		configPath, "bgp", "router-id",
 	})
 	if rc != exitOK {
 		t.Fatalf("second deactivate on already-inactive leaf must be idempotent (rc=%d)", rc)
@@ -185,7 +182,7 @@ func TestCmdDeactivateAlreadyInactive(t *testing.T) {
 
 // TestCmdDeactivateMissingArgs verifies the usage check.
 func TestCmdDeactivateMissingArgs(t *testing.T) {
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"--no-reload", "only-one-arg"})
+	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"only-one-arg"})
 	if rc == exitOK {
 		t.Fatalf("expected non-zero exit when args insufficient")
 	}
@@ -233,7 +230,7 @@ func TestCmdDeactivatePositionalListEntry(t *testing.T) {
 	}
 
 	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
-		"--no-reload", configPath,
+		configPath,
 		"bgp", "peer", "peer1", "session", "capability", "nexthop", "ipv4/unicast",
 	})
 	if rc == exitOK {

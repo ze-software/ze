@@ -1,0 +1,44 @@
+# Test: ze config set/deactivate reload flag surface after the opt-in flip
+# VALIDATES: spec-config-require-reload AC-1,2,3,4,6 -- editing a stored config
+#            does NOT notify the daemon by default, --reload is an accepted
+#            opt-in flag, and the old --no-reload flag is removed from both
+#            `set` and `deactivate`.
+# PREVENTS: a regression that re-introduces --no-reload or breaks the default
+#           (no-daemon-contact) set path.
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.storage.blob:value=false
+
+# Default (no flag): writes the value without contacting a daemon.
+cmd=foreground:seq=1:exec=ze config set test.conf bgp session asn local 65000
+expect=exit:code=0
+
+# --reload is an accepted opt-in flag; the best-effort notify is skipped when no
+# daemon/credentials are reachable, so the command still succeeds and persists.
+cmd=foreground:seq=2:exec=ze config set --reload test.conf bgp session asn local 65001
+expect=exit:code=0
+
+# --no-reload is no longer defined on `set` (removed by the flip).
+cmd=foreground:seq=3:exec=ze config set --no-reload test.conf bgp session asn local 65002
+expect=exit:code=2
+expect=stderr:contains=no-reload
+
+# --no-reload is no longer defined on `deactivate` either.
+cmd=foreground:seq=4:exec=ze config deactivate --no-reload test.conf bgp router-id
+expect=exit:code=2
+expect=stderr:contains=no-reload
+
+# The last successful write (the --reload branch, 65001) is what persisted;
+# the two rejected commands changed nothing.
+cmd=foreground:seq=5:exec=ze config cat test.conf
+expect=exit:code=0
+expect=stdout:contains=local 65001

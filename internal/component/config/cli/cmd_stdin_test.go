@@ -91,6 +91,25 @@ func TestSetStdoutSink(t *testing.T) {
 	}
 }
 
+// TestSetReloadFlagAcceptedStdin verifies `--reload` is a recognized flag and,
+// on a stdin ("-") config, still emits the modified config without contacting a
+// daemon (the stdin path has no on-disk file to reload, so the notify gate is
+// skipped regardless of --reload). This exercises the new flag surface without
+// any daemon side effect.
+func TestSetReloadFlagAcceptedStdin(t *testing.T) {
+	var out bytes.Buffer
+	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &out)
+	defer restore()
+
+	rc := cmdSetImpl(storage.NewFilesystem(), []string{"--reload", "-", "bgp", "session", "asn", "local", "65123"})
+	if rc != exitOK {
+		t.Fatalf("set --reload - exit = %d, want %d", rc, exitOK)
+	}
+	if !strings.Contains(out.String(), "65123") {
+		t.Fatalf("stdout missing the set value 65123:\n%s", out.String())
+	}
+}
+
 // TestConfigPipelineStdin proves the pipeline story: `set -` emits a config that
 // is itself a valid pipeline stage, so feeding its stdout into `validate -`
 // succeeds (AC-10, End-to-End Story 3).
@@ -139,7 +158,7 @@ func TestDeactivateStdoutSink(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &out)
 	defer restore()
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"--no-reload", "-", "bgp", "router-id"})
+	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"-", "bgp", "router-id"})
 	if rc != exitOK {
 		t.Fatalf("deactivate - exit = %d, want %d", rc, exitOK)
 	}

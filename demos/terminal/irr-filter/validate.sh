@@ -18,11 +18,11 @@ before=$(ze config cat ze.conf)
 assert_not_contains "${before}" 'bgp-filter-irr'
 assert_not_contains "${before}" 'AS-TEST'
 
-ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr >/dev/null
-ze config set --no-reload ze.conf bgp policy irr server 127.0.0.1:4343 >/dev/null
-ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600 >/dev/null
-ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-TEST >/dev/null
-ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001 >/dev/null
+ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr >/dev/null
+ze config set ze.conf bgp policy irr server 127.0.0.1:4343 >/dev/null
+ze config set ze.conf bgp policy irr refresh-interval 3600 >/dev/null
+ze config set ze.conf bgp peer customer-a session irr as-set AS-TEST >/dev/null
+ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001 >/dev/null
 
 configured=$(ze config cat ze.conf)
 assert_contains "${configured}" 'bgp-filter-irr'

@@ -92,15 +92,15 @@ If `ze.conf` already contains the BGP peer but no IRR filter, stop Ze and add th
 
 ```console
 $ sudo systemctl stop ze.service
-$ ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-$ ze config set --no-reload ze.conf bgp policy irr server whois.radb.net
-$ ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600
-$ ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
-$ ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config set ze.conf bgp policy irr server whois.radb.net
+$ ze config set ze.conf bgp policy irr refresh-interval 3600
+$ ze config set ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
+$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
 $ sudo systemctl start ze.service
 ```
 
-`--no-reload` updates ZeFS without contacting the stopped daemon. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
+`ze config set` updates ZeFS without contacting the daemon: it does not reload by default (add `--reload` to notify a running daemon), and here the daemon is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
 
 Run `ze config cat ze.conf` before and after these commands when you want to review the exact stored changes. The terminal demonstration below starts from a configuration without any IRR settings and executes this workflow.
 
