@@ -203,10 +203,20 @@
       "verdict": "unimplemented"
     },
     "RFC7606-5.1-2": {
-      "note": "Still unimplemented, but NARROWED 2026-07-20. Ze originates only compliant UPDATEs, and buildCombinedUpdates now emits each NLRI-bearing component in its own message rather than combining them. What remains: a same-context UPDATE that fits is forwarded verbatim (forward_body.go:63-65) and a re-encoded destUpdate that fits is emitted whole (forward_body.go:99), so a received mixed shape is relayed. Closing those costs the zero-copy forward path for every mixed UPDATE.",
+      "note": "Closed 2026-07-20 by plan/spec-rfc7606-5-1-2-relay-shape.md. Origination was already compliant and both splitters emit one NLRI-bearing component per message; what was missing was the RELAY, where an UPDATE that FIT was emitted whole in whatever shape it arrived. Ze is the sender of the bytes it relays, so the restriction applies there too. message.NLRIBearingFieldCount is now the single definition of the count; wireu.WireUpdate.MixesNLRIFields caches the verdict per received UPDATE (the pointer is shared across the per-peer forward loop, so the walk is paid once per message, not once per destination -- measured 3.3ns against 51.7ns, both allocation-free); buildFwdBody splits on shape as well as size in BOTH branches, and Splitter.SplitCompliant is the parsed-side entry point that does the same. A compliant single-field UPDATE still takes the zero-copy append: SplitWireUpdate returns the identical pointer and the reactor hands on the received bytes, asserted by pointer identity rather than equality. Receive -side tolerance (RFC7606-5.1-3) is untouched, and the deliberate MP_UNREACH-first ordering divergence (RFC7606-5.1-1) is unchanged. Evidence: 8 unit tests across three packages, one functional test (test/plugin/rfc7606-relay-one-field.ci, which fails 4/4 when either relay branch is reverted), and 8 mutants killed. 2026-07-20 (interop): a new regression pins that splitting must not MANUFACTURE an RFC 4724 End-of-RIB out of a degenerate empty MP_UNREACH (TestSplitWireUpdateDoesNotManufactureEoR), found by independent review. Interop scenario test/interop/scenarios/47-rfc7606-relay-shape-frr: FRR installs Ze's relayed output; it discriminates a separate duplicate-NEXT_HOP defect on the route-server replay path (FRR rejects the route without the fix). It proves FRR ACCEPTS the Section 5.1 split output but cannot distinguish split from unsplit -- Section 5.1's third bullet obliges every receiver to accept any combination -- so split-vs-unsplit discrimination stays in the unit tests and the .ci.",
       "requirement_sha": "1bf7dcc3e53c0463",
-      "tests": {},
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/rfc7606_shape_test.go:119": "fa86c1039b6eb8a0",
+        "internal/component/bgp/message/rfc7606_shape_test.go:151": "fa86c1039b6eb8a0",
+        "internal/component/bgp/message/rfc7606_shape_test.go:55": "fa86c1039b6eb8a0",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:116": "56d842189aabefe8",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:156": "56d842189aabefe8",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:51": "56d842189aabefe8",
+        "internal/component/bgp/wireu/shape_rfc7606_test.go:23": "416a192d23139e4d",
+        "internal/component/bgp/wireu/shape_rfc7606_test.go:58": "416a192d23139e4d",
+        "internal/component/bgp/wireu/split_eor_test.go:32": "af6e6610cb544b99"
+      },
+      "verdict": "implemented"
     },
     "RFC7606-5.1-3": {
       "note": "{single-polarity} positive is honest: a MUST-accept obligation has no conforming rejection. rfc7606_test.go:583 (TestRFC7606MPReachIPv4NextHopValid) places MP_REACH after ORIGIN and AS_PATH (not first) and asserts ActionNone. Ze has no receive-side ordering check, so it accepts any position; if an ordering check were added that rejected non-first MP, this would fail. Caveat: proves the 'any position' clause but not the 'combination' clause.",
