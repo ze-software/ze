@@ -77,11 +77,99 @@ type verifyConfig struct {
 	WriteStatus func(root string, exitCode int, mode, skipped string, now time.Time) error
 }
 
+// makeNoExecFlags are the GNU make short options under which recipes are not
+// really executed, so every stage would "succeed" without doing anything:
+//
+//	n  -n / --dry-run / --just-print / --recon -- prints recipes, runs nothing
+//	t  -t / --touch                            -- touches targets; a .PHONY
+//	                                              target reports "Nothing to be
+//	                                              done" and exits 0
+//	q  -q / --question                         -- stage sub-makes no-op and
+//	                                              exit 1 (the top-level make
+//	                                              still runs a $(MAKE) line)
+//
+// All three share the property that matters here: make still EXECUTES recipe
+// lines containing $(MAKE) (that is how recursive make participates in these
+// modes), so this runner really starts, while the stage sub-makes it invokes do
+// nothing. -n and -t then report success; -q reports failure, which is not a
+// forgery but would still overwrite a good verify record with a false red.
+const makeNoExecFlags = "ntq"
+
+// makeDryRun reports whether the invoking make was run in one of those modes,
+// by inspecting MAKEFLAGS.
+//
+// GNU make puts the concatenated single-letter flags in the FIRST whitespace
+// -separated field, with no leading dash ("n", "rRn", "Bn",
+// "n -j4 --jobserver-auth=…", "n -- FOO=bar"). If that field starts with a dash
+// there are no short flags at all -- that is the case for "-j8 …" and for
+// long-only options such as "--no-print-directory", both of which must NOT
+// match. Only that first field is examined, so a target name or a variable
+// value containing an "n"/"t"/"q" cannot cause a false positive.
+//
+// Verified against real GNU make 4.3 output rather than assumed; the observed
+// strings are pinned in TestMakeDryRunDetectsDashN.
+func makeDryRun(makeflags string) bool {
+	fields := strings.Fields(makeflags)
+	if len(fields) == 0 || strings.HasPrefix(fields[0], "-") {
+		return false
+	}
+	return strings.ContainsAny(fields[0], makeNoExecFlags)
+}
+
+// modeFullVerify is the default mode name, shared by main, --list and the
+// Makefile targets.
+const modeFullVerify = "ze-verify"
+
 func main() {
-	mode := "ze-verify"
+	mode := modeFullVerify
 	if len(os.Args) > 1 {
 		mode = os.Args[1]
 	}
+
+	// `--list` prints the stage list and runs nothing. It exists so that
+	// "what does ze-verify run?" has a SAFE answer -- see the dry-run refusal
+	// below for why `make -n ze-verify` is not one.
+	if mode == "--list" {
+		listMode := modeFullVerify
+		if len(os.Args) > 2 {
+			listMode = os.Args[2]
+		}
+		stages := stagesForMode(listMode, "make")
+		if len(stages) == 0 {
+			fmt.Fprintf(os.Stderr, "verify runner: unknown mode %q (want ze-verify or ze-verify-changed)\n", listMode)
+			os.Exit(2)
+		}
+		for _, st := range stages {
+			fmt.Println(st.Name) //nolint:errcheck // stdout
+		}
+		return
+	}
+
+	// REFUSE to run under make's no-execute modes (-n, -t, -q). This is a
+	// fail-closed guard on the commit gate, not a convenience.
+	//
+	// `ze-verify`'s recipe contains $(MAKE), and GNU make executes such lines
+	// even in those modes (it is how recursive make participates in them). So
+	// `make -n ze-verify` really starts this program, with the flag propagated
+	// through MAKEFLAGS to every stage sub-make -- and each stage then does
+	// nothing. Under -n it echoes its recipe and exits 0; under -t a .PHONY
+	// stage prints "Nothing to be done" and exits 0, which is quieter still.
+	// Without this guard the run would collect a full sweep of green stages, write an
+	// all-green tmp/ze-verify-failures.json, and write tmp/ze-verify.status with
+	// exit=0 and the CURRENT tree hash -- after which
+	// scripts/dev/verify-status.sh reports FRESH and commit_helper.py sees no
+	// structural-gate reds. One `make -n` or `make -t` would certify a
+	// completely unverified tree as fully verified. Refuse loudly instead.
+	if makeDryRun(os.Getenv("MAKEFLAGS")) {
+		fmt.Fprintln(os.Stderr, "verify runner: refusing to run under `make -n` / -t / -q (no-execute modes).")
+		fmt.Fprintln(os.Stderr, "  This recipe contains $(MAKE), so make executes it even in those modes, while")
+		fmt.Fprintln(os.Stderr, "  every stage sub-make does nothing. Under -n and -t the stages all report")
+		fmt.Fprintln(os.Stderr, "  success, so writing tmp/ze-verify.status would forge a FRESH verify record")
+		fmt.Fprintln(os.Stderr, "  for a completely unverified tree.")
+		fmt.Fprintln(os.Stderr, "  To see the stage list without running anything: make ze-verify-list")
+		os.Exit(2)
+	}
+
 	cfg := defaultVerifyConfig(mode, os.Stdout)
 	code, err := runVerify(context.Background(), cfg)
 	if err != nil {
@@ -109,6 +197,20 @@ func defaultVerifyConfig(mode string, out io.Writer) verifyConfig {
 	}
 }
 
+// stagesForMode is the SINGLE SOURCE OF TRUTH for what `make ze-verify` and
+// `make ze-verify-changed` run. Both Makefile targets shell out to this runner,
+// and .woodpecker/verify.yml's only step is `make ze-verify` -- so a gate that
+// is not listed here runs NOWHERE, in CI or locally.
+//
+// Add a new gate to BOTH branches. The two lists are hand-duplicated on
+// purpose (the changed-mode variants differ), which is precisely how they drift;
+// TestStagesForModeMatchesGolden pins each against a committed golden so a
+// one-branch edit fails loudly.
+//
+// A pair of duplicate `_ze-verify-impl` / `_ze-verify-changed-impl` Makefile
+// targets used to shadow this list. They had zero callers, drifted for an
+// unknown period, and were deleted by plan/spec-fixit-verify-stage-ssot.md.
+// Do not reintroduce a second copy.
 func stagesForMode(mode, makeCmd string) []stage {
 	mk := func(name string) stage {
 		return stage{
@@ -129,16 +231,18 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-fs-persistence-check"),
 			mk("ze-dash-stdio-check"),
 			mk("ze-port-defaults-check"),
+			mk("ze-test-sensitivity-check"),
 			mk("ze-platform-vet"),
 			mk("ze-verify-wiring-docs"),
 			mk("ze-doc-test"),
 			mk("ze-doc-links"),
+			mk("ze-regen-check-readonly"),
 			mk("ze-hook-test"),
 			mk("ze-unit-test-changed"),
 			mk("ze-functional-test"),
 			mk("ze-exabgp-test"),
 		}
-	default:
+	case modeFullVerify:
 		return []stage{
 			mk("ze-lint"),
 			mk("ze-tier-check"),
@@ -149,10 +253,12 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-fs-persistence-check"),
 			mk("ze-dash-stdio-check"),
 			mk("ze-port-defaults-check"),
+			mk("ze-test-sensitivity-check"),
 			mk("ze-platform-vet"),
 			mk("ze-verify-wiring-docs"),
 			mk("ze-doc-test"),
 			mk("ze-doc-links"),
+			mk("ze-regen-check-readonly"),
 			mk("ze-vet-evidence"),
 			mk("ze-hook-test"),
 			mk("ze-unit-test-cached"),
@@ -161,6 +267,15 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-functional-test"),
 			mk("ze-exabgp-test"),
 		}
+	default:
+		// FAIL CLOSED on an unknown mode. This used to be the `default` branch
+		// returning the FULL list, so a typo (`ze-verify-chnaged`) silently ran
+		// full verify and then wrote mode=ze-verify-chnaged into
+		// tmp/ze-verify.status, which verify-status.sh rendered as
+		// FRESH(ze-verify-chnaged) -- a verified-looking record for a mode
+		// nobody asked for. runVerify turns the empty list into exit 2 with
+		// "no verify stages configured".
+		return nil
 	}
 }
 

@@ -44,6 +44,42 @@ In the same work:
 2. Back-fill that set, OR record the uncovered remainder as explicit, tracked backlog (spec, handoff, or deferral table). Never leave it implicit.
 3. Prefer a grep- or registry-driven audit that enumerates every applicable site over per-file judgement. `/ze-hunt` enumerates sites for grep-detectable patterns.
 
+## Test Sensitivity Ratchets (BLOCKING)
+
+A test that cannot fail, and a test file no target builds, both read as coverage
+while providing none. Neither is visible in any count of tests, which is how the
+published totals grew for years without either being noticed.
+
+`make ze-test-sensitivity-check` (stage 10 of `make ze-verify`, both modes) counts
+them and enforces committed floors in `test/health/sensitivity-baseline.json`. The
+counts may only go DOWN, following the `test/.ci-sleep-baseline` convention.
+
+| Detector | Fires when | Fix |
+|----------|-----------|-----|
+| assert-nothing | A `Test*` function has no reachable `Error`/`Fatal`/`Fail` call, no assertion-library call, no compile-time `var _ T = ...` assertion, and no `panic` | Add a real assertion, or annotate: `// test-asserts-nothing: <why the oracle is implicit>` |
+| tag-orphan | A `_test.go` build constraint needs a `ze_*` tag that no `go test -tags` in `Makefile` or `mk/*.mk` supplies | Add the tag to a `go test` invocation, or delete the file |
+
+Benchmarks and fuzz targets are deliberately exempt: a benchmark measures, and a
+fuzz target delegates its oracle to the engine. Raising a floor is forbidden --
+`make ze-test-health` only lowers one, so a regression cannot be laundered into
+the baseline by regenerating.
+
+`docs/features/test-health.md` (generated, `make ze-test-health`) reports these
+alongside RFC proof density, mutation kill rate, negative-test ratio, and
+technique adoption by package age. Read it before claiming the suite is healthy:
+it is the answer to "would a regression be caught", which no test count gives.
+Details: `test/health/README.md`.
+
+| Target | Enforces | Notes |
+|--------|----------|-------|
+| `make ze-test-sensitivity-check` | The two ratchets, read from the tree | Stage 10 of `ze-verify`, both modes. Independent of the report |
+| `make ze-test-health-check` | STRUCTURAL facts only: orphaned test files, unproven RFCs, metric statuses | Inside `ze-regen-check-readonly`. Volume counters are published, not gated, so adding a test does not force a regeneration |
+
+The split is deliberate. Byte-gating the whole report charged a
+regenerate-and-commit to ~60% of commits, and a check that fires that often for
+cosmetic reasons gets routed around instead of read: the same "advisory gate
+permanently red" failure the report is built to expose.
+
 ## No Throw-Away Tests
 
 **BLOCKING:** Never write temporary test code. Add functional or unit tests that run in CI.
@@ -97,6 +133,9 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-mutation-test` | Mutation testing via gomu on all non-excluded packages (advisory, slow) |
 | `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
+| `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-verify`, both modes) |
+| `make ze-test-health` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
+| `make ze-test-health-record` | Append one KPI sample to `test/health/history.ndjson` |
 
 ### Contended Run Verdicts
 

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 295 design docs, 3023 files
+Total: 297 design docs, 3028 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -651,6 +651,8 @@ Total: 295 design docs, 3023 files
 | `internal/component/config/cli/cmd_show_test.go` | ze config show tests |
 | `internal/component/config/cli/editor_stdin.go` | stdin ("-") wiring for config editor commands |
 | `internal/component/config/cli/main.go` | config CLI commands |
+| `internal/component/config/cli/reload_notify.go` | config set/deactivate --reload opt-in |
+| `internal/component/config/cli/reload_notify_test.go` | config set/deactivate --reload opt-in |
 | `internal/component/config/constants.go` | config vocabulary constants |
 | `internal/component/config/diff.go` | config parsing and loading |
 | `internal/component/config/environment.go` | config parsing and loading |
@@ -1677,6 +1679,7 @@ Total: 295 design docs, 3023 files
 | `internal/component/bgp/message/notification.go` | BGP message types |
 | `internal/component/bgp/message/open.go` | BGP message types |
 | `internal/component/bgp/message/rfc7606.go` | BGP message types |
+| `internal/component/bgp/message/rfc7606_optional_attrs.go` | BGP message types |
 | `internal/component/bgp/message/routerefresh.go` | BGP message types |
 | `internal/component/bgp/message/update.go` | BGP message types |
 | `internal/component/bgp/message/update_split.go` | BGP message types |
@@ -2555,6 +2558,15 @@ Total: 295 design docs, 3023 files
 
 - `internal/plugins/isis/cli/register.go` -- isis root namespace (decode member)
 - `internal/plugins/ospf/cli/register.go` -- ospf root namespace (decode member)
+
+## `plan/learned/1181-fixit-bcrypt-hash-credential.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/cli/editor_mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/config/mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
+| `internal/core/redact/redact.go` | credential-token redaction for logs |
 
 ## `plan/learned/415-prefix-data.md`
 
@@ -3992,15 +4004,6 @@ Total: 295 design docs, 3023 files
 
 - `cmd/ze/bootstrap_template_test.go` -- template becomes effective config
 
-## `plan/spec-fixit-bcrypt-hash-credential.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/cli/editor_mask.go` | mask ze:bcrypt leaves on display |
-| `internal/component/config/mask.go` | mask ze:bcrypt leaves on display |
-| `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
-| `internal/core/redact/redact.go` | credential-token redaction for logs |
-
 ## `plan/spec-followup-l2tp-call.md`
 
 - `internal/component/l2tp/bridge_integration_linux_test.go` -- AC-3 / A-4 LAC bridge integration
@@ -4209,6 +4212,14 @@ Total: 295 design docs, 3023 files
 ## `plan/spec-ospf-ext-6-ti-lfa.md`
 
 - `internal/core/rib/locrib/candidate_backup_test.go` -- Path backup carry-through (AC-13,
+
+## `plan/spec-rfc7606-5-1-2-relay-shape.md`
+
+- `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
+
+## `plan/spec-test-health-dashboard.md`
+
+- `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
 
 ## `plan/spec-unify-filters.md`
 

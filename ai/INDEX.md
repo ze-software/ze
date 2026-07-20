@@ -209,6 +209,10 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-mutation-test` | `mk/test-mutation.mk` | Mutation testing via gomu on all non-excluded packages (advisory, not gating). Vendored, no install needed. |
 | `make ze-mutation-changed` | `mk/test-mutation.mk` | Incremental mutation testing on changed files only. |
 | `make ze-mutation-report` | `mk/test-mutation.mk` | Mutation testing with HTML report output to `tmp/mutation-report.html`. |
+| `make ze-test-health` | `scripts/dev/testing_health.py` | Regenerates `docs/features/test-health.md` and `test/health/latest.json`: whether a regression would be caught, not how many tests exist. Read it before claiming the suite is healthy. |
+| `make ze-test-health-record` | `scripts/dev/testing_health.py` | Appends one KPI sample to `test/health/history.ndjson` (committed), then regenerates the page so trends stay in step. |
+| `make ze-test-sensitivity-check` | `scripts/checks/inert_tests.go` | Ratchets tests that cannot fail and test files no `go test` target builds. Stage 10 of `ze-verify`, both modes. |
+| `make ze-test-health-check` | `scripts/dev/testing_health.py` | Fails `ze-verify` when a STRUCTURAL fact drifts (an orphaned test file, an unproven RFC, a metric status). Volume counters are published, not gated. The target a developer meets when verify goes red on this feature. Runs inside `ze-regen-check-readonly`. |
 | `make ze-setup` | `scripts/dev/dev-setup.py` | Unified dev setup: installs all build deps, linters, and appliance/evidence tools (qemu, e2fsprogs, xorriso, grub, uv; optional Linux L2TP-evidence deps xl2tpd, ppp). OS autodetect (brew/apt). `CHECK=1` for probe-only mode. Drift-guarded against `applianceDoctorChecks()`. |
 
 ## Pattern Cookbooks
@@ -403,6 +407,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | VPP semantics, linux-cp, LCP, LCP netns, lcp_itf_pair_create, default netns, binapi, lcp.ba.go, foreign system semantics | `third_party/vpp-linux-cp/` -- vendored VPP C (v25.10, read-only reference). Read this BEFORE claiming what VPP does; the generated stub `vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go` says a field exists, never what VPP does with it (`ai/rules/no-fabrication.md`) |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
 | mutation testing, gomu, mutation score, mutant | `mk/test-mutation.mk`, `ai/rules/testing.md` (Mutation Testing section) |
+| test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `scripts/dev/testing_health.py`, `scripts/checks/inert_tests.go`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |
 | find bugs, hunt bugs, bug classes, latent bugs, recurring traps, taxonomy sweep, silent fall-through, unwired feature | `ai/skills/ze-hunt.md`, `plan/learned/RECURRING-PATTERNS.md` |
 
 All architecture docs in `docs/architecture/` unless noted.

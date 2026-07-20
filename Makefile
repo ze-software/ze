@@ -1,12 +1,13 @@
 .PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean clean-all fmt vet tidy generate help
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
-.PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
+.PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
-.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
+.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
+.PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
-.PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check
+.PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check ze-regen-check-readonly ze-arch-map ze-arch-map-check
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -293,26 +294,35 @@ ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
 
+# NOTE on `make -n`/-t/-q: the refusal lives in verify_run.go (makeDryRun), which
+# is reached only AFTER verify-lock.sh has taken the lock. So a no-execute
+# invocation still waits on a concurrent verify and still appends a 0-second row
+# to tmp/.ze-verify-duration.txt before refusing. That is deliberate: guarding
+# earlier means re-implementing the MAKEFLAGS parse in shell or a make
+# conditional, and the parse is subtle (a naive `findstring n,$(MAKEFLAGS)`
+# false-positives on --no-print-directory, refusing every real verify). One
+# tested implementation beats two, and nothing is forged either way.
 ze-verify:
 	@scripts/dev/verify-lock.sh ze-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify
 
-# NOT the live verify path: `ze-verify` above runs scripts/status/verify_run.go,
-# which has its OWN hardcoded stage list in stagesForMode() -- these two _impl
-# targets have zero callers anywhere in the repo (confirmed via grep across
-# Makefile, mk/*.mk, scripts/, .woodpecker/) and silently drifted out of sync
-# with stagesForMode for an unknown period before a /ze-review pass caught it
-# (plan/learned/1045-plugin-process-boundary.md). A new gate added HERE will
-# NOT run under `make ze-verify`/`ze-verify-changed` or CI -- add it to
-# scripts/status/verify_run.go's stagesForMode() instead, in BOTH branches.
-_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
-	@echo "Ze verification passed"
+# Print the stage list without running anything.
+#   make ze-verify-list
+#   make ze-verify-list ZE_VERIFY_MODE=ze-verify-changed
+#
+# Use THIS, never `make -n ze-verify` (nor -t / -q): the ze-verify recipe above
+# contains $(MAKE), so make executes it even in those no-execute modes while
+# every stage sub-make does nothing and "passes" -- the runner would then write
+# a FRESH tmp/ze-verify.status for a tree nothing actually verified.
+# verify_run.go refuses to run under them for that reason.
+#
+# The variable is ZE_VERIFY_MODE, not MODE: make imports the environment, and
+# MODE is a common enough name that a stray `export MODE=...` would silently
+# make this print the wrong list.
+ze-verify-list:
+	@$(GO) run ./scripts/status/verify_run.go --list $(or $(ZE_VERIFY_MODE),ze-verify)
 
 ze-verify-changed:
-	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
-
-# See the _ze-verify-impl comment above: not the live path either.
-_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
-	@echo "Ze verification (changed) passed"
+	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed; rc=$$?; python3 scripts/dev/perf-suggest.py || true; exit $$rc
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
 # must live in internal/component/ if a feature depends on it, else internal/plugins/.
@@ -331,7 +341,8 @@ ze-tier-check:
 # --selftest proves the gate against its own fixtures before it judges the live tree.
 #
 # Wired into `make ze-verify` via stagesForMode() in scripts/status/verify_run.go (BOTH
-# branches) -- NOT _ze-verify-impl, which has zero callers (see the warning above ze-verify).
+# branches) -- that function is the only live stage list; nothing in this Makefile
+# enumerates verify stages any more.
 ze-rfc-check:
 	@python3 scripts/dev/rfc_requirements.py --selftest
 	@python3 scripts/dev/rfc_requirements.py --check
@@ -385,6 +396,33 @@ ze-dash-stdio-check:
 ze-port-defaults-check:
 	@$(GO) run scripts/checks/port_defaults.go --selftest
 	@$(GO) run scripts/checks/port_defaults.go
+
+# Test-sensitivity ratchet (spec-test-health-dashboard AC-10/AC-11): a test that
+# cannot fail, and a test file no build tag reaches, both read as coverage while
+# providing none. Neither is detectable by any count of tests, which is why the
+# published totals grew for years without this. Counts may only go DOWN; the
+# floors live in test/health/sensitivity-baseline.json and are lowered in the same
+# change that improves the number (the test/.ci-sleep-baseline convention).
+# --selftest first proves both AST detectors fire on known-bad fixtures.
+ze-test-sensitivity-check:
+	@$(GO) run scripts/checks/inert_tests.go --selftest
+	@$(GO) run scripts/checks/inert_tests.go --check
+
+# Regenerate the testing-state page (docs/features/test-health.md), its structured
+# sibling test/health/latest.json, and the ratchet baseline. Output is a pure
+# function of committed state -- no wall-clock value -- so ze-test-health-check can
+# gate it for staleness the way every other generated file here is gated.
+ze-test-health:
+	@python3 scripts/dev/testing_health.py --write
+
+# Staleness gate for the above; a prerequisite of ze-regen-check-readonly.
+ze-test-health-check:
+	@python3 scripts/dev/testing_health.py --check
+
+# Append one KPI row to test/health/history.ndjson. Run after a mutation or verify
+# run; the page renders trends from the committed history, never from live output.
+ze-test-health-record:
+	@python3 scripts/dev/testing_health.py --record
 
 # Cross-platform vet gate (spec-followup-subsystem AC-7): the interface plugins
 # ship non-Linux stubs (default_other.go, backend_other.go, host/platform_other.go)
@@ -449,8 +487,63 @@ ze-ai-sync:
 ze-ai-check:
 	@scripts/dev/skill_sync.sh --check
 
-ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index
+ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index ze-test-health
 	@echo "All generated files updated"
+
+# Write-safe twin of ze-regen-check, and the ONLY one wired into verify
+# (stagesForMode in scripts/status/verify_run.go, both branches).
+#
+# ze-regen-check below cannot go into verify: its `ze-regen` prerequisite
+# REWRITES every generated file and only then diffs, so `make ze-verify` would
+# leave a dirty working tree whenever anything was stale. This target reaches
+# the same verdict without writing: each generator's own --check regenerates in
+# memory and diffs.
+#
+# Composed of PREREQUISITE TARGETS, never re-typed recipes. Three of these
+# (ze-yang-glue-check, ze-feature-tags-check, ze-fuzz-targets-check) had zero
+# callers before this target existed. Spelling their commands out here would
+# have made a fifth copy of "how to check yang glue" -- the same duplication
+# this spec deleted from the stage list. TestRegenCheckReadonlyCoversGenerators
+# (scripts/status/verify_run_test.go) derives the required set from the
+# `generate` / `ze-regen` recipes and fails when a generator gains no check.
+#
+# Generator -> output -> covering prerequisite:
+#   plugin_imports.go -> plugin/all/all.go                   -> ze-plugin-imports-check
+#   yang_glue.go      -> yang/*/register.go, embed.go        -> ze-yang-glue-check
+#   feature_tags.go   -> .golangci.yml, gokrazy/ze/config.json,
+#                        docs/guide/quickstart.md            -> ze-feature-tags-check
+#   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
+#   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-check-stale
+#   rules_index.py    -> ai/rules/INDEX.md                   -> ze-rules-index-check
+#   arch_map.py       -> arch lists in ai/INSTRUCTIONS.md    -> ze-arch-map-check
+#   package_map.py    -> ai/PACKAGE-MAP.md                   \
+#   docs_to_code.py   -> ai/DOCS-TO-CODE.md                   > ze-discovery-index-check
+#   learned_index.py  -> ai/LEARNED-FULL-INDEX.md            /
+#   learned_numbers.py-> plan/learned numbering              /
+#
+# TWO DELIBERATE EXCLUSIONS, both would break CI or duplicate an earlier stage:
+#
+#   skill_sync.sh --check (CLAUDE.md, AGENTS.md, .claude|.codex|.agents/skills).
+#   Every one of its targets is GITIGNORED (.gitignore), so they do not exist at
+#   all in the fresh checkout CI runs `make ze-verify` against, and the check
+#   exits 1 there: "No such file or directory" on all three mirror dirs, "stale"
+#   on both .md files. Wiring it in would red EVERY CI run.
+#   To reproduce, give the test tree its own git root -- skill_sync.sh starts by
+#   cd'ing to `git rev-parse --show-toplevel`, so a `git archive HEAD` tree
+#   unpacked inside this repo resolves back here and passes, falsely.
+#   Nothing committed can drift here (that is what gitignored means), so CI has
+#   nothing to catch; the guard belongs where a generated tree exists, and it
+#   already lives there as the warn-only .claude/hooks/session-start.sh check.
+#   Do not "fix" this by wiring it in.
+#
+#   check_doc_links.py --md-only, which ze-regen-check's recipe ends with. It
+#   checks references, not generated-file staleness, and ze-doc-links runs the
+#   FULL check (a strict superset) in the stage slot immediately before this one.
+ze-arch-map-check:
+	@python3 scripts/dev/arch_map.py --check
+
+ze-regen-check-readonly: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-fuzz-targets-check ze-doc-check-stale ze-rules-index-check ze-arch-map-check ze-discovery-index-check ze-test-health-check
+	@echo "All generated files are up to date"
 
 ze-regen-check: ze-regen
 	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
@@ -557,7 +650,7 @@ help-test:
 	@echo "    ze-race-reactor           Stress race-test reactor (-race -count=20)"
 	@echo ""
 	@echo "  Functional tests (.ci suites via bin/ze-test):"
-	@echo "    ze-functional-test        All 22 gating suites"
+	@echo "    ze-functional-test        All 23 gating suites"
 	@echo "    ze-encode-test            BGP wire encoding"
 	@echo "    ze-plugin-test            Plugin behavior"
 	@echo "    ze-decode-test            Wire decoding"
@@ -638,6 +731,12 @@ help-test:
 	@echo "    ze-perf-bench             Run against all DUTs (PERF_DUT=name for one)"
 	@echo "    ze-perf-report            Generate comparison report"
 	@echo "    ze-perf-track             Update history tracking"
+	@echo ""
+	@echo "  Test health (would a regression be caught, not how many tests exist):"
+	@echo "    ze-test-health            Regenerate docs/features/test-health.md + test/health/"
+	@echo "    ze-test-health-check      Fail if a structural fact drifted (in ze-verify)"
+	@echo "    ze-test-health-record     Append one KPI sample to the committed history"
+	@echo "    ze-test-sensitivity-check Ratchet: tests that cannot fail, files no target runs"
 	@echo ""
 	@echo "  Composite targets:"
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"
@@ -730,7 +829,9 @@ help-dev:
 	@echo ""
 	@echo "  Generated files:"
 	@echo "    ze-regen                 Regenerate all generated files"
-	@echo "    ze-regen-check           Verify generated files are up to date"
+	@echo "    ze-regen-check           Verify generated files are up to date (REGENERATES first)"
+	@echo "    ze-regen-check-readonly  Same verdict, writes nothing (this is what ze-verify runs)"
+	@echo "    ze-verify-list           Print the ze-verify stage list (never use make -n ze-verify)"
 	@echo "    ze-plugin-imports-check   Verify generated plugin blank imports are current"
 	@echo "    ze-ai-instructions       Generate CLAUDE.md and AGENTS.md"
 	@echo "    ze-ai-sync               Sync canonical skills to tool directories"

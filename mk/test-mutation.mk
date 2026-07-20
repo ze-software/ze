@@ -36,6 +36,7 @@ ze-mutation-test:
 		2>&1 | tee tmp/mutation.log; \
 	if [ -f mutation-report.json ]; then mv mutation-report.json tmp/mutation-report.json; fi; \
 	python3 scripts/dev/mutation_history.py || true; \
+	python3 scripts/dev/testing_health.py --record || true; \
 	echo "Report: tmp/mutation-report.json"
 
 # Incremental mutation test on changed files only.
@@ -61,6 +62,7 @@ ze-mutation-changed:
 		2>&1 | tee tmp/mutation.log; \
 	if [ -f mutation-report.json ]; then mv mutation-report.json tmp/mutation-report.json; fi; \
 	python3 scripts/dev/mutation_history.py || true; \
+	python3 scripts/dev/testing_health.py --record || true; \
 	echo "Report: tmp/mutation-report.json"
 
 # Run mutation test on one or more packages, output surviving mutants as JSON.
@@ -104,6 +106,7 @@ ze-mutation-pkg:
 	echo ""; \
 	python3 scripts/dev/mutation_combine.py; \
 	python3 scripts/dev/mutation_history.py || true; \
+	python3 scripts/dev/testing_health.py --record || true; \
 	echo "Report: tmp/mutation-report.json"
 
 # Full mutation test with HTML report

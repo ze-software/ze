@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1193 summaries
+Total: 1199 summaries
 
 ## 000-099
 
@@ -1267,3 +1267,9 @@ Total: 1193 summaries
 | 1218 | fixit-pppoe-orphaned-tests | `plan/learned/1218-fixit-pppoe-orphaned-tests.md` |
 | 1219 | fixit: stop a named background process mid-.ci-test | `plan/learned/1219-fixit-runner-kill-background.md` |
 | 1221 | CLI live-view registry: migrate dashboard/ping/traceroute off per-feature Model fields | `plan/learned/1221-fixit-cli-view-registry.md` |
+| 1222 | config-require-reload | `plan/learned/1222-config-require-reload.md` |
+| 1223 | RFC gate regression ratchets: proof is monotonic, and a new RFC brings its own checking | `plan/learned/1223-rfc-gate-regression-ratchets.md` |
+| 1224 | RFC 7606: closing five disclosed gaps, and what "implement the MUST" actually costs | `plan/learned/1224-rfc7606-close-gaps.md` |
+| 1225 | RFC 7606 Section 5.1: one NLRI-bearing field per relayed UPDATE | `plan/learned/1225-rfc7606-relay-shape.md` |
+| 1226 | test-health-dashboard | `plan/learned/1226-test-health-dashboard.md` |
+| 1227 | fixit-verify-stage-ssot | `plan/learned/1227-fixit-verify-stage-ssot.md` |
