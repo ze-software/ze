@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-20 |
 
 > **Status history:** `skeleton` (2026-07-16) → `ready` (2026-07-17, this design fill).
 >
@@ -351,7 +351,7 @@ institutionalizes the bug via a side-channel; needs new extension machinery.
 | A-3 | A present-but-empty leaf-list is skipped by the `str != ""` guard at `:669` | Read `validator.go:669`; probe shows `virtual-address [ ]` → `ToMap` yields `""` | — | Probe "empty brackets" → 0 errors | **confirmed** |
 | A-4 | A leaf-list of 2+ members is skipped because `ToMap` yields `[]string` and the `value.(string)` assertion fails | Read `tree.go:908-909` (producer) and `validator.go:669` (consumer); tree map dumped in probe | The `max-elements` finding would be wrong and Option (a) staging step 1 would be unnecessary | Probe: 17 addrs vs `max-elements 16` → 0 errors; map dumped as `[]string{...}` | **confirmed** |
 | A-5 | `list` cardinality DOES enforce, so the defect is leaf-list-specific | Read `validator.go:658` (list branch calls `checkCardinality` with `len(subMap)`) | The defect would be all of `walkTree`, changing the fix shape | Probe: 51 sysctl profiles vs `max-elements 50` → error raised | **confirmed** |
-| A-6 | The YANG tree validator runs ONLY on `ze config validate`, never at daemon load | `grep` for callers: `ValidateTreeAllModules` has one non-test caller, `cmd_validate.go:277`; `parseTreeWithYANG` (`loader.go:89-131`) returns after `PruneInactive` | The upgrade risk would be far larger (daemon would reject config at boot), and would change the recommendation | Grep of all callers + read of the load path | **confirmed** |
+| A-6 | The YANG tree validator runs ONLY on `ze config validate`, never at daemon load | `grep` for callers: `ValidateTreeAllModules` has one non-test caller, `cmd_validate.go:277`; `parseTreeWithYANG` (`loader.go:89-131`) returns after `PruneInactive` | The upgrade risk would be far larger (daemon would reject config at boot), and would change the recommendation | Grep of all callers + read of the load path | **WRONG -- see the CORRECTIONS block above.** `ValidateTreeAllModules` has more non-test callers than the grep found: `cmd/ze/hub/api.go` (REST/gRPC candidate-config commit on a RUNNING box), `cmd/ze/hub/service_web.go` (web editor + config upload), and `internal/component/cli/validator.go` (CLI editor commit), all via `ValidateContent`. The BOOT half of the assumption still holds (`loader.go` never validates), which is why the availability conclusion survives -- but the assumption as stated is false and anything derived from 'operator-invoked lint only' must be re-read. |
 | A-7 | The comment at `validator.go:667-668` ("stored as space-separated strings") describes a shape `Tree.ToMap` never produces for multi-member leaf-lists | Read `tree.go:901-911`; probe dump shows `string` for 1 member and `[]string` for 17 | Some other producer may deliver that shape on another path, meaning the branch is not wholly dead | Probe dump of the production tree map. NOT exhaustively traced: the set-format parser (`parseSetWithMigration`, `loader.go:134`) and the web/gNMI tree readers were not probed | ~~**unvalidated**~~ → **resolved for Option (a) (2026-07-17): moot.** Option (a) RETAINS the single-member `string` branch (a bare string is a live 1-member shape) and ADDS a `[]string` branch; it does NOT delete the string branch, so "confirm no caller delivers a space-separated string" is no longer a precondition. The comment is corrected, not the branch removed |
 | A-8 | Enforcing `min-elements` would newly reject real operator config | Probe shows `vrrp { group lan { vrid 1; } }` validates clean today; TACACS escalation documents `tacacs-profile { level 9; }` in the wild | The upgrade risk is theoretical and the fix could land unstaged | Probe of the absent-leaf-list shape. No survey of actual deployed configs was done | ~~**unvalidated**~~ → **resolved for Option (a) scope (2026-07-17).** Re-verification: the only min-elements leaf-lists reachable in a validated section are VRRP `virtual-address` (already plugin-backstopped, so no NEW rejection) and `tacacs profile` (section not validated, R-6). So enforcing min-elements adds ZERO new `ze config validate` rejections. The one new rejection is iface `max-elements` (> 10 sysctl-profile). Field configs remain unsurveyed, but they reach only `ze config validate`, never boot (A-6) — so a survey is not a precondition for this scope |
 
@@ -364,7 +364,94 @@ institutionalizes the bug via a side-channel; needs new extension machinery.
 | R-4 | A fix to `Tree.ToMap`'s leaf-list shape to preserve count breaks unrelated consumers | Compile errors, or silent behavior change in web/gNMI/plugin readers that type-assert `string` | Do NOT change `ToMap`. Source the count elsewhere (e.g. `Tree.multiValues` / `activeMembersLocked`, `tree.go:901-902`) or pass the tree, not the map, to the validator |
 | R-5 | Fixing `walkTree` creates false confidence that the daemon now validates cardinality, when only `ze config validate` does | A spec or doc claims config load enforces `min-elements` | Option (a) step 3 exists precisely to force that question to be answered separately and explicitly |
 | R-6 | Sections not in `yangSectionsToValidate` (`tacacs`, `as112`, `geodns`) stay unvalidated even after a perfect `walkTree` fix | A fix closes the gap but the TACACS constraint still never fires | Recorded here. Any fix claiming to make TACACS `min-elements 1` live MUST also add `tacacs` to `yangSectionsToValidate` (`cmd_validate.go:50-54`), or say plainly that it does not. This spec chooses "does not" (see Options resolution). |
-| R-7 | The fix emits a DUPLICATE cardinality error for VRRP: `walkTree` (YANG) fires on the augmented `virtual-address` leaf-list under `interface`, on top of the VRRP plugin verifier that already reports the same violation (`groups.go:496`/`:499`) | `ze config validate` on a no-vip or 17-vip VRRP group prints two errors for one defect | First CONFIRM reachability: `ze-vrrp-conf.yang:216` augments `interface`, so the leaf-list is in-section, but the 2026-07-17 bad-IP probe was caught by the parser before `walkTree` ran, so reachability is unproven. If reachable, either accept the duplicate (both are errors, config rejected either way — defense in depth) or suppress the YANG cardinality error where a plugin verifier owns the same leaf-list. Decide at implementation; do NOT let a duplicate-error surprise fail a VRRP `.ci` that asserts a single message |
+| R-7 | The fix emits a DUPLICATE cardinality error for VRRP: `walkTree` (YANG) fires on the augmented `virtual-address` leaf-list under `interface`, on top of the VRRP plugin verifier that already reports the same violation (`groups.go:496`/`:499`) | `ze config validate` on a no-vip or 17-vip VRRP group prints two errors for one defect | **RESOLVED 2026-07-20 -- see below. Reachability CONFIRMED; duplicate ACCEPTED; no `.ci` breaks.** |
+
+→ CORRECTIONS to the R-7 resolution below, from an INDEPENDENT review (2026-07-20).
+Three claims in my first write-up were wrong or over-stated; the conclusion holds,
+the reasoning did not:
+
+1. **"The two are not duplicates" is true only for the EMPTY case.** For
+   `max-elements`, they ARE a literal duplicate, same numbers:
+   `... virtual-address: too many entries: 17 (maximum 16)` alongside
+   `vrrp: ... 17 virtual-address entries exceed the maximum of 16`. AC-3 asks to
+   "verify no confusing duplicate"; that is NOT met, and the duplicate is
+   accepted deliberately rather than absent. It predates this change.
+2. **"No VRRP `.ci` uses `reject=`" is FALSE.** `test/vrrp/vrrp-doctor-quiet.ci`
+   and `test/vrrp/vrrp-idle.ci` both use `reject=stdout:pattern=`. They match
+   doctor codes on valid/idle configs, so the CONCLUSION (no `.ci` breaks)
+   survives, but the evidence I gave for it was wrong.
+3. **A-6 / the Security Review row are wrong that `walkTree` runs only under
+   `ze config validate`.** It is also reached from `cmd/ze/hub/api.go`
+   (REST/gRPC candidate-config commit on a RUNNING box), `service_web.go`
+   (web editor + config upload), and `internal/component/cli/validator.go`
+   (CLI editor commit). Live blast radius is still nil -- the only newly-rejected
+   shape is already rejected by the VRRP plugin verifier on the same command --
+   but the risk decision rested on a false premise and any FUTURE min-bounded
+   leaf-list will bite on an API/web push, not just an operator's lint.
+
+Separately: the LIST branch has the same 0-count hole (`if len(listMap) > 0` in
+`config/tree.go` omits an empty list from the map), so the spec's claim that
+"`list` cardinality does enforce correctly" is true for max only. No live impact
+(every `min-elements` in the tree is on a leaf-list), but the next `list
+min-elements` anyone declares will be silently inert. NOT fixed here -- recorded
+to avoid silent scope widening.
+
+→ R-7 EXTENDED to the ABSENT case (2026-07-20, round-2 review). The rationale
+below was written for the present-but-empty input and does NOT carry over. For the
+absent input the two messages ARE the same violation:
+
+    YANG:  .../virtual-address: too few entries: 0 (minimum 1)
+    VRRP:  ... group "uplink" (vrid 10): at least one virtual-address is required
+                                          (groups.go:495-496)
+
+So the absent case is a second, genuinely new duplicate -- not the
+root-cause-vs-symptom pair the empty case produces. It is still ACCEPTED, on the
+same grounds: suppression would need a registry of "which plugin owns which
+leaf-list", which is exactly the per-feature spelling in a generic package that
+`ai/rules/plugin-self-containment.md` forbids; the plugin message names the group
+and is the more useful line; and the config is rejected either way. AC-3's "verify
+no confusing duplicate" is therefore NOT met as written -- the duplicate exists and
+is deliberate. State it that way rather than implying it was avoided.
+
+→ R-7 RESOLVED (2026-07-20), on observed output rather than prediction.
+
+**Reachability: CONFIRMED.** The 2026-07-17 probe failed because of stanza shape,
+not because the path is unreachable. VRRP augments
+`/iface:interface/iface:ethernet/iface:unit/iface:ipv4` (`ze-vrrp-conf.yang:216`),
+and the config spelling is `vrrp { group <name> { ... } }` INSIDE `ipv4` -- not
+`vrrp <name>` under `unit`. With the correct shape, an empty `virtual-address [ ]`
+now produces:
+
+```
+interface: interface/ethernet[eth0]/unit[0]/ipv4/vrrp/group[uplink]/virtual-address: too few entries: 0 (minimum 1)
+vrrp: interface eth0 unit 0 ipv4 group "uplink" (vrid 10): virtual-address "" is not an IP address: ParseAddr(""): unable to parse IP
+```
+
+The one-address control validates clean, so the first line is genuinely new.
+
+**Decision: ACCEPT both errors. Do NOT suppress the YANG one.** The premise of the
+"suppress" option was that the two report the SAME violation. They do not:
+
+- the YANG line reports the ROOT CAUSE -- zero entries against `min-elements 1`;
+- the VRRP line reports a downstream SYMPTOM -- the plugin sees a single empty-string
+  member and fails to parse it as an IP.
+
+Suppressing the YANG error would delete the clearer message and keep the confusing
+one. The YANG bound is also schema-derived and covers every min-bounded leaf-list
+in the tree, whereas the plugin check covers only VRRP.
+
+→ Follow-up (NOT this spec): the VRRP verifier treating an empty leaf-list as one
+`""` member looks like its own defect. It is pre-existing and independent of this
+change; recorded here rather than fixed, to avoid silent scope widening.
+
+**The `.ci` surprise the risk warned about does NOT occur.** Checked, not assumed:
+no VRRP `.ci` asserts a single message and none uses `reject=` --
+`test/vrrp/vrrp-config-invalid.ci:259` is `expect=stdout:contains=virtual-address`,
+a substring check that an extra error cannot break, and its config is the
+duplicate-VIP case where both groups have addresses (cardinality already satisfied).
+More generally, no existing `.ci` anywhere uses an empty config leaf-list, which is
+the ONLY input whose behavior this change alters -- so the fix is inert for the
+entire committed suite.
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -432,7 +519,7 @@ is answered "TACACS stays code-guarded only" (out of scope, R-6).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestWalkTreeLeafListCardinality` | `internal/component/config/yang/validator_test.go` | Builds an iface-shaped `map[string]any` with an 11-member `[]string` `sysctl-profile` and drives `Validator.walkTree` (NOT `checkCardinality` directly), asserting a `too many entries: 11 (maximum 10)` error — see AC-7, AC-11 | new |
+| `TestWalkTreeLeafListCardinality` | `internal/component/config/yang/validator_test.go` | SUPERSEDED (2026-07-20): the implemented test uses a synthetic `root`/`names` leaf-list with min 2 / max 4, not an iface-shaped 11-vs-10 fixture. Three tests exist: `TestWalkTreeLeafListCardinality` (present, both bounds), `TestWalkTreeAbsentLeafListMinElements` (absent), and `TestWalkTreeNestedLeafListCardinality` (container/list[key]/leaf-list -- the real nesting shape, and the guard that an ABSENT list emits nothing).
 | `TestWalkTreeLeafListCardinalityMin` | `internal/component/config/yang/validator_test.go` | Drives `walkTree` on a declared leaf-list absent from data with `MinElements > 0`, asserting a `too few entries` error (min-elements reachability) | new |
 | `TestWalkTreeLeafListBoundaryAndSingle` | `internal/component/config/yang/validator_test.go` | 10-member `[]string` (boundary, no error) and 1-member bare `string` (no error, still type-checked) — AC-12, AC-13 | new |
 | `TestCheckCardinality` (existing) | `internal/component/config/yang/validator_test.go:35` | Unchanged; keep as the helper's isolation test (supplement to, never substitute for, the walkTree-driven tests) | keep |
@@ -725,7 +812,61 @@ None. No behavior changed.
 
 ## Review Gate
 
-<!-- Not run. Status is `skeleton`; there is no diff to review. -->
+<!-- STALE PLACEHOLDER REPLACED 2026-07-20. -->
+
+### Run 1 (independent subagent over the working-tree diff)
+
+**1 BLOCKER, several ISSUEs.** BLOCKER: only HALF the approved fix had landed --
+the present-but-empty count, not the absent-leaf-list scan -- and the omission was
+justified in a code comment by a claim this spec had already refuted (A-2): that
+absence is the mandatory check's business. It is not. Verified at the producer:
+goyang's `case *LeafList:` synthesizes a `Leaf` WITHOUT copying `Mandatory`, and
+`*LeafList` has no `Mandatory` field at all, so `Entry.Mandatory` is `TSUnset`
+forever for a leaf-list. Omitting the leaf entirely -- the shape an operator is
+most likely to write -- was therefore still inert. FIXED: absent scan added over
+`entry.Dir`, proven end to end.
+
+Reviewer also corrected three claims of mine (now recorded in the CORRECTIONS
+block): the max case IS a literal duplicate; two VRRP `.ci` files DO use
+`reject=`; and A-6 is wrong.
+
+### Run 2 (fresh pass over the round-1 fixes)
+
+**0 BLOCKER.** The availability regression I asked the reviewer to hunt -- the new
+absence scan firing for features an operator never configured -- was proven NOT to
+exist, empirically: all 9 `min-elements` schema paths are leaf-lists nested inside
+a LIST, `walkTree` descends into a list only for entries present in the data, and
+running EVERY validated section against empty data produced exactly one error (the
+pre-existing `bgp/router-id` mandatory diagnostic) and zero new "too few entries".
+
+ISSUEs from run 2 and their disposition:
+- R-7's rationale did not cover the absent case, where the two errors ARE the same
+  violation. FIXED: R-7 extended above; duplicate accepted on stated grounds.
+- Test coverage was flat/synthetic while the real declaration is six levels deep
+  inside a list. FIXED: `TestWalkTreeNestedLeafListCardinality` added, covering
+  container/list[key]/leaf-list AND asserting an ABSENT list emits nothing (the
+  availability guard). Proven non-vacuous: removing the scan flips exactly the two
+  absent rows.
+- A-6 still marked "confirmed". FIXED above.
+- Spec described a test that was not written. FIXED.
+- OPEN, not fixed, recorded deliberately: `cmd_validate.go` maps `ErrTypeMissing`
+  to a WARNING but `ErrTypeCardinality` to a hard error, so an absent
+  `mandatory true` leaf warns while an absent min-bounded leaf-list rejects. Both
+  mean "must be present". Harmless today (the only reachable case is
+  plugin-backstopped) but the asymmetry is real and belongs to whoever revisits
+  severity policy.
+- OPEN: TACACS `profile` (`min-elements 1`) remains FULLY INERT -- `system` is not
+  in `yangSectionsToValidate`, so 1 of the 3 `min-elements` declarations in the
+  tree is still unenforced after this spec. Already tracked as R-6 / AC-9; restated
+  here so the Implementation Summary cannot imply full coverage.
+- OPEN: the LIST branch has the same 0-count hole, in two places. No live impact
+  (no `list` declares `min-elements`), recorded rather than scope-crept.
+
+### Still outstanding before closure
+- `test/parse/sysctl-profile-max-elements-ok.ci` (Files to Create) does not exist.
+- No functional `.ci` anywhere exercises `min-elements` (`grep "too few entries" test/` = 0).
+- The `.ci` the Wiring Test leans on is STALE: the max-elements half shipped in
+  `0305077f9`, so that test passes at HEAD and proves nothing about this diff.
 <!-- The Review Gate applies when an option is chosen and implemented. -->
 
 ### Run 1 (initial)
