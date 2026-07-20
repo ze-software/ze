@@ -14,6 +14,7 @@ gh-pages worktree is not checked out beside the main repo.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 import tempfile
@@ -55,21 +56,32 @@ def metric(
 
 @unittest.skipUnless(HAVE_SITE, "gh-pages worktree not checked out beside main/")
 class TestRendererComputesNothing(unittest.TestCase):
-    """The renderer's entire contract: read the committed numbers, invent none.
+    """The renderer invents no numbers of its own: it delegates to the ONE
+    generator in the main repository (read-only, at build time) and falls back to
+    the committed snapshot.
 
     VALIDATES: spec AC-16.
     PREVENTS: the site and the repository publishing two different answers to the
     same question, which is the defect the whole spec exists to correct.
     """
 
-    def test_source_never_measures_the_tree(self):
+    def test_source_never_measures_the_tree_directly(self):
+        """It may shell out to the canonical generator, but must not re-measure
+        the tree itself (no rglob/glob, no test-file walking)."""
         src = RENDERER.read_text()
-        for forbidden in ("rglob", "_test.go", "subprocess"):
+        for forbidden in ("rglob", "os.walk", "_test.go"):
             self.assertNotIn(
                 forbidden,
                 src,
-                "the renderer must read committed JSON, never measure the tree itself",
+                "the renderer must delegate to testing_health.py, never measure the tree itself",
             )
+
+    def test_delegates_to_the_main_generator(self):
+        """The freshness the user asked for comes from running the generator."""
+        src = RENDERER.read_text()
+        self.assertIn("--emit-page", src)
+        self.assertIn("--json", src)
+        self.assertIn("testing_health.py", src)
 
     def test_values_pass_through_verbatim(self):
         r = load_renderer()
@@ -162,30 +174,38 @@ class TestAttentionOrdering(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_SITE, "gh-pages worktree not checked out beside main/")
 class TestMissingDataFailsLoudly(unittest.TestCase):
-    """A health page with no health data must fail the site build, not render empty."""
+    """A health page with no health data must fail the site build, not render empty.
+
+    These exercise the committed-file FALLBACK, so the generator is disabled: with
+    the main tree present `load()` regenerates and never reads the file. The point
+    is that a checkout where neither the generator nor the snapshot can be read
+    warns and renders nothing, rather than rendering an empty page.
+    """
 
     def test_missing_latest_json_warns(self):
         r = load_renderer()
         import sitelib
 
         before = len(sitelib.build_warnings())
-        original = r.LATEST
+        gen, latest = r.GENERATOR, r.LATEST
         try:
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
             with tempfile.TemporaryDirectory() as tmp:
                 r.LATEST = pathlib.Path(tmp) / "absent.json"
                 metrics, _history = r.load()
             self.assertIsNone(metrics)
             self.assertGreater(len(sitelib.build_warnings()), before)
         finally:
-            r.LATEST = original
+            r.GENERATOR, r.LATEST = gen, latest
 
     def test_unreadable_latest_json_warns(self):
         r = load_renderer()
         import sitelib
 
         before = len(sitelib.build_warnings())
-        original = r.LATEST
+        gen, latest = r.GENERATOR, r.LATEST
         try:
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
             with tempfile.TemporaryDirectory() as tmp:
                 bad = pathlib.Path(tmp) / "latest.json"
                 bad.write_text("{not json}")
@@ -194,7 +214,64 @@ class TestMissingDataFailsLoudly(unittest.TestCase):
             self.assertIsNone(metrics)
             self.assertGreater(len(sitelib.build_warnings()), before)
         finally:
-            r.LATEST = original
+            r.GENERATOR, r.LATEST = gen, latest
+
+    def test_missing_generator_with_present_main_warns(self):
+        """A present main tree whose generator file vanished must warn, not
+        silently serve possibly-stale committed numbers -- the anti-stale point
+        of running the generator at build time only holds if its absence is loud.
+        """
+        r = load_renderer()
+        import sitelib
+
+        self.assertTrue(r.MAIN.exists(), "test assumes the main tree is present")
+        before = len(sitelib.build_warnings())
+        gen = r.GENERATOR
+        try:
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
+            self.assertIsNone(r._generate("--json"))
+            self.assertGreater(len(sitelib.build_warnings()), before)
+        finally:
+            r.GENERATOR = gen
+
+
+@unittest.skipUnless(HAVE_SITE, "gh-pages worktree not checked out beside main/")
+class TestLoadRegeneratesFromTree(unittest.TestCase):
+    """The published numbers come from the tree being built, not the commit.
+
+    VALIDATES: the site regenerates test-health from main's live tree at build
+    time, so `make build` in gh-pages publishes current numbers even when
+    test/health/latest.json was committed before the last test change.
+    PREVENTS: the site silently serving stale numbers (the reason this path
+    exists) -- a regressing metric would keep reading green on the site until
+    someone re-ran `make ze-test-health` and re-committed the snapshot.
+    """
+
+    def test_generator_output_supersedes_a_stale_snapshot(self):
+        r = load_renderer()
+        # A sentinel snapshot that could never come from the live generator.
+        latest = r.LATEST
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                stale = pathlib.Path(tmp) / "latest.json"
+                stale.write_text(
+                    json.dumps(
+                        {"metrics": [{"key": "STALE-SENTINEL", "value": "0 / 0"}]}
+                    )
+                )
+                r.LATEST = stale
+                metrics, _history = r.load()
+            self.assertIsNotNone(metrics)
+            keys = {m.get("key") for m in metrics}
+            self.assertNotIn(
+                "STALE-SENTINEL",
+                keys,
+                "load() served the committed snapshot instead of regenerating",
+            )
+            # And it really is the generator's live output.
+            self.assertIn("rfc-proof-density", keys)
+        finally:
+            r.LATEST = latest
 
 
 @unittest.skipUnless(HAVE_SITE, "gh-pages worktree not checked out beside main/")
@@ -209,38 +286,37 @@ class TestMarkdownSiblingMirrorsTheRepository(unittest.TestCase):
     the defect this whole feature exists to remove.
     """
 
-    def test_sibling_is_the_repository_page_verbatim(self):
+    def test_sibling_is_the_generator_output_when_available(self):
+        """The mirror is what the main generator emits, so the site is current."""
         r = load_renderer()
-        self.assertTrue(
-            r.PAGE_MD.exists(), f"{r.PAGE_MD} should be generated and committed"
-        )
-        self.assertEqual(r.page_markdown(), r.PAGE_MD.read_text())
+        fresh = r._generate("--emit-page")
+        self.assertIsNotNone(fresh, "the main generator should run in this checkout")
+        self.assertEqual(r.page_markdown(), fresh)
 
-    def test_published_sibling_matches_the_repository_page(self):
-        """The file actually on disk in gh-pages, not just what the function returns."""
+    def test_sibling_falls_back_to_committed_page_without_the_generator(self):
         r = load_renderer()
-        published = r.DEST.with_name("index.md")
-        if not published.exists():
-            self.skipTest("site not built in this checkout")
-        self.assertEqual(
-            published.read_text(),
-            r.PAGE_MD.read_text(),
-            "quality/health/index.md has drifted from docs/features/test-health.md",
-        )
+        original = r.GENERATOR
+        try:
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
+            self.assertTrue(r.PAGE_MD.exists())
+            self.assertEqual(r.page_markdown(), r.PAGE_MD.read_text())
+        finally:
+            r.GENERATOR = original
 
-    def test_missing_repository_page_warns_and_writes_nothing(self):
+    def test_both_unavailable_warns_and_writes_nothing(self):
         r = load_renderer()
         import sitelib
 
         before = len(sitelib.build_warnings())
-        original = r.PAGE_MD
+        gen, page = r.GENERATOR, r.PAGE_MD
         try:
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
             with tempfile.TemporaryDirectory() as tmp:
                 r.PAGE_MD = pathlib.Path(tmp) / "absent.md"
                 self.assertIsNone(r.page_markdown())
             self.assertGreater(len(sitelib.build_warnings()), before)
         finally:
-            r.PAGE_MD = original
+            r.GENERATOR, r.PAGE_MD = gen, page
 
     def test_renderer_composes_no_markdown_of_its_own(self):
         """A grep-level guard: reintroducing a local composer should fail here."""
@@ -250,6 +326,37 @@ class TestMarkdownSiblingMirrorsTheRepository(unittest.TestCase):
             src,
             "the site must mirror the repository's Markdown, never author its own",
         )
+
+    def test_render_writes_both_the_html_and_the_markdown_sibling(self):
+        """End-to-end: render() writes index.html AND the index.md mirror.
+
+        VALIDATES: the composed on-disk write -- the one thing the unit tests of
+        the constituent helpers cannot cover.
+        PREVENTS: a regression that composes the page in memory but writes only
+        one of the pair (or neither), shipping an HTML-only or empty health
+        section. This is the coverage the old byte-verbatim mirror test carried
+        before build-time regeneration made that exact assertion invalid.
+        """
+        import contextlib
+        import io
+
+        r = load_renderer()
+        gen, dest = r.GENERATOR, r.DEST
+        try:
+            # Disable the generator so page_markdown falls back to the committed
+            # page: no subprocess, so the test is fast and deterministic.
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
+            with tempfile.TemporaryDirectory() as tmp:
+                r.DEST = pathlib.Path(tmp) / "quality" / "health" / "index.html"
+                with contextlib.redirect_stdout(io.StringIO()):
+                    r.render([metric(key="a", label="X", status="ok")], [])
+                sibling = r.DEST.with_name("index.md")
+                self.assertTrue(r.DEST.exists(), "index.html was not written")
+                self.assertTrue(sibling.exists(), "index.md sibling was not written")
+                self.assertGreater(len(r.DEST.read_text()), 0)
+                self.assertGreater(len(sibling.read_text()), 0)
+        finally:
+            r.GENERATOR, r.DEST = gen, dest
 
 
 @unittest.skipUnless(HAVE_SITE, "gh-pages worktree not checked out beside main/")
@@ -349,12 +456,14 @@ class TestMalformedMetricsDegrade(unittest.TestCase):
         self.assertLess(out.index("typo"), out.index("warned"))
 
     def test_top_level_array_is_reported_not_raised(self):
+        # Malformed committed snapshot, generator disabled so the fallback is read.
         r = load_renderer()
         import sitelib
 
         before = len(sitelib.build_warnings())
-        original = r.LATEST
+        gen, latest = r.GENERATOR, r.LATEST
         try:
+            r.GENERATOR = pathlib.Path("/nonexistent/testing_health.py")
             with tempfile.TemporaryDirectory() as tmp:
                 bad = pathlib.Path(tmp) / "latest.json"
                 bad.write_text("[1, 2, 3]")
@@ -363,7 +472,7 @@ class TestMalformedMetricsDegrade(unittest.TestCase):
             self.assertIsNone(metrics)
             self.assertGreater(len(sitelib.build_warnings()), before)
         finally:
-            r.LATEST = original
+            r.GENERATOR, r.LATEST = gen, latest
 
 
 @unittest.skipUnless(HAVE_SITE, "gh-pages worktree not checked out beside main/")
