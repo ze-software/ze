@@ -345,7 +345,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | hub, API commands | `hub-architecture.md`, `hub-api-commands.md` |
 | cache, update cache | `update-cache.md`, `update-density-analysis.md` |
 | metadata, route meta | `meta/README.md` |
-| interop, test infra | `testing/interop.md`, `testing/ci-format.md` |
+| interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md`, `../plan/spec-bgp-plugin-speaker.md` |
 | zefs, blob, netcapstring, storage | `zefs-format.md`, `fleet-config.md` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |

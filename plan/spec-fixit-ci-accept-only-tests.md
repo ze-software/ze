@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-20 |
 
 ## Post-Compaction Recovery
 
@@ -109,7 +109,42 @@ WEAK ASSERTIONS in EXISTING tests. Reference, do not duplicate.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | `ze config dump -` prints the stored value for every scalar/block a readback needs | `cmd_dump.go:18` reads stdin and dumps the parsed tree (human + `--json`) | some values not rendered; use `--json` or `ze config show <path>` | run dump on ntp/geodns configs during implement | unvalidated |
+| A-1 | `ze config dump -` prints the stored value for every scalar/block a readback needs | `cmd_dump.go:18` reads stdin and dumps the parsed tree (human + `--json`) | some values not rendered; use `--json` or `ze config show <path>` | run dump on ntp/geodns configs during implement | **BROKEN -- see below. The `--json` fallback in "If wrong" is the working path.** |
+
+→ A-1 VALIDATED AND BROKEN (2026-07-20), by running the real binary against the
+real fixtures. The AC-1/AC-2 plan as written (`ze config dump -` +
+`expect=stdout:contains=interval 300`) **cannot work**, for two independent
+reasons:
+
+1. **`ze config dump -` refuses an ntp-only or geodns-only config outright.**
+   Feeding `test/parse/ntp-config.ci`'s stdin block to `./bin/ze config dump -`
+   exits non-zero with `Error resolving config: missing required bgp { } block`.
+   Both target fixtures are exactly that shape, so the readback step would fail
+   before asserting anything. Note `ze config validate -` accepts the same input
+   (that is what the fixtures assert today) -- so validate and dump disagree
+   about whether a `bgp { }` block is required, which is worth a look in its own
+   right.
+2. **Even with a `bgp { }` block added, the HUMAN dump does not render the
+   value.** With `bgp { router-id 10.0.0.1 }` prepended, `ze config dump -`
+   prints only `router-id: 10.0.0.1` -- the whole `environment.ntp` subtree is
+   absent, so `contains=interval 300` would never match.
+
+`ze config dump --json -` **does** render it (same input): the output contains
+`"environment": { "ntp": { "enabled": "true", "interval": "300",
+"max-step": "120", "server": { "pool0": { "address": "0.pool.ntp.org" } ... } } }`.
+
+→ Decision for the implementer: use `ze config dump --json -`, and assert on the
+JSON spelling (`"interval": "300"`), NOT the human form. Note the values are
+JSON STRINGS, not numbers -- `contains=interval 300` fails, `contains="interval": "300"`
+matches. The `bgp { }` prerequisite still applies, so either prepend a minimal
+block (and accept that the fixture then no longer proves an ntp-ONLY config
+validates) or keep the existing `validate` step on the original input and add the
+readback as a second `cmd=` against an augmented stdin block. The second shape
+preserves what the fixture proves today and is the recommended one.
+
+→ Status of this spec: design investigation done, implementation NOT started.
+Returned to `ready` deliberately rather than left `in-progress`, so the backlog
+stays honest. The finding above is the part worth keeping.
 | A-2 | The accept-only predicate is decidable from parsed `Record` fields alone | `record_parse.go` populates distinct fields per assertion kind (:451/:586) | predicate needs raw-text heuristics (tmpfs `set -e`) too | encode predicate + unit test it against ntp/geodns (flag) and auth-reject (no flag) | partially confirmed (tmpfs `set -e` needs a raw-text check) |
 | A-3 | Not all ~118 need strengthening; some are unit-covered and annotate instead | scope item 2; count-only rule | over-strengthening duplicates unit coverage | triage the list; annotate where unit tests already assert the value | unvalidated (resolve during implement) |
 

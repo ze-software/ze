@@ -6,7 +6,7 @@ documentation check is still explicit, while `make ze-verify` runs a
 changed-file-aware wiring, documentation, command, and inventory gate.
 
 <!-- source: mk/inventory.mk -- ze-doc-test and ze-verify-wiring-docs -->
-<!-- source: Makefile -- _ze-verify-impl -->
+<!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 ## Quick start
 
@@ -26,9 +26,9 @@ checks needed for the current diff and is included in `make ze-verify`.
 |------|-------------|-------------------|
 | `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, `docs/functional-tests.md` release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. |
 | `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
-| `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale` and `ze-doc-test` | Every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, and check mode does not regenerate `ai/CODE-TO-DOCS.md`. |
+| `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale`, `ze-doc-test` and `ze-regen-check-readonly` | Two things: every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, AND `ai/CODE-TO-DOCS.md` itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale `ai/CODE-TO-DOCS.md` reported "all references valid" and exit 0 (it had drifted by 24 code paths). The two failures report separately: a stale FILE names the regen target, a broken ANCHOR prints `MISSING: <path>` with its referencing doc and line. |
 | `scripts/dev/digest_check.py` | `ze-digest-check` and `ze-doc-test` | Every `file:line` anchor in `ai/digests/*.md` resolves to a real file (subsystem-relative via each digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. |
-| `scripts/dev/learned_numbers.py --check` | `ze-learned-numbers-check` and `ze-doc-test` | Every `plan/learned/NNN-*.md` number is claimed by exactly one summary, each H1 number matches its filename, and `plan/learned/.counter` sits above the highest number. Duplicates are invisible to `commit_helper.py learned-next`, which allocates against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with `make ze-learned-numbers-fix`, then `make ze-discovery-index`. |
+| `scripts/dev/learned_numbers.py --check` | `ze-learned-numbers-check`, `ze-doc-test` and `ze-regen-check-readonly` (via `ze-discovery-index-check`) | Every `plan/learned/NNN-*.md` number is claimed by exactly one summary, each H1 number matches its filename, and `plan/learned/.counter` sits above the highest number. Duplicates are invisible to `commit_helper.py learned-next`, which allocates against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with `make ze-learned-numbers-fix`, then `make ze-discovery-index`. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 | `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
 
@@ -61,7 +61,7 @@ The full `ze-doc-test` remains the explicit documentation review target.
 command, inventory, and wiring checks for changed files.
 
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
-<!-- source: Makefile -- _ze-verify-impl -->
+<!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 ## How to interpret output
 

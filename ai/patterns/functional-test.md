@@ -41,7 +41,6 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 | `test/vpp/` | VPP backend | VPP FIB, interfaces |
 | `test/static/` | Static routes | Static route installation |
 | `test/ipsec/` | IPsec/IKE | IKEv2 sessions, SAs |
-| `test/pppoe/` | PPPoE | Access concentrator (Ze as server) |
 | `test/pppoe-interop/` | PPPoE interop | Ze PPPoE client vs accel-ppp AC |
 | `test/stress/` | Stress testing | High-volume UPDATE streams |
 

@@ -126,7 +126,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `rfc7474` | 10 | 7 | 0 | 3 | 0 | 0 | **enrolled** |
 | `rfc7534` | 3 | 2 | 0 | 1 | 0 | 0 | **enrolled** |
 | `rfc7535` | 1 | 0 | 0 | 1 | 0 | 0 | **enrolled** |
-| `rfc7606` | 52 | 43 | 0 | 9 | 0 | 0 | **enrolled** |
+| `rfc7606` | 52 | 44 | 0 | 8 | 0 | 0 | **enrolled** |
 | `rfc7611` | 5 | 0 | 0 | 5 | 0 | 0 | **enrolled** |
 | `rfc7684` | 8 | 5 | 0 | 3 | 0 | 0 | **enrolled** |
 | `rfc7752` | 26 | 6 | 0 | 20 | 0 | 0 | **enrolled** |
@@ -967,7 +967,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC2661-4.3-2` | MAY | 4.3 | -- | -- |  |
 | `RFC2661-5.8-1` | MUST | 5.8 | `internal/component/l2tp/reliable_test.go:371` | -- | {single-polarity} the engine doubles the retransmit timeout on each expiry, and exponential growth is a positive behavior with no meaningful negation on a correct implementation (internal/component/l2tp/reliable.go:591-595) |
 | `RFC2661-5.8-2` | MUST | 5.8 | `internal/component/l2tp/reliable_seq_test.go:94` | -- | {single-polarity} the default backoff cap is the 16s constant and the reactor always constructs engines with RTimeoutCap unset, so the cap is always at least 8s with no config path or floor guard to test negatively (internal/component/l2tp/reliable_seq.go:19, reliable.go:291-292) |
-| `RFC2661-5.8-3` | MUST | 5.8 | `internal/component/l2tp/reactor_test.go:1179`, `internal/component/l2tp/reliable_test.go:411` | `internal/component/l2tp/reliable_test.go:414` |  |
+| `RFC2661-5.8-3` | MUST | 5.8 | `internal/component/l2tp/reactor_test.go:1202`, `internal/component/l2tp/reliable_test.go:411` | `internal/component/l2tp/reliable_test.go:414` |  |
 | `RFC2661-5.8-4` | MUST | 5.8 | `internal/component/l2tp/reliable_test.go:338` | `internal/component/l2tp/reliable_test.go:341` |  |
 | `RFC2661-5.8-5` | MUST | 5.8 | `internal/component/l2tp/reliable_test.go:146` | `internal/component/l2tp/reliable_test.go:148` |  |
 | `RFC2661-5.8-6` | MUST | 5.8 | `internal/component/l2tp/reliable_window_test.go:183` | `internal/component/l2tp/reliable_window_test.go:112` |  |
@@ -3477,7 +3477,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC7606-4-1` | MUST | 4 | `internal/component/bgp/message/rfc7606_test.go:1588` | `internal/component/bgp/message/rfc7606_structural_test.go:237` |  |
 | `RFC7606-4-2` | MUST | 4 | `internal/component/bgp/message/rfc7606_test.go:189`, `internal/component/bgp/message/rfc7606_test.go:1589` | `internal/component/bgp/message/rfc7606_structural_test.go:273` |  |
 | `RFC7606-5.1-1` | MUST | 5.1 | -- | -- | {gap} Ze intentionally emits MP_UNREACH first and MP_REACH last, treating them as NLRI-carrying wire structures rather than descriptive attributes; deliberate design decision recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row |
-| `RFC7606-5.1-2` | MUST NOT | 5.1 | -- | -- | {gap} narrowed, not closed. Ze ORIGINATES only compliant UPDATEs (UpdateBuilder.BuildUnicast sets NLRI without WithdrawnRoutes, update_build.go:380-383; withdrawals are withdraw-only, peer_rib_routes.go:170-199), and buildCombinedUpdates now emits each NLRI-bearing component in its own message (wireu/split.go). Two relay paths still reproduce a received shape: a same-context UPDATE that fits is forwarded verbatim (reactor/forward_body.go:63-65), and a re-encoded destUpdate that fits is emitted whole with both WithdrawnRoutes and NLRI (forward_body.go:99). Closing those costs the zero-copy forward path for every mixed UPDATE, so it is owned by plan/spec-rfc7606-5-1-2-relay-shape.md, which measures how often the mixed shape actually occurs before paying that. Same family as the 5.1-1 divergence, and disclosed in the docs/features/rfc-status.md RFC 7606 row |
+| `RFC7606-5.1-2` | MUST NOT | 5.1 | `internal/component/bgp/message/rfc7606_shape_test.go:55`, `internal/component/bgp/message/rfc7606_shape_test.go:119`, `internal/component/bgp/reactor/forward_body_rfc7606_test.go:51`, `internal/component/bgp/reactor/forward_body_rfc7606_test.go:156`, `internal/component/bgp/wireu/shape_rfc7606_test.go:23`, `internal/component/bgp/wireu/split_eor_test.go:32` | `internal/component/bgp/message/rfc7606_shape_test.go:151`, `internal/component/bgp/reactor/forward_body_rfc7606_test.go:116`, `internal/component/bgp/wireu/shape_rfc7606_test.go:58` |  |
 | `RFC7606-5.1-3` | MUST | 5.1 | `internal/component/bgp/message/rfc7606_test.go:662` | -- | {single-polarity} the obligation is to ACCEPT MP attributes in any position, so the only conforming assertion is acceptance -- a negative would assert a rejection the RFC forbids |
 | `RFC7606-5.2-1` | MUST | 5.2 | `internal/component/bgp/message/rfc7606_test.go:1405`, `internal/component/bgp/message/rfc7606_test.go:1445`, `internal/component/bgp/message/rfc7606_test.go:2251` | `internal/component/bgp/message/rfc7606_test.go:1425`, `internal/component/bgp/message/rfc7606_test.go:2237` |  |
 | `RFC7606-5.3-1` | MUST | 5.3 | `internal/component/bgp/message/rfc7606_structural_test.go:54` | `internal/component/bgp/message/rfc7606_test.go:807`, `internal/component/bgp/reactor/session_validate_test.go:107` |  |

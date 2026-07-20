@@ -4,8 +4,8 @@ Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before An
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
 **Scope: non-deterministic (flaky/environmental) TEST reds only.** Deterministic
-structural gates (`ze-lint`, `ze-tier-check`, `ze-vet-evidence`,
-`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-cli-grammar-check`,
+structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-vet-evidence`,
+`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-regen-check-readonly`,
 `ze-verify-wiring-docs`) are NEVER logged here -- a red means the tree is
 structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
 this by refusing `--unverified` while a structural gate is red (see

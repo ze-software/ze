@@ -47,6 +47,45 @@ design or code. They are filed here so they keep a destination and stay visible 
 the commit gate, per `ai/rules/deferral-tracking.md`. Neither needs a design phase;
 whoever picks this up can go straight to doing them carefully.
 
+## Investigation results (2026-07-20) -- read before doing either item
+
+### Item 2 is a NO-OP. Do not prune anything.
+
+VERIFIED against the current tree: **there are no un-indexed learned summaries.**
+All 1199 numbered files under `plan/learned/` appear in `ai/LEARNED-FULL-INDEX.md`.
+
+The single file that is not indexed is `plan/learned/METHODOLOGY.md`, and it is
+excluded BY DESIGN, not by drift: `entries()` (`scripts/dev/learned_index.py:40`)
+globs `[0-9]*.md`, so a non-numbered file can never be indexed. `METHODOLOGY.md`
+is the "Knowledge Extraction Methodology" doc that tells authors how to write a
+summary -- it is not a summary. **Pruning it would delete live documentation.**
+
+The spec's own framing anticipated this ("the set moves as sessions land
+summaries"): whatever was un-indexed on 2026-07-17 has since been indexed by a
+`make ze-regen`. Item 2 needs no action beyond this record.
+
+### Item 1's premise CONFIRMED -- it is one `git rm`, gated only on the commit gate.
+
+`plan/spec-ipsec-13-rekey-wire.md` still declares `| Status | in-progress |`, and
+the evidence that commit A already ran is present:
+
+- `plan/learned/1069-ipsec-13-rekey-wire.md` exists (the learned summary commit A carries).
+- Its Review Gate reached a clean verdict at **Run 3**: *"0 BLOCKER, 0 ISSUE.
+  Engine `-race` + `ze-lint-changed` green; interop `05-child-rekey` re-verified
+  PASS."* Runs 1 and 2 each found real issues (an `sa.State` data race, a
+  malformed-rekey collision, a DPD correlation hole introduced by the Run-1 fix)
+  and each was fixed with a named regression test -- so the gate was genuinely
+  worked, not rubber-stamped.
+
+So the spec's caution ("do NOT close it on the strength of the flag alone -- read
+its Review Gate first") is discharged: the work landed and the review is clean.
+Closing it is commit B alone -- `git rm plan/spec-ipsec-13-rekey-wire.md`.
+
+**Why it was not done in this session:** commit B is a commit, and the tree could
+not commit (a structural `ze-lint-changed` red from a concurrent session's
+uncommitted files -- see `tmp/session/fixit-campaign-queue.md`). Nothing else
+blocks it.
+
 **Caution:** item 1 closes a spec this session did not implement. `ai/rules/planning.md`
 Spec Closure is BLOCKING and the learned summary is part of commit A, not a follow-up.
 

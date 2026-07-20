@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1201 summaries
+Total: 1202 summaries
 
 ## 000-099
 
@@ -1275,3 +1275,4 @@ Total: 1201 summaries
 | 1227 | fixit-verify-stage-ssot | `plan/learned/1227-fixit-verify-stage-ssot.md` |
 | 1228 | rule-format-condensed-eager-load | `plan/learned/1228-rule-format-condensed-eager-load.md` |
 | 1229 | CI validation moved from Codeberg Woodpecker to GitHub Actions | `plan/learned/1229-ci-validation-github-not-codeberg.md` |
+| 1230 | YANG leaf-list min-elements was inert; the count-0 case was the hole | `plan/learned/1230-yang-min-elements-inert.md` |
