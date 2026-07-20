@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -558,6 +559,84 @@ class TestStructuralGateRemediation(unittest.TestCase):
                 self.assertIn("NOT", msg)
         finally:
             ch.verify_status, ch.structural_gate_reds = saved
+
+
+class TestStructuralGatesAreLiveStages(unittest.TestCase):
+    """STRUCTURAL_GATES must only name stages `make ze-verify` actually runs.
+
+    structural_gate_reds() matches these names against the `stage` field of
+    tmp/ze-verify-failures.json, which verify_run.go fills from stagesForMode().
+    A name absent from stagesForMode can never match, so it silently gates
+    nothing while reading as a live safety net -- exactly what
+    `ze-cli-grammar-check` did (it is a real make target in mk/inventory.mk, but
+    was only ever a stage of the dead _ze-verify-impl targets).
+
+    The live names are PARSED out of stagesForMode rather than restated here:
+    a second hand-kept copy of the stage list is the bug this test exists to
+    prevent (ai/rules/derive-not-hardcode.md). That is the opposite choice from
+    the goldens in verify_run_test.go, and deliberately so -- a golden's job is
+    to be a change-detector for the list itself, while this test only needs to
+    know what the list currently CONTAINS in order to check a subset relation.
+
+    CACHING: this file runs as a python3 subprocess under TestPythonUnitTests
+    (scripts/dev/python_tests_test.go), so verify_run.go is NOT a `go test`
+    cache input for it. Editing verify_run.go alone can therefore serve a cached
+    PASS here (and under ze-verify-changed, changed-pkgs.sh maps a *.go edit to
+    ./scripts/status only, never ./scripts/dev). The direction this test DOES
+    cover reliably is an edit to commit_helper.py, which does invalidate
+    ./scripts/dev. The other direction is covered by the Go twin,
+    TestStructuralGatesAreLiveStages in scripts/status/verify_run_test.go, which
+    calls stagesForMode in-process. Keep BOTH; each closes the other's hole.
+    """
+
+    def _live_stage_names(self) -> set[str]:
+        repo = Path(__file__).resolve().parents[2]
+        src_path = repo / "scripts" / "status" / "verify_run.go"
+        try:
+            src = src_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            self.fail(
+                f"cannot read {src_path} ({exc}) -- did verify_run.go move? "
+                "Update _live_stage_names."
+            )
+        start = src.find("func stagesForMode(")
+        if start < 0:
+            self.fail(
+                f"stagesForMode not found in {src_path} -- renamed or moved? "
+                "Update _live_stage_names. This test must not pass vacuously."
+            )
+        end = src.find("\nfunc ", start + 1)
+        if end < 0:
+            # stagesForMode is the last function in the file.
+            end = len(src)
+        body = src[start:end]
+        # Strip line comments BEFORE matching. Without this, a commented-out or
+        # historical `mk("...")` inside the function body counts as a live stage,
+        # which silently re-admits a dead STRUCTURAL_GATES entry -- the exact
+        # false negative this test exists to prevent. (No `mk("...")` call in
+        # this codebase is preceded by a `//` on the same line, so dropping
+        # everything after `//` cannot lose a real one.)
+        body = re.sub(r"//.*", "", body)
+        return set(re.findall(r'\bmk\("([^"]+)"\)', body))
+
+    def test_structural_gates_are_live_stages(self):
+        live = self._live_stage_names()
+        # Guard against a parse that silently matched nothing: an empty set
+        # would make the subset assertion below pass vacuously.
+        self.assertGreater(
+            len(live), 10, f"parsed too few stages from stagesForMode: {live}"
+        )
+        dead = sorted(ch.STRUCTURAL_GATES - live)
+        self.assertEqual(
+            dead,
+            [],
+            "STRUCTURAL_GATES names stages that stagesForMode never emits, so "
+            f"structural_gate_reds can never match them: {dead}",
+        )
+
+    def test_structural_gates_is_not_empty(self):
+        # The subset assertion above is satisfied by an empty frozenset too.
+        self.assertTrue(ch.STRUCTURAL_GATES)
 
 
 if __name__ == "__main__":

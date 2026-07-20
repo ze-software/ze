@@ -526,9 +526,14 @@ def verify_status(repo: Path) -> tuple[str, str]:
 # scripts/status/verify_run.go stagesForMode). Unlike the unit/functional/exabgp
 # TEST stages, these NEVER fail for flaky or environmental reasons: a red means
 # the tree is structurally broken -- a module-tier misplacement, a lint or vet
-# violation, a broken plugin boundary, an unresolved iface, or a stale wiring
-# index. They are therefore NOT eligible to be parked in plan/known-failures.md
-# or waved through with --unverified. See ai/rules/git-safety.md.
+# violation, a broken plugin boundary, an unresolved iface, a stale generated
+# file, or a stale wiring index. They are therefore NOT eligible to be parked
+# in plan/known-failures.md
+# or waved through with --unverified. Every name here MUST be a stage that
+# stagesForMode actually emits, or it matches nothing and gates nothing;
+# that is enforced by TestStructuralGatesAreLiveStages (Go, scripts/status)
+# and test_structural_gates_are_live_stages (Python, scripts/dev).
+# See ai/rules/git-safety.md.
 STRUCTURAL_GATES = frozenset(
     {
         "ze-lint",
@@ -536,7 +541,7 @@ STRUCTURAL_GATES = frozenset(
         "ze-tier-check",
         "ze-iface-resolution-check",
         "ze-plugin-boundary-check",
-        "ze-cli-grammar-check",
+        "ze-regen-check-readonly",
         "ze-verify-wiring-docs",
         "ze-vet-evidence",
     }
@@ -1291,7 +1296,7 @@ def create(args: argparse.Namespace) -> int:
     vstate, detail = verify_status(repo)
     if vstate == "stale":
         # A DETERMINISTIC STRUCTURAL GATE red (tier/lint/vet/plugin-boundary/
-        # iface-resolution/cli-grammar/wiring-docs) is never flaky or
+        # iface-resolution/regen-check-readonly/wiring-docs) is never flaky or
         # environmental: it means the tree is structurally broken. Such a red is
         # NOT bypassable by --unverified or a plan/known-failures.md known-red
         # (those cover flaky TEST stages only). This closes the hole that let a
@@ -1303,7 +1308,7 @@ def create(args: argparse.Namespace) -> int:
                 "ze-verify has a DETERMINISTIC STRUCTURAL GATE red that "
                 "--unverified cannot bypass: " + ", ".join(gate_reds) + ".\n"
                 "  Structural gates (tier/lint/vet/plugin-boundary/iface-resolution/\n"
-                "  cli-grammar/wiring-docs) never fail for flaky or environmental\n"
+                "  regen-check-readonly/wiring-docs) never fail for flaky or environmental\n"
                 "  reasons -- a red means the tree is structurally broken. They are\n"
                 "  NOT eligible for --unverified or a plan/known-failures.md known-red.\n"
                 "  Fix it at the source (run `make " + gate_reds[0] + "` to see the\n"

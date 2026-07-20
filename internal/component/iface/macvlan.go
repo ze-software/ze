@@ -26,14 +26,25 @@ const (
 	MacvlanModePrivate
 )
 
+// Wire names for the macvlan delivery modes, as the kernel and `ip link` spell
+// them. Deliberately NOT reusing discover.go's zeTypeBridge, which happens to
+// share the spelling: that constant names an interface DEVICE TYPE
+// (ethernet/veth/bridge/...), while these name a macvlan MODE. Coupling them
+// would mean a future rename of the device type silently changed a macvlan
+// mode string that the kernel defines.
+const (
+	macvlanModeNameBridge  = "bridge"
+	macvlanModeNamePrivate = "private"
+)
+
 // String is the canonical mode name, matching what the netlink backend reads
 // back from the kernel (show_linux.go) so the reconcile drift check can compare
 // a live device's mode against the desired one.
 func (m MacvlanMode) String() string {
 	if m == MacvlanModePrivate {
-		return "private"
+		return macvlanModeNamePrivate
 	}
-	return "bridge"
+	return macvlanModeNameBridge
 }
 
 // MacvlanSpec carries the parameters for a macvlan device that a plugin owns

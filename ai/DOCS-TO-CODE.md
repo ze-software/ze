@@ -2568,6 +2568,10 @@ Total: 297 design docs, 3028 files
 | `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
 | `internal/core/redact/redact.go` | credential-token redaction for logs |
 
+## `plan/learned/1226-test-health-dashboard.md`
+
+- `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -4216,10 +4220,6 @@ Total: 297 design docs, 3028 files
 ## `plan/spec-rfc7606-5-1-2-relay-shape.md`
 
 - `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
-
-## `plan/spec-test-health-dashboard.md`
-
-- `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
 
 ## `plan/spec-unify-filters.md`
 

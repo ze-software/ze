@@ -1,4 +1,4 @@
-// Design: plan/spec-test-health-dashboard.md -- test-sensitivity ratchet
+// Design: plan/learned/1226-test-health-dashboard.md -- test-sensitivity ratchet
 //
 // inert_tests finds tests that cannot do their job, which no count of
 // tests can reveal:
