@@ -129,6 +129,32 @@ back into a commit or upload is rejected with a clear error.
 <!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedBcryptLeaves -->
 <!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
 
+### Remote management listener guard
+
+Ze refuses to start an unauthenticated management service on a non-loopback
+listener. The guard runs before any covered listener binds:
+
+| Service | Authentication that permits a remote listener |
+|---------|------------------------------------------------|
+| Web in insecure mode | Disable insecure mode and configure users |
+| MCP | Configure a bearer token or another authenticated `auth-mode` |
+| gNMI | Configure `ze.gnmi.token` or `environment.gnmi token` |
+| REST and gRPC API | Configure an API token or initialize zefs users |
+
+Literal addresses in `127.0.0.0/8` and `::1` count as loopback. Wildcard
+addresses (`0.0.0.0`, `::`, or `:port`), empty addresses, DNS names, and even
+the name `localhost` are treated as non-loopback because the guard fails closed
+when it cannot prove an address is local.
+
+An unsafe web, MCP, REST, or gRPC listener migration on reload is rejected
+before any listener changes; the service keeps its previous addresses. The
+public Looking Glass is a separate, intentionally unauthenticated read-only
+service. Its deployment guidance is in [Public looking glass](looking-glass-howto.md).
+
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
+<!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
+
 ### Tab completion (`ze completion`)
 
 Tab completion runs silently in the shell and does not accept flags. To

@@ -113,6 +113,39 @@ Plugins can register custom event types via the `EventTypes` field in their regi
 These become valid in `receive` config directives and `subscribe-events` RPCs.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
 
+### Runtime subscriptions
+
+The Go SDK can subscribe at startup with `SetStartupSubscriptions` or after
+startup with `SubscribeEvents`. Each subscription carries its own namespace,
+event list, peer selector, format, and envelope preference. An empty namespace
+uses the protocol component's default namespace, normally `bgp`.
+
+The event name `"*"` expands at registration time to every event type currently
+registered in that namespace. This avoids a wildcard check on every delivered
+event. Events registered later require a new subscription.
+
+By default, `OnEvent` receives the original payload string. Call
+`SetEnvelope(true)` before startup when one handler needs to distinguish events
+from several namespaces or event types. Delivery then wraps the payload:
+
+```json
+{
+  "namespace": "vpn-ipsec",
+  "event": "sa-up",
+  "payload": {
+    "peer": "branch-a"
+  }
+}
+```
+
+The envelope sits inside the existing event string, so single-event and batch
+delivery use the same callback. Subscribers that do not opt in remain
+byte-compatible with earlier releases.
+
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions, SetEnvelope -->
+<!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput, EventEnvelope -->
+<!-- source: internal/component/plugin/server/dispatch.go -- wildcard expansion and enveloped delivery -->
+
 ### Directions
 
 ```

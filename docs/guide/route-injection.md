@@ -27,6 +27,28 @@ On Linux, the `fib-kernel` plugin programs selected routes through netlink.
 <!-- source: internal/component/sysrib/sysrib.go -- system RIB arbitration -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- Linux FIB programming -->
 
+### IPv6 next hops and extended next hop
+
+An injected IPv6 route carries its IPv6 next hop in MP_REACH_NLRI. An injected
+IPv4 unicast route can also use an IPv6 next hop when the destination peer
+negotiated Extended Next Hop, the RFC 8950 capability historically defined by
+RFC 5549.
+
+```bash
+ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1"
+ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+```
+
+Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
+next hop when selecting and forwarding it. `show bgp rib best` displays the
+recovered next hop. `show bgp rib received` currently renders only the legacy
+IPv4 NEXT_HOP attribute, so it omits MP next hops.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute MP_REACH emission -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
+<!-- source: internal/component/bgp/wireu/commit.go -- extended next-hop encoding -->
+
+
 <!-- terminal-demo: rib-fib -->
 
 ## Text Format

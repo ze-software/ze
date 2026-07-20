@@ -75,6 +75,7 @@ bgp {
                 port 11019;
             }
             route-monitoring-policy pre-policy;
+            loc-rib true;
             statistics-timeout 0;
         }
     }
@@ -89,6 +90,7 @@ bgp {
 | `address` | (required) | Collector IP address |
 | `port` | 11019 | Collector TCP port |
 | `route-monitoring-policy` | all | `pre-policy` (Adj-RIB-In), `post-policy` (Adj-RIB-Out, RFC 8671), or `all` |
+| `loc-rib` | false | Stream local RIB best-path changes as Loc-RIB Route Monitoring (RFC 9069, Peer Type 3) |
 | `statistics-timeout` | 0 | Seconds between statistics reports (0 = disabled) |
 
 The sender reconnects automatically with exponential backoff (30s to 720s)
@@ -134,6 +136,14 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)
 - Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)
 - Route-monitoring-policy controls which direction(s) are streamed
+- With `loc-rib true`, streams local RIB best-path changes as Loc-RIB Route
+  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
+  zero-length OPENs and the local router-id as Peer BGP ID, a full-table replay
+  on enable, and a Loc-RIB Peer Down on shutdown
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- RFC 9069 Loc-RIB monitoring -->
+<!-- source: internal/component/bgp/plugins/bmp/header.go -- PeerTypeLocRIB (Peer Type 3) -->
+<!-- source: rfc/short/rfc9069.md -- RFC 9069 requirement summary -->
 - Sends Termination before graceful disconnect
 
 ## Looking Glass Integration
@@ -187,6 +197,7 @@ other looking glass frontends.
 - **No per-NLRI ribout dedup:** all UPDATEs are forwarded to collectors
   as-is. Per-NLRI dedup requires parsing NLRIs from the raw UPDATE,
   which is a follow-up task.
-- **Loc-RIB** (RFC 9069) monitoring is not yet implemented (best-path events
-  exist in the RIB plugin but are not yet wired to BMP).
+- **Loc-RIB Route Monitoring** (RFC 9069) omits communities and LOCAL_PREF:
+  the best-change feed it is built from does not carry them, and RFC 9069
+  forbids a RIB back-door for the full attribute set.
 - **Route Mirroring** encoding on the sender side is not implemented.

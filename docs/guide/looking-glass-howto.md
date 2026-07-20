@@ -104,6 +104,35 @@ The looking glass exposes birdwatcher-style read-only endpoints under `/api/look
 
 Additional endpoints exist for filtered, exported, and no-export routes, route counts, and BMP-derived tables.
 
+The BGP protocol entry is keyed by the configured peer name. It includes the
+last state transition, the last session error, and live route counts:
+
+```json
+{
+  "protocols": {
+    "rs1": {
+      "state": "established",
+      "state_changed": "2026-07-15T10:30:00Z",
+      "last_error": "",
+      "routes_received": 600,
+      "routes_imported": 600,
+      "routes_exported": 580,
+      "routes_filtered": 0
+    }
+  }
+}
+```
+
+`routes_received` and `routes_imported` both report the retained Adj-RIB-In
+size because Ze does not keep routes rejected by import policy.
+`routes_exported` is the Adj-RIB-Out size. `routes_filtered` remains zero for
+the same reason, and the filtered-routes endpoint returns an empty list. Route
+counts are present only when the `bgp-rib` plugin is loaded.
+
+<!-- source: internal/component/lg/handler_api.go -- transformProtocols -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
+
+
 The UI under `/lg/` uses the same data and adds the peer table, route lookup, route search, and AS-path graph.
 
 ## 5. Publish it safely

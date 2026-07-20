@@ -65,6 +65,35 @@
 <!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
 
+### Multipath installation
+
+When several BGP candidates tie under multipath selection, Ze carries the
+winner and its equal-cost sibling next hops into the shared Loc-RIB. The system
+RIB then emits one ECMP group to the active FIB backend. Membership-only
+changes, such as one equal-cost peer disappearing, update the installed group
+without requiring the winning peer to change.
+
+`show rib` reports the primary `next-hop` and the additional `ecmp-paths`.
+Together they are the complete installed next-hop set.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SelectMultipath, mirrorToLocRIB -->
+<!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
+<!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
+
+### Long-Lived Graceful Restart readvertisement
+
+RFC 9494 stale-route handling is applied per destination on both normal
+forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
+route unchanged. A non-LLGR eBGP peer receives a withdrawal. A non-LLGR iBGP
+peer receives the route with `NO_EXPORT` and `LOCAL_PREF=0`, allowing partial
+deployments to retain reachability without preferring stale information.
+
+Only the LLGR filter runs during stale readvertisement. Other export policy has
+already run on the original announcement and is not applied twice.
+
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertise -->
+
 ### Path Attributes
 
 | Attribute | Code | JSON Key | Description |

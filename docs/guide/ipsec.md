@@ -96,6 +96,16 @@ Ze can act as the IKEv2 responder as well as the initiator. A peer with `connect
 
 As responder, Ze authenticates with a pre-shared key, X.509 certificate, or EAP. For EAP it acts as the EAP-MSCHAPv2 or EAP-TLS server for a road-warrior client. It presents its own certificate or PSK first, runs the EAP method, and derives session keys from the EAP MSK.
 
+A new inbound IKE_SA_INIT can proceed while an older established SA for the
+same peer is still being maintained. Once the replacement authenticates, its
+INITIAL_CONTACT notification tells the remote endpoint to discard the stale SA.
+This lets a responder recover immediately after an operator clear or peer
+restart instead of waiting for Dead Peer Detection.
+
+<!-- source: internal/component/ike/engine/established.go -- owned SA routing -->
+<!-- source: internal/component/ike/engine/auth.go -- INITIAL_CONTACT -->
+
+
 ```text
 vpn {
     ipsec {
@@ -128,6 +138,14 @@ vpn {
 ```
 
 For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }` or `eap-tls`, then reference a device `certificate` and `ca-certificate` from the PKI store. The `remote-access` container assigns client addresses from a `pool` and holds per-user EAP credentials in an `eap-user` list.
+
+When a CA certificate is configured, the EAP peer validates the authenticator's
+certificate chain against that trust anchor. EAP-TLS has no server hostname, so
+the check validates the chain without DNS-name matching. With no CA configured,
+server-certificate validation is disabled explicitly.
+
+<!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
+
 
 ## Rekeying
 
@@ -167,6 +185,13 @@ XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM inter
 | `clear vpn ipsec sa [peer <name>]` | Tear down and re-establish SAs, optionally for one peer |
 | `monitor vpn ipsec` | Stream `sa-up`, `sa-down`, `child-up`, `child-down`, and `child-rekey` lifecycle events |
 | `show pki certificates` | List loaded certificates with expiry information |
+
+`clear vpn ipsec sa` sends a best-effort encrypted IKE Delete before removing
+local state. Initiator peers then re-establish immediately. If the UDP Delete is
+lost, the normal DPD path still removes the stale remote SA.
+
+<!-- source: internal/component/ike/engine/established.go -- graceful stop and sendDeleteIKE -->
+
 
 ## Health and metrics
 
