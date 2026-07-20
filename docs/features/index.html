@@ -508,6 +508,11 @@
 <td>Origin (<code>invalid</code>/<code>not-found</code>) and ASPA (<code>invalid</code>/<code>unknown</code>) validation actions are settable globally and per-peer/per-group (<code>peer &gt; group &gt; global</code>, resolved per leaf), while cache servers and ASPA enable stay global. <code>show bgp rpki status</code> reports effective global and per-peer resolved actions. <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution --></td>
 </tr>
 <tr>
+<td><a href="../guide/irr-filtering/">IRR BGP Import Filtering</a></td>
+<td>Supported</td>
+<td><code>bgp-filter-irr</code> builds per-ASN import prefix-lists from explicit or PeeringDB-discovered IRR AS-SETs, refreshes and persists the lists, and rejects received prefixes outside the selected list. Includes status, prefix inspection, dry-run checks, and manual refresh commands. <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- IRR import filter --> <!-- source: internal/component/resolve/irr/store/store.go -- shared persisted prefix store --></td>
+</tr>
+<tr>
 <td>FlowSpec-to-Firewall Bridge</td>
 <td>Supported</td>
 <td><code>flowspec-firewall</code> plugin converts BGP FlowSpec rules into nftables entries in a dedicated <code>ze_flowspec</code> table.</td>

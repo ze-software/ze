@@ -62,6 +62,7 @@ DOCS_MANIFEST = {
     "guide/flow-export.md": "observe",
     "guide/isis.md": "routing",
     "guide/ipsec.md": "secure",
+    "guide/irr-filtering.md": "routing",
     "guide/l2tp.md": "services",
     "guide/ospf.md": "routing",
     "guide/monitoring.md": "observe",
