@@ -11,7 +11,22 @@ import (
 
 // installAuthHooks wires the sign step into the transport TX path and the verify
 // chokepoint into the RX dispatcher. Called once at engine construction.
+//
+// OSPFv2 ONLY. RFC 5340 §A.3.1 removed the AuType and Authentication fields from the
+// OSPFv3 common header, so signPacket/verifyPacket (RFC 2328 App D, RFC 5709, RFC 7474)
+// have no header to act on there -- offset 15 is the v3 Reserved octet, not AuType.
+// Installing the signer on an OSPFv3 transport is also actively harmful: SendPacket
+// treats a non-nil signer as "the RFC 7166 trailer owns integrity" and SKIPS
+// FinalizePacketChecksum (v3/transport/transport.go:496-502), so every OSPFv3 packet
+// would go out with a zero IPv6 upper-layer checksum. OSPFv3 authentication is IPsec
+// (RFC 4552), installed separately by installIPsecHooks.
 func (e *engine) installAuthHooks() {
+	if e.dispatch == nil {
+		return
+	}
+	if _, isV2 := e.dispatch.codec.(v4Codec); !isV2 {
+		return
+	}
 	if e.transport != nil {
 		e.transport.SetSigner(e.signPacket)
 	}

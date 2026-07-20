@@ -28,6 +28,9 @@ func TestOSPFv3PeekInstanceID(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5340-4.2.2-5 positive -- the version number field specifies protocol
+// version 3: Header.WriteTo stamps 3 into the Version octet and DecodeHeader accepts it,
+// returning the body offset (Header.WriteTo header.go:163-174, DecodeHeader header.go:107-140).
 func TestOSPFv3HeaderRoundTrip(t *testing.T) {
 	h := Header{
 		Type:       PacketTypeHello,
@@ -74,6 +77,9 @@ func TestOSPFv3DecodeHeaderBounds(t *testing.T) {
 		wantErr error
 	}{
 		{"short buffer", func(b []byte) []byte { return b[:CommonHeaderLen-1] }, ErrShortBuffer},
+		// RFC requirement: RFC5340-4.2.2-5 negative -- a header whose Version octet is not 3
+		// (here the OSPFv2 value 2) is rejected with ErrBadVersion before any body parser runs,
+		// so a non-version-3 packet is never processed (DecodeHeader, header.go:113-115).
 		{"bad version", func(b []byte) []byte { b[offVersion] = 2; return b }, ErrBadVersion},
 		{"type zero", func(b []byte) []byte { b[offType] = 0; return b }, ErrUnknownType},
 		{"type six", func(b []byte) []byte { b[offType] = 6; return b }, ErrUnknownType},

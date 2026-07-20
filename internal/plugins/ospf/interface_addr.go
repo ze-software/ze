@@ -4,6 +4,9 @@
 // ifindex) through the iface component, the inputs the engine feeds into the iface
 // runtime config and LSA origination. They live apart from instance.go to keep that
 // file within the size budget.
+//
+// RFC: rfc/short/rfc5340.md (App A.4.7 / A.4.8 forwarding-address eligibility, sec 3.4.3
+// Interface ID = MIB-II ifIndex)
 
 package ospf
 
@@ -49,6 +52,19 @@ func interfaceIPv4Address(name string) [4]byte {
 	return [4]byte{}
 }
 
+// v6UsableForwardingAddress reports whether addr may be advertised as an OSPFv3
+// AS-External-LSA / NSSA-LSA forwarding address. RFC 5340 App A.4.7 forbids the IPv6
+// Unspecified Address and any IPv6 Link-Local Address there, and App A.4.8 requires a
+// global address for an NSSA-LSA an area border router propagates; loopback and multicast
+// are likewise unroutable across the AS. It is the single eligibility rule
+// interfaceIPv6ForwardingAddress applies to every candidate interface address.
+func v6UsableForwardingAddress(addr netip.Addr) bool {
+	if !addr.Is6() || addr.Is4In6() {
+		return false
+	}
+	return !addr.IsLinkLocalUnicast() && !addr.IsLoopback() && !addr.IsUnspecified() && !addr.IsMulticast()
+}
+
 func interfaceIPv6ForwardingAddress(name string) ([16]byte, bool) {
 	addrs, err := ifcomp.Addresses(name)
 	if err != nil {
@@ -59,10 +75,7 @@ func interfaceIPv6ForwardingAddress(name string) ([16]byte, bool) {
 			continue
 		}
 		parsed, err := netip.ParseAddr(addr.Address)
-		if err != nil || !parsed.Is6() || parsed.Is4In6() {
-			continue
-		}
-		if parsed.IsLinkLocalUnicast() || parsed.IsLoopback() || parsed.IsUnspecified() || parsed.IsMulticast() {
+		if err != nil || !v6UsableForwardingAddress(parsed) {
 			continue
 		}
 		return parsed.As16(), true

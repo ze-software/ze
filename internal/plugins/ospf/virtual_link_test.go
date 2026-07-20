@@ -436,6 +436,15 @@ func v6DecodeAreaRouter(t *testing.T, eng *engine, area types.AreaID, rid types.
 // GLOBAL source and the neighbor's GLOBAL destination from the transit area's
 // Intra-Area-Prefix-LSAs (RFC 5340 sec 2.9), not the transit link-locals.
 // RFC requirement: RFC5838-2.8-1 positive -- the OSPFv3 virtual-link endpoint resolves to a global IPv6 address for both ends, so control packets are forwarded correctly by the intermediate hops.
+// RFC requirement: RFC5340-2.5-1 positive -- the source address used for OSPF protocol packets on
+// a virtual link is a GLOBAL scope IPv6 address: v6ResolveVirtualEndpointLocked returns this
+// router's global 2001:db8:1::1 (v6RouterGlobalAddr IsGlobalUnicast filter, virtuallink_v6.go:69),
+// and the routed send binds exactly that source into both the IPv6 header and the checksum
+// pseudo-header (SendPacketRouted, v3/transport/transport.go:528-548).
+// RFC requirement: RFC5340-4.1.2-2 positive -- the address the virtual link uses as its IP
+// interface address is one of THIS router's own global-scope IPv6 addresses, looked up by this
+// router's own Router ID in the transit area's Intra-Area-Prefix-LSAs, not a link-local
+// (v6ResolveVirtualEndpointLocked, virtuallink_v6.go:32).
 func TestV6VirtualEndpointResolvesGlobalAddress(t *testing.T) {
 	e := newV6OriginEngine()
 	transit := vlArea(t, "0.0.0.1")
@@ -463,6 +472,10 @@ func TestV6VirtualEndpointResolvesGlobalAddress(t *testing.T) {
 // link-local prefix in the transit area, no endpoint is resolved and the virtual link cannot
 // carry control packets (fail-closed), so a missing global IPv6 address is never masked.
 // RFC requirement: RFC5838-2.8-1 negative -- when the neighbor advertises no global IPv6 address (only a link-local), the virtual-link endpoint does not resolve, so no virtual link is formed without the required global address.
+// RFC requirement: RFC5340-2.5-1 negative -- a link-local address is never promoted to the
+// virtual link's packet source/destination: with only fe80::2 advertised for the far end the
+// endpoint fails to resolve and the link sends nothing, rather than falling back to link-local
+// (v6RouterGlobalAddr rejects a non-global-unicast prefix, virtuallink_v6.go:69).
 func TestV6VirtualEndpointRequiresGlobalAddress(t *testing.T) {
 	e := newV6OriginEngine()
 	transit := vlArea(t, "0.0.0.1")
