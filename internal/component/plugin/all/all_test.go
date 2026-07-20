@@ -165,6 +165,15 @@ func TestYANGSchemaProviders(t *testing.T) {
 // TestGeneratedPluginImportsCurrent verifies that the generated blank-import
 // file matches register.go discovery.
 //
+// CAVEAT -- shares the caching hole documented on TestYANGGlueCurrent
+// (yang_glue_check_test.go): a register.go in a package this one does not yet
+// import is not a build input here, so `go test` can serve a cached PASS after
+// one appears, and the full-verify stage is ze-unit-test-cached. The uncached
+// backstop is the ze-regen-check-readonly make stage, whose
+// ze-plugin-imports-check prerequisite runs the same --check from a recipe in
+// both stagesForMode branches. This test is the fast local signal, not the
+// whole guard.
+//
 // VALIDATES: plugin/all generation is checked by the same generator that writes it.
 // PREVENTS: Missing plugin registration when a register.go package is not imported.
 func TestGeneratedPluginImportsCurrent(t *testing.T) {

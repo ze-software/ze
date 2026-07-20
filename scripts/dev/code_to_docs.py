@@ -167,14 +167,17 @@ def main():
         "",
     ]
 
-    if stale:
-        lines.append(f"## Stale References ({len(stale)} broken)")
-        lines.append("")
-        lines.append("| Missing Path | Referenced From |")
-        lines.append("|---|---|")
-        for code_path, doc_file, line_no in stale:
-            lines.append(f"| `{code_path}` | `{doc_file}:{line_no}` |")
-        lines.append("")
+    # NOTE: the stale-reference table is deliberately NOT part of `content`.
+    # `stale` is only populated when check_mode is true (see above), so this
+    # section could never appear in a file written by generate mode -- grep the
+    # committed ai/CODE-TO-DOCS.md and there is none. Including it here would
+    # make check mode's `content` differ from generate mode's for the same tree
+    # whenever any anchor is broken, so the freshness comparison below would
+    # report "stale -- run: make ze-doc-index" and STILL fail after you ran it:
+    # an unfixable loop on a commit-blocking gate, with the useful "MISSING:"
+    # report at the end of this function rendered unreachable. Broken anchors
+    # are reported to stdout instead, which is what documentation-testing.md
+    # documents. Keep `content` identical in both modes.
 
     for pkg in sorted(pkg_index.keys()):
         files = pkg_index[pkg]
@@ -214,8 +217,36 @@ def main():
             f"wrote {output_file} ({len(index)} code paths, {len(pkg_index)} packages)"
         )
     if check_mode:
+        # Freshness of the GENERATED FILE itself. This used to be missing: check
+        # mode built `content` and then validated only that the anchor paths
+        # exist, never comparing against output_file -- so a stale
+        # ai/CODE-TO-DOCS.md reported "all references valid" and exit 0. It had
+        # silently drifted by 24 code paths (1439 recorded vs 1463 live) before
+        # anyone noticed, because the one target that would have caught it
+        # (ze-regen-check, via `git diff`) has no callers.
+        # A guard that cannot fail is not a guard (ai/rules/fail-closed-guards.md).
+        try:
+            current = output_file.read_text(encoding="utf-8")
+        except OSError as exc:
+            print(
+                f"ERROR: cannot read {output_file}: {exc} -- run: make ze-doc-index",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if current != content:
+            print(
+                f"ERROR: {output_file} is stale -- run: make ze-doc-index",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        # Content is fresh. Do NOT print "up to date" yet: broken anchors below
+        # still exit 1, and an "up to date" line one line above a non-zero exit
+        # misreads as success. Announce freshness only on the all-clear path.
         if n_stale:
-            print(f"WARNING: {n_stale} stale references (code path no longer exists)")
+            print(
+                f"{output_file} content is fresh, but {n_stale} stale references "
+                "(code path no longer exists)"
+            )
             # Group by code path for compact output
             by_path: dict[str, list[str]] = defaultdict(list)
             for code_path, doc_file, line_no in stale:
@@ -228,8 +259,8 @@ def main():
                 if len(refs) > 3:
                     print(f"           ... and {len(refs) - 3} more")
             sys.exit(1)
-        else:
-            print("all references valid")
+        print(f"{output_file} up to date")
+        print("all references valid")
 
 
 if __name__ == "__main__":
