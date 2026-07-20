@@ -1,0 +1,1 @@
+--asn 65003 --router-id 172.30.0.10 --test /speaker/plugins/no_duplicate_attribute.py --duration 15 --stop-after-updates 0
