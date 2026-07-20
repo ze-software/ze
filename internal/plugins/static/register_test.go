@@ -1,11 +1,15 @@
 package static
 
 import (
+	"bytes"
+	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func TestStaticRouteRegistration(t *testing.T) {
@@ -85,5 +89,32 @@ func TestStaticRegistersRedistributeSource(t *testing.T) {
 	}
 	if src.Protocol != "static" {
 		t.Errorf("source protocol = %q, want %q", src.Protocol, "static")
+	}
+}
+
+// TestWarnIfExternal
+// VALIDATES: warnIfExternal logs a warning exactly when static is NOT running
+// in-process (plan/spec-fixit-verify-stage-ssot.md, plugin-boundary gate).
+// PREVENTS: an operator running `plugin { external static { ... } }` with
+// interface next-hops getting the misleading error "no interface backend
+// loaded" for every such route. The iface component lives in the HOST process,
+// so resolveNexthopIndex's iface.GetBackend() (backend_linux.go) is nil for an
+// external static plugin's entire lifetime no matter how the interface backend
+// is configured -- and nothing else says so.
+func TestWarnIfExternal(t *testing.T) {
+	t.Cleanup(func() { setLogger(slogutil.DiscardLogger()) })
+
+	var buf bytes.Buffer
+	setLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	warnIfExternal(false)
+	if !strings.Contains(buf.String(), "interface") {
+		t.Errorf("external static must warn about interface next-hop resolution, got: %s", buf.String())
+	}
+
+	buf.Reset()
+	setLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	warnIfExternal(true)
+	if buf.String() != "" {
+		t.Errorf("internal static must not log the external-mode warning, got: %s", buf.String())
 	}
 }

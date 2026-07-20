@@ -92,10 +92,33 @@ func verifyStaticConfig(sections []sdk.ConfigSection) error {
 	return nil
 }
 
+// warnIfExternal logs a warning when static is not running in-process.
+//
+// resolveNexthopIndex (backend_linux.go) resolves a route's next-hop INTERFACE
+// name through iface.Resolve / iface.GetBackend, and the iface component lives
+// in the HOST process. An external static plugin therefore sees
+// iface.GetBackend() == nil for its entire lifetime no matter how the operator
+// configured `interface { backend ... }`, so every interface-next-hop route
+// fails with the misleading "no interface backend loaded" message and nothing
+// else explains why.
+//
+// Unlike as112 / trafficusage / flowexport -- which REFUSE to start when
+// external, because the same-process call is their whole purpose -- static
+// still provides real value external: gateway and device next-hop routes are
+// installed through netlink unaffected. So this warns rather than refuses,
+// matching internal/plugins/cos/register.go.
+func warnIfExternal(isInternal bool) {
+	if isInternal {
+		return
+	}
+	logger().Warn("static: running as an external plugin process -- routes whose next-hop is an INTERFACE name cannot be resolved (the iface backend lives in the host process, so this process always sees none) and will fail with 'no interface backend loaded'; run static internal if you use interface next-hops. Gateway and device next-hops are unaffected.")
+}
+
 func runStaticPlugin(conn net.Conn) int {
 	logger().Debug("static plugin starting (RPC)")
 
 	p := sdk.NewWithConn(pluginName, conn)
+	warnIfExternal(p.IsInternal())
 	defer func() { _ = p.Close() }()
 
 	backend := newStaticBackend()
