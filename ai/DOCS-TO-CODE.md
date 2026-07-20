@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 295 design docs, 3016 files
+Total: 295 design docs, 3023 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -911,6 +911,7 @@ Total: 295 design docs, 3016 files
 | `internal/component/bgp/reactor/reactor_wire.go` | zero-allocation wire UPDATE builders |
 | `internal/component/bgp/reactor/received_update.go` | immutable received UPDATE snapshot |
 | `internal/component/bgp/reactor/recent_cache.go` | recent UPDATE cache |
+| `internal/component/bgp/reactor/rfc8277_test.go` | labeled unicast propagation |
 | `internal/component/bgp/reactor/routerid_unique.go` | router-ID conflict detection |
 | `internal/component/bgp/reactor/session.go` | BGP session struct, constructor, accessors, run loop |
 | `internal/component/bgp/reactor/session_coalesce.go` | IPv4 unicast UPDATE coalescing |
@@ -1737,6 +1738,7 @@ Total: 295 design docs, 3016 files
 | `internal/component/bgp/plugins/nlri/labeled/encode_label_test.go` | encode -n full label stack (F13) test |
 | `internal/component/bgp/plugins/nlri/labeled/json.go` | Labeled Unicast in-process JSON writer |
 | `internal/component/bgp/plugins/nlri/labeled/labeled.go` | labeled unicast NLRI plugin |
+| `internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go` | labeled unicast NLRI plugin |
 | `internal/component/bgp/plugins/nlri/labeled/types.go` | labeled unicast NLRI plugin |
 | `internal/component/bgp/plugins/nlri/mup/encode.go` | MUP NLRI wire encoding from route commands |
 | `internal/component/bgp/plugins/nlri/mup/helpers.go` | MUP NLRI prefix encoding helpers |
@@ -1763,6 +1765,7 @@ Total: 295 design docs, 3016 files
 | `internal/component/bgp/plugins/nlri/vpn/json.go` | VPN in-process JSON writer |
 | `internal/component/bgp/plugins/nlri/vpn/types.go` | VPN NLRI plugin |
 | `internal/component/bgp/plugins/nlri/vpn/vpn.go` | VPN NLRI plugin |
+| `internal/component/bgp/plugins/rib/rfc8277_test.go` | labeled unicast in the Adj-RIB-In |
 | `internal/core/bgp/nlri/base.go` | NLRI encoding and decoding |
 | `internal/core/bgp/nlri/constants.go` | NLRI encoding and decoding |
 | `internal/core/bgp/nlri/helpers.go` | NLRI encoding and decoding |
@@ -2238,6 +2241,7 @@ Total: 295 design docs, 3016 files
 | `internal/core/dnsserver/handler.go` | authoritative-answer |
 | `internal/core/dnsserver/manager.go` | generic DNS listener lifecycle |
 | `internal/core/dnsserver/matcher.go` | CIDR longest-prefix matcher |
+| `internal/core/dnsserver/rfc4035_test.go` | the authoritative wrapper |
 | `internal/plugins/geodns/server.go` | listener lifecycle, client-IP and |
 | `internal/plugins/geodns/server_rfc7871_test.go` | geodns consumes the EDNS0 |
 | `internal/plugins/geodns/source.go` | longest-prefix mechanism moved to |
@@ -2923,6 +2927,7 @@ Total: 295 design docs, 3016 files
 | `internal/plugins/dhcpserver/handler.go` | DHCP packet handling (RFC 2131/2132) |
 | `internal/plugins/dhcpserver/lease.go` | DHCP lease tracking with expiry |
 | `internal/plugins/dhcpserver/register.go` | DHCP server plugin registration |
+| `internal/plugins/dhcpserver/rfc2131_test.go` | RFC 2131 conformance coverage |
 | `internal/plugins/dhcpserver/socket_integration_linux_test.go` | integration coverage for SO_BINDTODEVICE |
 | `internal/plugins/dhcpserver/socket_linux.go` | Linux SO_BINDTODEVICE for interface-specific DHCP |
 | `internal/plugins/dhcpserver/socket_other.go` | Non-Linux DHCP socket fallback |
@@ -3440,6 +3445,7 @@ Total: 295 design docs, 3016 files
 | `internal/plugins/ldp/lib.go` | LDP Label Information Base |
 | `internal/plugins/ldp/local.go` | local FEC origination (AC-3) |
 | `internal/plugins/ldp/register.go` | LDP component registration |
+| `internal/plugins/ldp/rfc5036_test.go` | LDP plugin |
 | `internal/plugins/ldp/session.go` | LDP session FSM |
 | `internal/plugins/ldp/wire.go` | LDP wire codec |
 
@@ -3931,6 +3937,7 @@ Total: 295 design docs, 3016 files
 ## `plan/learned/993-geodns-2-server.md`
 
 - `internal/plugins/geodns/server.go` -- geodns DNS server (listener, EDNS0, answer synthesis)
+- `internal/plugins/geodns/server_rfc4035_test.go` -- geodns answer policy; the
 
 ## `plan/learned/994-geodns-3-observability-cli.md`
 
