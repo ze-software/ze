@@ -21,7 +21,7 @@ Type "clear"
 Enter
 Type "ze show host cpu | ze pipe yaml"
 Enter
-Wait+Screen /threads-per-core:/
+Wait+Screen /cores:/
 Sleep 7s
 Type "clear"
 Enter
