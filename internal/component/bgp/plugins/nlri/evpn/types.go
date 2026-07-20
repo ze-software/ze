@@ -65,6 +65,10 @@ const (
 )
 
 // Route type name constants — used in String(), encoding, and JSON parsing.
+// evpnHeaderLen is the common EVPN NLRI header: Route Type (1) + Length (1), RFC 7432
+// Section 7. The Length being a single octet is why a route body cannot exceed 255.
+const evpnHeaderLen = 2
+
 const (
 	RouteNameEthernetAutoDiscovery = "ethernet-auto-discovery"
 	RouteNameMACIPAdvertisement    = "mac-ip-advertisement"
@@ -911,11 +915,34 @@ func (e *EVPNGeneric) RD() RouteDistinguisher   { return RouteDistinguisher{} }
 func (e *EVPNGeneric) PathID() uint32           { return e.pathID }
 func (e *EVPNGeneric) HasPathID() bool          { return e.hasPath }
 func (e *EVPNGeneric) SupportsAddPath() bool    { return true }
-func (e *EVPNGeneric) Bytes() []byte            { return e.data }
-func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
 func (e *EVPNGeneric) String() string           { return textbuf.StrInt("evpn-type", int64(e.routeType)) }
+
+// Bytes returns a standalone wire encoding, header included, matching every other EVPN
+// route type. It used to return the bare body, so a caller that round-trips an
+// unrecognized route through encode.go emitted an NLRI with no [type][length] header.
+func (e *EVPNGeneric) Bytes() []byte {
+	buf := make([]byte, e.Len())
+	e.WriteTo(buf, 0)
+	return buf
+}
+
+func (e *EVPNGeneric) Len() int { return len(e.data) + evpnHeaderLen }
+
+// WriteTo writes the full [route-type][length][body] encoding, like every other EVPN type,
+// and returns the total written.
+//
+// It used to copy only the body, which broke the two contracts its callers rely on:
+// Len() promised len(data)+2, so plugin.go's `make([]byte, Len())` + WriteTo left two
+// trailing zero octets on the wire; and appendRawField (json.go) skips `scratch[:2]` to
+// drop the header, so the JSON "raw" field lost the first two octets of the body instead.
+//
+// e.data comes from ParseEVPN, where the length is a single octet, so it cannot exceed 255.
 func (e *EVPNGeneric) WriteTo(buf []byte, off int) int {
-	return copy(buf[off:], e.Bytes())
+	buf[off] = byte(e.routeType)
+	buf[off+1] = byte(len(e.data))
+	pos := off + evpnHeaderLen
+	pos += copy(buf[pos:], e.data)
+	return pos - off
 }
 
 // Constructors for creating EVPN routes.

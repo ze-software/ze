@@ -224,6 +224,29 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 	baseLen := s.writeBaseAttrs(u.PathAttributes, mpReachInfo, mpUnreachInfo)
 	emitted := 0
 
+	// The legacy IPv4 fields are carried too. They used to be dropped outright: every
+	// emitted chunk was `&Update{PathAttributes: ...}` with no WithdrawnRoutes and no
+	// NLRI, so an UPDATE holding BOTH an MP attribute and IPv4 routes lost the IPv4 half
+	// silently on any path that re-chunked it.
+	//
+	// They are emitted in their own messages rather than bolted onto an MP chunk, which
+	// is also what RFC 7606 Section 5.1 asks of a sender: at most one of Withdrawn Routes,
+	// NLRI, MP_REACH_NLRI and MP_UNREACH_NLRI per UPDATE. Order across the whole function
+	// is withdrawals then announcements: IPv4 withdrawn, MP_UNREACH, MP_REACH, IPv4 NLRI.
+	if len(u.WithdrawnRoutes) > 0 {
+		// Withdrawals carry no attributes, so the whole budget after the header is theirs.
+		chunks, err := chunkIPv4NLRI(u.WithdrawnRoutes, maxSize-overhead, addPath)
+		if err != nil {
+			return fmt.Errorf("chunking withdrawn routes: %w", err)
+		}
+		for _, chunk := range chunks {
+			if err := emit(&Update{WithdrawnRoutes: chunk}); err != nil {
+				return err
+			}
+			emitted++
+		}
+	}
+
 	// MP_UNREACH_NLRI first (withdrawals before announcements).
 	if mpUnreachInfo.found {
 		mpUnreach, err := attribute.ParseMPUnreachNLRI(mpUnreachInfo.value)
@@ -264,6 +287,27 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 		}
 		for _, chunk := range mpChunks {
 			if err := s.emitMPChunk(baseLen, chunk, emit); err != nil {
+				return err
+			}
+			emitted++
+		}
+	}
+
+	// IPv4 announcements last, carrying the base attributes (the MP attributes are
+	// excluded by writeBaseAttrs, so an IPv4 chunk never re-sends them).
+	if len(u.NLRI) > 0 {
+		space := maxSize - overhead - baseLen
+		if space <= 0 {
+			return ErrAttributesTooLarge
+		}
+		chunks, err := chunkIPv4NLRI(u.NLRI, space, addPath)
+		if err != nil {
+			return fmt.Errorf("chunking NLRI: %w", err)
+		}
+		for _, chunk := range chunks {
+			// s.scratch[:baseLen] is read here rather than captured earlier: alloc may have
+			// grown the buffer while emitting MP chunks, and it copies the prefix across.
+			if err := emit(&Update{PathAttributes: s.scratch[:baseLen], NLRI: chunk}); err != nil {
 				return err
 			}
 			emitted++
