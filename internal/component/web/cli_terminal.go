@@ -300,7 +300,7 @@ func terminalFeedback(cmd cliCommand, output string) string {
 	switch cmd.Verb {
 	case verbSet:
 		if len(cmd.Args) >= 2 { //nolint:mnd // set <key> <value>
-			return tb.Str("set ").Str(cmd.Args[0]).Str(" = ").Join(cmd.Args[1:], " ").String()
+			return tb.Str("set ").Str(cmd.Args[0]).Byte(' ').Join(cmd.Args[1:], " ").String()
 		}
 	case verbDelete:
 		if len(cmd.Args) >= 1 {
@@ -790,7 +790,7 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 		return tb.Reset().Str("error: ").Err(err).String()
 	}
 
-	return tb.Reset().Str("set ").Str(args[0]).Str(" = ").Join(args[1:], " ").String()
+	return tb.Reset().Str("set ").Str(args[0]).Byte(' ').Join(args[1:], " ").String()
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.

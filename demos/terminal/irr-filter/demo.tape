@@ -29,23 +29,23 @@ Wait+Screen /not configured/
 Sleep 4s
 Type "ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr"
 Enter
-Wait+Screen /use = bgp-filter-irr/
+Wait+Screen /set plugin internal bgp-filter-irr use bgp-filter-irr/
 Sleep 3s
 Type "ze config set --no-reload ze.conf bgp policy irr server 127.0.0.1:4343"
 Enter
-Wait+Screen /server = 127.0.0.1:4343/
+Wait+Screen /set bgp policy irr server 127.0.0.1:4343/
 Sleep 3s
 Type "ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600"
 Enter
-Wait+Screen /refresh-interval = 3600/
+Wait+Screen /set bgp policy irr refresh-interval 3600/
 Sleep 3s
 Type "ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-TEST"
 Enter
-Wait+Screen /as-set = AS-TEST/
+Wait+Screen /set bgp peer customer-a session irr as-set AS-TEST/
 Sleep 3s
 Type "ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001"
 Enter
-Wait+Screen /filter import = bgp-filter-irr:65001/
+Wait+Screen /set bgp peer customer-a filter import bgp-filter-irr:65001/
 Sleep 5s
 Type "clear"
 Enter

@@ -108,7 +108,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	displayPath := textbuf.Join(path, " ")
 
 	if *dryRun {
-		fmt.Fprintf(os.Stderr, "dry-run: would set %s = %s\n", displayPath, value)
+		fmt.Fprintf(os.Stderr, "dry-run: would set %s %s\n", displayPath, value)
 		diff := ed.Diff()
 		if diff != "" {
 			fmt.Fprint(os.Stderr, diff)
@@ -122,7 +122,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	fmt.Fprintf(os.Stderr, "set %s = %s\n", displayPath, value)
+	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, value)
 
 	// Notify daemon (best-effort) via SSH. A stdin ("-") pipeline stage has no
 	// on-disk config for a daemon to reload, so skip it.

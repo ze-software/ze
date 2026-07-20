@@ -73,7 +73,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		tb.Str("created ").Str(containerPath[len(containerPath)-1]).Byte(' ').Str(value)
 	} else {
 		displayPath := append(append([]string{}, containerPath...), key)
-		tb.Str("set ").Join(displayPath, " ").Str(" = ").Str(value)
+		tb.Str("set ").Join(displayPath, " ").Byte(' ').Str(value)
 	}
 
 	// Detect conflicts with other users' change files after each edit.
