@@ -58,7 +58,7 @@ func init() {
 //
 // The check is deliberately minimal. RFC 7606 notes that RFC 5543 "does not detail what
 // constitutes malformation", and binds only an implementation that has already decided the
-// attribute is malformed -- it grants no licence to invent criteria. RFC 5543 Section 3
+// attribute is malformed -- it grants no license to invent criteria. RFC 5543 Section 3
 // says the attribute "contains one or more" descriptors, each with 36 fixed octets before
 // its variable switching-capability-specific information, whose length is defined per
 // capability by RFC 4203/5307. Anything shorter than one descriptor cannot be well-formed

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | complete |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-07-20 |
@@ -196,8 +196,8 @@ that: removing a `{gap}` without tests fails the gate.
 | received UPDATE with bad-length IPv6 ext-comm | → | `validateIPv6ExtCommunityAttr` via `attrValidators[25]` | `TestRFC7606IPv6ExtCommunityMalformed` |
 | received UPDATE with malformed ATTR_SET | → | `validateAttrSetAttr` via `attrValidators[128]` | `TestRFC7606AttrSetMalformed` |
 | RFC 7606 error on a real session | → | `session_validation.go` log sites | `TestRFC7606LogIncludesNLRIAndUpdate` |
-| unrecognized typed NLRI received | → | (fill from research) | (fill) |
-| ze encodes an UPDATE with two NLRI-bearing fields | → | `buildUpdatePayload` | (fill) |
+| unrecognized typed NLRI received | → | WITHDRAWN from scope (Section 5.4, owner decision) | n/a |
+| ze re-chunks an UPDATE with two NLRI-bearing fields | → | `buildCombinedUpdates` (`wireu/split.go`) | `TestSplitWireUpdateOneNLRIFieldPerMessage` |
 
 ## Acceptance Criteria
 
@@ -217,8 +217,8 @@ that: removing a `{gap}` without tests fails the gate.
 | AC-12 | Well-formed ATTR_SET (Origin AS + valid ORIGIN/AS_PATH) | accepted |
 | AC-13 | ATTR_SET nested beyond the depth cap | treat-as-withdraw, no stack growth |
 | AC-14 | An UPDATE triggering any RFC 7606 error | the log entry contains the NLRI involved AND the malformed UPDATE bytes |
-| AC-15 | Unrecognized typed NLRI (EVPN/MVPN) received | route is discarded: not stored, not re-advertised |
-| AC-16 | Recognized typed NLRI | unchanged behavior |
+| AC-15 | ~~Unrecognized typed NLRI discarded~~ | **WITHDRAWN from scope** by owner decision (Section 5.4); ze retains and propagates, now documented as a reasoned divergence |
+| AC-16 | ~~Recognized typed NLRI unchanged~~ | **WITHDRAWN with AC-15** |
 | AC-17 | ze re-encodes an UPDATE that would carry two NLRI-bearing fields | at most one per UPDATE on the wire |
 | AC-18 | ze receives an UPDATE with several NLRI-bearing fields | still accepted (§5.1 receive-side tolerance) |
 | AC-19 | End-of-RIB | unchanged |
@@ -390,6 +390,10 @@ checklist does not apply.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| An ATTR_SET's inner attributes can be judged in the enclosing session's context | RFC 6368 Section 5 fixes the inner encoding "regardless of the capabilities advertised", and the attribute exists to carry the CUSTOMER's iBGP attributes | independent review | three bugs that would have withdrawn conforming routes. The clause was in RFC text I had already quoted into this spec: reading the RFC is not the same as reading it for the question being answered |
+| Any non-None inner result means the ATTR_SET is malformed | RFC 7606 grades its actions; attribute-discard exists so the route SURVIVES | independent review | escalating inverted the document's central design decision |
+| A test asserting "no log line appears" pins an Enabled() guard | a level-filtering handler drops the line either way | mutation testing after review | the audit note carried a false claim about what the test proved |
+| Tagging the split tests as proof of RFC7606-5.1-2 | they prove the re-chunk path only; the MUST is not met | `make ze-rfc-check` caught the contradiction against the surviving `{gap}` | the overclaim never reached a commit |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -431,22 +435,62 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above each new validator.
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- **Section 7.13, 7.15-1, 7.15-2, 7.16** — `internal/component/bgp/message/rfc7606_optional_attrs.go`:
+  validators for attribute codes 24, 25 and 128, which had none. `attrValidators` is opt-in
+  and `validateAttribute` returns nil for an unregistered code, so any length was accepted.
+- **Section 6** — `Session.rfc7606Diagnostics` (`reactor/session_validation.go`) logs the
+  NLRI involved and the entire UPDATE body at all four enforcement outcomes, gated on
+  `Enabled()` so a malformed-UPDATE flood cannot make ze hex-encode for free.
+- **Section 5.1-2 (narrowed, not closed)** — `buildCombinedUpdates` (`wireu/split.go`) now
+  drains each NLRI-bearing component into its own message.
+- Commits: `9eebcd30e` (the five gaps), `574e3c596` and `a6ad6e8d5` (three defects found
+  along the way).
 
 ### Bugs Found/Fixed
-- (fill during implementation)
+- Three over-validation bugs in my own ATTR_SET walker, found by independent review, each of
+  which would have WITHDRAWN CONFORMING ROUTES: inner attributes were judged with the
+  session's `asn4` and `isIBGP`, and an inner attribute-discard was escalated to a
+  whole-route withdraw. See Mistake Log.
+- `Splitter.splitUpdateWithMP` silently dropped IPv4 WithdrawnRoutes and NLRI when an UPDATE
+  also carried an MP attribute (pre-existing, fixed in `574e3c596`).
+- `EVPNGeneric.WriteTo`/`Bytes` omitted the `[route-type][length]` header, so the encode path
+  shipped two trailing zero octets and the JSON `raw` lost the first two body octets
+  (pre-existing, fixed in `574e3c596`).
+- `decodeBGPLSNLRI` abandoned every remaining NLRI after the first unparseable one
+  (pre-existing, fixed in `a6ad6e8d5`).
+- `docs/features/rfc-status.md` claimed seven gaps while the summary carried eight; the
+  undisclosed one was 5.1-2.
 
 ### Documentation Updates
-- (fill during implementation)
+- `rfc/short/rfc7606.md`: five `{gap}` annotations removed, 5.1-2 narrowed and homed on
+  `plan/spec-rfc7606-5-1-2-relay-shape.md`, 5.4 re-framed as a reasoned divergence with the
+  mechanism corrected.
+- `docs/features/rfc-status.md`: eight gaps → three, each described honestly.
+- `rfc/audit/rfc7606.json`: five verdicts moved to `enforced` after implementation.
+- `rfc/full/rfc5543.txt` and `rfc/full/rfc6368.txt` fetched, since 7.13 and 7.16 delegate
+  their definition of "malformed" to them.
 
 ### Deviations from Plan
-- (fill during implementation)
+- **Section 5.4 dropped from scope** by owner decision after analysis: ze has no EVPN
+  forwarding plane, so discarding unrecognized types would remove function from the PEs it
+  relays between while improving nothing locally. Now owned as a documented divergence, and
+  the survey behind it is recorded in the annotation.
+- **Section 5.1-2 not closed**, carved into its own spec. The remaining half costs the
+  zero-copy forward path, which deserves measuring before paying.
+- `_git_cat_blobs`-style batching was not needed here; the TE check is minimal by design.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| RFC7606-7.13-1 | done | `rfc7606_optional_attrs.go` `validateTrafficEngineeringAttr` | positive + negative tagged |
+| RFC7606-7.15-1 | done | `validateIPv6ExtCommunityAttr` | positive + negative tagged |
+| RFC7606-7.15-2 | done | same validator, value ignored | now met by design, not omission; single-polarity positive |
+| RFC7606-7.16-1 | done | `validateAttrSetAttr` / `validateAttrSetDepth` | positive + negative tagged |
+| RFC7606-6-1 | done | `reactor/session_validation.go` `rfc7606Diagnostics` | positive + negative tagged |
+| RFC7606-5.1-2 | partial, owner-approved | `wireu/split.go` `buildCombinedUpdates` | re-chunk path compliant; relay paths carved to `plan/spec-rfc7606-5-1-2-relay-shape.md` |
+| RFC7606-5.4-1 | withdrawn from scope | - | owner decision; documented divergence |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -455,69 +499,123 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above each new validator.
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestRFC7606TrafficEngineering*` | done | `message/rfc7606_optional_attrs_test.go` | boundary at 35/36 |
+| `TestRFC7606IPv6ExtCommunity*` | done | same | 0/19/20/21/30/40 plus unrecognized type |
+| `TestRFC7606AttrSet*` | done | same + `rfc7606_attrset_context_test.go` + `rfc7606_attrset_discard_test.go` | the context and discard files were added after review found three over-validation bugs |
+| `TestRFC7606Diagnostics*` | done | `reactor/session_rfc7606_diagnostics_test.go` + `session_rfc7606_diag_cost_test.go` | the cost file replaces a tautological negative |
+| split one-field-per-message | done | `wireu/split_rfc7606_test.go` | untagged: proves the re-chunk path only, not the MUST |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `message/rfc7606.go` | not modified | already at the 1000-line limit; the new code went to its own file |
+| `message/rfc7606_optional_attrs.go` | created | validators + registrations |
+| `reactor/session_validation.go` | modified | Section 6 |
+| `wireu/split.go` | modified | Section 5.1-2, partial |
+| `evpn/`, `mvpn/` | not modified | Section 5.4 withdrawn from scope |
+| `rfc/short/rfc7606.md`, `rfc/audit/rfc7606.json`, `docs/features/rfc-status.md` | modified | 8 gaps → 3 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 7 requirements, 20 ACs, 8 files
+- **Done:** 5 requirements fully (7.13, 7.15-1, 7.15-2, 7.16, 6); 17 ACs
+- **Partial:** 1 (RFC7606-5.1-2) — owner-approved, carved into its own spec
+- **Skipped:** 1 (RFC7606-5.4-1) and its 2 ACs — owner decision, documented as a divergence
+- **Changed:** 4 deviations, all in Deviations from Plan
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| §7.13 implemented | unit + functional | (fill) |
-| §7.15-1 implemented | unit + functional | (fill) |
-| §7.15-2 still met, now by design | unit | (fill) |
-| §7.16 implemented | unit + functional | (fill) |
-| §6 implemented | unit | (fill) |
-| §5.4 implemented | unit + functional | (fill) |
-| §5.1-2 implemented | wire test | (fill) |
+| §7.13 implemented | unit + mutation | `TestRFC7606TrafficEngineeringTooShort` / `...Valid`; removing the code-24 registration fails the first |
+| §7.15-1 implemented | unit + mutation | `TestRFC7606IPv6ExtCommunityBadLength` / `...ValidLength`; removing the code-25 registration fails the first |
+| §7.15-2 still met, now by design | unit | `TestRFC7606IPv6ExtCommunityUnrecognizedType`: Type 0x3f / Sub-Type 0xee at valid length 20 is accepted, because the validator takes the attribute value as `_` |
+| §7.16 implemented | unit + mutation | `TestRFC7606AttrSetMalformed` / `...Valid` / `...InnerASPathAlwaysFourOctet` / `...InnerIBGPAttributesOnEBGPSession` / `...InnerDiscardDoesNotWithdraw` / `...NestingCapBoundary`; four mutants killed |
+| §6 implemented | unit + mutation | `TestRFC7606DiagnosticsListNLRIAndUpdate` asserts the prefix and the raw pre-rewrite ORIGIN bytes; `TestRFC7606DiagnosticsCostsNothingWhenDisabled` asserts zero allocations and fails if the Enabled() guard is removed |
+| §5.4 implemented | - | **WITHDRAWN from scope** by owner decision; now a documented divergence with the mechanism corrected |
+| §5.1-2 implemented | wire test | **PARTIAL.** `wireu/split_rfc7606_test.go` proves the re-chunk path emits one field per message and fails if `split.go` is reverted to HEAD. The relay paths are NOT covered; the gap stands, owned by `plan/spec-rfc7606-5-1-2-relay-shape.md` |
+| No regression | package tests | `internal/component/bgp/...` 81 packages ok; the single red is the known missing-build-tag artifact in `bgp/config`, green with the ze_core plus ze_ssh tags |
+| Gate | ze-rfc-check | green, 2535 tags resolved, up from 2519 |
+| Lint | golangci-lint | 0 issues across all five changed packages |
 
 ## Review Gate
+
+One independent adversarial subagent over the whole diff, then author mutation testing.
+Artifacts: `tmp/review/rfc7606-close-gaps-<sid>.md`,
+`tmp/review/rfc7606-preexisting-defects-<sid>.md`, `tmp/review/rfc7606-bgpls-skip-<sid>.md`.
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (fill) | file:line | (fill) |
+| 1 | ISSUE | ATTR_SET judged its inner AS_PATH/AGGREGATOR with the SESSION's asn4; RFC 6368 Section 5 requires the 4-octet encoding "regardless of the capabilities advertised", so a conforming inner AS_PATH was read with a 2-octet AS size and the route withdrawn | `rfc7606_optional_attrs.go` | fixed: inner context forced to asn4=true |
+| 2 | ISSUE | Same for isIBGP: an ATTR_SET preserving the customer's LOCAL_PREF was withdrawn on an eBGP session, which is the attribute's entire purpose | same | fixed: inner context forced to isIBGP=true |
+| 3 | ISSUE | An inner attribute-discard was escalated to a whole-route withdraw, inverting RFC 7606's deliberate grading | same | fixed: gated on >= TreatAsWithdraw |
+| 4 | ISSUE | The Section 6 negative test was tautological AND the audit note claimed it "pins the Enabled() guard" -- a false claim in a compliance artifact | `session_rfc7606_diagnostics_test.go`, `rfc/audit/rfc7606.json` | fixed: note corrected, allocation-based test added |
+| 5 | ISSUE | The Section 5.1-2 rewrite had NO test; reverting it left everything green | `wireu/split.go` | fixed: three tests, verified to fail on revert |
+| 6 | MINOR | `depth > cap` admitted cap+1 nesting levels while the message named cap | `validateAttrSetDepth` | fixed, boundary tested |
+| 7 | MINOR | Section 6 missing on the NLRI-syntax enforcement path | `session_validation.go` | fixed: wired |
+| 8 | MINOR | Vacuous EoR justification comment | `wireu/split.go` | fixed: reworded to say the path is unreachable |
+| 9 | MINOR | Two of three Section 6 assertions non-discriminating (one IS load-bearing) | `session_rfc7606_diagnostics_test.go` | accepted; the load-bearing one proves the pre-rewrite dump |
 
 ### Fixes applied
-- (fill)
+- All nine, plus the overclaim the GATE caught after review: the split tests had been
+  tagged as proof of RFC7606-5.1-2 while the requirement still carried a `{gap}`.
+  Tags removed under a recorded owner approval; the tests remain as regression cover.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Mutation testing after the fixes: 4 ATTR_SET mutants, the split revert, the Enabled()-guard removal, the EVPN header revert and the BGP-LS revert are ALL killed | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] Review re-run shows 0 BLOCKER, 0 ISSUE -- every finding fixed and mutation-verified
+- [ ] NOTEs recorded: Run 1 #9
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `message/rfc7606_optional_attrs.go` + 3 test files | yes | committed in `9eebcd30e` |
+| `reactor/session_rfc7606_diagnostics_test.go`, `..._diag_cost_test.go` | yes | same |
+| `wireu/split_rfc7606_test.go` | yes | same |
+| `rfc/full/rfc5543.txt`, `rfc/full/rfc6368.txt` | yes | fetched 2026-07-20, same commit |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..AC-3 | TE attribute bounds | `TestRFC7606TrafficEngineeringTooShort` (0/1/35) and `...Valid` (36/44/72) |
+| AC-4..AC-7 | IPv6 ext-community length and type tolerance | `TestRFC7606IPv6ExtCommunityBadLength` (0/19/21/30), `...ValidLength` (20/40), `...UnrecognizedType` |
+| AC-8..AC-13 | ATTR_SET malformed conditions and nesting | `TestRFC7606AttrSetMalformed` / `...Valid` / `...NestingCapBoundary` |
+| AC-14 | Section 6 logs NLRI and the UPDATE | `TestRFC7606DiagnosticsListNLRIAndUpdate` asserts `10.0.0.0/8` and the raw `400102` |
+| AC-15, AC-16 | withdrawn from scope | owner decision, recorded in Deviations |
+| AC-17 | one NLRI-bearing field per re-chunked UPDATE | `TestSplitWireUpdateOneNLRIFieldPerMessage` |
+| AC-18 | receive-side tolerance unchanged | no receive path was modified; the reactor and message suites pass |
+| AC-19 | End-of-RIB unaffected | `SplitWireUpdate` returns early for any payload that fits, so an EoR never reaches the changed code |
+| AC-20 | seven gaps gone | `grep -c '{gap' rfc/short/rfc7606.md` returns 3 (5.1-1 excluded, 5.1-2 partial, 5.4 withdrawn) |
 
 ### Wiring Verified (end-to-end)
-| Entry Point | .ci File | Verified |
-|-------------|----------|----------|
+No `.ci` was added. The planned functional tests are NOT present -- see Deviations.
+
+| Entry Point | Test | Verified |
+|-------------|------|----------|
+| received UPDATE -> `ValidateUpdateRFC7606` -> each new validator | every unit test drives the entry point, not the validator directly | yes |
+| RFC 7606 enforcement -> log | `TestRFC7606Diagnostics*` drive `enforceRFC7606` | yes |
+| oversized UPDATE -> `SplitWireUpdate` | `wireu/split_rfc7606_test.go` | yes |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | nothing in ze emits code 24 or 128; `IPv6ExtendedCommunities.Len()` is `len(e)*20` (`core/bgp/attribute/community.go:486`), always a valid multiple, so ze cannot reject its own output |
+| A-2 | confirmed | RFC 5543 Section 3 gives 4+8x4=36 fixed octets per descriptor; the reviewer independently confirmed L2SC and LSC carry no switching-capability-specific information, so 36 is exactly the smallest well-formed descriptor |
+| A-3 | confirmed | depth cap tested on both sides; the reviewer ran 500,000 random inputs through the walker with no panic |
+| A-4 | confirmed | origination is already compliant; only the two relay fits-branches remain, and they are carved into their own spec |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| rfc-status RFC 7606 row says three gaps | matches `grep -c '{gap' rfc/short/rfc7606.md` = 3 and the three non-enforced audit verdicts | yes |
+| Section 5.4 divergence rationale | ze has no EVPN dataplane per the RFC 7432 row; RFC 9552 Section 5.1 override quoted from `rfc/short/rfc9552.md:28`; GoBGP/ExaBGP behaviour read from source in `~/Code` | yes |
+| Section 5.1-2 gap names its owning spec | `plan/spec-rfc7606-5-1-2-relay-shape.md` exists | yes |
 
 ## Checklist
 

@@ -351,8 +351,8 @@
       "note": "IMPLEMENTED 2026-07-20. validateTrafficEngineeringAttr (message/rfc7606_optional_attrs.go) registers code 24 and rejects anything shorter than one RFC 5543 descriptor (36 octets: SwitchingCap+Encoding+Reserved+8x4 bandwidth). Negative TestRFC7606TrafficEngineeringTooShort pins lengths 0/1/35 to TreatAsWithdraw with AttrCode 24; positive TestRFC7606TrafficEngineeringValid pins 36/44/72 to Action None, so a validator that rejected everything would fail. Both drive ValidateUpdateRFC7606, not the validator directly. The check is deliberately minimal because 7.13 states RFC 5543 'does not detail what constitutes malformation'; over-validating would blackhole valid routes.",
       "requirement_sha": "237bc8c27cb21cac",
       "tests": {
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:56": "7e1e6d98714b5f41",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:83": "7e1e6d98714b5f41"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:56": "c53904e7a8456607",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:83": "c53904e7a8456607"
       },
       "verdict": "enforced"
     },
@@ -377,8 +377,8 @@
       "note": "IMPLEMENTED 2026-07-20. validateIPv6ExtCommunityAttr registers code 25 and applies 7.15's exact rule: malformed unless the length is a non-zero multiple of 20. Negative TestRFC7606IPv6ExtCommunityBadLength pins 0/19/21/30; positive TestRFC7606IPv6ExtCommunityValidLength pins 20/40. Zero is covered explicitly because 0 % 20 == 0 would pass a multiple-of-20 test alone.",
       "requirement_sha": "2bf7fb14e345cc40",
       "tests": {
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:115": "7e1e6d98714b5f41",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:142": "7e1e6d98714b5f41"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:115": "c53904e7a8456607",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:142": "c53904e7a8456607"
       },
       "verdict": "enforced"
     },
@@ -386,12 +386,12 @@
       "note": "IMPLEMENTED 2026-07-20, and the basis CHANGED. Previously met by omission (nothing validated code 25, so nothing could error). Now met by design: validateIPv6ExtCommunityAttr takes the attribute value as `_` and tests length alone, so no Type or Sub-Type can reach a rejection. TestRFC7606IPv6ExtCommunityUnrecognizedType pins Type 0x3f / Sub-Type 0xee with a valid length 20 to Action None -- the length clause cannot fire and mask the type question. Positive-only by the same argument as 7.14-2: the rule is a prohibition, so a negative would assert the rejection the RFC forbids.",
       "requirement_sha": "eedc81a2acb3586b",
       "tests": {
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:172": "7e1e6d98714b5f41"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:172": "c53904e7a8456607"
       },
       "verdict": "enforced"
     },
     "RFC7606-7.16-1": {
-      "note": "IMPLEMENTED 2026-07-20. validateAttrSetAttr registers code 128 and applies all three RFC 6368 Section 5 malformed conditions: length < 4, contained MP_REACH/MP_UNREACH, and inner attributes malformed themselves (recursing through validateAttribute, so the definition is shared not duplicated). Negative TestRFC7606AttrSetMalformed covers all three plus truncated inner header/length/value and over-deep nesting; positive TestRFC7606AttrSetValid covers Origin-AS-only, valid inner attributes, and one legal nesting level. Recursion is depth-capped at 4 because a peer controls nesting and could otherwise exhaust the stack.",
+      "note": "IMPLEMENTED 2026-07-20. validateAttrSetAttr registers code 128 and applies all three RFC 6368 Section 5 malformed conditions: length < 4, contained MP_REACH/MP_UNREACH, and inner attributes malformed themselves (recursing through validateAttribute, so the definition is shared not duplicated). Negative TestRFC7606AttrSetMalformed covers all three plus truncated inner header/length/value and over-deep nesting; positive TestRFC7606AttrSetValid covers Origin-AS-only, valid inner attributes, and one legal nesting level. Recursion is depth-capped at 4 because a peer controls nesting and could otherwise exhaust the stack. 2026-07-20 (later): the redundant 'nested beyond the depth cap' case was removed from TestRFC7606AttrSetMalformed under owner approval; the cap is covered more strongly by TestRFC7606AttrSetNestingCapBoundary, which pins the deepest ACCEPTED nesting as well as the first rejected one.",
       "requirement_sha": "5ad4c32d6312e5f5",
       "tests": {
         "internal/component/bgp/message/rfc7606_attrset_context_test.go:102": "b97264b03f6a0840",
@@ -399,8 +399,8 @@
         "internal/component/bgp/message/rfc7606_attrset_context_test.go:55": "b97264b03f6a0840",
         "internal/component/bgp/message/rfc7606_attrset_context_test.go:83": "b97264b03f6a0840",
         "internal/component/bgp/message/rfc7606_attrset_discard_test.go:25": "64aebe5de15df4b9",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:207": "7e1e6d98714b5f41",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:258": "7e1e6d98714b5f41"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:214": "c53904e7a8456607",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:259": "c53904e7a8456607"
       },
       "verdict": "enforced"
     },

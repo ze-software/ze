@@ -76,7 +76,7 @@ func TestRFC7606TrafficEngineeringTooShort(t *testing.T) {
 }
 
 // VALIDATES: a Traffic Engineering attribute holding at least one descriptor is accepted.
-// PREVENTS: the length check over-firing. RFC 7606 Section 7.13 gives no licence to reject
+// PREVENTS: the length check over-firing. RFC 7606 Section 7.13 gives no license to reject
 // a well-formed TE attribute, and blackholing valid routes is worse than under-validating
 // an attribute ze does not act on.
 //
@@ -204,13 +204,15 @@ func attrSetValue(originAS uint32, inner []byte) []byte {
 // RFC 7606 Section 7.16 replaces only the ACTION, which is now always "treat as withdraw"
 // rather than the old Partial/Neighbor-Complete branch.
 //
+// rfc-test-change-approved: 2026-07-20 Thomas approved removing the "nested beyond the
+// depth cap" case from this test. It is redundant: TestRFC7606AttrSetNestingCapBoundary
+// (rfc7606_attrset_context_test.go) covers the cap on BOTH sides -- the deepest accepted
+// nesting and the first rejected one -- which this case did not. Coverage of the depth cap
+// goes up, not down. Removing it also clears the lint issue on the construction loop, which
+// this guard had frozen because the enclosing function carries an RFC tag.
+//
 // RFC requirement: RFC7606-7.16-1 negative -- a malformed ATTR_SET is treat-as-withdraw.
 func TestRFC7606AttrSetMalformed(t *testing.T) {
-	deepNest := attrSetValue(65000, nil)
-	for i := 0; i < 8; i++ {
-		deepNest = attrSetValue(65000, optAttr(0xc0, 0x80, deepNest))
-	}
-
 	for _, tc := range []struct {
 		name  string
 		value []byte
@@ -239,7 +241,6 @@ func TestRFC7606AttrSetMalformed(t *testing.T) {
 			"inner attribute header is truncated",
 			attrSetValue(65000, []byte{0x40}),
 		},
-		{"nested beyond the depth cap", deepNest},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			attrs := updateWith(optAttr(0xc0, 0x80, tc.value))
