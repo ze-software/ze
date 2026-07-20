@@ -1049,15 +1049,38 @@ func TestTunnelFSM_TieBreakerEqual(t *testing.T) {
 // reaper behavior without depending on real-time timer scheduling.
 // The timer goroutine is tested separately in timer_test.go.
 
+// testClock is a goroutine-safe injected clock. The reactor's run() goroutine
+// reads it (via ReactorParams.Clock) while the test advances it from its own
+// goroutine, so a plain *time.Time races -- and did: the read/write pair
+// surfaced under -race in TestPeerTeardownWithdrawsSubscriberRoute.
+type testClock struct {
+	mu sync.Mutex
+	t  time.Time
+}
+
+func newTestClock(t time.Time) *testClock { return &testClock{t: t} }
+
+func (c *testClock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.t
+}
+
+func (c *testClock) add(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.t = c.t.Add(d)
+}
+
 // buildLogReactorWithClock constructs a reactor with a controllable clock
-// and HelloInterval. The clock function returns the value pointed to by
-// *now, which the test advances manually. No tunnelTimer is attached;
+// and HelloInterval. The clock function returns clk's current value, which the
+// test advances manually via clk.add(). No tunnelTimer is attached;
 // tests call r.handleTick() directly.
 //
 //nolint:unparam // all current callers use 60s but the parameter keeps call sites self-documenting.
-func buildLogReactorWithClock(t *testing.T, now *time.Time, helloInterval time.Duration, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildLogReactorWithClock(t *testing.T, clk *testClock, helloInterval time.Duration, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
 	t.Helper()
-	return buildLogReactorWithClockObserver(t, now, helloInterval, secret, nil)
+	return buildLogReactorWithClockObserver(t, clk, helloInterval, secret, nil)
 }
 
 // buildLogReactorWithClockObserver is buildLogReactorWithClock with a
@@ -1068,7 +1091,7 @@ func buildLogReactorWithClock(t *testing.T, now *time.Time, helloInterval time.D
 // is a genuine data race, not a timing flake -- unlike the reload-time setters
 // (setHelloRetries and friends), which take tunnelsMu and are safe any time.
 // A nil observer is a documented no-op, so the wrapper above passes nil.
-func buildLogReactorWithClockObserver(t *testing.T, now *time.Time, helloInterval time.Duration, secret string, obs RouteObserver) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterval time.Duration, secret string, obs RouteObserver) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -1078,7 +1101,7 @@ func buildLogReactorWithClockObserver(t *testing.T, now *time.Time, helloInterva
 	r := NewL2TPReactor(ln, logger, ReactorParams{
 		HelloInterval: helloInterval,
 		Defaults:      TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
-		Clock:         func() time.Time { return *now },
+		Clock:         clk.now,
 	})
 	r.SetRouteObserver(obs)
 	require.NoError(t, r.Start())
@@ -1188,35 +1211,45 @@ func (o *recordingRouteObserver) downs() [][2]uint16 {
 // withdraw was not observed during teardown" -- the reactor's peer paths
 // (handle, handleTick) previously skipped OnSessionDown, leaving the /32
 // injected after the session was gone.
+//
+// rfc-test-change-approved: 2026-07-20 clock-sync race fix (testClock replaces shared *time.Time) + establishment barrier (waitForLog before teardown); assertions and RFC-2661 5.8-3 obligation unchanged
 func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 60 * time.Second
 	spy := &recordingRouteObserver{}
-	ln, r, _, stop := buildLogReactorWithClockObserver(t, &now, helloInterval, "", spy)
+	ln, r, logs, stop := buildLogReactorWithClockObserver(t, clk, helloInterval, "", spy)
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
 	defer client.Close()
+
+	// driveToEstablished returns as soon as it SENDS the SCCCN; wait until the
+	// reactor's run() goroutine has actually processed it and the tunnel is
+	// Established before touching tunnel state below. Otherwise establishment
+	// races the teardown driving: run() would set lastActivity to "now" and keep
+	// the SCCRP outstanding, so the HELLO/retransmit path is nondeterministic and
+	// the teardown may never fire (observed as 0 withdrawn routes).
+	waitForLog(t, logs, "tunnel now established")
 
 	// Attach an established session so the teardown has a route to withdraw.
 	const sid uint16 = 0x4242
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
 	tunnel.sessions = map[uint16]*L2TPSession{
-		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: now},
+		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: clk.now()},
 	}
-	tunnel.lastActivity = now.Add(-70 * time.Second)
+	tunnel.lastActivity = clk.now().Add(-70 * time.Second)
 	r.tunnelsMu.Unlock()
 
 	// First tick sends a HELLO; the peer stays silent.
-	now = now.Add(65 * time.Second)
+	clk.add(65 * time.Second)
 	r.handleTick(tickReq{tunnelID: localTID})
 
 	// Exhaust retransmits so the engine returns TeardownRequired and the
 	// reactor tears the tunnel down with a StopCCN.
 	retransmitTimeout := DefaultRTimeout
 	for range DefaultMaxRetransmit + 1 {
-		now = now.Add(retransmitTimeout + time.Second)
+		clk.add(retransmitTimeout + time.Second)
 		retransmitTimeout *= 2
 		if retransmitTimeout > DefaultRTimeoutCap {
 			retransmitTimeout = DefaultRTimeoutCap
@@ -1240,10 +1273,10 @@ func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 // PREVENTS: regression to the slow ~36s dead-peer detection that blew the
 // L2TP evidence/interop teardown windows when xl2tpd died without StopCCN.
 func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 5 * time.Second
 	spy := &recordingRouteObserver{}
-	ln, r, logs, stop := buildLogReactorWithClockObserver(t, &now, helloInterval, "", spy)
+	ln, r, logs, stop := buildLogReactorWithClockObserver(t, clk, helloInterval, "", spy)
 	defer stop()
 
 	r.setHelloRetries(2) // dead-peer detection at 2 * 5s = 10s
@@ -1256,15 +1289,15 @@ func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
 	tunnel.sessions = map[uint16]*L2TPSession{
-		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: now},
+		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: clk.now()},
 	}
 	// Peer goes silent (no delivered messages, no ACKs): freeze liveness.
-	tunnel.lastLiveness = now
+	tunnel.lastLiveness = clk.now()
 	r.tunnelsMu.Unlock()
 
 	// One tick at +11s (> 10s dead-peer deadline, << 31s retransmit
 	// exhaustion) must tear the tunnel down via dead-peer detection.
-	now = now.Add(11 * time.Second)
+	clk.add(11 * time.Second)
 	r.handleTick(tickReq{tunnelID: localTID})
 
 	r.tunnelsMu.Lock()
@@ -1292,9 +1325,9 @@ func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
 // PREVENTS: the naive-hold-timer bug -- basing teardown on lastActivity (which
 // a ZLB does not update) would falsely kill a healthy idle tunnel.
 func TestDeadPeerZLBAckKeepsTunnelUp(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 5 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, helloInterval, "")
 	defer stop()
 
 	r.setHelloRetries(2) // dead-peer deadline 10s
@@ -1313,7 +1346,7 @@ func TestDeadPeerZLBAckKeepsTunnelUp(t *testing.T) {
 	// refreshes lastLiveness so the tunnel survives. lastActivity is never
 	// updated by the ZLBs, so a HELLO keeps firing each round.
 	for round := range 2 {
-		now = now.Add(6 * time.Second)
+		clk.add(6 * time.Second)
 		r.handleTick(tickReq{tunnelID: localTID})
 
 		helloPkt := readDatagram(t, client)
@@ -1324,7 +1357,7 @@ func TestDeadPeerZLBAckKeepsTunnelUp(t *testing.T) {
 
 		// Wait for the reactor goroutine to process the ZLB and advance
 		// lastLiveness to the current clock value.
-		liveAt := now
+		liveAt := clk.now()
 		require.Eventually(t, func() bool {
 			r.tunnelsMu.Lock()
 			defer r.tunnelsMu.Unlock()
@@ -1335,7 +1368,7 @@ func TestDeadPeerZLBAckKeepsTunnelUp(t *testing.T) {
 
 	// A further tick (still within one deadline of the last refresh) must
 	// not tear the tunnel down.
-	now = now.Add(6 * time.Second)
+	clk.add(6 * time.Second)
 	r.handleTick(tickReq{tunnelID: localTID})
 
 	r.tunnelsMu.Lock()
@@ -1354,9 +1387,9 @@ func TestDeadPeerZLBAckKeepsTunnelUp(t *testing.T) {
 // not torn down by the keepalive-timeout path (retransmit exhaustion remains
 // the only signal, as it was before this feature).
 func TestDeadPeerDisabledWhenRetriesZero(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 5 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, helloInterval, "")
 	defer stop()
 	// HelloRetries left at 0 (the builder default): DPD disabled.
 
@@ -1365,12 +1398,12 @@ func TestDeadPeerDisabledWhenRetriesZero(t *testing.T) {
 	waitForLog(t, logs, "tunnel now established")
 
 	r.tunnelsMu.Lock()
-	r.tunnelsByLocalID[localTID].lastLiveness = now
+	r.tunnelsByLocalID[localTID].lastLiveness = clk.now()
 	r.tunnelsMu.Unlock()
 
 	// Far past any plausible dead-peer deadline, but a single tick must not
 	// trigger keepalive teardown when retries==0. (It sends a HELLO instead.)
-	now = now.Add(11 * time.Second)
+	clk.add(11 * time.Second)
 	r.handleTick(tickReq{tunnelID: localTID})
 
 	r.tunnelsMu.Lock()
@@ -1387,9 +1420,9 @@ func TestDeadPeerDisabledWhenRetriesZero(t *testing.T) {
 // retransmit budget and is not closed by the keepalive-timeout path, even
 // with a very stale lastLiveness.
 func TestDeadPeerNotRunBeforeEstablished(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 5 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, helloInterval, "")
 	defer stop()
 	r.setHelloRetries(2)
 
@@ -1406,11 +1439,11 @@ func TestDeadPeerNotRunBeforeEstablished(t *testing.T) {
 	tn := r.tunnelsByLocalID[localTID]
 	require.NotNil(t, tn)
 	require.NotEqual(t, L2TPTunnelEstablished, tn.state, "precondition: tunnel must not be established")
-	tn.lastLiveness = now.Add(-100 * time.Second) // would trip DPD if it ran
+	tn.lastLiveness = clk.now().Add(-100 * time.Second) // would trip DPD if it ran
 	r.tunnelsMu.Unlock()
 
 	// One tick just past the first SCCRP retransmit deadline (not exhaustion).
-	now = now.Add(2 * time.Second)
+	clk.add(2 * time.Second)
 	r.handleTick(tickReq{tunnelID: localTID})
 
 	r.tunnelsMu.Lock()
@@ -1429,9 +1462,9 @@ func TestDeadPeerNotRunBeforeEstablished(t *testing.T) {
 // the reactor sends a HELLO control message. The peer's ZLB ACK resets
 // the silence timer by updating lastActivity.
 func TestTunnelFSM_HelloOnSilence(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 60 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, helloInterval, "")
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
@@ -1443,12 +1476,12 @@ func TestTunnelFSM_HelloOnSilence(t *testing.T) {
 	_ = readDatagram(t, client)
 
 	// Advance clock past hello interval and trigger a tick.
-	now = now.Add(61 * time.Second)
+	clk.add(61 * time.Second)
 
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
 	// Set lastActivity to well before the hello interval.
-	tunnel.lastActivity = now.Add(-65 * time.Second)
+	tunnel.lastActivity = clk.now().Add(-65 * time.Second)
 	r.tunnelsMu.Unlock()
 
 	r.handleTick(tickReq{tunnelID: localTID})
@@ -1472,9 +1505,9 @@ func TestTunnelFSM_HelloOnSilence(t *testing.T) {
 // tunnel reaches closed state. After the retention window, the reaper
 // removes it from both maps.
 func TestTunnelFSM_HelloExhaustedTeardown(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 60 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, helloInterval, "")
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
@@ -1484,10 +1517,10 @@ func TestTunnelFSM_HelloExhaustedTeardown(t *testing.T) {
 	_ = readDatagram(t, client) // drain ZLB
 
 	// Set lastActivity to before hello interval and trigger HELLO.
-	now = now.Add(65 * time.Second)
+	clk.add(65 * time.Second)
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
-	tunnel.lastActivity = now.Add(-70 * time.Second)
+	tunnel.lastActivity = clk.now().Add(-70 * time.Second)
 	r.tunnelsMu.Unlock()
 
 	r.handleTick(tickReq{tunnelID: localTID})
@@ -1500,7 +1533,7 @@ func TestTunnelFSM_HelloExhaustedTeardown(t *testing.T) {
 	// Advance time past each retransmit deadline.
 	retransmitTimeout := DefaultRTimeout
 	for range DefaultMaxRetransmit + 1 {
-		now = now.Add(retransmitTimeout + time.Second)
+		clk.add(retransmitTimeout + time.Second)
 		retransmitTimeout *= 2
 		if retransmitTimeout > DefaultRTimeoutCap {
 			retransmitTimeout = DefaultRTimeoutCap
@@ -1530,7 +1563,7 @@ func TestTunnelFSM_HelloExhaustedTeardown(t *testing.T) {
 
 	// Advance time past the retention window and tick again for reaper.
 	// Retention with defaults: 1+2+4+8+16 = 31s.
-	now = now.Add(60 * time.Second)
+	clk.add(60 * time.Second)
 	r.handleTick(tickReq{tunnelID: localTID})
 
 	require.Equal(t, 0, r.TunnelCount(), "expired tunnel must be reaped")
@@ -1544,8 +1577,8 @@ func TestTunnelFSM_HelloExhaustedTeardown(t *testing.T) {
 // the engine continues to serve ZLB ACKs for retransmitted StopCCNs
 // until the retention window expires.
 func TestTunnelFSM_StopCCNEstablished(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, 60*time.Second, "")
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
@@ -1589,8 +1622,8 @@ func TestTunnelFSM_StopCCNEstablished(t *testing.T) {
 // tunnel, the tunnel is removed from BOTH the primary (tunnelsByLocalID)
 // and secondary (tunnelsByPeer) maps.
 func TestReaper_ExpiredTunnelRemoved(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, 60*time.Second, "")
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
@@ -1606,7 +1639,7 @@ func TestReaper_ExpiredTunnelRemoved(t *testing.T) {
 	require.Equal(t, 1, r.TunnelCount(), "tunnel present during retention")
 
 	// Advance past retention window (defaults: 1+2+4+8+16 = 31s).
-	now = now.Add(60 * time.Second)
+	clk.add(60 * time.Second)
 
 	// Tick triggers the reaper.
 	r.handleTick(tickReq{tunnelID: localTID})
@@ -1666,8 +1699,8 @@ func TestIntegration_LoopbackHandshake(t *testing.T) {
 // (SCCRP sent, SCCCN not yet received) closes the tunnel correctly.
 // This is a valid protocol scenario where the peer aborts mid-handshake.
 func TestTunnelFSM_StopCCNDuringHandshake(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, 60*time.Second, "")
 	defer stop()
 
 	client := newClient(t, ln)
@@ -1703,8 +1736,8 @@ func TestTunnelFSM_StopCCNDuringHandshake(t *testing.T) {
 // VALIDATES: a StopCCN with a malformed body (wrong first AVP) is
 // ignored without crash; the tunnel remains in its current state.
 func TestTunnelFSM_MalformedStopCCNIgnored(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, 60*time.Second, "")
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
@@ -1746,9 +1779,9 @@ func TestTunnelFSM_MalformedStopCCNIgnored(t *testing.T) {
 // inbound delivery), handleTick does NOT send a HELLO. The zero check
 // prevents spurious HELLOs before the tunnel has seen any traffic.
 func TestTunnelFSM_HelloNotSentWhenLastActivityZero(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 60 * time.Second
-	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	ln, r, logs, stop := buildLogReactorWithClock(t, clk, helloInterval, "")
 	defer stop()
 
 	client, localTID := driveToEstablished(t, ln, "")
@@ -1759,7 +1792,7 @@ func TestTunnelFSM_HelloNotSentWhenLastActivityZero(t *testing.T) {
 
 	// Force lastActivity to zero (simulate a tunnel that reached
 	// established without the reactor setting lastActivity).
-	now = now.Add(120 * time.Second)
+	clk.add(120 * time.Second)
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
 	tunnel.lastActivity = time.Time{}
