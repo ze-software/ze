@@ -625,6 +625,27 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 					Message: tb.Reset().Str("mandatory field ").Quoted(name).Str(" is missing").String(),
 				})
 			}
+			continue
+		}
+		// An ABSENT leaf-list with min-elements > 0 violates its bound just as
+		// surely as an empty one, and NOTHING else catches it.
+		//
+		// The obvious assumption -- "absence is the mandatory check's business"
+		// above -- is FALSE for a leaf-list, and provably so at the producer:
+		// goyang's `case *LeafList:` (vendor/.../goyang/pkg/yang/entry.go)
+		// synthesizes a Leaf WITHOUT copying Mandatory, and *LeafList has no
+		// Mandatory field to copy (yang.go: it carries MaxElements/MinElements
+		// but no mandatory). So Entry.Mandatory is TSUnset forever for a
+		// leaf-list and the loop above can never fire on one.
+		//
+		// Omitting the leaf entirely is also the shape an operator is most
+		// likely to write, so checking only the explicitly-empty `foo [ ]` form
+		// would leave the common case inert -- which is the defect this spec is
+		// named for.
+		if child.IsLeafList() && child.ListAttr != nil && child.ListAttr.MinElements > 0 {
+			if _, ok := data[name]; !ok {
+				checkCardinality(tb.Reset().Str(path).Byte('/').Str(name).String(), child, 0, errs)
+			}
 		}
 	}
 
@@ -671,27 +692,45 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 		// max-elements bound must catch.
 		if child.IsLeafList() {
 			items := leafListItems(value)
-			if len(items) > 0 {
-				checkCardinality(childPath, child, uint64(len(items)), errs)
-				for _, item := range items {
-					if leafErr := v.validateEntry(childPath, child, item); leafErr != nil {
-						var valErr *ValidationError
-						if errors.As(leafErr, &valErr) {
-							*errs = append(*errs, *valErr)
-						} else {
-							*errs = append(*errs, ValidationError{
-								Path:    childPath,
-								Type:    ErrTypeType,
-								Message: leafErr.Error(),
-							})
-						}
+			// Cardinality is checked for a PRESENT leaf-list even when it is
+			// EMPTY. This call used to sit inside `if len(items) > 0`, which
+			// made min-elements inert: zero is precisely the count that violates
+			// a min bound, and it was the one count that skipped the check.
+			// max-elements was unaffected (an over-count is necessarily
+			// non-empty), which is why the max-side coverage passed while the
+			// min side enforced nothing.
+			//
+			// An ABSENT leaf-list does not reach this loop (it ranges over the
+			// data actually supplied); absence is handled by the min-elements
+			// scan over entry.Dir at the top of walkTree. Do NOT assume the
+			// mandatory check covers it -- it cannot, see the note there.
+			//
+			// Note this counts an UNINTERPRETABLE value as 0, because
+			// leafListItems returns nil for a shape it cannot read. That is
+			// currently unreachable: Tree.ToMap only ever emits string or
+			// []string for a leaf (config/tree.go), and both are interpreted.
+			// If another producer ever feeds walkTree a differently-shaped
+			// value, this would misreport it as "too few entries" rather than
+			// as a type error -- distinguish the two here if that day comes.
+			checkCardinality(childPath, child, uint64(len(items)), errs)
+			for _, item := range items {
+				if leafErr := v.validateEntry(childPath, child, item); leafErr != nil {
+					var valErr *ValidationError
+					if errors.As(leafErr, &valErr) {
+						*errs = append(*errs, *valErr)
+					} else {
+						*errs = append(*errs, ValidationError{
+							Path:    childPath,
+							Type:    ErrTypeType,
+							Message: leafErr.Error(),
+						})
 					}
-					// Apply ze:validate custom validators per leaf-list item, the
-					// same way a single leaf is custom-validated below. Without this
-					// a ze:validate extension on a leaf-list (e.g. isis `net`) would
-					// never run.
-					v.applyCustomValidators(childPath, child, item, errs)
 				}
+				// Apply ze:validate custom validators per leaf-list item, the
+				// same way a single leaf is custom-validated below. Without this
+				// a ze:validate extension on a leaf-list (e.g. isis `net`) would
+				// never run.
+				v.applyCustomValidators(childPath, child, item, errs)
 			}
 			continue
 		}

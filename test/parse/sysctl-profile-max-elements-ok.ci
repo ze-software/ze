@@ -1,0 +1,25 @@
+# Valid config: exactly max-elements sysctl-profiles on one unit (boundary).
+#
+# VALIDATES: cardinality accepts a leaf-list at exactly max-elements (10).
+# PREVENTS: an off-by-one in the bound. The sibling sysctl-profile-max-elements.ci
+# proves 11 is rejected; on its own that passes just as happily against a check
+# that rejects 10 too, which would break every config sitting on the limit. The
+# pair is what pins the boundary.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+    backend netlink
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 ]
+            ipv4 {
+                address [ 10.0.0.1/24 ]
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

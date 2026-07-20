@@ -1,0 +1,68 @@
+# Invalid config: a VRRP group whose virtual-address leaf-list violates
+# min-elements 1, in both spellings.
+#
+# VALIDATES: YANG min-elements enforcement for a leaf-list, driven through
+# `ze config validate` -- the operator-facing path -- rather than a unit test.
+# PREVENTS: min-elements silently enforcing nothing. It did exactly that until
+# 2026-07-20: walkTree guarded its cardinality call with `if len(items) > 0`, so
+# zero -- the ONE count that violates a minimum -- was the one count that skipped
+# the check, and absence was not scanned at all. max-elements was unaffected (an
+# over-count is necessarily non-empty), which is why the sibling
+# sysctl-profile-max-elements.ci passed throughout while this bound did nothing.
+#
+# Two cases on purpose, because they took different code paths to fix:
+#   seq=1  virtual-address OMITTED  -- the shape an operator actually writes.
+#          Nothing caught this before: goyang never sets Mandatory on a leaf-list
+#          (its *LeafList node has no mandatory field), so walkTree's mandatory
+#          loop can never fire on one.
+#   seq=2  virtual-address [ ]      -- explicitly empty.
+#
+# Both also draw a second error from the VRRP plugin verifier, which owns the same
+# leaf-list. That duplicate is accepted deliberately (spec R-7): suppressing the
+# YANG one would need a registry of which plugin owns which leaf-list, i.e. exactly
+# the per-feature spelling in a generic package that plugin-self-containment
+# forbids. So this test asserts on the YANG diagnostic specifically.
+option=skip-os:value=darwin
+
+stdin=absent:terminator=EOF_ABSENT
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_ABSENT
+
+stdin=empty:terminator=EOF_EMPTY
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                        virtual-address [ ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_EMPTY
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=absent:exit=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=empty:exit=1
+expect=exit:code=1
+expect=stdout:contains=too few entries: 0 (minimum 1)
+expect=stdout:contains=virtual-address
