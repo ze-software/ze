@@ -805,6 +805,8 @@ var regenCheckPrereqs = map[string]string{
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
 	"ze-doc-check-stale":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
 	"ze-rules-index-check":     "rules_index.py -> ai/rules/INDEX.md",
+	"ze-rules-condensed-check": "rules_condensed.py -> ai/rules/CONDENSED.md",
+	"ze-rules-lint":            "rules_lint.py -> ai/rules/*.md format contract (read-only validator, no generated output)",
 	"ze-arch-map-check":        "arch_map.py -> the architecture lists in ai/INSTRUCTIONS.md (NOT covered by ze-doc-test)",
 	"ze-discovery-index-check": "package_map.py, docs_to_code.py, learned_index.py, learned_numbers.py -> the ai/ discovery indexes",
 	"ze-test-health-check":     "testing_health.py -> docs/features/test-health.md, test/health/latest.json, the sensitivity baseline",
@@ -829,21 +831,23 @@ var generatorChecks = map[string]string{
 	"ze-ai-sync":         "", // gitignored outputs -- excluded on purpose
 	"ze-doc-index":       "ze-doc-check-stale",
 	"ze-rules-index":     "ze-rules-index-check",
+	"ze-rules-condensed": "ze-rules-condensed-check",
 	"ze-discovery-index": "ze-discovery-index-check",
 	"ze-arch-map":        "ze-arch-map-check",
 	"generate":           "", // expanded into its own generators above
 	// Scripts run INSIDE those sub-targets' recipes. Walking only the target
 	// names left these invisible: a reviewer showed a new script added to
 	// ze-discovery-index's recipe would be accepted with no check at all.
-	"scripts/dev/arch_map.py":       "ze-arch-map-check",
-	"scripts/dev/code_to_docs.py":   "ze-doc-check-stale",
-	"scripts/dev/rules_index.py":    "ze-rules-index-check",
-	"scripts/dev/package_map.py":    "ze-discovery-index-check",
-	"scripts/dev/docs_to_code.py":   "ze-discovery-index-check",
-	"scripts/dev/learned_index.py":  "ze-discovery-index-check",
-	"scripts/dev/skill_sync.sh":     "", // gitignored outputs -- excluded on purpose
-	"scripts/dev/testing_health.py": "ze-test-health-check",
-	"ze-test-health":                "ze-test-health-check",
+	"scripts/dev/arch_map.py":        "ze-arch-map-check",
+	"scripts/dev/code_to_docs.py":    "ze-doc-check-stale",
+	"scripts/dev/rules_index.py":     "ze-rules-index-check",
+	"scripts/dev/rules_condensed.py": "ze-rules-condensed-check",
+	"scripts/dev/package_map.py":     "ze-discovery-index-check",
+	"scripts/dev/docs_to_code.py":    "ze-discovery-index-check",
+	"scripts/dev/learned_index.py":   "ze-discovery-index-check",
+	"scripts/dev/skill_sync.sh":      "", // gitignored outputs -- excluded on purpose
+	"scripts/dev/testing_health.py":  "ze-test-health-check",
+	"ze-test-health":                 "ze-test-health-check",
 }
 
 // recipeBody returns the lines of `target`'s recipe: everything after the rule
@@ -1075,8 +1079,8 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	// ze-regen unnoticed, so `make ze-regen` would stop regenerating an output
 	// that ze-regen-check-readonly (an un-parkable structural gate) still checks
 	// -- a red whose documented remediation does not fix it.
-	if len(subTargets) != 7 {
-		t.Fatalf("`ze-regen` has %d prerequisites (%v), expected 7; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
+	if len(subTargets) != 8 {
+		t.Fatalf("`ze-regen` has %d prerequisites (%v), expected 8; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
 	}
 	producers = append(producers, subTargets...)
 	for _, sub := range subTargets {

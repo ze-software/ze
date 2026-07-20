@@ -33,7 +33,9 @@ func TestRulesIndexCoversEveryRule(t *testing.T) {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".md") || name == "INDEX.md" {
+		// INDEX.md and CONDENSED.md are generated digests, not rules; rules_index.py
+		// skips both (its SKIP set), so the coverage check must skip them too.
+		if e.IsDir() || !strings.HasSuffix(name, ".md") || name == "INDEX.md" || name == "CONDENSED.md" {
 			continue
 		}
 		if !strings.Contains(index, "ai/rules/"+name) {
