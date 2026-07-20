@@ -11,6 +11,7 @@
 | Build a route server at an IXP | [Route Reflection](route-reflection.md) |
 | Monitor BGP sessions in real time | [Monitoring](monitoring.md) |
 | Validate routes against RPKI | [RPKI Origin Validation](rpki.md) |
+| Filter customer BGP routes from IRR data | [IRR BGP Import Filtering](irr-filtering.md) |
 | Restart without dropping routes | [Graceful Restart](graceful-restart.md) |
 | Back up config on commit or a schedule | [Config Archive](config-archive.md) |
 | Manage config through a browser | [Web Interface](web-interface.md) |
@@ -45,6 +46,7 @@
 | Guide | When to use | Description |
 |-------|-------------|-------------|
 | [RPKI Origin Validation](rpki.md) | Reject hijacked routes | RTR cache, origin validation, fail-open safety |
+| [IRR BGP Import Filtering](irr-filtering.md) | Reject unregistered customer routes | Dynamic prefix-lists from ASNs and AS-SETs |
 | [Graceful Restart](graceful-restart.md) | Restart without blackholing traffic | Hold routes during restart window (RFC 4724) |
 | [Route Reflection](route-reflection.md) | Forward routes between peers | Route server / reflector setup (RFC 7947) |
 | [ADD-PATH](add-path.md) | Forward all paths, not just best | Multiple paths per prefix (RFC 7911) |

@@ -116,6 +116,19 @@
       "validate": "rpki/validate.sh"
     },
     {
+      "id": "irr-filter",
+      "title": "Add IRR filtering to an existing BGP peer",
+      "description": "Populate a stored configuration with the IRR plugin, server, AS-SET, and import filter, then prove registered routes pass and unregistered routes do not.",
+      "page": "guide/irr-filtering.md",
+      "anchor": "local-demonstration",
+      "platform": "portable",
+      "duration": "3 minutes 37 seconds",
+      "kind": "terminal",
+      "engine": "VHS 0.11.0",
+      "source": "irr-filter/demo.tape",
+      "validate": "irr-filter/validate.sh"
+    },
+    {
       "id": "rib-fib",
       "title": "Follow a route from BGP RIB to Linux FIB",
       "description": "Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.",

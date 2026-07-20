@@ -724,14 +724,14 @@ bgp {
             }
         }
         filter {
-            import [ bgp-filter-irr:$remote_as ]
+            import [ bgp-filter-irr:65001 ]
         }
     }
 }
 ```
 
-The `$remote_as` variable is resolved by the reactor to the peer's remote ASN,
-so the filter name becomes `bgp-filter-irr:65001`. The plugin queries IRR for
+The suffix in `bgp-filter-irr:65001` is the peer's remote ASN. Use the
+corresponding ASN in each peer's filter reference. The plugin queries IRR for
 the AS-SET's prefixes and builds a prefix-list keyed by ASN. Routes with
 prefixes in the list are accepted; all others are rejected (implicit deny).
 
@@ -741,6 +741,9 @@ for the ASN, the plugin falls back to querying IRR directly using
 `AS<number>` (e.g. `AS65001`). If the IRR query also fails, the existing
 prefix-list is preserved and the error is reported via `show bgp irr`.
 Set `irr { enable disable; }` to opt a peer out of IRR filtering entirely.
+
+For a complete configuration, verification workflow, troubleshooting table,
+and local recording, see [Filter BGP Imports with IRR](irr-filtering.md).
 
 The plugin refreshes prefix-lists automatically at the configured interval and
 on demand via `update bgp irr all`. Resolved prefixes are stored as operational

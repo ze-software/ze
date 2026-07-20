@@ -132,6 +132,47 @@ EOF
   Recording complete.
 EOF
         ;;
+    irr-filter:intro)
+        cat <<'EOF'
+
+  Add IRR filtering to an existing BGP peer
+  =========================================
+
+  The stored configuration already has customer-a and Adj-RIB-In, but no
+  IRR plugin, IRR server, AS-SET, or import filter.
+
+  We will add all five settings with one-shot `ze config set` commands,
+  then start Ze and prove the generated list filters received routes.
+EOF
+        ;;
+    irr-filter:configured)
+        cat <<'EOF'
+
+  CONFIGURATION POPULATED
+  =======================
+
+  The stored configuration now loads bgp-filter-irr, points it at the IRR
+  server, maps customer-a to AS-TEST, and applies the ASN 65001 import list.
+
+  The operational commands next use Ze's default `text` format. Its
+  key/value layout resembles YAML, but YAML is only selected with `| yaml`.
+EOF
+        ;;
+    irr-filter:recap)
+        cat <<'EOF'
+
+  ONE AS-SET, ONE DYNAMIC IMPORT POLICY
+  =====================================
+
+  10.0.0.0/24 matched the generated list and entered Adj-RIB-In.
+  192.168.0.0/24 did not match and was rejected.
+
+  Ze refreshes the list automatically. Failed refreshes preserve the
+  last known good data in ZeFS instead of replacing it with an empty list.
+
+  Recording complete.
+EOF
+        ;;
     rpki:intro)
         cat <<'EOF'
 
