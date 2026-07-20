@@ -165,3 +165,7 @@ rfc1661	PPP LCP (RFC 1661): 27 MET (Protocol-field parity, LCP-first bring-up, p
 rfc9568	VRRP Version 3 for IPv4 and IPv6
 rfc2131	Dynamic Host Configuration Protocol
 rfc7432	BGP MPLS-Based Ethernet VPN (EVPN)
+rfc4035	Protocol Modifications for the DNS Security Extensions
+rfc7752	North-Bound Distribution of Link-State and TE Information Using BGP
+rfc9256	Segment Routing Policy Architecture
+rfc6793	BGP Support for Four-Octet AS Number Space
