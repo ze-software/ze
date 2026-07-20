@@ -23,6 +23,9 @@ GOBGP_CONTAINER = "ze-iop-gobgp-%s" % _SUFFIX
 BMP_CONTAINER = "ze-iop-bmp-%s" % _SUFFIX
 RPKI_CONTAINER = "ze-iop-rpki-%s" % _SUFFIX
 KEEPALIVED_CONTAINER = "ze-iop-keepalived-%s" % _SUFFIX
+INJECT_CONTAINER = "ze-iop-inject-%s" % _SUFFIX
+SPEAKER_CONTAINER = "ze-iop-speaker-%s" % _SUFFIX
+SPEAKER2_CONTAINER = "ze-iop-speaker2-%s" % _SUFFIX
 
 # IP addresses on the test network.
 _BASE_SUBNET_PREFIX = "172.30.0."
@@ -36,6 +39,9 @@ GOBGP_IP = "172.30.0.5"
 BMP_IP = "172.30.0.6"
 RPKI_IP = "172.30.0.7"
 KEEPALIVED_IP = "172.30.0.8"
+INJECT_IP = "172.30.0.9"
+SPEAKER_IP = "172.30.0.10"
+SPEAKER2_IP = "172.30.0.11"
 
 # The VRRP virtual IP the ze and keepalived scenarios contend for. It is
 # deliberately NOT any container's own address: it is owned by whichever router
@@ -1275,6 +1281,33 @@ class Scenario:
                 cmd=["/bmp-collector.py"],
             )
 
+        # Start a raw BGP injector sidecar before Ze if the scenario provides one.
+        # It runs `ze-test peer` in check mode against a scenario-supplied expect file,
+        # which is how a scenario sends wire bytes no conforming daemon would produce --
+        # for instance an UPDATE mixing Withdrawn Routes with NLRI, which RFC 7606
+        # Section 5.1 forbids a sender to emit but obliges every receiver to accept. Ze
+        # dials it (accept false in ze.conf), the same way the plugin .ci suite does.
+        inject_expect = os.path.join(self.scenario_dir, "inject.msg")
+        if os.path.isfile(inject_expect):
+            # An optional inject-args file supplies extra `ze-test peer` flags, the same
+            # way rpki-server does below. --asn matters: without it the peer adopts the
+            # ASN from Ze's OPEN, silently turning an eBGP scenario into an iBGP one.
+            inject_args = []
+            inject_args_file = os.path.join(self.scenario_dir, "inject-args")
+            if os.path.isfile(inject_args_file):
+                with open(inject_args_file, "r", encoding="utf-8") as fh:
+                    inject_args = fh.read().split()
+            docker_run(
+                INJECT_CONTAINER,
+                "ze-interop",
+                INJECT_IP,
+                volumes=["%s:/inject.msg:ro" % os.path.abspath(inject_expect)],
+                extra_args=["--entrypoint", "ze-test"],
+                cmd=["peer", "--port", "179", "--decode"]
+                + inject_args
+                + ["/inject.msg"],
+            )
+
         rpki_server = os.path.join(self.scenario_dir, "rpki-server")
         if os.path.isfile(rpki_server):
             with open(rpki_server, "r", encoding="utf-8") as fh:
@@ -1308,6 +1341,38 @@ class Scenario:
             extra_args=_IPV6_SYSCTLS,
             cmd=["/etc/ze/bgp.conf"],
         )
+
+        # Start the minimal Python speaker sidecar if the scenario provides one. It dials Ze
+        # AFTER Ze is up (so replay-on-peer-up fires), loads one per-test plugin, and reports a
+        # verdict on stdout that check.py reads via docker logs. Unlike `ze-test peer` (which
+        # asserts only the bytes it was told to expect), the speaker's plugin applies an
+        # INDEPENDENT check -- e.g. RFC 7606 Section 3(g) duplicate attributes -- so it catches
+        # wire output Ze's own lenient validator waves through. See test/interop/speaker/ and
+        # plan/spec-bgp-plugin-speaker.md.
+        # A scenario may run one or two speaker instances. `speaker-args` starts the first,
+        # `speaker2-args` a second at a distinct IP -- used to prove two engines with different
+        # router-ids establish without colliding (spec-bgp-plugin-speaker AC-5).
+        speaker_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "speaker"
+        )
+        for args_name, container, ip in (
+            ("speaker-args", SPEAKER_CONTAINER, SPEAKER_IP),
+            ("speaker2-args", SPEAKER2_CONTAINER, SPEAKER2_IP),
+        ):
+            args_file = os.path.join(self.scenario_dir, args_name)
+            if not os.path.isfile(args_file):
+                continue
+            with open(args_file, "r", encoding="utf-8") as fh:
+                speaker_args = fh.read().split()
+            docker_run(
+                container,
+                "ze-interop",
+                ip,
+                volumes=["%s:/speaker:ro" % speaker_dir],
+                extra_args=["--entrypoint", "python3"],
+                cmd=["/speaker/engine.py", "--connect", "%s:179" % ZE_IP]
+                + speaker_args,
+            )
 
         # Start FRR if config exists.
         frr_conf = os.path.join(self.scenario_dir, "frr.conf")
@@ -1385,6 +1450,9 @@ class Scenario:
         docker_rm(GOBGP_CONTAINER)
         docker_rm(BMP_CONTAINER)
         docker_rm(RPKI_CONTAINER)
+        docker_rm(INJECT_CONTAINER)
+        docker_rm(SPEAKER_CONTAINER)
+        docker_rm(SPEAKER2_CONTAINER)
         docker_rm(KEEPALIVED_CONTAINER)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
@@ -1430,6 +1498,9 @@ def global_cleanup():
         BMP_CONTAINER,
         RPKI_CONTAINER,
         KEEPALIVED_CONTAINER,
+        INJECT_CONTAINER,
+        SPEAKER_CONTAINER,
+        SPEAKER2_CONTAINER,
     ]:
         subprocess.run(
             ["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30

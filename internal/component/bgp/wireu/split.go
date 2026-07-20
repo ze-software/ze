@@ -36,8 +36,13 @@ const updateLengthFieldsSize = 4
 func SplitWireUpdate(wu *WireUpdate, maxBodySize int, srcCtx *bgpctx.EncodingContext) ([]*WireUpdate, error) {
 	payload := wu.Payload()
 
-	// Fast path: no split needed
-	if len(payload) <= maxBodySize {
+	// Fast path: no split needed. Size is not the only reason to split -- an UPDATE
+	// carrying more than one NLRI-bearing field must be broken up whatever its size,
+	// per the RFC 7606 Section 5.1 quote in buildCombinedUpdates below. The shape
+	// verdict is cached on the WireUpdate, so a compliant UPDATE pays one bool read
+	// and is returned as the identical pointer, preserving the caller's zero-copy
+	// forward (reactor/forward_body.go).
+	if len(payload) <= maxBodySize && !wu.MixesNLRIFields() {
 		return []*WireUpdate{wu}, nil
 	}
 
@@ -253,10 +258,18 @@ func buildCombinedUpdates(
 	}, "IPv4 withdraws"); err != nil {
 		return nil, err
 	}
-	if err := splitAll(mpUnreach, false, splitMPUnreach, func(fit []byte) []byte {
-		return buildUpdatePayload(nil, baseAttrs, fit, nil, nil)
-	}, "MP_UNREACH"); err != nil {
-		return nil, err
+	// An MP_UNREACH carrying only AFI/SAFI and no withdrawn NLRI withdraws nothing, and
+	// alone in a message it is byte-identical to an RFC 4724 Section 2 multiprotocol
+	// End-of-RIB marker. It only reaches the split loop glued to other NLRI-bearing fields
+	// (a standalone one is not "mixed" and returns via the fast path), so it is never a
+	// legitimate EoR here. Emitting it would forge one and end a restarting peer's
+	// deferral early (RFC 4724 Section 4.1), so drop it: no withdrawal information is lost.
+	if mpUnreachHasNLRI(mpUnreach) {
+		if err := splitAll(mpUnreach, false, splitMPUnreach, func(fit []byte) []byte {
+			return buildUpdatePayload(nil, baseAttrs, fit, nil, nil)
+		}, "MP_UNREACH"); err != nil {
+			return nil, err
+		}
 	}
 	if err := splitAll(mpReach, true, splitMPReach, func(fit []byte) []byte {
 		return buildUpdatePayload(nil, baseAttrs, nil, fit, nil)
@@ -270,6 +283,22 @@ func buildCombinedUpdates(
 	}
 
 	return results, nil
+}
+
+// mpUnreachHasNLRI reports whether an MP_UNREACH_NLRI attribute carries at least one
+// withdrawn prefix. The value is AFI(2)+SAFI(1)+NLRI (RFC 4760 Section 4), so a value of
+// exactly 3 bytes withdraws nothing and is an RFC 4724 End-of-RIB marker. Returns false for
+// a nil/absent attribute.
+func mpUnreachHasNLRI(attr []byte) bool {
+	if len(attr) == 0 {
+		return false
+	}
+	headerLen := 3
+	if attr[0]&0x10 != 0 { // Extended length flag
+		headerLen = 4
+	}
+	// AFI(2)+SAFI(1) = 3 value bytes with no NLRI following.
+	return len(attr) > headerLen+3
 }
 
 // splitMPReach splits MP_REACH_NLRI to fit within maxBytes.

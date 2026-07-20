@@ -1,6 +1,7 @@
 // Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
 // RFC: rfc/short/rfc4271.md — UPDATE message wire format (Section 4.3)
 // RFC: rfc/short/rfc4760.md — multiprotocol NLRI in UPDATE
+// RFC: rfc/short/rfc7606.md — Section 5.1 one NLRI-bearing field per UPDATE
 
 package wireu
 
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
@@ -48,6 +50,9 @@ type WireUpdate struct {
 	attrsOnce      sync.Once
 	cachedAttrs    *attribute.AttributesWire
 	cachedAttrsErr error
+
+	shapeOnce  sync.Once
+	shapeMixed bool
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -165,6 +170,36 @@ func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) {
 		return nil, fmt.Errorf("mp_unreach: %w", ErrUpdateMalformed)
 	}
 	return MPUnreachWire(raw), nil
+}
+
+// MixesNLRIFields reports whether this UPDATE carries more than one of the four
+// NLRI-bearing fields, which RFC 7606 Section 5.1 forbids a sender from
+// emitting: "An UPDATE message MUST NOT contain more than one of the following:
+// non-empty Withdrawn Routes field, non-empty Network Layer Reachability
+// Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute."
+//
+// The verdict is computed once and cached. A received UPDATE is walked once per
+// destination peer in the forward loop (reactor/forward_body.go), so without the
+// cache the check would cost per peer rather than per message. The common
+// single-field UPDATE therefore keeps the zero-copy forward: one bool read.
+//
+// A payload whose sections do not parse reports false. Classifying shape is not
+// validating -- everything the forward path sees has already been through
+// enforceRFC7606 (reactor/session_read.go:162), and reporting a violation for
+// bytes that could not be read would invent one.
+func (u *WireUpdate) MixesNLRIFields() bool {
+	u.shapeOnce.Do(func() {
+		u.ensureParsed()
+		if u.parseErr != nil {
+			return
+		}
+		u.shapeMixed = message.NLRIBearingFieldCount(
+			u.sections.Withdrawn(u.payload),
+			u.sections.Attrs(u.payload),
+			u.sections.NLRI(u.payload),
+		) > 1
+	})
+	return u.shapeMixed
 }
 
 // Snapshot returns a new WireUpdate with an owned copy of the payload.

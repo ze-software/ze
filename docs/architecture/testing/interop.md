@@ -58,6 +58,9 @@ GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it 
 | FRR | 172.30.0.3 | `ze-iop-frr-<pid>` |
 | BIRD | 172.30.0.4 | `ze-iop-bird-<pid>` |
 | GoBGP | 172.30.0.5 | `ze-iop-gobgp-<pid>` |
+| Raw injector | 172.30.0.9 | `ze-iop-inject-<pid>` |
+| Python speaker | 172.30.0.10 | `ze-iop-speaker-<pid>` |
+| Python speaker (2nd) | 172.30.0.11 | `ze-iop-speaker2-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
 <!-- source: test/interop/interop.py -- container naming, IP addresses -->
@@ -76,6 +79,31 @@ scenarios/01-ebgp-ipv4-frr/
 The `check.py` file defines a `check()` function that uses daemon helper classes
 (`FRR`, `BIRD`, `GoBGP`, `Ze`) from `interop.py` to query sessions, routes, and
 attributes via each daemon's native CLI.
+
+### Optional sidecars
+
+A scenario directory may also carry files that start extra containers before Ze,
+alongside `rpki-server` and `bmp-collector.py`:
+
+| File | Sidecar | Purpose |
+|------|---------|---------|
+| `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit -- e.g. an UPDATE mixing Withdrawn Routes with NLRI (RFC 7606 Section 5.1), which every receiver must accept but no sender may produce. Ze dials it (`accept false` in `ze.conf`), so the injector runs `ze-test peer` in check mode against the `inject.msg` expect/action script. An optional `inject-args` file adds flags (`--asn` is important, or the peer adopts Ze's ASN). Because the injector and Ze start before the peer daemons, a route the injector announces is stored in Ze before FRR connects, so it is delivered by Ze's replay-on-peer-up path -- useful for testing the re-encode/replay rail specifically. |
+| `speaker-args` (and optional `speaker2-args`) | Minimal Python speaker (172.30.0.10; second at 172.30.0.11) | Dial Ze with an INDEPENDENT strict peer that applies one per-test check. The fixed engine (`test/interop/speaker/engine.py`) establishes, loads a plugin named in `speaker-args` (`--test /speaker/plugins/<name>.py`), inspects every UPDATE, and prints a verdict `check.py` reads via `docker logs`. Unlike `ze-test peer`, which asserts only the bytes it was told to expect, a speaker plugin runs its own validator -- e.g. RFC 7606 Section 3(g) duplicate attributes -- so it catches wire output Ze's own lenient validator waves through. Started after Ze (like the daemons), so it exercises the replay rail; keep it connected with `--stop-after-updates 0` when the check bytes arrive on Ze's delta-replay rather than the first initial-sync UPDATE. A `speaker2-args` file starts a second instance at a distinct IP/router-id (scenario 49 proves two engines establish without colliding). See `plan/spec-bgp-plugin-speaker.md`. |
+
+<!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
+<!-- source: test/interop/interop.py -- speaker-args sidecar startup, SPEAKER_CONTAINER -->
+<!-- source: test/interop/scenarios/47-rfc7606-relay-shape-frr/ -- injector worked example -->
+<!-- source: test/interop/scenarios/48-rfc7606-speaker-dup-attr/ -- speaker worked example -->
+
+### Prove a scenario discriminates
+
+An interop scenario is evidence only if it goes RED when the behaviour it tests is
+broken. Before relying on a new scenario, revert the fix, rebuild the `ze-interop`
+image (`docker build -f test/interop/Dockerfile.ze -t ze-interop .`), and confirm the
+scenario fails; then restore and confirm it passes. A scenario that passes either way
+(common when the peer must accept both the old and new wire form) proves acceptance,
+not correctness -- see `ai/rules/interop-and-goal-validation.md` "Prove the test
+discriminates".
 
 ### Daemon Helpers
 

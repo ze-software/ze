@@ -49,7 +49,15 @@ func buildFwdBody(
 	// RFC 7911 ADD-PATH and RFC 6793 ASN4 differences are encoded in ContextID,
 	// so raw splitting is safe only when the source and destination IDs match.
 	if sameCtx {
-		if updateSize > maxMsgSize {
+		// Size is not the only reason to re-chunk. RFC 7606 Section 5.1: "An UPDATE
+		// message MUST NOT contain more than one of the following: non-empty Withdrawn
+		// Routes field, non-empty Network Layer Reachability Information field,
+		// MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute." Ze is the sender of
+		// the bytes it relays, so a mixed shape received from a peer must be split before
+		// it goes back out. The verdict is cached on the WireUpdate, which is shared
+		// across this loop's destinations, so the common single-field UPDATE costs one
+		// bool read and keeps the zero-copy append below.
+		if updateSize > maxMsgSize || peerWire.MixesNLRIFields() {
 			srcCtx := bgpctx.Registry.Get(srcCtxID)
 			maxBodySize := maxMsgSize - message.HeaderLen
 			splits, err := wireu.SplitWireUpdate(peerWire, maxBodySize, srcCtx)
@@ -86,7 +94,11 @@ func buildFwdBody(
 			return result, false
 		}
 
-		if destUpdate.Len(nil) > maxMsgSize {
+		// Same RFC 7606 Section 5.1 restriction as the raw branch above. This UPDATE is
+		// ze's own composition -- fwdUpdateForDestination rebuilt its sections for the
+		// destination context -- so emitting a mixed shape here is the plainer violation
+		// of the two.
+		if destUpdate.Len(nil) > maxMsgSize || destUpdate.MixesNLRIFields() {
 			destSendCtx := peer.SendContext()
 			addPath := addPathForUpdate(destSendCtx, destUpdate)
 
@@ -109,7 +121,9 @@ func buildFwdBody(
 func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, addPath bool, result *fwdBodyResult) error {
 	splitter := message.GetSplitter()
 	defer message.PutSplitter(splitter)
-	return splitter.Split(update, maxMsgSize, addPath, func(c *message.Update) error {
+	// SplitCompliant rather than Split: this path also has to break up an UPDATE that
+	// fits but carries more than one NLRI-bearing field (RFC 7606 Section 5.1).
+	return splitter.SplitCompliant(update, maxMsgSize, addPath, func(c *message.Update) error {
 		result.updates = append(result.updates, &message.Update{
 			WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
 			PathAttributes:  append([]byte(nil), c.PathAttributes...),

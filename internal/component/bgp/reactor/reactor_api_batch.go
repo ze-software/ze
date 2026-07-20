@@ -406,23 +406,35 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 	isIPv4Unicast := fam == (family.IPv4Unicast)
 
 	if isIPv4Unicast {
-		// IPv4 unicast: insert NEXT_HOP after AS_PATH for correct type code order
-		wireAttrs := attrBuf[:attrOff]
-		insertPos := a.findNextHopInsertPosition(wireAttrs)
-		hasLocalPref := a.hasAttribute(wireAttrs, attribute.AttrLocalPref)
+		// Write exactly one NEXT_HOP, the authoritative resolved address. The wire block
+		// may already carry one -- a relayed/replayed route stores the full received block,
+		// NEXT_HOP included (writeMandatoryAttrs copied it) -- so strip any existing one
+		// before inserting ours, or FRR and others treat the duplicate as a withdraw
+		// (RFC 7606 Section 3(g)).
+		//
+		// Guard on validity and fail closed. resolveNextHop (peer.go) does NOT validate an
+		// explicit next-hop -- it deliberately returns whatever Addr was configured, invalid
+		// included (see TestResolveNextHop_ExplicitInvalid) -- and an invalid Addr encodes
+		// as a zero-LENGTH NEXT_HOP value (attribute/simple.go). So the strip's safety
+		// cannot rest on the resolver. If nextHop is invalid, leave the block's own NEXT_HOP
+		// untouched rather than strip a good address and write a malformed one. No reachable
+		// caller feeds an invalid explicit next-hop with a Wire block today; the guard makes
+		// the strip safe regardless.
+		if nextHop.IsValid() {
+			attrOff = a.stripAttribute(attrBuf, attrOff, attribute.AttrNextHop)
 
-		nhSize := 7 // NEXT_HOP is 7 bytes (3 header + 4 IP)
+			// Insert NEXT_HOP after AS_PATH for correct type code order.
+			insertPos := a.findNextHopInsertPosition(attrBuf[:attrOff])
+			nhSize := 7 // NEXT_HOP is 7 bytes (3 header + 4 IP)
+			// Shift tail right to make room for NEXT_HOP (copy handles overlap).
+			copy(attrBuf[insertPos+nhSize:], attrBuf[insertPos:attrOff])
+			nh := &attribute.NextHop{Addr: nextHop}
+			attribute.WriteAttrTo(nh, attrBuf, insertPos)
+			attrOff += nhSize
+		}
 
-		// Shift tail right to make room for NEXT_HOP (copy handles overlap)
-		copy(attrBuf[insertPos+nhSize:], attrBuf[insertPos:attrOff])
-
-		// Write NEXT_HOP at insert position
-		nh := &attribute.NextHop{Addr: nextHop}
-		attribute.WriteAttrTo(nh, attrBuf, insertPos)
-		attrOff += nhSize
-
-		// Append LOCAL_PREF=100 at end if needed for iBGP
-		if isIBGP && !hasLocalPref {
+		// Append LOCAL_PREF=100 at end if needed for iBGP.
+		if isIBGP && !a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref) {
 			lp := attribute.LocalPref(100)
 			attrOff += attribute.WriteAttrTo(lp, attrBuf, attrOff)
 		}
@@ -433,7 +445,11 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 		}
 	}
 
-	// Non-IPv4 unicast: append LOCAL_PREF and MP_REACH_NLRI to existing attrs
+	// Non-IPv4 unicast: append LOCAL_PREF and MP_REACH_NLRI to existing attrs. As with
+	// NEXT_HOP above, a relayed/replayed block may already carry an MP_REACH_NLRI; drop
+	// it before appending the authoritative one so the route is not duplicated (RFC 7606
+	// Section 3(g)).
+	attrOff = a.stripAttribute(attrBuf, attrOff, attribute.AttrMPReachNLRI)
 	hasLocalPref := a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref)
 	if isIBGP && !hasLocalPref {
 		lp := attribute.LocalPref(100)
@@ -446,6 +462,45 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 	return &message.Update{
 		PathAttributes: attrBuf[:attrOff],
 	}
+}
+
+// stripAttribute removes every occurrence of typeCode from attrBuf[:attrOff],
+// shifting later attributes left to close the gap, and returns the new length.
+// Used before this builder writes an authoritative NEXT_HOP or MP_REACH_NLRI so a
+// relayed/replayed attribute block that already carried one does not end up with
+// the attribute twice (RFC 7606 Section 3(g): duplicate attribute is
+// treat-as-withdraw). A well-formed block carries at most one; the loop also
+// tolerates a malformed input that carried more.
+func (a *reactorAPIAdapter) stripAttribute(attrBuf []byte, attrOff int, typeCode attribute.AttributeCode) int {
+	pos := 0
+	for pos+2 <= attrOff {
+		flags := attrBuf[pos]
+		tc := attribute.AttributeCode(attrBuf[pos+1])
+
+		var attrLen int
+		if flags&0x10 != 0 { // Extended length
+			if pos+4 > attrOff {
+				break
+			}
+			attrLen = 4 + int(binary.BigEndian.Uint16(attrBuf[pos+2:]))
+		} else {
+			if pos+3 > attrOff {
+				break
+			}
+			attrLen = 3 + int(attrBuf[pos+2])
+		}
+		if pos+attrLen > attrOff {
+			break // truncated; leave the tail as-is rather than corrupt it
+		}
+
+		if tc == typeCode {
+			copy(attrBuf[pos:], attrBuf[pos+attrLen:attrOff])
+			attrOff -= attrLen
+			continue // re-examine at the same position after the shift
+		}
+		pos += attrLen
+	}
+	return attrOff
 }
 
 // hasAttribute checks if an attribute type is present in wire attrs.

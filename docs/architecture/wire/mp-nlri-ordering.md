@@ -75,7 +75,40 @@ Requirement 1 means whichever MP attribute is present goes first, before all
 regular attributes. This supersedes RFC 4271's type-code ordering for these
 attributes.
 
-**Ze is half-compliant with RFC 7606:**
+### Where requirement 2 is enforced
+
+The obligation binds the SENDER, and ze is the sender of the bytes it relays
+even when another speaker composed them. "We only forward what we received" is
+a policy choice, not an exemption. So the restriction is enforced at every point
+where ze puts an UPDATE on the wire, not only where it builds one:
+
+| Point | Enforcement |
+|-------|-------------|
+| Origination | Compliant by construction: announcements set NLRI without Withdrawn Routes, withdrawals are withdraw-only |
+| Re-chunking an oversized UPDATE | `buildCombinedUpdates` and `Splitter.splitUpdateWithMP` drain each component into its own message |
+| Relay, same context | `buildFwdBody` splits when the shape mixes, as well as when the size overflows |
+| Relay, re-encoded for the destination | Same, via `Splitter.SplitCompliant` |
+
+`message.NLRIBearingFieldCount` is the single definition of how many of the four
+fields an UPDATE carries; both the wire and parsed paths call it rather than
+each keeping their own notion of "mixed".
+
+The relay check has to be cheap, because a route reflector runs it once per
+destination. `wireu.WireUpdate.MixesNLRIFields` caches the verdict on the
+received UPDATE, whose pointer is shared across the per-peer forward loop, so
+the attribute walk is paid once per message rather than once per peer (measured
+3.3ns against 51.7ns, both allocation-free). A compliant single-field UPDATE
+therefore still takes the zero-copy path: the received bytes are handed to the
+destination without a parse or a copy.
+
+<!-- source: internal/component/bgp/message/rfc7606_shape.go -- NLRIBearingFieldCount, the single definition -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, both relay branches -->
+<!-- source: internal/component/bgp/wireu/split.go -- SplitWireUpdate, shape as well as size -->
+
+Receiving is deliberately unaffected: requirement 3 of the same section obliges
+ze to accept these fields in any position or combination, and it does.
+
+**Ze meets requirement 2 and diverges on half of requirement 1:**
 
 - **MP_UNREACH first:** Compliant. Withdrawal is the first attribute, matching
   both RFC 7606's SHALL and RFC 4271's withdrawal-first wire format.

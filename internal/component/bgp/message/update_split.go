@@ -1,4 +1,8 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// RFC: rfc/short/rfc4271.md — UPDATE message format and size limit (Section 4.3)
+// RFC: rfc/short/rfc7606.md — Section 5.1 one NLRI-bearing field per UPDATE
+// RFC: rfc/short/rfc8654.md — extended message size
+// RFC: rfc/short/rfc7911.md — ADD-PATH path identifiers in NLRI
 // Overview: update.go — UPDATE message wire representation
 // Related: update_build.go — UPDATE builder infrastructure
 // Related: chunk_mp_nlri.go — MP NLRI chunking for multi-family splitting
@@ -151,6 +155,34 @@ func (s *Splitter) Split(u *Update, maxSize int, addPath bool, emit func(*Update
 		return emit(u)
 	}
 
+	return s.splitByShape(u, maxSize, addPath, emit)
+}
+
+// SplitCompliant behaves like Split, except that it also splits an UPDATE that
+// already fits when the UPDATE carries more than one NLRI-bearing field.
+//
+// RFC 7606 Section 5.1: "An UPDATE message MUST NOT contain more than one of the
+// following: non-empty Withdrawn Routes field, non-empty Network Layer
+// Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI
+// attribute."
+//
+// This is a separate entry point rather than a change to Split because the two
+// callers want different things. Relaying (reactor/forward_body.go) re-emits
+// UPDATEs another speaker composed, so their shape is whatever arrived and has
+// to be checked. Origination (reactor/peer_send.go) builds its own UPDATEs and
+// is compliant by construction, so making it walk the attributes on every send
+// to re-learn that would be pure cost. Everything past the shape decision is the
+// same code.
+func (s *Splitter) SplitCompliant(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
+	if u.IsEndOfRIB() || !u.MixesNLRIFields() {
+		return s.Split(u, maxSize, addPath, emit)
+	}
+	return s.splitByShape(u, maxSize, addPath, emit)
+}
+
+// splitByShape dispatches to the MP or IPv4 splitter. Both split entry points
+// share it, so the two differ only in when they decide a split is needed.
+func (s *Splitter) splitByShape(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
 	// Detect MP attributes in PathAttributes.
 	mpReachInfo := findMPAttribute(u.PathAttributes, attribute.AttrMPReachNLRI)
 	mpUnreachInfo := findMPAttribute(u.PathAttributes, attribute.AttrMPUnreachNLRI)
