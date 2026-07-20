@@ -3,6 +3,7 @@ package evpn
 import (
 	"bytes"
 	"net/netip"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -253,6 +254,213 @@ func TestEVPNType5PrefixLengthTooLong(t *testing.T) {
 		_, _, err := ParseEVPN(data, false)
 		require.ErrorIs(t, err, ErrEVPNInvalidPrefix,
 			"IPv6 prefix length 129 must be rejected as invalid")
+	})
+}
+
+// evpnT2Body builds the route-type-specific body of a MAC/IP Advertisement
+// route with caller-chosen MAC Address Length and IP Address Length fields.
+// Everything else is well formed, so a rejection can only come from the two
+// length fields under test.
+func evpnT2Body(macLen, ipLen byte, ipBytes []byte) []byte {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	mac := []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+
+	body := make([]byte, 0, 8+10+4+1+6+1+len(ipBytes))
+	body = append(body, rd...)
+	body = append(body, esi...)
+	body = append(body, ethTag...)
+	body = append(body, macLen)
+	body = append(body, mac...)
+	body = append(body, ipLen)
+	body = append(body, ipBytes...)
+	return body
+}
+
+// TestEVPNMACAddressLength verifies that the MAC Address Length field of a
+// MAC/IP Advertisement route is honored as the 48-bit / 6-octet IEEE 802.1Q
+// encoding and nothing else.
+//
+// VALIDATES: RFC 7432 Section 9.2.1 - MAC addresses are the 6-octet 802.1Q form.
+// PREVENTS: A MAC/IP route with a non-48-bit MAC length being decoded, which
+// would misalign every field that follows the MAC address.
+func TestEVPNMACAddressLength(t *testing.T) {
+	t.Parallel()
+
+	t.Run("accepts48", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC7432-9.2.1-1 positive -- MAC Address Length 48 decodes to the 6-octet 802.1Q MAC and re-encodes with the length field back at 48
+		body := evpnT2Body(48, 0, nil)
+		data := buildEVPNData(EVPNRouteType2, byte(len(body)), body)
+
+		parsed, remaining, err := ParseEVPN(data, false)
+		require.NoError(t, err)
+		require.Empty(t, remaining)
+
+		e, ok := parsed.(*EVPNType2)
+		require.True(t, ok, "expected EVPNType2, got %T", parsed)
+		assert.Equal(t, [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, e.MAC())
+
+		// MAC Address Length sits after route-type(1) + length(1) + RD(8) + ESI(10) + Ethernet Tag(4).
+		encoded := e.Bytes()
+		assert.Equal(t, byte(48), encoded[2+8+10+4], "encoder must write a 48-bit MAC Address Length")
+		assert.Equal(t, []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, encoded[2+8+10+4+1:2+8+10+4+1+6],
+			"encoder must write exactly 6 MAC octets")
+	})
+
+	for _, macLen := range []byte{0, 32, 47, 49, 64, 255} {
+		t.Run("rejects"+strconv.Itoa(int(macLen)), func(t *testing.T) {
+			t.Parallel()
+			// RFC requirement: RFC7432-9.2.1-1 negative -- a MAC Address Length other than 48 bits is rejected instead of being decoded as a MAC address
+			body := evpnT2Body(macLen, 0, nil)
+			data := buildEVPNData(EVPNRouteType2, byte(len(body)), body)
+
+			_, _, err := ParseEVPN(data, false)
+			require.ErrorIs(t, err, ErrEVPNInvalidAddress,
+				"MAC Address Length %d must be rejected", macLen)
+		})
+	}
+}
+
+// TestEVPNIPAddressLength verifies the IP Address Length field of a MAC/IP
+// Advertisement route is one of the three values RFC 7432 defines, in bits.
+//
+// VALIDATES: RFC 7432 Section 10 - IP Address Length is 0, 32 or 128 bits.
+// PREVENTS: A length above 128 falling through the decoder and being read as
+// "no IP address", which silently accepts a malformed NLRI.
+func TestEVPNIPAddressLength(t *testing.T) {
+	t.Parallel()
+
+	v4 := []byte{10, 0, 0, 1}
+	v6 := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+
+	valid := []struct {
+		name    string
+		ipLen   byte
+		ipBytes []byte
+		wantIP  string
+	}{
+		{"absent", 0, nil, ""},
+		{"ipv4", 32, v4, "10.0.0.1"},
+		{"ipv6", 128, v6, "2001:db8::1"},
+	}
+
+	for _, tt := range valid {
+		t.Run("accepts_"+tt.name, func(t *testing.T) {
+			t.Parallel()
+			// RFC requirement: RFC7432-10-1 positive -- IP Address Length 0, 32 and 128 bits each decode, with the IP octet count matching the advertised bit count
+			body := evpnT2Body(48, tt.ipLen, tt.ipBytes)
+			data := buildEVPNData(EVPNRouteType2, byte(len(body)), body)
+
+			parsed, remaining, err := ParseEVPN(data, false)
+			require.NoError(t, err)
+			require.Empty(t, remaining)
+
+			e, ok := parsed.(*EVPNType2)
+			require.True(t, ok, "expected EVPNType2, got %T", parsed)
+			if tt.wantIP == "" {
+				assert.False(t, e.IP().IsValid(), "IP Address Length 0 must decode to no IP address")
+				return
+			}
+			assert.Equal(t, netip.MustParseAddr(tt.wantIP), e.IP())
+			assert.Equal(t, int(tt.ipLen)/8, len(tt.ipBytes), "test vector length must match the bit count")
+		})
+	}
+
+	for _, ipLen := range []byte{1, 4, 31, 33, 64, 127, 129, 160, 255} {
+		t.Run("rejects"+strconv.Itoa(int(ipLen)), func(t *testing.T) {
+			t.Parallel()
+			// RFC requirement: RFC7432-10-1 negative -- an IP Address Length that is not 0, 32 or 128 bits is rejected, including values above 128
+			body := evpnT2Body(48, ipLen, nil)
+			data := buildEVPNData(EVPNRouteType2, byte(len(body)), body)
+
+			_, _, err := ParseEVPN(data, false)
+			require.ErrorIs(t, err, ErrEVPNInvalidAddress,
+				"IP Address Length %d must be rejected", ipLen)
+		})
+	}
+}
+
+// TestEVPNESIIsTenOctets verifies the Ethernet Segment Identifier occupies
+// exactly ten octets on the wire, in both the Ethernet Segment route and the
+// Ethernet Auto-Discovery route.
+//
+// VALIDATES: RFC 7432 Section 5 / 8.2.1 - the ESI is a 10-octet entity.
+// PREVENTS: A short ESI shifting the Originating Router's IP Address, or a
+// decoded ESI that does not round-trip byte-for-byte.
+func TestEVPNESIIsTenOctets(t *testing.T) {
+	t.Parallel()
+
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+
+	t.Run("ethernetSegmentCarriesTenOctets", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC7432-5-1 positive -- the ESI decodes from and re-encodes to exactly ten octets, immediately after the 8-octet RD
+		data := buildEVPNData(EVPNRouteType4, byte(8+10+1+4),
+			rd, esi, []byte{32}, []byte{10, 0, 0, 1})
+
+		parsed, remaining, err := ParseEVPN(data, false)
+		require.NoError(t, err)
+		require.Empty(t, remaining)
+
+		e, ok := parsed.(*EVPNType4)
+		require.True(t, ok, "expected EVPNType4, got %T", parsed)
+		got := e.ESI()
+		assert.Len(t, got[:], 10, "ESI must be a 10-octet entity")
+		assert.Equal(t, esi, got[:])
+
+		encoded := e.Bytes()
+		assert.Equal(t, esi, encoded[2+8:2+8+10], "encoder must write the ESI as ten octets after the RD")
+		assert.Equal(t, byte(32), encoded[2+8+10], "IP Address Length must follow the tenth ESI octet")
+	})
+
+	t.Run("ethernetADCarriesTenOctets", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC7432-5-1 positive -- the Ethernet A-D route carries the same 10-octet ESI, with the Ethernet Tag ID starting at the eleventh octet
+		data := buildEVPNData(EVPNRouteType1, byte(8+10+4+3),
+			rd, esi, []byte{0x00, 0x00, 0x00, 0x0A}, []byte{0x00, 0x01, 0x01})
+
+		parsed, _, err := ParseEVPN(data, false)
+		require.NoError(t, err)
+
+		e, ok := parsed.(*EVPNType1)
+		require.True(t, ok, "expected EVPNType1, got %T", parsed)
+		got := e.ESI()
+		assert.Equal(t, esi, got[:])
+		assert.Equal(t, uint32(10), e.EthernetTag(), "Ethernet Tag ID must be read after ten ESI octets")
+
+		encoded := e.Bytes()
+		assert.Equal(t, esi, encoded[2+8:2+8+10])
+	})
+
+	t.Run("rejectsBodyTooShortForTenOctetESI", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC7432-5-1 negative -- an Ethernet Segment route whose body cannot hold a 10-octet ESI is rejected rather than decoded from a shorter ESI
+		short := make([]byte, 0, 8+9+1)
+		short = append(short, rd...)
+		short = append(short, esi[:9]...) // only nine ESI octets
+		short = append(short, 32)
+		data := buildEVPNData(EVPNRouteType4, byte(len(short)), short)
+
+		_, _, err := ParseEVPN(data, false)
+		require.ErrorIs(t, err, ErrEVPNTruncated,
+			"a body too short for a 10-octet ESI must be rejected")
+	})
+
+	t.Run("rejectsADBodyTooShortForTenOctetESI", func(t *testing.T) {
+		t.Parallel()
+		// RFC requirement: RFC7432-5-1 negative -- an Ethernet A-D route whose body cannot hold a 10-octet ESI plus the Ethernet Tag ID is rejected
+		short := make([]byte, 0, 8+9+4)
+		short = append(short, rd...)
+		short = append(short, esi[:9]...)
+		short = append(short, 0x00, 0x00, 0x00, 0x0A)
+		data := buildEVPNData(EVPNRouteType1, byte(len(short)), short)
+
+		_, _, err := ParseEVPN(data, false)
+		require.ErrorIs(t, err, ErrEVPNTruncated,
+			"a body too short for a 10-octet ESI must be rejected")
 	})
 }
 
