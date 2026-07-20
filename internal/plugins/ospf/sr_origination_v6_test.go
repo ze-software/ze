@@ -18,6 +18,9 @@ import (
 	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
 )
 
+// RFC requirement: RFC8666-8.4.1-1 negative -- the withdrawal is conditional on the
+// adjacency going down: while the neighbor is up, the E-Router-LSA keeps advertising the
+// Adj-SID sub-TLV for that adjacency.
 func TestOSPFv3ERouterBodyCarriesAdjSID(t *testing.T) {
 	eng := newV6RIEngine(t)
 	nbr := types.RouterID{2, 2, 2, 2}

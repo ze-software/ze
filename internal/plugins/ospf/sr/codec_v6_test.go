@@ -26,6 +26,9 @@ func TestOSPFv3SRTypeCodes(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-6-6 negative -- the two VALID V/L combinations are accepted,
+// not ignored: V=0/L=0 decodes a 4-octet index and V=1/L=1 a 3-octet local label. The
+// "MUST be ignored" of an invalid setting is not a blanket rejection.
 func TestOSPFv3PrefixSIDCodec(t *testing.T) {
 	// OSPFv3 Prefix-SID layout: Flags, Algorithm, Reserved(2), SID -- no MT-ID.
 	in := PrefixSID{Flags: SIDFlags{NP: true}, Algorithm: 0, Index: 9}
@@ -50,6 +53,8 @@ func TestOSPFv3PrefixSIDCodec(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-6-6 positive -- a SID advertisement with an invalid V-/L-Flag
+// combination (V=1/L=0 or V=0/L=1) is ignored: the decoder rejects it so no SID is used.
 func TestOSPFv3SIDWidthFromVL(t *testing.T) {
 	// Invalid V/L combinations must be rejected (RFC 8666 §6).
 	invalid := []byte{0x08, 0, 0, 0, 0, 0, 0, 0} // V set, L clear
@@ -85,6 +90,9 @@ func TestOSPFv3LANAdjSIDCodec(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-11-1 negative -- malformed-input detection is not achieved by
+// rejecting everything: a well-formed Extended Prefix Range TLV (including the /0 default
+// route and the ((PrefixLength+31)/32)-word padding) decodes intact.
 func TestOSPFv3ExtPrefixRangeTLVRoundTrip(t *testing.T) {
 	cases := []struct {
 		plen uint8
@@ -113,6 +121,10 @@ func TestOSPFv3ExtPrefixRangeTLVRoundTrip(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-11-1 positive -- malformed RFC 8666 sub-TLV values (truncated,
+// empty, or shorter than the width their V/L flags imply) are detected and rejected by
+// every OSPFv3 SR decoder without panicking, so a hostile advertisement cannot crash the
+// routing process.
 func TestOSPFv3SRTLVMalformed(t *testing.T) {
 	inputs := [][]byte{nil, {}, {0x40}, {0x48, 0, 0, 0}, {0, 1}, {0, 1, 0, 0}}
 	for i, in := range inputs {

@@ -16,6 +16,11 @@ import (
 	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
 )
 
+// RFC requirement: RFC8666-6-9 positive -- a Prefix-SID an ABR propagates between areas
+// gets the NP-Flag SET and the E-Flag CLEAR.
+// RFC requirement: RFC8666-6-9 negative -- the rule is conditional on the prefix not being
+// directly attached to that ABR: a directly-attached prefix keeps its originated flags
+// (NP clear, E set here), so the ABR does not rewrite flags unconditionally.
 func TestOSPFv3InterAreaPrefixSIDRule(t *testing.T) {
 	src := sr.PrefixSID{Flags: sr.SIDFlags{NP: false, E: true}, Index: 7}
 	// Propagated (not directly attached): NP set, E clear (RFC 8666 §8.2 / §6).
@@ -30,6 +35,11 @@ func TestOSPFv3InterAreaPrefixSIDRule(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-8.2-1 positive -- Prefix-SID information is propagated between
+// areas: an intra-area Prefix-SID learned in area 1 is re-advertised into the backbone in
+// an E-Inter-Area-Prefix-LSA, so multi-area SR works.
+// RFC requirement: RFC8666-8.2-1 negative -- propagation is directional, not a broadcast:
+// the Prefix-SID is never re-originated back into the source area it was learned from.
 func TestOSPFv3OriginateInterAreaPropagation(t *testing.T) {
 	eng := newV6RIEngine(t)
 	router := types.RouterID{1, 1, 1, 1}

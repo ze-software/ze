@@ -179,3 +179,6 @@ rfc8669	SR Prefix Segment Identifier Extensions for BGP
 rfc4271	A Border Gateway Protocol 4 (BGP-4)
 rfc5340	OSPF for IPv6 (OSPFv3)
 rfc9830	BGP Extensions for SR Policy
+rfc4577	OSPF as the PE/CE Protocol for BGP/MPLS IP VPNs
+rfc5036	LDP Specification
+rfc8666	OSPFv3 Extensions for Segment Routing

@@ -148,6 +148,10 @@ func TestOSPFv3ReceptionDuplicateIgnored(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-6-7 negative -- "multiple Prefix-SIDs for the same prefix" means
+// CONFLICTING ones: two advertisements binding the SAME SID to one prefix (an ABR
+// re-advertising an intra-area Prefix-SID, RFC 8666 §8.2) are not duplicates and are not
+// ignored.
 func TestOSPFv3ReceptionSameSIDNotDuplicate(t *testing.T) {
 	// An ABR re-advertising the SAME SID inter-area is not a conflict (RFC 8666 §8.2).
 	eng := newV6RIEngine(t)
@@ -161,6 +165,10 @@ func TestOSPFv3ReceptionSameSIDNotDuplicate(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8666-11-1 positive -- a malformed Extended-LSA prefix TLV body (a
+// truncated value, an out-of-range Prefix Length, a word count that would overrun a
+// 128-bit address) is detected at the OSPFv3 reception seam without crashing the routing
+// process.
 func TestOSPFv3ReceptionMalformedNoPanic(t *testing.T) {
 	// AC-16: malformed prefix TLV values and word counts never panic (RFC 8666 §11).
 	inputs := [][]byte{nil, {}, {0}, {0, 0, 0, 0, 200}, {0, 0, 0, 0, 128, 0, 0, 0}, make([]byte, 3)}

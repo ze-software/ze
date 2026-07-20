@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc5036.md -- Section 2.5 session establishment, Section 3.5.3 Initialization
 // Design: plan/learned/920-mpls-ldp.md -- LDP session FSM
 // Related: wire.go -- message encoding/decoding
 // Related: discovery.go -- adjacency triggers session initiation
@@ -11,6 +12,7 @@ package ldp
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -378,6 +380,13 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(L
 			initMsg, err := DecodeInit(msgHdr.MessageID, msgBody)
 			if err != nil {
 				return err
+			}
+			// RFC 5036 Section 3.5.3: the Protocol Version in the Common Session
+			// Parameters TLV is 1. A session proposing any other version is rejected
+			// (Bad LDP Version) rather than negotiated: returning the error ends the
+			// read loop, so no further message from this peer is processed.
+			if initMsg.ProtocolVersion != ldpVersion {
+				return fmt.Errorf("%w: initialization protocol version %d", errBadVersion, initMsg.ProtocolVersion)
 			}
 			if s.handleInit(initMsg, peerLSRID) && onOperational != nil {
 				// Fire after handleInit has released s.mu so the callback can

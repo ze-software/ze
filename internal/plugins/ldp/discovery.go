@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc5036.md -- Section 3.5.2 Hello Hold Time defaults
 // Design: plan/learned/920-mpls-ldp.md -- LDP discovery (UDP hello)
 // Related: wire.go -- HelloMessage encoding/decoding
 //
@@ -14,10 +15,28 @@ import (
 )
 
 // RFC 5036 Section 2.4.1: Default hello interval and hold time.
+//
+// RFC 5036 Section 3.5.2 ("Common Hello Parameters TLV", Hold Time field): a Hold
+// Time of 0 on the wire means "use the default", and the default differs by Hello
+// kind -- 15 seconds for Link Hellos, 45 seconds for Targeted Hellos. Hold Time 0
+// never means "drop the adjacency"; the adjacency is kept and timed by the default.
 const (
 	DefaultHelloInterval = 5 * time.Second
 	DefaultHelloHoldTime = 15 * time.Second
+
+	// DefaultTargetedHelloHoldTime is the default applied to a Targeted Hello that
+	// carries Hold Time 0 (RFC 5036 Section 3.5.2).
+	DefaultTargetedHelloHoldTime = 45 * time.Second
 )
+
+// defaultHoldTime returns the hold time a Hello with Hold Time 0 is worth: the
+// per-kind default of RFC 5036 Section 3.5.2.
+func defaultHoldTime(targeted bool) time.Duration {
+	if targeted {
+		return DefaultTargetedHelloHoldTime
+	}
+	return DefaultHelloHoldTime
+}
 
 // Adjacency represents a discovered LDP neighbor via Hello messages.
 type Adjacency struct {
@@ -75,9 +94,11 @@ func NewAdjacencyTable() *AdjacencyTable {
 // interface flows onto the SessionEvent for LDP-IGP sync (RFC 5443 / RFC 6138).
 func (t *AdjacencyTable) Update(pduHeader PDUHeader, hello HelloMessage, ifName string) (*Adjacency, bool) {
 	key := AdjacencyKey(pduHeader.LSRID, pduHeader.LabelSpace)
+	// RFC 5036 Section 3.5.2: Hold Time 0 means "use the default" (15s Link, 45s
+	// Targeted). The adjacency is created/refreshed either way -- a 0 never removes it.
 	holdTime := time.Duration(hello.HoldTime) * time.Second
 	if holdTime == 0 {
-		holdTime = DefaultHelloHoldTime
+		holdTime = defaultHoldTime(hello.Targeted)
 	}
 
 	t.mu.Lock()
