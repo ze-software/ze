@@ -12,7 +12,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -124,21 +123,9 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 
 	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, value)
 
-	// Notify daemon (best-effort) via SSH only when --reload is given. Editing a
-	// stored config does not contact the daemon by default; --reload opts in. A
-	// stdin ("-") pipeline stage has no on-disk config for a daemon to reload.
-	if *reload && !cliio.IsStdin(configPath) {
-		creds, credErr := sshclient.LoadCredentialsWithFlags(*user)
-		if credErr == nil {
-			ed.SetReloadNotifier(func() error {
-				_, reloadErr := sshclient.ExecCommand(creds, "reload")
-				return reloadErr
-			})
-			if notifyErr := ed.NotifyReload(); notifyErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not notify daemon: %v\n", notifyErr)
-			}
-		}
-	}
+	// Editing a stored config does not contact the daemon by default; --reload
+	// opts in. See notifyDaemonReload.
+	notifyDaemonReload(ed, *reload, configPath, *user)
 
 	return exitOK
 }

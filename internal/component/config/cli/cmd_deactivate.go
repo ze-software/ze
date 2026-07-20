@@ -15,7 +15,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -154,20 +153,9 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 
 	fmt.Fprintf(os.Stderr, "%s %s\n", pastTense, displayPath)
 
-	// Notify only when --reload is given; editing a stored config does not contact
-	// the daemon by default. A stdin ("-") stage has no on-disk config to reload.
-	if *reload && !cliio.IsStdin(configPath) {
-		creds, credErr := sshclient.LoadCredentialsWithFlags(*user)
-		if credErr == nil {
-			ed.SetReloadNotifier(func() error {
-				_, reloadErr := sshclient.ExecCommand(creds, "reload")
-				return reloadErr
-			})
-			if notifyErr := ed.NotifyReload(); notifyErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not notify daemon: %v\n", notifyErr)
-			}
-		}
-	}
+	// Editing a stored config does not contact the daemon by default; --reload
+	// opts in. See notifyDaemonReload.
+	notifyDaemonReload(ed, *reload, configPath, *user)
 
 	return exitOK
 }
