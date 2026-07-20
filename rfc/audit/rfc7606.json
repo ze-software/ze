@@ -285,7 +285,7 @@
       "verdict": "enforced"
     },
     "RFC7606-5.4-1": {
-      "note": "{gap} confirmed: ParseEVPN (component/bgp/plugins/nlri/evpn/types.go:237-244) maps reserved/unknown route types (0,6-15 and any unmatched) to EVPNGeneric, which has a working WriteTo, so unrecognized typed NLRI is RETAINED and re-advertised, not discarded. ParseMVPN (component/bgp/plugins/nlri/mvpn/types.go:113-146) reads routeType (:118) but never branches on it, always returning a valid *MVPN. Both violate \u00a75.4's MUST-discard. Disclosed in rfc-status.md gap (2).",
+      "note": "Unimplemented BY DECISION, 2026-07-20, not by oversight. Ze retains and propagates unrecognized typed NLRI opaquely. The earlier note's mechanism was wrong: ParseEVPN/ParseMVPN are not on the RIB or forwarding path (display decoders only). Retention comes from FamilyRIB.insertOpaque keying on raw NLRI bytes and buildFwdBody's verbatim same-context forward, neither of which reads the route type. Ze has no EVPN forwarding plane, so it is only ever a relay here; discarding would break transit for route types newer than this code while improving nothing locally, and RFC 7606 Section 6 warns that asymmetric intra-AS dropping causes forwarding loops and black holes. RFC 9552 Section 5.1 exercised 5.4's escape clause for BGP-LS; RFC 7432 never did for EVPN, so this stays a disclosed divergence. ExaBGP matches this behaviour; GoBGP session-resets. Neither cites 5.4.",
       "requirement_sha": "ea93cedfd8042c38",
       "tests": {},
       "verdict": "unimplemented"

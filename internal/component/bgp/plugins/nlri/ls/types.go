@@ -460,10 +460,16 @@ func ParseBGPLSWithRest(data []byte) (BGPLSNLRI, []byte, error) {
 		return nil, nil, ErrBGPLSTruncated
 	}
 
-	// Parse just this NLRI
+	// Parse just this NLRI. On failure the REMAINDER is still returned: the Total NLRI
+	// Length above already located the next NLRI boundary, and it did so without needing
+	// to understand this NLRI's type. A caller can therefore skip exactly the NLRI it
+	// could not parse and carry on with the rest, instead of abandoning the whole
+	// attribute -- which matters because RFC 9552 Section 5.1 requires unknown NLRI types
+	// to be preserved and propagated, so meeting an unrecognized type is expected, not
+	// exceptional.
 	parsed, err := ParseBGPLS(data[:totalLen])
 	if err != nil {
-		return nil, nil, err
+		return nil, data[totalLen:], err
 	}
 
 	return parsed, data[totalLen:], nil

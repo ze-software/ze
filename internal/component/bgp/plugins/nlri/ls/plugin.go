@@ -265,12 +265,30 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 		parsed, rest, err := ParseBGPLSWithRest(remaining)
 		if err != nil {
 			bgplsLogger.Debug("parse bgpls failed", "err", err)
-			// Add remaining as unparsed
+			if rest == nil {
+				// The FRAMING is broken (truncated header or a Total NLRI Length that
+				// overruns), so the next boundary cannot be found. Everything left is one
+				// opaque blob, and the loop has to stop.
+				results = append(results, map[string]any{
+					"parsed": false,
+					"raw":    strings.ToUpper(textbuf.StringHex(remaining)),
+				})
+				break
+			}
+			// The framing is intact and only THIS NLRI could not be parsed -- an
+			// unrecognized NLRI type is the common case, and RFC 9552 Section 5.1 requires
+			// those to be preserved rather than treated as an error. Report just this one
+			// as unparsed and keep decoding.
+			//
+			// This used to blob the whole remainder and break, so a single unknown type
+			// early in a densely packed UPDATE erased the structured view of every NLRI
+			// after it, for known types too.
 			results = append(results, map[string]any{
 				"parsed": false,
-				"raw":    strings.ToUpper(textbuf.StringHex(remaining)),
+				"raw":    strings.ToUpper(textbuf.StringHex(remaining[:len(remaining)-len(rest)])),
 			})
-			break
+			remaining = rest
+			continue
 		}
 		results = append(results, bgplsToJSON(parsed, remaining[:len(remaining)-len(rest)]))
 		remaining = rest
