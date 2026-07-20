@@ -15,14 +15,14 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 48 shipped or experimental feature cards, 6 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 32 weekly change entries.
-- Test evidence counts: 121,500+ unit tests, 570+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 8 target implementations.
+- Test evidence counts: 122,000+ unit tests, 570+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 8 target implementations.
 - Generated date: 2026-07-20.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 121,500+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 122,000+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 570+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
