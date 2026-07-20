@@ -315,9 +315,9 @@ and converging sub-second on a full table.
 
 | Resource | What to look at |
 |----------|-----------------|
-| [`docs/research/vpp-deployment-reference.md`](../research/vpp-deployment-reference.md) | startup.conf reference, NIC matrix, performance baselines, LCP details |
-| [`docs/research/ze-vpp-analysis.md`](../research/ze-vpp-analysis.md) | Three-strategy feasibility analysis (strategy 1 / 2 / 3, LOC estimates, risks) |
-| [`docs/research/vpp-deployment-notes.md`](../research/vpp-deployment-notes.md) | Consolidated notes from 83 IPng.ch articles (production architecture, article index by topic, key tools, upstream contributions) |
+| [VPP deployment reference](../research/vpp-deployment-reference.md) | startup.conf reference, NIC matrix, performance baselines, LCP details |
+| [Ze and VPP analysis](../research/ze-vpp-analysis.md) | Three-strategy feasibility analysis (strategy 1 / 2 / 3, LOC estimates, risks) |
+| [VPP deployment notes](../research/vpp-deployment-notes.md) | Consolidated notes from 83 IPng.ch articles (production architecture, article index by topic, key tools, upstream contributions) |
 | IPng.ch blog, VPP + LCP series (2021-08 to 2021-09, 7 parts) | How the LCP plugin works, end to end |
 | IPng.ch blog, VPP configuration series (2022-03 / 2022-04) | vppcfg's DAG-based declarative config (the non-ze way) |
 | IPng.ch blog, VPP monitoring (2023-04) | Stats segment interpretation, vectors-per-call |

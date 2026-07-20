@@ -46,7 +46,7 @@ IPv4 NEXT_HOP attribute, so it omits MP next hops.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute MP_REACH emission -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
-<!-- source: internal/component/bgp/wireu/commit.go -- extended next-hop encoding -->
+<!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->
 
 
 <!-- terminal-demo: rib-fib -->
