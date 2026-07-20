@@ -15,21 +15,21 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 48 shipped or experimental feature cards, 6 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 32 weekly change entries.
-- Test evidence counts: 122,000+ unit tests, 570+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 8 target implementations.
+- Test evidence counts: 19,800+ unit tests, 72 fuzz targets, 1,400+ end-to-end transcript steps, 102 interop scenarios across 8 target implementations.
 - Generated date: 2026-07-20.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 122,000+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 570+ fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 19,800+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 72 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 101 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 102 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -824,6 +824,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Terminal Demos](https://ze-software.net/docs/guide/terminal-demonstrations/index.md): Reproducible recordings of Ze workflows (web: https://ze-software.net/docs/guide/terminal-demonstrations/)
 ### Trust
 - [Code Quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
+- [Testing Health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
 - [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 

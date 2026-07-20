@@ -8,6 +8,8 @@ import sys
 import urllib.request
 from datetime import date
 
+import sitelib
+
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 MAIN_REPO = (GH_PAGES.parent / "main").resolve()
@@ -22,7 +24,26 @@ GO_REQUIRE_BLOCK_RE = re.compile(r"require\s*\(([^)]*)\)", re.DOTALL)
 GO_REQUIRE_LINE_RE = re.compile(r"^\s*(\S+)\s+\S+(\s*//\s*indirect)?\s*$")
 TEST_FUNC_RE = re.compile(r"^func Test[A-Za-z0-9_]+\(", re.MULTILINE)
 FUZZ_FUNC_RE = re.compile(r"^func Fuzz[A-Za-z0-9_]+\(", re.MULTILINE)
-SKIP_DIRS = {"vendor", ".claude", ".git"}
+# Directories whose Go tests are NOT Ze's own and must never reach a published
+# count. `gokrazy/modcache` is the appliance build's Go module cache: a full copy
+# of every third-party dependency, tests included. Omitting it here published
+# "121,500+ unit tests" and "570+ fuzz targets" when the real in-repo figures
+# were 19,856 and 72 -- 76% of the headline was other people's test suites.
+#
+# This set is the FALLBACK path only. The authoritative count comes from
+# ../main/test/health/latest.json (see count_go_tests), because two independent
+# counters over one tree drift by construction: they disagreed by 30 the moment
+# both existed, differing on accepted directories and on which function-name
+# shapes count.
+#
+#
+# Two kinds, because the matching rule differs:
+#   TOP_LEVEL - only meaningful as a root. "gokrazy" as an any-component match
+#               also swallowed internal/component/gokrazy/gokrazy_test.go, a
+#               first-party test.
+#   ANY_LEVEL - genuinely nested third-party or fixture trees.
+SKIP_TOP_LEVEL = {".claude", ".git", "gokrazy", "third_party"}
+SKIP_ANY_LEVEL = {"vendor", "node_modules"}
 
 
 def display_step(n):
@@ -59,7 +80,9 @@ def under_skip_dir(path, root):
         parts = path.relative_to(root).parts
     except ValueError:
         return False
-    return bool(SKIP_DIRS & set(parts))
+    if parts and parts[0] in SKIP_TOP_LEVEL:
+        return True
+    return bool(SKIP_ANY_LEVEL & set(parts))
 
 
 def count_features():
@@ -96,7 +119,49 @@ def count_direct_dependencies():
     return total
 
 
+def inventory_counts():
+    """The main repository's own test inventory, from test/health/latest.json.
+
+    ONE counter, so the site cannot publish a total the repository disagrees
+    with -- the exact failure this page set exists to correct. Returns the
+    `inventory` metric's `counts` dict, or None when the generated file is
+    absent/shapeless (warned, so a diverging figure is never published silently).
+    """
+    facts = MAIN_REPO / "test" / "health" / "latest.json"
+    if facts.exists():
+        try:
+            metrics = json.loads(facts.read_text())["metrics"]
+            for metric in metrics:
+                if metric.get("key") == "inventory":
+                    return metric["counts"]
+            sitelib.warn(
+                "sitefacts: %s has no 'inventory' metric; counting locally. The "
+                "published figures will not match the repository's own." % facts
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            sitelib.warn(
+                "sitefacts: %s unreadable (%s); counting locally. The published "
+                "figures will not match the repository's own." % (facts, exc)
+            )
+    elif MAIN_REPO.exists():
+        sitelib.warn(
+            "sitefacts: %s missing; counting locally. Run `make ze-test-health` in "
+            "../main so the site and the repository publish the same figures." % facts
+        )
+    return None
+
+
 def count_go_tests():
+    """Unit and fuzz counts for the published proof strip.
+
+    Reads inventory_counts(); the local walk is only a fallback for a checkout
+    without the generated file. A site-only checkout with no sibling ../main is
+    NOT drift -- write_facts preserves the last published values rather than
+    zeros -- so that path does not warn.
+    """
+    counts = inventory_counts()
+    if counts is not None:
+        return {"unit": counts["test_funcs"], "fuzz": counts["fuzz_funcs"]}
     unit = 0
     fuzz = 0
     if not MAIN_REPO.exists():
@@ -111,6 +176,16 @@ def count_go_tests():
 
 
 def count_e2e_files():
+    """.ci scenario count, from the SAME source as the unit count.
+
+    Previously this walked the tree independently and published 1445 while the
+    repository's own inventory said 1443 -- the two-counter drift this page set
+    removes, surviving for .ci after it was fixed for unit tests. inventory_counts()
+    already carries `ci_files`, so read it.
+    """
+    counts = inventory_counts()
+    if counts is not None and "ci_files" in counts:
+        return counts["ci_files"]
     test_dir = MAIN_REPO / "test"
     if not test_dir.exists():
         return 0

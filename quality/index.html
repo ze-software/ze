@@ -119,6 +119,7 @@
 <tr><td>Rendered web UI behavior or interactive editor behavior</td><td><code>.wb</code> under <code>.et</code> under. <span class="ev-src"><span class="ev-ref"><code>test/web/</code></span><span class="ev-ref"><code>test/editor/</code></span></span></td><td><a href="browser-editor/">Browser and editor tests</a></td></tr>
 <tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
+<tr><td>Whether the suite would actually catch a regression, not how large it is</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
 </tbody>
 </table>
 
@@ -164,6 +165,10 @@ make ze-release-evidence</code></pre>
                 <nav class="page-sidebar-nav" aria-label="Related links">
                 <section class="page-sidebar-group">
                     <h2>Pick a proof path</h2>
+                    <a class="page-sidebar-link" href="../quality/health/">
+                        <span class="page-sidebar-link-label">Testing health</span>
+                        <small>Measured state: what would actually catch a regression.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../quality/functional-ci/">
                         <span class="page-sidebar-link-label">Functional CI</span>
                         <small>Scenario tests and failure artifacts.</small>

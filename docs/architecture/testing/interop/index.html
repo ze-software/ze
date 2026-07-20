@@ -47,6 +47,8 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#how-it-works">How It Works</a></li>
 <li><a href="#container-addresses">Container Addresses</a></li>
 <li><a href="#scenario-structure">Scenario Structure</a></li>
+<li><a href="#optional-sidecars">Optional sidecars</a></li>
+<li><a href="#prove-a-scenario-discriminates">Prove a scenario discriminates</a></li>
 <li><a href="#daemon-helpers">Daemon Helpers</a></li>
 <li><a href="#scenario-inventory">Scenario Inventory</a></li>
 <li><a href="#running">Running</a></li>
@@ -191,6 +193,11 @@ GoBGP if <code>gobgp.toml</code> exists. This means each scenario only runs the 
 <td>172.30.0.5</td>
 <td><code>ze-iop-gobgp-&lt;pid&gt;</code></td>
 </tr>
+<tr>
+<td>Raw injector</td>
+<td>172.30.0.9</td>
+<td><code>ze-iop-inject-&lt;pid&gt;</code></td>
+</tr>
 </tbody>
 </table>
 <p>Container names include the runner PID as suffix, so concurrent runs do not conflict.</p>
@@ -206,6 +213,36 @@ GoBGP if <code>gobgp.toml</code> exists. This means each scenario only runs the 
 <p>The <code>check.py</code> file defines a <code>check()</code> function that uses daemon helper classes
 (<code>FRR</code>, <code>BIRD</code>, <code>GoBGP</code>, <code>Ze</code>) from <code>interop.py</code> to query sessions, routes, and
 attributes via each daemon's native CLI.</p>
+<h3 id="optional-sidecars">Optional sidecars</h3>
+<p>A scenario directory may also carry files that start extra containers before Ze,
+alongside <code>rpki-server</code> and <code>bmp-collector.py</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Sidecar</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inject.msg</code></td>
+<td><code>ze-test peer</code> (raw injector, 172.30.0.9)</td>
+<td>Drive Ze with wire bytes no conforming daemon would emit -- e.g. an UPDATE mixing Withdrawn Routes with NLRI (RFC 7606 Section 5.1), which every receiver must accept but no sender may produce. Ze dials it (<code>accept false</code> in <code>ze.conf</code>), so the injector runs <code>ze-test peer</code> in check mode against the <code>inject.msg</code> expect/action script. An optional <code>inject-args</code> file adds flags (<code>--asn</code> is important, or the peer adopts Ze's ASN). Because the injector and Ze start before the peer daemons, a route the injector announces is stored in Ze before FRR connects, so it is delivered by Ze's replay-on-peer-up path -- useful for testing the re-encode/replay rail specifically.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
+<!-- source: test/interop/scenarios/47-rfc7606-relay-shape-frr/ -- worked example -->
+
+<h3 id="prove-a-scenario-discriminates">Prove a scenario discriminates</h3>
+<p>An interop scenario is evidence only if it goes RED when the behaviour it tests is
+broken. Before relying on a new scenario, revert the fix, rebuild the <code>ze-interop</code>
+image (<code>docker build -f test/interop/Dockerfile.ze -t ze-interop .</code>), and confirm the
+scenario fails; then restore and confirm it passes. A scenario that passes either way
+(common when the peer must accept both the old and new wire form) proves acceptance,
+not correctness -- see <code>ai/rules/interop-and-goal-validation.md</code> "Prove the test
+discriminates".</p>
 <h3 id="daemon-helpers">Daemon Helpers</h3>
 <p><code>interop.py</code> provides helper classes for querying each daemon:</p>
 <p>Methods follow a naming convention:</p>

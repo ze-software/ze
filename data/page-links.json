@@ -524,6 +524,11 @@
           "title": "Pick a proof path",
           "links": [
             {
+              "href": "quality/health/",
+              "label": "Testing health",
+              "desc": "Measured state: what would actually catch a regression."
+            },
+            {
               "href": "quality/functional-ci/",
               "label": "Functional CI",
               "desc": "Scenario tests and failure artifacts."
@@ -985,6 +990,31 @@
               "href": "changes/",
               "label": "Changes",
               "desc": "Scan recent work by week."
+            }
+          ]
+        }
+      ]
+    },
+    "quality/health/": {
+      "eyebrow": "Debugging",
+      "groups": [
+        {
+          "title": "How the proof is produced",
+          "links": [
+            {
+              "href": "quality/",
+              "label": "Quality overview",
+              "desc": "The four layers Ze tests in."
+            },
+            {
+              "href": "quality/unit-fuzz-mutation/",
+              "label": "Unit, fuzz, mutation",
+              "desc": "Where these numbers come from."
+            },
+            {
+              "href": "quality/verify-debugging/",
+              "label": "Verify debugging",
+              "desc": "How a red is routed to its cause."
             }
           ]
         }

@@ -94,6 +94,7 @@ STEPS = [
     "command-equivalents",
     "deps",
     "quality",
+    "test-health",
     "config",
     "plugins",
     "facts",
@@ -249,6 +250,11 @@ def step_quality():
             cat=page.cat,
         )
     return 0
+
+
+def step_test_health():
+    render_test_health = load_module("render-test-health")
+    return render_test_health.main()
 
 
 def step_config():
@@ -485,6 +491,7 @@ STEP_FUNCS = {
     "command-equivalents": step_command_equivalents,
     "deps": step_deps,
     "quality": step_quality,
+    "test-health": step_test_health,
     "config": step_config,
     "plugins": step_plugins,
     "facts": step_facts,

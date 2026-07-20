@@ -149,7 +149,7 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
     }
 }
 </code></pre>
-<p>After <code>commit</code> (or <code>ze config set --no-reload</code>), the persisted file contains
+<p>After <code>commit</code> (or <code>ze config set</code>), the persisted file contains
 only the bcrypt hash; the <code>plaintext-password</code> leaf is removed and never
 written to disk. This matches Junos's <code>plain-text-password</code> behaviour.</p>
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->

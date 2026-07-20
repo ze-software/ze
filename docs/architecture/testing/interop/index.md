@@ -58,6 +58,7 @@ GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it 
 | FRR | 172.30.0.3 | `ze-iop-frr-<pid>` |
 | BIRD | 172.30.0.4 | `ze-iop-bird-<pid>` |
 | GoBGP | 172.30.0.5 | `ze-iop-gobgp-<pid>` |
+| Raw injector | 172.30.0.9 | `ze-iop-inject-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
 <!-- source: test/interop/interop.py -- container naming, IP addresses -->
@@ -76,6 +77,28 @@ scenarios/01-ebgp-ipv4-frr/
 The `check.py` file defines a `check()` function that uses daemon helper classes
 (`FRR`, `BIRD`, `GoBGP`, `Ze`) from `interop.py` to query sessions, routes, and
 attributes via each daemon's native CLI.
+
+### Optional sidecars
+
+A scenario directory may also carry files that start extra containers before Ze,
+alongside `rpki-server` and `bmp-collector.py`:
+
+| File | Sidecar | Purpose |
+|------|---------|---------|
+| `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit -- e.g. an UPDATE mixing Withdrawn Routes with NLRI (RFC 7606 Section 5.1), which every receiver must accept but no sender may produce. Ze dials it (`accept false` in `ze.conf`), so the injector runs `ze-test peer` in check mode against the `inject.msg` expect/action script. An optional `inject-args` file adds flags (`--asn` is important, or the peer adopts Ze's ASN). Because the injector and Ze start before the peer daemons, a route the injector announces is stored in Ze before FRR connects, so it is delivered by Ze's replay-on-peer-up path -- useful for testing the re-encode/replay rail specifically. |
+
+<!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
+<!-- source: test/interop/scenarios/47-rfc7606-relay-shape-frr/ -- worked example -->
+
+### Prove a scenario discriminates
+
+An interop scenario is evidence only if it goes RED when the behaviour it tests is
+broken. Before relying on a new scenario, revert the fix, rebuild the `ze-interop`
+image (`docker build -f test/interop/Dockerfile.ze -t ze-interop .`), and confirm the
+scenario fails; then restore and confirm it passes. A scenario that passes either way
+(common when the peer must accept both the old and new wire form) proves acceptance,
+not correctness -- see `ai/rules/interop-and-goal-validation.md` "Prove the test
+discriminates".
 
 ### Daemon Helpers
 
