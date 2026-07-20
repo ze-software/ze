@@ -181,7 +181,7 @@ func lcpFrame(proto uint16, code, id uint8, data []byte) []byte {
 //
 //	routes 0xC020 to the LCP handler.
 //
-// RFC requirement: RFC1661-2-1 positive -- Protocol 0xC020 has the least
+// RFC requirement: RFC1661-2-1 negative -- Protocol 0xC020 has the least
 // significant bit of its least significant octet equal to 0, so it is not a
 // legal PPP Protocol; handleFrame (session_run.go) recognizes only 0xC021,
 // 0x8021 and 0x8057 and drops everything else as unrecognized.
@@ -206,7 +206,7 @@ func TestRFC1661NonCompliantProtocolTreatedUnrecognized(t *testing.T) {
 //	recognized and answered, so the drop above is parity-driven rather than
 //	a blanket refusal.
 //
-// RFC requirement: RFC1661-2-1 negative -- 0xC021 satisfies both parity rules
+// RFC requirement: RFC1661-2-1 positive -- 0xC021 satisfies both parity rules
 // (LSB of the least significant octet is 1, LSB of the most significant octet
 // is 0) and is dispatched to the LCP handler instead of being dropped.
 func TestRFC1661CompliantProtocolRecognized(t *testing.T) {
@@ -254,9 +254,11 @@ func TestRFC1661TwoOctetProtocolField(t *testing.T) {
 
 // VALIDATES: a one-octet Protocol form is not accepted by the frame parser.
 //
-// RFC requirement: RFC1661-6.5-1 negative -- a frame carrying a single-octet
-// Protocol field is rejected by ParseFrame (frame.go) rather than being
-// silently promoted to the two-octet form.
+// A frame carrying a single-octet Protocol field is rejected by ParseFrame (frame.go)
+// rather than being silently promoted to the two-octet form. That is receive-side
+// behavior, and RFC1661-6.5-1 is a transmit obligation, so this test carries no tag
+// for it; the requirement is annotated {single-polarity: positive} in
+// rfc/short/rfc1661.md and the receive-side refusal is the RFC1661-6.5-3 gap.
 func TestRFC1661SingleOctetProtocolRejected(t *testing.T) {
 	_, _, _, err := ParseFrame([]byte{0x21})
 	if !errors.Is(err, errFrameTooShort) {
@@ -1145,9 +1147,11 @@ func TestRFC1661NoCodeRejectForKnownCode(t *testing.T) {
 // because the automaton is in Opened, which is what makes the "only in Opened"
 // restriction below observable rather than vacuous.
 //
-// RFC requirement: RFC1661-5.9-2 negative -- an Echo-Request in the same state
-// DOES draw a reply, so the silence Discard-Request receives is specific to
-// Discard-Request rather than a blanket refusal to answer maintenance packets.
+// An Echo-Request in the same state DOES draw a reply, so the silence a
+// Discard-Request receives (TestRFC1661DiscardRequestSilentlyDiscarded) is specific
+// rather than a blanket refusal to answer maintenance packets. This function injects
+// no Discard-Request, so it carries no RFC1661-5.9-2 tag; that requirement is
+// annotated {single-polarity: positive} in rfc/short/rfc1661.md.
 //
 // RFC requirement: RFC1661-6.4-2 positive -- BuildLCPEchoReply (echo.go) writes
 // the session's negotiated Magic-Number into the Magic-Number field.
@@ -1258,11 +1262,13 @@ func TestRFC1661SingleAuthProtocolOptionInRequest(t *testing.T) {
 //
 //	never Configure-Rejected.
 //
-// RFC requirement: RFC1661-6.4-1 positive -- ze always transmits a
-// Magic-Number option (the session draws a non-zero magic at start-up and
-// sendConfigureRequest always includes it), and negotiatePeerOption
-// (lcp_options.go) answers a well-formed peer Magic-Number with negAck, so it
-// is never in the Configure-Reject list.
+// ze always transmits a Magic-Number option (the session draws a non-zero magic at
+// start-up and sendConfigureRequest always includes it), and negotiatePeerOption
+// (lcp_options.go) answers a WELL-FORMED peer Magic-Number with negAck. That covers
+// only part of RFC1661-6.4-1, which forbids the Configure-Reject outright: a peer
+// Magic-Number option of the wrong Length still draws one (lcp_options.go:163-164),
+// so this test carries no RFC1661-6.4-1 tag and the requirement is annotated {gap}
+// in rfc/short/rfc1661.md.
 //
 // RFC requirement: RFC1661-6.4-3 negative -- a non-zero Magic-Number is
 // accepted, which is what makes the mandatory refusal of zero meaningful.
@@ -1283,9 +1289,11 @@ func TestRFC1661PeerMagicNumberAcked(t *testing.T) {
 //
 //	acceptance of Magic-Number above is a deliberate exclusion.
 //
-// RFC requirement: RFC1661-6.4-1 negative -- the Configure-Reject path is live
-// in negotiatePeerOption (lcp_options.go) for unrecognized option types; the
-// Magic-Number option is kept out of it.
+// The Configure-Reject path is live in negotiatePeerOption (lcp_options.go) for
+// unrecognized option types; a well-formed Magic-Number option is kept out of it.
+// This asserts the same acceptance as TestRFC1661PeerMagicNumberAcked above and so
+// is no counter-pole for RFC1661-6.4-1; that requirement is annotated {gap} in
+// rfc/short/rfc1661.md.
 func TestRFC1661UnknownOptionRejectedWhileMagicIsNot(t *testing.T) {
 	opts := []LCPOption{{Type: 99, Data: []byte{0x01}}, magicOption(0xCAFEBABE)}
 	acks, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})

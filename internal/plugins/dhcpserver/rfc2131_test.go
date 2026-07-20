@@ -144,10 +144,13 @@ func nakForSelecting(t *testing.T, h *dhcpHandler, mac net.HardwareAddr, xid uin
 
 // TestServerIdentifierInEveryReply proves every server-originated message carries
 // option 54, set to an address on the client's own subnet.
-// VALIDATES: RFC 2131 Table 3 (server identifier in OFFER/ACK/NAK) and Section 4.1
-// (the identifier must be reachable from the client).
+// VALIDATES: RFC 2131 Table 3 -- server identifier in OFFER/ACK/NAK.
 // PREVENTS: a reply path that omits option 54, which leaves a client unable to
 // address its DHCPREQUEST or DHCPRELEASE at the server that answered it.
+// The subnet-containment assertion below is deliberately NOT tagged for
+// RFC2131-4.1-2: on-subnet is weaker than the Section 4.1 MUST (an address
+// reachable from the client), and the gap annotation on RFC2131-4.1-2 in
+// rfc/short/rfc2131.md records where the two diverge.
 func TestServerIdentifierInEveryReply(t *testing.T) {
 	t.Parallel()
 
@@ -168,7 +171,8 @@ func TestServerIdentifierInEveryReply(t *testing.T) {
 			t.Errorf("%s server identifier = %v, want %v", tc.name, got, want[:])
 			continue
 		}
-		// RFC requirement: RFC2131-4.1-2 positive -- the server identifier the reply carries lies inside the client's own subnet, so it is an address reachable from the client.
+		// The identifier lies inside the client's own subnet. That is necessary
+		// for reachability but not sufficient for it; see the header comment.
 		if sid := netip.AddrFrom4([4]byte(got)); !h.subnet.Prefix.Contains(sid) {
 			t.Errorf("%s server identifier %v is outside the client subnet %v", tc.name, sid, h.subnet.Prefix)
 		}
@@ -492,9 +496,22 @@ func TestOptionsContainedWithinTheirField(t *testing.T) {
 	}
 
 	// Option 50 declares four octets but only two remain before the field ends.
+	// The malformed option is planted BEFORE any End marker and the packet stops
+	// right after it, so the option walk reaches it: the bounds check inside
+	// parseOptionAddr is then the only thing that can refuse the read. Planting it
+	// after the End marker instead would prove nothing, because the walk breaks on
+	// End before it ever looks at the option.
 	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x13}
-	truncated := buildMsg(msgRequest, mac, 0x2142, netip.Addr{}, 0, ipOpt(optServerID, h.serverIP))
-	truncated = append(truncated[:len(truncated)-1], optRequestedIP, 4, 0xc0, 0xa8)
+	serverIDOpt := ipOpt(optServerID, h.serverIP)
+	truncated := buildMsg(msgRequest, mac, 0x2142, netip.Addr{}, 0, serverIDOpt)
+	// buildMsg lays out: magic cookie at 236, message-type option at 240..242,
+	// `extra` next, then the End marker. Fail loudly if that layout ever changes,
+	// so this test cannot silently go back to asserting nothing.
+	endIdx := 243 + len(serverIDOpt)
+	if truncated[endIdx] != optEnd {
+		t.Fatalf("buildMsg layout changed: expected the End option at offset %d, found %d", endIdx, truncated[endIdx])
+	}
+	truncated = append(truncated[:endIdx:endIdx], optRequestedIP, 4, 0xc0, 0xa8)
 	// RFC requirement: RFC2131-4.1-6 negative -- a received option whose declared length runs past the end of its field is not read beyond the field boundary, so no address is taken from it.
 	if got := parseOptionAddr(truncated, optRequestedIP); got.IsValid() {
 		t.Errorf("read %v from an option truncated by the end of the field; an option not entirely contained must not be read", got)

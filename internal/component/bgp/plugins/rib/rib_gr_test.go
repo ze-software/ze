@@ -624,6 +624,13 @@ var testWireCommunityB = []byte{0xC0, 0x08, 0x04, 0xFF, 0xFF, 0x00, 0x07}
 //
 // VALIDATES: attach-community adds a 4-byte community to stale routes and raises StaleLevel.
 // PREVENTS: Routes missing community marker after LLGR entry.
+//
+// RFC requirement: RFC9494-4.2-4 positive -- the helper attaches LLGR_STALE (0xFFFF0006) to the
+// stale routes it retains: on LLGR entry the GR plugin dispatches
+// "request bgp rib attach-community <peer> <family> ffff0006"
+// (internal/component/bgp/plugins/gr/gr.go:127), and attachCommunityCommand appends that community
+// to every non-fresh entry of the family
+// (internal/component/bgp/plugins/rib/rib_commands_community.go:96-107, :218-260).
 func TestAttachCommunity(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
@@ -658,6 +665,13 @@ func TestAttachCommunity(t *testing.T) {
 //
 // VALIDATES: delete-with-community removes stale routes that contain the specified community.
 // PREVENTS: Routes with NO_LLGR persisting into LLGR period.
+//
+// RFC requirement: RFC9494-4.2-5 positive -- routes carrying NO_LLGR (0xFFFF0007) are not retained
+// into the LLGR period: the GR plugin dispatches
+// "request bgp rib delete-with-community <peer> <family> ffff0007" as the first LLGR-entry step
+// (internal/component/bgp/plugins/gr/gr.go:125), and deleteWithCommunityCommand removes every
+// matching stale route from the peer RIB
+// (internal/component/bgp/plugins/rib/rib_commands_community.go:161-183).
 func TestDeleteWithCommunity(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)

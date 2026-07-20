@@ -578,6 +578,11 @@ func TestDecodeLLGR_TrailingBytes(t *testing.T) {
 //
 // VALIDATES: extractLLGRCapabilities produces cap code 71 from config with LLST.
 // PREVENTS: LLGR config silently ignored, no capability declared.
+//
+// RFC requirement: RFC9494-4-1 positive -- a peer configured for LLGR advertises the capability
+// through BGP Capabilities Advertisement: extractLLGRCapabilities emits an sdk.CapabilityDecl with
+// Code 71 and the hex-encoded per-family payload (internal/component/bgp/plugins/gr/gr_llgr.go:209-214),
+// which the plugin hands to SetCapabilities for the OPEN.
 func TestExtractLLGRCapabilities_Basic(t *testing.T) {
 	t.Parallel()
 	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":3600}}}}}}}`
@@ -600,6 +605,10 @@ func TestExtractLLGRCapabilities_Basic(t *testing.T) {
 //
 // VALIDATES: extractLLGRCapabilities returns nil when no LLST configured.
 // PREVENTS: Spurious LLGR capability advertised when not configured.
+//
+// RFC requirement: RFC9494-4-1 negative -- the advertisement is conditional on being configured
+// for LLGR: with no long-lived-stale-time, parseLLGRCapValue returns "" and no code-71
+// CapabilityDecl is produced (internal/component/bgp/plugins/gr/gr_llgr.go:130-133, :205-207).
 func TestExtractLLGRCapabilities_NoLLGR(t *testing.T) {
 	t.Parallel()
 	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`

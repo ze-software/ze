@@ -37,6 +37,9 @@ func newNegotiateSession(localHold, peerHold time.Duration) *Session {
 
 // TestNegotiateWith_HoldTimeMinOfBoth verifies hold time is min(local, peer).
 // RFC 4271 Section 4.2: "the smaller of its configured Hold Time and the Hold Time received".
+// RFC requirement: RFC4271-4.2-2 positive -- the negotiated Hold Time is the smaller of the
+// configured and the received value, whichever side it comes from
+// (internal/component/bgp/reactor/session_negotiate.go:47-54).
 func TestNegotiateWith_HoldTimeMinOfBoth(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -63,6 +66,9 @@ func TestNegotiateWith_HoldTimeMinOfBoth(t *testing.T) {
 
 // TestNegotiateWith_HoldTimeZero verifies zero hold time from either side.
 // RFC 4271 Section 4.2: "if the negotiated value is zero, no keepalive messages".
+// RFC requirement: RFC4271-4.2-2 negative -- the smaller-of-the-two rule is not applied blindly:
+// a zero proposed by either side yields zero rather than the other side's non-zero value
+// (internal/component/bgp/reactor/session_negotiate.go:50-53).
 func TestNegotiateWith_HoldTimeZero(t *testing.T) {
 	tests := []struct {
 		name  string

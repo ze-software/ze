@@ -102,6 +102,9 @@ func validOpenBody() []byte {
 // RFC requirement: RFC5492-5-2 negative -- rejection with an Unsupported Capability
 // NOTIFICATION occurs only for a malformed known capability, distinguishing it from a
 // not-understood capability, which MUST be ignored rather than rejected.
+// RFC requirement: RFC4271-6.2-3 positive -- an error detected in a received OPEN is reported by
+// sending a NOTIFICATION whose Error Code is OPEN Message Error
+// (internal/component/bgp/reactor/session_handlers.go:185-199).
 func TestOpenRejectsMalformedKnownCapability(t *testing.T) {
 	s, client := newOpenSentSessionWithClient(t)
 

@@ -91,6 +91,15 @@ func TestLLGREgressFilter_NilState(t *testing.T) {
 // VALIDATES: AC-1: LLGR_STALE route advertised to LLGR-capable peer.
 // VALIDATES: AC-3: LLGR_STALE community NOT removed (no mods, already in wire bytes).
 // PREVENTS: Stale routes being suppressed or modified for LLGR-capable peers.
+//
+// RFC requirement: RFC9494-4.6-2 negative -- NO_EXPORT is a partial-deployment measure, not a
+// blanket rewrite: when the destination is present in peerLLGRCaps the filter returns before the
+// iBGP branch and emits no community modification at all
+// (internal/component/bgp/plugins/gr/gr_egress.go:79-84).
+// RFC requirement: RFC9494-4.6-3 negative -- likewise no LOCAL_PREF is forced to zero for an
+// LLGR-capable neighbor: the early return leaves the accumulator empty
+// (internal/component/bgp/plugins/gr/gr_egress.go:79-84), so the depreference applies only to the
+// partial-deployment path.
 func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
@@ -114,6 +123,11 @@ func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 //
 // VALIDATES: AC-2: LLGR_STALE route to EBGP peer without LLGR -> withdrawal via SetWithdraw.
 // PREVENTS: Stale routes being advertised to peers that cannot handle LLGR_STALE.
+//
+// RFC requirement: RFC9494-4.6-1 negative -- an EXTERNAL neighbor without LLGR never receives the
+// stale route under the partial-deployment rules: with dest.PeerAS != dest.LocalAS the isIBGP test
+// fails and LLGREgressFilter converts the announce to a withdrawal instead
+// (internal/component/bgp/plugins/gr/gr_egress.go:90, :101-107).
 func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
@@ -140,6 +154,17 @@ func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 //
 // VALIDATES: AC-4: partial deployment: IBGP peer without LLGR gets NO_EXPORT + LOCAL_PREF=0.
 // PREVENTS: Stale routes being silently dropped for IBGP peers in partial deployment.
+//
+// RFC requirement: RFC9494-4.6-1 positive -- the partial-deployment branch that still delivers a
+// stale route is reached only for an internal neighbor: LLGREgressFilter computes
+// isIBGP = dest.PeerAS == dest.LocalAS and only that branch keeps the announce
+// (internal/component/bgp/plugins/gr/gr_egress.go:90-98).
+// RFC requirement: RFC9494-4.6-2 positive -- that branch attaches NO_EXPORT (0xFFFFFF01) to the
+// stale route via mods.Op(attrCodeCommunity, AttrModAdd, communityNoExport)
+// (internal/component/bgp/plugins/gr/gr_egress.go:96, :22-26).
+// RFC requirement: RFC9494-4.6-3 positive -- the same branch sets LOCAL_PREF to zero via
+// mods.Op(attrCodeLocalPref, AttrModSet, localPrefZero)
+// (internal/component/bgp/plugins/gr/gr_egress.go:97, :29).
 func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR

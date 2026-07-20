@@ -444,6 +444,11 @@ func (c *safeCollector) get() []string {
 // VALIDATES: When GR restart-time expires and LLGR is negotiated, state transitions
 // to LLGR instead of purging. onLLGREnter callback fires per-family.
 // PREVENTS: LLGR routes being purged when GR timer expires.
+//
+// RFC requirement: RFC9494-4.2-2 positive -- when the LLGR period begins, enterLLGRLocked starts
+// a timer for the family's Long-Lived Stale Time and records it in state.llgrFamilies
+// (internal/component/bgp/plugins/gr/gr_state.go:363-390); the per-family onLLGREnter callback
+// observed here carries that LLST.
 func TestOnTimerExpired_WithLLGR(t *testing.T) {
 	t.Parallel()
 
@@ -474,6 +479,11 @@ func TestOnTimerExpired_WithLLGR(t *testing.T) {
 //
 // VALIDATES: Existing behavior preserved: GR timer expiry without LLGR purges all stale.
 // PREVENTS: Regression in GR-only behavior.
+//
+// RFC requirement: RFC9494-4.2-1 negative -- the extended retention is tied to a negotiated LLGR
+// capability: with llgrCap nil, handleTimerExpired takes the plain RFC 4724 branch and purges at
+// the Restart Time instead of the Restart Time plus Long-Lived Stale Time
+// (internal/component/bgp/plugins/gr/gr_state.go:334, :341-348).
 func TestOnTimerExpired_WithoutLLGR(t *testing.T) {
 	t.Parallel()
 
@@ -527,6 +537,12 @@ func TestOnTimerExpired_MixedFamilies(t *testing.T) {
 //
 // VALIDATES: When LLST timer fires, that family's stale routes are purged.
 // PREVENTS: All families being purged when only one LLST timer fires.
+//
+// RFC requirement: RFC9494-4.2-3 positive -- with the session still down when the family's LLST
+// elapses, handleLLSTExpired drops that family from staleFamilies and raises onLLGRFamilyExpired
+// (internal/component/bgp/plugins/gr/gr_state.go:418-441), which the plugin turns into
+// "request bgp rib purge-stale <peer> <family>" (internal/component/bgp/plugins/gr/gr.go:149-151);
+// the ipv6 family, whose LLST has not elapsed, keeps its routes.
 func TestLLSTTimerExpiry_SingleFamily(t *testing.T) {
 	t.Parallel()
 
@@ -565,6 +581,15 @@ func TestLLSTTimerExpiry_SingleFamily(t *testing.T) {
 //
 // VALIDATES: When all LLST timers fire, peer state is cleaned up and onLLGRComplete called.
 // PREVENTS: Peer state leaking after all LLGR families expire.
+//
+// RFC requirement: RFC9494-4.2-1 positive -- retention spans Restart Time PLUS Long-Lived Stale
+// Time: onSessionDown arms the restart timer for the GR Restart Time
+// (internal/component/bgp/plugins/gr/gr_state.go:153-156), handleTimerExpired then hands over to
+// enterLLGRLocked, which arms the per-family LLST timer
+// (internal/component/bgp/plugins/gr/gr_state.go:334-338, :384-387), and only when that second
+// timer fires does handleLLSTExpired release the peer
+// (internal/component/bgp/plugins/gr/gr_state.go:418-444) -- here the peer stays active across
+// the 1s Restart Time and is released only after the further 1s LLST.
 func TestLLSTTimerExpiry_LastFamily(t *testing.T) {
 	t.Parallel()
 
@@ -618,6 +643,11 @@ func TestOnSessionDown_SkipGR_DirectLLGR(t *testing.T) {
 //
 // VALIDATES: restart-time=0 and LLST=0 means neither GR nor LLGR.
 // PREVENTS: Accidentally entering LLGR with zero LLST.
+//
+// RFC requirement: RFC9494-4.2-2 negative -- the timer is started only for a family with a
+// NONZERO Long-Lived Stale Time: enterLLGRLocked builds llstByFamily from entries with LLST > 0
+// (internal/component/bgp/plugins/gr/gr_state.go:363-368) and purges any family missing from that
+// map instead of arming a timer (:371-377), so an LLST of 0 leaves the peer with no LLGR state.
 func TestOnSessionDown_ZeroGR_ZeroLLST(t *testing.T) {
 	t.Parallel()
 
@@ -641,6 +671,11 @@ func TestOnSessionDown_ZeroGR_ZeroLLST(t *testing.T) {
 //
 // VALIDATES: Reconnect during LLGR: stop LLST timers, validate new caps.
 // PREVENTS: LLST timers running after session re-established.
+//
+// RFC requirement: RFC9494-4.2-8 negative -- the immediate removal is conditional: when the
+// re-established session re-advertises the family with the F bit set in the GR and LLGR
+// capabilities, onSessionReestablished finds it in newForwarding and returns no family for purge
+// (internal/component/bgp/plugins/gr/gr_state.go:204-227), so the stale routes are kept until EOR.
 func TestOnSessionReestablished_DuringLLGR(t *testing.T) {
 	t.Parallel()
 
@@ -686,6 +721,11 @@ func TestOnSessionReestablished_DuringLLGR_NoLLGRCap(t *testing.T) {
 //
 // VALIDATES: Reconnect during LLGR with neither GR nor LLGR: delete all stale.
 // PREVENTS: Stale routes persisting when peer has no GR/LLGR support.
+//
+// RFC requirement: RFC9494-4.2-8 positive -- when the re-established session carries neither the
+// GR nor the LLGR capability, onSessionReestablished returns every stale family for immediate
+// removal and drops the peer state (internal/component/bgp/plugins/gr/gr_state.go:196-201); the
+// plugin issues purge-stale per returned family (internal/component/bgp/plugins/gr/gr.go:375-378).
 func TestOnSessionReestablished_DuringLLGR_NoCaps(t *testing.T) {
 	t.Parallel()
 

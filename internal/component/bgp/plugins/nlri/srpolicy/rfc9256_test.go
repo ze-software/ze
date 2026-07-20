@@ -45,8 +45,9 @@ func TestRFC9256IdentificationTuple(t *testing.T) {
 
 	base := "distinguisher 7 color 100 endpoint 10.0.0.1"
 
-	// RFC requirement: RFC9256-2.1-1 positive -- the SR Policy NLRI key ze emits is the identification tuple: same color and endpoint give the same key, a different color or endpoint gives a different one
 	// RFC requirement: RFC9256-2.1-2 positive -- at one headend the color and the endpoint alone separate two SR Policies; nothing else in the config changes the key
+	// The <Headend, Color, Endpoint> tuple of RFC9256-2.1-1 is not asserted here and cannot be:
+	// SRPolicy carries no headend field, so that line is annotated {not-applicable} in rfc/short/rfc9256.md.
 	assert.Equal(t, key(t, base), key(t, base), "same <color, endpoint> identifies the same policy")
 	assert.NotEqual(t, key(t, base), key(t, "distinguisher 7 color 200 endpoint 10.0.0.1"),
 		"a different color is a different SR Policy")
@@ -69,14 +70,19 @@ func TestRFC9256IdentificationTuple(t *testing.T) {
 func TestRFC9256IdentificationTupleIncomplete(t *testing.T) {
 	t.Parallel()
 
-	// RFC requirement: RFC9256-2.1-1 negative -- a config that names no color or no endpoint cannot identify an SR Policy and is rejected instead of encoding a partial tuple
+	// A config that names no color or no endpoint cannot identify an SR Policy and is
+	// rejected instead of encoding a partial tuple. This says nothing about the headend
+	// half of RFC9256-2.1-1, which ze has no field for, so no tag for it here.
 	_, err := parseConfigRoute(cr(strings.Fields("distinguisher 0 endpoint 10.0.0.1"), "192.0.2.1", false))
 	require.ErrorIs(t, err, errSRPolicyMissingFields, "no color: the policy has no identity")
 
 	_, err = parseConfigRoute(cr(strings.Fields("distinguisher 0 color 100"), "192.0.2.1", false))
 	require.ErrorIs(t, err, errSRPolicyMissingFields, "no endpoint: the policy has no identity")
 
-	// RFC requirement: RFC9256-2.1-2 negative -- an NLRI whose body is too short to hold the <Color, Endpoint> pair is rejected, so no policy is identified from half a tuple
+	// An NLRI whose body is too short to hold the <Color, Endpoint> pair is rejected.
+	// That is a buffer-bounds check returning ErrSRPolicyTruncated, not a statement about
+	// identification, so it is no counter-pole for RFC9256-2.1-2, which is annotated
+	// {single-polarity: positive} in rfc/short/rfc9256.md.
 	_, err = Parse(family.AFIIPv4, make([]byte, 11))
 	require.ErrorIs(t, err, ErrSRPolicyTruncated)
 	_, err = Parse(family.AFIIPv6, make([]byte, 23))

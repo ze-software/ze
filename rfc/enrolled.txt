@@ -174,3 +174,7 @@ rfc2328	OSPF Version 2
 rfc9552	Distribution of Link-State and TE Information Using BGP
 draft-ietf-bess-mup-safi	BGP Extensions for Mobile User Plane (MUP) SAFI
 rfc9012	The BGP Tunnel Encapsulation Attribute
+rfc9494	Long-Lived Graceful Restart for BGP
+rfc8669	SR Prefix Segment Identifier Extensions for BGP
+rfc4271	A Border Gateway Protocol 4 (BGP-4)
+rfc5340	OSPF for IPv6 (OSPFv3)

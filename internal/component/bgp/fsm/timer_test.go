@@ -139,6 +139,8 @@ func TestTimersHoldTimerStop(t *testing.T) {
 // VALIDATES: Keepalive timer fires at hold_time/3 per RFC 4271.
 //
 // PREVENTS: Not sending keepalives, causing peer to time out.
+// RFC requirement: RFC4271-4.4-2 positive -- with a non-zero hold time the periodic KEEPALIVE
+// timer is started and fires (internal/component/bgp/fsm/timer.go:367-403).
 func TestTimersKeepaliveTimer(t *testing.T) {
 	timers := NewTimers()
 	timers.SetHoldTime(90 * time.Millisecond) // Keepalive at 30ms
@@ -404,6 +406,9 @@ func TestKeepaliveClampedOnNegotiation(t *testing.T) {
 // VALIDATES: RFC 4271 Section 4.4 — zero hold-time disables keepalive.
 //
 // PREVENTS: Sending keepalives when hold-time is 0.
+// RFC requirement: RFC4271-4.4-2 negative -- with a negotiated hold time of zero no periodic
+// KEEPALIVE is sent, even when an explicit keepalive interval is configured
+// (internal/component/bgp/fsm/timer.go:371-373).
 func TestKeepaliveWithZeroHoldTime(t *testing.T) {
 	timers := NewTimers()
 	timers.SetHoldTime(0)

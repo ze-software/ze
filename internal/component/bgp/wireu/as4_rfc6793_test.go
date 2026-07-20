@@ -51,8 +51,6 @@ func flattenAS4(p *attribute.AS4Path) []attribute.ASPathSegment {
 // four-octet AS numbers is also sent.
 // RFC requirement: RFC6793-4.2.2-3 negative -- the AS4_PATH suppression is conditional: a path
 // that is NOT composed of mappable AS numbers only does get an AS4_PATH.
-// RFC requirement: RFC6793-4.1-6 negative -- the prohibition is scoped to NEW-to-NEW sessions:
-// toward an OLD speaker (destination without the four-octet capability) AS4_PATH IS carried.
 func TestRFC6793TranscodeEmitsAS4PathForNonMappable(t *testing.T) {
 	attrs := concatAttrs(
 		buildOriginAttr(),
@@ -110,9 +108,14 @@ func TestRFC6793TranscodeOmitsAS4PathWhenAllMappable(t *testing.T) {
 // TestRFC6793NoAS4PathBetweenNewSpeakers drives RewriteASPath toward a peer that
 // negotiated the four-octet capability with a non-mappable local AS to prepend.
 //
-// RFC requirement: RFC6793-4.1-6 positive -- with the four-octet capability negotiated on both
-// sides the outgoing UPDATE carries neither AS4_PATH nor AS4_AGGREGATOR; the real four-octet
-// AS numbers ride in AS_PATH and AGGREGATOR themselves.
+// With the four-octet capability negotiated on both sides the outgoing UPDATE carries
+// neither AS4_PATH nor AS4_AGGREGATOR; the real four-octet AS numbers ride in AS_PATH
+// and AGGREGATOR themselves.
+//
+// This proves only that ze does not ORIGINATE either attribute toward a NEW peer: the
+// input built below carries neither, so nothing here exercises the forwarding path.
+// RFC6793-4.1-6 also forbids CARRYING a received one, which ze does (see the {gap} on
+// RFC6793-4.1-6 in rfc/short/rfc6793.md), so this test carries no requirement tag.
 func TestRFC6793NoAS4PathBetweenNewSpeakers(t *testing.T) {
 	aggAddr := netip.MustParseAddr("192.0.2.9")
 	attrs := concatAttrs(

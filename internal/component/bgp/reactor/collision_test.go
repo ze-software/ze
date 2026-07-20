@@ -122,6 +122,12 @@ func TestCollisionEstablished(t *testing.T) {
 //
 // VALIDATES: When local_id > remote_id, incoming is rejected.
 // PREVENTS: Wrong connection being kept when local ID is higher.
+// RFC requirement: RFC4271-6.8-1 positive -- when a collision is detected one of the two
+// connections is closed: the existing OpenConfirm connection loses and is torn down
+// (internal/component/bgp/reactor/session.go:598-629).
+// RFC requirement: RFC4271-6.8-2 positive -- on receipt of the OPEN the local system examines the
+// connection in OpenConfirm state and compares BGP Identifiers
+// (internal/component/bgp/reactor/session.go:610-620).
 func TestCollisionOpenConfirmLocalWins(t *testing.T) {
 	// Local ID is higher than remote
 	localID := uint32(0xC0A80001)  // 192.168.0.1
@@ -166,6 +172,9 @@ func TestCollisionOpenConfirmRemoteWins(t *testing.T) {
 //
 // VALIDATES: Connections in OpenSent can accept incoming (no collision).
 // PREVENTS: Over-aggressive collision detection.
+// RFC requirement: RFC4271-6.8-1 negative -- no connection is closed when there is no collision:
+// a session in OpenSent has no OpenConfirm peer connection to collide with
+// (internal/component/bgp/reactor/session.go:622-629).
 func TestCollisionOpenSentNoCollision(t *testing.T) {
 	localID := uint32(0x01020304)
 	remoteID := uint32(0xFFFFFFFF)
@@ -516,6 +525,9 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 //
 // VALIDATES: Idle/Connect/Active states accept without collision detection.
 // PREVENTS: False collision detection in non-applicable states.
+// RFC requirement: RFC4271-6.8-2 negative -- states other than OpenConfirm and Established are
+// not treated as collisions, so the OpenConfirm examination is state-specific rather than applied
+// to every connection (internal/component/bgp/reactor/session.go:598-629).
 func TestCollisionNonCollisionStates(t *testing.T) {
 	// For states that cannot have a connection (Idle/Connect/Active),
 	// DetectCollision should always return (true, false) - accept new, don't close existing

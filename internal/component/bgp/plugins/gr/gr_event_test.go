@@ -284,6 +284,11 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 //
 // VALIDATES: handleOpenEvent parses cap 71 alongside cap 64 from OPEN JSON.
 // PREVENTS: LLGR capability ignored when peer advertises both GR and LLGR.
+//
+// RFC requirement: RFC9494-4.5-1 negative -- the ignore rule fires only when GR is missing:
+// the same JSON event with code 64 present keeps the decoded LLGR capability in peerLLGRCaps
+// (internal/component/bgp/plugins/gr/gr.go:472-489), LLST included, so an accompanied LLGR
+// capability is honored rather than discarded.
 func TestHandleEventOpenLLGR(t *testing.T) {
 	gp := &grPlugin{
 		peerCaps:     make(map[string]*grPeerCap),
@@ -318,6 +323,10 @@ func TestHandleEventOpenLLGR(t *testing.T) {
 //
 // VALIDATES: RFC 9494: LLGR MUST be ignored if GR capability is not present.
 // PREVENTS: LLGR state created for peers that only advertise cap 71 without cap 64.
+//
+// RFC requirement: RFC9494-4.5-1 positive -- on the JSON event path an OPEN advertising code 71
+// without code 64 leaves foundGR false, and handleOpenEvent deletes the peer's LLGR entry
+// (internal/component/bgp/plugins/gr/gr.go:493-498), so the received LLGR capability is ignored.
 func TestHandleEventOpenLLGR_NoGR(t *testing.T) {
 	gp := &grPlugin{
 		peerCaps:     make(map[string]*grPeerCap),
@@ -645,6 +654,11 @@ func TestHandleStructuredOpenValidLLGR(t *testing.T) {
 //
 // VALIDATES: RFC 9494: LLGR MUST be ignored if GR capability is not present.
 // PREVENTS: LLGR state created for peers that only advertise cap 71 without cap 64.
+//
+// RFC requirement: RFC9494-4.1-1 positive -- an OPEN carrying code 71 but no code 64 leaves
+// foundGR false, and handleStructuredOpen then deletes the peer's entry from peerLLGRCaps
+// (internal/component/bgp/plugins/gr/gr.go:281-285), so the LLGR capability is disregarded and
+// never drives an LLGR period.
 func TestHandleStructuredOpenLLGRNoGR(t *testing.T) {
 	gp := &grPlugin{
 		peerCaps:     make(map[string]*grPeerCap),
@@ -727,6 +741,12 @@ func TestExtractGRCapsTruncatedData(t *testing.T) {
 //
 // VALIDATES: handleStructuredOpen stores both GR and LLGR caps from a single OPEN.
 // PREVENTS: Second capability overwriting or preventing storage of the first.
+//
+// RFC requirement: RFC9494-4.1-1 negative -- the disregard is conditional on GR being absent:
+// with code 64 present in the same OPEN, foundGR is true and the code-71 entry stored by
+// extractGRCaps (internal/component/bgp/plugins/gr/gr.go:322-334) survives the
+// no-GR cleanup branch (internal/component/bgp/plugins/gr/gr.go:281-285), so both capabilities
+// are retained with their per-family LLST values.
 func TestHandleStructuredOpenGRPlusLLGR(t *testing.T) {
 	gp := &grPlugin{
 		peerCaps:     make(map[string]*grPeerCap),

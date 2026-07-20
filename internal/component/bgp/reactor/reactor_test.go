@@ -2335,6 +2335,12 @@ func TestGetMatchingPeersExclusion(t *testing.T) {
 //
 // VALIDATES: MD5 peers are collected by listen port with MD5IP override.
 // PREVENTS: Listener socket missing MD5 keys or applying keys to wrong port.
+// RFC requirement: RFC4271-Security-1 positive -- peers configured with a TCP MD5 password are
+// collected and handed to the listener, which applies TCP_MD5SIG per peer
+// (internal/component/bgp/reactor/reactor.go:1341-1361, internal/component/bgp/reactor/session.go:382-389).
+// RFC requirement: RFC4271-Security-1 negative -- a peer with no MD5 password, and a peer on a
+// different listen port, are excluded, so the key set is not applied indiscriminately
+// (internal/component/bgp/reactor/reactor.go:1345-1350).
 func TestMD5PeersForListener(t *testing.T) {
 	r := New(&Config{Port: 179})
 

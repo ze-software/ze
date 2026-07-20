@@ -334,6 +334,14 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 // VALIDATES: Hold times 0 and ≥3 are valid; 1 and 2 are rejected.
 //
 // PREVENTS: Session establishment with invalid hold time leading to timer issues.
+// RFC requirement: RFC4271-4.2-1 positive -- a Hold Time of zero and Hold Times of three seconds
+// and above are accepted by ValidateHoldTime (internal/component/bgp/message/open.go:235-245).
+// RFC requirement: RFC4271-4.2-1 negative -- a Hold Time that is neither zero nor at least three
+// seconds is rejected (internal/component/bgp/message/open.go:237-243).
+// RFC requirement: RFC4271-6.2-1 positive -- three seconds, the first legal non-zero value, is
+// accepted, so the rejection window is exactly one and two (open.go:237).
+// RFC requirement: RFC4271-6.2-1 negative -- Hold Time values of one and two seconds are rejected
+// with OPEN Message Error / Unacceptable Hold Time (open.go:238-242).
 func TestOpenValidateHoldTime(t *testing.T) {
 	tests := []struct {
 		name     string

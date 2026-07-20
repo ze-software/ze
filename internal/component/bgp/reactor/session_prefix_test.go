@@ -98,6 +98,12 @@ func TestPrefixWarningThreshold(t *testing.T) {
 //
 // VALIDATES: AC-3 "NOTIFICATION Cease/MaxPrefixes sent, session torn down."
 // PREVENTS: Session staying up after prefix maximum exceeded.
+// RFC requirement: RFC4271-6.7-4 positive -- terminating a peering because the configured upper
+// bound on prefixes was exceeded sends a NOTIFICATION with Error Code Cease
+// (internal/component/bgp/reactor/session_prefix.go:448-463).
+// RFC requirement: RFC4271-6.7-1 positive -- Cease is used here precisely because no fatal
+// protocol error exists: the peer's UPDATE was well formed and only a local policy limit was
+// reached (internal/component/bgp/reactor/session_prefix.go:399-416).
 func TestPrefixExceedTeardown(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(3, 2)
 	s := NewSession(ps)
@@ -123,6 +129,9 @@ func TestPrefixExceedTeardown(t *testing.T) {
 //	AC-27 "NLRIs beyond maximum are not installed in RIB or forwarded."
 //
 // PREVENTS: Over-limit routes reaching RIB/forwarding when operator chose warn-only mode.
+// RFC requirement: RFC4271-6.7-4 negative -- when the speaker does not terminate the peering, no
+// Cease NOTIFICATION is sent, so the Cease is bound to the termination and not to the limit
+// being crossed (internal/component/bgp/reactor/session_prefix.go:399-415).
 func TestPrefixExceedDrop(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(3, 2)
 	ps.PrefixTeardown = false

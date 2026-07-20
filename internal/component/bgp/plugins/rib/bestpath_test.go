@@ -192,6 +192,11 @@ func TestBestPath_Empty(t *testing.T) {
 //
 // VALIDATES: AC-1 — LOCAL_PREF comparison selects highest.
 // PREVENTS: Inverted LOCAL_PREF comparison (lower wins instead of higher).
+// RFC requirement: RFC4271-5.1.5-4 positive -- the route with the higher LOCAL_PREF is preferred
+// (internal/component/bgp/plugins/rib/bestpath.go:324-330).
+// RFC requirement: RFC4271-5.1.5-4 negative -- the route with the lower LOCAL_PREF loses, and an
+// equal LOCAL_PREF does not decide the comparison at all
+// (internal/component/bgp/plugins/rib/bestpath.go:325-330).
 func TestBestPath_LocalPref(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -305,6 +310,16 @@ func TestBestPath_Origin(t *testing.T) {
 //
 // VALIDATES: AC-4 — MED compared only when same neighbor AS, lowest wins.
 // PREVENTS: MED compared across different neighbor ASes.
+// RFC requirement: RFC4271-9.1.2.2-1 negative -- a later criterion cannot jump the order: a much
+// lower MED on a route from a different neighbor AS does not win, because the MED step is skipped
+// and the comparison falls through to the later steps
+// (internal/component/bgp/plugins/rib/bestpath.go:348-356).
+// RFC requirement: RFC4271-9.1.2.2-3 positive -- when the comparison reaches the MED step the
+// MULTI_EXIT_DISC of the competing routes is used, lowest winning
+// (internal/component/bgp/plugins/rib/bestpath.go:349-355).
+// RFC requirement: RFC4271-9.1.2.2-3 negative -- MED is not used when the routes did not come
+// from the same neighbor AS, so the MED step is scoped rather than universal
+// (internal/component/bgp/plugins/rib/bestpath.go:349).
 func TestBestPath_MED_SameNeighborAS(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -510,6 +525,10 @@ func TestBestPath_MultipleCandidate(t *testing.T) {
 //
 // VALIDATES: All comparison steps evaluated in RFC order.
 // PREVENTS: Steps skipped or evaluated out of order.
+// RFC requirement: RFC4271-9.1.2.2-1 positive -- the tie-breaking criteria run in the specified
+// order: LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP over iBGP, IGP cost, router id, then peer
+// address, and the first step that differs decides
+// (internal/component/bgp/plugins/rib/bestpath.go:307-391).
 func TestBestPath_FullTiebreak(t *testing.T) {
 	a := &Candidate{
 		PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
@@ -717,6 +736,12 @@ func TestBestPath_PeerAddressNumeric(t *testing.T) {
 //
 // VALIDATES: RFC 9494: any non-LLGR-stale route beats any LLGR-stale route.
 // PREVENTS: LLGR-stale route winning despite having better LOCAL_PREF.
+//
+// RFC requirement: RFC9494-4.4-1 positive -- a least-preferred route is less preferred than ANY
+// route that is not least preferred, whatever its attributes: comparePair's Step 0 returns on the
+// depreference flag alone, before LOCAL_PREF
+// (internal/component/bgp/plugins/rib/bestpath.go:309-316), so the LLGR-stale candidate loses to a
+// normal route even holding LOCAL_PREF 300 against 100, in either input order.
 func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
 	t.Parallel()
 	// LLGR-stale route has higher LOCAL_PREF but should still lose
@@ -739,6 +764,11 @@ func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
 //
 // VALIDATES: RFC 9494: between two LLGR-stale routes, normal tiebreaking applies.
 // PREVENTS: All LLGR-stale routes treated as equal.
+//
+// RFC requirement: RFC9494-4.4-1 negative -- the rule orders least-preferred BELOW non-least-
+// preferred and does nothing else: when both candidates are at the depreference level the equality
+// test aDepref != bDepref is false and comparePair falls through to the normal decision process
+// (internal/component/bgp/plugins/rib/bestpath.go:311-330), so LOCAL_PREF decides between them.
 func TestSelectBest_BothLLGRStale(t *testing.T) {
 	t.Parallel()
 	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 200, StaleLevel: 2}
@@ -776,6 +806,12 @@ func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 // only at or above DepreferenceThreshold=2 (LLGR, RFC 9494): a level-2 stale route loses to a normal
 // route (bestpath.go:311-316), confirming GR-stale level 1 is deliberately kept below the threshold
 // so it is never differentiated during forwarding.
+// RFC requirement: RFC9494-4.3-1 positive -- a route marked LLGR_STALE is treated as least
+// preferred in route selection: LLGR entry raises such routes to storage.DepreferenceThreshold
+// (internal/component/bgp/plugins/rib/rib_commands_community.go:101,
+// internal/component/bgp/plugins/rib/storage/routeentry.go:29) and comparePair's Step 0 makes any
+// candidate at or above that level lose to one below it, before LOCAL_PREF is consulted
+// (internal/component/bgp/plugins/rib/bestpath.go:308-322).
 func TestComparePair_LLGRStale(t *testing.T) {
 	t.Parallel()
 	normal := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
@@ -802,6 +838,10 @@ func TestComparePair_LLGRStale(t *testing.T) {
 // other routing information during best-path/forwarding: level 1 is below DepreferenceThreshold
 // (bestpath.go:309), so comparePair's stale step (bestpath.go:308-322) does not fire and the stale
 // route competes and wins on LOCAL_PREF exactly like a fresh route.
+// RFC requirement: RFC9494-4.3-1 negative -- the least-preferred treatment is confined to routes
+// that went through LLGR_STALE marking: a GR-stale route (level 1, never given LLGR_STALE) stays
+// below storage.DepreferenceThreshold (internal/component/bgp/plugins/rib/bestpath.go:309-310) and
+// wins normally on LOCAL_PREF, so ordinary routes are not depreferenced.
 func TestComparePair_GRStaleCompetesNormally(t *testing.T) {
 	t.Parallel()
 	// Level 1 (GR-stale) with higher LOCAL_PREF should beat level 0 (fresh)
