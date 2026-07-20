@@ -734,9 +734,10 @@ func TestRFC4271ConformantUpdateSendsNoUpdateError(t *testing.T) {
 //
 // PREVENTS: An implementation that satisfies the code-2 obligation by rejecting every OPEN.
 //
-// RFC requirement: RFC4271-6.2-3 negative -- the code-2 NOTIFICATION is emitted only when an
-// OPEN error is detected: a conformant OPEN passes version, hold-time and capability
-// validation and nothing is sent (internal/component/bgp/reactor/session_handlers.go:39-116).
+// Untagged for RFC4271-6.2-3 (recorded {gap} in rfc/short/rfc4271.md): the code-2
+// NOTIFICATION is emitted only when an OPEN error is detected, and a conformant OPEN passes
+// version, hold-time and capability validation with nothing sent
+// (internal/component/bgp/reactor/session_handlers.go:39-116).
 func TestRFC4271ConformantOpenSendsNoOpenError(t *testing.T) {
 	s, client := newOpenSentSessionWithClient(t)
 

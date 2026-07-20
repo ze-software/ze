@@ -171,9 +171,12 @@ func TestRFC4271MessageLengthOutOfBounds(t *testing.T) {
 //
 // PREVENTS: A peer receiving a diagnostic it cannot correlate with the bad message.
 //
-// RFC requirement: RFC4271-6.1-3 positive -- an invalid length produces Message Header
-// Error / Bad Message Length whose Data field is the erroneous Length field
-// (internal/component/bgp/message/header.go:157-170,208-213).
+// Untagged: RFC4271-6.1-3 is recorded {gap} in rfc/short/rfc4271.md because ParseHeader
+// reports a sub-19 Length with a bare sentinel and no NOTIFICATION
+// (internal/component/bgp/message/header.go:106-108). This test covers only the four
+// length conditions that DO produce a conformant Notification
+// (internal/component/bgp/message/header.go:155-171,207-213), so it cannot stand as
+// coverage of the whole obligation.
 func TestRFC4271BadLengthNotificationCarriesLength(t *testing.T) {
 	h := Header{Length: 4097, Type: TypeUPDATE}
 	err := h.ValidateLengthWithMax(false)
@@ -198,7 +201,7 @@ func TestRFC4271BadLengthNotificationCarriesLength(t *testing.T) {
 //
 // PREVENTS: Spurious Bad Message Length NOTIFICATIONs tearing down healthy sessions.
 //
-// RFC requirement: RFC4271-6.1-3 negative -- a length that satisfies the per-type
+// Untagged for the same reason as the test above: a length that satisfies the per-type
 // minimum and the ceiling returns nil, so no Message Header Error is raised
 // (internal/component/bgp/message/header.go:172-173,215).
 func TestRFC4271ValidLengthProducesNoNotification(t *testing.T) {

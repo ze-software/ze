@@ -1,6 +1,9 @@
 package sr
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestOSPFv3SRTypeCodes(t *testing.T) {
 	// RFC 8666 §9: the OSPFv3 Extended-LSA registry values, distinct from the
@@ -134,18 +137,101 @@ func TestOSPFv3SRTLVMalformed(t *testing.T) {
 					t.Fatalf("v3 input %d panicked: %v", i, r)
 				}
 			}()
-			if _, err := DecodePrefixSIDValueV6(in); err != nil {
-				_ = err
+			// Every input is malformed for every decoder: nil/{}/{0x40}/{0,1} are shorter
+			// than the 4-octet (8 for the LAN and Range forms) fixed header; {0x48,...}
+			// carries V=1/L=0, an invalid V/L pair; {0,1,0,0} passes the fixed header but
+			// is one octet short of the 4-octet index its V=0/L=0 flags imply. Asserting
+			// the ERROR, not merely the absence of a panic, is what makes this test fail
+			// if a length or V/L guard stops rejecting -- a silent zero-valued SID would
+			// otherwise be installed from a truncated advertisement
+			// (v6PrefixSIDFromPrefixTLV, internal/plugins/ospf/sr_reception_v6.go:137-140).
+			if got, err := DecodePrefixSIDValueV6(in); err == nil {
+				t.Fatalf("v3 input %d: DecodePrefixSIDValueV6 accepted a malformed value: %+v", i, got)
 			}
-			if _, err := DecodeAdjSIDValueV6(in); err != nil {
-				_ = err
+			if got, err := DecodeAdjSIDValueV6(in); err == nil {
+				t.Fatalf("v3 input %d: DecodeAdjSIDValueV6 accepted a malformed value: %+v", i, got)
 			}
-			if _, err := DecodeLANAdjSIDValueV6(in); err != nil {
-				_ = err
+			if got, err := DecodeLANAdjSIDValueV6(in); err == nil {
+				t.Fatalf("v3 input %d: DecodeLANAdjSIDValueV6 accepted a malformed value: %+v", i, got)
 			}
-			if _, err := DecodeExtPrefixRangeValueV6(in); err != nil {
-				_ = err
+			if got, err := DecodeExtPrefixRangeValueV6(in); err == nil {
+				t.Fatalf("v3 input %d: DecodeExtPrefixRangeValueV6 accepted a malformed value: %+v", i, got)
 			}
 		}()
+	}
+}
+
+// rangeDecodeEqual compares two decoded Extended Prefix Range TLVs field by field
+// (ExtPrefixRange holds slices, so it is not comparable with ==).
+func rangeDecodeEqual(a, b ExtPrefixRange) bool {
+	if a.PrefixLength != b.PrefixLength || a.AF != b.AF || a.RangeSize != b.RangeSize ||
+		a.IAFlag != b.IAFlag || !bytes.Equal(a.AddressV6, b.AddressV6) ||
+		len(a.PrefixSIDs) != len(b.PrefixSIDs) {
+		return false
+	}
+	for i := range a.PrefixSIDs {
+		if a.PrefixSIDs[i] != b.PrefixSIDs[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive verifies the 3-octet Reserved field
+// of the IPv6 Extended Prefix Range TLV does not reach the decoded value.
+//
+// VALIDATES: octets 5..7 set to 0xFF decode to exactly the same range as all-zero
+// Reserved, and the encoder leaves them zero on transmission.
+//
+// PREVENTS: a peer that fills Reserved (a future extension, or padding garbage) making an
+// otherwise valid Prefix-SID range decode differently or be discarded.
+//
+// RFC requirement: RFC8666-5-7 positive -- the Reserved field of the Extended Prefix Range
+// TLV MUST be ignored on reception (RFC 8666 §5), and DecodeExtPrefixRangeValueV6 never
+// reads v[5:8] (internal/plugins/ospf/sr/codec_v6.go:204-220).
+func TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive(t *testing.T) {
+	addr := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	clean := EncodeExtPrefixRangeValueV6(128, addr[:], 4, PrefixSID{Flags: SIDFlags{NP: true}, Index: 50})
+	want, err := DecodeExtPrefixRangeValueV6(clean)
+	if err != nil {
+		t.Fatalf("clean decode: %v", err)
+	}
+	if clean[5] != 0 || clean[6] != 0 || clean[7] != 0 {
+		t.Fatalf("Reserved must be zero on transmission: %#02x%02x%02x", clean[5], clean[6], clean[7])
+	}
+	dirty := append([]byte(nil), clean...)
+	dirty[5], dirty[6], dirty[7] = 0xFF, 0xFF, 0xFF
+	got, err := DecodeExtPrefixRangeValueV6(dirty)
+	if err != nil {
+		t.Fatalf("decode with Reserved=0xFFFFFF: %v", err)
+	}
+	if !rangeDecodeEqual(got, want) {
+		t.Fatalf("Reserved field changed the decode: %+v vs %+v", got, want)
+	}
+}
+
+// TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored verifies the ignoring is confined to the
+// Reserved octets.
+//
+// VALIDATES: the adjacent AF octet is honored, so changing it changes the decode.
+//
+// PREVENTS: a decoder that discards the whole fixed header as reserved and so cannot tell
+// an IPv4 range from an IPv6 one.
+//
+// RFC requirement: RFC8666-5-7 negative -- "ignored" applies to the Reserved field only:
+// the AF octet at offset 1 is read into ExtPrefixRange.AF
+// (internal/plugins/ospf/sr/codec_v6.go:208-211) and an AF the caller does not want is
+// what lets reception reject it.
+func TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored(t *testing.T) {
+	addr := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	clean := EncodeExtPrefixRangeValueV6(128, addr[:], 4, PrefixSID{Flags: SIDFlags{NP: true}, Index: 50})
+	dirty := append([]byte(nil), clean...)
+	dirty[1] = 0 // AF = IPv4 unicast
+	got, err := DecodeExtPrefixRangeValueV6(dirty)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.AF != 0 {
+		t.Fatalf("the AF octet must be honored, got %d", got.AF)
 	}
 }

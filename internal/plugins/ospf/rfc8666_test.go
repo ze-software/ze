@@ -220,9 +220,12 @@ func TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC8666-6-7 positive -- when a prefix carries more than one (differing)
-// Prefix-SID for the same topology and algorithm, ALL of them are ignored: no forwarding
-// entry is installed for that prefix.
+// Untagged: this exercises only the CONSUMER half of RFC8666-6-7. It hand-injects
+// Duplicate:true, so it stays green even if the detector that sets that flag
+// (srRemotePrefixSIDsV6, internal/plugins/ospf/sr_reception_v6.go:174) is deleted. The
+// requirement is tagged on TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored below, which
+// drives the detector from two conflicting LSAs. Kept as a direct regression test that
+// installRoutes honors the flag (internal/plugins/ospf/sr_install.go:80-85).
 func TestRFC8666DuplicatePrefixSIDsAllIgnored(t *testing.T) {
 	f := newRFC8666Fixture()
 	bus := &srCaptureBus{}
@@ -236,6 +239,79 @@ func TestRFC8666DuplicatePrefixSIDsAllIgnored(t *testing.T) {
 	inst.installRoutes(routes, sids, f.caps, f.algos, f.mySRGB)
 	if len(bus.entries) != 0 {
 		t.Fatalf("duplicate Prefix-SIDs must install nothing: %+v", bus.entries)
+	}
+}
+
+// TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored drives the conflict detection AND the
+// suppression from real input.
+//
+// VALIDATES: two remote E-Intra-Area-Prefix LSAs binding DIFFERENT SIDs to one prefix are
+// installed into the LSDB, srRemotePrefixSIDsV6 marks the prefix Duplicate, and the
+// installer emits no mpls-fib entry for it.
+//
+// PREVENTS: a conflicting pair of Prefix-SIDs being resolved to whichever LSA was read
+// first and programmed into the forwarding plane.
+//
+// Nothing is hand-injected: the Duplicate verdict comes from the detector
+// (internal/plugins/ospf/sr_reception_v6.go:163-178). Both originators advertise algorithm
+// 0 and an SRGB wide enough for either index, so the duplicate verdict is the only thing
+// standing between this prefix and an installed push entry -- remove it and both
+// assertions below redden.
+//
+// RFC requirement: RFC8666-6-7 positive -- when a prefix carries more than one (differing)
+// Prefix-SID for the same topology and algorithm, ALL of them are ignored: no forwarding
+// entry is installed for that prefix.
+func TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored(t *testing.T) {
+	eng := newV6RIEngine(t)
+	loop := netip.MustParsePrefix("2001:db8::5/128")
+	r5 := types.RouterID{5, 5, 5, 5}
+	r6 := types.RouterID{6, 6, 6, 6}
+	installRemoteV6EPrefix(t, eng, types.BackboneArea, r5, 1, []sr.PrefixSIDConfig{{Prefix: loop, Index: 5}})
+	installRemoteV6EPrefix(t, eng, types.BackboneArea, r6, 2, []sr.PrefixSIDConfig{{Prefix: loop, Index: 99}})
+
+	sids := eng.srRemotePrefixSIDsV6()
+	entry, ok := sids[loop]
+	if !ok || !entry.Duplicate {
+		t.Fatalf("two differing Prefix-SIDs for one prefix must be detected as duplicate: %+v", entry)
+	}
+
+	srgb := sr.NewSRGB([]sr.LabelRange{{Base: 16000, Size: 200}})
+	bus := &srCaptureBus{}
+	inst := newTestInstallerV6(bus)
+	routes := []srRoute{{
+		Prefix:   loop,
+		Origin:   entry.Originator,
+		NextHops: []srNextHop{{Addr: netip.MustParseAddr("fe80::2"), Router: entry.Originator}},
+	}}
+	caps := map[types.RouterID]sr.SRGB{r5: srgb, r6: srgb}
+	algos := map[types.RouterID][]uint8{r5: {0}, r6: {0}}
+	mySRGB := sr.NewSRGB([]sr.LabelRange{{Base: 18000, Size: 200}})
+	inst.installRoutes(routes, sids, caps, algos, mySRGB)
+	if len(bus.entries) != 0 {
+		t.Fatalf("a duplicated Prefix-SID must reach no forwarding entry: %+v", bus.entries)
+	}
+
+	// Control: the identical fixture with the SAME SID advertised twice is NOT a conflict
+	// (RFC 8666 §8.2), and it DOES install. This proves the assertion above is carried by the
+	// duplicate verdict and not by some other reason the installer had to skip the prefix --
+	// caps, algorithms, SRGB range and next-hop are unchanged between the two halves.
+	eng2 := newV6RIEngine(t)
+	installRemoteV6EPrefix(t, eng2, types.BackboneArea, r5, 1, []sr.PrefixSIDConfig{{Prefix: loop, Index: 5}})
+	installRemoteV6EPrefix(t, eng2, types.BackboneArea, r6, 2, []sr.PrefixSIDConfig{{Prefix: loop, Index: 5}})
+	agreed := eng2.srRemotePrefixSIDsV6()
+	if agreed[loop].Duplicate {
+		t.Fatalf("two identical Prefix-SIDs for one prefix are not a conflict: %+v", agreed[loop])
+	}
+	bus2 := &srCaptureBus{}
+	inst2 := newTestInstallerV6(bus2)
+	routes2 := []srRoute{{
+		Prefix:   loop,
+		Origin:   agreed[loop].Originator,
+		NextHops: []srNextHop{{Addr: netip.MustParseAddr("fe80::2"), Router: agreed[loop].Originator}},
+	}}
+	inst2.installRoutes(routes2, agreed, caps, algos, mySRGB)
+	if len(bus2.entries) == 0 {
+		t.Fatal("control: an unconflicted Prefix-SID must install, otherwise the suppression assertion above proves nothing")
 	}
 }
 

@@ -179,7 +179,14 @@ func TestOSPFv3ReceptionMalformedNoPanic(t *testing.T) {
 					t.Fatalf("input %d panicked: %v", i, r)
 				}
 			}()
-			_, _, _ = v6PrefixSIDFromPrefixTLV(in)
+			// Assert the REJECTION, not merely the absence of a panic: every input here is
+			// shorter than the 8-octet fixed header, or (the fifth) declares a /128 whose
+			// 16 address octets are absent. A decoder that stopped bound-checking would
+			// return ok=true with a zero prefix and a zero SID, and a panic-only assertion
+			// would stay green while that zero-valued SID was installed.
+			if pfx, ps, ok := v6PrefixSIDFromPrefixTLV(in); ok {
+				t.Fatalf("input %d: a malformed prefix TLV must be rejected, got %v/%+v", i, pfx, ps)
+			}
 			if _, ok := v6PrefixFromWords(200, in); ok {
 				t.Fatalf("input %d: PrefixLength 200 must be rejected", i)
 			}
