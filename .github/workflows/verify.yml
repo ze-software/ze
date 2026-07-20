@@ -1,0 +1,70 @@
+name: verify
+
+# The fast merge gate: `make ze-verify` (unit + functional + static gates) on
+# every push and pull request. Ported from .woodpecker/verify.yml when the
+# validation moved off Codeberg's shared Woodpecker runners onto GitHub Actions
+# (the repo is pushed to both codeberg.org and github.com/ze-software/ze; GitHub
+# is where CI now runs).
+#
+# The stage list is NOT reproduced here: it lives in `stagesForMode`
+# (scripts/status/verify_run.go) and nowhere else, and this workflow runs nothing
+# but `make ze-verify`, so a gate absent from that function runs nowhere. To read
+# the live list: `make ze-verify-list`. See docs/functional-tests.md.
+#
+# scripts/dev/github_workflows_test.go pins this workflow's shape (push +
+# pull_request, runs ze-verify, never a heavy/scheduled suite).
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential curl git iproute2 iptables nftables \
+            python3 python3-venv util-linux
+
+      # Node comes from setup-node, NOT apt: the runner's own Node gives npm a
+      # user-writable global prefix, so `npm install -g` below works without sudo.
+      # apt's `nodejs npm` land a root-owned /usr prefix and would EACCES a bare
+      # `npm install -g` -- and agent-browser is load-bearing (the .wb web suite
+      # hard-fails without it, failing all of ze-verify).
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # Web suite (.wb tests) requires agent-browser; without it the suite fails
+      # hard under the verify gate instead of silently skipping.
+      - name: Install agent-browser
+        run: |
+          npm install -g agent-browser
+          agent-browser install --with-deps
+
+      - name: make ze-verify
+        run: make ze-verify

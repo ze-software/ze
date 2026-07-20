@@ -338,8 +338,9 @@ func TestExabgpVerifyModeSummaryUsesNewlinesAndExactReproducers(t *testing.T) {
 //
 // ze-hook-test is in the list for the same reason, having hit the same trap from
 // the other side: it was reachable ONLY by typing `make ze-hook-test` by hand --
-// absent from ze-test (Makefile), from this stage list, and from .woodpecker/
-// (whose only step is `make ze-verify`). Its checks guard the agent hooks, whose
+// absent from ze-test (Makefile), from this stage list, and from
+// .github/workflows/ (whose verify job's only step is `make ze-verify`). Its
+// checks guard the agent hooks, whose
 // failure mode is silent and fail-CLOSED: a session-id mismatch between
 // lib/session-id.sh and pretool-writeedit.py blocks every agent from writing while
 // reporting work was never done (real incident, 2026-07-16). A guard nobody runs
@@ -366,7 +367,7 @@ func TestStagesForModeIncludesStaticAnalysisGates(t *testing.T) {
 
 // VALIDATES: the alloc-ceiling gate (ze-alloc-gate) is registered in the full
 // `ze-verify` stage list -- the ACTUAL source of truth CI runs via
-// `make ze-verify` (.woodpecker/verify.yml) -- and is deliberately absent from
+// `make ze-verify` (.github/workflows/verify.yml) -- and is deliberately absent from
 // the fast `ze-verify-changed` inline loop (spec-fixit-perf-alloc-ci-gate AC-3).
 // PREVENTS: the perf-alloc regression gate merging a per-op heap allocation
 // undetected because the stage was never wired into the runner CI executes,
@@ -391,7 +392,7 @@ func TestStagesIncludeAllocGate(t *testing.T) {
 
 // VALIDATES: the documentation-consistency gate (doc drift + corpus path
 // references) is wired into the ACTUAL stage list CI runs via `make ze-verify`
-// (.woodpecker/verify.yml), for the default full mode. Before this the gate was
+// (.github/workflows/verify.yml), for the default full mode. Before this the gate was
 // dark: stagesForMode enumerated every ze-verify stage and named no ze-doc-*
 // target, so `check_doc_links.py` could exit 1 with broken discovery-layer refs
 // while CI stayed green (spec-fixit-doc-gate-and-refs AC-1).
@@ -464,7 +465,7 @@ func mustReadFileContains(t *testing.T, root, rel, want string) {
 //
 // stagesForMode is the ONLY live verify stage list: `make ze-verify` and
 // `make ze-verify-changed` both shell out to this runner (Makefile), and CI's
-// only step is `make ze-verify` (.woodpecker/verify.yml). A gate absent from
+// only step is `make ze-verify` (.github/workflows/verify.yml). A gate absent from
 // stagesForMode therefore never runs anywhere.
 //
 // The goldens below are deliberately hand-maintained literals, not derived from

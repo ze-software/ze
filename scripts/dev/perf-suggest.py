@@ -7,11 +7,13 @@ suite (`make ze-perf-gate`) needs Docker and minutes, so it is not run every
 edit -- and a throughput/convergence regression in the BGP data plane is exactly
 the kind that slips in silently between perf runs.
 
-Deliberately LOCAL. The alternative this replaces was a nightly Woodpecker
-pipeline; running a heavy sweep every night on Codeberg's donated runners to
-catch something reproducible on the developer's own machine is inconsiderate of
-a free service. This detects the need on the machine doing the work and asks the
-developer to run it there.
+Deliberately LOCAL, and complementary to CI. The scheduled Docker-free regression
+check (.github/workflows/perf-nightly.yml) guards the committed NDJSON history on
+every nightly; this nudge runs on the machine doing the work and asks the
+developer to refresh that history with a full Docker perf run when hot-path code
+changed since the last one. Keeping the heavy Docker sweep local -- rather than a
+forge cron on donated shared runners -- is the point: the need is reproducible on
+the developer's own machine, so that is where it is detected.
 
 Detection mirrors changed-pkgs.sh, but baselined on the last PERF run rather than
 the last verify:

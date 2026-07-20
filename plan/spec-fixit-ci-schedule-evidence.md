@@ -2,16 +2,16 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-release-evidence-gate |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-20 |
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
-2. `.woodpecker/verify.yml` - the only CI pipeline today
+2. `.woodpecker/verify.yml` - the push/pull_request gate (NOT the only pipeline: `perf-nightly.yml` predates this spec and is cron-only)
 3. `mk/test-release.mk` - the `ze-release-evidence` matrix this spec schedules
 4. `.claude/rules/planning.md` - workflow rules
 
@@ -37,7 +37,7 @@ scheduling itself, this spec folds into it.
 ### Source Files
 - [ ] `.woodpecker/verify.yml` - the sole pipeline; runs `make ze-verify` on push + pull_request
   → Constraint: a second file in `.woodpecker/` is a separate pipeline; do not alter the fast `verify` gate's trigger or timeout.
-  → Decision: use Woodpecker `when: event: cron` (named cron) for the nightly trigger; no cron config exists in the repo today.
+  → Decision: use GitHub Actions `on: schedule` (cron lives in the workflow file); merging the workflow to the default branch CREATES the schedule (validation moved off Codeberg Woodpecker, 2026-07-20).
 - [ ] `mk/test-release.mk` - `ze-release-evidence` composite (`:83`) and its category runner
   → Constraint: prefer invoking the existing composite / category targets over re-listing suites; registration over hardcoding.
 - [ ] `Makefile:279` - `ze-verify`; `_ze-verify-impl` comment warns the live path is `scripts/status/verify_run.go` `stagesForMode()`
@@ -86,7 +86,7 @@ scheduling itself, this spec folds into it.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Git event -> CI | Woodpecker `when: event: cron` schedules the pipeline | [ ] |
+| Git event -> CI | GitHub Actions `on: schedule` (cron) schedules the pipeline | [ ] |
 | CI -> make | pipeline step shell runs `make ze-<...>-test` (the same targets operators run) | [ ] |
 
 ### Integration Points
@@ -111,46 +111,130 @@ scheduling itself, this spec folds into it.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| ~~nightly cron event~~ | ~~->~~ | ~~new `.woodpecker/<name>.yml` pipeline runs the evidence matrix~~ | ~~`evidence-pipeline-dryrun` (config lint + `make -n` shows `ze-integration-test`/`ze-qemu-integration-test`/`ze-fuzz-test`)~~ `evidence-pipeline-dryrun` (superseded 2026-07-17; QEMU now a follow-up per the resolved open question) |
-| nightly cron event | -> | new `.woodpecker/<name>.yml` pipeline runs the first-cut evidence subset | `evidence-pipeline-dryrun` (config lint + `make -n` shows `ze-fuzz-test` and non-QEMU `ze-integration-test`; asserts `ze-qemu-integration-test` is absent from the first cut) |
-| pipeline step | -> | invokes existing evidence make targets, not re-inlined suites | `evidence-pipeline-dryrun` asserts target names, not copied recipes |
+| scheduled (cron) event | -> | `.github/workflows/evidence-nightly.yml` runs the evidence subset | `scripts/dev/github_workflows_test.go` -- `TestEvidenceNightlyIsScheduled` (scheduled; push/pull_request absent) |
+| scheduled event | -> | pipeline runs `ze-fuzz-test` AND `ze-integration-test` (AC-2 MET on GitHub) | `scripts/dev/github_workflows_test.go` -- `TestEvidenceNightlyRunsFuzzAndIntegration` (asserts BOTH present, `ze-qemu-integration-test` absent) |
+| pipeline step | -> | invokes existing evidence make targets, not re-inlined suites | `scripts/dev/github_workflows_test.go` -- `TestWorkflowMakeTargetsExist` asserts every `make <target>` resolves to a real rule head |
 
-> Internal / test-infrastructure only: this spec adds no user-facing behavior, so no `.ci` functional test is applicable (N/A). Verification is by Woodpecker config lint + `make -n` dry-run of the scheduled command (`evidence-pipeline-dryrun`).
+> Internal / test-infrastructure only: no `.ci` functional test applies (N/A).
+>
+> **CORRECTION (2026-07-20): `evidence-pipeline-dryrun` DOES NOT EXIST.** Grep
+> finds that name only inside this spec -- no script, make target or test bears
+> it, and no `woodpecker`/`woodpecker-cli` binary is present, so the claimed
+> "Woodpecker config lint" was never run. The REAL verification is
+> `scripts/dev/github_workflows_test.go` (7 guards, each proven non-vacuous by
+> mutation) plus `make -n` on the invoked targets. (Historical: the guards lived
+> in `woodpecker_pipelines_test.go` until validation moved to GitHub Actions.)
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | New `.woodpecker/<name>.yml` present | Declares a `cron` trigger; `verify.yml` unchanged (push/pull_request -> `make ze-verify`) |
+| AC-1 | New `.github/workflows/evidence-nightly.yml` present | Declares an `on: schedule` (cron) trigger, push/pull_request absent; `verify.yml` runs push/pull_request -> `make ze-verify` |
 | ~~AC-2~~ | ~~Config lint / `make -n` on the pipeline's command~~ | ~~Expands to `ze-integration-test`, `ze-qemu-integration-test`, and `ze-fuzz-test` (or `ze-release-evidence` with CI skip)~~ (superseded 2026-07-17 by the resolved open question: QEMU deferred to follow-up) |
 | AC-2 | Config lint / `make -n` on the first pipeline's command | Expands to `ze-fuzz-test` and the non-QEMU `ze-integration-test` (target names, not copied recipes); `ze-qemu-integration-test` is NOT invoked in the first cut |
 | AC-6 | A QEMU-capable runner is later confirmed to exist | Follow-up adds `ze-qemu-integration-test` (or switches the step to the `ze-release-evidence` composite, which self-skips QEMU/Docker when absent); until then AC-2's scope stands |
 | AC-3 | One heavy category fails | Pipeline reports the failing category; advisory-first means main is not blocked; result is visible next-day |
-| AC-4 | Fast gate | `.woodpecker/verify.yml` still runs `make ze-verify` on push/pull_request with no added latency |
+| AC-4 | Fast gate | `.github/workflows/verify.yml` runs `make ze-verify` on push/pull_request with no added latency (no heavy suite) |
 | AC-5 | Discovery | `ai/rules/qemu-testing.md` (and evidence docs) reference the scheduled pipeline as the enforcing gate |
+
+
+## ✅ AC-2 RESOLVED -- validation moved to GitHub Actions (2026-07-20)
+
+Thomas directed: "change the validation to run on github and not codeberg." That
+supplies the explicit approval AC-2 was blocked on, and picks resolution (c) from
+the choices below: a runner that grants the capabilities the integration suite
+needs. The pipeline set was ported from `.woodpecker/` to `.github/workflows/`,
+and `ze-integration-test` REJOINS the nightly. **AC-2 is met.**
+
+Why GitHub unblocks it: the Woodpecker impasse was `privileged: true` -- a BLOCKING
+linter error on the shared codeberg.org instance unless a server admin marks the
+repo trusted, and the lint runs before the `when:` match so it discards EVERY
+workflow, breaking `verify.yml` on every push. GitHub's `ubuntu-latest` runner
+has no such gate: the job runs under `sudo` as root, which holds `CAP_NET_ADMIN`
+and `CAP_NET_BIND_SERVICE` natively. So the step runs WITH the capabilities, not
+without them -- which also disposes of the second hazard below.
+
+The vacuous-green hazard is likewise gone: those six suites `t.Skipf` only when
+capabilities are ABSENT (`internal/component/iface/integration_helpers_linux_test.go`,
+`internal/plugins/as112/integration_linux_test.go`,
+`.../freebind_integration_linux_test.go`). Under `sudo` on GitHub the capabilities
+are present, so the suites actually run instead of skipping. The step is
+advisory-first (`continue-on-error: true`) until a green baseline lets it flip to
+blocking.
+
+Superseded record (kept for history): before this move the implementation shipped
+FUZZ-ONLY, and the earlier justification for that cut was circular (it leaned on
+an implementer-authored `→ AUTONOMOUS DEFAULT` note, not user approval). Thomas's
+instruction resolves it. The shape guard is now
+`scripts/dev/github_workflows_test.go` (`TestEvidenceNightlyRunsFuzzAndIntegration`
+asserts BOTH `ze-fuzz-test` and `ze-integration-test` are present, and that
+`ze-qemu-integration-test` is NOT -- it still needs nested virt / KVM, AC-6).
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
+
+→ CORRECTION (2026-07-20): the skeleton said "N/A -- CI config, no Go code", and
+that was wrong. A pipeline nobody can test is exactly how `.woodpecker/` rots: it
+runs at night, and `make: *** No rule to make target` reads as an infrastructure
+blip. `.ci` does not apply, but Go tests over the YAML do, and they are cheap.
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| N/A -- CI config, no Go code | N/A | AC-1..AC-5 verified via config lint + `make -n` | |
+| `TestVerifyWorkflowIsTheFastMergeGate` | `scripts/dev/github_workflows_test.go` | AC-4 (push + pull_request -> `make ze-verify`; no heavy/scheduled work) | GREEN |
+| `TestEvidenceNightlyIsScheduled` | same | AC-1 (scheduled; push/pull_request ABSENT) | GREEN |
+| `TestEvidenceNightlyRunsFuzzAndIntegration` | same | AC-2 (asserts BOTH `ze-fuzz-test` and `ze-integration-test` PRESENT; `ze-qemu-integration-test` ABSENT, AC-6) | GREEN |
+| `TestEvidenceNightlyIsAdvisory` | same | AC-3 (every job carries `continue-on-error: true`) | GREEN |
+| `TestPerfNightlyIsScheduled` | same | perf-nightly is scheduled-only, never a merge gate | GREEN |
+| `TestWorkflowMakeTargetsExist` | same | every `make <target>` any workflow names resolves to a real rule head | GREEN |
+| `TestValidationIsNotOnWoodpecker` | same | no `.woodpecker` pipeline remains (validation off Codeberg); non-vacuity proven by re-adding one | GREEN |
+
+→ Constraint: string-based, not YAML-parsed, on purpose. `gopkg.in/yaml.v3` is an
+INDIRECT dependency; importing it would promote it to direct and churn
+`go.mod`/`go.sum` -- a shared file, and one
+`plan/spec-fixit-supply-chain-hardening.md` is specifically about. `#` comments
+are stripped before matching, so a commented-out command cannot satisfy a check.
+
+### AC evidence (2026-07-20)
+
+| AC | Evidence |
+|----|----------|
+| AC-1 | `.github/workflows/evidence-nightly.yml` `on: schedule` (cron). `TestEvidenceNightlyIsScheduled` also asserts `push`/`pull_request` are ABSENT from the `on:` block. Non-vacuity proven: adding a `push`/`pull_request` trigger fails it. |
+| AC-2 | **MET (on GitHub) -- see the AC-2 RESOLVED banner above.** `evidence-nightly.yml` runs `make ze-fuzz-test` and `make ze-integration-test` by target NAME (not copied recipes), the integration job under `sudo` (root) so the six kernel suites (iface, fib, firewall, traffic, gtsm, as112) get CAP_NET_ADMIN / CAP_NET_BIND_SERVICE and actually run rather than skip. `TestEvidenceNightlyRunsFuzzAndIntegration` asserts both are present and `ze-qemu-integration-test` is absent; `TestWorkflowMakeTargetsExist` proves every `make <target>` in EVERY workflow resolves to a real rule head. |
+| AC-3 | Both jobs (fuzz, integration) carry `continue-on-error: true`. `TestEvidenceNightlyIsAdvisory` iterates the jobs and fails if any job lacks it, so a blocking job fails it. Non-vacuity proven by removing one. |
+| AC-4 | `.github/workflows/verify.yml` runs `make ze-verify` on push + pull_request only. `TestVerifyWorkflowIsTheFastMergeGate` pins push + pull_request + `make ze-verify`, that it never becomes schedule-triggered, and that no heavy suite (fuzz/integration/qemu/mutation/release-evidence) appears in it. |
+| AC-5 | `ai/rules/qemu-testing.md` gained "What actually RUNS these suites": a suite -> pipeline -> blocking? table, the advisory-first rationale, and the explicit statement that `ze-qemu-integration-test` is STILL enforced by review alone. |
+| AC-6 | Held open deliberately. `ze-qemu-integration-test` is absent AND `TestEvidenceNightlyRunsFuzzAndIntegration` FAILS if it is added, so the follow-up cannot land without also updating the guard. It stays out because GitHub-hosted runners do not reliably provide the nested virt / KVM it needs. |
+
+### Citation corrections (2026-07-20)
+
+- The Task section says "no cron config exists in the repo today". **STALE.**
+  `.woodpecker/perf-nightly.yml` already exists and is `when: event: cron`
+  (spec-fixit-perf-alloc-ci-gate AC-5). It was used as the template here, which
+  is why this pipeline matches its shape. The audit's broader point stands: no
+  cron job ran any INTEGRATION / QEMU / FUZZ suite.
+- A-1 is now CONFIRMED, not assumed, by reading the producer
+  (`mk/test-integration.mk:82-106`): the recipes state `CAP_NET_ADMIN` for iface
+  (:83), fib (:87), firewall/nft (:91) and traffic/netlink (:95), and
+  `CAP_NET_BIND_SERVICE/root` for as112 (:103). `ze-integration-test` (:106) is
+  the aggregate of those six. The integration step is therefore
+  `privileged: true` ON WOODPECKER. **UPDATE (2026-07-20, GitHub migration):** moot on GitHub -- the integration job runs under `sudo` as root, so `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` are present and the six suites RUN rather than `t.Skipf`. The step is PRESENT, not absent; the vacuous-green risk applied only to an UNPRIVILEGED run, which does not occur here.
 
 ### Functional Tests
 Test infrastructure only; no user-facing features. The new pipeline invokes existing `.ci`-backed
 suites (integration/QEMU/fuzz) that already carry their own functional coverage; no new `.ci` test
-is added. Verification is by Woodpecker config lint and `make -n` dry-run of the scheduled command.
+is added. **CORRECTION (2026-07-20): `evidence-pipeline-dryrun` DOES NOT EXIST.** Grep finds that name only inside this spec -- no script, make target or test bears it, and no `woodpecker`/`woodpecker-cli` binary is present, so the claimed "Woodpecker config lint" was never run. The REAL verification is `scripts/dev/github_workflows_test.go` (7 guards, each proven non-vacuous by mutation) plus `make -n` on the invoked targets. Cite that, not a name that resolves to nothing.
 
 ## Files to Modify
-- `.woodpecker/<name>.yml` - NEW nightly-cron pipeline invoking the evidence matrix (primary feature file)
+- `.github/workflows/evidence-nightly.yml` - NEW nightly-schedule workflow invoking the evidence matrix (primary feature file); Woodpecker removed
 - `mk/test-release.mk` (or a new `mk/` CI-subset target) - only if a CI-tailored evidence subset target is needed
 - `ai/rules/qemu-testing.md` - note the scheduled pipeline as the enforcing gate (discovery update)
 
 ## Implementation Steps
 
-1. **Wiring (MANDATORY FIRST)** -- add `.woodpecker/<name>.yml` with a `cron` trigger and one step that installs deps and runs the representative evidence targets (or `ze-release-evidence` with a CI `ZE_RELEASE_SKIP`). Confirm via Woodpecker config lint + `make -n` that the target names expand. Resolve A-1/A-3.
+1. **Wiring (MANDATORY FIRST)** -- add `.github/workflows/evidence-nightly.yml` with an `on: schedule` trigger and jobs that install deps and run the representative evidence targets. Confirm via `scripts/dev/github_workflows_test.go` + `make -n` that the target names expand. Resolve A-1/A-3.
 2. **Advisory-first** -- mark the heavy step non-blocking so a known-red suite (R-1) does not wedge main; record the intent to flip to blocking after a green baseline.
-3. ~~**Scope to runner budget** -- start with `ze-fuzz-test` + `ze-integration-test` + one `ze-qemu-integration-test`; expand to interop/mutation once timing is known (R-2).~~ (superseded 2026-07-17 by the resolved open question) **Scope to runner budget** -- first cut runs `ze-fuzz-test` + the non-QEMU `ze-integration-test`, advisory. Add `ze-qemu-integration-test`, then interop/mutation, as follow-ups once a QEMU-capable runner is confirmed and timing is known (R-2, A-1).
+3. **Scope to runner budget** -- the GitHub nightly runs `ze-fuzz-test` (fuzz job) + the non-QEMU `ze-integration-test` (integration job, under `sudo` root), both advisory (`continue-on-error: true`). `ze-qemu-integration-test`, then interop/mutation, remain follow-ups once a KVM-capable runner is confirmed and timing is known (R-2, A-1, AC-6).
 4. **Discovery update** -- reference the scheduled pipeline from `ai/rules/qemu-testing.md` and the evidence docs so future agents find the enforcing gate (`ai/rules/discovery-updates.md`).
 5. **Verify** -- `make ze-verify` (fast gate unaffected) plus a config lint / dry-run of the new pipeline; if `spec-release-evidence-gate` lands CI scheduling first, fold this in instead of duplicating.
 6. **Complete spec** -- audit tables, `plan/learned/NNN-<name>.md`, two-commit closure.

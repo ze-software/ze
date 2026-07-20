@@ -199,7 +199,7 @@ func defaultVerifyConfig(mode string, out io.Writer) verifyConfig {
 
 // stagesForMode is the SINGLE SOURCE OF TRUTH for what `make ze-verify` and
 // `make ze-verify-changed` run. Both Makefile targets shell out to this runner,
-// and .woodpecker/verify.yml's only step is `make ze-verify` -- so a gate that
+// and .github/workflows/verify.yml's only step is `make ze-verify` -- so a gate that
 // is not listed here runs NOWHERE, in CI or locally.
 //
 // Add a new gate to BOTH branches. The two lists are hand-duplicated on

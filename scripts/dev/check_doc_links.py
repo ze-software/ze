@@ -30,7 +30,7 @@ KNOWN_ROOTS = {
     ".claude",
     ".codex",
     ".agents",
-    ".woodpecker",
+    ".github",
     "scripts",
     "internal",
     "cmd",

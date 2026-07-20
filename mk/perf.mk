@@ -32,9 +32,10 @@ ze-perf-track:
 
 # Advisory: if BGP data-plane code changed since the last perf run, suggest one.
 # A NUDGE, never a gate -- always exits 0. The heavy suite (ze-perf-gate) needs
-# Docker and minutes, so it is not run every edit; this notices when a run is
-# overdue. Deliberately local: it replaced a nightly Woodpecker pipeline, which
-# ran a heavy sweep on Codeberg's donated runners to catch something reproducible
-# on the developer's own machine. See scripts/dev/perf-suggest.py.
+# Docker and minutes, so it is not run every edit; this notices when a Docker
+# perf run is overdue on THIS machine. It complements the scheduled Docker-free
+# regression check (.github/workflows/perf-nightly.yml): that guards the committed
+# NDJSON history on every nightly, this nudges the developer to refresh it with a
+# local Docker run. See scripts/dev/perf-suggest.py.
 ze-perf-suggest:
 	@python3 scripts/dev/perf-suggest.py

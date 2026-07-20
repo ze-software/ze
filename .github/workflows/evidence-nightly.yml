@@ -1,0 +1,87 @@
+name: evidence-nightly
+
+# Scheduled heavy-evidence pipeline: fuzz + kernel integration suites that must
+# NOT sit in front of a merge. Advisory (`continue-on-error: true` per job), so a
+# red suite reports without wedging anything; flip to blocking once a green
+# baseline exists.
+#
+# This workflow is NEW. Codeberg's Woodpecker never ran an evidence pipeline (its
+# only pipelines were verify + perf-nightly); the whole heavy fuzz / integration
+# surface ran in no automated CI at all. On that SHARED instance
+# ze-integration-test could not have run anyway: its six suites need CAP_NET_ADMIN
+# / CAP_NET_BIND_SERVICE (mk/test-integration.mk), whose only Woodpecker lever is
+# `privileged: true` -- a BLOCKING lint error on an untrusted repo that aborts the
+# entire pipeline. GitHub ubuntu-latest gives passwordless root, so
+# `sudo make ze-integration-test` gets those capabilities natively (netns, nft,
+# bind :53). That is what lets this nightly include the integration suite and
+# resolve spec-fixit-ci-schedule-evidence AC-2.
+#
+# The cron lives IN this file: merging it to the default branch CREATES the
+# schedule. Unlike Woodpecker -- whose cron is a separate repo setting that nothing
+# in the repository recorded, so the nightly could silently never fire -- there is
+# nothing else to configure. GitHub disables scheduled workflows after 60 days
+# with no repository activity; `workflow_dispatch` is the manual re-trigger.
+#
+# ze-qemu-integration-test stays OUT: it additionally needs nested virt / KVM,
+# which GitHub-hosted runners do not reliably provide. Adding it here would be a
+# pipeline that cannot start, which catches nothing.
+#
+# scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs fuzz
+# AND integration by make-target name, never the QEMU target, every job advisory).
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential git make python3
+
+      - name: make ze-fuzz-test
+        run: make ze-fuzz-test
+
+  integration:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git make python3 iproute2 iptables nftables
+
+      # Runs as root (sudo): the six suites need CAP_NET_ADMIN (iface/fib/nft/
+      # traffic netlink) and CAP_NET_BIND_SERVICE (as112 binds port 53). `-E` and
+      # an explicit PATH keep the Go toolchain reachable under sudo, which would
+      # otherwise reset PATH via secure_path. `-race` needs CGO, hence gcc from
+      # build-essential.
+      - name: make ze-integration-test
+        run: sudo -E env "PATH=$PATH" make ze-integration-test

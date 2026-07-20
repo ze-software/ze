@@ -16,11 +16,32 @@ make ze-reload-test       # Reload tests only
 
 ## Release Gate Coverage
 
-`make ze-verify` runs, in order: `ze-lint`, `ze-verify-wiring-docs`,
-`ze-vet-evidence`, `ze-unit-test-cached`, `ze-unit-test-race-changed`,
-`ze-functional-test`, and `ze-exabgp-test`. `make ze-verify-changed` uses the
-changed-only lint and unit stages, then the same wiring, functional, and ExaBGP
-stages. Both targets run under `scripts/dev/verify-lock.sh`, continue across
+The stage list is **not reproduced here**, deliberately. It lives in
+`stagesForMode` (`scripts/status/verify_run.go`) and nowhere else: both make
+targets shell out to that runner, and `.github/workflows/verify.yml` runs nothing
+but `make ze-verify`, so a gate absent from that function runs nowhere. To read the
+current list, run `make ze-verify-list` (or
+`make ze-verify-list ZE_VERIFY_MODE=ze-verify-changed`), or open the function.
+
+Never use `make -n ze-verify` for this, nor `-t` / `-q`. The recipe contains `$(MAKE)`, which GNU
+make executes even under `-n`, propagating the flag to every stage sub-make: each
+would echo its recipe and exit 0, and the runner would write a FRESH
+`tmp/ze-verify.status` stamped with the current tree hash, certifying an entirely
+unverified tree. `-t` is the quieter of the three: a `.PHONY` stage prints "Nothing to be done" and exits 0, with no echoed recipes to hint that nothing ran. `verify_run.go` refuses all three for that reason, and
+`ze-verify-list` exists to give the question a safe answer.
+
+An earlier version of this paragraph did enumerate the stages and had silently
+gone eight stages out of date, which is the same drift that killed the duplicate
+`_ze-verify-impl` Makefile targets. Nothing checks prose against `stagesForMode`,
+so any copy of the list here would rot the same way. Please do not re-add one.
+
+Broadly: `ze-verify` runs the static gates first (lint, module tier, plugin
+boundary, doc and generated-file freshness), then the test stages (unit,
+functional, ExaBGP), so a cheap red surfaces before the expensive stages run.
+`ze-verify-changed` swaps in the changed-only lint and unit stages and drops the
+three full-verify-only stages; `TestStagesForModeBranchesAgree`
+(`scripts/status/verify_run_test.go`) fails if any other gate lands in one mode
+but not the other, and `TestStagesForModeMatchesGolden` pins both lists. Both targets run under `scripts/dev/verify-lock.sh`, continue across
 top-level stage failures, and write:
 
 | Artifact | Purpose |
@@ -31,9 +52,9 @@ top-level stage failures, and write:
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
-The functional test target runs 22 suites: encode, plugin, parse, decode, reload,
+The functional test target runs 23 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, ospfv3, web,
-install, appliance, l2tp-wire, isis-wire, ospf-wire.
+install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 
 `make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
@@ -76,7 +97,7 @@ unit package set in Docker and can be narrowed or expanded with
 
 Clean release-candidate evidence can be run with `make ze-release-check`.
 The target refuses a dirty worktree, clones the repository into an ephemeral
-Docker container, mirrors the Woodpecker dependency setup, and runs
+Docker container, mirrors the CI dependency setup, and runs
 `make ze-verify` there.
 
 `ze-deployment-*` targets are deployment-grade external evidence. Some use
@@ -282,12 +303,12 @@ benchmark opts in by adding one entry to `perf.AllocCeilings`
 (`internal/perf/allocgate.go`); the gate fails closed if a registered benchmark
 is absent from the output. The machine-dependent timing regression check
 (convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
-`.woodpecker/perf-nightly.yml` (`bin/ze-perf track --check`, cron event), and
+`.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
 the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-gate`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, CheckAllocCeilings -->
 <!-- source: mk/alloc-gate.mk -- ze-alloc-gate target -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode ze-verify includes ze-alloc-gate -->
-<!-- source: .woodpecker/perf-nightly.yml -- scheduled Docker-free perf --check -->
+<!-- source: .github/workflows/perf-nightly.yml -- scheduled Docker-free perf --check -->
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
