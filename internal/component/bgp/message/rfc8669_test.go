@@ -216,7 +216,15 @@ func TestRFC8669MalformedAttributeDiscardedAndNotAdvertised(t *testing.T) {
 		"a TLV length past the attribute bound is attribute-discard, not withdraw or reset: %s",
 		result.Description)
 	require.Equal(t, uint8(40), result.AttrCode)
-	require.Contains(t, result.Description, "RFC 8669 Section 6")
+	// Pin the BOUNDS guard specifically (rfc7606.go:842). validatePrefixSIDAttr has a
+	// second discard branch for trailing bytes (rfc7606.go:859) that returns the same
+	// Action, AttrCode and Reason; a TLV whose declared length overruns the attribute
+	// also leaves off > length once the guard is gone, so the trailing-bytes branch
+	// would catch this input and any assertion weaker than the exact Description could
+	// not tell the two apart.
+	require.Equal(t, "RFC 8669 Section 6: Prefix-SID TLV length exceeds attribute bounds",
+		result.Description,
+		"the TLV bound check must be what rejects this, not the trailing-bytes fallback")
 
 	newAttrs, _ := ApplyAttrDiscard(pathAttrs, result.DiscardEntries)
 	_, _, _, found := attribute.AttrFind(newAttrs, attribute.AttrPrefixSID)
@@ -248,7 +256,9 @@ func TestRFC8669TrailingBytesDiscarded(t *testing.T) {
 // the first are discarded unexamined.
 // PREVENTS: a peer overriding a valid Prefix-SID by appending a second copy.
 //
-// RFC requirement: RFC8669-6-2 positive -- with a valid first occurrence and a malformed duplicate, the duplicate is discarded unexamined and the UPDATE is accepted.
+// NOT an RFC coverage claim for RFC8669-6-2: only the PROCESSING half is pinned here.
+// The duplicate is skipped unexamined, but it is not removed from the bytes forwarded
+// on -- see the {gap} on RFC8669-6-2.
 func TestRFC8669DuplicateAttributeFirstOccurrenceWins(t *testing.T) {
 	valid := rfc8669Attr(rfc8669LabelIndexTLV(0, 0, 777))
 	malformed := rfc8669Attr([]byte{1, 0, 200, 0, 0, 0, 0, 0, 0, 42})
@@ -268,7 +278,9 @@ func TestRFC8669DuplicateAttributeFirstOccurrenceWins(t *testing.T) {
 // TestRFC8669DuplicateAttributeCannotRepairFirst is the converse: a MALFORMED first copy
 // followed by a VALID duplicate.
 //
-// RFC requirement: RFC8669-6-2 negative -- a later duplicate cannot repair or replace a malformed first occurrence, which is still discarded.
+// NOT an RFC coverage claim for RFC8669-6-2: the malformed FIRST occurrence is what is
+// validated and tombstoned, but the untouched duplicate stays in the forwarded bytes --
+// see the {gap} on RFC8669-6-2.
 func TestRFC8669DuplicateAttributeCannotRepairFirst(t *testing.T) {
 	malformed := rfc8669Attr([]byte{1, 0, 200, 0, 0, 0, 0, 0, 0, 42})
 	valid := rfc8669Attr(rfc8669LabelIndexTLV(0, 0, 777))

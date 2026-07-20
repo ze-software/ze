@@ -100,3 +100,59 @@ func TestRFC9552MalformedBGPLSNLRIRefused(t *testing.T) {
 	_, err = ChunkMPNLRI([]byte{0xFD, 0xE8, 0x00}, family.AFIBGPLS, 71, false, 4096, nil)
 	assert.ErrorIs(t, err, ErrNLRIMalformed)
 }
+
+// bgpLSVPNWireNLRI frames a BGP-LS-VPN NLRI (RFC 9552 Section 5.2): type, total
+// length, an 8-octet Route Distinguisher, then a body of bodyLen octets. The
+// header is identical to the non-VPN case; only the value carries the RD.
+func bgpLSVPNWireNLRI(nlriType uint16, bodyLen int, fill byte) []byte {
+	out := make([]byte, 4+8+bodyLen)
+	binary.BigEndian.PutUint16(out[0:], nlriType)
+	binary.BigEndian.PutUint16(out[2:], uint16(8+bodyLen)) //nolint:gosec // test fixture
+	for i := 4; i < 12; i++ {
+		out[i] = 0x11 // Route Distinguisher
+	}
+	for i := 12; i < len(out); i++ {
+		out[i] = fill
+	}
+	return out
+}
+
+// TestRFC9552BGPLSVPNNLRIFramedByLength pins that AFI 16388 / SAFI 72 is framed by
+// the Link-State Total NLRI Length, exactly like SAFI 71. Ze registers and
+// negotiates bgp-ls/bgp-ls-vpn (internal/component/bgp/plugins/nlri/ls/plugin.go:71),
+// so an UPDATE that must be split carries SAFI 72 NLRIs through the same chunker.
+//
+// The split limit deliberately falls INSIDE the third NLRI rather than on its
+// boundary: a byte-granular sizer would happily cut there and produce two chunks
+// whose boundary is the limit itself, so an on-boundary limit could not tell the
+// two framings apart.
+//
+// VALIDATES: ChunkMPNLRI and SplitMPNLRI cut SAFI 72 on Link-State NLRI
+// boundaries, keeping each NLRI whole.
+// PREVENTS: SAFI 72 falling through to basicNLRISize, which reads octet 0 -- the
+// high byte of the NLRI Type -- as a prefix length and yields garbage boundaries.
+func TestRFC9552BGPLSVPNNLRIFramedByLength(t *testing.T) {
+	// RFC requirement: RFC9552-5.2-2 positive -- VPN link, node and prefix information carried under AFI 16388 / SAFI 72 is framed as a Link-State NLRI on the propagation path, not as a prefix (§5.2)
+	// RFC requirement: RFC9552-5.2-8 positive -- an unknown Link-State NLRI type under SAFI 72 is framed by its Total NLRI Length alone and kept whole across a split (§5.2)
+	node := bgpLSVPNWireNLRI(1, 30, 0xA1)        // known: Node NLRI
+	unknown := bgpLSVPNWireNLRI(65000, 40, 0xB2) // Private Use, no decoder in ze
+	link := bgpLSVPNWireNLRI(2, 30, 0xC3)        // known: Link NLRI
+	data := append(append(append([]byte{}, node...), unknown...), link...)
+
+	const safiBGPLSVPN = 72
+
+	// Limit lands 10 octets into the third NLRI.
+	limit := len(node) + len(unknown) + 10
+
+	chunks, err := ChunkMPNLRI(data, family.AFIBGPLS, safiBGPLSVPN, false, limit, nil)
+	require.NoError(t, err, "SAFI 72 NLRIs are framed, not read as prefixes")
+	require.Len(t, chunks, 2)
+	assert.Equal(t, append(append([]byte{}, node...), unknown...), chunks[0],
+		"the chunk ends on a Link-State NLRI boundary, not at the byte limit")
+	assert.Equal(t, link, chunks[1], "the third NLRI is carried whole")
+
+	fitting, remaining, err := SplitMPNLRI(data, family.AFIBGPLS, safiBGPLSVPN, false, limit)
+	require.NoError(t, err)
+	assert.Equal(t, append(append([]byte{}, node...), unknown...), fitting)
+	assert.Equal(t, link, remaining)
+}

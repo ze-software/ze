@@ -224,10 +224,13 @@ func TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI(t *testing.T) {
 }
 
 // TestRFCMUPWithdrawalNLRIKeepsMUPFamilyAndBytes verifies a MUP NLRI reports the
-// MUP family and re-encodes to its exact received bytes, which is what the
-// family-generic withdrawal encoder (internal/component/bgp/reactor/
-// peer_rib_routes.go:170) uses to build the MP_UNREACH_NLRI withdrawal of a
-// Type 1 ST or Type 2 ST route.
+// MUP family and re-encodes to its exact received bytes. The family-generic
+// withdrawal encoder (internal/component/bgp/reactor/peer_rib_routes.go:170)
+// would need both properties to build an MP_UNREACH_NLRI withdrawal of a Type 1
+// ST or Type 2 ST route, but no ze path hands it a SAFI 85 NLRI: its callers
+// read from the PeerOpWithdraw queue, and neither withdrawal entry point parses
+// SAFI 85 (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:375-403,
+// internal/component/bgp/plugins/cmd/announce/announce.go:257).
 //
 // VALIDATES: MUP.Family() carries the route AFI with SAFI 85 and MUP.WriteTo
 // reproduces the parsed wire bytes for both session-transformed route types.
@@ -278,8 +281,11 @@ func TestRFCMUPWithdrawalNLRIKeepsMUPFamilyAndBytes(t *testing.T) {
 				t.Fatalf("hex decode failed: %v", err)
 			}
 
-			// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1 positive -- a Type 1 ST route withdrawal is emitted under the route's MUP family with the advertised NLRI bytes (Section 3.3.8)
-			// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1 positive -- a Type 2 ST route withdrawal is emitted under the route's MUP family with the advertised NLRI bytes (Section 3.3.11)
+			// NOT an RFC coverage claim for DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1 or
+			// -3.3.11-1: no withdrawal is emitted here, and no ze code path can hand a
+			// SAFI 85 NLRI to the MP_UNREACH encoder at all (see the {gap} annotations
+			// on both requirements). This pins the codec property a withdrawal would
+			// depend on if the emission path existed.
 			parsed, rest, err := ParseMUP(tc.afi, wire)
 			if err != nil {
 				t.Fatalf("ParseMUP returned error: %v", err)

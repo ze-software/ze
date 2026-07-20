@@ -42,7 +42,7 @@ func TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary(t *testing.T) {
 
 // RFC requirement: RFC2328-16.2-2 negative -- a MaxAge AS-external-LSA and a self-originated
 // AS-external-LSA are both skipped by the AS-external calculation, so neither installs a route
-// (externalRecords age/self filter, external.go:96).
+// (ComputeExternalWith age/self filter, external.go:96).
 func TestRFC2328ExternalSkipsMaxAgeAndSelf(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 

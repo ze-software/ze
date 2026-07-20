@@ -319,6 +319,17 @@ func TestOSPFASExternalNewerClearsRetransmitsAcrossAreas(t *testing.T) {
 	}
 }
 
+// TestOSPFASExternalPurgeRetainedAcrossAreas acks one area's neighbor at a time so the
+// retransmission-list guard is what decides each outcome: the first ack leaves the LSA
+// on the second area's list, the second empties it.
+//
+// VALIDATES: deletePurgedIfAcked refuses to delete a purged AS-external LSA while any
+// neighbor in any area still has it on a retransmission list, and deletes it on the ack
+// that empties the last one.
+// PREVENTS: a MaxAge LSA being dropped from the database while a neighbor is still
+// being retransmitted to, which loses the purge for that neighbor.
+//
+// RFC requirement: RFC2328-14-2 positive -- the MaxAge LSA is removed from the database only once it is on no neighbor retransmission list; while one area's neighbor still holds it the deletion is refused, and it happens on the ack that empties the last list (deletePurgedIfAcked retransmit scan, flooding.go:793-798).
 func TestOSPFASExternalPurgeRetainedAcrossAreas(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)

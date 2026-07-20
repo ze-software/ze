@@ -167,7 +167,14 @@ func GetNLRISizeFunc(afi family.AFI, safi family.SAFI, addPath bool) NLRISizeFun
 		}
 		return flowSpecNLRISize
 
-	case afi == family.AFIBGPLS && safi == 71: // BGP-LS
+	// RFC 9552 Section 5.2: SAFI 71 (BGP-LS) and SAFI 72 (BGP-LS-VPN) share the
+	// same Link-State NLRI framing -- Type (2 octets) then Total NLRI Length (2
+	// octets). SAFI 72 differs only inside the value, where an 8-octet Route
+	// Distinguisher precedes the Link-State NLRI, so the same length-driven sizer
+	// frames both. Ze registers and negotiates both (internal/component/bgp/
+	// plugins/nlri/ls/plugin.go:70-71); omitting 72 here sent it to basicNLRISize,
+	// which reads octet 0 -- the high byte of the NLRI Type -- as a prefix length.
+	case afi == family.AFIBGPLS && (safi == family.SAFIBGPLinkState || safi == family.SAFIBGPLinkStateVPN):
 		if addPath {
 			return addPathBGPLSNLRISize
 		}

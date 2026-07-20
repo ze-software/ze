@@ -326,6 +326,11 @@ func srDecodeRemoteCapabilities(af string, body []byte) srRemoteCapabilities {
 	for _, tlv := range tlvs {
 		switch tlv.Type {
 		case sr.V4TypeSRAlgorithm:
+			// RFC 8665 §3.1: when a router advertises more than one SR-Algorithm TLV, the
+			// FIRST occurrence in the RI Opaque LSA is used and the rest are ignored.
+			if caps.Algorithms != nil {
+				continue
+			}
 			if algos, aerr := sr.DecodeAlgorithmValue(tlv.Value); aerr == nil {
 				caps.Algorithms = algos
 			}
@@ -342,6 +347,11 @@ func srDecodeRemoteCapabilities(af string, body []byte) srRemoteCapabilities {
 				srMetrics.Load().observeMalformed(af, "srlb")
 			}
 		case sr.V4TypeSRMS:
+			// RFC 8665 §3.4: the FIRST SRMS Preference TLV occurrence in the RI Opaque LSA
+			// is used; subsequent instances are ignored.
+			if caps.HasSRMS {
+				continue
+			}
 			if pref, perr := sr.DecodeSRMSValue(tlv.Value); perr == nil {
 				caps.HasSRMS = true
 				caps.SRMSPref = pref

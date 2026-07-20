@@ -99,10 +99,11 @@ func TestRFC9494_StaleRouteWithoutNoLLGRRetained(t *testing.T) {
 // VALIDATES: a subsequent community modification keeps LLGR_STALE in the COMMUNITIES attribute.
 // PREVENTS: LLGR_STALE being dropped when NO_EXPORT is added for a non-LLGR iBGP neighbor.
 //
-// RFC requirement: RFC9494-4.3-2 positive -- attachCommunity copies the existing COMMUNITIES
-// blob and appends to it (internal/component/bgp/plugins/rib/rib_commands_community.go:222-236),
-// so adding NO_EXPORT on the readvertise path leaves LLGR_STALE in place; it is never rewritten
-// or truncated.
+// NOT an RFC coverage claim for RFC9494-4.3-2: this exercises only the RIB attach
+// path, where attachCommunity copies the existing COMMUNITIES blob and appends to it
+// (internal/component/bgp/plugins/rib/rib_commands_community.go:222-236). The egress
+// mod pipeline, where the whole COMMUNITIES attribute can be suppressed with no
+// LLGR_STALE exemption, is not entered here -- see the {gap} on RFC9494-4.3-2.
 func TestRFC9494_LLGRStalePreservedOnFurtherAdvertisement(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
