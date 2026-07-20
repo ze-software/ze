@@ -140,11 +140,11 @@ func (f AdjSIDFlags) validVL() bool { return f.V == f.L }
 
 func align4(n int) int { return (n + 3) &^ 3 }
 
-// put24 writes the low 24 bits of v big-endian at buf[off:off+3].
-func put24(buf []byte, off int, v uint32) {
-	buf[off] = byte(v >> 16)
-	buf[off+1] = byte(v >> 8)
-	buf[off+2] = byte(v)
+// put24 writes the low 24 bits of v big-endian at buf[0:3].
+func put24(buf []byte, v uint32) {
+	buf[0] = byte(v >> 16)
+	buf[1] = byte(v >> 8)
+	buf[2] = byte(v)
 }
 
 func read24(b []byte, off int) uint32 {
@@ -271,7 +271,7 @@ func HasAlgorithm(algos []uint8, a uint8) bool {
 func EncodeRangeValue(r LabelRange) []byte {
 	sub := encodeSIDLabelSubTLV(true, r.Base)
 	b := make([]byte, 4+len(sub))
-	put24(b, 0, r.Size)
+	put24(b, r.Size)
 	copy(b[4:], sub)
 	return b
 }

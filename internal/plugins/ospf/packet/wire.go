@@ -39,10 +39,9 @@ func readUint64(buf []byte, off int) uint64 {
 	return uint64(readUint32(buf, off))<<32 | uint64(readUint32(buf, off+4))
 }
 
-func writeUint64(buf []byte, off int, v uint64) int {
+func writeUint64(buf []byte, off int, v uint64) {
 	writeUint32(buf, off, uint32(v>>32))
 	writeUint32(buf, off+4, uint32(v))
-	return 8
 }
 
 func readIPv4(buf []byte, off int) [4]byte {

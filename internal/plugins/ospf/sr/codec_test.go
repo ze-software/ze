@@ -92,7 +92,7 @@ func TestSRGBRangeAboveLabelSpaceRejected(t *testing.T) {
 	// A base beyond the 20-bit label space, encoded as a 4-octet (index-form) SID sub-TLV
 	// (value 0x00110000 > 2^20-1), is rejected rather than truncated into a valid label.
 	v := make([]byte, 4)
-	put24(v, 0, 10) // Range Size 10; v[3] reserved
+	put24(v, 10) // Range Size 10; v[3] reserved
 	v = append(v, 0x00, 0x01, 0x00, 0x04, 0x00, 0x11, 0x00, 0x00)
 	if _, err := DecodeRangeValue(v); err == nil {
 		t.Fatalf("a base above the 20-bit label space (0x00110000) must be rejected")
