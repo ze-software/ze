@@ -1,4 +1,4 @@
-// Design: plan/spec-fixit-bcrypt-hash-credential.md -- credential-token redaction for logs
+// Design: plan/learned/1181-fixit-bcrypt-hash-credential.md -- credential-token redaction for logs
 
 // Package redact scrubs credential-bearing tokens from strings before they are
 // logged. It owns the canonical bcrypt-shape regex (config.IsBcryptHash

@@ -1,4 +1,4 @@
-// Design: plan/spec-fixit-bcrypt-hash-credential.md -- mask ze:bcrypt leaves on display
+// Design: plan/learned/1181-fixit-bcrypt-hash-credential.md -- mask ze:bcrypt leaves on display
 // Related: password_hash.go -- CheckBcryptLeaves walk pattern; joinDotPath
 // Related: schema.go -- SecretDataPlaceholder, LeafNode.Bcrypt, SensitiveKeys
 
