@@ -787,6 +787,8 @@ func TestIPv4FlowSpecNegotiatesMultiprotocolCapability(t *testing.T) {
 	// RFC 5575 Section 4: the pair carried in the Multiprotocol capability MUST be
 	// (AFI=1, SAFI=133) for IPv4 Flow Specification rules.
 	// RFC requirement: RFC5575-4-1 positive -- ipv4/flow negotiates the (AFI 1, SAFI 133) Multiprotocol capability (§4)
+	// RFC requirement: RFC8955-4-1 positive -- FlowSpec exchange negotiates the Multiprotocol Extension (Code 1) capability (§4)
+	// RFC requirement: RFC8955-4-2 positive -- IPv4 FlowSpec negotiates the (AFI 1, SAFI 133) pair (§4)
 	mp := &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}
 	assert.Equal(t, capability.CodeMultiprotocol, mp.Code(), "must be a Multiprotocol capability (Code 1)")
 	assert.Equal(t, capability.AFI(1), mp.AFI, "IPv4 FlowSpec MP capability AFI must be 1")

@@ -288,3 +288,60 @@ func TestHandleUpdateEmptyPeer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, b.rules.buildTable(), "events without peer address should be ignored")
 }
+
+// TestRFC8955NextHopIgnoredForFlowSpec verifies the next-hop carried with a received
+// FlowSpec route has no effect on the firewall rules it lowers to.
+//
+// VALIDATES: handleUpdate (engine.go) reads only the peer address, the extended
+// communities and the per-family NLRI, and translateFlowSpec (translate.go) builds its
+// Terms from the NLRI components plus the parsed action -- no code path in this package
+// reads a next-hop, so the field is ignored exactly as RFC 8955 Section 4 requires.
+//
+// PREVENTS: a next-hop leaking into the FlowSpec lowering path (rule identity, term name
+// or match set), which would make an ignored field change forwarding behavior.
+func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
+	withoutNextHop := `{
+		"type": "update",
+		"peer": {"address": "10.0.0.1"},
+		"extended-communities": ["rate-limit:0"],
+		"ipv4/flow": [{
+			"action": "add",
+			"nlri": {
+				"destination": [["10.1.0.0/24"]],
+				"protocol": [["=6"]],
+				"destination-port": [["=80"]]
+			}
+		}]
+	}`
+	// Same UPDATE carrying a next-hop, which RFC 8955 Section 4 says MUST be ignored.
+	withNextHop := `{
+		"type": "update",
+		"peer": {"address": "10.0.0.1"},
+		"extended-communities": ["rate-limit:0"],
+		"ipv4/flow": [{
+			"action": "add",
+			"next-hop": "192.0.2.99",
+			"nlri": {
+				"destination": [["10.1.0.0/24"]],
+				"protocol": [["=6"]],
+				"destination-port": [["=80"]]
+			}
+		}]
+	}`
+
+	plain := testBridge()
+	plain.handleUpdate(withoutNextHop, "10.0.0.1")
+	plainTables := plain.rules.buildTable()
+	require.Len(t, plainTables, 1)
+	require.Len(t, plainTables[0].Chains, 1)
+	require.Len(t, plainTables[0].Chains[0].Terms, 1)
+
+	nh := testBridge()
+	nh.handleUpdate(withNextHop, "10.0.0.1")
+	nhTables := nh.rules.buildTable()
+
+	// RFC 8955 Section 4: "the Network Address of Next-Hop field MUST be ignored."
+	// RFC requirement: RFC8955-4-4 positive -- a FlowSpec UPDATE carrying a next-hop lowers to byte-identical firewall rules (§4)
+	assert.Equal(t, plainTables, nhTables,
+		"the next-hop must not change the firewall rules a FlowSpec route lowers to")
+}

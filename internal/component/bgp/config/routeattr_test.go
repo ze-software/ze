@@ -180,3 +180,35 @@ func TestParsePrefixSIDSRv6_ReservedFieldsZero(t *testing.T) {
 	assert.Equal(t, []byte{0x00, 0x3e}, ps.Bytes[25:27], "Behavior must round-trip")
 	assert.EqualValues(t, 0, ps.Bytes[27], "RFC9252-3.2-3: RESERVED2 must be 0")
 }
+
+// TestRFC8955TrafficActionUnusedBitsZero verifies the FlowSpec traffic-action extended
+// community is encoded with every unused bit of its 6-octet action field clear.
+//
+// VALIDATES: parseFlowSpecAction (routeattr_community.go) emits the community as
+// 0x80,0x07 followed by five literal zero octets and a final octet carrying only the
+// Terminal (0x01) and Sample (0x02) bits, so bits 0..45 of the Traffic Action Field are
+// always zero whatever the operator wrote.
+//
+// PREVENTS: stray bits in the reserved Traffic Action Field, which a receiver that later
+// assigns those codepoints would read as an action the operator never configured.
+func TestRFC8955TrafficActionUnusedBitsZero(t *testing.T) {
+	for _, spec := range []string{"sample", "terminal", "sample-terminal", "bogus"} {
+		ec, err := ParseExtendedCommunity("[ action " + spec + " ]")
+		require.NoError(t, err, "spec %q", spec)
+		require.GreaterOrEqual(t, len(ec.Bytes), 8, "spec %q", spec)
+		got := ec.Bytes[:8]
+
+		assert.Equal(t, byte(0x80), got[0], "spec %q: type octet", spec)
+		assert.Equal(t, byte(0x07), got[1], "spec %q: traffic-action sub-type", spec)
+
+		// RFC 8955 Section 7.3: the Traffic Action Field is reserved apart from the
+		// Terminal (bit 47) and Sample (bit 46) bits; the unused bits "MUST be set to 0
+		// on encoding".
+		// RFC requirement: RFC8955-7.3-1 positive -- traffic-action unused bits are zero on encoding (§7.3)
+		for i := 2; i <= 6; i++ {
+			assert.Zero(t, got[i], "spec %q: traffic-action unused octet %d must be 0", spec, i)
+		}
+		assert.Zero(t, got[7]&^byte(0x03),
+			"spec %q: only the Terminal and Sample bits may be set in the final octet", spec)
+	}
+}

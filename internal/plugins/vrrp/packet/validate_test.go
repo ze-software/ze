@@ -66,6 +66,19 @@ func TestDecodeGoldenV2(t *testing.T) {
 // the canonical pseudo-header golden (G2c), the form ze transmits, so the decode
 // is not flagged; the message-only form's flagging is covered by
 // TestDecodeV3IPv4MsgOnlyChecksumCompat.
+//
+// A conformant VRRPv3 IPv4 advertisement passes every Section 7.1 receive
+// check, so this golden decode is the positive case for each mandatory ladder
+// row (the matching negatives live in TestValidationOrder and
+// TestNegativeReferenceBugs):
+// RFC requirement: RFC9568-5.1.1.3-2 positive -- a received IPv4 advert whose TTL is 255 passes the GTSM row (Decode validate.go:163)
+// RFC requirement: RFC9568-5.2.2-1 positive -- type 1 (ADVERTISEMENT) is accepted (Decode validate.go:138)
+// RFC requirement: RFC9568-5.2.5-1 positive -- a non-zero IPvX Addr Count (2) is accepted rather than ignored (Decode validate.go:168)
+// RFC requirement: RFC9568-7.1-1 positive -- wire version 3 matching the configured group version is accepted (Decode validate.go:133,149)
+// RFC requirement: RFC9568-7.1-2 positive -- the packet type is verified to be 1 before processing (Decode validate.go:138)
+// RFC requirement: RFC9568-7.1-3 positive -- a payload whose length is exactly 8 + count*4 is accepted as a complete VRRP packet (Decode validate.go:179,183)
+// RFC requirement: RFC9568-7.1-4 positive -- the VRID configured on the receiving interface resolves through lookup (Decode validate.go:143)
+// RFC requirement: RFC9568-7.1-5 positive -- a non-zero Max Advertise Interval (100 cs) is accepted (Decode validate.go:212).
 func TestDecodeGoldenV3IPv4(t *testing.T) {
 	adv, err := Decode(mustHex(t, goldenV3v4CompatHex), metaV3v4(t), lookupConst(VersionV3, 1000))
 	if err != nil {
@@ -82,6 +95,10 @@ func TestDecodeGoldenV3IPv4(t *testing.T) {
 
 // VALIDATES: AC-3 -- v3 IPv6 golden decodes field-equal, interval 1000 ms,
 // first VIP link-local.
+//
+// RFC requirement: RFC9568-5.1.2.3-2 positive -- a received IPv6 advert whose hop limit is 255 passes the GTSM row (Decode validate.go:163, fed by RxMeta.TTL)
+// RFC requirement: RFC9568-5.2.8-1 positive -- the IPv6 checksum verifies over the RFC 8200 pseudo-header with next header 112 (verifyReceived checksum.go:135, pseudoSumV6 checksum.go:55)
+// RFC requirement: RFC9568-5.2.9-1 positive -- an IPv6 advert whose FIRST address is the link-local fe80::1 passes the link-local row (Decode validate.go:237).
 func TestDecodeGoldenV3IPv6(t *testing.T) {
 	adv, err := Decode(mustHex(t, goldenV3v6Hex), metaV3v6(t), lookupConst(VersionV3, 1000))
 	if err != nil {
@@ -126,6 +143,8 @@ func TestValidationOrder(t *testing.T) {
 
 	t.Run("3<4 type beats vrid", func(t *testing.T) {
 		// RFC requirement: RFC3768-5.3.2-1 negative -- a non-ADVERTISEMENT type (2) is discarded with ErrType (validate.go:138)
+		// RFC requirement: RFC9568-5.2.2-1 negative -- a v3 packet carrying an unknown type (2) is discarded with ErrType (validate.go:138)
+		// RFC requirement: RFC9568-7.1-2 negative -- the type check rejects a v3 packet whose type is not 1, before the VRID is even looked up (validate.go:138).
 		b := encodeValid(t, advV3v4(t), src4, dst4)
 		b[0] = 0x32 // version 3 + type 2 (bad)
 		_, err := Decode(b, metaV3v4(t), func(uint8) (Local, bool) { return Local{}, false })
@@ -136,6 +155,7 @@ func TestValidationOrder(t *testing.T) {
 
 	t.Run("4<5 vrid beats version-match", func(t *testing.T) {
 		// RFC requirement: RFC3768-7.1-4 negative -- a VRID not configured on the interface is discarded with ErrUnknownVRID (validate.go:143)
+		// RFC requirement: RFC9568-7.1-4 negative -- a v3 advert whose VRID is not configured on the receiving interface is discarded with ErrUnknownVRID (validate.go:143).
 		b := encodeValid(t, advV3v4(t), src4, dst4)
 		_, err := Decode(b, metaV3v4(t), func(uint8) (Local, bool) { return Local{Version: VersionV2}, false })
 		if !errors.Is(err, ErrUnknownVRID) {
@@ -231,6 +251,7 @@ func TestValidationOrder(t *testing.T) {
 	})
 
 	t.Run("13 v3v6 first vip not link-local", func(t *testing.T) {
+		// RFC requirement: RFC9568-5.2.9-1 negative -- an IPv6 advert whose first address is a global address instead of the Virtual Router's link-local is rejected with ErrFirstNotLinkLocal (validate.go:237).
 		adv := advV3v6(t)
 		adv.VIPs = []netip.Addr{addr(t, "2001:db8::1"), addr(t, "2001:db8::2")} // first not link-local
 		b := encodeValid(t, adv, src6, dst6)
@@ -480,6 +501,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	})
 
 	t.Run("N2 v3-with-v2-auth-trailer", func(t *testing.T) {
+		// RFC requirement: RFC9568-7.1-3 negative -- a v3 payload whose length does not equal 8 + count*4 (here, a spurious 8-byte v2 auth trailer) is not a complete VRRP packet and is discarded with ErrLength (validate.go:183).
 		// Append an 8-byte zero trailer: checksum still folds (zeros), so the
 		// LENGTH check must fire, not checksum.
 		b := mustHex(t, goldenV3v4Hex)
@@ -502,6 +524,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 
 	t.Run("N4 ttl-not-255", func(t *testing.T) {
 		// RFC requirement: RFC3768-5.2.3-2 negative -- a received packet with TTL != 255 is discarded with ErrTTL (validate.go:163)
+		// RFC requirement: RFC9568-5.1.1.3-2 negative -- a v3 IPv4 advert arriving with TTL 64 is discarded with ErrTTL, so an off-link injected advert never reaches the FSM (validate.go:163).
 		meta := metaV3v4(t)
 		meta.TTL = 64
 		if _, err := Decode(mustHex(t, goldenV3v4Hex), meta, lookupConst(VersionV3, 1000)); !errors.Is(err, ErrTTL) {
@@ -510,6 +533,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	})
 
 	t.Run("N5 count-zero", func(t *testing.T) {
+		// RFC requirement: RFC9568-5.2.5-1 negative -- a v3 advert whose IPvX Addr Count is 0 is ignored with ErrCountZero (validate.go:168).
 		adv := advV3v4(t)
 		adv.VIPs = nil
 		b := encodeValid(t, adv, src4, dst4) // exact length for count 0 (8 bytes)
@@ -519,6 +543,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	})
 
 	t.Run("N6 v3-interval-zero", func(t *testing.T) {
+		// RFC requirement: RFC9568-7.1-5 negative -- a v3 advert whose 12-bit Max Advertise Interval is zero is discarded with ErrIntervalZero (erratum 8301), so a Backup can never adopt an interval that expires its down-timer instantly (validate.go:212).
 		b := encodeValid(t, advV3v4(t), src4, dst4)
 		b[4], b[5] = 0, 0 // 12-bit interval = 0
 		reChecksum(b, src4, dst4)
@@ -574,6 +599,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 
 	t.Run("N9 v2-at-v3-group-and-inverse", func(t *testing.T) {
 		// RFC requirement: RFC3768-7.1-1 negative -- a wire version that is not 2 (v2 packet at a v3-configured group, and the inverse) is discarded with ErrVersion (validate.go:133,149)
+		// RFC requirement: RFC9568-7.1-1 negative -- a wire version that is not 3 (a VRRPv2 advert arriving at a v3-configured group) is discarded with ErrVersion (validate.go:149).
 		if _, err := Decode(mustHex(t, goldenV2Hex), metaV2(t), lookupConst(VersionV3, 1000)); !errors.Is(err, ErrVersion) {
 			t.Fatalf("v2@v3: got %v, want ErrVersion", err)
 		}
@@ -594,6 +620,49 @@ func TestNegativeReferenceBugs(t *testing.T) {
 			t.Fatalf("interval drift: got %d ms, want 40950", got.AdverIntervalMS)
 		}
 	})
+}
+
+// TestDecodeV3ReserveIgnoredOnReceive proves the Reserve nibble is ignored on
+// reception: a peer that sets it (or a bit-flip in the high nibble of byte 4)
+// must neither be discarded nor shift the 12-bit Max Advertise Interval.
+//
+// RFC requirement: RFC9568-5.2.6-1 negative -- a v3 advert whose Reserve nibble is all ones is NOT rejected and decodes to the same interval, because only the low 12 bits of bytes 4-5 are read (Decode validate.go:212).
+func TestDecodeV3ReserveIgnoredOnReceive(t *testing.T) {
+	src4 := addr(t, "192.0.2.251")
+	b := encodeValid(t, advV3v4(t), src4, MulticastV4)
+	if b[4]&0xF0 != 0 {
+		t.Fatalf("fixture is wrong: encoded Reserve nibble = %#x, want 0", b[4]&0xF0)
+	}
+	b[4] |= 0xF0 // a peer setting every Reserve bit
+	reChecksum(b, src4, MulticastV4)
+
+	got, err := Decode(b, metaV3v4(t), lookupConst(VersionV3, 1000))
+	if err != nil {
+		t.Fatalf("a non-zero Reserve nibble must be ignored, not rejected: %v", err)
+	}
+	if got.AdverIntervalMS != 1000 {
+		t.Fatalf("Reserve bits leaked into the interval: got %d ms, want 1000", got.AdverIntervalMS)
+	}
+}
+
+// TestDecodeV3IPv6ChecksumAndHopLimit is the negative pair for the IPv6 receive
+// checks: a checksum that does not verify under the RFC 8200 pseudo-header, and
+// a hop limit that is not 255, are both discarded.
+//
+// RFC requirement: RFC9568-5.2.8-1 negative -- a v3 IPv6 advert whose checksum does not verify under the pseudo-header is discarded with ErrChecksum (verifyReceived checksum.go:135, Decode validate.go:157)
+// RFC requirement: RFC9568-5.1.2.3-2 negative -- a v3 IPv6 advert arriving with hop limit 64 is discarded with ErrTTL (Decode validate.go:163).
+func TestDecodeV3IPv6ChecksumAndHopLimit(t *testing.T) {
+	bad := mustHex(t, goldenV3v6Hex)
+	bad[7] ^= 0xff // the one's-complement sum no longer folds to all-ones
+	if _, err := Decode(bad, metaV3v6(t), lookupConst(VersionV3, 1000)); !errors.Is(err, ErrChecksum) {
+		t.Fatalf("corrupted v6 checksum: got %v, want ErrChecksum", err)
+	}
+
+	meta := metaV3v6(t)
+	meta.TTL = 64
+	if _, err := Decode(mustHex(t, goldenV3v6Hex), meta, lookupConst(VersionV3, 1000)); !errors.Is(err, ErrTTL) {
+		t.Fatalf("hop limit 64: got %v, want ErrTTL", err)
+	}
 }
 
 // VALIDATES: decode-side priority is raw 0..255 (0 = resign, 255 = owner both

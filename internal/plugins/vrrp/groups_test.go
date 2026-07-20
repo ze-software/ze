@@ -309,6 +309,8 @@ func TestBoundaryVRID(t *testing.T) {
 func TestBoundaryPriority(t *testing.T) {
 	// RFC requirement: RFC3768-5.3.4-2 positive -- a Backup priority in 1..254 is accepted (validateGroup groups.go:503).
 	// RFC requirement: RFC3768-5.3.4-2 negative -- priority 0 (resignation) and 255 (owner-reserved) are rejected, so a Backup can never be configured outside 1..254 (groups.go:503).
+	// RFC requirement: RFC9568-5.2.4-2 positive -- a VRRP Router backing up a Virtual Router is configured with a priority in 1..254 (validateGroup groups.go:503)
+	// RFC requirement: RFC9568-5.2.4-2 negative -- priority 0 (the relinquishing value) and 255 (the address owner's) are rejected, so a Backup can never run outside 1..254 (groups.go:503).
 	cases := []struct {
 		priority float64
 		wantErr  bool
@@ -506,6 +508,12 @@ func TestValidateAcceptModeVersion(t *testing.T) {
 	}
 }
 
+// TestValidateIPv6LinkLocal covers the transmit side of the link-local rule: a
+// group whose advertisements would not lead with the Virtual Router's IPv6
+// link-local address is refused at config time, so no such advert is ever sent.
+//
+// RFC requirement: RFC9568-5.2.9-1 positive -- an IPv6 group whose FIRST virtual-address is the link-local one validates, so its advertisements lead with that address (validateGroup groups.go:524)
+// RFC requirement: RFC9568-5.2.9-1 negative -- an IPv6 group whose first virtual-address is global is rejected, so ze cannot transmit an advertisement whose first address is not the link-local (groups.go:524).
 func TestValidateIPv6LinkLocal(t *testing.T) {
 	// First VIP not link-local -> reject.
 	bad := oneGroup(familyIPv6, "5", map[string]any{"virtual-address": vips("2001:db8::1", "fe80::1")})
@@ -518,6 +526,43 @@ func TestValidateIPv6LinkLocal(t *testing.T) {
 	specs, _ = extractGroupSpecs([]configSection{mkSection(t, good)})
 	if err := validateGroups(specs, "netlink"); err != nil {
 		t.Fatalf("link-local-first ipv6 group must validate: %v", err)
+	}
+}
+
+// TestValidateVIPFamilyMatchesGroupFamily proves a group only ever advertises
+// addresses of its own family, which is the family of the IPvX header its
+// advertisements are carried in: an IPv4 group lives under the unit's ipv4
+// container and sends over IPv4, an IPv6 group under ipv6 and over IPv6.
+//
+// RFC requirement: RFC9568-5.2.9-2 positive -- a group whose virtual addresses match its family (and therefore the VRRP packet's IPvX header) validates and runs (validateGroup groups.go:513-518)
+// RFC requirement: RFC9568-5.2.9-2 negative -- an IPv6 address configured on an IPv4 group (and an IPv4 address on an IPv6 group) is rejected, so an advertisement can never carry an address of the other family (groups.go:513-518).
+func TestValidateVIPFamilyMatchesGroupFamily(t *testing.T) {
+	cases := []struct {
+		name    string
+		family  string
+		vips    []any
+		wantErr bool
+	}{
+		{"ipv4-group-ipv4-vip", familyIPv4, vips("192.0.2.1"), false},
+		{"ipv4-group-ipv6-vip", familyIPv4, vips("2001:db8::1"), true},
+		{"ipv6-group-ipv6-vip", familyIPv6, vips("fe80::1"), false},
+		{"ipv6-group-ipv4-vip", familyIPv6, vips("192.0.2.1"), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree := oneGroup(tc.family, "5", map[string]any{"virtual-address": tc.vips})
+			specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+			if err != nil {
+				t.Fatalf("extract: %v", err)
+			}
+			err = validateGroups(specs, backendNetlink)
+			if tc.wantErr && err == nil {
+				t.Fatalf("%s: a virtual-address of the other family must be rejected", tc.name)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("%s: a same-family virtual-address must be accepted: %v", tc.name, err)
+			}
+		})
 	}
 }
 
@@ -704,6 +749,8 @@ func TestExtractRequiresVRID(t *testing.T) {
 func TestOwnerAutoDetection(t *testing.T) {
 	// RFC requirement: RFC3768-5.3.4-1 positive -- the router that owns the virtual address runs with priority 255 (EffectivePriority groups.go:141).
 	// RFC requirement: RFC3768-5.3.4-1 negative -- a non-owner is NOT forced to 255; it keeps its configured Backup priority, so 255 marks only the address owner (groups.go:141).
+	// RFC requirement: RFC9568-5.2.4-1 positive -- the VRRP Router that owns the Virtual Router's IPvX address runs with priority 255, whatever priority was configured (EffectivePriority groups.go:141)
+	// RFC requirement: RFC9568-5.2.4-1 negative -- a non-owner is NOT raised to 255; it keeps its configured Backup priority, so 255 marks the address owner alone (groups.go:141).
 	// VIP equals a real address on the same unit+family -> owner.
 	owner := oneGroup(familyIPv4, "5", map[string]any{"virtual-address": vips("192.0.2.10"), "priority": float64(120)}, "192.0.2.10/24")
 	specs, err := extractGroupSpecs([]configSection{mkSection(t, owner)})

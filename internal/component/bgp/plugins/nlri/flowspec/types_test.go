@@ -628,6 +628,7 @@ func TestFlowSpecVPNFamily(t *testing.T) {
 	// RFC 5575 Section 8 / RFC 8955 Section 9.4: IPv4 L3VPN Flow Specification rules
 	// use the (AFI=1, SAFI=134) pair matching the FlowSpec VPN application.
 	// RFC requirement: RFC5575-4-2 positive -- IPv4 FlowSpec L3VPN uses AFI 1 with SAFI 134 (§4)
+	// RFC requirement: RFC8955-4-2 positive -- IPv4 FlowSpec L3VPN uses the (AFI 1, SAFI 134) pair (§4)
 	assert.Equal(t, AFIIPv4, IPv4FlowSpecVPN.AFI)
 	assert.Equal(t, AFI(1), IPv4FlowSpecVPN.AFI, "IPv4 FlowSpec VPN AFI must be 1")
 	assert.Equal(t, SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
@@ -1207,6 +1208,8 @@ func TestFlowSpecComponentsAscendingOrder(t *testing.T) {
 	// numerical order." Each present component must precede any higher-type component.
 	// RFC requirement: RFC5575-4-3 positive -- emitted component types are strictly ascending (§4.2)
 	// RFC requirement: RFC5575-4-4 positive -- a present component precedes any higher-type component (§4.2)
+	// RFC requirement: RFC8955-4.2-1 positive -- emitted component types are strictly ascending (§4.2)
+	// RFC requirement: RFC8955-4.2-2 positive -- a present component precedes any higher-type component (§4.2)
 	for i := 1; i < len(comps); i++ {
 		assert.Less(t, comps[i-1].Type(), comps[i].Type(),
 			"component %d (type %d) must precede higher-type component %d (type %d)",
@@ -1272,6 +1275,7 @@ func TestFlowSpecBitmaskOperatorReservedBitsZero(t *testing.T) {
 	// RFC 5575 Section 4 bitmask operator format [e][a][len][0][0][not][m]: bits 4-5
 	// (0x0C) are reserved and MUST be 0.
 	// RFC requirement: RFC5575-4-6 positive -- bitmask operator reserved bits 4-5 (0x0C) are clear (§4)
+	// RFC requirement: RFC8955-4.2.1.2-1 positive -- bitmask operator reserved bits 4-5 (0x0C) are clear on encode (§4.2.1.2)
 	for i, op := range ops {
 		assert.Zero(t, op&0x0C, "bitmask operator %d (0x%02x) reserved bits 4-5 must be 0", i, op)
 	}
@@ -1300,6 +1304,7 @@ func TestFlowSpecFragmentReservedHighNibbleZero(t *testing.T) {
 	// RFC 5575 Section 4 fragment bitmask [0][0][0][0][LF][FF][IsF][DF]: the high nibble
 	// (0xF0) is reserved and MUST be 0.
 	// RFC requirement: RFC5575-4-7 positive -- fragment bitmask reserved high nibble (0xF0) is zero (§4)
+	// RFC requirement: RFC8955-4.2.2.12-2 positive -- fragment bitmask reserved high nibble (0xF0) is zero on encode (§4.2.2.12)
 	for i, v := range values {
 		require.Len(t, v, 1, "fragment value must encode as a single octet")
 		assert.Zero(t, v[0]&0xF0, "fragment value %d (0x%02x) reserved high nibble must be 0", i, v[0])
@@ -1333,5 +1338,221 @@ func TestFlowSpecTrafficMarkingReservedBytesZero(t *testing.T) {
 	// RFC requirement: RFC5575-7-1 positive -- Traffic-Marking reserved bytes 2..6 are zero (§7)
 	for i := 2; i <= 6; i++ {
 		assert.Zero(t, ec[i], "traffic-marking reserved byte %d must be 0", i)
+	}
+}
+
+// TestRFC8955FirstOperatorAndBitEncodedUnset verifies the first {op, value} pair of a
+// numeric component is emitted with the AND bit clear.
+//
+// VALIDATES: parseFlowMatches (config_builder.go) derives the AND bit purely from the
+// position inside a "&"-joined expression (isAnd := i > 0), so buildFlowSpecComponents
+// -> numericComponent.Bytes() always leaves the 'a' bit (0x40) clear on the first
+// operator octet and sets it on the continuation pairs.
+//
+// PREVENTS: a leading AND bit that RFC 8955 Section 4.2.1.1 forbids, which a strict peer
+// would read as an AND against a non-existent previous term.
+func TestRFC8955FirstOperatorAndBitEncodedUnset(t *testing.T) {
+	t.Parallel()
+
+	// ">8080&<8088" is the config spelling of a range: two {op, value} pairs where only
+	// the second is AND-ed with the first.
+	fs, dropped := buildFlowSpecComponents(map[string][]string{
+		"destination-port": {">8080&<8088"},
+	}, false)
+	require.Empty(t, dropped)
+	require.Len(t, fs.Components(), 1)
+
+	ops, _ := walkComponentOps(t, fs.Components()[0].Bytes())
+	require.Len(t, ops, 2, "range must encode as two {op, value} pairs")
+
+	// RFC 8955 Section 4.2.1.1: "In the first operator octet of a sequence, the AND bit
+	// MUST be encoded as unset."
+	// RFC requirement: RFC8955-4.2.1.1-1 positive -- first numeric operator octet carries a clear AND bit (0x40) (§4.2.1.1)
+	assert.Zero(t, ops[0]&0x40, "first operator (0x%02x) must have the AND bit clear", ops[0])
+	assert.NotZero(t, ops[1]&0x40, "second operator (0x%02x) must have the AND bit set", ops[1])
+}
+
+// TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode verifies a received NLRI whose
+// FIRST operator octet has the AND bit set is still decoded as a plain (OR) term.
+//
+// VALIDATES: formatNumericMatches (plugin_decode.go) only continues an AND group when a
+// group is already open (`m.And && len(andGroup) > 0`), so the leading pair always opens
+// a new OR group whatever the wire 'a' bit says.
+//
+// PREVENTS: a peer setting the leading AND bit collapsing two independent OR terms into
+// a single (and unsatisfiable) AND term.
+func TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode(t *testing.T) {
+	t.Parallel()
+
+	// Type 5 (destination-port) == 80 OR == 22. Operator octets:
+	//   0x01 = len 1 octet, eq            (AND bit clear)
+	//   0x81 = end-of-list, len 1, eq     (AND bit clear)
+	clean := []byte{0x05, 0x05, 0x01, 0x50, 0x81, 0x16}
+	// Same NLRI with the AND bit (0x40) set on the FIRST operator only.
+	leadingAnd := []byte{0x05, 0x05, 0x41, 0x50, 0x81, 0x16}
+
+	parsedClean, err := ParseFlowSpec(IPv4FlowSpec, clean)
+	require.NoError(t, err)
+	parsedAnd, err := ParseFlowSpec(IPv4FlowSpec, leadingAnd)
+	require.NoError(t, err)
+
+	// RFC 8955 Section 4.2.1.1: "the AND bit ... SHOULD be encoded as unset and MUST be
+	// treated as always unset on decoding."
+	// RFC requirement: RFC8955-4.2.1.1-2 positive -- a leading operator with the AND bit clear decodes as its own OR term (§4.2.1.1)
+	jsonClean := flowSpecToJSON(parsedClean, "ipv4/flow", nil)
+	assert.Equal(t, [][]string{{"=80"}, {"=22"}}, jsonClean["destination-port"])
+
+	// RFC requirement: RFC8955-4.2.1.1-2 negative -- a leading operator with the AND bit SET is still decoded as an OR term, not AND-ed (§4.2.1.1)
+	jsonAnd := flowSpecToJSON(parsedAnd, "ipv4/flow", nil)
+	assert.Equal(t, jsonClean["destination-port"], jsonAnd["destination-port"],
+		"a set leading AND bit must not change the decoded term structure")
+}
+
+// TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode verifies reserved bits 4-5 of a
+// bitmask operator octet do not change the decoded match.
+//
+// VALIDATES: formatBitmaskValue (plugin_decode.go) consults only the NOT (0x02) and
+// MATCH (0x01) bits of the decoded operator, so the reserved 0x0C bits parseNumericComponent
+// carries through are never interpreted.
+//
+// PREVENTS: a peer that sets the reserved bits having its TCP-flags term silently
+// re-interpreted as a different match.
+func TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode(t *testing.T) {
+	t.Parallel()
+
+	// Type 9 (tcp-flags), 1-octet bitmask 0x02 (SYN), MATCH set, end-of-list.
+	clean := []byte{0x03, 0x09, 0x81, 0x02}
+	// Same operator with both reserved bits (0x0C) set.
+	reserved := []byte{0x03, 0x09, 0x8D, 0x02}
+
+	parsedClean, err := ParseFlowSpec(IPv4FlowSpec, clean)
+	require.NoError(t, err)
+	parsedReserved, err := ParseFlowSpec(IPv4FlowSpec, reserved)
+	require.NoError(t, err)
+
+	jsonClean := flowSpecToJSON(parsedClean, "ipv4/flow", nil)
+	jsonReserved := flowSpecToJSON(parsedReserved, "ipv4/flow", nil)
+	require.Equal(t, [][]string{{"=syn"}}, jsonClean["tcp-flags"])
+
+	// RFC 8955 Section 4.2.1.2: the bitmask operator reserved bits "MUST be set to 0 on
+	// NLRI encoding and MUST be ignored during decoding."
+	// RFC requirement: RFC8955-4.2.1.2-1 negative -- a bitmask operator with reserved bits 4-5 set decodes identically to one with them clear (§4.2.1.2)
+	assert.Equal(t, jsonClean["tcp-flags"], jsonReserved["tcp-flags"],
+		"reserved bitmask operator bits must not change the decoded match")
+}
+
+// TestRFC8955FragmentReservedBitsIgnoredOnDecode verifies the reserved high nibble of a
+// Type-12 fragment bitmask value does not change the decoded match.
+//
+// VALIDATES: formatBitmaskValue (plugin_decode.go) walks the fragment value bit by bit
+// against fragmentFlagValueToNames, which only defines 0x01..0x08, so any bit in the
+// reserved high nibble is dropped rather than interpreted.
+//
+// PREVENTS: undefined high-nibble bits from a peer being rendered as (or mistaken for)
+// additional fragment match flags.
+func TestRFC8955FragmentReservedBitsIgnoredOnDecode(t *testing.T) {
+	t.Parallel()
+
+	// Type 12 (fragment), 1-octet bitmask 0x02 (is-fragment), MATCH set, end-of-list.
+	clean := []byte{0x03, 0x0C, 0x81, 0x02}
+	// Same value with every reserved high-nibble bit set.
+	reserved := []byte{0x03, 0x0C, 0x81, 0xF2}
+
+	parsedClean, err := ParseFlowSpec(IPv4FlowSpec, clean)
+	require.NoError(t, err)
+	parsedReserved, err := ParseFlowSpec(IPv4FlowSpec, reserved)
+	require.NoError(t, err)
+
+	jsonClean := flowSpecToJSON(parsedClean, "ipv4/flow", nil)
+	jsonReserved := flowSpecToJSON(parsedReserved, "ipv4/flow", nil)
+	require.Equal(t, [][]string{{"=is-fragment"}}, jsonClean["fragment"])
+
+	// RFC 8955 Section 4.2.2.12: the fragment bitmask reserved bits "MUST be set to 0 on
+	// NLRI encoding and MUST be ignored during decoding."
+	// RFC requirement: RFC8955-4.2.2.12-2 negative -- a fragment bitmask with the reserved high nibble set decodes identically to one with it clear (§4.2.2.12)
+	assert.Equal(t, jsonClean["fragment"], jsonReserved["fragment"],
+		"reserved fragment bits must not change the decoded match")
+}
+
+// TestRFC8955TCPFlagsBitmaskSingleOctet verifies a Type-9 TCP flags component encodes its
+// bitmask in one octet.
+//
+// VALIDATES: parseFlowTCPFlagMatches (config_builder.go) resolves flag names to 8-bit
+// values, and numericComponent.Bytes() (types_numeric.go) picks lenCode 0 / one octet for
+// any value <= 0xFF, so the emitted bitmask is always within the RFC's 1-2 octet range.
+//
+// PREVENTS: a TCP flags bitmask widening to 4 octets, which RFC 8955 Section 4.2.2.9
+// forbids and a strict peer treats as malformed NLRI.
+func TestRFC8955TCPFlagsBitmaskSingleOctet(t *testing.T) {
+	t.Parallel()
+
+	fs, dropped := buildFlowSpecComponents(map[string][]string{
+		"tcp-flags": {"syn&!=ack", "cwr"},
+	}, false)
+	require.Empty(t, dropped)
+	require.Len(t, fs.Components(), 1)
+
+	ops, values := walkComponentOps(t, fs.Components()[0].Bytes())
+	require.Len(t, values, 3)
+
+	// RFC 8955 Section 4.2.2.9: "the bitmask MUST be encoded as a 1- or 2-octet bitmask."
+	// RFC requirement: RFC8955-4.2.2.9-1 positive -- every emitted TCP flags bitmask occupies 1 or 2 octets (§4.2.2.9)
+	for i, v := range values {
+		assert.LessOrEqual(t, len(v), 2, "tcp-flags bitmask %d (op 0x%02x) must be 1 or 2 octets", i, ops[i])
+		assert.NotEmpty(t, v)
+	}
+}
+
+// TestRFC8955DSCPValueSingleOctet verifies a Type-11 DSCP component encodes its value in
+// exactly one octet.
+//
+// VALIDATES: parseFlowOctets (config_builder.go) parses DSCP values as uint8 and
+// NewFlowDSCPComponent (types_numeric.go) stores them, so numericComponent.Bytes() always
+// selects lenCode 0 (one octet).
+//
+// PREVENTS: a 2- or 4-octet DSCP value, which RFC 8955 Section 4.2.2.11 forbids.
+func TestRFC8955DSCPValueSingleOctet(t *testing.T) {
+	t.Parallel()
+
+	fs, dropped := buildFlowSpecComponents(map[string][]string{
+		"dscp": {"46", "0", "63"},
+	}, false)
+	require.Empty(t, dropped)
+	require.Len(t, fs.Components(), 1)
+
+	_, values := walkComponentOps(t, fs.Components()[0].Bytes())
+	require.Len(t, values, 3)
+
+	// RFC 8955 Section 4.2.2.11: "Values are encoded as a single octet."
+	// RFC requirement: RFC8955-4.2.2.11-1 positive -- every emitted DSCP value occupies exactly one octet (§4.2.2.11)
+	for i, v := range values {
+		assert.Len(t, v, 1, "dscp value %d must encode as a single octet", i)
+	}
+}
+
+// TestRFC8955FragmentBitmaskSingleOctet verifies a Type-12 fragment component encodes its
+// bitmask in exactly one octet.
+//
+// VALIDATES: parseFlowFragment (config_builder.go) resolves fragment names to the
+// low-nibble FlowFragmentFlag constants (types.go), so numericComponent.Bytes() selects
+// lenCode 0 (one octet) for every fragment value.
+//
+// PREVENTS: a multi-octet fragment bitmask, which RFC 8955 Section 4.2.2.12 forbids.
+func TestRFC8955FragmentBitmaskSingleOctet(t *testing.T) {
+	t.Parallel()
+
+	fs, dropped := buildFlowSpecComponents(map[string][]string{
+		"fragment": {"is-fragment", "first-fragment", "dont-fragment", "last-fragment"},
+	}, false)
+	require.Empty(t, dropped)
+	require.Len(t, fs.Components(), 1)
+
+	_, values := walkComponentOps(t, fs.Components()[0].Bytes())
+	require.Len(t, values, 4)
+
+	// RFC 8955 Section 4.2.2.12: "the bitmask MUST be encoded as a single-octet bitmask."
+	// RFC requirement: RFC8955-4.2.2.12-1 positive -- every emitted fragment bitmask occupies exactly one octet (§4.2.2.12)
+	for i, v := range values {
+		assert.Len(t, v, 1, "fragment bitmask %d must encode as a single octet", i)
 	}
 }

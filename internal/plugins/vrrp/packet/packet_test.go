@@ -102,11 +102,17 @@ func TestEncodeGoldenV2(t *testing.T) {
 // 12-bit interval = 100 cs, RFC 5798 pseudo-header checksum 0xDEFB -- ze's tx
 // form for keepalived interop).
 // PREVENTS: reserve-nibble leak, cs/ms confusion, checksum-form regression.
+//
+// RFC requirement: RFC9568-5.2.6-1 positive -- WriteTo writes the Reserve nibble as zero on transmission; only the low 12 bits of bytes 4-5 carry the interval (packet.go:269)
+// RFC requirement: RFC9568-7.2-1 positive -- WriteTo fills every VRRP field from the Virtual Router's advertisement state and FillChecksum computes the checksum, producing the exact golden bytes (packet.go:251, checksum.go:86).
 func TestEncodeGoldenV3IPv4(t *testing.T) {
 	adv := advV3v4(t)
 	buf := make([]byte, MaxLenV3v4)
 	n := adv.WriteTo(buf, 0)
 	FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4)
+	if buf[4]&0xF0 != 0 {
+		t.Fatalf("Reserve nibble = %#x, want 0 on transmission", buf[4]&0xF0)
+	}
 	// Expect the pseudo-header form (G2c), not message-only (G2): ze transmits
 	// the RFC 5798 pseudo-header checksum for v3/IPv4 so keepalived and the
 	// deployed base accept it (checksum.go FillChecksum). 0xDEFB is the
@@ -375,6 +381,7 @@ func TestConstants(t *testing.T) {
 		t.Fatalf("multicast drift: v4=%v v6=%v", MulticastV4, MulticastV6)
 	}
 	// RFC requirement: RFC3768-7.2-2 positive -- the virtual-router MAC is 00-00-5E-00-01-{VRID}, the L2 source identity the tx socket egresses by binding to this vMAC macvlan (packet.go:97; backend_linux.go:133).
+	// RFC requirement: RFC9568-7.2-2 positive -- the Virtual Router MAC is 00-00-5E-00-01-{VRID} for IPv4 and 00-00-5E-00-02-{VRID} for IPv6, and it is the L2 source identity the tx socket egresses by binding to that vMAC macvlan (packet.go:97; backend_linux.go:133,179).
 	mac := VirtualMAC(V4, 10)
 	if mac != [6]byte{0x00, 0x00, 0x5e, 0x00, 0x01, 0x0a} {
 		t.Fatalf("v4 VirtualMAC = % x", mac)

@@ -1,7 +1,10 @@
 package rpki
 
 import (
+	"context"
 	"encoding/binary"
+	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -83,6 +86,9 @@ func TestPollingCadenceAtLeastHourly(t *testing.T) {
 	// RFC requirement: RFC6810-6.1-1 positive -- a fresh session's default retryInterval (the wait
 	// between one sync completing and the next query in Run's loop) is <= one hour, so the router
 	// re-queries at least hourly without any cache-supplied interval.
+	// RFC requirement: RFC8210-8.1-1 positive -- the same Run-loop wait is what makes the router send
+	// a Serial Query or Reset Query periodically under v1; the seeded interval is finite and short, so
+	// polling recurs rather than stopping after the first sync.
 	stopCh := make(chan struct{})
 	s := NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
 
@@ -106,6 +112,9 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 	t.Run("cache reset clears serial for a reset query", func(t *testing.T) {
 		// RFC requirement: RFC6810-6.3-1 positive -- a Cache Reset PDU ends the current sync and
 		// clears the serial to 0, so the next connectAndSync sends a Reset Query.
+		// RFC requirement: RFC8210-8.3-1 positive -- with no more-preferred cache to fall back to
+		// (ze runs every configured cache in parallel), the Cache Reset drives this same session back
+		// to serial 0, which is exactly the Reset Query that fetches an entire new load.
 		s := newSession()
 		s.serial = 42 // pretend a prior incremental sync
 
@@ -119,6 +128,9 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 	t.Run("serial notify does not force a reset query", func(t *testing.T) {
 		// RFC requirement: RFC6810-6.3-1 negative -- an ordinary Serial Notify does NOT clear the
 		// serial, so the reset-query fallback is specific to Cache Reset, not to any received PDU.
+		// RFC requirement: RFC8210-8.3-1 negative -- a PDU that is not a Cache Reset leaves the serial
+		// intact, so the full reload is triggered only by the Cache Reset the RFC names and never by an
+		// arbitrary cache-to-router PDU.
 		s := newSession()
 		s.serial = 42
 
@@ -149,6 +161,9 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 		// RFC requirement: RFC6810-6.4-1 positive -- an Error Report with code 2 (No Data Available)
 		// is non-fatal: handlePDU returns no error and leaves serial at 0, so the periodic Run-loop
 		// reconnect keeps issuing Reset Queries.
+		// RFC requirement: RFC8210-8.4-1 positive -- when the cache cannot supply an update and there
+		// is no other cache to switch to, this is the state that makes the router keep issuing periodic
+		// Reset Queries: non-fatal handling plus serial 0.
 		s := newSession()
 		require.Equal(t, uint32(0), s.serial)
 
@@ -165,6 +180,9 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 		// RFC requirement: RFC6810-6.4-1 negative -- once a sync completes (End of Data), the serial
 		// advances to a non-zero value, so the next query is an incremental Serial Query, not a
 		// periodic Reset Query. Reset-query polling is specific to the no-data (serial==0) condition.
+		// RFC requirement: RFC8210-8.4-1 negative -- a session that HAS been supplied an update leaves
+		// periodic-Reset-Query mode, so the periodic reload is confined to the cannot-supply case and
+		// does not discard a healthy incremental sync.
 		s := newSession()
 
 		buf := make([]byte, pduEndOfDataLen)
@@ -177,5 +195,139 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, done, "End of Data completes the sync")
 		assert.Equal(t, uint32(77), s.serial, "serial advanced: session leaves reset-query mode")
+	})
+}
+
+// TestSerialNotifyIgnoredDuringStartup verifies that a Serial Notify arriving in the startup window
+// (before version negotiation has settled and before the Cache Response) changes nothing.
+//
+// VALIDATES: RFC 8210 Sections 5.2 and 7 -- the router MUST ignore Serial Notify PDUs received from
+// the cache during the initial startup period. handlePDU's pduSerialNotify arm returns (false, nil)
+// without touching serial, sessionID or state (rtr_session.go:359-361).
+// PREVENTS: A pre-negotiation Serial Notify advancing the serial, adopting a Session ID, or aborting
+// the startup exchange -- and equally, a blanket "drop everything during startup" that would swallow
+// the Cache Response the exchange depends on.
+func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
+	newSession := func() *RTRSession {
+		stopCh := make(chan struct{})
+		return NewRTRSession("192.0.2.1", 3323, 100, "", NewROACache(), NewASPACache(), stopCh)
+	}
+
+	t.Run("serial notify in the startup window is ignored", func(t *testing.T) {
+		// RFC requirement: RFC8210-5.2-1 positive -- a Serial Notify received before the Cache Response
+		// (state still "idle", the initial startup period) is ignored: no error, sync not complete, and
+		// neither the Session ID it carries nor the serial in its body is adopted.
+		// RFC requirement: RFC8210-7-8 positive -- the same PDU received before version negotiation has
+		// completed is handled by ignoring it, so it neither aborts nor perturbs negotiation.
+		s := newSession()
+		require.Equal(t, sessionIdle, s.state, "startup window: no Cache Response seen")
+
+		buf := make([]byte, 12)
+		buf[0] = rtrVersionMax
+		buf[1] = pduSerialNotify
+		binary.BigEndian.PutUint16(buf[2:4], 0xBEEF) // Session ID offered by the notify
+		binary.BigEndian.PutUint32(buf[4:8], 12)
+		binary.BigEndian.PutUint32(buf[8:12], 999) // serial offered by the notify
+
+		done, err := s.handlePDU(RTRHeader{Version: rtrVersionMax, Type: pduSerialNotify, SessionID: 0xBEEF, Length: 12}, buf)
+
+		require.NoError(t, err, "a startup Serial Notify must not error the session")
+		assert.False(t, done, "it does not complete or abort the startup exchange")
+		assert.Equal(t, uint32(0), s.serial, "the notified serial is not adopted")
+		assert.Equal(t, uint16(0), s.sessionID, "the notified Session ID is not adopted")
+		assert.Equal(t, sessionIdle, s.state, "the startup state is untouched")
+		assert.Equal(t, rtrVersionMax, s.version, "negotiation is not perturbed")
+	})
+
+	t.Run("cache response in the same window is acted on", func(t *testing.T) {
+		// RFC requirement: RFC8210-5.2-1 negative -- the ignore is specific to Serial Notify: a Cache
+		// Response arriving in the same startup window IS processed (Session ID adopted, state moves to
+		// establish). An implementation that dropped every startup PDU would pass the positive case and
+		// fail here, so the pair pins "ignore Serial Notify" rather than "ignore everything".
+		// RFC requirement: RFC8210-7-8 negative -- likewise, handling Serial Notify by ignoring it does
+		// not extend to the PDU that carries the negotiated Session ID.
+		s := newSession()
+
+		done, err := s.handlePDU(RTRHeader{Version: rtrVersionMax, Type: pduCacheResp, SessionID: 0xBEEF, Length: pduHeaderLen}, make([]byte, pduHeaderLen))
+
+		require.NoError(t, err)
+		assert.False(t, done)
+		assert.Equal(t, uint16(0xBEEF), s.sessionID, "Cache Response is not ignored")
+		assert.Equal(t, sessionEstablish, s.state, "the exchange advances")
+	})
+}
+
+// TestFirstPDUOnConnectionIsAQuery verifies the router opens every transport connection with a query.
+//
+// VALIDATES: RFC 8210 Sections 7, 8.1 -- a router MUST start each transport connection by issuing
+// either a Reset Query or a Serial Query. connectAndSync writes one of the two before entering
+// readLoop (rtr_session.go:165-176), which is also what starts version negotiation.
+// PREVENTS: A connection opening silently (waiting for the cache to speak first), which would stall
+// the session and never negotiate a version.
+func TestFirstPDUOnConnectionIsAQuery(t *testing.T) {
+	// firstPDU dials a throwaway listener with the given session and returns the first bytes written.
+	firstPDU := func(t *testing.T, prepare func(*RTRSession), want int) []byte {
+		t.Helper()
+		var lc net.ListenConfig
+		ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = ln.Close() }()
+
+		tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+		require.True(t, ok, "listener address is a TCP address")
+		port := tcpAddr.Port
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+
+		s := NewRTRSession("127.0.0.1", uint16(port), 100, "", NewROACache(), NewASPACache(), stopCh) //nolint:gosec // listener port fits uint16
+		prepare(s)
+
+		done := make(chan error, 1)
+		go func() { done <- s.connectAndSync() }()
+
+		conn, err := ln.Accept()
+		require.NoError(t, err)
+		require.NoError(t, conn.SetReadDeadline(time.Now().Add(10*time.Second)))
+
+		buf := make([]byte, want)
+		_, err = io.ReadFull(conn, buf)
+		require.NoError(t, err, "the router must speak first on a new connection")
+
+		_ = conn.Close() // ends readLoop so connectAndSync returns
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatal("connectAndSync did not return after the cache closed the connection")
+		}
+		return buf
+	}
+
+	t.Run("fresh session opens with a reset query", func(t *testing.T) {
+		// RFC requirement: RFC8210-7-1 positive -- the very first bytes a fresh session writes on a
+		// newly established transport are a Reset Query PDU, carrying the version that starts
+		// negotiation.
+		// RFC requirement: RFC8210-8.1-2 positive -- when the transport is first established with no
+		// prior serial, that opening PDU is the Reset Query the RFC requires.
+		buf := firstPDU(t, func(*RTRSession) {}, pduResetQueryLen)
+
+		assert.Equal(t, rtrVersionMax, buf[0], "opening query carries the router's protocol version")
+		assert.Equal(t, pduResetQuery, buf[1], "a serial-less session opens with a Reset Query")
+		assert.Equal(t, uint32(pduResetQueryLen), binary.BigEndian.Uint32(buf[4:8]))
+	})
+
+	t.Run("resuming session opens with a serial query", func(t *testing.T) {
+		// RFC requirement: RFC8210-7-1 positive -- a session resuming from a known serial still opens
+		// the connection with a query, this time the Serial Query carrying its Session ID and serial;
+		// the "connection starts with a query" rule holds on both branches.
+		// RFC requirement: RFC8210-8.1-2 positive -- the same holds for a re-established transport.
+		buf := firstPDU(t, func(s *RTRSession) {
+			s.serial = 42
+			s.sessionID = 0x1234
+		}, pduSerialQueryLen)
+
+		assert.Equal(t, rtrVersionMax, buf[0])
+		assert.Equal(t, pduSerialQuery, buf[1], "a resuming session opens with a Serial Query")
+		assert.Equal(t, uint16(0x1234), binary.BigEndian.Uint16(buf[2:4]))
+		assert.Equal(t, uint32(42), binary.BigEndian.Uint32(buf[8:12]))
 	})
 }

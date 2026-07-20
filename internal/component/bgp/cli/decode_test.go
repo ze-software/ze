@@ -1430,3 +1430,69 @@ func TestDecodeKeepalive_Human(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "KEEPALIVE", output)
 }
+
+// TestRFC8955TrafficRateNegativeDecodesAsZero verifies a decoded FlowSpec traffic-rate is
+// clamped to zero when the IEEE 754 value on the wire is negative.
+//
+// VALIDATES: formatFlowSpecTrafficRate (decode_extcomm.go) reads the 4-octet float and
+// replaces any negative (or NaN) value with 0 before rendering the rate-limit string, for
+// both the bytes (0x8006) and packets (0x800c) sub-types.
+//
+// PREVENTS: a negative rate reaching a consumer as a huge unsigned rate (the uint64
+// conversion of a negative float is undefined) and turning an intended discard into an
+// effectively unlimited allowance.
+func TestRFC8955TrafficRateNegativeDecodesAsZero(t *testing.T) {
+	// 1000.0 and -1000.0 as IEEE 754 single precision.
+	posBits := []byte{0x44, 0x7A, 0x00, 0x00}
+	negBits := []byte{0xC4, 0x7A, 0x00, 0x00}
+
+	// RFC 8955 Sections 7.1/7.2: a non-negative traffic-rate decodes to its value.
+	// RFC requirement: RFC8955-7.1-2 positive -- a non-negative decoded traffic-rate keeps its value (§7.1, §7.2)
+	posBytes := append([]byte{0x80, 0x06, 0x00, 0x00}, posBits...)
+	got := parseExtendedCommunities(posBytes)
+	require.Len(t, got, 1)
+	assert.Equal(t, "rate-limit:1000", got[0]["string"])
+
+	// RFC 8955 Section 7.1: "On decoding, a negative traffic-rate MUST be treated as
+	// zero (i.e., discard all traffic)." Section 7.2 says the same for traffic-rate-packets.
+	// RFC requirement: RFC8955-7.1-2 negative -- a negative decoded traffic-rate is treated as zero (§7.1, §7.2)
+	negBytes := append([]byte{0x80, 0x06, 0x00, 0x00}, negBits...)
+	got = parseExtendedCommunities(negBytes)
+	require.Len(t, got, 1)
+	assert.Equal(t, "rate-limit:0", got[0]["string"],
+		"a negative traffic-rate-bytes must decode as 0 (discard)")
+
+	negPackets := append([]byte{0x80, 0x0C, 0x00, 0x00}, negBits...)
+	got = parseExtendedCommunities(negPackets)
+	require.Len(t, got, 1)
+	assert.Equal(t, "rate-limit:0:packets", got[0]["string"],
+		"a negative traffic-rate-packets must decode as 0 (discard)")
+}
+
+// TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode verifies unused bits in the FlowSpec
+// traffic-action field do not change the decoded community.
+//
+// VALIDATES: parseExtendedCommunities (decode_extcomm.go) classifies type 0x80 /
+// sub-type 0x07 by its type octets alone and renders "traffic-action" without consulting
+// the 6-octet Traffic Action Field, so the reserved bits are ignored.
+//
+// PREVENTS: a peer that leaves the reserved Traffic Action Field bits set having its
+// action community decoded as something else (or as an unrecognized generic community).
+func TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode(t *testing.T) {
+	// Terminal + Sample set, every other bit of the action field clear.
+	clean := []byte{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}
+	// Same action bits with every reserved bit of the field set.
+	reserved := []byte{0x80, 0x07, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+
+	gotClean := parseExtendedCommunities(clean)
+	require.Len(t, gotClean, 1)
+	assert.Equal(t, "traffic-action", gotClean[0]["string"])
+
+	// RFC 8955 Section 7.3: the unused bits of the Traffic Action Field "MUST be set to 0
+	// on encoding and MUST be ignored during decoding."
+	// RFC requirement: RFC8955-7.3-1 negative -- a traffic-action community with every unused bit set decodes identically to one with them clear (§7.3)
+	gotReserved := parseExtendedCommunities(reserved)
+	require.Len(t, gotReserved, 1)
+	assert.Equal(t, gotClean[0]["string"], gotReserved[0]["string"],
+		"unused traffic-action bits must not change the decode")
+}

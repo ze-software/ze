@@ -102,6 +102,27 @@ func skewDur(cfg Config, activeMs int) time.Duration {
 // RFC requirement: RFC3768-6.4.3-8 negative -- row master/advert/losing-lower-priority/v2-silent: a lower-priority advert does not demote the Master (fsm.go:330)
 // RFC requirement: RFC3768-6.4.3-9 positive -- row master/advert/losing-lower-priority/v2-silent: a v2 Master silently discards a losing advert (no actions, stays Master) (fsm.go:330)
 // RFC requirement: RFC3768-6.4.3-9 negative -- row master/advert/higher-priority/demote: a winning advert is not silently discarded, it demotes the Master (fsm.go:314).
+//
+// The VRRPv3 rows (RFC 9568 Section 6.4.2/6.4.3) differ from v2 in interval
+// adoption and in the immediate re-assertion on a losing advert; the tags below
+// name the exact row that pins each:
+// RFC requirement: RFC9568-6.4.2-6 positive -- row backup/shutdown: a Backup Shutdown cancels the Active_Down_Timer (StopTimers) and transitions to Initialize (fsm.go:172)
+// RFC requirement: RFC9568-6.4.2-6 negative -- row backup/advert-timer-expired/stale: an event other than Shutdown does not take a Backup to Initialize (fsm.go:194)
+// RFC requirement: RFC9568-6.4.2-8 positive -- row backup/advert/priority-zero: a Priority-0 advert sets the Active_Down_Timer to Skew_Time (fsm.go:207)
+// RFC requirement: RFC9568-6.4.2-8 negative -- row backup/advert/adopt/equal-priority: a non-zero-priority advert arms Active_Down_Interval, not Skew_Time (fsm.go:217)
+// RFC requirement: RFC9568-6.4.2-9 positive -- row backup/advert/adopt/equal-priority: an advert with priority >= local makes the Backup adopt the advertised Max Advertise Interval (4000 ms) and re-arm the down-timer recomputed from it (fsm.go:217, adoptInterval fsm.go:467)
+// RFC requirement: RFC9568-6.4.2-9 negative -- row backup/advert/discard/preempt-lower-priority-no-delay: a discarded advert emits no actions at all, so the down-timer is not re-armed from its Max Advertise Interval (fsm.go:227)
+// RFC requirement: RFC9568-6.4.2-10 positive -- row backup/advert/discard/preempt-lower-priority-no-delay: with Preempt_Mode true and an advertised priority below local, the advert is discarded (no actions) (fsm.go:227)
+// RFC requirement: RFC9568-6.4.2-10 negative -- row backup/advert/adopt/preempt-false-lower-priority: the same lower-priority advert is NOT discarded when Preempt_Mode is false (fsm.go:217)
+// RFC requirement: RFC9568-6.4.3-8 positive -- row master/shutdown: an Active Shutdown cancels the Adver_Timer, sends a Priority-0 ADVERTISEMENT, and transitions to Initialize (fsm.go:264)
+// RFC requirement: RFC9568-6.4.3-8 negative -- row backup/shutdown: a Backup Shutdown sends no Priority-0 advertisement (fsm.go:172)
+// RFC requirement: RFC9568-6.4.3-9 positive -- row master/advert-timer-expired/matching-gen: the Adver_Timer firing sends an ADVERTISEMENT and re-arms the timer at Advertisement_Interval (fsm.go:276)
+// RFC requirement: RFC9568-6.4.3-10 positive -- row master/advert/priority-zero/reset-advert-timer: a Priority-0 advert makes the Active router send an ADVERTISEMENT and reset the Adver_Timer (fsm.go:303)
+// RFC requirement: RFC9568-6.4.3-10 negative -- row master/advert/losing-lower-priority/v3-reassert: a losing non-zero advert re-asserts but does NOT reset the Adver_Timer, so the reset is bound to Priority 0 (fsm.go:328)
+// RFC requirement: RFC9568-6.4.3-11 positive -- rows master/advert/higher-priority/demote and .../tie-break-lost: a higher-priority advert, or an equal-priority advert from a greater sender address, cancels the Adver_Timer, adopts the advertised interval (4000 ms), arms the recomputed Active_Down_Timer, and demotes to Backup (fsm.go:314, demoteToBackup fsm.go:334)
+// RFC requirement: RFC9568-6.4.3-11 negative -- rows master/advert/losing-lower-priority/v3-reassert and .../losing-equal-priority-smaller-ip/v3-reassert: a losing advert leaves the router Active, cancels no timer and arms no Active_Down_Timer from its interval (fsm.go:324)
+// RFC requirement: RFC9568-6.4.3-12 positive -- rows master/advert/losing-*/v3-reassert: a losing advert is discarded and an ADVERTISEMENT is sent immediately to assert the Active state (fsm.go:328)
+// RFC requirement: RFC9568-6.4.3-12 negative -- row master/advert/higher-priority/demote: a winning advert is not discarded-and-re-asserted, it demotes the Active router (fsm.go:314).
 func TestFSMTransitionMatrix(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -406,6 +427,7 @@ func TestFSMBackupReceivesAdvert(t *testing.T) {
 // VALIDATES: Wiring row 2 + AC-3 + R-4 (exact order, not membership).
 func TestFSMMasterDownPromotion(t *testing.T) {
 	// RFC requirement: RFC3768-6.4.2-5 positive -- when the Master_Down_Timer fires, the Backup sends an ADVERTISEMENT, installs VIPs, announces failover (gratuitous ARP), starts the advert timer, and transitions to Master, in that order (promoteToMaster fsm.go:368).
+	// RFC requirement: RFC9568-6.4.2-7 positive -- when the Active_Down_Timer fires, the Backup sends an ADVERTISEMENT, installs the virtual addresses, announces (gratuitous ARP for IPv4 / unsolicited NA for IPv6), arms the Adver_Timer at Advertisement_Interval, and transitions to Active, in that order (promoteToMaster fsm.go:368).
 	i := backupInstance(baseCfg())
 	got := i.Handle(MasterDownExpired{Gen: 100})
 	if len(got) != 5 {
@@ -595,6 +617,8 @@ func TestFSMNoPanicInInitialize(t *testing.T) {
 func TestFSMStaleTimerGenerationIgnored(t *testing.T) {
 	// RFC requirement: RFC3768-6.4.2-5 negative -- a stale (non-armed generation) Master_Down expiry does not promote the Backup, so promotion is bound to the live timer, not any expiry event (fsm.go:178).
 	// RFC requirement: RFC3768-6.4.3-6 negative -- a stale advert-timer expiry in Master does not send an advert or reset the timer; only the armed generation does (fsm.go:276).
+	// RFC requirement: RFC9568-6.4.2-7 negative -- a stale (non-armed generation) Active_Down expiry does not promote the Backup, so promotion is bound to the live timer rather than to any expiry event (fsm.go:178).
+	// RFC requirement: RFC9568-6.4.3-9 negative -- a stale Adver_Timer expiry in the Active state sends no ADVERTISEMENT and re-arms nothing; only the armed generation does (fsm.go:276).
 	// Backup: arm master-down (gen 100), re-arm via advert (gen 101), then a stale
 	// expiry with gen 100 must be ignored.
 	i := backupInstance(baseCfg())

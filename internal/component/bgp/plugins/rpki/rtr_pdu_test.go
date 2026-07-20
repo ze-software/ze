@@ -16,6 +16,8 @@ func TestWriteResetQuery(t *testing.T) {
 	// RFC requirement: RFC6810-5-1 positive -- the Reset Query has no Session ID; that field is
 	// "unspecified content" for this PDU and writeResetQuery emits it as zero on transmission
 	// (buf[2:4] == 0), while the version/type/length fields still carry their real values.
+	// RFC requirement: RFC8210-5-1 positive -- v1 keeps the same rule: the reserved header bytes of
+	// a Reset Query are emitted as zero on transmission.
 	buf := make([]byte, 16)
 	n := writeResetQuery(buf, 0, rtrVersionMax)
 	assert.Equal(t, 8, n)
@@ -34,6 +36,9 @@ func TestWriteSerialQuery(t *testing.T) {
 	// Serial Query (the Session ID), so they are NOT forced to zero: writeSerialQuery emits 0x1234
 	// there. This pins the "unspecified fields MUST be zero" rule to unspecified fields only, not a
 	// blanket zeroing of the header.
+	// RFC requirement: RFC8210-5-1 negative -- header bytes 2-3 of a Serial Query are the Session ID,
+	// not a reserved field, so they are NOT zeroed: a writer that zeroed every non-version header byte
+	// would break the Session ID and is rejected by this assertion.
 	buf := make([]byte, 16)
 	n := writeSerialQuery(buf, 0, rtrVersionMax, 0x1234, 0xABCD0001)
 	assert.Equal(t, 12, n)
@@ -51,6 +56,8 @@ func TestWriteSerialQuery(t *testing.T) {
 func TestParseIPv4Prefix(t *testing.T) {
 	// RFC requirement: RFC6810-5.1-1 positive -- a Prefix PDU whose Max Length (24) is >= its Prefix
 	// Length (8) is accepted by parsePrefixPDU and yields a usable VRP.
+	// RFC requirement: RFC8210-5.1-2 positive -- the v1 Prefix PDU carries the same Max Length rule and
+	// the same 20-byte layout, so a conformant PDU (maxLen 24 >= prefixLen 8) is accepted.
 	// Build a valid IPv4 Prefix PDU: 10.0.0.0/8, maxLen=24, ASN=65001, announce
 	buf := make([]byte, 20)
 	buf[0] = rtrVersionMin
@@ -122,6 +129,8 @@ func TestParseIPv4PrefixInvalidLength(t *testing.T) {
 func TestParseIPv4PrefixMaxLenLessThanPrefixLen(t *testing.T) {
 	// RFC requirement: RFC6810-5.1-1 negative -- a Prefix PDU whose Max Length (16) is LESS than its
 	// Prefix Length (24) is rejected by parsePrefixPDU, so the impossible VRP never enters the cache.
+	// RFC requirement: RFC8210-5.1-2 negative -- the same rejection holds for a v1 Prefix PDU: Max
+	// Length below Prefix Length is refused rather than stored.
 	buf := make([]byte, 20)
 	buf[0] = rtrVersionMin
 	buf[1] = pduIPv4Prefix
@@ -387,4 +396,45 @@ func TestParseASPAPDUReservedProviderAS(t *testing.T) {
 	_, _, err := parseASPAPDU(buf)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "reserved provider AS")
+}
+
+// TestParsePrefixPDUFlagsHighBitsIgnored verifies that only bit 0 of the Prefix PDU Flags field is
+// read, and that the remaining bits are ignored on receipt.
+//
+// VALIDATES: RFC 8210 Section 5.1 -- Flags bits other than bit 0 are zero on transmission and MUST be
+// ignored on receipt. parsePrefixPDU computes announce as flags&1 (rtr_pdu.go:132), so the seven high
+// bits change nothing about how the PDU is interpreted.
+// PREVENTS: A cache setting a reserved Flags bit turning an announcement into a withdrawal (or the
+// reverse), or the parser rejecting an otherwise valid PDU because of a reserved bit.
+func TestParsePrefixPDUFlagsHighBitsIgnored(t *testing.T) {
+	// build a 20-byte IPv4 Prefix PDU for 10.0.0.0/8, maxLen 24, AS 65001 with the given Flags byte.
+	build := func(flags byte) []byte {
+		buf := make([]byte, pduIPv4PrefixLen)
+		buf[0] = rtrVersionMin
+		buf[1] = pduIPv4Prefix
+		binary.BigEndian.PutUint32(buf[4:8], pduIPv4PrefixLen)
+		buf[8] = flags
+		buf[9] = 8
+		buf[10] = 24
+		buf[12] = 10
+		binary.BigEndian.PutUint32(buf[16:20], 65001)
+		return buf
+	}
+
+	// RFC requirement: RFC8210-5.1-1 positive -- every reserved Flags bit is set (0xFF) alongside
+	// bit 0; the PDU is still accepted and still read as an announcement, proving the high bits are
+	// ignored on receipt rather than validated or mixed into the decision.
+	vrp, announce, err := parseIPv4Prefix(build(0xFF))
+	require.NoError(t, err, "reserved Flags bits must not make the PDU invalid")
+	assert.True(t, announce, "bit 0 set means announce whatever the reserved bits carry")
+	assert.Equal(t, "10.0.0.0/8", vrp.Prefix.String())
+	assert.Equal(t, uint32(65001), vrp.ASN)
+
+	// RFC requirement: RFC8210-5.1-1 negative -- the same reserved bits set but bit 0 CLEAR (0xFE)
+	// must still be a withdrawal. A parser that looked at any bit other than bit 0 would read this
+	// non-conformant-looking PDU as an announcement and wrongly install the VRP.
+	vrp, announce, err = parseIPv4Prefix(build(0xFE))
+	require.NoError(t, err)
+	assert.False(t, announce, "bit 0 clear means withdraw despite every reserved bit being set")
+	assert.Equal(t, "10.0.0.0/8", vrp.Prefix.String())
 }

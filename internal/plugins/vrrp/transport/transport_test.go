@@ -200,6 +200,7 @@ func TestUpdateAdvertReencodes(t *testing.T) {
 
 func TestSendAdvertUsesParentPrimaryV4Source(t *testing.T) {
 	// RFC requirement: RFC3768-7.2-3 positive -- the transmitted advert's source IP is the parent unit's primary IPv4 address, re-resolved on update and on an address-change event (resolveParentPrimaryV4 transport.go:573).
+	// RFC requirement: RFC9568-7.2-3 positive -- the transmitted advert's source IP is the sending interface's primary IPv4 address, re-resolved on update and on an address-change event (resolveParentPrimaryV4 transport.go:573); the IPv6 counterpart is the macvlan's link-local, pinned per send (macvlanLinkLocal backend_linux.go:466).
 	// VALIDATES: AC-3 / A-7 -- the IPv4 source is the parent unit's first IPv4
 	// address, re-resolved on UpdateAdvert and on an address-change event.
 	old := resolveIfaceAddresses
@@ -288,6 +289,50 @@ func TestSendAdvertIPv4HeaderTTLProtoDst(t *testing.T) {
 	}
 	if dst := netip.AddrFrom4([4]byte(frame[16:20])); dst != packet.MulticastV4 {
 		t.Errorf("dst = %v, want 224.0.0.18", dst)
+	}
+}
+
+// TestSendAdvertV3IPv4HeaderTTLProtoDst asserts the IPv4 header ze builds for a
+// VRRPv3 advertisement carries the RFC 9568 TTL, protocol number, and
+// destination group.
+//
+// RFC requirement: RFC9568-5.1.1.3-1 positive -- the transmitted IPv4 datagram carries TTL 255 (buildIPv4Header transport.go:562)
+// RFC requirement: RFC9568-7.2-4 positive -- the transmitted datagram carries IP protocol 112 and is sent to the VRRP IPv4 multicast group 224.0.0.18 (buildIPv4Header transport.go:563; SendAdvert backend_linux.go:256).
+func TestSendAdvertV3IPv4HeaderTTLProtoDst(t *testing.T) {
+	withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.10", Family: "ipv4"}})
+	fb := &fakeBackend{}
+	tr := New(fb)
+	key, err := tr.OpenInstance(v4Spec())
+	if err != nil {
+		t.Fatalf("OpenInstance: %v", err)
+	}
+	h := fb.last()
+	if err := tr.UpdateAdvert(key, AdvertParams{
+		Version:         packet.VersionV3,
+		Priority:        100,
+		AdverIntervalMS: 1000,
+		VIPs:            []netip.Addr{netip.MustParseAddr("192.0.2.1")},
+	}); err != nil {
+		t.Fatalf("UpdateAdvert: %v", err)
+	}
+	if err := tr.SendAdvert(key); err != nil {
+		t.Fatalf("SendAdvert: %v", err)
+	}
+	frame := h.lastAdvert()
+	if len(frame) < ipv4HeaderLen {
+		t.Fatalf("frame too short: %d bytes", len(frame))
+	}
+	if frame[8] != 255 {
+		t.Errorf("TTL = %d, want 255", frame[8])
+	}
+	if frame[9] != packet.ProtoNumber {
+		t.Errorf("protocol = %d, want %d", frame[9], packet.ProtoNumber)
+	}
+	if dst := netip.AddrFrom4([4]byte(frame[16:20])); dst != packet.MulticastV4 {
+		t.Errorf("dst = %v, want 224.0.0.18", dst)
+	}
+	if v := frame[ipv4HeaderLen] >> 4; v != packet.VersionV3 {
+		t.Errorf("VRRP version = %d, want 3", v)
 	}
 }
 

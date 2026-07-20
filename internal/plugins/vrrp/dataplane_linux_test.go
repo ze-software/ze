@@ -60,6 +60,8 @@ func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
 	// plan/learned/1122-vrrp-macvlan-vmac-dataplane.md).
 	// RFC requirement: RFC3768-6.4.3-1 positive -- the virtual-MAC macvlan is made the sole ARP responder for the VIP, so a Master answers ARP requests for the virtual address with the virtual MAC (dataplane_linux.go:64,73).
 	// RFC requirement: RFC3768-8.2-1 positive -- the parent's arp_ignore/arp_filter are set so the parent's physical MAC never answers ARP for the virtual address (dataplane_linux.go:73).
+	// RFC requirement: RFC9568-6.4.3-1 positive -- the virtual-MAC macvlan is made the sole ARP responder for the virtual address, so the Active router answers ARP requests for it with the Virtual Router MAC (vmacSysctls dataplane_linux.go:64, parentSysctls dataplane_linux.go:73)
+	// RFC requirement: RFC9568-8.1.2-1 positive -- the parent's arp_ignore/arp_filter are set so the parent's physical MAC never answers ARP for the virtual address (parentSysctls dataplane_linux.go:73).
 	f := newFakeSysctl(map[string]string{
 		allRPFilterPath():              "1",
 		ipv4Conf("eth0", "arp_ignore"): "0",
@@ -117,6 +119,8 @@ func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 func TestDataplaneRestoreOnLastGroup(t *testing.T) {
 	// RFC requirement: RFC3768-6.4.3-1 negative -- the sole-responder recipe is not permanent: on the last group's teardown the parent's ARP knobs are restored, so the virtual-MAC ARP ownership is scoped to a live VRRP group (dataplane_linux.go revertDataplaneSysctls).
 	// RFC requirement: RFC3768-8.2-1 negative -- the parent's arp_ignore/arp_filter are restored to their pre-VRRP values on the last teardown, so the physical-MAC suppression is scoped to a live VRRP group, not a permanent host change (dataplane_linux.go revertDataplaneSysctls).
+	// RFC requirement: RFC9568-6.4.3-1 negative -- the sole-responder recipe is not permanent: the parent's ARP knobs are restored on the last group's teardown, so virtual-MAC ARP ownership is scoped to a live Virtual Router (revertDataplaneSysctls dataplane_linux.go:199)
+	// RFC requirement: RFC9568-8.1.2-1 negative -- the physical-MAC suppression is scoped to a live VRRP group: the parent's arp_ignore/arp_filter return to their pre-VRRP values on the last teardown (revertDataplaneSysctls dataplane_linux.go:199).
 	f := newFakeSysctl(map[string]string{
 		allRPFilterPath():              "1",
 		ipv4Conf("eth0", "arp_ignore"): "0",

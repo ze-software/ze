@@ -236,6 +236,7 @@ func linuxHandle(t *testing.T, tr *Transport, key InstanceKey) *linuxInstance {
 	return li
 }
 
+// RFC requirement: RFC9568-5.1.2.3-1 positive -- the v6 tx socket is opened with IPV6_MULTICAST_HOPS 255, so every transmitted IPv6 advertisement carries hop limit 255, and the getsockopt read-back below proves the kernel took the value (openV6 backend_linux.go:185).
 func TestIntegrationOpenInstanceSocketOptions(t *testing.T) {
 	// VALIDATES: AC-1/AC-2 -- getsockopt read-back of the full option matrix.
 	t.Run("v4", func(t *testing.T) {

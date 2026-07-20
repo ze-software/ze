@@ -1225,8 +1225,14 @@ func TestParseExtendedCommunities(t *testing.T) {
 
 // TestParseExtendedCommunitiesTrafficRatePackets verifies RFC 8955 rate-limit unit parsing.
 //
-// VALIDATES: traffic-rate unit syntax plus ExaBGP 5.0 aliases encode the correct FlowSpec subtype.
-// PREVENTS: ExaBGP FlowSpec unit-qualified rate limits being rejected or encoded with the wrong rate type.
+// VALIDATES: traffic-rate unit syntax plus ExaBGP 5.0 aliases encode the correct FlowSpec subtype,
+// and parseFlowSpecTrafficRateBits (route_community.go) rejects a negative rate outright.
+// PREVENTS: ExaBGP FlowSpec unit-qualified rate limits being rejected or encoded with the wrong rate type;
+// a negative rate being encoded, which RFC 8955 Sections 7.1/7.2 forbid.
+//
+// RFC 8955 Sections 7.1/7.2: "On encoding, the traffic-rate MUST NOT be negative."
+// RFC requirement: RFC8955-7.1-1 positive -- a non-negative traffic-rate encodes to its IEEE 754 bits (subtypes 0x06 and 0x0c) (§7.1, §7.2)
+// RFC requirement: RFC8955-7.1-1 negative -- a negative traffic-rate is rejected instead of encoded (§7.1, §7.2).
 func TestParseExtendedCommunitiesTrafficRatePackets(t *testing.T) {
 	tests := []struct {
 		name         string
