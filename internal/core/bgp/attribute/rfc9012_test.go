@@ -152,6 +152,7 @@ func TestRFC9012MalformedAttributeIsRejected(t *testing.T) {
 	require.Error(t, err)
 
 	// RFC requirement: RFC9012-13-18 negative -- a TLV header cut short is refused; only the sub-TLV cases the RFC names (unrecognized, meaningless, duplicate) are exempt from being malformed
+	// RFC requirement: RFC9830-2.4-2 negative -- genuinely broken framing IS malformed, so "a duplicate single-instance sub-TLV is not malformed" is a carve-out for that case rather than blanket acceptance
 	_, err = ParseTunnelEncap([]byte{0x00, 0x0F, 0x00})
 	require.Error(t, err)
 
@@ -175,6 +176,7 @@ func TestRFC9012AllSubTLVsPropagate(t *testing.T) {
 	raw := teEncode(tlv)
 
 	// RFC requirement: RFC9012-13-9 positive -- all three sub-TLVs are enumerated and the re-encoded attribute is byte-identical, so every sub-TLV is propagated with the route
+	// RFC requirement: RFC9830-4.2.3-6 positive -- the TLV here is Tunnel Type 15, and the SR Policy information it carries is re-advertised octet for octet: propagation alters nothing
 	stlvs, err := tlv.SubTLVs()
 	require.NoError(t, err)
 	require.Len(t, stlvs, 3)
@@ -188,6 +190,7 @@ func TestRFC9012AllSubTLVsPropagate(t *testing.T) {
 
 	dropped := teEncode(TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: tePreference(300)})
 	// RFC requirement: RFC9012-13-9 negative -- an attribute carrying only the recognized sub-TLV differs from the received bytes, so silently dropping sub-TLVs on propagation is detectable
+	// RFC requirement: RFC9830-4.2.3-6 negative -- altering the SR Policy TLV on the way out produces different, shorter bytes, so "unaltered" is a property this comparison can fail on
 	assert.NotEqual(t, raw, dropped)
 	// RFC requirement: RFC9012-13-11 negative -- the same comparison shows the unrecognized sub-TLVs are what makes up the difference: without them the attribute is shorter
 	assert.Less(t, len(dropped), len(raw))
@@ -257,11 +260,13 @@ func TestRFC9012DuplicateSingleInstanceSubTLVs(t *testing.T) {
 	raw := teEncode(dup)
 
 	// RFC requirement: RFC9012-13-7 positive -- with two Preference sub-TLVs the first is the one used and the second is disregarded
+	// RFC requirement: RFC9830-2.4-1 positive -- the Preference sub-TLV is single-instance, so only the first instance is used and the later one is ignored
 	pref, ok := dup.Preference()
 	require.True(t, ok)
 	assert.Equal(t, uint32(100), pref)
 
 	// RFC requirement: RFC9012-13-8 positive -- the duplicate does not make the TLV malformed: it parses, both occurrences are enumerated, and both are re-advertised
+	// RFC requirement: RFC9830-2.4-2 positive -- the ignored duplicate instance of a single-instance sub-TLV is not considered malformed: the attribute parses and is propagated with both instances intact
 	te, err := ParseTunnelEncap(raw)
 	require.NoError(t, err)
 	stlvs, err := te.TLVs[0].SubTLVs()
@@ -270,6 +275,7 @@ func TestRFC9012DuplicateSingleInstanceSubTLVs(t *testing.T) {
 	assert.Equal(t, raw, teRoundTrip(t, raw))
 
 	// RFC requirement: RFC9012-13-7 negative -- when only the second value is present it is the one returned, so "the first occurrence" is genuinely positional and not a fixed answer
+	// RFC requirement: RFC9830-2.4-1 negative -- the later instance is not discarded on principle: standing alone it IS the instance used, so "only the first" is positional rather than a fixed preference for one value
 	single := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: tePreference(200)}
 	pref, ok = single.Preference()
 	require.True(t, ok)
@@ -294,6 +300,7 @@ func TestRFC9012MeaninglessSubTLVIgnoredNotRemoved(t *testing.T) {
 	require.Len(t, stlvs, 2)
 
 	// RFC requirement: RFC9012-13-16 positive -- the meaningless sub-TLV is disregarded: the value processed out of the TLV is the same as if it were not present at all
+	// RFC requirement: RFC9830-2.3-3 positive -- a VXLAN Encapsulation sub-TLV has no defined applicability to the SR Policy SAFI, and inside a Tunnel Type 15 TLV it is ignored: what ze processes is what it would process without it
 	withMeaningless, ok := tlv.Preference()
 	require.True(t, ok)
 	bare := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: tePreference(900)}
@@ -302,6 +309,7 @@ func TestRFC9012MeaninglessSubTLVIgnoredNotRemoved(t *testing.T) {
 	assert.Equal(t, without, withMeaningless)
 
 	// RFC requirement: RFC9012-13-16 negative -- a sub-TLV that IS meaningful for this tunnel type is not disregarded: changing the Preference changes what is processed, so "disregarded" is not "everything is ignored"
+	// RFC requirement: RFC9830-2.3-3 negative -- the Preference sub-TLV, which the SR Policy SAFI does define, is not ignored, so the rule is scoped to the sub-TLVs without applicability
 	other := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: teCat(meaningless, tePreference(901))}
 	changed, ok := other.Preference()
 	require.True(t, ok)
