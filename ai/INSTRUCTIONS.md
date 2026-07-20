@@ -47,6 +47,19 @@
 - Scope reduction requires explicit user approval. You may not unilaterally drop ACs.
 - Full rule: `ai/rules/no-partial-completion.md`
 
+## Parking a blocker or reducing coverage to reach green is FORBIDDEN
+- When a defect blocks a goal your work exists to achieve, FIX IT. Do not park it,
+  move it to `tmp/`, file it as a deferral, or offer to drop the deliverable.
+- A bug being "pre-existing" is NOT an escape hatch. The moment your work depends on
+  that path working, the bug is in scope: you are the entry point that reached it.
+- Interoperability and correctness are never optional and never a scope-reduction
+  candidate. A daemon another implementation rejects has failed at its only job.
+- NEVER offer the user "drop the interop/functional test" as an option. Reducing
+  coverage to reach green is the failure, not a choice to present.
+- If you are genuinely blocked: say so plainly with evidence, keep the spec OPEN, and
+  reach for the fix before asking. Ask "which way do I fix it", never "may I skip it."
+- Full rule: `ai/rules/no-parking.md`
+
 ## On violation: STOP immediately
 "The task requires it" is not valid. Nothing overrides these prohibitions.
 
@@ -192,6 +205,7 @@ means "no rule applies".
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source; never weaken the test |
+| Hit a blocker (pre-existing bug, failing interop, a goal that will not pass) | `ai/rules/no-parking.md` -- fix the blocker; never park it, move it to `tmp/`, or offer to drop the deliverable. "Pre-existing" is not out of scope. Reducing coverage to reach green is banned |
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/language-and-spelling.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
@@ -204,3 +218,14 @@ means "no rule applies".
 | Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
 | Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/ze-divergences.md` |
 | Check past decisions or known traps | `ai/LEARNED-INDEX.md` -> `plan/learned/`, `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md` |
+
+## Every Rule's Directives (loaded below)
+
+The condensed directive core of **every** rule under `ai/rules/` is imported
+here, so this session already holds them -- you do not need to open each rule
+to know its directives. The `INDEX.md` dispatch above still applies: open a
+rule's **full** file for nuance, examples, and rationale before acting on its
+topic. The digest is generated (`make ze-rules-condensed`) from the canonical
+rule format (`ai/rules/rule-format.md`); never edit it by hand.
+
+@ai/rules/CONDENSED.md

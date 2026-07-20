@@ -1,6 +1,11 @@
 # Language and Spelling
 
-**BLOCKING.** The project language is **US English**. Every artifact that is part
+**When:** The project language is **US English**
+**Severity:** blocking
+
+## Directives
+
+The project language is **US English**. Every artifact that is part
 of Ze -- code, docs, and user-facing text -- uses US English spelling, wording,
 and date/number conventions. The single exception is prose authored in Thomas's
 own voice, which uses **UK (British) English**. See "The one exception" below.

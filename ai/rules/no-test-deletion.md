@@ -1,5 +1,10 @@
 # Test Deletion and Weakening
 
+**When:** A red test means the CODE is wrong by default
+**Severity:** advisory
+
+## Directives
+
 Rationale: `ai/rationale/no-test-deletion.md`
 
 A red test means the CODE is wrong by default. Diagnose the failure and fix the

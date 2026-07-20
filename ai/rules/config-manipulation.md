@@ -1,6 +1,11 @@
 # Config Manipulation
 
-**BLOCKING:** Config content MUST be manipulated through one of two methods only.
+**When:** Config content MUST be manipulated through one of two methods only
+**Severity:** blocking
+
+## Directives
+
+Config content MUST be manipulated through one of two methods only.
 
 | Method | When |
 |--------|------|

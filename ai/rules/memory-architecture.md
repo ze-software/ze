@@ -1,5 +1,10 @@
 # Memory Architecture
 
+**When:** Conceptual model for Ze's memory management
+**Severity:** advisory
+
+## Directives
+
 Conceptual model for Ze's memory management. Ties together `buffer-first.md`,
 `no-sprintf-alloc.md`, and `design-principles.md` into a coherent picture.
 Read this before making any allocation or memory-lifecycle decision.

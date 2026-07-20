@@ -1,5 +1,10 @@
 # OS-Specific Tests
 
+**When:** A test that cannot run on every OS MUST either carry a build tag
+**Severity:** advisory
+
+## Directives
+
 A test that cannot run on every OS MUST either carry a build tag
 (`//go:build linux`) on its file, or skip (`t.Skip`) with a reason on
 the OSes where it cannot run. Never weaken the assertion to accept both

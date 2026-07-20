@@ -1,5 +1,10 @@
 # Feature-Gate Registration (compile-out-able features)
 
+**When:** How to add or change a **compile-out-able feature**
+**Severity:** advisory
+
+## Directives
+
 How to add or change a **compile-out-able feature**: a subsystem that can be
 dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
 for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh

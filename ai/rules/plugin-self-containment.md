@@ -1,5 +1,10 @@
 # Plugin Self-Containment (BLOCKING)
 
+**When:** its features disappears; every OTHER plugin and the core keep working.**
+**Severity:** advisory
+
+## Directives
+
 **A plugin owns its ENTIRE feature surface. Remove the plugin and every one of
 its features disappears; every OTHER plugin and the core keep working.**
 

@@ -1,6 +1,11 @@
 # Functional Test Gate
 
-**BLOCKING.** Every user-facing behavior MUST have a functional test that exercises
+**When:** Every user-facing behavior MUST have a functional test that exercises
+**Severity:** blocking
+
+## Directives
+
+Every user-facing behavior MUST have a functional test that exercises
 it through a user entry point. Unit tests (`_test.go`) prove internal logic.
 Functional tests (`.ci`, `.et`) prove the feature works end-to-end through the daemon.
 Both are required. Neither substitutes for the other.

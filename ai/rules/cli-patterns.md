@@ -1,6 +1,11 @@
 # CLI Patterns
 
-**BLOCKING:** All CLI commands MUST follow these patterns.
+**When:** All CLI commands MUST follow these patterns
+**Severity:** blocking
+
+## Directives
+
+All CLI commands MUST follow these patterns.
 Rationale: `ai/rationale/cli-patterns.md`
 Structural template: `ai/patterns/cli-command.md`
 

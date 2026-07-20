@@ -1,6 +1,11 @@
 # Running Test / Build Commands
 
-**BLOCKING:** Prefer `make` targets. A bare `go test` omits Ze's feature build
+**When:** Prefer `make` targets
+**Severity:** blocking
+
+## Directives
+
+Prefer `make` targets. A bare `go test` omits Ze's feature build
 tags and produces phantom reds in unrelated packages. Never pipe a test/build
 command through `head`/`tail`/`grep`/`awk`/`sed`/`cat` -- run clean, read the log.
 
@@ -38,7 +43,7 @@ believing it.
 
 ## No Pipes On Expensive Commands
 
-**BLOCKING:** Never pipe `make`, `go test`, `go build`, `golangci-lint`,
+Never pipe `make`, `go test`, `go build`, `golangci-lint`,
 `bin/ze*`, or any test/verify/build command through `head`, `tail`,
 `grep`, `awk`, `sed`, `cat`. Run clean. Read the log after.
 

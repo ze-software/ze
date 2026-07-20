@@ -1,9 +1,12 @@
 # Fail-Closed Guards
 
-**BLOCKING.** A guard must fail closed or say something. Silent degradation into a permissive no-op is the bug, and a zero value that downstream reads as a legitimate answer is how it hides.
+**When:** A guard must fail closed or say something
+**Severity:** blocking
+**Related:** exact-or-reject, no-fabrication
 
-Related: `ai/rules/exact-or-reject.md` (config that cannot be delivered exactly),
-`ai/rules/no-fabrication.md` (verify at the producer).
+## Directives
+
+A guard must fail closed or say something. Silent degradation into a permissive no-op is the bug, and a zero value that downstream reads as a legitimate answer is how it hides.
 
 ## Rule
 

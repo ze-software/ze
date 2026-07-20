@@ -1,6 +1,11 @@
 # Wiring Completeness
 
-**BLOCKING.** Extends `no-partial-completion.md` with a mechanical check.
+**When:** Wiring is not a verification step at the end
+**Severity:** blocking
+
+## Directives
+
+Extends `no-partial-completion.md` with a mechanical check.
 
 ## The Principle: Wire First, Feature Second
 

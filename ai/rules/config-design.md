@@ -1,5 +1,10 @@
 # Config Design
 
+**When:** Structural template: `ai/patterns/config-option.md`
+**Severity:** advisory
+
+## Directives
+
 Rationale: `ai/rationale/config-design.md`
 Structural template: `ai/patterns/config-option.md`
 Decision framework (YANG vs env var): `ai/rules/config-surface.md`

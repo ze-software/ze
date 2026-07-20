@@ -1,6 +1,11 @@
 # Doctor Checks
 
-**BLOCKING.** Every feature that adds a new runtime dependency must register
+**When:** Every feature that adds a new runtime dependency must register
+**Severity:** blocking
+
+## Directives
+
+Every feature that adds a new runtime dependency must register
 a `ze doctor` check so agents can verify readiness before starting the daemon.
 
 ## The Rule

@@ -1,7 +1,9 @@
 # Protocol Subpackage Skeleton (advisory)
 
-**When:** creating a new protocol implementation, adding the first subpackages
-to a single-package protocol, or reorganizing a protocol's module layout.
+**When:** creating a new protocol implementation, adding the first subpackages to a single-package protocol, or reorganizing a protocol's module layout.
+**Severity:** advisory
+
+## Directives
 
 One learned layout should fit every protocol (the holo-routing lesson: a fixed
 per-protocol skeleton makes each protocol navigable once you know one). This

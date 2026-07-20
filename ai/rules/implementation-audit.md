@@ -1,6 +1,11 @@
 # Implementation Audit
 
-**BLOCKING:** Before marking any spec done, complete line-by-line audit comparing spec to implementation.
+**When:** Before marking any spec done, complete line-by-line audit comparing spec to implementation
+**Severity:** blocking
+
+## Directives
+
+Before marking any spec done, complete line-by-line audit comparing spec to implementation.
 Rationale: `ai/rationale/implementation-audit.md`
 
 ## When

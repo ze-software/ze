@@ -1,6 +1,11 @@
 # Documentation
 
-**BLOCKING:** Every feature change MUST update the specific documentation it affects.
+**When:** Every feature change MUST update the specific documentation it affects
+**Severity:** blocking
+
+## Directives
+
+Every feature change MUST update the specific documentation it affects.
 Rationale: Code without matching docs is incomplete. "Update the docs" is not actionable.
 
 ## Principle

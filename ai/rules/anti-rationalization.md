@@ -1,6 +1,11 @@
 # Anti-Rationalization
 
-**BLOCKING:** The answer is always "no."
+**When:** The answer is always "no."
+**Severity:** blocking
+
+## Directives
+
+The answer is always "no."
 Rationale: `ai/rationale/anti-rationalization.md`
 
 ## TDD
@@ -57,7 +62,7 @@ Rationale: `ai/rationale/anti-rationalization.md`
 
 ## 3-Fix Rule
 
-**BLOCKING:** 3 failed fixes → STOP. Report all 3 approaches. Question the mental model. Ask user.
+3 failed fixes → STOP. Report all 3 approaches. Question the mental model. Ask user.
 
 ## Posture
 

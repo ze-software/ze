@@ -1,6 +1,11 @@
 # Self-Documenting Code
 
-**BLOCKING:** Code that implements external APIs or protocols MUST reference the upstream spec inline.
+**When:** Code that implements external APIs or protocols MUST reference the upstream spec inline
+**Severity:** blocking
+
+## Directives
+
+Code that implements external APIs or protocols MUST reference the upstream spec inline.
 
 ## Why
 

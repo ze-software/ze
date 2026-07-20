@@ -114,7 +114,8 @@ def build(rules_dir):
     rows = []
     missing = []
     for md in sorted(rules_dir.glob("*.md")):
-        if md.name == "INDEX.md":
+        # INDEX.md and CONDENSED.md are generated aggregates, not rules.
+        if md.name in ("INDEX.md", "CONDENSED.md"):
             continue
         raw = md.read_text(encoding="utf-8", errors="replace").splitlines()
         title = title_of(raw, md.stem)

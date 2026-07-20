@@ -1,6 +1,11 @@
 # JSON Format
 
-**BLOCKING:** All JSON output MUST follow these conventions.
+**When:** All JSON output MUST follow these conventions
+**Severity:** blocking
+
+## Directives
+
+All JSON output MUST follow these conventions.
 Rationale: `ai/rationale/json-format.md`
 
 ## Field Naming: kebab-case (MANDATORY)

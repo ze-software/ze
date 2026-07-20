@@ -1,6 +1,11 @@
 # Data Flow Tracing
 
-**BLOCKING:** Trace full data flow before writing or reviewing specs.
+**When:** Trace full data flow before writing or reviewing specs
+**Severity:** blocking
+
+## Directives
+
+Trace full data flow before writing or reviewing specs.
 Rationale: `ai/rationale/data-flow-tracing.md`
 
 ## Checklist

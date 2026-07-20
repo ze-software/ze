@@ -1,6 +1,9 @@
 # No Partial Completion
 
 **When:** Read before claiming any work "done"; every acceptance criterion needs working code plus a test, "deferred" is not "done," and scope cuts require explicit user approval.
+**Severity:** advisory
+
+## Directives
 
 **BLOCKING. ABSOLUTE PROHIBITION. Same level as git safety.**
 

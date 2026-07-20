@@ -1,6 +1,11 @@
 # API Contracts in Comments
 
-**BLOCKING:** When authoring functions with caller obligations, document them in the godoc.
+**When:** when authoring functions with caller obligations
+**Severity:** blocking
+
+## Directives
+
+When authoring functions with caller obligations, document them in the godoc.
 Rationale: `ai/rationale/api-contracts.md`
 
 ## When to Document

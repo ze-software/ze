@@ -1,6 +1,11 @@
 # Feature Integration Completeness
 
-**BLOCKING:** Every new feature MUST be proven to work integrated, not just in isolation.
+**When:** Every new feature MUST be proven to work integrated, not just in isolation
+**Severity:** blocking
+
+## Directives
+
+Every new feature MUST be proven to work integrated, not just in isolation.
 Rationale: `ai/rationale/integration-completeness.md`
 
 Every feature needs at least one end-to-end test from its intended usage point.

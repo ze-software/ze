@@ -1,6 +1,9 @@
 # Design Principles
 
 **When:** Read before any design decision; the checklist (abstract when you can at 2+ use cases, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure.
+**Severity:** advisory
+
+## Directives
 
 Rationale + examples: `ai/rationale/design-principles.md`.
 Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`,

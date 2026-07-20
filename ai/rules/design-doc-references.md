@@ -1,6 +1,11 @@
 # Design Document References
 
-**BLOCKING:** All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.
+**When:** All `.go` source files (non-test, non-generated) MUST have `// Design:` comment
+**Severity:** blocking
+
+## Directives
+
+All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.
 Rationale: `ai/rationale/design-doc-references.md`
 
 ## Format

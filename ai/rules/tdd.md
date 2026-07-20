@@ -1,6 +1,11 @@
 # Test-Driven Development
 
-**BLOCKING:** Tests must exist and fail before implementation.
+**When:** Tests must exist and fail before implementation
+**Severity:** blocking
+
+## Directives
+
+Tests must exist and fail before implementation.
 Rationale: `ai/rationale/tdd.md`
 
 ## Cycle

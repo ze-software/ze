@@ -1,6 +1,11 @@
 # No Layering
 
-**BLOCKING:** When replacing X with Y: DELETE X first, then implement Y. Never keep both.
+**When:** when replacing X with Y
+**Severity:** blocking
+
+## Directives
+
+When replacing X with Y: DELETE X first, then implement Y. Never keep both.
 Rationale: `ai/rationale/no-layering.md`
 
 Forbidden: "keep old + add new", "hybrid approach", "gradual migration", "fallback to old".

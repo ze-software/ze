@@ -1,6 +1,11 @@
 # Buffer-First Encoding -- Mechanical Reference
 
-**BLOCKING:** All wire encoding MUST write into pooled, bounded buffers.
+**When:** All wire encoding MUST write into pooled, bounded buffers
+**Severity:** blocking
+
+## Directives
+
+All wire encoding MUST write into pooled, bounded buffers.
 Principle: `ai/rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding.
 Conceptual model: `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy.
 Rationale: `ai/rationale/buffer-first.md`

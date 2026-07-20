@@ -1,8 +1,9 @@
 # Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
 
-**When:** a functional-test failure (panic, crash, exit-code mismatch, timeout)
-appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be
-reproduced by rerunning the one suite in isolation.
+**When:** a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in isolation.
+**Severity:** advisory
+
+## Directives
 
 Some failures only surface under the scheduling and GC pressure of the full
 ~22-suite run (many concurrent `ze` daemons on all cores). Rerunning the single

@@ -1,6 +1,11 @@
 # Prefer Typed Numeric Over String
 
-**BLOCKING:** Hot paths use typed numeric identity (enum, registered
+**When:** Hot paths use typed numeric identity (enum, registered
+**Severity:** blocking
+
+## Directives
+
+Hot paths use typed numeric identity (enum, registered
 ID, bitset, packed integer), not strings. Across component/engine
 seams the rule holds plus pointer restrictions (`ai/rules/project-knowledge.md`).
 

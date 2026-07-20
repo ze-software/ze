@@ -1,6 +1,11 @@
 # Lint Gate
 
-**BLOCKING:** Run before claiming implementation work is complete.
+**When:** Run before claiming implementation work is complete
+**Severity:** blocking
+
+## Directives
+
+Run before claiming implementation work is complete.
 
 ## The Problem
 

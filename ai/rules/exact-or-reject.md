@@ -1,6 +1,11 @@
 # Exact Or Reject
 
-**BLOCKING:** If the implementation cannot deliver EXACTLY what the
+**When:** If the implementation cannot deliver EXACTLY what the
+**Severity:** blocking
+
+## Directives
+
+If the implementation cannot deliver EXACTLY what the
 operator's config asks for, `ze config verify` / `ze config commit`
 MUST fail with a clear error. Silent approximation, truncation, or
 "best-effort" mapping are bugs.

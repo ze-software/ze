@@ -1,6 +1,11 @@
 # Before Writing Code
 
-**BLOCKING:** Complete before writing any code, tests, or documentation.
+**When:** Complete before writing any code, tests, or documentation
+**Severity:** blocking
+
+## Directives
+
+Complete before writing any code, tests, or documentation.
 Rationale: `ai/rationale/before-writing-code.md`
 
 ```

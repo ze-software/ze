@@ -1,6 +1,11 @@
 # No Fork Loops
 
-**BLOCKING:** Never write a shell for-loop that forks an external command per
+**When:** Never write a shell for-loop that forks an external command per
+**Severity:** blocking
+
+## Directives
+
+Never write a shell for-loop that forks an external command per
 iteration when a single invocation can process all inputs.
 
 On macOS, each `fork+exec` costs ~4-5 ms. A loop over 400 files × one `grep`

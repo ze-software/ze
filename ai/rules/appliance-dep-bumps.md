@@ -1,7 +1,9 @@
 # Appliance Dependency Bumps
 
-**When:** a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or you must
-bump the vendored gokrazy init.
+**When:** a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or you must bump the vendored gokrazy init.
+**Severity:** advisory
+
+## Directives
 
 The alert is almost always a stale *vendored upstream manifest*, not your real
 dependency graph. Follow this runbook.

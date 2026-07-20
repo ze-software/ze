@@ -1,6 +1,11 @@
 # Error Messages
 
-**BLOCKING.** Every error, log line, and failure output you write must let a
+**When:** Every error, log line, and failure output you write must let a
+**Severity:** blocking
+
+## Directives
+
+Every error, log line, and failure output you write must let a
 human or an agent see what failed, why, and what to do next, without opening the
 source. The error is the corrective signal: if it does not point at the fix, the
 reader cannot act and an agent cannot self-correct.

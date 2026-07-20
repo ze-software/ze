@@ -1,6 +1,11 @@
 # Discovery Updates
 
-**BLOCKING.** A change that adds or changes something future agents need to use,
+**When:** A change that adds or changes something future agents need to use,
+**Severity:** blocking
+
+## Directives
+
+A change that adds or changes something future agents need to use,
 verify, document, or avoid MUST update the discovery path in the same work.
 
 ## Trigger

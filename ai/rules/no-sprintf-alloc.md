@@ -1,6 +1,11 @@
 # No Printf Allocations
 
-**BLOCKING:** Never use `fmt.Sprintf`, `fmt.Fprintf`, or `fmt.Errorf` when a
+**When:** reaching for `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Errorf`, or `.String()` concatenation on a hot or allocation-sensitive path
+**Severity:** blocking
+
+## Directives
+
+Never use `fmt.Sprintf`, `fmt.Fprintf`, or `fmt.Errorf` when a
 zero-allocation or lower-allocation alternative exists. Never use `.String()`
 concatenation on a hot path when an append-into-buffer pattern exists.
 Conceptual model: `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers.
@@ -407,7 +412,7 @@ func (b *keyBuilder) Addr(addr netip.Addr) { var buf [39]byte; b.Write(textbuf.A
 
 ## Types Own Their Serialization
 
-**BLOCKING.** Named types MUST have an `AppendTo([]byte) []byte` method.
+Named types MUST have an `AppendTo([]byte) []byte` method.
 Callers never format a type from the outside.
 
 When a struct field is a plain `uint8`/`uint32` but represents a domain concept

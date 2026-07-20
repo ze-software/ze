@@ -1,5 +1,10 @@
 # RFC Compliance
 
+**When:** Ze MUST be a fully RFC 4271 compliant BGP speaker
+**Severity:** advisory
+
+## Directives
+
 Ze MUST be a fully RFC 4271 compliant BGP speaker.
 Rationale: `ai/rationale/rfc-compliance.md`
 

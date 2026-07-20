@@ -1,7 +1,7 @@
 # Config String Coercion
 
-**When:** Writing or reviewing a plugin/component `config.go` that reads YANG
-leaf values out of the delivered config into a typed `Config` struct.
+**When:** Writing or reviewing a plugin/component `config.go` that reads YANG leaf values out of the delivered config into a typed `Config` struct.
+**Severity:** advisory
 
 ## The problem
 

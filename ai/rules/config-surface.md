@@ -1,6 +1,11 @@
 # Config Surface: YANG Config vs Env Var
 
-Extends: `ai/rules/config-design.md`, `ai/patterns/config-option.md`
+**When:** deciding whether a new setting is a YANG config leaf or an env var
+**Severity:** advisory
+**Related:** config-design
+
+## Directives
+
 Naming: `ai/rules/config-naming.md`
 
 Every tunable setting must live at the right level. Misplacement erodes

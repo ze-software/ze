@@ -1,6 +1,11 @@
 # Interop Testing and Goal Validation
 
-**BLOCKING.** Protocol features MUST have interop tests. All features MUST have
+**When:** Protocol features MUST have interop tests
+**Severity:** blocking
+
+## Directives
+
+Protocol features MUST have interop tests. All features MUST have
 goal validation proving the feature achieves its intended purpose, not just that
 the code runs without error.
 
@@ -51,6 +56,33 @@ The `check.py` MUST:
 3. Verify session stability after the exchange (`session_established`)
 4. Use `log_pass`/`log_fail` for clear output
 5. Raise on failure (AssertionError or RuntimeError)
+
+## Prove the test discriminates (BLOCKING)
+
+A passing interop or functional test is evidence only if it would FAIL when the
+behaviour under test is broken. A test that passes whether or not the fix is
+present proves nothing and must never be presented as evidence.
+
+**Before claiming an interop/functional test validates a change, revert the
+change and confirm the test goes RED.** Rebuild the artifact the test drives
+(the container image, the daemon binary) so the revert actually takes effect,
+then restore the fix and confirm GREEN again. Record the RED result.
+
+This is not the same as TDD's red-then-green: a test added to ALREADY-WORKING
+code (a regression test, an interop scenario for existing behaviour) never had a
+red phase, so its discrimination is unproven until you force one.
+
+| Vacuity trap | Why it passes anyway | The tell |
+|--------------|----------------------|----------|
+| An interop test for a sender-side wire change whose receiver must accept any form (e.g. RFC 7606 Section 5.1: receivers accept any field combination) | a conforming peer accepts the old and new wire equally | reverting the sender change leaves the peer's routing table identical |
+| A test asserting the ABSENCE of something (no log line, no allocation, no route) | deleting the mechanism leaves the same absence | ask "what would still be absent if the code were removed?" |
+| A test whose fixture is at an extreme (all-fields-set, max value) | an off-by-one or partial break still handles the extreme | boundary the fixture, test one-below and one-above |
+| A functional test whose data reaches the peer by a DIFFERENT path than the one changed | the unchanged path still delivers | trace which code path actually produces the asserted bytes |
+
+When a change genuinely cannot be discriminated by the peer (the receiver is
+required to accept both forms), say so explicitly in Goal Validation and move the
+discrimination to unit/mutation tests that CAN fail. An interop test in that case
+proves ACCEPTANCE, not correctness of the specific form — state which.
 
 ## Goal Validation (all features)
 

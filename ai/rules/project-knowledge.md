@@ -1,5 +1,8 @@
 # Ze Project Knowledge
 
+**When:** One-line lesson + rule pointer
+**Severity:** advisory
+
 ## Project Knowledge (not in other rules)
 
 - **Family registration** is dynamic via `PluginRegistry.Register()` -- never enumerate, validate format only.

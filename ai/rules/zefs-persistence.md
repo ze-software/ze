@@ -1,9 +1,7 @@
 # zefs Persistence (no loose state files)
 
-**When:** Writing or reviewing code under `internal/plugins`, `internal/component`,
-or `cmd/ze` that needs to persist daemon runtime **state** across a restart,
-reconfigure, or update (a rolling baseline, a snapshot, a sequence number, a
-last-known value, a cache, a hash).
+**When:** Writing or reviewing code under `internal/plugins`, `internal/component`, or `cmd/ze` that needs to persist daemon runtime **state** across a restart, reconfigure, or update (a rolling baseline, a snapshot, a sequence number, a last-known value, a cache, a hash).
+**Severity:** advisory
 
 ## The rule
 

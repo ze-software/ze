@@ -1,5 +1,10 @@
 # Spec Preservation
 
+**When:** Completed specs become learned summaries in `plan/learned/NNN-<name>.md`
+**Severity:** advisory
+
+## Directives
+
 Rationale: `ai/rationale/spec-preservation.md`
 
 Completed specs become learned summaries in `plan/learned/NNN-<name>.md`.

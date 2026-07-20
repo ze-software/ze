@@ -1,6 +1,11 @@
 # Design Context
 
-**BLOCKING:** Before any design decision (communication mechanism,
+**When:** Before any design decision (communication mechanism,
+**Severity:** blocking
+
+## Directives
+
+Before any design decision (communication mechanism,
 naming, package placement, platform backend, lifecycle), load the
 relevant context below. Trained instincts about "how software works"
 are wrong here -- ze has opinions.

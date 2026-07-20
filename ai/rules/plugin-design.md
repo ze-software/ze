@@ -1,6 +1,11 @@
 # Plugin Design
 
-**BLOCKING:** All plugins MUST follow these patterns.
+**When:** All plugins MUST follow these patterns
+**Severity:** blocking
+
+## Directives
+
+All plugins MUST follow these patterns.
 Rationale: `ai/rationale/plugin-design.md`
 Structural template: `ai/patterns/plugin.md`
 

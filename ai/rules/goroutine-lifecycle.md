@@ -1,6 +1,11 @@
 # Goroutine Lifecycle
 
-**BLOCKING:** All goroutines MUST be long-lived workers. Never per-event goroutines in hot paths.
+**When:** All goroutines MUST be long-lived workers
+**Severity:** blocking
+
+## Directives
+
+All goroutines MUST be long-lived workers. Never per-event goroutines in hot paths.
 Rationale: `ai/rationale/goroutine-lifecycle.md`
 
 | Pattern | Status |

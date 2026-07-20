@@ -1,6 +1,11 @@
 # Agent Tooling Contract
 
-**BLOCKING.** All agent-facing CLI output must follow these rules.
+**When:** All agent-facing CLI output must follow these rules
+**Severity:** blocking
+
+## Directives
+
+All agent-facing CLI output must follow these rules.
 
 ## JSON Output Contract
 

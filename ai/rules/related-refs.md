@@ -1,5 +1,10 @@
 # File Cross-References
 
+**When:** Cross-reference comments let Claude load only needed files without scanning the whole package
+**Severity:** advisory
+
+## Directives
+
 Rationale: `ai/rationale/related-refs.md`
 
 ## Purpose

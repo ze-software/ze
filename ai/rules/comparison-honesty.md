@@ -1,6 +1,7 @@
 # Comparison Honesty
 
 **When:** Comparing Ze with another product, project, daemon, appliance, distribution, or vendor feature set.
+**Severity:** advisory
 
 ## Principle
 

@@ -9,7 +9,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-digest-check ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-lint ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-digest-check ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
@@ -85,6 +85,12 @@ ze-doc-test:
 	echo "  -> Rules index (ai/rules/INDEX.md fresh, every rule has a summary)..."; \
 	python3 scripts/dev/rules_index.py --check || FAIL=1; \
 	echo ""; \
+	echo "  -> Rule format (every ai/rules/*.md has the When/Severity block)..."; \
+	python3 scripts/dev/rules_lint.py --quiet || FAIL=1; \
+	echo ""; \
+	echo "  -> Rules digest (ai/rules/CONDENSED.md fresh)..."; \
+	python3 scripts/dev/rules_condensed.py --check || FAIL=1; \
+	echo ""; \
 	echo "  -> Discovery indexes (package map, docs-to-code, learned index fresh)..."; \
 	python3 scripts/dev/package_map.py --check || FAIL=1; \
 	python3 scripts/dev/docs_to_code.py --check || FAIL=1; \
@@ -115,6 +121,22 @@ ze-rules-index:
 
 ze-rules-index-check:
 	@python3 scripts/dev/rules_index.py --check
+
+# Condensed rule digest (ai/rules/CONDENSED.md): the actionable core of every
+# rule, eager-loaded into every session via `@ai/rules/CONDENSED.md` in
+# ai/INSTRUCTIONS.md. Generated from the canonical rule format; a stale digest
+# fails ze-doc-test.
+ze-rules-condensed:
+	@python3 scripts/dev/rules_condensed.py
+
+ze-rules-condensed-check:
+	@python3 scripts/dev/rules_condensed.py --check
+
+# Rule format lint: every ai/rules/*.md carries the required **When:** /
+# **Severity:** metadata block (see ai/rules/rule-format.md), so tooling can
+# parse triggers and severity instead of guessing. Runs inside ze-doc-test.
+ze-rules-lint:
+	@python3 scripts/dev/rules_lint.py
 
 # Generated discovery indexes: what each package does (PACKAGE-MAP), which files
 # implement a design doc (DOCS-TO-CODE), and every learned summary by number

@@ -1,6 +1,11 @@
 # Critical Review Is the Central Deliverable
 
-**BLOCKING:** Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by `commit_helper.py`.
+**When:** Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by
+**Severity:** blocking
+
+## Directives
+
+Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by `commit_helper.py`.
 
 Review is not the last box before commit. It is the highest-leverage step in
 development, and it is the one most easily faked. This rule makes it independent,

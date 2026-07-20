@@ -1,6 +1,11 @@
 # QEMU Integration Testing
 
-**BLOCKING:** Linux-only code (`//go:build linux`) MUST ship with integration
+**When:** writing Linux-only code (`//go:build linux`) that must ship with QEMU integration tests
+**Severity:** blocking
+
+## Directives
+
+Linux-only code (`//go:build linux`) MUST ship with integration
 tests that run in the QEMU Alpine VM. "Needs real hardware" is never a valid
 reason to skip tests. Virtual substitutes exist for every kernel feature ze uses.
 
@@ -18,7 +23,7 @@ reason to skip tests. Virtual substitutes exist for every kernel feature ze uses
 
 ## Linux-only functional (`.ci`) tests run via QEMU, never natively
 
-**BLOCKING:** A functional `.ci` test that boots a daemon (or runs `ze`) which
+A functional `.ci` test that boots a daemon (or runs `ze`) which
 exercises a real Linux kernel feature -- netlink interface/VLAN/veth creation,
 nftables, kernel sockets, L2TP/PPPoE kernel modules -- MUST be marked
 `option=needs-linux`. Such a test cannot pass natively on darwin and must be
@@ -229,6 +234,53 @@ when available, falls back to TCG (software emulation).
 | Route watch integration | `internal/core/routewatch/integration_linux_test.go` |
 | PTY/termios integration | `internal/component/config/system/console_integration_linux_test.go` |
 | QEMU runner script | `scripts/evidence/qemu-run.py` |
+
+## What actually RUNS these suites
+
+This rule says "BLOCKING", so it is worth being precise about which gate enforces
+it, because for a long time none did.
+
+Validation runs on **GitHub Actions** (`.github/workflows/`), not Codeberg. The
+repo is pushed to both codeberg.org and github.com/ze-software/ze; CI moved to
+GitHub because running heavy nightly sweeps on Codeberg's donated shared runners
+is inconsiderate of a free service, and because GitHub's `ubuntu-latest` grants
+the root / `CAP_NET_ADMIN` the integration suite needs, which the shared
+Woodpecker instance could not.
+
+| Suite | Where it runs | Blocking? |
+|-------|---------------|-----------|
+| `make ze-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
+| `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
+| `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
+| `ze-qemu-integration-test` | NOTHING automated | -- |
+
+Two notes on the nightly row:
+
+The cron lives IN `evidence-nightly.yml` (`on: schedule: - cron:`), so merging it
+to the default branch CREATES the schedule -- unlike Woodpecker, whose cron was a
+separate repo setting nothing in the repo recorded. The one caveat: GitHub
+disables scheduled workflows after 60 days with NO repository activity, so a long
+quiet period silently stops the nightly; a `workflow_dispatch` (manual) trigger
+is provided as the re-arm.
+
+`ze-integration-test` runs here now, which it could not on Codeberg: its six
+suites need `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` (`mk/test-integration.mk`),
+and Woodpecker's only lever for that -- `privileged: true` -- is a BLOCKING lint
+error on an untrusted shared instance that aborts the whole pipeline. On GitHub
+the job simply runs under `sudo` as root, which has those capabilities natively.
+It is advisory-first (`continue-on-error: true`): a red suite reports without
+marking the run failed, until a green baseline lets it flip to blocking.
+
+`ze-qemu-integration-test` is still NOT automated: it additionally needs nested
+virt / KVM, which GitHub-hosted runners do not reliably provide. It remains
+enforced by review and by this rule ALONE -- do not assume CI catches a broken
+QEMU test for you; wiring it up needs a self-hosted or KVM-capable runner.
+
+`scripts/dev/github_workflows_test.go` pins the workflow set: that the nightly is
+scheduled-only, runs fuzz AND integration by make-target name, is advisory, does
+not smuggle in the QEMU target, that `verify.yml` stays a fast push/pull_request
+gate, that every `make <target>` any workflow names exists, and that no
+`.woodpecker` pipeline remains.
 
 ## Common Mistakes
 

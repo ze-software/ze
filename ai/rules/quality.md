@@ -1,5 +1,10 @@
 # Quality Standards
 
+**When:** All checks must pass before claiming "done."
+**Severity:** blocking
+
+## Directives
+
 Rationale: `ai/rationale/quality.md`
 
 ## Linting
@@ -8,7 +13,7 @@ Rationale: `ai/rationale/quality.md`
 
 ## Self-Critical Review
 
-**BLOCKING:** All checks must pass before claiming "done."
+All checks must pass before claiming "done."
 
 | Check | Question |
 |-------|----------|
@@ -48,7 +53,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-**BLOCKING:** `make ze-verify` (timeout 240s) is the ONLY acceptable verification before claiming done. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/git-safety.md` for the full pre-commit workflow.
+`make ze-verify` (timeout 240s) is the ONLY acceptable verification before claiming done. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/git-safety.md` for the full pre-commit workflow.
 
 Race coverage: `ze-verify` runs `-race` on component groups with changed `.go` files (two-pass strategy). For reactor concurrency changes, also run `make ze-race-reactor` (`-race -count=20`).
 

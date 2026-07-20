@@ -1,6 +1,11 @@
 # Planning
 
-**BLOCKING:** Complete before implementing any non-trivial feature.
+**When:** Complete before implementing any non-trivial feature
+**Severity:** blocking
+
+## Directives
+
+Complete before implementing any non-trivial feature.
 Rationale: `ai/rationale/planning.md`
 
 ## Spec Selection
@@ -174,7 +179,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 
 ## Completion Checklist
 
-**BLOCKING:** After all tests pass, complete IN ORDER:
+After all tests pass, complete IN ORDER:
 
 ```
 [ ] 1. Documentation updates — check Documentation Update Checklist below.
@@ -322,7 +327,7 @@ Before marking a spec done, for every deferral: verify the receiving spec exists
 
 ## Executive Summary Report
 
-**BLOCKING:** Present to user when all work is complete. Format below.
+Present to user when all work is complete. Format below.
 
 ```
 ## Executive Summary

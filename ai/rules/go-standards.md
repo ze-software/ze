@@ -1,6 +1,9 @@
 # Go Standards
 
 **When:** Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions.
+**Severity:** blocking
+
+## Directives
 
 Rationale: `ai/rationale/go-standards.md`
 
@@ -29,7 +32,7 @@ Never add new third-party imports (not already in `go.mod`) without asking the u
 
 ## Environment Variables: `internal/core/env` only
 
-**BLOCKING:** All Ze environment variable access MUST use `env.Get()` / `env.Set()` or typed helpers. Never use `os.Getenv()` or `os.Setenv()` for Ze-specific vars.
+All Ze environment variable access MUST use `env.Get()` / `env.Set()` or typed helpers. Never use `os.Getenv()` or `os.Setenv()` for Ze-specific vars.
 
 Before adding an env var, read `ai/rules/config-surface.md` (should this be YANG config instead?)
 and `ai/rules/config-naming.md` (naming conventions, env var path must mirror YANG path).

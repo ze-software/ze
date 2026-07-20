@@ -1,6 +1,9 @@
 # Architecture Summary
 
 **When:** Read before reasoning about where a component sits, the BGP subsystem layout, or how formatted events (down) and text commands (up) flow between core and plugins.
+**Severity:** advisory
+
+## Directives
 
 Rationale: `ai/rationale/architecture-summary.md`
 Full details: `docs/architecture/core-design.md`

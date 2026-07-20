@@ -1,6 +1,7 @@
 # Plugin Process Boundary
 
 **When:** Writing or reviewing a plugin that calls another in-process package's plain exported function directly (not through DirectBridge/DispatchCommand) to register a callback, fetch a live backend handle, or otherwise touch that package's process-local state.
+**Severity:** advisory
 
 ## The problem
 

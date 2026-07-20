@@ -1,6 +1,10 @@
 # Config Naming Conventions
 
-Extends: `ai/rules/naming.md`, `ai/rules/config-design.md`
+**When:** Names cross four layers (YANG, env var, Go struct, CLI)
+**Severity:** advisory
+**Related:** naming, config-design
+
+## Directives
 
 Names cross four layers (YANG, env var, Go struct, CLI). Each layer has
 its own convention, but they must be derivable from each other. An

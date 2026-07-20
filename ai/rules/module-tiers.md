@@ -1,7 +1,9 @@
 # Module Tiers (core / component / plugin)
 
-**When:** creating a new package under `internal/`, or deciding whether something
-belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`.
+**When:** creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`.
+**Severity:** advisory
+
+## Directives
 
 **Where a Go package lives under `internal/` is decided by dependency direction,
 not by size or age. Three tiers, two mechanical axes. New code MUST land in the

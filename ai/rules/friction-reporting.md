@@ -1,6 +1,7 @@
 # Friction Reporting
 
 **When:** During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately and say whether a new or changed rule would prevent it.
+**Severity:** advisory
 
 ## Report immediately when
 

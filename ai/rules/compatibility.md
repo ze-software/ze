@@ -1,5 +1,10 @@
 # No Backwards Compatibility
 
+**When:** tempted to add backwards-compatibility code, shims, or fallbacks
+**Severity:** advisory
+
+## Directives
+
 Rationale: `ai/rationale/compatibility.md`
 
 ## Pre-release (current state)

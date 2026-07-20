@@ -1,6 +1,11 @@
 # RFC Summaries Before Design
 
-**BLOCKING:** When a spec lists RFC summaries in its Required Reading section,
+**When:** when a spec lists RFC summaries in its Required Reading section
+**Severity:** blocking
+
+## Directives
+
+When a spec lists RFC summaries in its Required Reading section,
 read ALL of them before making any design recommendations or protocol claims.
 
 ## Why

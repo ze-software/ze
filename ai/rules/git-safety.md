@@ -1,6 +1,9 @@
 # Git Safety
 
 **When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals, known-failures, .counter) cross-commit between concurrent sessions.
+**Severity:** advisory
+
+## Directives
 
 Rationale: `ai/rationale/git-safety.md`
 
@@ -222,13 +225,43 @@ under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 The item-2 "log to `plan/known-failures.md`" path is for **non-deterministic**
 failures only -- flaky or environmental TEST reds (load-sensitive races,
 GC-pressure pool flakes, host-specific listener probes). A **deterministic
-structural gate** is NEVER eligible: `ze-lint`, `ze-tier-check`,
+structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
 `ze-vet-evidence`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
-`ze-cli-grammar-check`, and `ze-verify-wiring-docs` fail only when the tree is
+`ze-regen-check-readonly`, and `ze-verify-wiring-docs` fail only when the tree is
 structurally broken (a misplaced module tier, a lint/vet violation, a broken
-plugin boundary, an unresolved iface, a stale wiring index). Such a red must be
-fixed at the source before any commit -- do not park it, do not `--unverified`
-past it.
+plugin boundary, an unresolved iface, a stale generated file, a stale wiring
+index). Such a red must be fixed at the source before any commit -- do not park
+it, do not `--unverified` past it.
+
+`ze-regen-check-readonly` qualifies on the rule's own terms: a stale generated
+file is deterministic, reproducible, and fixed by `make ze-regen` (or the
+specific `--fix` the failing check names). It is never flaky or environmental.
+
+Known gap, recorded rather than papered over. Several checks run under BOTH
+`ze-doc-test` and `ze-regen-check-readonly`. That overlap is harmless: the runner
+continues across stage failures, so one underlying red fails both stages in the
+same run, `structural_gate_reds` always sees `ze-regen-check-readonly`, and the
+commit is blocked regardless of what `plan/known-failures.md` says about
+`ze-doc-test`. The real gap is the checks that run ONLY under `ze-doc-test` --
+`doc_drift.go`, `commands.go`, `digest_check.py`, and `rfc_requirements.py
+--check-fresh` (`mk/inventory.mk`; note the script's `--selftest`/`--check`
+invocations DO run as the `ze-rfc-check` stage, so only the `--check-fresh`
+ledger-staleness one is doc-test-exclusive). Those are just as deterministic and
+structural, and they ARE
+parkable, because `ze-doc-test` is not in the set. Whoever picks this up should
+decide whether `ze-doc-test` belongs in `STRUCTURAL_GATES`; that is where reds
+actually escape.
+
+This list is the prose mirror of `STRUCTURAL_GATES` in `scripts/dev/commit_helper.py`,
+and every name in it must be a stage `stagesForMode` actually emits
+(`scripts/status/verify_run.go`) -- otherwise the entry matches nothing and gates
+nothing. `test_structural_gates_are_live_stages` (`scripts/dev/commit_helper_test.py`)
+and `TestStructuralGatesAreLiveStages` (`scripts/status/verify_run_test.go`) enforce
+that. `ze-cli-grammar-check` was listed here until 2026-07-20 and was exactly that
+dead entry: a real make target (`mk/inventory.mk`), but never a verify stage, so
+`structural_gate_reds` could never match it. Its underlying gate is not lost --
+`TestCLIGrammarGateStatic` (`scripts/checks/cli_grammar_test.go`) runs the real
+checker under the unit stage.
 
 This is enforced, not honor-system: `scripts/dev/commit_helper.py create` reads
 `tmp/ze-verify-failures.json` (which `verify_run.go` rewrites after every run) and

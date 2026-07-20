@@ -1,6 +1,11 @@
 # Pipe Completeness
 
-**BLOCKING.** Every command that produces output MUST support all pipe operators.
+**When:** Every command that produces output MUST support all pipe operators
+**Severity:** blocking
+
+## Directives
+
+Every command that produces output MUST support all pipe operators.
 
 ## The Pipe Operators
 

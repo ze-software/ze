@@ -1,7 +1,7 @@
 # CI Sleep Justification
 
-**When:** Adding, editing, or reviewing any `time.sleep(` in a `test/**/*.ci`
-functional test. Every sleep must carry a comment explaining why it is there.
+**When:** Adding, editing, or reviewing any `time.sleep(` in a `test/**/*.ci` functional test. Every sleep must carry a comment explaining why it is there.
+**Severity:** advisory
 
 ## Rule
 

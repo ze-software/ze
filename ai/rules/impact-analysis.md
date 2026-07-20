@@ -1,6 +1,11 @@
 # Impact Analysis
 
-**BLOCKING:** Before modifying a file, check what else needs to change.
+**When:** Before modifying a file, check what else needs to change
+**Severity:** blocking
+
+## Directives
+
+Before modifying a file, check what else needs to change.
 Changes to certain file types have predictable ripple effects.
 
 ## By File Type

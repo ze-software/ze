@@ -1,5 +1,10 @@
 # Hook-to-Rule Mapping
 
+**When:** Quick reference: which checks enforce which rules, and when they trigger
+**Severity:** advisory
+
+## Directives
+
 Quick reference: which checks enforce which rules, and when they trigger.
 Consult this BEFORE writing code to proactively comply, rather than
 fixing after rejection. For hook false positives and workarounds, see

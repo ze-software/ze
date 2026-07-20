@@ -1,6 +1,11 @@
 # CLI Grammar: Keywords Before Values
 
-**BLOCKING.** Every CLI command must place a closed keyword before any
+**When:** Every CLI command must place a closed keyword before any
+**Severity:** blocking
+
+## Directives
+
+Every CLI command must place a closed keyword before any
 user-supplied value. This eliminates ambiguity where a free-form value
 could collide with a keyword.
 
@@ -290,7 +295,7 @@ keyword-before-value, action-before-identifier, config-tree-mutation stays in
 
 | Feeder | What it checks | Run |
 |--------|----------------|-----|
-| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (in `make ze-verify`) |
+| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (NOT a `make ze-verify` stage -- it is not in `stagesForMode`; the gate reaches CI through `TestCLIGrammarGateStatic` in `scripts/checks/cli_grammar_test.go`, which runs the same checker under the unit stage) |
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
 | Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `make ze-cli-grammar-check` (same gate); `TestRootNamespaceGrammar` (unit) |

@@ -1,5 +1,10 @@
 # Ze Divergences from Standard Go
 
+**When:** Ze differs from typical Go projects in specific, load-bearing ways
+**Severity:** advisory
+
+## Directives
+
 Ze differs from typical Go projects in specific, load-bearing ways.
 An AI trained on standard Go patterns will default to the wrong
 approach unless it reads this document. Each entry names the standard

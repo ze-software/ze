@@ -1,6 +1,11 @@
 # Initrd: Prefer Procfs/Sysfs Over External Commands
 
-**BLOCKING:** Read before modifying the installer initrd (`cmd/ze-installer`,
+**When:** Read before modifying the installer initrd (`cmd/ze-installer`,
+**Severity:** blocking
+
+## Directives
+
+Read before modifying the installer initrd (`cmd/ze-installer`,
 `internal/install/disk/*_linux.go`).
 
 The installer initrd is a single statically-linked Go binary (`cmd/ze-installer`)

@@ -1,6 +1,11 @@
 # No Code in Specs
 
-**BLOCKING:** Specs MUST NOT contain code snippets (any language).
+**When:** Specs MUST NOT contain code snippets (any language)
+**Severity:** blocking
+
+## Directives
+
+Specs MUST NOT contain code snippets (any language).
 Rationale: `ai/rationale/spec-no-code.md`
 
 | Instead of | Use |

@@ -1,5 +1,10 @@
 # Naming
 
+**When:** naming anything in Ze (identifiers, files, commands, config)
+**Severity:** advisory
+
+## Directives
+
 Rationale: `ai/rationale/naming.md`
 
 "Ze" = "The" with a French accent. Use "ze" where "the" works grammatically.
