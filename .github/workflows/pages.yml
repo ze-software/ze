@@ -39,9 +39,6 @@ jobs:
           go-version-file: main/go.mod
           cache-dependency-path: main/go.sum
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-
       - name: Install VHS and ffmpeg
         run: |
           make -C main ze-terminal-demo-tools
@@ -50,12 +47,6 @@ jobs:
       - name: Generate terminal media
         run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/site/assets/demos"
 
-      - name: Build documentation binary
-        run: make -C main bin/ze
-
-      - name: Build website
-        run: uv run --with markdown --with rcssmin --with rjsmin python3 tools/build.py
-        working-directory: site
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
