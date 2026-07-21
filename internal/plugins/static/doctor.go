@@ -1,5 +1,6 @@
 // Design: plan/learned/650-static-routes.md -- interface-only next-hop readiness check
 // Related: register.go -- doctor check registration (static-interface-nexthop-backend)
+// Related: inject.go -- routeManager.skipped + activeRouteManager the route-skipped check reads
 // Related: backend_linux.go -- resolveNexthopIndex, the runtime resolve this pre-flights
 
 package static
@@ -7,6 +8,7 @@ package static
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -17,19 +19,71 @@ import (
 // can describe it.
 const doctorCodeInterfaceNexthopNoBackend = "doctor-static-interface-nexthop-no-backend"
 
+// doctorCodeRouteSkipped is emitted when the running static plugin has skipped
+// one or more routes the backend could not program (per-route isolation,
+// spec-fixit-static-per-route-isolation). Registered in
+// internal/core/diagnostic/codes.go so `ze explain` can describe it.
+const doctorCodeRouteSkipped = "doctor-static-route-skipped"
+
 // staticDoctorChecks declares the static plugin's doctor readiness checks. The
 // interface-only next-hop check is the config-time backstop for the runtime
 // dependency an interface next-hop has on a loaded iface backend
 // (spec-fixit-static-interface-nexthops D-2 = (a)+(b), ai/rules/doctor-checks.md).
+// The route-skipped check surfaces routes the running plugin isolated at apply
+// time so a skip is never a silent no-op (spec-fixit-static-per-route-isolation
+// AC-3, ai/rules/fail-closed-guards.md).
 func staticDoctorChecks() []registry.DoctorCheckDef {
-	return []registry.DoctorCheckDef{{
-		Name:         "static-interface-nexthop-backend",
-		Phase:        rpc.DoctorPhasePostConfig,
-		Order:        720,
-		Dependencies: []string{"static"},
-		Platforms:    []string{"any"},
-		Codes:        []string{doctorCodeInterfaceNexthopNoBackend},
-		Check:        checkInterfaceNexthopBackend,
+	return []registry.DoctorCheckDef{
+		{
+			Name:         "static-interface-nexthop-backend",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        720,
+			Dependencies: []string{"static"},
+			Platforms:    []string{"any"},
+			Codes:        []string{doctorCodeInterfaceNexthopNoBackend},
+			Check:        checkInterfaceNexthopBackend,
+		},
+		{
+			Name:         "static-route-skipped",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        721,
+			Dependencies: []string{"static"},
+			Platforms:    []string{"any"},
+			Codes:        []string{doctorCodeRouteSkipped},
+			Check:        checkRouteSkipped,
+		},
+	}
+}
+
+// checkRouteSkipped reports the routes the running static plugin could not
+// program and skipped (per-route isolation). It reads the live route manager
+// (activeRouteManager); when nil -- the offline `ze doctor <config>` path with
+// no running daemon, or an external forked static plugin -- there is no runtime
+// skip state to report and it stays silent (the WARN logs and `static show`
+// remain the always-on surfaces). It is a WARNING, not an error: the daemon is
+// running as designed with the good routes programmed; the operator is told
+// which prefixes are unrouted and why so a skip is never silent.
+func checkRouteSkipped(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+	rm := activeRouteManager.Load()
+	if rm == nil {
+		return nil
+	}
+	skipped := rm.skippedRoutes()
+	if len(skipped) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str("static routes skipped (rest of the section kept programmed): ")
+	for i, sk := range skipped {
+		if i > 0 {
+			tb.Str("; ")
+		}
+		tb.Str(sk.route.Prefix.String()).Str(" (").Str(sk.reason).Byte(')')
+	}
+	return []rpc.DoctorCheckDiagnostic{{
+		Code:     doctorCodeRouteSkipped,
+		Severity: "warning",
+		Message:  tb.String(),
 	}}
 }
 

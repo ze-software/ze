@@ -166,6 +166,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-static-interface-nexthop-no-backend"},
 	},
 	{
+		Code:        "doctor-static-route-skipped",
+		Title:       "Static route skipped (rest of section kept programmed)",
+		Description: "The running static plugin could not program one or more routes (an absent device, an absent interface backend, or an unresolvable next-hop) and skipped them so the rest of the static section stayed programmed. A skipped prefix is unrouted until its dependency appears; it is re-attempted on the next config apply and clears once it programs. Run `static show` to see which prefixes are skipped and why, then fix the offending next-hop or create the missing device or interface backend.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-static-route-skipped"},
+	},
+	{
 		Code:        "doctor-ddos-detect-no-flow-source",
 		Title:       "DDoS characterization has no flow source",
 		Description: "ddos-detect is enabled with characterization on, but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured. Detection still works, but mitigation degrades to generic-flood with no target prefix, so responders cannot install a surgical or targeted rule. Enable traffic-usage track-ip and/or flow-export conntrack.",

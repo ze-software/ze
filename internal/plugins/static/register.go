@@ -123,6 +123,11 @@ func runStaticPlugin(conn net.Conn) int {
 
 	backend := newStaticBackend()
 	rm := newRouteManager(backend)
+	// Publish the live route manager so the static-route-skipped doctor check can
+	// report routes skipped at apply time (per-route isolation, AC-3). Cleared on
+	// exit so a stopped plugin leaves no stale skip state behind.
+	activeRouteManager.Store(rm)
+	defer activeRouteManager.Store(nil)
 
 	// Redistribute late-join replay: on a ReplayRequest re-emit the current
 	// static-route set tagged with the echoed ReplayID so a peer that

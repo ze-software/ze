@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1218 summaries
+Total: 1219 summaries
 
 ## 000-099
 
@@ -1292,3 +1292,4 @@ Total: 1218 summaries
 | 1244 | fixit-shared-plan-file-contention | `plan/learned/1244-fixit-shared-plan-file-contention.md` |
 | 1245 | fixit-bgp-concurrency-races | `plan/learned/1245-fixit-bgp-concurrency-races.md` |
 | 1246 | fixit-session-id-collision | `plan/learned/1246-fixit-session-id-collision.md` |
+| 1247 | fixit-static-per-route-isolation | `plan/learned/1247-fixit-static-per-route-isolation.md` |

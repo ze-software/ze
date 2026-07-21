@@ -73,6 +73,28 @@ func TestStaticDeclaresInterfaceNexthopDoctorCheck(t *testing.T) {
 	}
 }
 
+// TestStaticDeclaresRouteSkippedDoctorCheck
+// VALIDATES: spec-fixit-static-per-route-isolation AC-3 -- the static plugin owns
+// a doctor readiness check emitting doctor-static-route-skipped, so a route the
+// backend could not program is surfaced through `ze doctor`, never a silent drop.
+func TestStaticDeclaresRouteSkippedDoctorCheck(t *testing.T) {
+	reg := registry.Lookup("static")
+	if reg == nil {
+		t.Fatal("static plugin not registered")
+	}
+	found := false
+	for _, dc := range reg.DoctorChecks {
+		for _, code := range dc.Codes {
+			if code == "doctor-static-route-skipped" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Error("static plugin declares no doctor check emitting doctor-static-route-skipped")
+	}
+}
+
 // TestStaticRegistersRedistributeSource
 // VALIDATES: the static plugin registers "static" as a redistribute source at init(),
 // so `redistribute { destination <proto> { import static } }` resolves and is visible to

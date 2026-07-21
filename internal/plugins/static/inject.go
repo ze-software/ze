@@ -1,13 +1,14 @@
 // Design: plan/learned/710-gap-2-static-route-enhancements.md -- BFD integration and active NH tracking
+// Related: doctor.go -- checkRouteSkipped reads routeManager.skipped + activeRouteManager
 
 package static
 
 import (
 	"cmp"
-	"errors"
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -33,10 +34,21 @@ type routeKey struct {
 	prefix netip.Prefix
 }
 
+// skippedRoute records a route the backend could not program, together with the
+// reason. Per-route isolation (spec-fixit-static-per-route-isolation) keeps a
+// failing route out of the FIB and the diff baseline while surfacing it here so
+// `static show` and the doctor check can report it. A skipped route is
+// re-attempted on the next apply and clears once it programs.
+type skippedRoute struct {
+	route  staticRoute
+	reason string
+}
+
 type routeManager struct {
 	mu      sync.Mutex
 	backend routeBackend
 	routes  map[routeKey]*routeState
+	skipped map[routeKey]skippedRoute
 	bfd     bfdapi.Service
 }
 
@@ -44,8 +56,18 @@ func newRouteManager(backend routeBackend) *routeManager {
 	return &routeManager{
 		backend: backend,
 		routes:  make(map[routeKey]*routeState),
+		skipped: make(map[routeKey]skippedRoute),
 	}
 }
+
+// activeRouteManager points at the running static plugin's route manager, set in
+// runStaticPlugin. The doctor check reads it to report routes the backend
+// skipped at runtime. It is nil in the offline `ze doctor <config>` path (no
+// daemon), where there is no runtime skip state to report, and when static runs
+// as an external forked plugin (the daemon process holds no route manager) --
+// in those cases `static show` and the WARN logs remain the always-on skip
+// surfaces. Set once per process; static runs at most one route manager.
+var activeRouteManager atomic.Pointer[routeManager]
 
 func (rm *routeManager) setBFD(svc bfdapi.Service) {
 	rm.mu.Lock()
@@ -68,13 +90,25 @@ func (rm *routeManager) applyRoutes(routes []staticRoute) error {
 		newMap[routeKey{table: r.Table, prefix: r.Prefix}] = r
 	}
 
-	var errs []error
+	// Per-route isolation (spec-fixit-static-per-route-isolation, A-2): a route
+	// the backend cannot program is logged and skipped, never section-fatal. The
+	// good routes stay programmed and applyRoutes returns nil. The skip is
+	// surfaced (rm.skipped) so `static show` and the doctor check report it, and
+	// the route is re-attempted on the next apply.
 	for key, rs := range rm.routes {
 		if _, keep := newMap[key]; !keep {
 			if err := rm.removeRouteLocked(rs); err != nil {
-				errs = append(errs, err)
+				logger().Warn("static: route skipped, kept rest of section",
+					"prefix", rs.route.Prefix, "table", rs.route.Table, "reason", err)
 			}
 			delete(rm.routes, key)
+		}
+	}
+	// A previously-skipped route that is no longer in the config is dropped: it
+	// was never programmed, so there is nothing to remove from the FIB.
+	for key := range rm.skipped {
+		if _, keep := newMap[key]; !keep {
+			delete(rm.skipped, key)
 		}
 	}
 
@@ -85,19 +119,30 @@ func (rm *routeManager) applyRoutes(routes []staticRoute) error {
 			continue
 		}
 		if err := rm.applyRouteLocked(r); err != nil {
-			errs = append(errs, err)
+			logger().Warn("static: route skipped, kept rest of section",
+				"prefix", r.Prefix, "table", r.Table, "reason", err)
 		}
 	}
 
-	return errors.Join(errs...)
+	return nil
 }
 
 func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 	key := routeKey{table: r.Table, prefix: r.Prefix}
+	// Capture the route being replaced (if any) before teardown, so that if the
+	// replacement is then skipped we can reclaim its orphaned FIB entry and
+	// announcement (the skip branch below). teardownRouteLocked does NOT touch
+	// the backend, so the old kernel route survives a replace.
+	var replacedRoute staticRoute
+	var hasReplaced, replacedEmitted, removeAlreadyEmitted bool
 	if existing := rm.routes[key]; existing != nil {
 		if existing.emitted && r.Action != actionForward {
 			rm.emitRouteChange(redistevents.ActionRemove, existing.route)
+			removeAlreadyEmitted = true
 		}
+		replacedRoute = existing.route
+		hasReplaced = true
+		replacedEmitted = existing.emitted
 		rm.teardownRouteLocked(existing)
 	}
 
@@ -115,7 +160,37 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 	}
 
 	rm.routes[key] = rs
-	return rm.programRouteLocked(rs)
+	if err := rm.programRouteLocked(rs); err != nil {
+		// Per-route isolation: the FIB program failed. Undo the half-built state
+		// so the diff baseline (rm.routes) never retains an unprogrammed route --
+		// this keeps the routesEqual short-circuit honest for the good routes
+		// (650 R-10 / AC-5) and lets this route be re-attempted on the next apply.
+		// Record it in rm.skipped so the skip is observable (AC-3), never silent.
+		rm.teardownRouteLocked(rs)
+		delete(rm.routes, key)
+		rm.skipped[key] = skippedRoute{route: r, reason: err.Error()}
+		// If this skip REPLACED an existing route, the old kernel entry and its
+		// announcement are now orphaned (teardown left the backend untouched, and
+		// the replacement failed to program). Withdraw both so the FIB, the
+		// redistribute announcement, and `static show` all agree the prefix is
+		// UNROUTED and skipped (re-attempted next apply). This is not the 650
+		// flap case: the route is genuinely gone, so a Remove is correct.
+		if hasReplaced {
+			if remErr := rm.backend.removeRoute(replacedRoute); remErr != nil {
+				logger().Warn("static: replaced route removal failed on skip",
+					"prefix", replacedRoute.Prefix, "table", replacedRoute.Table, "error", remErr)
+			}
+			// Withdraw the old announcement, but only if it was announced AND the
+			// forward->non-forward branch above did not already emit its Remove.
+			if replacedEmitted && !removeAlreadyEmitted {
+				rm.emitRouteChange(redistevents.ActionRemove, replacedRoute)
+			}
+		}
+		return err
+	}
+	// A route that programs clears any prior skip for its key (it resolved).
+	delete(rm.skipped, key)
+	return nil
 }
 
 func (rm *routeManager) removeRouteLocked(rs *routeState) error {
@@ -299,6 +374,12 @@ type showRoute struct {
 	Metric      uint32   `json:"metric"`
 	Tag         uint32   `json:"tag,omitempty"`
 	Description string   `json:"description,omitempty"`
+	// Skipped is true for a route the backend could not program (per-route
+	// isolation, spec-fixit-static-per-route-isolation). Such a route is NOT in
+	// the FIB; SkipReason names why. The operator sees it here so a skip is never
+	// a silent no-op (AC-3, ai/rules/fail-closed-guards.md).
+	Skipped    bool   `json:"skipped,omitempty"`
+	SkipReason string `json:"skip-reason,omitempty"`
 }
 
 type showNH struct {
@@ -313,7 +394,7 @@ func (rm *routeManager) showRoutes() []showRoute {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	out := make([]showRoute, 0, len(rm.routes))
+	out := make([]showRoute, 0, len(rm.routes)+len(rm.skipped))
 	for _, rs := range rm.routes {
 		sr := showRoute{
 			Prefix:      rs.route.Prefix.String(),
@@ -334,11 +415,53 @@ func (rm *routeManager) showRoutes() []showRoute {
 		}
 		out = append(out, sr)
 	}
+	// Skipped routes are not in the FIB (rm.routes); surface them here marked
+	// skipped so the operator can see which prefixes are unrouted and why.
+	for _, sk := range rm.skipped {
+		sr := showRoute{
+			Prefix:      sk.route.Prefix.String(),
+			Table:       sk.route.Table,
+			Action:      sk.route.Action.String(),
+			Metric:      sk.route.Metric,
+			Tag:         sk.route.Tag,
+			Description: sk.route.Description,
+			Skipped:     true,
+			SkipReason:  sk.reason,
+		}
+		for _, nh := range sk.route.NextHops {
+			sr.NextHops = append(sr.NextHops, showNH{
+				Address:    nh.Address.String(),
+				Interface:  nh.Interface,
+				Weight:     nh.Weight,
+				BFDProfile: nh.BFDProfile,
+				Active:     false,
+			})
+		}
+		out = append(out, sr)
+	}
 	slices.SortFunc(out, func(a, b showRoute) int {
 		if c := cmp.Compare(a.Prefix, b.Prefix); c != 0 {
 			return c
 		}
 		return cmp.Compare(a.Table, b.Table)
+	})
+	return out
+}
+
+// skippedRoutes returns a deterministic snapshot of the routes the backend could
+// not program. Used by the doctor check to report skipped prefixes.
+func (rm *routeManager) skippedRoutes() []skippedRoute {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	out := make([]skippedRoute, 0, len(rm.skipped))
+	for _, sk := range rm.skipped {
+		out = append(out, sk)
+	}
+	slices.SortFunc(out, func(a, b skippedRoute) int {
+		if c := cmp.Compare(a.route.Prefix.String(), b.route.Prefix.String()); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.route.Table, b.route.Table)
 	})
 	return out
 }

@@ -47,10 +47,10 @@ address-less path's proto.
   resolution failure is always reachable.
 - **Whole-section failure kept and documented (D-3 = (a)).** One unresolvable
   next-hop still fails the whole static section (a deliberate blast-radius
-  choice). Per-route isolation is deferred to
-  `plan/spec-fixit-static-per-route-isolation.md`; `inject.go` is NOT touched
-  here, so the `routesEqual` diff that keeps `WantsConfig`-widening cheap stays
-  intact.
+  choice). Per-route isolation was deferred at the time and later implemented
+  (see `plan/learned/1247-fixit-static-per-route-isolation.md`); `inject.go` is
+  NOT touched here, so the `routesEqual` diff that keeps `WantsConfig`-widening
+  cheap stays intact.
 
 ## Consequences
 
