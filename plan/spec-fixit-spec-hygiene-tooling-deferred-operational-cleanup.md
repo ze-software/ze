@@ -243,6 +243,24 @@ mitigation. Thomas: override if wrong.
 2. **Phase: Close** — two-commit closure if item 1 is confirmed complete.
 3. **Phase: Index** — prune or index; `make ze-regen`; confirm `make ze-regen-check` is green.
 
+## Review Gate
+
+### Run 1 (closure, 2026-07-21)
+
+Both ACs demonstrated (this is a repo-state chore spec, no feature code to review):
+- **AC-1 (close `spec-ipsec-13-rekey-wire`, or leave open with a reason):** CLOSED. Verified
+  complete first (not on the flag alone): its Review Gate reads 0 BLOCKER / 0 ISSUE with interop
+  `05-child-rekey` PASS, the rekey code + learned 1069 are committed, rekey unit tests + `go vet`
+  green. Repointed the `ike/engine/msgid.go` design-ref to learned 1069, then two-commit-closed it
+  (`plan/spec-ipsec-13-rekey-wire.md` removed). A-1 validated.
+- **AC-2 (no un-indexed learned + `ze-regen-check` green):** `ai/LEARNED-FULL-INDEX.md` already
+  indexes all 1211 summaries (numbering unique/consistent) -- no un-indexed learned file. The
+  `ze-regen-check` red was two stale DERIVED indexes (`ai/rules/CONDENSED.md`,
+  `ai/CODE-TO-DOCS.md`); regenerated + committed (`af1a034db`); `ze-regen-check-readonly` now green.
+  A-2 validated.
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE.** Deferral row 111 resolved (done -> learned 1240).
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
