@@ -157,6 +157,28 @@ The re-vendor deletes ~60 tracked files and adds ~60 new ones.
 Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFLAGS=-modcacherw`): go's default read-only cache permissions (dirs `r-x`) make git unable to delete or overwrite modcache files on later...
 ## Do not just dismiss
 Dismissing the alert leaves the stale manifest; a future advisory below the pin will re-fire on the same file.
+## Proactive review cadence (builddir pins)
+The appliance builddir modules (`gokrazy/ze/builddir/`) and the checked-in module cache (`gokrazy/modcache/`) are **excluded from Dependabot** (`.github/dependabot.yml`) on purpose: an automated PR would fight the...
+**Cadence:** review the builddir pins **once per release cycle, and at minimum
+1. For the vendored gokrazy init and `rtr7/kernel`, fetch the latest upstream
+2. If a fix applies, run the bump runbook above. If not, record the review date so
+3. Re-confirm the GPLv2 source-offer sign-off below is still current.
+## GPLv2 source-offer sign-off (rtr7/kernel): UNRESOLVED, flag only
+The appliance image ships a GPLv2 Linux kernel: `github.com/rtr7/kernel` (`gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod:5`, pinned as an indirect pseudo-version).
+**corresponding source** available (typically a written offer accompanying the image).
+**Status: UNRESOLVED.** No source-offer compliance sign-off is recorded. This note
+**flags** the obligation; it does not adjudicate it. That is a licensing/legal call,
+## Root-module pseudo-version pins (no upstream tags)
+Separate from the builddir concern: six **root** `go.mod` direct dependencies are pinned to pseudo-versions (`v0.0.0-<date>-<hash>`) rather than semver tags.
+**not a defect**. It was verified (2026-07-21, `spec-fixit-supply-chain-hardening`
+| Root dep (`go.mod` line) | Pin form | Upstream semver tag? |
+|--------------------------|----------|----------------------|
+| `github.com/charmbracelet/ssh` (:12) | pseudo-version | none published |
+| `github.com/insomniacslk/dhcp` (:15) | pseudo-version | none published |
+| `github.com/packetcap/go-pcap` (:19) | pseudo-version | none published |
+| `golang.zx2c4.com/wireguard/wgctrl` (:30) | pseudo-version | none published |
+| `github.com/gokrazy/tools` (:38) | pseudo-version | none published |
+| `github.com/gokrazy/updater` (:39) | pseudo-version | none (hard fork; see `scripts/dev/reapply-updater-fixes.py`) |
 
 ---
 
