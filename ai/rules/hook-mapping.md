@@ -181,8 +181,8 @@ written); WARN gates print to stderr and let the script be written.
 |---|---|---|---|
 | verify-status / structural-gate | `git-safety.md` | BLOCK | Refuses a script over a non-green `ze-verify` (structural reds are unbypassable). |
 | discovery-index | `discovery-updates.md` | BLOCK | Refuses when a generated index (PACKAGE-MAP / DOCS-TO-CODE / LEARNED-FULL-INDEX) would be left stale. |
-| deferral-unassigned | `deferral-tracking.md` | BLOCK | Blocks when `plan/deferrals.md` has an open row with no Destination. |
-| deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and `plan/deferrals.md` is not part of the commit (diff computed in a throwaway git index). |
+| deferral-unassigned | `deferral-tracking.md` | BLOCK | Folds over every shard in `plan/deferrals/` and flags an open row with no Destination. |
+| deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and no `plan/deferrals/` shard is part of the commit (diff computed in a throwaway git index). |
 | spec-audit | `planning.md` | BLOCK | Blocks the closure commit (the one adding the claimed spec's `plan/learned/NNN-<stem>.md`) when that spec's `## Pre-Commit Verification` section is unfilled. Keyed to `spec-session.sh current`; no claim → skips. |
 | wiring-at-commit | `integration-completeness.md` | WARN | Warns when `internal/plugins/**/*.go` is committed with no `.ci`. |
 | doc-drift | `documentation.md` | WARN | Runs `scripts/docvalid/doc_drift.go`; warns on drift. |

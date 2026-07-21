@@ -1,6 +1,6 @@
 # Git Safety
 
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals, known-failures) cross-commit between concurrent sessions.
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for deferrals, still single for known-failures) cross-commits between concurrent sessions.
 **Severity:** advisory
 
 ## Directives
@@ -18,18 +18,23 @@ script (so staging never sits open between calls, nothing left dangling),
 then run that script yourself: `bash tmp/commit-<SESSION>.sh`. Committing
 is allowed; committing outside a script is not.
 
-**Shared plan files cross-commit even with a correct, explicit `--file`
-list.** The rule above fixes staging *timing*; it cannot fix staging
+**A shared single-file plan log cross-commits even with a correct, explicit
+`--file` list.** The rule above fixes staging *timing*; it cannot fix staging
 *granularity*. `git add <file>` stages the WHOLE file, including hunks
-another session left uncommitted in it. `plan/deferrals.md` and
-`plan/known-failures.md` are single files that
-every session appends to, so whoever commits first carries everyone else's
-pending rows into their commit. Observed twice on 2026-07-15/16: one
-session's `deferrals.md` edits landed inside two unrelated VRRP commits,
-and three concurrent sessions (ping, ipc, lg) each had `plan/deferrals.md`
-in their own explicit `--file` list at the same time.
+another session left uncommitted in it. The fix is to SHARD the log so each
+session writes only files it owns and git merges disjoint creations without
+conflict. **Deferrals are already sharded**: they live one file per source
+under `plan/deferrals/` (`ai/rules/deferral-tracking.md`), so `git add
+plan/deferrals/<source>.md` stages only your row. `plan/known-failures.md`
+is still a single appended file and still cross-commits -- whoever commits
+first carries everyone else's pending rows. The hazard was observed twice on
+2026-07-15/16 (before deferrals were sharded): one session's `deferrals.md`
+edits landed inside two unrelated VRRP commits, and three concurrent sessions
+(ping, ipc, lg) each had the single `deferrals.md` file in their own `--file`
+list at the same time.
 
-Consequences, in order of importance:
+Consequences (they still apply to any un-sharded shared log, e.g.
+`plan/known-failures.md`), in order of importance:
 
 | Situation | Do |
 |-----------|-----|
@@ -167,10 +172,11 @@ CODE. A concurrent session's out-of-scope NON-CODE files -- generated
 discovery indexes, docs, tracking markdown -- MAY be swept into your commit
 when doing so keeps the tree consistent or unblocks you; foreign source and
 test files are never included. Name the inclusion and its origin in the
-commit body. This does not clear the whole-tree closure gates: a spec's
-`git rm` closure still fails while any foreign entry in `plan/deferrals.md`
-lacks a real destination spec, so closure waits on the owning session, not
-on what you commit.
+commit body. This does not clear the whole-tree closure gates: the deferral
+homing check folds over every shard in `plan/deferrals/`, so a foreign entry
+in any shard that lacks a real destination spec is surfaced at closure
+regardless of what you commit -- home it in its own shard, do not paper over
+it (the check is advisory, but the obligation is not).
 
 ## Before Any Commit
 

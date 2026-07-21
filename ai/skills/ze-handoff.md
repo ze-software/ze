@@ -18,7 +18,7 @@ See also: `/ze-debrief` (current session state), `/ze-status` (cross-project att
    - What is done (committed or implemented)
    - What is in progress (uncommitted changes)
    - What is remaining (unfinished spec items, ACs without evidence)
-   - What is deferred (from `plan/deferrals.md` and session skips)
+   - What is deferred (from the `plan/deferrals/` shards and session skips)
 3. **Identify files already handled:** List files that were read, understood, and don't need re-reading.
 4. **Build the edit list:** For remaining work, produce concrete edits. Each edit must be:
    - File path with line range

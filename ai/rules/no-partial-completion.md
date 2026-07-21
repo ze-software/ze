@@ -19,7 +19,7 @@ later that 1/3 or 2/3 of the feature was never built.
 **You may not claim work is done, complete, ready to commit, or ready for review
 while any in-scope acceptance criterion remains unimplemented.**
 
-"Deferred" does not mean "done." "Tracked in deferrals.md" does not mean "done."
+"Deferred" does not mean "done." "Tracked in a plan/deferrals/ shard" does not mean "done."
 "Will be handled in a follow-up" does not mean "done." If the spec lists it and
 you did not build it, the work is not done.
 

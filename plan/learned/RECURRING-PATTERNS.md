@@ -611,8 +611,8 @@ overhaul that fixed it — code existed, was not wired).
 **Avoid it by.** If you are about to write a learned summary that
 contains the phrase "future X", "requires Y in a follow-up", or
 "deferred to N": the spec is not done. Do not close it. Either wire
-it, or explicitly record the deferral in `plan/deferrals.md` with a
-named destination spec.
+it, or explicitly record the deferral in the source's `plan/deferrals/<source>.md`
+shard with a named destination spec.
 
 **Recover if you hit it.** Read the entire summary for "future",
 "deferred", "not yet wired"; pick up the work.

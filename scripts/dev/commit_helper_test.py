@@ -134,9 +134,12 @@ class TestDeferralDestination(unittest.TestCase):
 
     def _repo(self, tmp: str, rows: str) -> Path:
         root = Path(tmp)
-        (root / "plan").mkdir(parents=True)
+        (root / "plan" / "deferrals").mkdir(parents=True)
         (root / "plan" / "spec-rib-deferred-ipv6-coverage.md").write_text("# Spec\n")
-        (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER + rows)
+        # Deferrals are sharded per source; the gate folds over plan/deferrals/*.md.
+        (root / "plan" / "deferrals" / "spec-rib.md").write_text(
+            DEFERRALS_HEADER + rows
+        )
         return root
 
     def _row(self, dest: str) -> str:
@@ -210,8 +213,8 @@ class TestDeferralDestination(unittest.TestCase):
     def test_resolved_rows_are_not_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan").mkdir(parents=True)
-            (root / "plan" / "deferrals.md").write_text(
+            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals" / "spec-rib.md").write_text(
                 DEFERRALS_HEADER
                 + "| 2026-07-16 | spec-rib.md | old item | time | later maybe | done |\n"
             )
@@ -226,17 +229,20 @@ def _deferral_gate(rows: list[tuple[str, str]]) -> list[str]:
     its spec happens not to exist in the fixture. Resolution goes through
     ch.deferral_destination_paths so the harness creates exactly the paths the
     gate checks; resolving it a second time here would let the two drift.
+
+    The rows are written into a single plan/deferrals/ shard; the gate folds over
+    every shard in that directory.
     """
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        (root / "plan").mkdir()
+        (root / "plan" / "deferrals").mkdir(parents=True)
         body = ""
         for i, (dest, status) in enumerate(rows):
             for ref in ch.deferral_destination_paths(dest):
                 (root / ref).parent.mkdir(parents=True, exist_ok=True)
                 (root / ref).write_text("# Spec\n")
             body += f"| 2026-07-16 | spec-x | what-{i} | reason | {dest} | {status} |\n"
-        (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER + body)
+        (root / "plan" / "deferrals" / "spec-x.md").write_text(DEFERRALS_HEADER + body)
         return ch.deferral_unassigned_problems(root)
 
 
@@ -253,7 +259,7 @@ class TestDeferralUnassigned(unittest.TestCase):
 
     # VALIDATES: a row at status `deferred` with no destination is flagged.
     # `deferred` is the word ai/rules/deferral-tracking.md itself uses for this
-    # state, and 40 of the 68 rows in plan/deferrals.md carry it.
+    # state, and most of the rows across plan/deferrals/ carry it.
     # PREVENTS: hole 1 -- `status == "open"` meant a row written in the rule's own
     # vocabulary was never looked at.
     def test_status_hole_deferred_with_placeholder_destination(self):
@@ -273,7 +279,7 @@ class TestDeferralUnassigned(unittest.TestCase):
         self.assertTrue(_deferral_gate([("none yet", "parked")]))
 
     # VALIDATES: a terminal status is exempt even with a placeholder destination.
-    # plan/deferrals.md really carries `none (permanent exclusion; ...)` at
+    # A deferral shard really carries `none (permanent exclusion; ...)` at
     # `cancelled`; flagging it would make the gate noise.
     # PREVENTS: over-reach -- a gate that flags everything is as useless as one
     # that flags nothing. This is why the status half must be bounded, not removed.
@@ -318,8 +324,8 @@ class TestDeferralUnassigned(unittest.TestCase):
     def test_malformed_row_is_reported_not_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan").mkdir()
-            (root / "plan" / "deferrals.md").write_text(
+            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals" / "spec-x.md").write_text(
                 DEFERRALS_HEADER
                 + "| 2026-07-16 | spec-x | dropped work | reason | dest-only |\n"
             )
@@ -333,8 +339,8 @@ class TestDeferralUnassigned(unittest.TestCase):
     def test_header_and_separator_are_not_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan").mkdir()
-            (root / "plan" / "deferrals.md").write_text(DEFERRALS_HEADER)
+            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals" / "spec-x.md").write_text(DEFERRALS_HEADER)
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
 
@@ -347,8 +353,8 @@ class TestDeferralGateSeverity(unittest.TestCase):
 
     def _repo_with_unhomed_row(self, tmp: str) -> Path:
         root = Path(tmp)
-        (root / "plan").mkdir(parents=True)
-        (root / "plan" / "deferrals.md").write_text(
+        (root / "plan" / "deferrals").mkdir(parents=True)
+        (root / "plan" / "deferrals" / "spec-x.md").write_text(
             DEFERRALS_HEADER
             + "| 2026-07-16 | spec-x | dropped work | reason | future work | deferred |\n"
         )
@@ -436,6 +442,55 @@ class TestDeferralInDiff(unittest.TestCase):
                 "# Spec\n\nThe IPv6 path is future work.\n"
             )
             self.assertTrue(ch.deferral_in_diff_problems(root, ("plan/spec-x.md",), ()))
+
+    # VALIDATES: staging a plan/deferrals/ shard clears the gate -- the deferral
+    # was recorded, so the added prose describing it is not un-homed.
+    # PREVENTS: a regression to the retired single-file check that only recognised
+    # the literal "plan/deferrals.md" path and would still block once it is gone.
+    def test_cleared_by_deferrals_shard_in_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "spec-x.md").write_text(
+                "# Spec\n\nThe IPv6 path is future work.\n"
+            )
+            # The shard MUST exist on disk: `_prospective_added_lines` runs
+            # `git add -- <paths>`, which aborts the whole add when any pathspec
+            # matches nothing, yielding an empty diff that would clear the gate
+            # vacuously (it would return [] even under the retired code). Writing
+            # the shard makes the second assertion discriminate: the diff then
+            # carries spec-x.md's "future work", and only the new
+            # startswith("plan/deferrals/") clear (not the old literal
+            # "plan/deferrals.md" check) suppresses it.
+            (root / "plan" / "deferrals" / "spec-x.md").write_text(DEFERRALS_HEADER)
+            # Without a shard staged, the prose is flagged.
+            self.assertTrue(ch.deferral_in_diff_problems(root, ("plan/spec-x.md",), ()))
+            # A shard under plan/deferrals/ in the same commit clears it.
+            self.assertEqual(
+                ch.deferral_in_diff_problems(
+                    root, ("plan/spec-x.md", "plan/deferrals/spec-x.md"), ()
+                ),
+                [],
+            )
+
+    # PREVENTS a too-loose match: a path that merely starts with "plan/deferrals"
+    # but is NOT inside the directory (e.g. a stray "plan/deferrals-notes.md")
+    # must not clear the gate. Only the directory counts.
+    def test_not_cleared_by_lookalike_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "plan").mkdir()
+            (root / "plan" / "spec-x.md").write_text(
+                "# Spec\n\nThe IPv6 path is future work.\n"
+            )
+            # A real file whose path only LOOKS like the shard directory. It must
+            # not clear the gate, and it must exist so git can stage it.
+            (root / "plan" / "deferrals-notes.md").write_text("# notes\n\nplain text\n")
+            self.assertTrue(
+                ch.deferral_in_diff_problems(
+                    root, ("plan/spec-x.md", "plan/deferrals-notes.md"), ()
+                )
+            )
 
 
 class TestStagingGuard(unittest.TestCase):
@@ -775,6 +830,133 @@ class TestLearnedNextCounterFree(unittest.TestCase):
             # 500 seed, 501 the racing winner, 502 this session after the retry.
             self.assertEqual(nums, [500, 501, 502])
             self.assertFalse((learned / ".counter").exists())
+
+
+class TestDeferralSharding(unittest.TestCase):
+    """AC-1: deferrals are sharded one file per source under plan/deferrals/, so a
+    session stages only files it owns and git merges disjoint creations without
+    conflict (ai/rules/deferral-tracking.md, ai/rules/git-safety.md). The bug this
+    fixes: a single shared plan/deferrals.md means `git add <file>` stages every
+    session's pending rows, so whoever commits first carries the others'.
+    """
+
+    def _commit_repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@e.st")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "seed.txt").write_text("seed\n")
+        _git(root, "add", "seed.txt")
+        _git(root, "commit", "-q", "-m", "seed")
+        return root
+
+    def _committed_files(self, root: Path) -> list[str]:
+        out = subprocess.run(
+            ["git", "show", "--name-only", "--pretty=format:", "HEAD"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        return [ln for ln in out.splitlines() if ln.strip()]
+
+    # VALIDATES AC-1: two sessions each write a DIFFERENT deferral shard; each
+    # stages only its own shard, so neither commit carries the other's row.
+    def test_two_sessions_no_cross_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._commit_repo(tmp)
+            (root / "plan" / "deferrals").mkdir(parents=True)
+            a = "plan/deferrals/spec-a.md"
+            b = "plan/deferrals/spec-b.md"
+            (root / a).write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-21 | spec-a | work A | reason | `plan/spec-a.md` | deferred |\n"
+            )
+            (root / b).write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-21 | spec-b | work B | reason | `plan/spec-b.md` | deferred |\n"
+            )
+            # Both shards are dirty in the same working tree. Session A stages and
+            # commits ONLY its own shard.
+            _git(root, "add", a)
+            _git(root, "commit", "-q", "-m", "session A deferral")
+            files_a = self._committed_files(root)
+            self.assertIn(a, files_a)
+            self.assertNotIn(b, files_a)
+
+            # Session B's shard is still uncommitted; it commits independently.
+            _git(root, "add", b)
+            _git(root, "commit", "-q", "-m", "session B deferral")
+            files_b = self._committed_files(root)
+            self.assertIn(b, files_b)
+            self.assertNotIn(a, files_b)
+
+    # PREVENTS a vacuous pass: proves the isolation is REAL by contrast. Two rows
+    # in ONE shared file behave the old, broken way -- `git add <file>` stages the
+    # whole file, so a single commit carries BOTH sessions' rows. This is exactly
+    # the cross-commit the per-source sharding removes.
+    def test_single_file_would_cross_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._commit_repo(tmp)
+            (root / "plan").mkdir()
+            shared = "plan/deferrals-single.md"
+            (root / shared).write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-21 | spec-a | work A | reason | `plan/spec-a.md` | deferred |\n"
+                + "| 2026-07-21 | spec-b | work B | reason | `plan/spec-b.md` | deferred |\n"
+            )
+            _git(root, "add", shared)
+            _git(root, "commit", "-q", "-m", "session A commits the shared file")
+            body = subprocess.run(
+                ["git", "show", "HEAD:" + shared],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            # Session A's commit carried session B's row -- the defect.
+            self.assertIn("work A", body)
+            self.assertIn("work B", body)
+
+    # VALIDATES: deferral_unassigned_problems folds over EVERY shard, so an unhomed
+    # row in one shard is surfaced even when other shards are clean.
+    def test_unassigned_folds_across_shards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "spec-real.md").write_text("# Spec\n")
+            (root / "plan" / "deferrals" / "clean.md").write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-21 | spec-real | ok | reason | `plan/spec-real.md` | deferred |\n"
+            )
+            (root / "plan" / "deferrals" / "unhomed.md").write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-21 | spec-x | dropped | reason | future work | deferred |\n"
+            )
+            problems = ch.deferral_unassigned_problems(root)
+            self.assertTrue(problems, "an unhomed row in any shard must be surfaced")
+            joined = "\n".join(problems)
+            self.assertIn("dropped", joined)
+            self.assertNotIn("| ok |", joined)
+
+    # VALIDATES: the fold is RECURSIVE, matching deferral_in_diff's any-depth
+    # clearing (startswith "plan/deferrals/"). A shard nested in a subdirectory
+    # that would CLEAR the block gate must also be CHECKED by the advisory fold,
+    # or a nested shard could clear the block while escaping the unassigned check.
+    def test_subdir_shard_is_folded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "plan" / "deferrals" / "nested").mkdir(parents=True)
+            (root / "plan" / "deferrals" / "nested" / "unhomed.md").write_text(
+                DEFERRALS_HEADER
+                + "| 2026-07-21 | spec-x | nested dropped | reason | future work | deferred |\n"
+            )
+            paths = [p.name for p in ch.deferral_shard_paths(root)]
+            self.assertIn("unhomed.md", paths, "rglob must reach a nested shard")
+            problems = ch.deferral_unassigned_problems(root)
+            self.assertTrue(problems, "a nested unhomed row must be surfaced")
+            self.assertIn("nested dropped", "\n".join(problems))
 
 
 if __name__ == "__main__":

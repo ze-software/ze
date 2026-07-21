@@ -785,9 +785,9 @@ DEFERRAL_DEST_PATH_RE = re.compile(r"(?<![\w/-])(plan/[\w./-]+\.md|[\w.-]+\.md)"
 # next time the vocabulary drifts; a terminal denylist fails closed, because an
 # unrecognised status is treated as live and checked.
 #
-# plan/deferrals.md's own header is the contract: "A row lives here only while the
-# work has no home. Once it is moved into a spec, it is resolved ... and the spec
-# becomes the tracker."
+# The deferral shards' contract (ai/rules/deferral-tracking.md): "A row lives here
+# only while the work has no home. Once it is moved into a spec, it is resolved ...
+# and the spec becomes the tracker."
 DEFERRAL_TERMINAL_STATUSES = frozenset({"done", "cancelled", "resolved"})
 
 # The table's own header and its |---|---| separator are not rows.
@@ -866,15 +866,35 @@ def deferral_destination_problem(repo: Path, dest: str) -> str | None:
     return None
 
 
+def deferral_shard_paths(repo: Path) -> list[Path]:
+    """Every deferral shard under plan/deferrals/, sorted for deterministic output.
+
+    Deferrals are sharded one file per source (plan/deferrals/<spec-stem>.md, plus
+    plan/deferrals/ad-hoc-<date>-<sid>.md), so that a session stages only files it
+    owns and git merges disjoint creations without conflict
+    (ai/rules/deferral-tracking.md, ai/rules/git-safety.md). The aggregate is a
+    fold over this directory, computed on read and never stored.
+
+    The glob is RECURSIVE (rglob) to stay aligned with deferral_in_diff_problems,
+    whose clearing check accepts any path under plan/deferrals/ at any depth: a
+    shard the clearing gate accepts must also be folded by this advisory check, or
+    a nested shard could clear the block gate while escaping the unassigned fold.
+    """
+    deferrals_dir = repo / "plan" / "deferrals"
+    if not deferrals_dir.is_dir():
+        return []
+    return sorted(deferrals_dir.rglob("*.md"))
+
+
 def deferral_unassigned_problems(repo: Path) -> list[str]:
-    """Live rows in plan/deferrals.md with no usable destination (WARN, advisory).
+    """Live rows in plan/deferrals/*.md with no usable destination (WARN, advisory).
 
     The six-column table is Date | Source | What | Reason | Destination | Status.
     A row is checked unless its Status is terminal (DEFERRAL_TERMINAL_STATUSES);
     an unrecognised status is live, so the check still fails closed on a status
     vocabulary it does not know. Independent of what this commit touches -- it
-    surfaces every live row whose home is missing or is prose, across the whole
-    file.
+    folds over every shard in plan/deferrals/ and surfaces every live row whose
+    home is missing or is prose.
 
     Routed through commit_gate_warnings, NOT commit_gate_problems: an unhomed
     deferral row is harmless to software behaviour, so it is surfaced rather than
@@ -882,26 +902,28 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
     returned strings are printed as warnings; homing is still required by the
     rule, but a missing home no longer blocks the commit.
     """
-    path = repo / "plan" / "deferrals.md"
-    if not path.is_file():
+    shards = deferral_shard_paths(repo)
+    if not shards:
         return []
     unassigned: list[str] = []
     malformed: list[str] = []
-    for lineno, line in enumerate(
-        path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
-    ):
-        cells = _deferral_row_cells(line)
-        if cells is None:
-            continue
-        if cells == ["MALFORMED"]:
-            malformed.append(f"  - line {lineno}: {line.strip()[:90]}")
-            continue
-        _date, _source, what, _reason, dest, status = cells
-        if status.lower() in DEFERRAL_TERMINAL_STATUSES:
-            continue
-        problem = deferral_destination_problem(repo, dest)
-        if problem is not None:
-            unassigned.append(f'  - {what} ({problem}: "{dest}")')
+    for path in shards:
+        rel = path.relative_to(repo).as_posix()
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+        ):
+            cells = _deferral_row_cells(line)
+            if cells is None:
+                continue
+            if cells == ["MALFORMED"]:
+                malformed.append(f"  - {rel}:{lineno}: {line.strip()[:90]}")
+                continue
+            _date, _source, what, _reason, dest, status = cells
+            if status.lower() in DEFERRAL_TERMINAL_STATUSES:
+                continue
+            problem = deferral_destination_problem(repo, dest)
+            if problem is not None:
+                unassigned.append(f'  - {what} ({problem}: "{dest}")')
     problems: list[str] = []
     if unassigned:
         problems.append(
@@ -915,7 +937,7 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
         )
     if malformed:
         problems.append(
-            "malformed rows in plan/deferrals.md (cannot be checked, so not\n"
+            "malformed rows in plan/deferrals/ (cannot be checked, so not\n"
             "  assumed innocent -- a row this gate cannot read is a row it cannot"
             " enforce):\n" + "\n".join(malformed) + "\n  Each row needs exactly six"
             " cells: | Date | Source | What | Reason | Destination | Status |."
@@ -995,7 +1017,7 @@ def _deferral_prose(line: str) -> str:
 def deferral_in_diff_problems(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
 ) -> list[str]:
-    """Deferral language in the commit's added PROSE with no deferrals.md entry.
+    """Deferral language in the commit's added PROSE with no plan/deferrals/ entry.
 
     Matching runs on `_deferral_prose(line)`, not the raw line, so the canonical
     `DEFERRAL_PATTERNS` list, the rule docs that quote it, and the fixtures that
@@ -1005,8 +1027,12 @@ def deferral_in_diff_problems(
     generated digest, which discuss deferral policy in bare prose) are skipped by
     path. This prose-only, path-scoped match is the intentional divergence from
     the dead `check-deferral-in-diff.sh`, which never met its own list.
+
+    The gate is satisfied when the commit stages any deferral shard under
+    plan/deferrals/ (deferrals are sharded per source, so recording a deferral
+    creates or edits a shard, not the retired single plan/deferrals.md file).
     """
-    if "plan/deferrals.md" in add_paths:
+    if any(p.startswith("plan/deferrals/") for p in add_paths):
         return []
     prose = [
         (line, _deferral_prose(line))
@@ -1027,10 +1053,10 @@ def deferral_in_diff_problems(
     if not hits:
         return []
     return [
-        "deferral language in staged changes without a plan/deferrals.md entry:\n"
+        "deferral language in staged changes without a plan/deferrals/ entry:\n"
         + "\n".join(hits)
-        + "\n  Record each deferral in plan/deferrals.md before committing"
-        " (ai/rules/deferral-tracking.md)."
+        + "\n  Record each deferral in its plan/deferrals/<source>.md shard before"
+        " committing (ai/rules/deferral-tracking.md)."
     ]
 
 

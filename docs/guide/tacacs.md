@@ -206,7 +206,7 @@ local bcrypt user accepted the credentials.
 - **Operational tooling**: `ze tacacs show <config>` displays the parsed
   TACACS+ configuration offline. Runtime `ze show aaa accounting` exposes
   local accounting queue drops. Per-server reachability remains tracked in
-  `plan/deferrals.md`.
+  `plan/deferrals/`.
 
 ## RFC reference
 

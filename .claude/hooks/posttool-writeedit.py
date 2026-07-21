@@ -205,7 +205,7 @@ def c_warn_deferral(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".md"):
         return None
-    if re.search(r"plan/deferrals\.md$", fp):
+    if re.search(r"plan/deferrals(\.md$|/)", fp):
         return None
     if re.search(r"\.claude/(memory|plan)/", fp) or "tmp/session/" in fp:
         return None
@@ -225,7 +225,7 @@ def c_warn_deferral(ctx):
                 1,
                 f"{YELLOW}{BOLD}  Deferral language detected in {os.path.basename(fp)}{RESET}\n"
                 f"  {YELLOW}Pattern: '{p}'{RESET}\n"
-                f"  {YELLOW}Record in plan/deferrals.md if this is deferred work.{RESET}",
+                f"  {YELLOW}Record in the source's plan/deferrals/<source>.md shard if this is deferred work.{RESET}",
             )
     return None
 

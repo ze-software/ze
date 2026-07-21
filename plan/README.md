@@ -11,7 +11,7 @@ long time by design); `ready` and `in-progress` specs are current work.
 | `spec-<name>.md` | One spec per work item, status in its header table |
 | `TEMPLATE.md` | Spec format: status taxonomy, checklists, Review Gate |
 | `learned/` | Learned summaries of completed specs (`NNN-<name>.md`) plus the meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
-| `deferrals.md`, `known-failures.md` | Cross-spec tracking |
+| `deferrals/` (sharded per source), `known-failures.md` | Cross-spec tracking |
 
 ## Lifecycle
 

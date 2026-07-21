@@ -122,7 +122,7 @@ The single fix corrects all four consumers (`.lsp-invoked-`, `.source-read-`,
 **Trigger.** `commit_helper.py`'s `deferral_in_diff_problems` scans a commit's
 added prose for un-homed deferral language (`DEFERRAL_PATTERNS`: `future work`,
 `out of scope`, `postpone`, `follow-up work`, ...) and BLOCKS unless
-`plan/deferrals.md` rides along. It already blanks quoted/backticked spans, so it
+`plan/deferrals.md` rides along. It already blanks quoted/backticked spans, so it <!-- doc-links: ignore (historical; deferrals are now sharded under plan/deferrals/) -->
 fires only on BARE prose — but the rule corpus is full of bare prose that
 DISCUSSES deferral policy: `no-parking.md` ("genuinely separable, out-of-scope
 `future work`"), `planning.md` (status vocab, Consequences), `handoff.md`
@@ -132,7 +132,7 @@ scope`" (lexical scope, unrelated to deferring work). The generated
 `ai/rules/CONDENSED.md` flattens all of them, so every `make ze-rules-condensed`
 regeneration commit re-tripped the gate.
 
-**Old workaround (bad).** Pass `plan/deferrals.md` in `--file`. This is
+**Old workaround (bad).** Pass `plan/deferrals.md` in `--file`. This is <!-- doc-links: ignore (historical; deferrals are now sharded under plan/deferrals/) -->
 all-or-nothing: it disables the ENTIRE gate for that commit, so a genuine un-homed
 deferral elsewhere in the same commit would sail through, and it forces staging a
 shared file (cross-commit hazard per `git-safety.md`).
@@ -406,7 +406,7 @@ before filing it, exactly as for any other behavioral claim.
 
 **Friction:** The rule taught a status vocabulary its own gate did not read.
 `deferral_unassigned_problems` filtered `if status != "open": continue` while 40
-of 68 rows in `plan/deferrals.md` carried `deferred`, the word
+of 68 rows in `plan/deferrals.md` carried `deferred`, the word <!-- doc-links: ignore (historical; deferrals are now sharded under plan/deferrals/) -->
 `ai/rules/deferral-tracking.md` uses for exactly that state. The gate never looked
 at them. Fixed today in `c4f570214`.
 

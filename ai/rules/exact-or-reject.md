@@ -44,7 +44,7 @@ Rationale: `ai/rationale/exact-or-reject.md`
 | "future optimization can batch them" (when un-batched path is wrong) | Fix correctness first |
 
 Caught yourself writing one? Stop. Design it properly, or reject in
-the verifier and record in `plan/deferrals.md`.
+the verifier and record in the source's `plan/deferrals/<source>.md` shard.
 
 ## Related Rules
 

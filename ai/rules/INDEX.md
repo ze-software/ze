@@ -49,7 +49,7 @@ Total: 90 rules
 | Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in... | `ai/rules/flaky-under-load.md` |
 | Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | `ai/rules/friction-reporting.md` |
 | Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises Severity: blocking | `ai/rules/functional-test-gate.md` |
-| Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals,... | `ai/rules/git-safety.md` |
+| Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded... | `ai/rules/git-safety.md` |
 | Go Standards | Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions. Severity: blocking | `ai/rules/go-standards.md` |
 | Go Compiler Upgrade Checklist | Every Go compiler version bump (go.mod `go` directive change or toolchain update). Severity: advisory | `ai/rules/go-upgrade-checklist.md` |
 | Goroutine Lifecycle | All goroutines MUST be long-lived workers Severity: blocking | `ai/rules/goroutine-lifecycle.md` |

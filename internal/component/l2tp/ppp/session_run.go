@@ -895,7 +895,7 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 		return s.sendEchoReply(current)
 	case LCPActIRC, LCPActZRC, LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
 		// IRC/ZRC: restart-counter management deferred to a 6a
-		// hardening pass (see plan/deferrals.md).
+		// hardening pass (see plan/deferrals/, sharded per source).
 		// TLU/TLD/TLS/TLF: "notify upper layers" handled inline in
 		// handleLCPPacket via the state-transition check.
 		return true

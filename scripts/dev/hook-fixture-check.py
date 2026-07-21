@@ -466,8 +466,9 @@ def _write(repo: str, rel: str, text: str) -> None:
         fh.write(text)
 
 
-# Six-column layout matching the real plan/deferrals.md (Date | Source | What |
-# Reason | Destination | Status); the gate reads Destination and Status by index.
+# Six-column layout matching a real plan/deferrals/<source>.md shard (Date |
+# Source | What | Reason | Destination | Status); the gate reads Destination and
+# Status by index and folds over every shard under plan/deferrals/.
 _DEFERRALS_HEADER = (
     "# Deferrals\n\n"
     "| Date | Source | What | Reason | Destination | Status |\n"
@@ -481,12 +482,12 @@ def run_commit_gate(results: Results) -> None:
 
     ch = _load_commit_helper()
 
-    # --- deferral-unassigned (block) ---
+    # --- deferral-unassigned (block) --- the gate folds over plan/deferrals/*.md
     repo = _init_repo()
     try:
         _write(
             repo,
-            "plan/deferrals.md",
+            "plan/deferrals/abc.md",
             _DEFERRALS_HEADER + "| 2026-07-09 | abc | thing | reason |  | open |\n",
         )
         problems = ch.deferral_unassigned_problems(Path(repo))
@@ -495,13 +496,13 @@ def run_commit_gate(results: Results) -> None:
         shutil.rmtree(repo, ignore_errors=True)
 
     # An assigned destination passes only when the spec it names EXISTS. Both
-    # spellings resolve to the same file (ai/rules/deferral-tracking.md).
+    # spellings resolve to the same file, across shards (ai/rules/deferral-tracking.md).
     repo = _init_repo()
     try:
         _write(repo, "plan/spec-foo.md", "# Spec: foo\n")
         _write(
             repo,
-            "plan/deferrals.md",
+            "plan/deferrals/foo.md",
             _DEFERRALS_HEADER
             + "| 2026-07-09 | abc | thing | reason | spec-foo.md | open |\n"
             + "| 2026-07-09 | abc | thing2 | reason | `plan/spec-foo.md` | open |\n",
@@ -512,12 +513,12 @@ def run_commit_gate(results: Results) -> None:
         shutil.rmtree(repo, ignore_errors=True)
 
     # A destination naming a spec nobody created loses the work exactly as a
-    # prose destination does, so it must block too.
+    # prose destination does, so it must block too -- even when it lives in a shard.
     repo = _init_repo()
     try:
         _write(
             repo,
-            "plan/deferrals.md",
+            "plan/deferrals/orphan.md",
             _DEFERRALS_HEADER
             + "| 2026-07-09 | abc | thing | reason | spec-never-written.md | open |\n",
         )
@@ -536,10 +537,10 @@ def run_commit_gate(results: Results) -> None:
         _write(repo, "docs/notes.md", "# notes\n\nThis is out of scope for now.\n")
         problems = ch.deferral_in_diff_problems(Path(repo), ("docs/notes.md",), ())
         results.check("commit-gate-deferral-in-diff", bool(problems), repr(problems))
-        # deferrals.md included in the commit clears it
-        _write(repo, "plan/deferrals.md", _DEFERRALS_HEADER)
+        # a plan/deferrals/ shard included in the commit clears it
+        _write(repo, "plan/deferrals/notes.md", _DEFERRALS_HEADER)
         problems = ch.deferral_in_diff_problems(
-            Path(repo), ("docs/notes.md", "plan/deferrals.md"), ()
+            Path(repo), ("docs/notes.md", "plan/deferrals/notes.md"), ()
         )
         results.check(
             "commit-gate-deferral-in-diff-logged-ok", not problems, repr(problems)

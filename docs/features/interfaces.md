@@ -321,7 +321,7 @@ L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac` container (wit
 kernel does not assign one).
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
-out of scope for v1; see `plan/deferrals.md`.
+out of scope for v1; see `plan/deferrals/`.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->

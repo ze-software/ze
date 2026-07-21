@@ -19,7 +19,28 @@ unhomed row visible so it is not lost, but you are the one who must give it a ho
 
 ## Central Log
 
-`plan/deferrals.md` -- the single source of truth for all deferred work.
+`plan/deferrals/` -- a sharded directory, **one file per source**, holding all
+deferred work. There is NO single `plan/deferrals.md` and no committed aggregate: <!-- doc-links: ignore (the single file is deliberately retired) -->
+the live backlog is a fold over the directory, computed on read (`/ze-status`) and
+never stored. A stored aggregate would be a shared file every session appends to --
+exactly the cross-commit hazard this layout removes (`ai/rules/git-safety.md`).
+
+**Shard key.** Each row lives in the shard named for its source:
+
+| Source of the row | Shard file |
+|-------------------|------------|
+| A spec (row's `Source` names `spec-<stem>`) | `plan/deferrals/<stem>.md` |
+| Ad-hoc (no source spec) | `plan/deferrals/ad-hoc-<YYYY-MM-DD>-<sid>.md` |
+
+A shard is a small markdown file with the six-column table header and only the rows
+it owns. Add your row to the shard for its source (create the shard if it does not
+exist); never touch another source's shard except to correct a row it owns. Because
+each path has a single writer, `git add <shard>` stages only your row and git merges
+disjoint shard creations without conflict.
+
+**A spec's shard is deleted at the spec's closure.** Spec closure commit B
+(`ai/rules/planning.md` "Spec Closure") `git rm`s `plan/deferrals/<stem>.md` alongside
+the spec itself, so a closed spec leaves no orphan shard behind.
 
 ## When to Record
 
@@ -40,7 +61,7 @@ unhomed row visible so it is not lost, but you are the one who must give it a ho
 | Column | Content |
 |--------|---------|
 | Date | YYYY-MM-DD |
-| Source | Spec filename, task description, or "ad-hoc" |
+| Source | Spec filename, task description, or "ad-hoc" (also selects the shard, see "Central Log") |
 | What | Specific work being deferred (not vague) |
 | Reason | Why it is being deferred |
 | Destination | Receiving spec filename (`plan/spec-*.md`), "cancelled", or "user-approved-drop" |
@@ -168,16 +189,17 @@ plan/spec-<source>-deferred-<subtask>.md
 | 1 | Create the file from `plan/TEMPLATE.md` with `Status \| skeleton` |
 | 2 | Fill only the `## Task` section with the points to complete, plus any constraint already known. Leave the rest as template placeholders |
 | 3 | Name the source spec in the `## Task` section so the provenance survives |
-| 4 | Record the deferral in `plan/deferrals.md` with the new spec as Destination and Status `deferred` |
+| 4 | Record the deferral in its `plan/deferrals/<source>.md` shard with the new spec as Destination and Status `deferred` |
 
 Keep it small. The goal is zero lost work, not a finished design -- a skeleton is
 captured intent, not a designed spec. It moves to `design` when someone picks it
 up (status table in `ai/rules/planning.md`).
 
 The commit gate `deferral_unassigned_problems` (`scripts/dev/commit_helper.py`)
-WARNS -- it surfaces, it does not block -- on any LIVE deferral (any non-terminal
-Status, see Status Vocabulary) that names no destination or names a spec file that
-does not exist, and on any row it cannot parse. It is routed through
+folds over every shard in `plan/deferrals/` and WARNS -- it surfaces, it does not
+block -- on any LIVE deferral (any non-terminal Status, see Status Vocabulary) that
+names no destination or names a spec file that does not exist, and on any row it
+cannot parse. It is routed through
 `commit_gate_warnings`, not `commit_gate_problems`: the message prints to stderr
 and the commit proceeds. This is advisory by design, for the reason in the banner
 above (an unhomed row is harmless to software; blocking unrelated and other-session

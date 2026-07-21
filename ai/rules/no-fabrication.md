@@ -22,7 +22,7 @@ traced to source *before* you propose the work, or you spec a non-problem.
 
 A claim about design *intent*, or about a foreign system, has a producer too, and
 it is not the nearest text: a comment states what its author believed, while the
-decisions actually taken are recorded in `plan/deferrals.md`, `plan/learned/`,
+decisions actually taken are recorded in `plan/deferrals/`, `plan/learned/`,
 and specs; a generated binding stub states that a field exists, never what the
 system it binds to does with it. Read the decision record before asserting
 intent, especially before calling something a mistake, and read the foreign
@@ -61,7 +61,7 @@ Before claiming code behaves a certain way, or recommending work premised on it:
 | Presenting interpretation as fact | The user asked what the file says, not what you think |
 | Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
 | Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
-| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals.md`, `plan/learned/`, specs |
+| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/learned/`, specs |
 | Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
 | Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
 | Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |

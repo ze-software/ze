@@ -76,9 +76,9 @@ visible property of the config. Not:
 - A state that is "good enough for testing" or "good enough for MVP".
 
 If the backend cannot deliver the exact state, the path is: reject at
-verify, record a deferral in `plan/deferrals.md` pointing at a concrete
-receiving spec, let the operator choose a different backend or wait for
-the deferred work.
+verify, record a deferral in the source's `plan/deferrals/<source>.md` shard
+pointing at a concrete receiving spec, let the operator choose a different
+backend or wait for the deferred work.
 
 ## When exactness is truly unattainable (rare)
 

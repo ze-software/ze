@@ -230,7 +230,7 @@ three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
 | `plan/spec-bfd-6-echo-mode.md` | RFC 5881 §5 echo mode on UDP 3785. |
 
 IPv6 dual-bind is deferred separately as `spec-bfd-2b-ipv6-transport` in
-`plan/deferrals.md`. The current transport binds IPv4 only.
+`plan/deferrals/` (sharded per source). The current transport binds IPv4 only.
 
 ### Things that are intentionally done the way they are
 

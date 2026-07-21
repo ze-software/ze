@@ -710,7 +710,7 @@ Files: 7 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/ap
 ## `internal/component/bgp/plugins/role/`
 
 - `internal/component/bgp/plugins/role/` -> `docs/guide/bgp-role.md`
-- `internal/component/bgp/plugins/role/otc.go` -> `docs/architecture/meta/role.md`
+- `internal/component/bgp/plugins/role/otc.go` -> `docs/architecture/meta/role.md`, `docs/architecture/route-selection.md`
 - `internal/component/bgp/plugins/role/register.go` -> `docs/DESIGN.md`, `docs/features/plugins.md`, `docs/guide/bgp-role.md`, `docs/guide/plugins.md`
 
 ## `internal/component/bgp/plugins/role/yang/`
@@ -829,7 +829,7 @@ Files: 52 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/a
 
 ## `internal/component/bgp/reactor/filter/`
 
-- `internal/component/bgp/reactor/filter/loop.go` -> `docs/architecture/forward-congestion-pool.md`, `docs/guide/redistribution.md`
+- `internal/component/bgp/reactor/filter/loop.go` -> `docs/architecture/forward-congestion-pool.md`, `docs/architecture/route-selection.md`, `docs/guide/redistribution.md`
 - `internal/component/bgp/reactor/filter/register.go` -> `docs/DESIGN.md`, `docs/features/plugins.md`
 
 ## `internal/component/bgp/reactor/filter/yang/`

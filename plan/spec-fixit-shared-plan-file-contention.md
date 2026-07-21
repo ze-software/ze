@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/3 (phase 1 `.counter` retirement DONE in this commit; phases 2 deferrals + 3 known-failures remain) |
+| Phase | 3/3 (phases 1 `.counter` + 2 deferrals DONE; phase 3 known-failures remains) |
 | Updated | 2026-07-21 |
 
 > **Phase 1 landed (2026-07-21).** `plan/learned/.counter` retired: the allocator
@@ -19,8 +19,20 @@
 > skills/methodology still referenced the deleted `.counter` — which was then fixed and
 > re-verified. `make ze-learned-numbers-check` green with `.counter` gone (AC-7); the
 > new `test_learned_next_retries_on_existing` / `test_learned_next_unique_without_counter`
-> are RED-first proven. **Phases 2-3 (shard `plan/deferrals.md` per source spec; shard
-> `plan/known-failures.md` per failure) are NOT done — the spec stays OPEN.**
+> are RED-first proven.
+
+> **Phase 2 landed (2026-07-21).** `plan/deferrals.md` (109 rows) sharded into 68 files
+> under `plan/deferrals/` (`<spec-stem>.md` per source spec; `ad-hoc-<date>-<sha1[:6]>.md`
+> for ad-hoc rows), verbatim, 0 rows dropped. Both commit gates migrated + RED→GREEN proven:
+> `deferral_unassigned_problems` folds `plan/deferrals/*.md`; `deferral_in_diff_problems` is
+> cleared by any staged `plan/deferrals/` shard (still fires on deferral prose with no shard,
+> lookalike paths rejected). All readers repointed (`commit_helper.py`, `hook-fixture-check.py`,
+> `session-end-deferrals.sh`, `posttool-writeedit.py`); prose/skills/rationale/indexes updated;
+> `CONDENSED.md`/`INDEX.md` regenerated. Spec Closure (`ai/rules/planning.md`) now also
+> `git rm`s the spec's `plan/deferrals/<stem>.md` shard in commit B (R-4). No aggregate is
+> tracked (R-1: fold-on-read). Independent review pending at commit time; `ze-hook-test`
+> (131/131 + deferral fixtures), `go test ./scripts/dev/`, `ze-ai-sync` all green.
+> **Phase 3 (shard `plan/known-failures.md` per failure) is NOT done — the spec stays OPEN.**
 
 > **DESIGN.** Research done 2026-07-16; Current Behavior below is traced to producing
 > functions. Two claims carried from the skeleton were BROKEN by that research (A-3,

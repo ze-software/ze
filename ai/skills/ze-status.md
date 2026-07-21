@@ -22,7 +22,7 @@ See also: `/ze-debrief` (deep dive on current session/spec)
    - Current branch
    - Uncommitted changes (count and key files)
    - Recent commits (last 5)
-4. **Deferrals:** Read `plan/deferrals.md`. Count open items. List any that reference the selected spec.
+4. **Deferrals:** Read the shards under `plan/deferrals/` (one file per source; the live backlog is a fold over the directory, never a stored file). Count open items across all shards. List any that reference the selected spec.
 5. **Test state:** Check `tmp/ze-verify.log`. If it exists, check its age and whether it shows failures.
    - Fresh (<1h) and passing: "Tests: PASS (Nh ago)"
    - Fresh and failing: "Tests: FAIL -- [count] failures (Nh ago)"
@@ -55,7 +55,7 @@ Generate the attention list by checking these conditions in order:
 | Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-verify` then `/ze-commit` |
 | Spec in skeleton/design status | "[spec] needs implementation" | `/ze-implement` |
 | Spec blocked | "[spec] blocked on [dependency]" | Check dependency |
-| Deferrals referencing selected spec | "N deferred items for [spec]" | Review `plan/deferrals.md` |
+| Deferrals referencing selected spec | "N deferred items for [spec]" | Review `plan/deferrals/` |
 | No spec selected but specs exist | "No spec selected" | `/ze-spec` to resume or create |
 | Stale test results | "Tests not run recently" | `/ze-verify` |
 

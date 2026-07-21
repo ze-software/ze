@@ -1,0 +1,12 @@
+# Deferrals: cli-root-namespace-grammar
+
+Deferral rows for this source. The aggregate live backlog is folded on
+read from `plan/deferrals/` by `/ze-status`; nothing stores it (`ai/rules/deferral-tracking.md`).
+
+| Date | Source | What | Reason | Destination | Status |
+|------|--------|------|--------|-------------|--------|
+| 2026-07-17 | spec-cli-root-namespace-grammar (Known Limitations) | Decide whether root-level flags like `ze --plugins` (`cmd/ze/ze_core_dispatch.go:483`) are legitimate CLI grammar or an R3 (`no --flag`) violation, and migrate to a verb form if not | Not a hyphen-namespace defect (this spec's subject); a distinct question about the root surface's shape. The Phase 6 root feeder does not flag leading-hyphen roots (the `b>0` guard skips `--plugins`) | future root-surface-grammar spec if Thomas wants it; present if a feeder ever surfaces it | deferred |
+| 2026-07-17 | spec-cli-root-namespace-grammar (Known Limitations) | Reconcile the two `format` value vocabularies: `set cli format` accepts text/table/json/yaml/ndjson (`internal/component/cli/model_keys.go:669`) while the editor's `format tree/config` pipe accepts only tree/config (`internal/component/cli/model_load.go:951`) | Both are legitimate uses of the word this spec preserves; reconciling the editor's rendering vocabulary is a separate UX question, orthogonal to freeing `format` from also meaning the pipe language | future editor-vocabulary spec; needs a UX decision | deferred |
+| 2026-07-17 | spec-cli-root-namespace-grammar (Known Limitations) | Let `ze pipe` accept repeated operators natively instead of requiring a shell-quoted pipe (runPipe joins argv into one pipe expression, `cmd/ze/ze_core_pipe.go`) | The rename preserves the existing single-expression behavior; native multi-operator chaining is a usability change, not a grammar fix | future usability spec | deferred |
+| 2026-07-17 | spec-cli-root-namespace-grammar (Known Limitations) | Extend the grammar gate to the local-handler surface (`MustRegisterLocalMeta` paths, now including `update serve`), which the Phase 6 root feeder does not cover | The root feeder governs root handlers only; local paths are a third surface not proven gated (`ai/rules/fail-closed-guards.md`: record the residual with a destination rather than claim the namespace is fully governed) | future spec extending the gate to local metas | deferred |
+

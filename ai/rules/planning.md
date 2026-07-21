@@ -248,6 +248,10 @@ The helper-generated commit script MUST produce two commits:
    with `--file` for all code, tests, docs, learned summary, LEARNED-INDEX,
    AND the spec file itself (with all edits from implementation).
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
+   If the spec has a deferral shard, `--remove plan/deferrals/<spec-stem>.md` in the
+   SAME commit B: deferrals are sharded per source (`ai/rules/deferral-tracking.md`),
+   and the shard is deleted at closure exactly as the spec is, so a closed spec leaves
+   no orphan shard behind.
 
 This preserves the final spec state in git history. `git log -p -- plan/<spec>` shows
 the full design record. The deletion in commit B is a clean removal of a file whose
@@ -260,9 +264,13 @@ source files still reference breaks design traceability;
 `scripts/dev/check_doc_links.py --design-only` reports the breakage.
 
 **Closure resolves the spec's deferral rows.** Before commit B, grep
-`plan/deferrals.md` for this spec's filename. Every row naming it as **Destination**
+`plan/deferrals/` for this spec's filename (a row naming it as Destination may live in
+any source's shard, not only this spec's own). Every row naming it as **Destination**
 must be resolved inside commit A: set Status `done` and Destination to the learned
-summary (`plan/learned/NNN-<name>.md`), which is where the knowledge now lives.
+summary (`plan/learned/NNN-<name>.md`), which is where the knowledge now lives. This
+is separate from removing this spec's OWN shard (`plan/deferrals/<spec-stem>.md`) in
+commit B, above: one resolves rows that POINT AT the spec, the other retires the rows
+the spec SOURCED.
 
 Why: closure DELETES the spec, and `deferral_unassigned_problems`
 (`scripts/dev/commit_helper.py`) checks that every live row's destination exists on

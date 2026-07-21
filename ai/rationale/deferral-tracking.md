@@ -1,9 +1,9 @@
 # Rationale: Deferral Tracking
 
-Deferrals are promises that rot. Without formal tracking in
-`plan/deferrals.md` with a destination spec, a deferred item exists only
-as a paragraph in a learned summary that no future session will read
-proactively.
+Deferrals are promises that rot. Without formal tracking in the sharded
+`plan/deferrals/` directory (one file per source) with a destination spec, a
+deferred item exists only as a paragraph in a learned summary that no future
+session will read proactively.
 
 The stale-deferrals mistake (redist-phase2) happened because a phase-N
 spec was created from open deferrals without first checking whether the

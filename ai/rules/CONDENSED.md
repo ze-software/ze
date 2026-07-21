@@ -784,7 +784,13 @@ Trace full data flow before writing or reviewing specs.
 **Obligation on you (not a hard gate):** Every decision to not perform in-scope work MUST be recorded AND land in a destination spec.
 A deferral whose destination is prose ("later", "future work") is a deletion with a polite name.
 ## Central Log
-`plan/deferrals.md` -- the single source of truth for all deferred work.
+`plan/deferrals/` -- a sharded directory, **one file per source**, holding all deferred work.
+**Shard key.** Each row lives in the shard named for its source:
+| Source of the row | Shard file |
+|-------------------|------------|
+| A spec (row's `Source` names `spec-<stem>`) | `plan/deferrals/<stem>.md` |
+| Ad-hoc (no source spec) | `plan/deferrals/ad-hoc-<YYYY-MM-DD>-<sid>.md` |
+**A spec's shard is deleted at the spec's closure.** Spec closure commit B
 ## When to Record
 | Trigger | Action |
 |---------|--------|
@@ -797,7 +803,7 @@ A deferral whose destination is prose ("later", "future work") is a deletion wit
 | Column | Content |
 |--------|---------|
 | Date | YYYY-MM-DD |
-| Source | Spec filename, task description, or "ad-hoc" |
+| Source | Spec filename, task description, or "ad-hoc" (also selects the shard, see "Central Log") |
 | What | Specific work being deferred (not vague) |
 | Reason | Why it is being deferred |
 | Destination | Receiving spec filename (`plan/spec-*.md`), "cancelled", or "user-approved-drop" |
@@ -849,7 +855,7 @@ A spec created solely to hold work deferred out of another spec is named:
 | 1 | Create the file from `plan/TEMPLATE.md` with `Status \| skeleton` |
 | 2 | Fill only the `## Task` section with the points to complete, plus any constraint already known. Leave the rest as template placeholders |
 | 3 | Name the source spec in the `## Task` section so the provenance survives |
-| 4 | Record the deferral in `plan/deferrals.md` with the new spec as Destination and Status `deferred` |
+| 4 | Record the deferral in its `plan/deferrals/<source>.md` shard with the new spec as Destination and Status `deferred` |
 Keep it small.
 ## Verify Before Deferring (BLOCKING)
 Never claim "requires infrastructure that doesn't exist" without grepping for it first.
@@ -1560,13 +1566,13 @@ A functional test that EXISTS is not the same as one that GATES.
 
 ## Git Safety
 `ai/rules/git-safety.md`
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals, known-failures) cross-commit between concurrent sessions. — **Severity:** advisory
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for deferrals, still single for known-failures) cross-commits between concurrent sessions. — **Severity:** advisory
 
 ## Directives
 ## Commit Rules
 **FORBIDDEN as direct AI tool calls:** `git commit`, `git add`, `git rm`,
 `git restore --staged`, `git stash`.
-**Shared plan files cross-commit even with a correct, explicit `--file`
+**A shared single-file plan log cross-commits even with a correct, explicit
 | Situation | Do |
 |-----------|-----|
 | Your rows in a shared plan file are already committed by someone else | Nothing. The content is correct and preserved; only attribution is off. NEVER rewrite history to reclaim it (`git revert`/`reset` are forbidden anyway). |
@@ -1893,8 +1899,8 @@ These are NOT Claude hooks.
 |---|---|---|---|
 | verify-status / structural-gate | `git-safety.md` | BLOCK | Refuses a script over a non-green `ze-verify` (structural reds are unbypassable). |
 | discovery-index | `discovery-updates.md` | BLOCK | Refuses when a generated index (PACKAGE-MAP / DOCS-TO-CODE / LEARNED-FULL-INDEX) would be left stale. |
-| deferral-unassigned | `deferral-tracking.md` | BLOCK | Blocks when `plan/deferrals.md` has an open row with no Destination. |
-| deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and `plan/deferrals.md` is not part of the commit (diff computed in a throwaway git index). |
+| deferral-unassigned | `deferral-tracking.md` | BLOCK | Folds over every shard in `plan/deferrals/` and flags an open row with no Destination. |
+| deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and no `plan/deferrals/` shard is part of the commit (diff computed in a throwaway git index). |
 | spec-audit | `planning.md` | BLOCK | Blocks the closure commit (the one adding the claimed spec's `plan/learned/NNN-<stem>.md`) when that spec's `## Pre-Commit Verification` section is unfilled. Keyed to `spec-session.sh current`; no claim → skips. |
 | wiring-at-commit | `integration-completeness.md` | WARN | Warns when `internal/plugins/**/*.go` is committed with no `.ci`. |
 | doc-drift | `documentation.md` | WARN | Runs `scripts/docvalid/doc_drift.go`; warns on drift. |
@@ -2605,7 +2611,7 @@ Before answering a factual question about file content:
 | Presenting interpretation as fact | The user asked what the file says, not what you think |
 | Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
 | Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
-| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals.md`, `plan/learned/`, specs |
+| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/learned/`, specs |
 | Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
 | Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
 | Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |

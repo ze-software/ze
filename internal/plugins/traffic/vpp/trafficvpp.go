@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- VPP traffic control backend
+// Related: logger_linux.go -- package-level loggerPtr initialized there
 
 // Package trafficvpp implements the ze traffic-control Backend interface on
 // top of VPP's binary API via GoVPP. It is registered under the name "vpp"
@@ -11,7 +12,7 @@
 // `rules/exact-or-reject.md`. Filter support and multi-class class-based
 // shaping are deferred to follow-up specs that design the missing VPP
 // pipelines (classify-table attachment, QoS record+mark chain); see
-// plan/deferrals.md for the destination specs.
+// plan/deferrals/ (sharded per source) for the destination specs.
 package trafficvpp
 
 import (
