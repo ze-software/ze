@@ -31,6 +31,8 @@ func (p *PayloadID) WriteTo(buf []byte, off int) int {
 	return 4 + len(p.IDData)
 }
 
+func (p *PayloadID) Len() int { return 4 + len(p.IDData) }
+
 func (p *PayloadID) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

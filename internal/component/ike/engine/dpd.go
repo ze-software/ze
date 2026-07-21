@@ -95,7 +95,11 @@ func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger
 
 	if tr != nil {
 		buf := make([]byte, 512)
-		n := msg.WriteTo(buf, 0)
+		n, err := msg.CheckedWriteTo(buf, 0)
+		if err != nil {
+			log.Warn("dpd: probe too large, dropping", "peer", sa.PeerName, "error", err)
+			return
+		}
 		remote := sa.remoteUDPAddr()
 		if remote != nil {
 			if err := tr.Send(buf[:n], remote); err != nil {

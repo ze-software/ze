@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 297 design docs, 3028 files
+Total: 297 design docs, 3031 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1616,6 +1616,7 @@ Total: 297 design docs, 3028 files
 |------|-------|
 | `internal/component/ike/wire/chain.go` | payload chain parsing |
 | `internal/component/ike/wire/header.go` | buffer-first encoding |
+| `internal/component/ike/wire/len_test.go` | buffer-first encoding |
 | `internal/component/ike/wire/message.go` | buffer-first encoding |
 | `internal/component/ike/wire/payload.go` | buffer-first encoding |
 | `internal/component/ike/wire/payload_auth.go` | buffer-first encoding |
@@ -2075,6 +2076,7 @@ Total: 297 design docs, 3028 files
 | `internal/component/l2tp/ppp/chap.go` | PPP auth-phase CHAP-MD5 codec |
 | `internal/component/l2tp/ppp/dhcpv6.go` | DHCPv6-PD codec for BNG PPP sessions |
 | `internal/component/l2tp/ppp/dhcpv6_linux.go` | DHCPv6-PD UDP listener (Linux) |
+| `internal/component/l2tp/ppp/dhcpv6_overflow_test.go` | DHCPv6-PD codec for BNG PPP sessions |
 | `internal/component/l2tp/ppp/events.go` | PPP -> transport event boundary |
 | `internal/component/l2tp/ppp/ip_events.go` | PPP -> IP handler event boundary |
 | `internal/component/l2tp/ppp/ipcp.go` | IPCP codec + options |
@@ -2446,6 +2448,7 @@ Total: 297 design docs, 3028 files
 
 ## `plan/learned/1072-ipsec-14-responder.md`
 
+- `internal/component/ike/engine/overflow_test.go` -- IKE responder handshake
 - `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
 - `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
 

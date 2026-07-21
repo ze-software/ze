@@ -22,6 +22,8 @@ func (p *PayloadCERT) WriteTo(buf []byte, off int) int {
 	return 1 + len(p.CertData)
 }
 
+func (p *PayloadCERT) Len() int { return 1 + len(p.CertData) }
+
 func (p *PayloadCERT) ReadFrom(data []byte) error {
 	if len(data) < 1 {
 		return ErrTruncated
@@ -45,6 +47,8 @@ func (p *PayloadCERTREQ) WriteTo(buf []byte, off int) int {
 	copy(buf[off+1:], p.CertAuthority)
 	return 1 + len(p.CertAuthority)
 }
+
+func (p *PayloadCERTREQ) Len() int { return 1 + len(p.CertAuthority) }
 
 func (p *PayloadCERTREQ) ReadFrom(data []byte) error {
 	if len(data) < 1 {

@@ -63,6 +63,12 @@ func (t *Transform) WriteTo(buf []byte, off int) int {
 	return length
 }
 
+// length reports the bytes Transform.WriteTo writes: the fixed transform
+// header plus 4 bytes per TV-format attribute.
+func (t *Transform) length() int {
+	return transformHeaderLen + 4*len(t.Attrs)
+}
+
 func (t *Transform) ReadFrom(data []byte) error {
 	if len(data) < transformHeaderLen {
 		return ErrTruncated
@@ -133,6 +139,20 @@ func (p *Proposal) WriteTo(buf []byte, off int) int {
 	return length
 }
 
+// length reports the bytes Proposal.WriteTo writes. The SPI is written only
+// when SPISize>0 and the SPI slice is long enough (WriteTo otherwise zeroes
+// SPISize and writes no SPI bytes), so the SPI contribution mirrors that guard.
+func (p *Proposal) length() int {
+	n := proposalHeaderLen
+	if p.SPISize > 0 && len(p.SPI) >= int(p.SPISize) {
+		n += int(p.SPISize)
+	}
+	for i := range p.Transforms {
+		n += p.Transforms[i].length()
+	}
+	return n
+}
+
 func (p *Proposal) ReadFrom(data []byte) error {
 	if len(data) < proposalHeaderLen {
 		return ErrTruncated
@@ -189,6 +209,14 @@ func (p *PayloadSA) WriteTo(buf []byte, off int) int {
 		off += p.Proposals[i].WriteTo(buf, off)
 	}
 	return off - start
+}
+
+func (p *PayloadSA) Len() int {
+	n := 0
+	for i := range p.Proposals {
+		n += p.Proposals[i].length()
+	}
+	return n
 }
 
 func (p *PayloadSA) ReadFrom(data []byte) error {

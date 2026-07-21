@@ -83,6 +83,7 @@ tabled families are the ONLY unguarded members of the class. One latent sibling
 | ISIS -- `hello.go:197,214`, `origination.go:499`, `snp.go:480,488`, `auth_sign.go:108-133`, `lsdb/encode.go:122,172` | `make([]byte, EncodedLen())` | buffer sized by the encoder's own `EncodedLen()` before `WriteTo` | ALREADY SAFE -- this IS the `Len()`-first fix the spec recommends |
 | L2TP PPPoE -- `server.go:70,97,110,121,171,250` | `var buf [EthMaxLen]byte` | `BuildPAD*` build via `Builder`; `AddTag*` set `truncated` on overflow, `Finish()` returns `nil` (`discovery.go:291-293`), callers check `frame == nil` ("frame too large") | ALREADY SAFE -- fail-closed nil-return |
 | BFD -- `loop.go:219` | pooled `pb.Data()`, `PoolBufSize = 64` (`bfd/packet/pool.go:26`) | `packet.Control.WriteTo` + `Sign`; pool documented as sized above the max control-packet+auth; fixed-format PDU, not variable-length | ALREADY SAFE -- documented fixed cap |
+| IKE `buildEncryptedMessageEx` -- `ike/engine/auth.go:182` (added 2026-07-21 for sweep completeness) | `make([]byte, 65536)` inner buffer + direct-index `Payload.WriteTo` + `innerBuf[:off]` onto the encrypted wire | fail-closed aggregate `maxInnerSize` checks return an error (never truncates onto the wire); the residual single-payload >64KB panic requires ze to build such a payload from its OWN config, which it never does | ALREADY SAFE -- fail-closed aggregate guard; NOT widened into this spec (independent review NOTE, 2026-07-21) |
 
 ## Required Reading
 
@@ -319,20 +320,21 @@ caller (stage 4) is therefore DEAD CODE and NOT a fix; only a `Len()`-first buff
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- Per-encoder `Len()` + `CheckedWriteTo`/`Checked*` contract (no shared interface, no BGP import; `ze-tier-check` green). `Len()` on the IKE `Payload` interface + all 22 payload types; `Message.Len`/`Message.CheckedWriteTo`; L2TP `CheckedBuildDHCPv6Reply`/`CheckedBuildDHCPv6StatusReply` + length helpers.
+- Callers skip+log on overflow (IKE `sendSAInitNotify`/`sendDPD`/`buildSAInitResponse`; L2TP all 5 `ipv6_service.go` sites -> `dhcpv6ServerLoop` Warn-skip). `buildSAInitRequest` uses Len-first sizing (its callers are hook-locked RFC-tagged test files; length is ze-controlled). No copy-truncate.
+- Tests: `overflow_test.go` (panic-before, skip+log-after), `len_test.go` (Len==WriteTo drift guard), `dhcpv6_overflow_test.go`, byte-identical (AC-3). Learned 1235. See learned summary for the full design (D-1..D-5).
 
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
-
-### Run 1 (initial)
+### Run 1 (closure — independent adversarial review, 2026-07-21)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | NOTE | `buildEncryptedMessageEx` (same 64KB fixed-buffer + direct-index class shape) not listed in the AC-4 sweep; it is already fail-closed guarded (aggregate `maxInnerSize` error, never truncates) and outside the user-locked scope | `ike/engine/auth.go:182` | Added to the AC-4 sweep table as ALREADY SAFE (sweep-completeness, not a live defect) |
+
+Independent review comprehensively verified: `Len()` matches `WriteTo` for every one of the 22 payload types (including the SPI-underrun edge in `Proposal.length()`/`PayloadNotify.Len()`); the DHCPv6 length helpers match the builders; `CheckedWriteTo`/`CheckedBuild*` bound `need <= avail` BEFORE delegating to the unchanged encoder (boundary correct: need==cap allowed, need+1 rejected; fail-closed; byte-identical when it fits, AC-3); every in-scope caller propagates the error and skips+logs with no truncation and no nil sent; `buildSAInitRequest` Len-first is exactly sized and not remotely inflatable (DUID capped at 128, KE bounded by ze's DH groups); tests non-vacuous (panic-before on the real entry points). `go test` (ike+l2tp), `make ze-tier-check`, `go vet` all green.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE; the single NOTE is recorded and addressed (sweep row added).
 
 ## Checklist
 

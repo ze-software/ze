@@ -54,6 +54,14 @@ func (p *PayloadCP) WriteTo(buf []byte, off int) int {
 	return n
 }
 
+func (p *PayloadCP) Len() int {
+	n := 4
+	for i := range p.Attrs {
+		n += 4 + len(p.Attrs[i].Value)
+	}
+	return n
+}
+
 func (p *PayloadCP) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

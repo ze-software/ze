@@ -30,6 +30,8 @@ func (p *PayloadEAP) WriteTo(buf []byte, off int) int {
 	return 4 + len(p.EAPData)
 }
 
+func (p *PayloadEAP) Len() int { return 4 + len(p.EAPData) }
+
 func (p *PayloadEAP) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

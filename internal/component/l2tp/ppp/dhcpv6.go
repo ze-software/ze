@@ -7,6 +7,7 @@ package ppp
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net/netip"
 )
 
@@ -246,8 +247,82 @@ type DHCPv6ReplyConfig struct {
 	T2            uint32
 }
 
+// errDHCPv6BufferTooSmall reports a reply that will not fit the caller's fixed
+// buffer. The Build* writers index buf directly (buffer-first contract), so an
+// oversized reply would panic mid-encode; the Checked* wrappers return this
+// (wrapped, with the required length) instead so the caller drops the reply
+// rather than transmit a truncated (malformed) DHCPv6 packet.
+var errDHCPv6BufferTooSmall = errors.New("dhcpv6: reply exceeds buffer")
+
+// iapdReplyLen is the fixed byte count of the IA_PD option (with its single
+// IA_Prefix sub-option) that BuildDHCPv6Reply emits: option header + IAID/T1/T2
+// (16) plus the IA_Prefix sub-option (29).
+const iapdReplyLen = 16 + 29
+
+// duidLen reports the bytes writeDUID writes for d, mirroring its type switch.
+func duidLen(d *DHCPv6DUID) int {
+	n := 2 // Type
+	switch d.Type {
+	case DUIDTypeLLT:
+		n += 2 + 4 // HWType + Time
+	case DUIDTypeEN:
+		n += 4 // EnterpriseNum
+	case DUIDTypeLL:
+		n += 2 // HWType
+	}
+	return n + len(d.ID)
+}
+
+// duidOptionLen reports the bytes writeDUIDOption writes: the 4-byte option
+// header plus the DUID body.
+func duidOptionLen(d *DHCPv6DUID) int { return 4 + duidLen(d) }
+
+// dhcpv6ReplyLen reports the exact byte count BuildDHCPv6Reply writes for cfg.
+func dhcpv6ReplyLen(cfg DHCPv6ReplyConfig) int {
+	n := 4 // message header
+	n += duidOptionLen(&cfg.ServerID)
+	if cfg.ClientID != nil {
+		n += duidOptionLen(cfg.ClientID)
+	}
+	n += iapdReplyLen
+	return n
+}
+
+// dhcpv6StatusReplyLen reports the exact byte count BuildDHCPv6StatusReply writes.
+func dhcpv6StatusReplyLen(cfg DHCPv6StatusReplyConfig) int {
+	n := 4 // message header
+	n += duidOptionLen(&cfg.ServerID)
+	if cfg.ClientID != nil {
+		n += duidOptionLen(cfg.ClientID)
+	}
+	n += 4 + 2 + len(cfg.StatusMessage) // status option header + code + message
+	return n
+}
+
+// CheckedBuildDHCPv6Reply is the capacity-checked form of BuildDHCPv6Reply.
+// It writes nothing and returns an error naming the required length when buf is
+// too small, so the caller can drop the reply instead of panicking mid-encode.
+func CheckedBuildDHCPv6Reply(buf []byte, cfg DHCPv6ReplyConfig) (int, error) {
+	need := dhcpv6ReplyLen(cfg)
+	if need > len(buf) {
+		return 0, fmt.Errorf("%w: needs %d bytes but buffer has %d", errDHCPv6BufferTooSmall, need, len(buf))
+	}
+	return BuildDHCPv6Reply(buf, cfg), nil
+}
+
+// CheckedBuildDHCPv6StatusReply is the capacity-checked form of
+// BuildDHCPv6StatusReply (see CheckedBuildDHCPv6Reply).
+func CheckedBuildDHCPv6StatusReply(buf []byte, cfg DHCPv6StatusReplyConfig) (int, error) {
+	need := dhcpv6StatusReplyLen(cfg)
+	if need > len(buf) {
+		return 0, fmt.Errorf("%w: needs %d bytes but buffer has %d", errDHCPv6BufferTooSmall, need, len(buf))
+	}
+	return BuildDHCPv6StatusReply(buf, cfg), nil
+}
+
 // BuildDHCPv6Reply writes a DHCPv6 Advertise or Reply message with an
 // IA_PD containing the delegated prefix.
+// The caller must guarantee buf has capacity (see CheckedBuildDHCPv6Reply).
 func BuildDHCPv6Reply(buf []byte, cfg DHCPv6ReplyConfig) int {
 	off := 0
 

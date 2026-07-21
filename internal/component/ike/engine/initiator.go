@@ -80,7 +80,12 @@ func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
 		Payloads: payloads,
 	}
 
-	buf := make([]byte, 4096)
+	// Size the buffer to the message length so WriteTo (which indexes buf
+	// directly) can never overrun. The request is built entirely from ze's own
+	// configuration (proposals, our DH public key), so its length is not
+	// remotely influenced; a Len()-sized allocation bounds it without an error
+	// path. RFC 7296 Section 3.1. See spec-fixit-fixed-buffer-overflow.
+	buf := make([]byte, msg.Len())
 	n := msg.WriteTo(buf, 0)
 	return buf[:n]
 }

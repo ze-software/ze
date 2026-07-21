@@ -183,7 +183,12 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 	}
 	sa.SKKeys = skKeys
 
-	resp := buildSAInitResponse(sa, chosen)
+	resp, err := buildSAInitResponse(sa, chosen)
+	if err != nil {
+		log.Warn("ike: IKE_SA_INIT response too large, dropping", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
 	sa.ResponderSAInitMsg = append([]byte(nil), resp...)
 	sa.LocalDH.Clear()
 
@@ -214,7 +219,9 @@ func resendResponderSAInit(sa *SA, tr *transport.UDPTransport, remote *net.UDPAd
 
 // buildSAInitResponse builds the plaintext IKE_SA_INIT response carrying the single
 // chosen proposal, our KE, our nonce, the signature-hash notify, and NAT detection.
-func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) []byte {
+// It returns an error (without writing) if the encoded message would not fit the
+// fixed buffer, so the caller aborts rather than send a truncated IKE message.
+func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) ([]byte, error) {
 	payloads := []wire.PayloadEntry{
 		{Payload: &wire.PayloadSA{Proposals: chosenIKEProposalToWire(chosen)}},
 		{Payload: &wire.PayloadKE{DHGroup: uint16(chosen.DHGroup.ID), KeyExchangeData: sa.LocalDH.PublicKey}},
@@ -241,8 +248,11 @@ func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) []byte {
 		Payloads: payloads,
 	}
 	buf := make([]byte, 4096)
-	n := msg.WriteTo(buf, 0)
-	return buf[:n]
+	n, err := msg.CheckedWriteTo(buf, 0)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
 }
 
 // chosenIKEProposalToWire encodes a single negotiated IKE proposal for the SAr
@@ -315,7 +325,13 @@ func sendSAInitNotify(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, n
 		Payloads: []wire.PayloadEntry{{Payload: &wire.PayloadNotify{NotifyMsgType: notifyType, NotificationData: data}}},
 	}
 	buf := make([]byte, 512)
-	n := msg.WriteTo(buf, 0)
+	n, err := msg.CheckedWriteTo(buf, 0)
+	if err != nil {
+		// RFC 7296 Section 3: a truncated IKE message is malformed. Drop rather
+		// than send a partial notify (ai/rules/no-workarounds-for-missing-behavior.md).
+		log.Warn("ike: SA_INIT notify too large, dropping", "peer", sa.PeerName, "notify", notifyType, "error", err)
+		return
+	}
 	if err := tr.Send(buf[:n], remote); err != nil {
 		log.Debug("ike: send SA_INIT notify failed", "peer", sa.PeerName, "error", err)
 	}

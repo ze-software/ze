@@ -14,6 +14,8 @@ func (p *PayloadVendorID) WriteTo(buf []byte, off int) int {
 	return len(p.VendorIDData)
 }
 
+func (p *PayloadVendorID) Len() int { return len(p.VendorIDData) }
+
 func (p *PayloadVendorID) ReadFrom(data []byte) error {
 	p.VendorIDData = make([]byte, len(data))
 	copy(p.VendorIDData, data)

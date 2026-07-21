@@ -2,7 +2,10 @@
 // RFC: rfc/short/rfc7296.md — IKEv2 message structure (Section 3)
 package wire
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Message is a complete IKEv2 message: header + payload chain.
 type Message struct {
@@ -48,6 +51,33 @@ func (m *Message) WriteTo(buf []byte, off int) int {
 	}
 	m.Header.WriteTo(buf, start)
 	return off - start
+}
+
+// Len reports the exact number of bytes WriteTo will write for this message:
+// the fixed header, plus a generic header and body for each payload. It must
+// match WriteTo's return value so CheckedWriteTo can reject an undersized
+// buffer before any index write panics (RFC 7296 Section 3.1 length field).
+func (m *Message) Len() int {
+	total := HeaderLen
+	for i := range m.Payloads {
+		total += GenericHeaderLen + m.Payloads[i].Payload.Len()
+	}
+	return total
+}
+
+// CheckedWriteTo validates that buf has room for the whole message before
+// writing. WriteTo indexes buf directly (buffer-first contract), so an
+// oversized message would panic with a slice-bounds error partway through the
+// encode; this guard converts that latent panic into a returned error naming
+// the required length. On error nothing is written and the caller must skip
+// the send rather than transmit a truncated (malformed) IKE message.
+func (m *Message) CheckedWriteTo(buf []byte, off int) (int, error) {
+	need := m.Len()
+	avail := len(buf) - off
+	if off < 0 || avail < need {
+		return 0, fmt.Errorf("ike: message needs %d bytes but buffer has %d", need, avail)
+	}
+	return m.WriteTo(buf, off), nil
 }
 
 // ReadFrom parses a complete IKEv2 message from data.

@@ -22,6 +22,8 @@ func (p *PayloadDelete) WriteTo(buf []byte, off int) int {
 	return 4 + len(p.SPIs)
 }
 
+func (p *PayloadDelete) Len() int { return 4 + len(p.SPIs) }
+
 func (p *PayloadDelete) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

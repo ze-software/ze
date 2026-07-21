@@ -66,6 +66,17 @@ func (p *PayloadNotify) WriteTo(buf []byte, off int) int {
 	return n
 }
 
+func (p *PayloadNotify) Len() int {
+	n := 4
+	// Mirror WriteTo: SPI bytes are written only when SPISize>0 and the SPI
+	// slice is long enough; otherwise no SPI bytes are written.
+	if p.SPISize > 0 && len(p.SPI) >= int(p.SPISize) {
+		n += int(p.SPISize)
+	}
+	n += len(p.NotificationData)
+	return n
+}
+
 func (p *PayloadNotify) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

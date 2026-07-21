@@ -55,6 +55,10 @@ const (
 type Payload interface {
 	Type() uint8
 	WriteTo(buf []byte, off int) int
+	// Len reports the number of bytes WriteTo will write for the current
+	// payload contents. It must equal WriteTo's return value exactly, so
+	// Message.CheckedWriteTo can size a fixed buffer before any index write.
+	Len() int
 	ReadFrom(data []byte) error
 }
 
@@ -99,6 +103,8 @@ func (p *PayloadRaw) WriteTo(buf []byte, off int) int {
 	copy(buf[off:], p.Data)
 	return len(p.Data)
 }
+
+func (p *PayloadRaw) Len() int { return len(p.Data) }
 
 func (p *PayloadRaw) ReadFrom(data []byte) error {
 	p.Data = data

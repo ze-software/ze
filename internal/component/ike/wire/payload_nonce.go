@@ -20,6 +20,8 @@ func (p *PayloadNonce) WriteTo(buf []byte, off int) int {
 	return len(p.NonceData)
 }
 
+func (p *PayloadNonce) Len() int { return len(p.NonceData) }
+
 func (p *PayloadNonce) ReadFrom(data []byte) error {
 	if len(data) < NonceMinLen {
 		return ErrNonceTooShort

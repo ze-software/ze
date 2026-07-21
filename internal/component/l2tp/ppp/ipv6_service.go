@@ -130,12 +130,12 @@ func (s *IPv6Service) handleSolicit(msg *DHCPv6Message, serverID DHCPv6DUID, all
 	}
 
 	if allocPrefix == nil {
-		return s.noPrefixAvailReply(msg, serverID, "no pool configured"), nil
+		return s.noPrefixAvailReply(msg, serverID, "no pool configured")
 	}
 
 	prefix, ok := allocPrefix()
 	if !ok {
-		return s.noPrefixAvailReply(msg, serverID, "pool exhausted"), nil
+		return s.noPrefixAvailReply(msg, serverID, "pool exhausted")
 	}
 
 	s.mu.Lock()
@@ -143,7 +143,7 @@ func (s *IPv6Service) handleSolicit(msg *DHCPv6Message, serverID DHCPv6DUID, all
 	s.mu.Unlock()
 
 	var buf [512]byte
-	n := BuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n, err := CheckedBuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
 		Type:          DHCPv6Advertise,
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
@@ -155,6 +155,9 @@ func (s *IPv6Service) handleSolicit(msg *DHCPv6Message, serverID DHCPv6DUID, all
 		T1:            s.lifetimes.T1,
 		T2:            s.lifetimes.T2,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return buf[:n], nil
 }
 
@@ -179,7 +182,7 @@ func (s *IPv6Service) handleRequest(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 	}
 
 	var buf [512]byte
-	n := BuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n, err := CheckedBuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
 		Type:          DHCPv6Reply,
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
@@ -191,6 +194,9 @@ func (s *IPv6Service) handleRequest(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 		T1:            s.lifetimes.T1,
 		T2:            s.lifetimes.T2,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return buf[:n], nil
 }
 
@@ -211,7 +217,7 @@ func (s *IPv6Service) handleRenew(msg *DHCPv6Message, serverID DHCPv6DUID) ([]by
 	}
 
 	var buf [512]byte
-	n := BuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
+	n, err := CheckedBuildDHCPv6Reply(buf[:], DHCPv6ReplyConfig{
 		Type:          DHCPv6Reply,
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
@@ -223,6 +229,9 @@ func (s *IPv6Service) handleRenew(msg *DHCPv6Message, serverID DHCPv6DUID) ([]by
 		T1:            s.lifetimes.T1,
 		T2:            s.lifetimes.T2,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return buf[:n], nil
 }
 
@@ -236,26 +245,32 @@ func (s *IPv6Service) handleRelease(msg *DHCPv6Message, serverID DHCPv6DUID) ([]
 	s.cleanupPrefix()
 
 	var buf [512]byte
-	n := BuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
+	n, err := CheckedBuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
 		ClientID:      msg.ClientID,
 		StatusCode:    D6StatusSuccess,
 		StatusMessage: "released",
 	})
+	if err != nil {
+		return nil, err
+	}
 	return buf[:n], nil
 }
 
-func (s *IPv6Service) noPrefixAvailReply(msg *DHCPv6Message, serverID DHCPv6DUID, reason string) []byte {
+func (s *IPv6Service) noPrefixAvailReply(msg *DHCPv6Message, serverID DHCPv6DUID, reason string) ([]byte, error) {
 	var buf [512]byte
-	n := BuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
+	n, err := CheckedBuildDHCPv6StatusReply(buf[:], DHCPv6StatusReplyConfig{
 		TransactionID: msg.TransactionID,
 		ServerID:      serverID,
 		ClientID:      msg.ClientID,
 		StatusCode:    D6StatusNoPrefixAvail,
 		StatusMessage: reason,
 	})
-	return buf[:n]
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
 }
 
 func peerLinkLocal(id [8]byte) netip.Addr {

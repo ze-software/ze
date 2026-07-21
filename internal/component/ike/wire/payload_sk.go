@@ -19,6 +19,8 @@ func (p *PayloadSK) WriteTo(buf []byte, off int) int {
 	return len(p.CipherText)
 }
 
+func (p *PayloadSK) Len() int { return len(p.CipherText) }
+
 func (p *PayloadSK) ReadFrom(data []byte) error {
 	p.CipherText = make([]byte, len(data))
 	copy(p.CipherText, data)

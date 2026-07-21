@@ -28,6 +28,8 @@ func (p *PayloadAUTH) WriteTo(buf []byte, off int) int {
 	return 4 + len(p.AuthData)
 }
 
+func (p *PayloadAUTH) Len() int { return 4 + len(p.AuthData) }
+
 func (p *PayloadAUTH) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

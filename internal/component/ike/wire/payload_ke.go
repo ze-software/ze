@@ -19,6 +19,8 @@ func (p *PayloadKE) WriteTo(buf []byte, off int) int {
 	return 4 + len(p.KeyExchangeData)
 }
 
+func (p *PayloadKE) Len() int { return 4 + len(p.KeyExchangeData) }
+
 func (p *PayloadKE) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated

@@ -96,6 +96,14 @@ func (p *PayloadTS) WriteTo(buf []byte, off int) int {
 	return n
 }
 
+func (p *PayloadTS) Len() int {
+	n := 4
+	for i := range p.TrafficSelectors {
+		n += p.TrafficSelectors[i].length()
+	}
+	return n
+}
+
 func (p *PayloadTS) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated
