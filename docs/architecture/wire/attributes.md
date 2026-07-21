@@ -94,6 +94,7 @@ All path attributes share a common header:
 | 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
 | 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
 | 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669 | not implemented |
+| 252 | 0xFC | ATTR_TOMBSTONE | 0x80/0xC0 (O, T mirrors discarded attr) | draft-mangin-idr-attr-tombstone-00 | implemented (provisional code point) |
 
 Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive.
 Unimplemented attributes are parsed as opaque (raw bytes preserved for forwarding).
@@ -579,5 +580,46 @@ Source: `internal/component/bgp/plugins/nlri/ls/`.
 
 ---
 
+## ATTR_TOMBSTONE (Code 252)
+
+Code 252 (`0xFC`), constant `attribute.AttrTombstone`. Optional; its Transitive
+bit mirrors the discarded attribute at generation time. Defined by
+draft-mangin-idr-attr-tombstone-00; the code point is provisional (Section 8, IANA
+allocation pending).
+
+When a speaker applies "attribute discard" per RFC 7606, it overwrites the
+malformed or policy-discarded attribute's header and first two value bytes with an
+ATTR_TOMBSTONE marker in place, preserving the wire layout for zero-copy
+forwarding. The length field is never modified.
+
+| Field | Value | Reference |
+|-------|-------|-----------|
+| Flags | `0x80 \| (original_flags & 0x50)`: Optional set, Transitive and Extended Length mirror the discarded attribute, Partial cleared | Section 4.2 |
+| Type | 252 | Section 8 |
+| Value[0] | original attribute type code | Section 5.1 |
+| Value[1] | reason code (0 unspecified, 1 EBGP-invalid, 2 invalid-length, 3 malformed-value, 4 local-policy) | Section 4.4 |
+| Value[2..] | zeroed | Section 5.1 |
+
+**Egress flag handling (EBGP boundary).** The generation flags are stamped at
+receive time, where the destination is not yet known, so a transitive discarded
+attribute yields a transitive marker (`0xC0`). Under the default "inherit"
+forwarding policy, a recognizing EBGP speaker MUST clear the Transitive bit before
+forwarding the marker to an EBGP peer (Section 5.3), preventing the peer from
+propagating it further. Ze applies this clear per destination on the EBGP
+re-encode path (`wireu.rewriteASPathPrepend`), touching only the Transitive bit so
+the Optional and Extended Length bits stay consistent with the header. IBGP peers
+share the received wire zero-copy and keep the transitive marker, exactly as
+Section 5.3 requires. A marker already non-transitive (`0x80`) is forwarded
+unchanged.
+
+Source: `internal/component/bgp/message/attr_discard.go` (receive-time stamp),
+`internal/component/bgp/wireu/tombstone.go` (`WriteTombstone`,
+`clearTombstoneTransitive`), `internal/component/bgp/wireu/aspath_rewrite.go` (EBGP
+egress clear).
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrTombstone = 252 -->
+<!-- source: internal/component/bgp/wireu/tombstone.go -- clearTombstoneTransitive, Section 5.3 -->
+
+---
+
 **Created:** 2025-12-19
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-07-21

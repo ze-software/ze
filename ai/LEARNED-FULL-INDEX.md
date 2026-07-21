@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1210 summaries
+Total: 1211 summaries
 
 ## 000-099
 
@@ -1284,3 +1284,4 @@ Total: 1210 summaries
 | 1236 | fixit-private-asn-leak-deferred-nil-api-fail-open | `plan/learned/1236-fixit-private-asn-leak-deferred-nil-api-fail-open.md` |
 | 1237 | fixit-tombstone-code-point-split | `plan/learned/1237-fixit-tombstone-code-point-split.md` |
 | 1238 | fixit-as4path-missing-on-rewrite | `plan/learned/1238-fixit-as4path-missing-on-rewrite.md` |
+| 1239 | fixit-tombstone-ebgp-transitive | `plan/learned/1239-fixit-tombstone-ebgp-transitive.md` |

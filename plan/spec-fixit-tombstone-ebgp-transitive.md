@@ -212,7 +212,7 @@ Wire bytes: an UPDATE received on an EBGP session carrying an attribute that RFC
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Transitive marker (0xC0), code 252, forwarded to an EBGP peer | Marker flags become 0x80 on the EBGP wire (Section 5.3) |
-| AC-2 | Transitive marker (0xC0), code 253 (ze's receive-time spelling), forwarded to an EBGP peer | Marker flags become 0x80 |
+| AC-2 | ~~Transitive marker (0xC0), code 253 (ze's receive-time spelling), forwarded to an EBGP peer → 0x80~~ **SUPERSEDED 2026-07-21** by `spec-fixit-tombstone-code-point-split` (learned 1237): code 253 is no longer a tombstone spelling; the wire code point is unified to 252, so AC-1 is now the sole tombstone-transitive-clear case. A 253 attribute is a generic optional-transitive attribute forwarded verbatim (its Transitive bit is correctly left untouched — `tombstone_forward_test.go`). Retired, not a regression. |
 | AC-3 | Same UPDATE forwarded to an IBGP peer | Received wire untouched; marker stays 0xC0 (Section 5.3 "forwarded within the AS via IBGP") |
 | AC-4 | Marker already non-transitive (0x80) | Forwarded unchanged; no other flag bit altered |
 | AC-5 | Extended-length marker (0xD0, 2-byte length) | Becomes 0x90: Transitive cleared, Optional and Extended Length preserved (Section 4.2) |
@@ -332,13 +332,34 @@ call site in `rewriteASPathPrepend` (`internal/component/bgp/wireu/aspath_rewrit
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | Done | `TestRewriteASPath_ClearsTombstoneTransitiveAtEBGPBoundary/AttrTombstone` | |
-| AC-2 | Done | `TestRewriteASPath_ClearsTombstoneTransitiveAtEBGPBoundary/AttrDiscardLegacy` | |
+| AC-2 | RETIRED (superseded) | code 253 is no longer a tombstone spelling after `spec-fixit-tombstone-code-point-split` (learned 1237) unified the code point to 252; a 253 attribute is now forwarded verbatim (`tombstone_forward_test.go` asserts its Transitive bit is untouched). AC-1 is the sole tombstone-transitive-clear case. | |
 | AC-3 | Done | same test, asserts source `marker[0]` still 0xC0 | |
 | AC-4 | Done | `TestRewriteASPath_NonTransitiveTombstoneUnchanged` | |
 | AC-5 | Done | `TestRewriteASPath_ClearsTombstoneTransitiveExtendedLength` | |
 | AC-6 | Done | value/length assertions in the boundary test | |
-| AC-7 | Done | existing `wireu` + `reactor` suites pass unchanged; the clear is inside the existing copy, guarded by `isTombstoneCode` | |
+| AC-7 | Done | existing `wireu` + `reactor` suites pass unchanged; the clear is inside the existing copy, now guarded by `code == attribute.AttrTombstone` (was `isTombstoneCode`, deleted by the code-point unification) | |
 | AC-8 | Done | `grep -rn "attr-discard-00" internal/component/bgp/message/attr_discard.go` returns only the deliberate rename note | |
+
+## Review Gate
+
+### Run 1 (closure — independent verification, 2026-07-21)
+
+The two named deliverables (the ATTR_TOMBSTONE eBGP-boundary Transitive-clear MUST, and the 9
+dead-citation repairs in `attr_discard.go`) landed in commit `706b77b7d`. An independent
+verification pass confirmed: all live ACs met (AC-1/3/4/5/6/7/8; AC-2 RETIRED, superseded by the
+252 unification — see audit); the forwarding-policy clear is `clearTombstoneTransitive`
+(`wireu/tombstone.go:38`) called from `aspath_rewrite.go:528` under `code == attribute.AttrTombstone`
+(IBGP keeps the zero-copy received wire); all 9 draft citations corrected to
+`draft-mangin-idr-attr-tombstone-00` with section numbers verified to exist (5.10 was phantom ->
+5.7); repo-wide grep confirms zero dead citations survive in source. The one remaining spec-gate
+item — Documentation Update Checklist #7, a missing `docs/architecture/wire/attributes.md`
+ATTR_TOMBSTONE entry — was filled this session (a code-252 table row + an `## ATTR_TOMBSTONE`
+section, draft citations verified). `go test` (wireu/message/reactor), `go vet`, and
+`make ze-rfc-check` all green.
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE.** The configurable inherit/strip/propagate policy, the
+EBGP RS-client zero-copy gap, non-transitive markers on the EBGP wire, and the Partial bit remain
+deliberately deferred Known Limitations (not ACs; recorded below). Gate satisfied.
 
 ## Known Limitations Recap (for the reader in a hurry)
 The MUST is honoured for ordinary EBGP peers. It is NOT honoured for EBGP
