@@ -529,4 +529,26 @@ The two-line-shaped, two-defect fix in `exportFilterForBody`, plus the extractio
   confident, and the wire was byte-identical to the leak. Only instrumentation
   (`textIn=` with no attributes) exposed the second defect. The lesson is the rule's:
   do not trust a fix you have not watched work.
-</content>
+
+## Review Gate
+
+### Run 1 (closure — independent adversarial review, 2026-07-21)
+
+Independent subagent review of the full changeset (`egress_inject_filter.go`,
+`filter_ordered.go`, `remove-private-as-{export,replace}-originated.ci`) against AC-1..AC-5.
+
+| Severity | Finding | Location | Action |
+|----------|---------|----------|--------|
+| NOTE | Working-tree comment-only doc-ref repoint (`spec-fixit-private-asn-leak.md` -> `plan/learned/1231-...`) | `egress_inject_filter.go:36` | Intended closure edit; no behavior change |
+| NOTE | `r.api == nil` case now fails CLOSED (child commit `1fb231afb`), improving on this spec's "recorded, not fixed" prose | `egress_inject_filter.go:62-65` | Improvement, correctly homed to the nil-api child spec; not a defect |
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE, 2 NOTE.** ACs supported by producing code:
+AC-1 `filter_ordered.go:250` / `filter_delta.go:645-668` (STRIP); AC-2 `egress_inject_filter.go:76`
+/ `filter_delta.go:657` (peer-as = destination AS); AC-3 `runEgressPolicyChainASN4`
+(`filter_ordered.go:221`) is the sole shared body; AC-4 both halves sit on the byte-exact
+asserted path (mutation-killable); AC-5 forwarded path preserves source-ctx `asn4`.
+`p.asn4()` (encode) and `facts.sendASN4` (parse/filter) read the identical `p.sendCtx`, so
+the originated body's octet-width and the filter's parse context cannot diverge.
+Artifact: `tmp/review/fixit-private-asn-leak-<session>.md` (verdict clean).
+
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE.

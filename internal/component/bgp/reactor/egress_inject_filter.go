@@ -33,7 +33,7 @@ import (
 // forwardUpdateCore and honored only Reject and raw overrides, so every
 // FilterModify TEXT delta (which is what remove-private-as, as-path prepend and
 // the other text filters return) was silently discarded and the route went out
-// unfiltered. See plan/spec-fixit-private-asn-leak.md.
+// unfiltered. See plan/learned/1231-fixit-private-asn-leak.md.
 //
 // Called from writeUpdate/SendAnnounce while the session writeMu is held, so the
 // (synchronous, in-process) filter RPC runs under that lock. This is acceptable:
