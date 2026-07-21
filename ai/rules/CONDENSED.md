@@ -4058,6 +4058,7 @@ A test carrying an `RFC requirement: <id> <polarity>` tag is the proof behind a 
 | You believe the test is genuinely wrong | STOP. Show the user the RFC text beside the test and ask. Do not edit first and explain after |
 | The summary misquotes the RFC | Fix `rfc/short/rfcNNNN.md` (keep the id), then re-run `/ze-rfc-audit` |
 | Reformat / comment / re-tag | Allowed; behavior must be unchanged |
+| You added, moved, deleted, or re-tagged a tagged test (or an edit shifted its line) | Run `make ze-rfc-index` and commit `ai/RFC-REQUIREMENTS.md` in the SAME commit. The ledger records each test's `file:line`, and `ze-rfc-check` (both verify modes) fails on a stale ledger, so a skipped regen lands on the next session as a cross-commit diff |
 ## Back-Fill New Test Types (BLOCKING)
 When you introduce a new test type, technique, or infrastructure (fuzz target, property test, mutation gate, `-race` sweep, clock-injection audit, new `.ci`/`.et` category, QEMU harness), apply it to the existing code...
 1. Name the applicable set: the package glob, symbol kind, or call-site pattern the new test type is meant to cover.

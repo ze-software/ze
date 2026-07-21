@@ -22,7 +22,10 @@ audit; everything below serves it.
    with no reachable NLRI must session-reset, dropping the RFC's "other than
    MP_UNREACH_NLRI" clause — which made it demand a reset on every End-of-RIB.
 4. Run `make ze-rfc-index`, then read the `$ARGUMENTS` section of `ai/RFC-REQUIREMENTS.md`
-   for the requirement → test map.
+   for the requirement → test map. If this regen produces a ledger diff you did not cause
+   (a pure `file:line` refresh from someone else's un-regenerated test edit), do NOT fold it
+   into the audit: it belongs to that other change's commit. See "Keep the ledger committed"
+   in `ai/skills/ze-rfc.md`.
 5. For EACH gated requirement, open every tagged test and judge it (see below).
 6. WRITE `rfc/audit/$ARGUMENTS.json`.
 7. Run `make ze-rfc-check`.

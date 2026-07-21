@@ -47,6 +47,21 @@ duplicates merge into one line). But an order-of-magnitude gap means you under-c
 check exists because it caught real failures: `rfc5303`, `rfc5304`, and `rfc5310` shipped
 summaries with 23, 13, and 12 normative keywords in the source and **zero** captured.
 
+## Keep the ledger committed (BLOCKING)
+
+`ai/RFC-REQUIREMENTS.md` is generated from the summaries and the `RFC requirement:` tags,
+and it records each enforcing test's `file:line`. So it goes stale not only when you add
+or retire a requirement, but whenever a tagged test is added, moved, deleted, or re-tagged,
+and even when an unrelated edit shifts a tagged test's line. Regenerate it with
+`make ze-rfc-index` and **commit the regenerated ledger in the SAME commit** as the change
+that caused the drift. `ze-rfc-check` renders the ledger and fails on any mismatch, and it
+runs in both `ze-verify` and `ze-verify-changed` (`check_ledger_fresh`,
+`scripts/dev/rfc_requirements.py`). A ledger left stale is not silently tolerated: it
+surfaces later as a cross-commit diff that the next session inherits and the freshness gate
+pins on them. This cuts both ways: it is also why you must not regenerate the ledger as a
+side effect of unrelated work. If the diff is a pure line-number refresh with no change of
+yours behind it, a prior commit skipped the regen, so commit that refresh on its own.
+
 ## Structure
 
 ### Meta
@@ -200,6 +215,9 @@ The link is two-way, but only ONE side is authored: the test tags itself.
 a test path into a summary (`ai/rules/derive-not-hardcode.md`). A hand-written back-link
 survives deletion of the test it names; a tag dies with the test.
 
+The rendered link carries the test's `file:line`, so the ledger drifts whenever a tagged
+test moves. Regenerate and commit it in the same change (see "Keep the ledger committed").
+
 In the test that enforces a requirement:
 
 ```go
@@ -284,6 +302,9 @@ Step-by-step, pseudocode if RFC provides it.
 - Every checklist line gets a unique, permanent ID. Never renumber, never reuse
 - Never tick a checkbox — coverage is derived from test tags, not declared here
 - Never hand-write a test path into a summary — `ai/RFC-REQUIREMENTS.md` is generated
+- Regenerate `ai/RFC-REQUIREMENTS.md` (`make ze-rfc-index`) and commit it in the same change
+  whenever a tagged test is added, moved, deleted, or re-tagged; it records `file:line`, and
+  `ze-rfc-check` fails on a stale ledger
 - Never annotate `{not-applicable}` / `{gap}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
 - Enrollment (`rfc/enrolled.txt`) means "every MUST here is CLASSIFIED": tested, or
