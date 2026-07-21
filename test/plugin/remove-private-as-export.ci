@@ -39,14 +39,16 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010
 # so RFC 7606 Section 7.5 requires ze to discard it, and RFC 4271 Section 5.1.5 forbids
 # sending it to receiver-peer, also external ("MUST NOT include LOCAL_PREF in UPDATE
 # messages sent to external peers", rfc/short/rfc4271.md:381,702). ze discards it in place
-# and leaves an ATTR_DISCARD marker per draft-mangin-idr-attr-discard-00
-# (message/attr_discard.go:96-115 applyInPlace, on the books since 2026-03-09, predating
-# this test): flags 0x80|(0x40&0x50)=0xC0, code 0xFD=253, value [orig-code 5][reason 1 =
-# DiscardReasonEBGPInvalid] then zero-filled -> C0FD0405010000. Same 7 bytes as the
-# LOCAL_PREF it overwrites, so the 62-byte length is unchanged.
+# and leaves an ATTR_TOMBSTONE marker per draft-mangin-idr-attr-tombstone-00
+# (message/attr_discard.go applyInPlace, on the books since 2026-03-09, predating
+# this test): flags 0x80|(0x40&0x50)=0xC0, code 0xFC=252 (attribute.AttrTombstone, the
+# single unified code point), value [orig-code 5][reason 1 = DiscardReasonEBGPInvalid]
+# then zero-filled -> C0FC0405010000. Same 7 bytes as the LOCAL_PREF it overwrites, so
+# the 62-byte length is unchanged. This egress path does not run the Section 5.3
+# eBGP Transitive-clear (rewriteASPathPrepend), so the flags byte stays 0xC0.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FDE80000FBF00000FBF140030401010101C0FD0405010000180A0000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FDE80000FBF00000FBF140030401010101C0FC0405010000180A0000
 EOF_PEER
 
 tmpfs=remove-private-as-export.run:mode=755:terminator=EOF_RUN

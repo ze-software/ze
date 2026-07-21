@@ -71,12 +71,14 @@ func buildTombstoneAttr(code attribute.AttributeCode, flags byte) []byte {
 // PREVENTS: a transitive marker escaping the AS boundary, where the EBGP peer
 // would propagate it further per RFC 4271 Section 5.
 func TestRewriteASPath_ClearsTombstoneTransitiveAtEBGPBoundary(t *testing.T) {
+	// The tombstone code point is unified onto attribute.AttrTombstone (252); the retired
+	// legacy code 253 is no longer recognized as a tombstone. That the egress leaves a 253
+	// attribute's Transitive bit untouched is asserted by TestTombstoneCodePointIsUnified.
 	for _, tc := range []struct {
 		name string
 		code attribute.AttributeCode
 	}{
 		{"AttrTombstone", attribute.AttrTombstone},
-		{"AttrDiscardLegacy", attribute.AttributeCode(253)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			marker := buildTombstoneAttr(tc.code, 0xC0)

@@ -525,7 +525,7 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 			// Otherwise skip: replaced by new AS4_AGGREGATOR appended at end.
 
 		default:
-			if isTombstoneCode(code) {
+			if code == attribute.AttrTombstone {
 				// draft-mangin-idr-attr-tombstone-00 Section 5.3: "At the originating
 				// AS's EBGP boundary, the sending speaker controls propagation.  Under
 				// the "inherit" policy, a recognizing EBGP speaker MUST clear the

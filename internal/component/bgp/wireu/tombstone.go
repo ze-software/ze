@@ -18,18 +18,6 @@ const (
 	TombstoneLocalPolicy   byte = 4
 )
 
-// attrTombstoneLegacy is ze's second, older code point for the same marker.
-// message/attr_discard.go stamps 253 at receive time while this package writes
-// attribute.AttrTombstone (252); both are provisional stand-ins for the draft's
-// single TBD code (draft-mangin-idr-attr-tombstone-00 Section 8), so forwarding
-// rules must recognize either spelling until the two producers are unified.
-const attrTombstoneLegacy attribute.AttributeCode = 253
-
-// isTombstoneCode reports whether code is one of ze's ATTR_TOMBSTONE spellings.
-func isTombstoneCode(code attribute.AttributeCode) bool {
-	return code == attribute.AttrTombstone || code == attrTombstoneLegacy
-}
-
 // clearTombstoneTransitive clears the Transitive bit of an ATTR_TOMBSTONE marker
 // whose flags byte sits at dst[flagsOff]. Zero-copy: masks one byte already
 // written into the caller's buffer, no allocation and no data movement.

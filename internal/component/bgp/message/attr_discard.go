@@ -14,20 +14,16 @@ import (
 
 // ATTR_TOMBSTONE path attribute implementation.
 // draft-mangin-idr-attr-tombstone-00: In-place marker for RFC 7606 attribute discard.
-// (The draft was renamed from draft-mangin-idr-attr-discard-00; the ATTR_DISCARD
-// names in this file predate the rename and are retained for now.)
 //
 // When a BGP speaker applies "attribute discard" per RFC 7606, it overwrites
 // the malformed attribute's header and first two value bytes with an
 // ATTR_TOMBSTONE marker, preserving the wire layout for zero-copy forwarding.
-
-// attrCodeAttrDiscard is the ATTR_TOMBSTONE type code.
-// draft-mangin-idr-attr-tombstone-00 Section 8: TBD (IANA allocation pending).
 //
-// NOTE: this is ze's second provisional value for the draft's single TBD code:
-// internal/core/bgp/attribute.AttrTombstone is 252 and is what wireu writes on the
-// egress path. The two producers disagree and must be unified.
-const attrCodeAttrDiscard uint8 = 253
+// The marker's type code is the single canonical constant attribute.AttrTombstone
+// (252), declared once at the core attribute tier and shared with the wireu egress
+// path (wireu.WriteTombstone), so a marker ze writes on egress is the same code its
+// own upstream merge searches for. draft-mangin-idr-attr-tombstone-00 Section 8: the
+// value is provisional (TBD, IANA allocation pending).
 
 // Discard reason codes per draft-mangin-idr-attr-tombstone-00 Section 4.4.
 const (
@@ -74,7 +70,7 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 		return pathAttrs, false
 	}
 
-	// Check for upstream ATTR_DISCARD that needs merging.
+	// Check for upstream ATTR_TOMBSTONE that needs merging.
 	upstreamEntries := ExtractUpstreamAttrDiscard(pathAttrs)
 	needsMerge := len(upstreamEntries) > 0
 
@@ -86,7 +82,7 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 	}
 
 	// Rebuild: multiple entries, value too short, or upstream merge needed.
-	// Merge upstream + local entries into a single list for the rebuilt ATTR_DISCARD.
+	// Merge upstream + local entries into a single list for the rebuilt ATTR_TOMBSTONE.
 	merged := make([]DiscardEntry, 0, len(upstreamEntries)+len(entries))
 	merged = append(merged, upstreamEntries...)
 	merged = append(merged, entries...)
@@ -102,7 +98,7 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 //  1. Locate the attribute by code
 //  2. Overwrite flags: new_flags = 0x80 | (original_flags & 0x50)
 //  3. Save original type code
-//  4. Overwrite type code with attrCodeAttrDiscard
+//  4. Overwrite type code with attribute.AttrTombstone
 //  5. Write original code as first value byte
 //  6. Write reason code as second value byte
 //  7. Zero remaining value bytes
@@ -115,8 +111,8 @@ func applyInPlace(pathAttrs []byte, entry DiscardEntry) bool {
 
 	// Overwrite flags.
 	pathAttrs[hdrStart] = attrDiscardFlags(uint8(flags))
-	// Overwrite type code.
-	pathAttrs[hdrStart+1] = attrCodeAttrDiscard
+	// Overwrite type code with the single canonical ATTR_TOMBSTONE code point.
+	pathAttrs[hdrStart+1] = byte(attribute.AttrTombstone)
 	// Write original code and reason into first two value bytes.
 	// value is a subslice of pathAttrs — writes go through to the original buffer.
 	value[0] = entry.Code
@@ -128,11 +124,11 @@ func applyInPlace(pathAttrs []byte, entry DiscardEntry) bool {
 	return true
 }
 
-// ExtractUpstreamAttrDiscard finds an existing ATTR_DISCARD and extracts its (code, reason) pairs.
-// Returns nil if no upstream ATTR_DISCARD is present.
+// ExtractUpstreamAttrDiscard finds an existing ATTR_TOMBSTONE and extracts its (code, reason) pairs.
+// Returns nil if no upstream ATTR_TOMBSTONE is present.
 // Uses AttrFind (zero allocation when no upstream present — the happy path).
 func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
-	_, _, value, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(attrCodeAttrDiscard))
+	_, _, value, found := attribute.AttrFind(pathAttrs, attribute.AttrTombstone)
 	if !found {
 		return nil
 	}
@@ -159,7 +155,7 @@ func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
 // Parameters:
 //   - pathAttrs: original path attributes bytes
 //   - localEntries: attributes being discarded in this pass (used to identify which to remove)
-//   - allEntries: merged upstream + local entries (written into the new ATTR_DISCARD value)
+//   - allEntries: merged upstream + local entries (written into the new ATTR_TOMBSTONE value)
 func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []DiscardEntry) []byte {
 	// Build set of codes to remove.
 	var removeCodes [256]bool
@@ -167,8 +163,8 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 		removeCodes[e.Code] = true
 	}
 
-	// Calculate new size: copy non-removed, non-ATTR_DISCARD attributes,
-	// then append new ATTR_DISCARD.
+	// Calculate new size: copy non-removed, non-ATTR_TOMBSTONE attributes,
+	// then append new ATTR_TOMBSTONE.
 	// First pass: measure using AttrIterator.
 	var keepSize int
 	iter := attribute.NewAttrIterator(pathAttrs)
@@ -178,13 +174,13 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 		if !ok {
 			break
 		}
-		if uint8(typeCode) == attrCodeAttrDiscard || removeCodes[uint8(typeCode)] {
+		if typeCode == attribute.AttrTombstone || removeCodes[uint8(typeCode)] {
 			continue
 		}
 		keepSize += iter.Offset() - start
 	}
 
-	// ATTR_DISCARD value: 2 bytes per entry.
+	// ATTR_TOMBSTONE value: 2 bytes per entry.
 	discardValueLen := len(allEntries) * 2
 	discardHdrLen := 3
 	if discardValueLen > 255 {
@@ -198,8 +194,8 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 	// non-transitive (0x80); if mixed, the result MUST be non-transitive (0x80)."
 	mergedFlags := uint8(0x80) // Default: optional non-transitive.
 
-	// Determine transitivity from upstream ATTR_DISCARD (if present).
-	upstreamFlags := findAttrFlags(pathAttrs, attrCodeAttrDiscard)
+	// Determine transitivity from upstream ATTR_TOMBSTONE (if present).
+	upstreamFlags := findAttrFlags(pathAttrs, uint8(attribute.AttrTombstone))
 	hasUpstream := upstreamFlags != 0
 	upstreamTransitive := upstreamFlags&0x40 != 0
 
@@ -244,7 +240,7 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 		if !ok {
 			break
 		}
-		if uint8(typeCode) == attrCodeAttrDiscard || removeCodes[uint8(typeCode)] {
+		if typeCode == attribute.AttrTombstone || removeCodes[uint8(typeCode)] {
 			continue
 		}
 		attrLen := iter.Offset() - start
@@ -252,9 +248,9 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 		wpos += attrLen
 	}
 
-	// Write ATTR_DISCARD attribute.
+	// Write ATTR_TOMBSTONE attribute.
 	result[wpos] = mergedFlags
-	result[wpos+1] = attrCodeAttrDiscard
+	result[wpos+1] = byte(attribute.AttrTombstone)
 	if discardHdrLen == 4 {
 		//nolint:gosec // discardValueLen is bounded by number of BGP attributes (max ~256 * 2 = 512)
 		binary.BigEndian.PutUint16(result[wpos+2:wpos+4], uint16(discardValueLen))
@@ -275,7 +271,7 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 }
 
 // findAttrFlags finds the flags byte for an attribute by its type code.
-// Returns 0 if the attribute is not found (e.g., upstream ATTR_DISCARD entry
+// Returns 0 if the attribute is not found (e.g., upstream ATTR_TOMBSTONE entry
 // whose original attribute is no longer in the path attributes section).
 // Uses AttrFind (zero allocation).
 func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
@@ -287,7 +283,7 @@ func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
 }
 
 // RebuildUpdateBody reconstructs an UPDATE message body with new path attributes.
-// Used when ATTR_DISCARD rebuild changes the path attributes section size.
+// Used when ATTR_TOMBSTONE rebuild changes the path attributes section size.
 //
 // UPDATE body layout (RFC 4271 Section 4.3):
 //

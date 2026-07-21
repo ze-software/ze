@@ -518,21 +518,22 @@ MUST document: the code point's provisional status, the Section 5.1 merge rule, 
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (closure — independent adversarial review, 2026-07-21)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (fill during implementation) | file:line | (fill during implementation) |
-
-### Fixes applied
-- (fill during implementation)
-
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+| 1 | NOTE | Stale comment "Type code -> attrCodeAttrDiscard (253)" now describes value 252 | `attr_discard_test.go:123` | Not editable (RFC-tag hook-protected); documented |
+| 2 | NOTE | Exported-symbol + `attr_discard.go` filename rename to tombstone vocabulary not performed | `attr_discard.go` + `ApplyAttrDiscard`/`ExtractUpstreamAttrDiscard`/`DiscardEntry` | DEFERRED (acceptable): no AC keys on symbol names; R-3 sanctions retaining "discard" vocabulary; a full rename would force editing the RFC-tag hook-protected `attr_discard_test.go`; the code point IS unified (AC-1 met) |
+| 3 | NOTE | A 253 marker from a pre-unification ze peer is no longer transitive-cleared/merged | `aspath_rewrite.go:528` | Intended, inherent to changing a provisional code point; covered by A-3 (no external interop) + O-1; not a defect |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE, 3 NOTE (all non-blocking).** Independent review verified:
+exactly one production tombstone constant (`attribute.AttrTombstone = 252`), the shim/253 fully
+deleted from production; the LIVE merge bug fixed (`ExtractUpstreamAttrDiscard` searches 252, the
+code `WriteTombstone`/`applyInPlace` write); AC-2/AC-3 tests non-vacuous (RED under the 253-only
+split); AC-4 eBGP transitive-clear preserved; the test-only `attrCodeAttrDiscard` alias derives
+from the canonical constant (cannot diverge, doesn't mask the bug); `.ci` `C0FD`->`C0FC` (code
+byte only). `go test` (message/wireu/core-attribute) + `go vet` green. DEFERRED-RENAME judged
+ACCEPTABLE by the review. Gate satisfied: 0 BLOCKER, 0 ISSUE.
 
 ## Pre-Commit Verification
 

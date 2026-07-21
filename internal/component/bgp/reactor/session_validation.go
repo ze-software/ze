@@ -143,7 +143,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		// the upstream pairs separately before merging to preserve diagnostic
 		// traceability."
 		if upstream := message.ExtractUpstreamAttrDiscard(pathAttrs); len(upstream) > 0 {
-			sessionLogger().Debug("RFC 7606 upstream ATTR_DISCARD before merge",
+			sessionLogger().Debug("RFC 7606 upstream ATTR_TOMBSTONE before merge",
 				"upstream-entries", upstream,
 				"local-entries", result.DiscardEntries)
 		}

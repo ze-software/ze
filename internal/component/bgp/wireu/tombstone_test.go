@@ -105,3 +105,46 @@ func TestWriteTombstone_MinimalValue(t *testing.T) {
 	assert.Equal(t, byte(6), dst[3], "original code")
 	assert.Equal(t, TombstoneInvalidLength, dst[4], "reason")
 }
+
+// TestTombstoneCodePointIsUnified proves ze uses exactly ONE ATTR_TOMBSTONE code point on
+// the wire -- attribute.AttrTombstone (252) -- after the 252/253 split was consolidated
+// (spec-fixit-tombstone-code-point-split). WriteTombstone emits 252, and the eBGP egress
+// recognizes 252 and clears its Transitive bit per draft-mangin-idr-attr-tombstone-00
+// Section 5.3. The retired legacy code 253 is no longer recognized as a tombstone: it is
+// forwarded verbatim with its Transitive bit intact, proving the dual-recognition shim
+// (attrTombstoneLegacy / isTombstoneCode) is gone.
+//
+// This is RED against the split (the shim recognizes 253 and clears its Transitive bit, so
+// the legacy marker's flags would be 0x80, not 0xC0) and GREEN after the shim is deleted.
+//
+// VALIDATES: AC-1 -- one code point; the legacy dual-recognition shim no longer exists.
+func TestTombstoneCodePointIsUnified(t *testing.T) {
+	// 1. WriteTombstone emits the single canonical code.
+	dst := make([]byte, 16)
+	WriteTombstone(dst, 0, 0xC0, attribute.AttrLocalPref, 3, 4, TombstoneEBGPInvalid)
+	require.Equal(t, byte(attribute.AttrTombstone), dst[1], "WriteTombstone emits the unified code (252)")
+
+	// 2. The eBGP egress recognizes the unified code and clears Transitive (Section 5.3).
+	unified := buildTombstoneAttr(attribute.AttrTombstone, 0xC0)
+	uattrs := concatAttrs(buildOriginAttr(), buildASPathAttr([]attribute.ASPathSegment{}, true), unified)
+	upayload := buildPayload(nil, uattrs, []byte{0x18, 0x0A, 0x00, 0x00})
+	uout := make([]byte, 512)
+	un, err := RewriteASPath(uout, upayload, 65000, true, true)
+	require.NoError(t, err)
+	uflags, _, ufound := findAttrInPayload(t, uout[:un], attribute.AttrTombstone)
+	require.True(t, ufound, "the unified marker survives eBGP forwarding")
+	assert.Equal(t, byte(0x80), uflags,
+		"unified code recognized: Transitive bit cleared at the eBGP boundary (Section 5.3)")
+
+	// 3. The retired legacy code 253 is NOT a tombstone: forwarded verbatim, Transitive kept.
+	legacy := buildTombstoneAttr(attribute.AttributeCode(253), 0xC0)
+	lattrs := concatAttrs(buildOriginAttr(), buildASPathAttr([]attribute.ASPathSegment{}, true), legacy)
+	lpayload := buildPayload(nil, lattrs, []byte{0x18, 0x0A, 0x00, 0x00})
+	lout := make([]byte, 512)
+	ln, err := RewriteASPath(lout, lpayload, 65000, true, true)
+	require.NoError(t, err)
+	lflags, _, lfound := findAttrInPayload(t, lout[:ln], attribute.AttributeCode(253))
+	require.True(t, lfound, "the legacy attribute is still forwarded")
+	assert.Equal(t, byte(0xC0), lflags,
+		"retired legacy code 253 is not recognized as a tombstone: Transitive bit preserved")
+}
