@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-20 |
+| Updated | 2026-07-21 |
 
 ## Post-Compaction Recovery
 
@@ -248,3 +248,62 @@ stays honest. The finding above is the part worth keeping.
 - Sibling `plan/spec-finish-ci-coverage.md` covers MISSING tests; this spec covers WEAK ASSERTIONS in EXISTING tests — reference, do not duplicate.
 - Verified `file:line`: `.ci` grammar `internal/test/runner/record_parse.go:243/451/586`; readback ~~`internal/component/config/cli/cmd_dump.go:18`, `cmd_show.go:19`~~.
   - → CITATION FIX (2026-07-17): `cmdDump` is at `cmd_dump.go:20` (line 18 is the import close), and it reads stdin + prints the parsed tree exactly as described. `ze config show` stdin readback lives in `openShowEditor` (`cmd_show.go:23`) with command entry `cmdShow` (`cmd_show.go:45`); line 19 was the blank line after imports. Behavior confirmed real; only the line offsets were corrected. The same `cmd_dump.go:18`→`:20` and `cmd_show.go:19`→`cmdShow :45`/`openShowEditor :23` corrections apply to the in-body citations (Key insights, Data Flow Entry Point, Assumption A-1). All `record_parse.go` line numbers (`68`/`111`/`243`/`451`/`586`) are exact.
+
+## Review Gate
+
+Two independent adversarial reviewer contexts over the diff (distinct lenses), then a fix round, then a focused fix re-review with a mutation check.
+
+### Run 1 (two parallel independent reviewers)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| R1-1 | ISSUE | Per-command `exit=0`-only tests escape the weak-classifier (false-strong / fail-open): `isAcceptOnly` gated only on file-level `ExpectExitCode`; `record.go` steers multi-`validate` tests to per-command `exit=` | `accept_only.go` isAcceptOnly | Fixed — accept ANY zero exit assertion (file or per-command) as the acceptance signal; any non-zero exit → strong |
+| R1-2 | ISSUE | Unparseable `.ci` silently skipped (fail-open): ~80 files (`test/decode/`, `test/exabgp-compat/encoding/`, 1 plugin) only `t.Logf`'d on a passing test | `accept_only.go` acceptOnlyUnannotated + gate | Fixed — gate FAILS on any parse error NOT in a documented dialect allowlist (`acceptOnlyExcludedParse*`) |
+| R2 | CLEAN | Discrimination/grammar/doc/regen lens: strengthened ntp/geodns genuinely discriminate (confirmed by running: needle present at correct value, gone at wrong); `contains=` colon-truncation claim TRUE (so `pattern=` correct); md5 annotation honest; docs/anchors accurate; regen indexes byte-consistent | whole changeset | none |
+
+### Fixes applied
+- `isAcceptOnly` broadened to treat any zero exit (file-level or per-command) as the weak acceptance signal; added `TestCIAcceptOnlyLintFlagsPerCommandExitOnly` (RED on old predicate → GREEN).
+- Documented dialect allowlist (`acceptOnlyExcludedParsePrefixes` + `acceptOnlyExcludedParseFiles`); gate `t.Errorf`s on `unexpectedParseErrors`; added `TestCIAcceptOnlyLintFailsOnUnparseableOutsideAllowlist` (RED under a neutered allowlist → GREEN).
+- Hardening: `TestCIAcceptOnlyLintStaleBaseline` (covers `baselineOrphans`, the ratchet-down direction); ci-format.md caution about `pattern=` needles containing `json=`/`text=`/`hex=` substrings.
+
+### Run 2 (focused fix re-review, independent context + mutation check)
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| — | CLEAN | Both fixes correct by inspection; all 7 accept-only tests green under `-race`; baseline delta 0 (no file flipped by the broadening); regen index adds only the ci-format.md `ciformat.go` anchor (no concurrent-doc leakage) | none |
+| MUT | verified | Mutation: `acceptOnlyParseExcluded → return true` (exclude everything) flips `TestCIAcceptOnlyLintFailsOnUnparseableOutsideAllowlist` RED ("unexpectedParseErrors = [], want one entry"), then reverted — the fail-closed guard is non-vacuous | none |
+
+### Final status
+- [x] 0 BLOCKER, 0 ISSUE after fixes
+- [x] All NOTEs recorded (contains/pattern caution documented; annotation escape hatch is by-design auditable; `reactor.ExecuteCommand` empty-username is unrelated to this spec — pre-existing, fail-closed)
+
+## Pre-Commit Verification
+
+### Files Exist
+| File | Evidence |
+|------|----------|
+| `internal/test/runner/accept_only.go` | isAcceptOnly, dialect allowlist, ratchet |
+| `internal/test/runner/accept_only_lint_test.go` | 7 tests incl. 2 new fail-closed guards |
+| `test/.accept-only-baseline` | 100 grandfathered weak tests |
+
+### AC Verified
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | ntp strengthened, discriminating | `ntp-config.ci` `expect=stdout:pattern="interval": "300"`; present at 300, gone at 600 (reviewer-confirmed by running) |
+| AC-2 | geodns strengthened | `geodns-config.ci` `contains="0.0.0.0/0"` + `pattern="host-set": "external"`; both vanish when source block dropped |
+| AC-3 | annotate unit-covered | `md5.ci` `# accept-only:` citing `TestParsePeerMD5FieldsParsed` (asserts MD5Key/MD5IP values, config_test.go:1539) |
+| AC-4 | lint flags new / allows annotated·strengthened·excluded·per-command | `TestCIAcceptOnlyLintFlags`, `…FlagsPerCommandExitOnly`, `…Allows`, `…FailsOnUnparseableOutsideAllowlist` all PASS (-race) |
+| AC-5 | registered gate + documented marker | `TestCIAcceptOnlyLint` runs under `ze-unit-test` (`internal/test/runner` in `ZE_PACKAGES`); marker in `docs/architecture/testing/ci-format.md` |
+
+### Verification
+- `go test -race -run AcceptOnly ./internal/test/runner/`: 7 tests PASS.
+- `make ze-lint-changed`: 0 issues.
+- `make ze-doc-test`: PASS (reverse indexes regenerated for the new ci-format.md anchor).
+- `ze-test bgp parse` ntp/geodns/md5: exit 0.
+- Baseline: 100 entries; ntp/geodns/md5 correctly absent.
+
+## Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| Strengthen the canonical exit-only tests so a broken parser is caught | ntp/geodns readbacks discriminate (present at correct value, gone at wrong) — reviewer-confirmed by running `ze config dump --json -` |
+| Install a lint so the accept-only class cannot grow silently | `TestCIAcceptOnlyLint` fails on a new unannotated weak `.ci` beyond the baseline, on a stale entry, AND on an unparseable file outside the dialect allowlist — all mutation/RED-verified |
+| No flag-day backfill required | `test/.accept-only-baseline` grandfathers the 100 existing weak tests; ratchet only shrinks |

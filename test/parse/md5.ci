@@ -1,4 +1,10 @@
 # Valid config: MD5 password authentication
+# accept-only: the md5 { password; ip } value-parsing is unit-covered by
+# TestParsePeerMD5FieldsParsed (internal/component/bgp/reactor/config_test.go),
+# which asserts ps.MD5Key and ps.MD5IP are stored from config. This .ci only
+# needs to prove the config is ACCEPTED, so exit:code=0 is a deliberate
+# accept-only assertion, not a missing readback.
+# (spec-fixit-ci-accept-only-tests AC-3)
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer3 {

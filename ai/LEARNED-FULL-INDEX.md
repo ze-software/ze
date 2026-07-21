@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1214 summaries
+Total: 1215 summaries
 
 ## 000-099
 
@@ -1288,3 +1288,4 @@ Total: 1214 summaries
 | 1240 | fixit-spec-hygiene-tooling-deferred-operational-cleanup | `plan/learned/1240-fixit-spec-hygiene-tooling-deferred-operational-cleanup.md` |
 | 1241 | fixit-spec-hygiene-tooling | `plan/learned/1241-fixit-spec-hygiene-tooling.md` |
 | 1242 | fixit-authz-admin-fallthrough | `plan/learned/1242-fixit-authz-admin-fallthrough.md` |
+| 1243 | fixit-ci-accept-only-tests | `plan/learned/1243-fixit-ci-accept-only-tests.md` |

@@ -528,7 +528,9 @@ Validates the decoded message matches expected JSON.
 expect=exit:code=<N>
 ```
 
-Validates the foreground process exit code.
+Validates the foreground process exit code. A test whose ONLY assertion is
+`expect=exit:code=0` is **accept-only** (weak) and is gated by a lint — see
+[Assertion Strength](#assertion-strength-accept-only-tests-and-readback).
 
 ### Stdout Expectations
 
@@ -636,6 +638,72 @@ Inverse of `expect=` -- the test **fails** if the pattern matches. Used to verif
 | `reject=syslog:pattern=<regex>` | Fail if syslog output matches regex |
 <!-- source: internal/test/runner/runner_exec.go -- stdout reject handling -->
 <!-- source: internal/test/runner/runner_validate.go -- stderr/syslog reject handling -->
+
+## Assertion Strength: accept-only tests and readback
+
+A test whose ONLY assertion is `expect=exit:code=0` is **accept-only** (weak): it
+proves a config or command was ACCEPTED, never that it parsed to the CORRECT tree.
+A parser that accepts `interval 300` but stores `0`, or silently drops a `source
+0.0.0.0/0` block, still passes such a test green. This is the functional-suite
+analog of the "count-only assertion" mistake class (`ai/rules/testing.md`).
+
+A lint enforces that the class cannot GROW: `TestCIAcceptOnlyLint` walks every
+`test/**/*.ci`, classifies each with the single accept-only predicate, and FAILS on
+a NEW accept-only test that is neither strengthened nor annotated. Existing
+accept-only tests are grandfathered in `test/.accept-only-baseline` (a sorted
+allow-list that only shrinks; strengthening or annotating a test removes its line).
+Correctly EXCLUDED (never weak): a test whose real check lives in a tmpfs `set -e`
+script (e.g. `test/managed/auth-reject.ci`), and any `reject=` test.
+<!-- source: internal/test/runner/accept_only.go -- isAcceptOnly, acceptOnlyAnnotation, the accept-only predicate + baseline -->
+<!-- source: internal/test/runner/accept_only_lint_test.go -- TestCIAcceptOnlyLint, TestCIAcceptOnlyLintFlags/Allows -->
+
+### Strengthen with a readback
+
+Add a second `cmd=` that dumps the parsed tree and assert a representative value
+with `expect=stdout:contains=` / `pattern=`. `ze config dump --json -` reads a
+config from stdin and prints the stored tree as JSON, so the assertion observes the
+parsed VALUE, not just that parsing did not error.
+
+```
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
+expect=exit:code=0
+expect=stdout:pattern="interval": "300"
+```
+
+Two gotchas, both load-bearing:
+
+- **`ze config dump` requires a `bgp { }` block** (it resolves the full BGP tree)
+  where `ze config validate` does not. To keep proving that a subsystem-only config
+  validates, keep the original `validate` step on the subsystem-only stdin block and
+  run the `dump` readback against a second stdin block that prepends a minimal `bgp
+  { router-id ... }`.
+- **A needle containing a `:` must use `pattern=`, not `contains=`.** Only
+  `json=`/`text=`/`hex=`/`pattern=` preserve colons; `contains=` truncates at the
+  first colon. JSON values are rendered as strings, so the needle is `"interval":
+  "300"` (a colon), which requires `pattern=`. A colon-free needle such as
+  `"0.0.0.0/0"` may use `contains=`.
+- **Keep a `pattern=` needle free of the substrings `json=`, `text=`, and `hex=`.**
+  `ParseKVPairs` extracts a complex-key value by `strings.Index` of the first such
+  marker, so a needle that itself contains one of them is mis-split. None of the
+  readback needles above contain these; this is forward guidance for new ones.
+<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, complexKeys (json/text/hex/pattern preserve colons; first-marker strings.Index split) -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- cmdDump reads stdin and prints the parsed tree -->
+
+### Annotate when a unit test already covers the value
+
+When a unit test already asserts the parsed value, a readback would duplicate it.
+Mark the test accept-only instead, with a comment naming the covering test:
+
+```
+# accept-only: md5 { password; ip } value-parsing is unit-covered by
+# TestParsePeerMD5FieldsParsed (internal/component/bgp/reactor/config_test.go).
+```
+
+The marker is a comment line whose content is `accept-only:` followed by a
+non-empty reason. A file carrying it is allowlisted by the lint without a baseline
+entry. Keep the reason greppable and truthful (name the covering test).
+<!-- source: internal/test/runner/accept_only.go -- acceptOnlyAnnotation, hasAcceptOnlyAnnotation -->
 
 ## Actions
 

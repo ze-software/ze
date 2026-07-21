@@ -1,5 +1,9 @@
-# Valid config: NTP enabled with server pool
-# AC-1: ntp { enabled true; server { ... } } accepted by config validate.
+# Valid config: NTP enabled with server pool.
+# AC-1: ntp { ... } validates AND a readback proves it parsed to the CORRECT
+# tree. `ze config validate -` only proves the ntp-only config is ACCEPTED; the
+# second step dumps the parsed tree and asserts the stored `interval` value, so a
+# parser that accepted `interval 300` but stored 0 (or dropped the leaf) fails.
+# (spec-fixit-ci-accept-only-tests: strengthen an accept-only parse test)
 stdin=config:terminator=EOF_CONF
 environment {
     ntp {
@@ -16,5 +20,34 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+# `ze config dump --json -` resolves the full BGP tree and refuses a config with
+# no bgp { } block, so the readback runs against an augmented copy that prepends a
+# minimal bgp block. The validate step above still proves the ntp-ONLY config is
+# accepted; this block only exists to render the parsed ntp subtree for readback.
+stdin=config-dump:terminator=EOF_DUMP
+bgp {
+    router-id 10.0.0.1
+}
+environment {
+    ntp {
+        enabled true
+        interval 300
+        max-step 120
+        server pool0 {
+            address 0.pool.ntp.org
+        }
+        server pool1 {
+            address 1.pool.ntp.org
+        }
+    }
+}
+EOF_DUMP
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
 expect=exit:code=0
+# The JSON needle carries a ':' so it MUST use pattern= (contains= truncates at
+# the first colon; only json=/text=/hex=/pattern= preserve colons). The values are
+# JSON strings, so the needle is "interval": "300", not interval 300. This ties
+# the ntp interval leaf to its stored value.
+expect=stdout:pattern="interval": "300"

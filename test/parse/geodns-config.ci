@@ -1,6 +1,10 @@
 # Valid geodns config: enabled, dual-stack listen, zones, nameserver, two
 # host-sets, and source prefixes (including the 0.0.0.0/0 external catch-all).
 # spec-geodns-1 AC-1: geodns config parses and validates successfully.
+# spec-fixit-ci-accept-only-tests AC-2: a readback proves it parsed to the
+# CORRECT tree -- `ze config validate -` only proves ACCEPTED, so the second step
+# dumps the parsed tree and asserts the 0.0.0.0/0 catch-all source and its
+# host-set binding are present (a parser that silently dropped the block fails).
 stdin=config:terminator=EOF_CONF
 service {
     geodns {
@@ -41,5 +45,59 @@ service {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+# `ze config dump --json -` resolves the full BGP tree and refuses a config with
+# no bgp { } block, so the readback runs against an augmented copy that prepends a
+# minimal bgp block. The validate step above still proves the geodns-ONLY config
+# is accepted; this block only exists to render the parsed geodns subtree.
+stdin=config-dump:terminator=EOF_DUMP
+bgp {
+    router-id 10.0.0.1
+}
+service {
+    geodns {
+        enabled true
+        listener v4 {
+            ip 127.0.0.1
+            port 5300
+        }
+        listener v6 {
+            ip ::1
+            port 5300
+        }
+        default-ttl 300
+        client-ip-source edns0-then-packet
+        zone geodns.example.
+        nameserver 82.219.4.22
+        soa {
+            contact hostmaster
+            serial-mode auto-epoch
+        }
+        host-set internal {
+            host proxy.geodns.example. {
+                address 10.0.0.1
+            }
+        }
+        host-set external {
+            host proxy.geodns.example. {
+                address 10.0.0.2
+            }
+        }
+        source 82.219.0.0/16 {
+            host-set internal
+        }
+        source 0.0.0.0/0 {
+            host-set external
+        }
+    }
+}
+EOF_DUMP
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
 expect=exit:code=0
+# The 0.0.0.0/0 catch-all source key carries no ':' so contains= is fine and
+# proves the block was not dropped. The host-set binding needle carries a ':' so
+# it MUST use pattern= (contains= truncates at the first colon). Together they
+# prove the 0.0.0.0/0 source parsed to { host-set external }.
+expect=stdout:contains="0.0.0.0/0"
+expect=stdout:pattern="host-set": "external"

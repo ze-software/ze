@@ -1,0 +1,116 @@
+# accept-only ratchet baseline -- grandfathered weak .ci tests.
+#
+# One repo-relative path per line: each test whose ONLY assertion is
+# expect=exit:code=0 (proves ACCEPTED, not that the config parsed to the
+# CORRECT tree). The lint (internal/test/runner/accept_only_lint_test.go,
+# run under `make ze-unit-test`) FAILS on a NEW unannotated accept-only .ci
+# not listed here, and on a STALE entry (one that was strengthened,
+# annotated, or removed). Strengthen a test with a readback assertion, or
+# annotate it `# accept-only: <reason>` when a unit test covers the value;
+# either way REMOVE its line here (the ratchet only shrinks). Never add a
+# new line to silence the lint.
+#
+# Regenerate: ZE_WRITE_ACCEPT_ONLY_BASELINE=1 go test -run TestRegenerateAcceptOnlyBaseline \
+#   codeberg.org/thomas-mangin/ze/internal/test/runner
+#
+# merge=union in .gitattributes keeps both sides of concurrent edits.
+test/appliance/appliance-list.ci
+test/appliance/vpp-hugepages-qemu.ci
+test/chaos/iface-link-flap.ci
+test/chaos/smoke-chaos.ci
+test/chaos/smoke-disconnect.ci
+test/chaos/smoke-propagation.ci
+test/install/bootstrap-config-valid.ci
+test/install/dhcp-pxe-config.ci
+test/install/image-server-config.ci
+test/install/install-generated-config-valid.ci
+test/install/pxe-chainload.ci
+test/install/qemu-full.ci
+test/install/qemu-iso.ci
+test/install/tftp-server-config.ci
+test/parse/as112-config.ci
+test/parse/bmp-config.ci
+test/parse/cli-config-activate.ci
+test/parse/cli-config-archive-named.ci
+test/parse/cli-config-deactivate-container.ci
+test/parse/cli-config-deactivate-leaf.ci
+test/parse/cli-config-system-archive.ci
+test/parse/cli-config-system.ci
+test/parse/cli-format-default-valid.ci
+test/parse/cli-validate-invalid.ci
+test/parse/community.ci
+test/parse/dhcp-auto.ci
+test/parse/dhcp-config-disabled.ci
+test/parse/dhcp-config-enabled.ci
+test/parse/dhcp-server-config.ci
+test/parse/dhcp-server-multi-subnet.ci
+test/parse/dhcp-server-static-only.ci
+test/parse/dhcp-set-format-multi.ci
+test/parse/dhcp-set-format.ci
+test/parse/dhcp-static-coexist.ci
+test/parse/dispatch-bgp.ci
+test/parse/dispatch-unknown.ci
+test/parse/dual-neighbor.ci
+test/parse/firewall-setdscp-inet-accepts.ci
+test/parse/gnmi-schema.ci
+test/parse/graceful-restart-llgr.ci
+test/parse/group-basic.ci
+test/parse/group-peer-name.ci
+test/parse/healthcheck.ci
+test/parse/hub-config-multi-listen.ci
+test/parse/hub-config-valid.ci
+test/parse/ipv6-route-priority.ci
+test/parse/l2tp-bad-port.ci
+test/parse/l2tp-remote-relay-config.ci
+test/parse/listener-no-conflict.ci
+test/parse/local-remote-basic.ci
+test/parse/multiple-process.ci
+test/parse/multisession.ci
+test/parse/no-bgp-empty.ci
+test/parse/no-bgp-interface-only.ci
+test/parse/ntp-disabled.ci
+test/parse/parse-inactive-leaf.ci
+test/parse/parse-inactive-leaflist-member-inline.ci
+test/parse/parse-inactive-leaflist-member.ci
+test/parse/parse-nop-keyword.ci
+test/parse/process-receive-leaflist.ci
+test/parse/process-send-leaflist.ci
+test/parse/process.ci
+test/parse/redistribute-invalid-source.ci
+test/parse/route-priority.ci
+test/parse/send-enhanced-refresh.ci
+test/parse/simple-v4.ci
+test/parse/simple-v6.ci
+test/parse/source-address-bmp.ci
+test/parse/source-address-managed.ci
+test/parse/sysctl-profile-combined.ci
+test/parse/sysctl-profile-custom.ci
+test/parse/sysctl-profile-dsr.ci
+test/parse/system-dns-dnssec.ci
+test/parse/test-family-config.ci
+test/parse/ttl.ci
+test/plugin/config-edit-ssh-session.ci
+test/plugin/config-edit-ssh.ci
+test/plugin/firewall-irr-commit.ci
+test/plugin/firewall-irr-iface-commit.ci
+test/plugin/firewall-irr-refresh.ci
+test/plugin/firewall-irr-show.ci
+test/plugin/peer-name-selector.ci
+test/plugin/plugin-persist-features.ci
+test/plugin/plugin-rs-features.ci
+test/plugin/rest-peer-set-delete-lifecycle.ci
+test/plugin/rib-best-selection.ci
+test/plugin/rib-graph-best.ci
+test/plugin/rib-graph-filtered.ci
+test/plugin/rib-graph.ci
+test/plugin/smart-show-unconfigured.ci
+test/plugin/smart-show.ci
+test/plugin/sysctl-list.ci
+test/plugin/sysctl-show-describe.ci
+test/plugin/task-identity-scope.ci
+test/plugin/traffic-monitor.ci
+test/ui/cli-completion-ghost-no-match.ci
+test/ui/cli-completion-invalid-context.ci
+test/ui/cli-completion-list-keys-single-peer.ci
+test/ui/completion-words-no-env-pollution.ci
+test/ui/monitor-ping-pipe-resolve-log.ci

@@ -12,3 +12,13 @@ test/.ci-sleep-baseline merge=union
 # target here; merge=union keeps both so they do not conflict (same rationale as
 # the sleep ratchet above -- shared plan-file contention).
 plan/.citation-baseline merge=union
+
+# test/.accept-only-baseline grandfathers the existing "accept-only" (exit-code-
+# only) .ci tests so the lint (internal/test/runner/accept_only_lint_test.go) only
+# fails on a NEW one (spec-fixit-ci-accept-only-tests). It is a sorted allow-list
+# that only SHRINKS as tests are strengthened or annotated. Two concurrent
+# strengthening efforts each REMOVE their line; merge=union keeps both sides so the
+# removals do not conflict (same rationale as the ratchets above). A concurrent
+# ADD would also be kept, but adds are what the lint forbids -- the gate, not the
+# merge, is what stops the class from growing.
+test/.accept-only-baseline merge=union

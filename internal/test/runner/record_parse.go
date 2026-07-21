@@ -1,6 +1,7 @@
 // Design: docs/architecture/testing/ci-format.md — CI file parsing and test discovery
 // Overview: record.go — Record type definitions and methods
 // Related: record_collection.go — Tests container and querying
+// Related: accept_only.go — accept-only (weak) predicate over the parsed Records
 
 package runner
 
