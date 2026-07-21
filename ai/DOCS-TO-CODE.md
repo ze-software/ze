@@ -2441,6 +2441,10 @@ Total: 297 design docs, 3031 files
 | `internal/component/config/transaction/solver.go` | operation graph solver |
 | `internal/component/iface/operation.go` | iface-owned operation decomposition |
 
+## `plan/learned/1069-ipsec-13-rekey-wire.md`
+
+- `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
+
 ## `plan/learned/1070-forked-route-install.md`
 
 - `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
@@ -4024,10 +4028,6 @@ Total: 297 design docs, 3031 files
 ## `plan/spec-iface-resolve-2-resolver.md`
 
 - `internal/component/iface/resolve_integration_linux_test.go` -- resolver os-name remapping.
-
-## `plan/spec-ipsec-13-rekey-wire.md`
-
-- `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
 
 ## `plan/spec-isis-10-auth.md`
 
