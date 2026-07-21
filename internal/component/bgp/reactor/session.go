@@ -110,12 +110,13 @@ func putBuildBuf(h BufHandle) {
 // ReturnReadBuffer returns a buffer handle to the appropriate multiplexer.
 // Used by cache to return buffers when entries are evicted.
 //
-// Skips handles carrying the noPoolBufID sentinel: these are test-only fakes
-// backed by a standalone make([]byte, ...) slice that has no corresponding
-// pool slot. Without this skip, a fake handle's zero-value idx/ID collide
-// with the first real slot of bufMuxStd.block[0] and either trigger a
-// "double return detected" log or silently free an in-use slot (memory
-// corruption). See testPoolBuf in reactor_test.go.
+// Skips handles carrying the noPoolBufID sentinel: these are backed by a
+// standalone make([]byte, ...) slice with no corresponding pool slot -- the
+// RFC 7606 treat-as-withdraw extra-family body in production (see session_read.go),
+// and test fakes (see testPoolBuf in reactor_test.go). Without this skip, such a
+// handle's ID/idx collide with a real slot in bufMuxStd.block[0] and either
+// trigger a "double return detected" log or silently free an in-use slot
+// (memory corruption).
 func ReturnReadBuffer(h BufHandle) {
 	if h.Buf == nil || h.ID == noPoolBufID {
 		return

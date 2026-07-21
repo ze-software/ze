@@ -154,29 +154,67 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		// RFC 7606: Validate BEFORE dispatching to plugins.
 		// Enforcement must happen before callback so malformed UPDATEs
 		// are never delivered to plugins as valid routes.
-		// The action itself no longer changes the control flow here: enforceRFC7606
-		// returns the UPDATE already rewritten for whichever action applies (attributes
-		// tombstoned for attribute-discard, routes turned into withdrawals for
-		// treat-as-withdraw), so every non-reset outcome dispatches the same way.
+		// enforceRFC7606 returns the UPDATE already rewritten for attribute-discard
+		// (attributes tombstoned); treat-as-withdraw synthesis is handled below because it
+		// is negotiation-aware and may produce more than one UPDATE.
 		var err error
-		wireUpdate, _, err = s.enforceRFC7606(wireUpdate)
+		var action message.RFC7606Action
+		wireUpdate, action, err = s.enforceRFC7606(wireUpdate)
 		if err != nil {
 			// session-reset: error propagated, no dispatch
 			return err, false
 		}
-		// ActionTreatAsWithdraw: enforceRFC7606 has already rewritten the announced
-		// routes into withdrawals (message.SynthesizeWithdraw), so the UPDATE continues
-		// to dispatch and the routes are actually removed from the Adj-RIB-In, per
-		// RFC 7606 Section 2: "MUST be handled as though all of the routes contained in
-		// an UPDATE message ... had been withdrawn".
-		//
-		// This used to return here without dispatching. That is NOT treat-as-withdraw:
-		// a prefix already in the Adj-RIB-In, re-announced with a malformed attribute,
-		// kept its old entry and went stale instead of being withdrawn.
-		//
-		// RFC 4271 Section 8.2.2 Event 27 (UpdateMsg) is still satisfied: dispatch runs
-		// the normal path, whose FSM handler restarts the HoldTimer.
-		//
+
+		if action == message.RFC7606ActionTreatAsWithdraw {
+			// RFC 7606 Section 2: "MUST be handled as though all of the routes contained in
+			// an UPDATE message ... had been withdrawn". Turn the announced routes into
+			// withdrawals so the malformed UPDATE removes them from the Adj-RIB-In instead of
+			// leaving a previously-announced prefix installed and stale. Synthesis is
+			// negotiation-aware (D-5) and splits two MP families across two UPDATEs (RFC 7606
+			// Section 3.g: one MP_UNREACH per UPDATE; D-8).
+			//
+			// This branch used to return here without dispatching. That is NOT
+			// treat-as-withdraw: the re-announced prefix kept its old entry and went stale.
+			// RFC 4271 Section 8.2.2 Event 27 (UpdateMsg) is still satisfied: the primary
+			// rides the normal path, whose FSM handler restarts the HoldTimer.
+			bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable)
+			if len(bodies) == 0 {
+				// Nothing left to withdraw: an UPDATE whose only routes belong to a
+				// non-negotiated MP family (RFC 7606 Section 3.j: nothing is installed to
+				// remove) is dropped exactly as before treat-as-withdraw dispatch existed --
+				// no NOTIFICATION, no teardown (D-5). The FSM handler still restarts the
+				// HoldTimer per RFC 4271 Section 8.2.2 Event 27.
+				s.logFSMEvent(fsm.EventUpdateMsg)
+				return nil, false
+			}
+			// The primary body rides the unchanged normal dispatch path below (ctxID and
+			// sourceID preserved so ADD-PATH decoding in the RIB is unaffected, D-6).
+			primary := wireu.NewWireUpdate(bodies[0], wireUpdate.SourceCtxID())
+			primary.SetSourceID(wireUpdate.SourceID())
+			// Each further MP family rides its own withdraw-only UPDATE. It carries a
+			// non-pool BufHandle (noPoolBufID sentinel) over its own heap-allocated body so
+			// the receive path enters it in the recentUpdates forward cache exactly like the
+			// primary (reactor_notify.go: the cache gate requires buf.Buf != nil). A route
+			// server forwarding this body -- the reactor RS fast path, or the rs plugin's
+			// ForwardCached -> ForwardUpdatesDirect -- then finds its cache entry instead of
+			// missing it, which would log a false "BUG: ForwardUpdatesDirect: msgID missing
+			// from cache" and silently drop the second family's withdrawal (D-8).
+			//
+			// Ownership: buildWithdrawBody makes each body a fresh allocation, never a slice
+			// into the session pool buffer, so it cannot alias the primary's buffer. The
+			// sentinel makes cache eviction's ReturnReadBuffer a no-op (the body is GC-owned,
+			// not a pool slot), so there is no double-free and no pool slot is consumed (D-7).
+			for _, extra := range bodies[1:] {
+				if s.onMessageReceived != nil {
+					extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
+					extraWU.SetSourceID(wireUpdate.SourceID())
+					s.onMessageReceived(s.settings.Address, message.TypeUPDATE, extra, extraWU,
+						ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil)
+				}
+			}
+			wireUpdate = primary
+		}
+
 		// ActionNone or ActionAttributeDiscard: continue to dispatch.
 		// For attribute-discard, the malformed attributes are logged but the
 		// UPDATE is still dispatched — the attribute bytes are still present

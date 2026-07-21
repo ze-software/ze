@@ -313,12 +313,47 @@ AC status:
 - AC-6: COVERED (NEW `TestRIBTreatAsWithdrawAddPathPreservesPathID`; required the
   `rib_structured.go` `SetAddPath` fix so the structured receive path keys ADD-PATH siblings).
 - AC-7: COVERED (prior `TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal`).
-- AC-8: **NOT met end-to-end** — `withdrawMPAttrs` emits two MP_UNREACH in one body but the
-  RIB reads only the first (`AttributesWire.GetRaw` first-match). Reactor-scope divergence
-  from spec D-8 (two UPDATEs); flagged in the drain recipe. Follow-up required.
-- AC-9: **NOT met** — `validateUpdateFamilies` runs on the synthesized body and strict-mode
-  teardown contradicts "no teardown"; spec D-5 (skip non-negotiated families at synthesis)
-  not implemented. Reactor-scope divergence; flagged. Follow-up required.
+- AC-8: **MET (2026-07-21).** `SynthesizeWithdrawFamilies` (`rfc7606_withdraw.go:78`) emits one
+  withdraw body PER MP family (the RIB reads only the first MP_UNREACH via `GetRaw` first-match);
+  the reactor dispatches `bodies[1:]` each as its own UPDATE. Both families reach the RIB AND
+  route-server clients: the extra bodies ride a `noPoolBufID` cache-eligible `BufHandle`
+  (`session_read.go:212`) so they enter `recentUpdates` and forward like the primary (the earlier
+  empty-BufHandle attempt blackholed RS clients + logged a false "BUG" — see Review Gate Run 2).
+  Tests: `TestSynthesizeWithdrawTwoFamilies`, `TestSessionRFC7606TreatAsWithdrawTwoFamiliesEntersForwardCache`.
+- AC-9: **MET (2026-07-21).** Synthesis is negotiation-aware (`mpFamilyDispatchable`,
+  `session_validation.go:355`, an exact mirror of `validateUpdateFamilies`' accept condition);
+  non-negotiated MP families are skipped and, when nothing is left, `processMessage` restarts the
+  HoldTimer and returns BEFORE `validateUpdateFamilies` — no NOTIFICATION, no teardown (D-5).
+  Test: `TestRFC7606TreatAsWithdrawNonNegotiatedFamilyDrops`. Synthesis was moved out of
+  `enforceRFC7606` (now classify/log only) into `processMessage` because it is negotiation-aware
+  and multi-body.
+
+## Review Gate
+
+### Run 1 (park, 2026-07-19) — AC-1..AC-7 slice
+Independent review over the park diff: CLEAN for the AC-1..AC-7 slice; AC-8/AC-9 honestly
+declared NOT met (not claimed done).
+
+### Run 2 (closure, 2026-07-21) — AC-8/AC-9 + fix
+Independent adversarial review of the AC-8/AC-9 changeset found **0 BLOCKER, 1 ISSUE**: the
+second-family body was dispatched with an EMPTY `BufHandle`, so in a route-server deployment it
+was never cached; bgp-rs's `ForwardUpdatesDirect` missed, logged a false attacker-triggerable
+`"BUG: msgID missing from cache"`, and did NOT forward the second family's withdraw to RS clients
+(D-8's "publishBestChanges covers it" premise was wrong — RS clients are transparent-forward-fed
+via the cache). FIXED (`session_read.go:212`): dispatch the extra body with
+`BufHandle{ID: noPoolBufID, Buf: extra}` (existing sentinel for a non-pool heap Buf; `extra` is a
+fresh, non-aliasing heap slice), so it caches and forwards to RS clients like the primary.
+
+### Run 3 (closure re-review, 2026-07-21) — the fix
+Independent review of the fix: **CLEAN — 0 BLOCKER, 0 ISSUE, 1 NOTE** (a stale test comment,
+corrected). Confirmed: `noPoolBufID` return no-ops (no double-free / no pool slot consumed);
+`extra` never aliases the pooled read buffer (`buildWithdrawBody` make+copy); the second body now
+forwards to RS clients and the false BUG log is unreachable; the two new forward-cache tests are
+non-vacuous (RED on the reverted one-line change); no AC-1..AC-9 regression; `message`/`reactor`/
+`plugins/rs`/`plugins/rib` green, reactor `-race` clean, `go vet` clean, `ze-lint-changed` 0 issues,
+`ze-rfc-check` green.
+
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE.
 
 NIT (from review, non-blocking): the MP_REACH `SetAddPath` branch has no dedicated test
 (line-for-line mirror of the tested IPv4 branch); an IPv6/MP add-path treat-as-withdraw

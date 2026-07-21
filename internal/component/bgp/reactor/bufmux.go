@@ -32,7 +32,14 @@ type BufHandle struct {
 // MixedBufMux uses block IDs as slot indices into m.blocks, capped by
 // m.maxBlocks which is far below 2^32.
 //
-// Used by tests that need to pass a non-nil Buf to notifyMessageReceiver
+// Production use: the RFC 7606 treat-as-withdraw path dispatches each extra MP
+// family's synthesized withdraw over a heap-allocated body (buildWithdrawBody),
+// not a session pool slot. Wrapping that body in a noPoolBufID handle lets it
+// enter the recentUpdates forward cache (the gate requires buf.Buf != nil) so a
+// route server forwards it, while eviction's ReturnReadBuffer is a no-op instead
+// of corrupting a real slot. See session_read.go's treat-as-withdraw dispatch.
+//
+// Also used by tests that need to pass a non-nil Buf to notifyMessageReceiver
 // without consuming a real session-pool slot. See testPoolBuf in
 // reactor_test.go.
 const noPoolBufID uint32 = ^uint32(0)

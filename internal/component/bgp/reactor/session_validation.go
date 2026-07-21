@@ -168,24 +168,20 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		// UPDATE message ... had been withdrawn", "thus causing them to be removed from
 		// the Adj-RIB-In".
 		//
-		// Rewrite the announced routes into withdrawals and let the UPDATE dispatch
-		// normally; that is what removes them. Merely declining to dispatch would leave a
-		// previously-announced prefix installed and stale, which is the opposite of what
-		// the section requires.
+		// enforceRFC7606 only classifies and logs; processMessage synthesizes the
+		// withdraw-only UPDATE(s) from this body and dispatches them, turning the announced
+		// routes into withdrawals so the malformed UPDATE removes them instead of leaving a
+		// previously-announced prefix installed and stale. The synthesis is deferred to the
+		// caller because it is negotiation-aware (D-5: a non-negotiated MP family is skipped
+		// rather than torn down) and may produce more than one UPDATE (D-8: RFC 7606 Section
+		// 3.g allows only one MP_UNREACH per UPDATE, so two MP families ride two bodies),
+		// neither of which fits this single-WireUpdate return.
 		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
 			"attr", result.AttrCode,
 			"description", result.Description)
-		// RFC 7606 Section 6: logged BEFORE SynthesizeWithdraw rewrites the body, so the
-		// dump is the UPDATE as the peer sent it -- the malformed one, which is the whole
-		// point of the requirement.
+		// RFC 7606 Section 6: logged on the UPDATE as the peer sent it -- the malformed one,
+		// which is the whole point of the requirement.
 		s.rfc7606Diagnostics("treat-as-withdraw", wu, result.AttrCode, result.Description)
-
-		if newBody, changed := message.SynthesizeWithdraw(body); changed {
-			oldCtxID := wu.SourceCtxID()
-			oldSourceID := wu.SourceID()
-			wu = wireu.NewWireUpdate(newBody, oldCtxID)
-			wu.SetSourceID(oldSourceID)
-		}
 		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
@@ -345,6 +341,27 @@ func (s *Session) rfc7606NLRISyntaxAction(
 	// wrong with it.
 	s.rfc7606Diagnostics("nlri-syntax", wu, result.AttrCode, result.Description)
 	return wu, result.Action, nil
+}
+
+// mpFamilyDispatchable reports whether a synthesized withdrawal for an MP family may be
+// dispatched to the RIB, i.e. whether the family would survive validateUpdateFamilies rather
+// than trigger a strict-mode teardown.
+//
+// RFC 7606 treat-as-withdraw synthesis (message.SynthesizeWithdrawFamilies) uses it to skip
+// a family the session never negotiated: that family has nothing in the RIB to withdraw, and
+// re-deriving a teardown from a malformed UPDATE would be a new behavior the pre-synthesis
+// drop never had (D-5). The accept condition mirrors validateUpdateFamilies exactly, so a
+// family this admits also passes that check on the synthesized body.
+func (s *Session) mpFamilyDispatchable(afi uint16, safi uint8) bool {
+	neg := s.Negotiated()
+	if neg == nil {
+		return true
+	}
+	fam := capability.Family{AFI: capability.AFI(afi), SAFI: capability.SAFI(safi)}
+	if neg.SupportsFamily(fam) {
+		return true
+	}
+	return s.settings.IgnoreFamilyMismatch || s.shouldIgnoreFamily(fam)
 }
 
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.
