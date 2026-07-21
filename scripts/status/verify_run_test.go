@@ -1200,3 +1200,125 @@ func TestStagesForModeRejectsUnknownMode(t *testing.T) {
 		}
 	}
 }
+
+// ── Supply-chain / SCA workflow guards (plan/spec-fixit-supply-chain-hardening) ─
+//
+// These read the CI workflow files directly (the source of truth CI executes) and
+// assert their SHAPE, the same technique scripts/dev/github_workflows_test.go uses
+// for the verify/nightly workflows.
+
+// stripYAMLComments removes `#` comments from every line of a YAML document,
+// respecting single/double quotes. Assertions must match executable content, not
+// prose in a header or trailing comment: govulncheck.yml's comments mention
+// push/pull_request, and codeql.yml's comments name the build tags -- a raw
+// strings.Contains would then trip the "no push trigger" guard or pass the "-tags"
+// guard on the comment alone.
+func stripYAMLComments(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		lines[i] = stripShellComment(ln)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// TestGovulncheckScheduledWorkflow pins the shape of the scheduled SCA workflow
+// (spec-fixit-supply-chain-hardening AC-1, SCHEDULED default).
+//
+// VALIDATES: .github/workflows/govulncheck.yml is a SCHEDULED job (schedule/cron)
+// that invokes `make ze-vulncheck`, never triggers on push/pull_request, and that
+// govulncheck is deliberately NOT a stagesForMode entry -- so the inline
+// `make ze-verify` / merge loop is never blocked by a vuln-DB network fetch or a
+// transient advisory.
+// PREVENTS: (a) the SCA scan drifting onto the fast merge gate; (b) the scheduled
+// job losing its trigger and running nowhere; (c) a future edit wiring
+// ze-vulncheck into stagesForMode, re-coupling the scan to the pre-commit loop.
+func TestGovulncheckScheduledWorkflow(t *testing.T) {
+	body := stripYAMLComments(readFile(t, repoRootFromScriptsStatus(), ".github/workflows/govulncheck.yml"))
+
+	// Scheduled trigger present (also proves the file parsed to real content;
+	// non-vacuous).
+	for _, want := range []string{"schedule:", "cron"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("govulncheck.yml must declare a %q trigger; body (comments stripped):\n%s", want, body)
+		}
+	}
+	// Invokes the single-source-of-truth make target.
+	if !strings.Contains(body, "make ze-vulncheck") {
+		t.Errorf("govulncheck.yml must run `make ze-vulncheck`; body (comments stripped):\n%s", body)
+	}
+	// Never a push/pull_request trigger -- the dev loop stays unblocked.
+	for _, forbidden := range []string{"push:", "pull_request:"} {
+		if strings.Contains(body, forbidden) {
+			t.Errorf("govulncheck.yml must NOT trigger on %q: the SCA scan is scheduled-only and must not gate the merge loop", forbidden)
+		}
+	}
+	// govulncheck is NOT a stagesForMode entry in EITHER mode, so neither
+	// `make ze-verify` nor `make ze-verify-changed` runs it inline.
+	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+		for _, st := range stagesForMode(mode, "make") {
+			if strings.Contains(st.Name, "vulncheck") {
+				t.Errorf("stagesForMode(%q) contains stage %q; govulncheck must stay a scheduled CI job, never an inline verify stage", mode, st.Name)
+			}
+		}
+	}
+}
+
+// TestCodeQLBuildUsesShippedTags pins that CodeQL analyses the feature-gated
+// surface, not a bare build (spec-fixit-supply-chain-hardening AC-2).
+//
+// VALIDATES: the manual Go build step in .github/workflows/codeql.yml compiles the
+// SHIPPED -tags combos (ze_core/ze_distro/ze_appliance/ze_setup), so code behind
+// //go:build ze_core / ze_appliance enters the CodeQL database, and is NOT a bare
+// `go build ./...` (which compiles none of it).
+// PREVENTS: reverting to a tagless build that leaves most of cmd/ze and the whole
+// appliance -- the largest attack surface -- unanalysed while the job stays green.
+func TestCodeQLBuildUsesShippedTags(t *testing.T) {
+	body := stripYAMLComments(readFile(t, repoRootFromScriptsStatus(), ".github/workflows/codeql.yml"))
+
+	if !strings.Contains(body, "-tags") {
+		t.Fatalf("codeql.yml build step must pass -tags (the shipped feature set); body (comments stripped):\n%s", body)
+	}
+	for _, tag := range []string{"ze_core", "ze_distro", "ze_appliance", "ze_setup"} {
+		if !strings.Contains(body, tag) {
+			t.Errorf("codeql.yml build must build the %q tag so its feature-gated code enters the CodeQL DB", tag)
+		}
+	}
+	// Drift guard: the shipped bin/ze / bin/ze-appliance builds add the default-on
+	// service feature set $(ZE_FEATURES) (feature-gates.txt). A static workflow
+	// cannot expand a Makefile variable, so the tokens are duplicated in codeql.yml;
+	// this asserts none has fallen behind feature-gates.txt (adding a service tag
+	// there without teaching CodeQL to build it would silently exclude it from SAST).
+	for _, tag := range shippedFeatureTags(t) {
+		if !strings.Contains(body, tag) {
+			t.Errorf("codeql.yml build omits shipped feature tag %q (feature-gates.txt): its feature-gated code would be excluded from CodeQL analysis", tag)
+		}
+	}
+	// A bare `go build ./...` (no tags) compiles none of the gated surface.
+	if strings.Contains(body, "go build ./...") {
+		t.Errorf("codeql.yml still contains a bare `go build ./...`: the feature-gated surface would be excluded from CodeQL analysis")
+	}
+}
+
+// shippedFeatureTags returns the default-on service feature tags ($(ZE_FEATURES)
+// in the Makefile): the first whitespace-field of each feature-gates.txt line that
+// begins with "ze_". This mirrors `awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt`.
+func shippedFeatureTags(t *testing.T) []string {
+	t.Helper()
+	body := readFile(t, repoRootFromScriptsStatus(), "feature-gates.txt")
+	seen := map[string]bool{}
+	var tags []string
+	for line := range strings.SplitSeq(body, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if tag := fields[0]; strings.HasPrefix(tag, "ze_") && !seen[tag] {
+			seen[tag] = true
+			tags = append(tags, tag)
+		}
+	}
+	if len(tags) == 0 {
+		t.Fatalf("feature-gates.txt yielded no ze_ feature tags; parser or file changed")
+	}
+	return tags
+}

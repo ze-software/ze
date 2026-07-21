@@ -89,10 +89,25 @@ jobs:
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Build Go (root module only)
+    - name: Build Go (shipped feature-tag set)
       if: matrix.build-mode == 'manual'
       shell: bash
-      run: go build ./...
+      # A bare `go build ./...` compiles NONE of the feature-gated surface behind
+      # //go:build ze_core / ze_distro / ze_appliance / ze_setup / ze_<feature> --
+      # most of cmd/ze and the entire appliance -- so CodeQL never analyses the
+      # largest attack surface (spec-fixit-supply-chain-hardening AC-2). Build each
+      # SHIPPED tag combo instead; CodeQL's manual build tracer accumulates every
+      # compiled package into the analysis database. The combos mirror the real
+      # binary builds in the Makefile: bin/ze (ze_core ze_distro $(ZE_FEATURES)),
+      # bin/ze-appliance (ze_core ze_appliance $(ZE_FEATURES)), bin/ze-setup
+      # (ze_setup). $(ZE_FEATURES) is the default-on service set from
+      # feature-gates.txt; the tokens are duplicated here because a static workflow
+      # cannot expand a Makefile variable. scripts/status/verify_run_test.go's
+      # TestCodeQLBuildUsesShippedTags guards against drift from feature-gates.txt.
+      run: |
+        go build -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' ./...
+        go build -tags 'ze_core ze_appliance ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' ./...
+        go build -tags 'ze_setup' ./...
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

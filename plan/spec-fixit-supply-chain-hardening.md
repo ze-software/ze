@@ -223,32 +223,47 @@ functional test applies. Opt-out justification: **test infrastructure only** (su
 - [ ] Tests PASS (paste output)
 - [ ] Boundary cases (missing marker, ~~missing stage~~ missing/mis-triggered scheduled workflow, untagged build) present
 
+## Pre-Commit Verification
+
+| Item | Verified | Evidence |
+|------|----------|----------|
+| AC-1 target + scheduled workflow | yes | `make -n ze-vulncheck` expands to `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`; `go run ...@latest -version` prints Go/Scanner v1.6.0/DB (works despite `vendor/`); `govulncheck.yml` has `schedule:` cron + `workflow_dispatch`, no push/PR, runs `make ze-vulncheck` |
+| AC-1 test non-vacuous | yes | `TestGovulncheckScheduledWorkflow` PASS; asserts schedule trigger, `make ze-vulncheck`, no push/pull_request, no `stagesForMode` vulncheck entry |
+| AC-2 tag combos compile | yes | `go vet -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' ./...` exit 0; combos mirror `Makefile:139/143/147` |
+| AC-2 test + drift guard | yes | `TestCodeQLBuildUsesShippedTags` PASS; reads `feature-gates.txt` and fails if any ze_ tag is missing from `codeql.yml` |
+| AC-4 pin claims | yes | proxy `@v/list` empty for all 6 direct pins (charmbracelet/ssh, insomniacslk/dhcp, packetcap/go-pcap, wireguard/wgctrl, gokrazy/tools, gokrazy/updater); documented in `appliance-dep-bumps.md`; zero go.mod/go.sum/vendor diff |
+| AC-5 / AC-6 docs | yes | `appliance-dep-bumps.md` proactive-review-cadence + GPLv2 `rtr7/kernel` source-offer sign-off sections present |
+| Lint / vet | yes | `go vet ./scripts/status/` exit 0; `make ze-lint-changed` "0 issues" |
+| Independent review | yes | 0 BLOCKER, 0 ISSUE (see Review Gate Run 2) |
+
 ## Review Gate
 
-**Scope of this gate: AC-3 ONLY (partial slice).** AC-1, AC-2, AC-4, AC-5, AC-6 are
-NOT implemented in this session (they touch shared, sibling-contended files -- see
-"AC status" below). This spec stays **in-progress**; do NOT close it on the AC-3 commit.
+**All ACs implemented; spec closing 2026-07-21.**
 
-### AC status (2026-07-19)
-| AC | Status | Note |
-|----|--------|------|
-| AC-1 (govulncheck scheduled job) | NOT DONE | needs `Makefile` (already `M` by a sibling), `.github/workflows/govulncheck.yml`, `go.mod` x/vuln tool dep, `verify_run_test.go` |
-| AC-2 (CodeQL shipped tag set) | NOT DONE | `.github/workflows/codeql.yml` + `TestCodeQLBuildUsesShippedTags` |
-| AC-3 (updater marker guard) | **DONE + reviewed clean** | vendored copy had regressed (lost `io.LimitReader`+`http.NoBody`); restored via reapply script; added `TestUpdaterHardeningMarkersPresent` + non-vacuous `TestUpdaterHardeningMarkersDetectRegression`; fixed 3 script bugs |
-| AC-4 (pin -> tag hygiene) | NOT DONE | `go.mod`; needs heavy tidy/vendor |
-| AC-5 (builddir review cadence) | NOT DONE | `ai/rules/appliance-dep-bumps.md` |
-| AC-6 (GPLv2 source-offer sign-off) | NOT DONE | flag-only note |
+### AC status (2026-07-21 — final)
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 (govulncheck scheduled job) | **DONE** | `Makefile:270-272` `ze-vulncheck` (`go run golang.org/x/vuln/cmd/govulncheck@latest ./...`, on-demand, NOT in `stagesForMode`); `.github/workflows/govulncheck.yml` (schedule cron + workflow_dispatch, no push/PR, runs `make ze-vulncheck`); `TestGovulncheckScheduledWorkflow`. `go run ...@latest` verified to run despite the vendor dir. |
+| AC-2 (CodeQL shipped tag set) | **DONE** | `.github/workflows/codeql.yml` builds `ze_core ze_distro $(ZE_FEATURES)`, `ze_core ze_appliance $(ZE_FEATURES)`, `ze_setup` (mirrors bin/ze, bin/ze-appliance, bin/ze-setup; 13 feature tags literal). `TestCodeQLBuildUsesShippedTags` + feature-gates.txt drift guard. All combos verified to compile across `./...`. |
+| AC-3 (updater marker guard) | **DONE** | `internal/appliance/updater_hardening_markers_test.go` (prior commit 7a54527d0). |
+| AC-4 (pin -> tag hygiene) | **DONE** | All 6 direct pseudo-version pins have NO upstream semver tag (proxy `@v/list` empty for each); documented in `ai/rules/appliance-dep-bumps.md` (no go.mod change — conservative, build-safe). |
+| AC-5 (builddir review cadence) | **DONE** | `ai/rules/appliance-dep-bumps.md` "Proactive review cadence (builddir pins)". |
+| AC-6 (GPLv2 source-offer sign-off) | **DONE** | `ai/rules/appliance-dep-bumps.md` GPLv2 `rtr7/kernel` source-offer note (flag-only, UNRESOLVED). |
 
-### Review record (AC-3 slice)
-- Independent reviewer (subagent), 2 passes. Pass 1: 0 BLOCKER, 1 ISSUE, 3 NIT.
-  ISSUE (misleading gofmt "backstop" comment -- gofmt re-sorts imports but cannot
-  ADD a missing one) FIXED: comment corrected + fail-loud anchor check added to
-  `apply_slices_contains` (proven to raise when the `"net/url"` anchor is absent).
-  NIT-1 (four-vs-three markers) reconciled in-code. NIT-3 (loose `min` for
-  `http.NoBody`/`Body.Close`) and NIT-4 (`runtime.Caller` under `-trimpath`) left
-  as-is: both fail-closed, low risk. Pass 2: re-review of the delta CONFIRMED
-  **0 BLOCKER, 0 ISSUE**.
-- Artifact: `tmp/review/fixit-supply-chain-hardening-58c51aab-79d8-400d-b779-2c0cf322a274.md` (verdict=clean, 3 files).
+### Run 1 (AC-3 slice, 2026-07-19)
+Independent reviewer, 2 passes; Pass 2 CONFIRMED 0 BLOCKER, 0 ISSUE over the AC-3 delta.
+
+### Run 2 (closure — AC-1/2/4/5/6, independent adversarial review, 2026-07-21)
+Independent subagent review of the AC-1/2/4/5/6 changeset. **Verdict: CLEAN — 0 BLOCKER,
+0 ISSUE, 2 NOTE.** NOTE-1 (codeql combos omitted `$(ZE_FEATURES)`) was ADDRESSED after the
+review: the 13 feature tags were added to both `ze_core` combos and a feature-gates.txt drift
+guard added to `TestCodeQLBuildUsesShippedTags`; the expansion was verified to compile across
+`./...` (`go vet` exit 0) and the guard proven non-vacuous. NOTE-2 (em dashes) was pre-existing
+content, not introduced here. Verified in the review: workflow shape (schedule, no push/PR,
+`make ze-vulncheck`), the 3 tag combos compile, all 6 pins have no upstream tag (proxy-checked),
+tests non-vacuous, YAML parses.
+
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE.
 - Verification: `internal/appliance/` lints 0 issues; `go vet` clean; `gofmt -l` clean
   on both changed files; both guard tests PASS. (`make ze-lint-changed` reports 4
   issues, ALL in sibling-owned files outside this slice: `macvlan.go`,

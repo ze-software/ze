@@ -75,3 +75,59 @@ hand. A cache written before the flag existed needs a one-time
 
 Dismissing the alert leaves the stale manifest; a future advisory below the pin will
 re-fire on the same file. Bumping removes the manifest at the source.
+
+## Proactive review cadence (builddir pins)
+
+The appliance builddir modules (`gokrazy/ze/builddir/`) and the checked-in module
+cache (`gokrazy/modcache/`) are **excluded from Dependabot** (`.github/dependabot.yml`)
+on purpose: an automated PR would fight the hand-pin (the MVS `max` is chosen
+deliberately, and a bot bump reopens the stale-manifest churn described above).
+Dependabot stays off; a **proactive review** replaces it: *review*, never an
+automated bump.
+
+**Cadence:** review the builddir pins **once per release cycle, and at minimum
+quarterly**, whichever comes first. Each review:
+
+1. For the vendored gokrazy init and `rtr7/kernel`, fetch the latest upstream
+   `.mod` from the proxy (as in "The fix" above) and note whether a newer commit
+   carries security-relevant fixes.
+2. If a fix applies, run the bump runbook above. If not, record the review date so
+   the next reviewer knows the pins were checked, not forgotten.
+3. Re-confirm the GPLv2 source-offer sign-off below is still current.
+
+The pins move only through the runbook, never through a bot PR.
+
+## GPLv2 source-offer sign-off (rtr7/kernel): UNRESOLVED, flag only
+
+The appliance image ships a GPLv2 Linux kernel: `github.com/rtr7/kernel`
+(`gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod:5`, pinned as an indirect
+pseudo-version). Distributing a GPLv2 binary obliges the distributor to make the
+**corresponding source** available (typically a written offer accompanying the image).
+
+**Status: UNRESOLVED.** No source-offer compliance sign-off is recorded. This note
+**flags** the obligation; it does not adjudicate it. That is a licensing/legal call,
+out of scope here. Before the image is distributed to third parties, a source-offer
+sign-off must be produced and recorded. Re-confirm each review cycle above.
+
+## Root-module pseudo-version pins (no upstream tags)
+
+Separate from the builddir concern: six **root** `go.mod` direct dependencies are
+pinned to pseudo-versions (`v0.0.0-<date>-<hash>`) rather than semver tags. This is
+**not a defect**. It was verified (2026-07-21, `spec-fixit-supply-chain-hardening`
+AC-4) that **none of these upstreams publish any semver tag**: `go list -m -versions`
+and `proxy.golang.org/<mod>/@v/list` return an empty version list for every one, and
+`@latest` resolves to a pseudo-version. There is nothing to move the pin to.
+
+| Root dep (`go.mod` line) | Pin form | Upstream semver tag? |
+|--------------------------|----------|----------------------|
+| `github.com/charmbracelet/ssh` (:12) | pseudo-version | none published |
+| `github.com/insomniacslk/dhcp` (:15) | pseudo-version | none published |
+| `github.com/packetcap/go-pcap` (:19) | pseudo-version | none published |
+| `golang.zx2c4.com/wireguard/wgctrl` (:30) | pseudo-version | none published |
+| `github.com/gokrazy/tools` (:38) | pseudo-version | none published |
+| `github.com/gokrazy/updater` (:39) | pseudo-version | none (hard fork; see `scripts/dev/reapply-updater-fixes.py`) |
+
+Keep the pseudo-versions. Re-check for a first tag when bumping any of these, and
+move the pin to a tag the day upstream cuts one. Until then a pseudo-version is the
+only available form and is legal. The note exists so a future reviewer does not
+"fix" a non-problem or assume the pins were never examined.

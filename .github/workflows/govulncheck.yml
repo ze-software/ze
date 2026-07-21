@@ -1,0 +1,52 @@
+name: govulncheck
+
+# Scheduled software-composition analysis (SCA). Runs `make ze-vulncheck`, which
+# invokes govulncheck (golang.org/x/vuln) to scan the module's dependency graph
+# against the Go vulnerability database (vuln.go.dev) and report vulnerabilities
+# reachable from ze's own call graph.
+#
+# Scheduled-only by design (spec-fixit-supply-chain-hardening AC-1, SCHEDULED
+# default): the scan needs a network fetch of the vuln DB, and a transient fetch
+# failure or a newly published advisory must NOT wedge the fast merge gate. So it
+# is deliberately absent from `stagesForMode` (scripts/status/verify_run.go) and
+# never runs under `make ze-verify` / verify.yml. The always-run, deterministic
+# supply-chain guard that DOES gate merges is the vendored-updater fix-marker test
+# (internal/appliance/updater_hardening_markers_test.go), part of the unit suite.
+#
+# It shares one source of truth for the invocation with the on-demand path: the
+# `ze-vulncheck` make target. No push/pull_request trigger -- the dev loop stays
+# unblocked. The cron lives IN this file, so merging it to the default branch
+# creates the schedule; GitHub disables scheduled workflows after 60 days of
+# repository inactivity, and `workflow_dispatch` is the manual re-trigger.
+#
+# scripts/status/verify_run_test.go:TestGovulncheckScheduledWorkflow pins this
+# shape (a schedule trigger, invokes `make ze-vulncheck`, never push/pull_request,
+# and no `ze-vulncheck` stage in stagesForMode).
+
+on:
+  schedule:
+    - cron: "37 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      # `make ze-vulncheck` runs `go run golang.org/x/vuln/cmd/govulncheck@latest
+      # ./...`. The @latest form resolves the tool outside the main module, so no
+      # go.mod / vendor change is needed; govulncheck then analyses this module's
+      # (vendored) dependency graph. A non-zero exit fails THIS scheduled job only.
+      - name: govulncheck (SCA)
+        run: make ze-vulncheck

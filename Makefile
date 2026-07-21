@@ -1,6 +1,6 @@
 .PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean clean-all fmt vet tidy generate help
 .PHONY: ze-docker
-.PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
+.PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
@@ -251,6 +251,25 @@ ze-linux-test:
 ze-exabgp-test: bin/ze bin/ze-test
 	@echo "Running ExaBGP compatibility tests..."
 	uv run --with paramiko bin/ze-test exabgp --all --timeout $(ZE_EXABGP_TIMEOUT)s
+
+# Software-composition analysis (SCA): govulncheck (golang.org/x/vuln) scans the
+# module's dependency graph against the Go vulnerability database (vuln.go.dev)
+# and reports only vulnerabilities reachable from ze's own call graph.
+#
+# Deliberately ON-DEMAND, NOT a stagesForMode entry and NOT wired into
+# `make ze-verify`: it needs a network fetch of the vuln DB, and a transient fetch
+# failure or a newly published advisory must never wedge the inline pre-commit /
+# merge loop (spec-fixit-supply-chain-hardening AC-1, SCHEDULED default). It runs
+# on a cron via .github/workflows/govulncheck.yml -- which calls THIS target, the
+# single source of truth for the invocation -- and stays runnable by hand.
+#
+# `@latest` runs the tool from outside the main module, so there is no go.mod /
+# vendor churn: this repo vendors (vendor/), and adding x/vuln as a module `tool`
+# dependency would force vendoring govulncheck's large analysis tree (x/tools SSA,
+# callgraph, ...) into vendor/, a heavy and build-fragile change for a CI-only tool.
+ze-vulncheck:
+	@echo "Running govulncheck (SCA: module deps vs vuln.go.dev)..."
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # ─── Scoped targets (parallel-safe) ────────────────────────────────────────
 
@@ -829,6 +848,9 @@ help-dev:
 	@echo "    vet                      Run go vet"
 	@echo "    tidy                     Tidy go.mod"
 	@echo "    check                    Quick check (fmt + vet)"
+	@echo ""
+	@echo "  Supply chain (SCA):"
+	@echo "    ze-vulncheck             govulncheck: module deps vs vuln.go.dev (on-demand; scheduled in CI)"
 	@echo ""
 	@echo "  Generated files:"
 	@echo "    ze-regen                 Regenerate all generated files"
