@@ -4,19 +4,32 @@
 #   make ze-verify-wiring-docs  Changed-file-aware wiring/doc/inventory gate
 #   make ze-doc-test             All doc checks (drift + anchors + YANG/handler)
 #   make ze-inventory            Plugin/YANG/RPC/test inventory
-#   make ze-spec-status          Spec progress overview
+#   make ze-spec-status          Spec progress overview (+ closure advisory)
+#   make ze-spec-citation-check  Spec citation freshness (dangling plan/spec refs)
 #   make ze-validate-commands    YANG command vs handler cross-check
 #
-.PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
+.PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
 .PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-lint ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-digest-check ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
 	@go run scripts/status/spec_status.go
+	@echo ""
+	@echo "── Closure advisory (non-blocking) ──"
+	@python3 scripts/dev/spec-closure-check.py --list || true
 
 ze-spec-status-json:
 	@go run scripts/status/spec_status.go --json
+
+# Spec citation freshness gate: a plan/spec-*.md that cites a sibling
+# plan/spec-*.md absent on disk fails (unless the target is grandfathered in
+# plan/.citation-baseline); a path:line citation whose backtick-quoted token
+# drifted off that line WARNs (non-fatal). Runs on the verify path when a plan/
+# file changes (scripts/dev/verify_wiring_docs.py routes it). Regenerate the
+# baseline with `scripts/dev/spec-citation-check.py --write-baseline`.
+ze-spec-citation-check:
+	@python3 scripts/dev/spec-citation-check.py
 
 ze-learned-counter:
 	@n=$$(ls plan/learned/[0-9]*.md 2>/dev/null | sed 's/.*\///' | grep -oE '^[0-9]+' | sort -rn | head -1); \

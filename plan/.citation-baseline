@@ -1,0 +1,56 @@
+# Spec citation baseline -- known-dangling plan/spec-*.md targets.
+#
+# Allow-list, like test/.ci-sleep-baseline: these spec files are cited
+# by a sibling spec but no longer exist on disk (closed/folded). The
+# gate (scripts/dev/spec-citation-check.py) grandfathers them so the
+# current tree passes; a target that becomes NEWLY absent (e.g. a spec
+# closed while still cited) is not listed here and fails the gate.
+#
+# Shrink this list by cleaning up the citing reference, then removing
+# the entry. Regenerate with: scripts/dev/spec-citation-check.py --write-baseline
+plan/spec-anomaly-1-detect.md
+plan/spec-doctor-coverage.md
+plan/spec-filter-wire-1-protocol.md
+plan/spec-filter-wire-2-reactor.md
+plan/spec-filter-wire-3-plugins-readonly.md
+plan/spec-filter-wire-4-plugins-nlri.md
+plan/spec-filter-wire-5-plugins-modify.md
+plan/spec-fixit-bcrypt-hash-credential.md
+plan/spec-fixit-ddos-test-infra.md
+plan/spec-fixit-parser-fuzz-gaps.md
+plan/spec-fixit-private-asn-leak.md
+plan/spec-fixit-qemu-artifact-cache.md
+plan/spec-fixit-radius-empty-profile-mapping.md
+plan/spec-fixit-reject-fence-observability.md
+plan/spec-fixit-static-interface-nexthops.md
+plan/spec-fixit-supply-chain-hardening.md
+plan/spec-fixit-tacacs-empty-profile-mapping.md
+plan/spec-fixit-tombstone-code-point-split.md
+plan/spec-fixit-tombstone-ebgp-transitive.md
+plan/spec-fixit-vpp-lcp-netns-default.md
+plan/spec-flow-export-0-umbrella.md
+plan/spec-flow-export-1-counter-export.md
+plan/spec-flow-export-2-flow-records.md
+plan/spec-followup-bgp-feature.md
+plan/spec-followup-l2tp-call.md
+plan/spec-lg-birdwatcher-peer-fields.md
+plan/spec-ospf-0-umbrella.md
+plan/spec-ospf-ext-1-opaque-framework.md
+plan/spec-ospfv3-0-umbrella.md
+plan/spec-policy-routing.md
+plan/spec-rbac-audit.md
+plan/spec-redistribute-late-join-replay.md
+plan/spec-release-audit-3-config-cli.md
+plan/spec-release-audit-4-web-lg-api.md
+plan/spec-release-audit-5-plugins-rib.md
+plan/spec-release-audit-6-system-linux.md
+plan/spec-release-audit-7-resilience-security.md
+plan/spec-rfc-requirement-coverage.md
+plan/spec-rfc7606-close-gaps.md
+plan/spec-rib-arch-8-nlri-rewrite.md
+plan/spec-startup-resilience.md
+plan/spec-static-routes.md
+plan/spec-vpp-fib-query.md
+plan/spec-vpp-host-tuning.md
+plan/spec-vrrp-0-umbrella.md
+plan/spec-vrrp-5-plugin.md

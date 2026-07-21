@@ -205,7 +205,8 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-cli-grammar-check` / `-json` | `mk/inventory.mk` | CLI grammar gate: every built-in command obeys the verb-first rules R1-R9 (`ai/rules/cli-grammar.md`; R9 = compound-vs-namespace split) and no `.yang` carries a `--flag`. In `make ze-verify`. |
 | `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
 | `make ze-ai-sync` | `scripts/dev/skill_sync.sh` | Sync canonical `ai/skills/*.md` to `.claude/skills/`, `.codex/skills/`, and `.agents/skills/`; also regenerates `CLAUDE.md` and `AGENTS.md` from `ai/INSTRUCTIONS.md`. |
-| `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview for active planning and handoff. |
+| `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview (committed backlog vs skeleton idea capture, stale-skeleton flags) plus a non-blocking completed-but-not-closed advisory. |
+| `make ze-spec-citation-check` | `mk/inventory.mk` | Spec citation freshness: fails on a `plan/spec-*.md` citing a sibling spec absent on disk (grandfathered via `plan/.citation-baseline`); WARNs on `path:line` line-token drift. Runs on the verify path when a `plan/` file changes. |
 | `make ze-mutation-test` | `mk/test-mutation.mk` | Mutation testing via gomu on all non-excluded packages (advisory, not gating). Vendored, no install needed. |
 | `make ze-mutation-changed` | `mk/test-mutation.mk` | Incremental mutation testing on changed files only. |
 | `make ze-mutation-report` | `mk/test-mutation.mk` | Mutation testing with HTML report output to `tmp/mutation-report.html`. |

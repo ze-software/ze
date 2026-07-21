@@ -38,6 +38,7 @@ TARGET_ORDER = (
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
+    "ze-spec-citation-check",
 )
 
 MAKE_TARGETS = {
@@ -51,6 +52,7 @@ MAKE_TARGETS = {
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
+    "ze-spec-citation-check",
 }
 
 # Reviewed exceptions for exported symbols that are deliberately API surface.
@@ -199,6 +201,32 @@ def main() -> int:
 
 SLEEP_BASELINE = "test/.ci-sleep-baseline"
 SLEEP_RE = re.compile(r"time\.sleep\(")
+_SIGNED_INT_RE = re.compile(r"^[+-]?\d+$")
+
+
+def parse_sleep_baseline(text: str) -> int | None:
+    """Ceiling from the composable delta baseline: the SUM of every signed-integer
+    line (comments `#` and blanks ignored). Returns None when no integer line is
+    present (ratchet inactive for this tree).
+
+    The delta form replaces the old single absolute integer so two independent
+    sleep-removals append distinct `-N` lines instead of both editing one number,
+    which used to guarantee a merge conflict on the second land. A plain single
+    `125` still parses (backward compatible: one line, one summand). A `+N` line
+    is the explicit-approval knob that raises the ceiling (as editing the old
+    absolute integer upward once did).
+    """
+    total = 0
+    seen = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not _SIGNED_INT_RE.match(stripped):
+            continue
+        total += int(stripped)
+        seen = True
+    return total if seen else None
 
 
 def check_ci_sleep_ratchet(root: Path, changed: Iterable[str]) -> int:
@@ -206,41 +234,45 @@ def check_ci_sleep_ratchet(root: Path, changed: Iterable[str]) -> int:
 
     Sleeps in embedded observers hide real races; ze_api provides
     wait_for_event / wait_for_shutdown. Legacy sleeps are tolerated at the
-    committed baseline; new ones fail the gate.
+    committed baseline; new ones fail the gate. The baseline is a composable
+    delta ledger (see parse_sleep_baseline) so parallel removals do not conflict.
     Returns the process exit contribution (0 ok, 1 failed).
     """
     if not any(p.startswith("test/") and p.endswith(".ci") for p in changed):
         return 0
     baseline_path = root / SLEEP_BASELINE
     try:
-        baseline = int(baseline_path.read_text().strip())
-    except (OSError, ValueError):
+        ceiling = parse_sleep_baseline(baseline_path.read_text())
+    except OSError:
         return 0  # no baseline committed: ratchet not active for this tree
+    if ceiling is None:
+        return 0
     count = 0
     for ci in (root / "test").rglob("*.ci"):
         try:
             count += len(SLEEP_RE.findall(ci.read_text(encoding="utf-8")))
         except OSError:
             continue
-    if count > baseline:
+    if count > ceiling:
         print("ci-sleep ratchet FAILED:")
         print(
             f"  test/**/*.ci now contains {count} time.sleep( calls; the"
-            f" committed baseline ({SLEEP_BASELINE}) is {baseline}."
+            f" committed delta baseline ({SLEEP_BASELINE}) allows {ceiling}."
         )
         print(
             "  Replace the new sleep with ze_api wait_for_event /"
             " wait_for_shutdown (test/scripts/ze_api.py), or raise the"
-            " baseline only with explicit user approval."
+            " ceiling only with explicit user approval (append a `+N` line)."
         )
         return 1
-    if count < baseline:
+    if count < ceiling:
         print(
-            f"ci-sleep ratchet: count dropped to {count};"
-            f" lower {SLEEP_BASELINE} to {count} in this change."
+            f"ci-sleep ratchet: count dropped to {count} (ceiling {ceiling});"
+            f" append a `-{ceiling - count}` delta line to {SLEEP_BASELINE}"
+            " in this change to tighten it."
         )
     else:
-        print(f"ci-sleep ratchet OK ({count} <= baseline {baseline})")
+        print(f"ci-sleep ratchet OK ({count} <= ceiling {ceiling})")
     return 0
 
 
@@ -395,7 +427,25 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("ze-plugin-imports-check")
         if is_fuzz_source(root, path):
             selected.add("ze-fuzz-targets-check")
+        if is_plan_source(path):
+            selected.add("ze-spec-citation-check")
     return [target for target in TARGET_ORDER if target in selected]
+
+
+def is_plan_source(path: str) -> bool:
+    """Changed files that must re-run the spec citation freshness gate: any
+    plan/spec-*.md (a citer or a now-removed target), any plan/learned/*.md (the
+    token-drift WARN pass reads them), the checker itself, or the citation
+    baseline. A spec closure removes a plan/spec-*.md, which lands here, so the
+    gate fires exactly when a sibling's citation could have gone dangling."""
+    if path in {
+        "scripts/dev/spec-citation-check.py",
+        "plan/.citation-baseline",
+    }:
+        return True
+    if not path.endswith(".md"):
+        return False
+    return path.startswith("plan/spec-") or path.startswith("plan/learned/")
 
 
 def is_fuzz_source(root: Path, path: str) -> bool:

@@ -23,7 +23,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/scripts/status/specbucket"
 )
 
 type spec struct {
@@ -34,6 +38,10 @@ type spec struct {
 	Set         string `json:"set"`
 	Updated     string `json:"updated"`
 	GitModified string `json:"git-modified"`
+	// Bucket is the committed-backlog / idea-capture / other split (AC-3).
+	Bucket string `json:"bucket"`
+	// Stale is true for a skeleton idea past the TTL (flagged for triage).
+	Stale bool `json:"stale"`
 }
 
 // statusOrder returns the sort key for a status (lower = sorted first).
@@ -148,6 +156,12 @@ func loadAllSpecs() ([]spec, error) {
 		}
 		specs = append(specs, s)
 	}
+	now := time.Now()
+	for i := range specs {
+		specs[i].Bucket = specbucket.Category(specs[i].Status)
+		specs[i].Stale = specs[i].Bucket == specbucket.Idea &&
+			specbucket.SkeletonStale(specs[i].Updated, now)
+	}
 	sort.SliceStable(specs, func(i, j int) bool {
 		oi, oj := statusOrder(specs[i].Status), statusOrder(specs[j].Status)
 		if oi != oj {
@@ -159,23 +173,18 @@ func loadAllSpecs() ([]spec, error) {
 	return specs, nil
 }
 
-func printTable(specs []spec) {
-	counts := map[string]int{}
-	for _, s := range specs {
-		counts[s.Status]++
-	}
-	order := []string{"in-progress", "ready", "design", "skeleton", "blocked", "deferred", "unknown"}
-	var parts []string
-	for _, st := range order {
-		if counts[st] > 0 {
-			parts = append(parts, fmt.Sprintf("%d %s", counts[st], st))
-		}
-	}
-	fmt.Printf("Specs: %d total (%s)\n\n", len(specs), strings.Join(parts, ", "))
+const specFmtRow = "%-5s  %-12s  %-10s  %-34s  %-5s  %-10s  %s\n"
 
-	const fmtRow = "%-12s  %-10s  %-34s  %-5s  %-10s  %s\n"
-	fmt.Printf(fmtRow, "Status", "Updated", "Spec", "Phase", "Set", "Depends")
-	fmt.Printf(fmtRow,
+func printBucketSection(title string, rows []spec) {
+	fmt.Fprintf(os.Stdout, "── %s (%d) ──\n", title, len(rows))
+	if len(rows) == 0 {
+		fmt.Println("  (none)")
+		fmt.Println()
+		return
+	}
+	fmt.Fprintf(os.Stdout, specFmtRow, "Flag", "Status", "Updated", "Spec", "Phase", "Set", "Depends")
+	fmt.Fprintf(os.Stdout, specFmtRow,
+		strings.Repeat("─", 5),
 		strings.Repeat("─", 12),
 		strings.Repeat("─", 10),
 		strings.Repeat("─", 34),
@@ -183,9 +192,64 @@ func printTable(specs []spec) {
 		strings.Repeat("─", 10),
 		strings.Repeat("─", 10),
 	)
-	for _, s := range specs {
-		fmt.Printf(fmtRow, s.Status, s.Updated, s.Name, s.Phase, s.Set, s.Depends)
+	for _, s := range rows {
+		flag := ""
+		if s.Stale {
+			flag = "STALE"
+		}
+		fmt.Fprintf(os.Stdout, specFmtRow, flag, s.Status, s.Updated, s.Name, s.Phase, s.Set, s.Depends)
 	}
+	fmt.Println()
+}
+
+func printTable(specs []spec) {
+	counts := map[string]int{}
+	for _, s := range specs {
+		counts[s.Status]++
+	}
+	order := []string{"in-progress", "ready", "design", "skeleton", "blocked", "deferred", "unknown"}
+	var sb strings.Builder
+	first := true
+	for _, st := range order {
+		if counts[st] == 0 {
+			continue
+		}
+		if !first {
+			sb.WriteString(", ")
+		}
+		first = false
+		sb.WriteString(strconv.Itoa(counts[st]))
+		sb.WriteByte(' ')
+		sb.WriteString(st)
+	}
+
+	// Split into distinct buckets: committed backlog vs idea capture vs other
+	// (AC-3). Specs arrive sorted by status order, so each bucket stays ordered.
+	var backlog, ideas, other []spec
+	stale := 0
+	for _, s := range specs {
+		switch s.Bucket {
+		case specbucket.Backlog:
+			backlog = append(backlog, s)
+		case specbucket.Idea:
+			ideas = append(ideas, s)
+			if s.Stale {
+				stale++
+			}
+		default:
+			other = append(other, s)
+		}
+	}
+
+	fmt.Fprintf(os.Stdout, "Specs: %d total (%s)\n", len(specs), sb.String())
+	fmt.Fprintf(os.Stdout,
+		"Buckets: committed backlog %d (design/ready/in-progress) | idea capture %d skeletons (%d past the %d-week TTL) | other %d\n\n",
+		len(backlog), len(ideas), stale, specbucket.SkeletonTTLWeeks, len(other),
+	)
+
+	printBucketSection("Committed backlog: design / ready / in-progress", backlog)
+	printBucketSection("Idea capture: skeleton stubs (STALE = past TTL, triage or drop)", ideas)
+	printBucketSection("Other: blocked / deferred / unknown", other)
 }
 
 // printJSON writes the spec list as a JSON array, one record per line,

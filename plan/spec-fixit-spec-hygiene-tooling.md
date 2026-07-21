@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-21 |
 
 ## Task
 
@@ -167,6 +167,32 @@ verify/status make targets; no `.ci` functional test applies.
 Note (record, do not implement here): separately close `spec-ipsec-13-rekey-wire`
 (HIGH-confidence completed-but-not-closed) and prune the un-indexed learned files;
 these are operational follow-ups, out of scope for this tooling spec.
+(Both DONE 2026-07-21 in the deferred child `-deferred-operational-cleanup`, learned 1240.)
+
+## Review Gate
+
+### Run 1 (closure — independent adversarial review, 2026-07-21)
+
+**Verdict: CLEAN for closure — 0 BLOCKER, 1 ISSUE (fixed), 4 NOTE (1 fixed, 3 acknowledged).**
+
+- **ISSUE (FIXED):** the changeset added `plan/learned/1241` without regenerating
+  `ai/LEARNED-FULL-INDEX.md`, so `ze-verify-wiring-docs` failed on the stale index. Fixed by
+  `make ze-discovery-index` (1213 summaries); `ze-verify-wiring-docs` now PASSES including the new
+  `ze-spec-citation-check` gate. (Not a tooling defect — the gate itself exits 0.)
+- **NOTE-1 (FIXED):** `plan/.citation-baseline` now also gets `.gitattributes merge=union` (its
+  sibling `.ci-sleep-baseline` had it; two parallel closures appending dangling targets would
+  otherwise conflict — the exact failure mode this spec kills).
+- **NOTES 2-4 (acknowledged, non-blocking):** `parse_sleep_baseline` silently skips malformed
+  lines (under-tightens, never permits a net rise); dangling detection keyed by target only (a
+  new spec citing an already-baselined-gone target passes silently — acceptable for a ratchet-down
+  gate); the WARN pass is noisy (255, the user-approved WARN-forever default).
+
+Independent review confirmed: the gate never reds a clean checkout (runs only on a `plan/` change
+via `is_plan_source`), the 46-entry baseline makes the current rotted tree exit-0, the delta
+ratchet is monotonic (net rise still fails) + backward-compatible, consumer migrations preserve
+`testing_health.py`'s fail-closed guard, and all tests are non-vacuous (RED-first). **CLOSURE
+FOOTGUN acknowledged as INTENDED:** closing a still-cited spec fails loudly with a remediation
+message; this spec has zero sibling citers so its own closure is clean. Gate satisfied.
 
 ## Checklist
 

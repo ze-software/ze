@@ -615,13 +615,21 @@ def collect_sleep_ratchet(root: Path) -> Metric:
             detail=f"{SLEEP_BASELINE} does not exist.",
             action="Restore the baseline file; the ratchet is unenforced without it.",
         )
-    raw = baseline_path.read_text(encoding="utf-8").strip()
-    try:
-        baseline = int(raw)
-    except ValueError as exc:
+    # The baseline is the composable delta form (full-line `#` comments plus
+    # signed-integer lines that sum to the ceiling); verify_wiring_docs owns the
+    # canonical parser. A file with no parseable integer line is malformed and
+    # must fail closed -- a garbage baseline may not silently disable the ratchet
+    # (ai/rules/fail-closed-guards.md). Imported lazily so a discovery_sources
+    # import hiccup cannot break the whole module load.
+    from verify_wiring_docs import parse_sleep_baseline
+
+    raw = baseline_path.read_text(encoding="utf-8")
+    baseline = parse_sleep_baseline(raw)
+    if baseline is None:
         raise CollectError(
-            f"{SLEEP_BASELINE} is not an integer: {raw!r} ({exc})"
-        ) from exc
+            f"{SLEEP_BASELINE} has no parseable ceiling"
+            f" (delta form: `#` comments + signed-int lines): {raw.strip()!r}"
+        )
     actual = 0
     for path in tracked_matching(root, "test", ".ci"):
         actual += path.read_text(encoding="utf-8", errors="ignore").count("time.sleep(")

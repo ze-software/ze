@@ -1,0 +1,14 @@
+# The ci-sleep ratchet baseline is an append-only ledger of signed-integer delta
+# lines that SUM to the allowed time.sleep( ceiling (scripts/dev/verify_wiring_docs.py
+# ::parse_sleep_baseline). merge=union makes git keep BOTH sides of a concurrent
+# change, so two specs that each remove sleeps and append their own `-N` line
+# auto-merge to a file holding both deltas -- no conflict, and the sum stays
+# correct. This is the whole reason the ratchet moved off a single shared integer.
+test/.ci-sleep-baseline merge=union
+
+# plan/.citation-baseline is the same shape: an allow-list of currently-dangling
+# spec->spec citation targets (scripts/dev/spec-citation-check.py). Two concurrent
+# spec closures that each close a still-cited spec append their newly-dangling
+# target here; merge=union keeps both so they do not conflict (same rationale as
+# the sleep ratchet above -- shared plan-file contention).
+plan/.citation-baseline merge=union

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1212 summaries
+Total: 1213 summaries
 
 ## 000-099
 
@@ -1286,3 +1286,4 @@ Total: 1212 summaries
 | 1238 | fixit-as4path-missing-on-rewrite | `plan/learned/1238-fixit-as4path-missing-on-rewrite.md` |
 | 1239 | fixit-tombstone-ebgp-transitive | `plan/learned/1239-fixit-tombstone-ebgp-transitive.md` |
 | 1240 | fixit-spec-hygiene-tooling-deferred-operational-cleanup | `plan/learned/1240-fixit-spec-hygiene-tooling-deferred-operational-cleanup.md` |
+| 1241 | fixit-spec-hygiene-tooling | `plan/learned/1241-fixit-spec-hygiene-tooling.md` |

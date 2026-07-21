@@ -1,1 +1,12 @@
+# ci-sleep ratchet baseline -- composable delta form.
+#
+# The allowed time.sleep( ceiling for test/**/*.ci is the SUM of every
+# signed-integer line below (this comment block is ignored). The first line is
+# the origin count; each later change that removes sleeps appends its own signed
+# delta line (e.g. `-3`) instead of editing a shared integer. Parallel removals
+# land on distinct lines and never merge-conflict, yet the sum still ratchets
+# down and a net rise (count above the sum) fails the gate. A `+N` line raises
+# the ceiling and is the explicit-approval knob.
+#
+# Parsed by scripts/dev/verify_wiring_docs.py::parse_sleep_baseline.
 125

@@ -174,8 +174,9 @@ func TestVerifyWiringDocsSleepRatchet(t *testing.T) {
 	mustContain(t, out, "wait_for_event")
 }
 
-// VALIDATES: the ratchet passes at or below the baseline and suggests
-// lowering it when the count dropped.
+// VALIDATES: the ratchet passes at or below the baseline and, when the count
+// dropped, suggests appending a negative delta line (the composable form) to
+// tighten the baseline.
 func TestVerifyWiringDocsSleepRatchetSuggestsLowering(t *testing.T) {
 	root := makeFixtureRoot(t)
 	writeFixture(t, root, "go.mod", "module example.com/m\n")
@@ -188,7 +189,8 @@ func TestVerifyWiringDocsSleepRatchetSuggestsLowering(t *testing.T) {
 	out := runCommand(t, repoRoot(t), "python3",
 		"scripts/dev/verify_wiring_docs.py", "--root", root,
 		"--changed-file", "test/x/a.ci")
-	mustContain(t, out, "lower test/.ci-sleep-baseline to 1")
+	// ceiling 5 - count 1 = a `-4` delta tightens it.
+	mustContain(t, out, "append a `-4` delta line to test/.ci-sleep-baseline")
 }
 
 // VALIDATES: the advisory stays silent when the diff already touches test/.
