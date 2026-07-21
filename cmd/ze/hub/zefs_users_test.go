@@ -3,8 +3,10 @@ package hub
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -69,6 +71,27 @@ func TestUsersFromZefsDBReadsLocalPowerCredentials(t *testing.T) {
 	}
 	if len(users) != 1 || users[0].Name != "admin" || users[0].Hash != "$2y$10$hash" {
 		t.Fatalf("got %+v, want one admin user with hash", users)
+	}
+}
+
+// VALIDATES: spec-fixit-authz-admin-fallthrough O-3'/AC-2 -- the ze init bootstrap
+// admin carries the reserved break-glass recovery profile, delivered through
+// login-resolved profiles (never a config assignment). This is what lets the
+// recovery account still reach a box whose authorization config defines profiles
+// but no config admin, after Store.Authorize was made to fail closed.
+// PREVENTS: a strict authorization default bricking the recovery account.
+func TestUsersFromZefsDBCarriesRecoveryProfile(t *testing.T) {
+	db := writeZefsCreds(t, "admin", "$2y$10$hash")
+
+	users, err := usersFromZefsDB(db)
+	if err != nil {
+		t.Fatalf("usersFromZefsDB: %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("got %d users, want 1", len(users))
+	}
+	if !slices.Contains(users[0].Profiles, aaa.ReservedRecoveryProfile) {
+		t.Fatalf("bootstrap admin profiles = %v, want to contain the reserved recovery profile", users[0].Profiles)
 	}
 }
 

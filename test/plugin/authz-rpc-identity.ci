@@ -1,0 +1,167 @@
+# Test: a plugin dispatches a command over the internal RPC path on a box that
+#       has authorization configured (RBAC in use). Plugin dispatch must keep
+#       working: the engine injects a reserved trusted-internal identity, and
+#       Store.Authorize grants it -- it is NOT subject to the operator's
+#       restrictive profiles, and an empty username would otherwise fail closed.
+#
+# Flow:
+# 1. Daemon starts with system.authorization (a "locked" profile whose run/edit
+#    both default to DENY) and a config user "rbacuser" assigned that profile, so
+#    the authorization store exists AND has an assignment (the "hasUsers" shape).
+#    On this box the old code denied the internal dispatch identity outright.
+# 2. A plugin connects over the plugin socket and, after post-startup, dispatches
+#    "show version" via ze-plugin-engine:dispatch-command. The engine authorizes
+#    it under the reserved internal identity (aaa.ReservedInternalPrefix,
+#    injected by dispatchCommand / wrapHandler), so the command is allowed even
+#    though the only configured profile denies everything.
+# 3. The plugin then dispatches "request shutdown" (same internal-identity path),
+#    so the daemon exits cleanly -- proving the RPC path is not broken.
+#
+# VALIDATES: AC-3 / AC-10 / User Story 3, guards R-4 -- the S-1 fail-closed
+#            decision does not break plugin RPC dispatch on an RBAC-configured
+#            box (spec-fixit-authz-admin-fallthrough O-4/F-6).
+# LOAD-BEARING:
+#   - exit 0 requires the plugin's "request shutdown" dispatch to be authorized;
+#     if the reserved identity were absent, the internal identity would fail
+#     closed (empty username Deny, or the former bare plugin:<name> Deny on a
+#     hasUsers box), the daemon would never shut down, and the run would time out.
+#   - "OK: internal RPC dispatch authorized" prints only after "show version"
+#     returns a result (not an "unauthorized" RPC error).
+#   - With ze.log.authz=debug the daemon logs "authorized: trusted internal
+#     caller" from the reserved-identity branch of Store.Authorize; its presence
+#     also proves authorization is actually wired and consulted (a nil authorizer
+#     would short-circuit before that branch and never log it).
+
+option=env:var=ze.log.authz:value=debug
+option=timeout:value=20s
+
+tmpfs=rpc-dispatcher.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Plugin that dispatches a command over the internal RPC path on an RBAC box."""
+
+import sys
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # The daemon has authorization configured and a restrictive default-deny
+    # profile. This dispatch authorizes under the reserved internal identity the
+    # engine injects (spec O-4/F-6); without it the identity would fail closed
+    # and _call_engine would raise on an "unauthorized" RPC error.
+    try:
+        result = dispatch(api, 'show version')
+    except RuntimeError as exc:
+        print(f'FAIL: internal RPC dispatch refused on RBAC box: {exc}',
+              file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    status = result.get('status')
+    if status != 'done':
+        print(f'FAIL: dispatch status={status} data={result.get("data")!r}',
+              file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    print('OK: internal RPC dispatch authorized on RBAC box',
+          file=sys.stderr, flush=True)
+
+    # Shutdown also travels the internal-identity dispatch path; a clean exit
+    # proves that path is authorized end to end.
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	authorization {
+		profile locked {
+			run {
+				default-action deny
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+	authentication {
+		user rbacuser {
+			password "$2a$04$MdupNBXL8iUHgRUDfsFl0ue/.FEH3db8U.LPd/XtMhiBmd4MoRM0m"
+			profile [ locked ]
+		}
+	}
+}
+
+plugin {
+	external rpc-dispatcher {
+		run ./rpc-dispatcher.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process rpc-dispatcher {
+		}
+	}
+}
+EOF_CONF
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+# The plugin's internal dispatch of "show version" was authorized.
+expect=stderr:pattern=OK: internal RPC dispatch authorized on RBAC box
+# The reserved-identity branch of Store.Authorize decided (proves authz is wired
+# and the trusted-internal grant fired).
+expect=stderr:pattern=authorized: trusted internal caller

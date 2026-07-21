@@ -129,6 +129,12 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 			Server:         s,
 			RequestContext: s.Context(),
 			Peer:           "*",
+			// Inject the reserved trusted internal identity (spec-fixit-authz-admin-
+			// fallthrough O-4). Store.Authorize now fails closed on an empty username,
+			// so without this every RPC method would be denied on a box with
+			// authorization configured. The reserved prefix is un-typeable, so no
+			// authenticated client can present it.
+			Username: internalRPCIdentity,
 		}
 
 		var rpcParams RPCParams

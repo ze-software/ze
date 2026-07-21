@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -128,7 +129,20 @@ func usersFromZefsDB(db *zefs.BlobStore) ([]authz.UserConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
+	// Carry the reserved break-glass recovery profile. It is delivered ONLY through
+	// login-resolved profiles (UserCredential.Profiles -> AuthResult.Profiles ->
+	// RecordLoginProfiles), never a config assignment, so it cannot flip the
+	// operator's RBAC posture. authz.Store.Authorize honors this reserved name
+	// regardless of the profiles the store defines, so a strict authorization
+	// default can never lock the bootstrap admin out of a box whose authorization
+	// config is wrong or partial (spec-fixit-authz-admin-fallthrough O-3').
+	// meta/instance/admin-disabled (checked above) still lets an operator suppress
+	// this account entirely.
+	return []authz.UserConfig{{
+		Name:     name,
+		Hash:     string(hash),
+		Profiles: []string{aaa.ReservedRecoveryProfile},
+	}}, nil
 }
 
 func validateLocalAdminCreds(username, hash []byte) (string, error) {

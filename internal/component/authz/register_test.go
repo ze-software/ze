@@ -71,3 +71,19 @@ func TestStoreAuthorizerAuthorizeCommandArgsPeerScoped(t *testing.T) {
 	assert.True(t, auth.AuthorizeCommandArgs("operator", "", "show bgp rib", nil, "10.0.0.1", true))
 	assert.False(t, auth.AuthorizeCommandArgs("operator", "", "show bgp rib", nil, "", true))
 }
+
+// TestStoreAuthorizerNilStoreAllowsAll pins the "no authorization configured"
+// default: extractAuthzConfig returns a NIL store when system.authorization is
+// absent or defines no profiles, and a nil StoreAuthorizer must allow everything.
+// This is the branch that keeps an un-configured box fully permissive AFTER the
+// fail-closed change to Store.Authorize -- the permissive default lives here, one
+// layer above Authorize, never in a fall-through inside it.
+//
+// VALIDATES: spec-fixit-authz-admin-fallthrough -- no-authz box stays allow-all.
+// PREVENTS: the fail-closed Store.Authorize change bricking an un-configured box.
+func TestStoreAuthorizerNilStoreAllowsAll(t *testing.T) {
+	auth := StoreAuthorizer{Store: nil}
+	assert.True(t, auth.Authorize("anyone", "", "restart", true))
+	assert.True(t, auth.Authorize("", "", "router bgp", false))
+	assert.True(t, auth.AuthorizeCommandArgs("anyone", "", "show bgp rib", nil, "10.0.0.1", true))
+}

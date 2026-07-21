@@ -141,6 +141,28 @@ journalctl -u ze.service -n 100 --no-pager
 
 Pick a real command the profile denies when you write your own check. A command Ze does not have reports `unknown command` and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. `configure` is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so `ze cli -c "configure"` is never an authorization test. To check the edit path, run a command that writes, such as `set system ...`, or log in and try `configure` interactively.
 
+### How authorization decides
+
+Once you define any `system.authorization` profile, authorization is in use and it fails closed:
+
+- A user who authenticates but resolves **no applicable profile** is **denied every command**, not granted access. Assign every account a profile. A profile reaches an account either through `system.authentication.user <name> profile ...` (local users) or through the TACACS+/RADIUS priv-level mapping (remote users).
+- A box that defines **no** `system.authorization` profile at all stays fully permissive: with authorization unconfigured there is nothing to enforce.
+
+The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":
+
+```bash
+journalctl -u ze.service -n 100 --no-pager | grep -i authorize
+```
+
+### The recovery account
+
+The `admin` account created by `ze init` is the break-glass identity. It always keeps a path to the box, **even on a box that has authorization profiles configured but no `admin` user of its own** (for example one where the profiles were staged before the operator accounts, or a TACACS+/RADIUS-only box). Two independent recovery paths exist:
+
+- The `ze init` bootstrap admin carries an internal, reserved recovery profile, so it is never locked out by a strict authorization default.
+- Defining `set system authentication user admin profile admin` (as this guide does) makes `admin` a normal config account with an explicit profile.
+
+If you never want the bootstrap admin to authenticate, disable it explicitly with `meta/instance/admin-disabled`; accept that you then depend entirely on your configured accounts for access.
+
 <!-- terminal-demo: rbac -->
 
 ## 5. Add SSH public keys

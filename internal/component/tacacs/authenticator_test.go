@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 )
 
@@ -131,10 +132,11 @@ func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 //
 //	authenticating successfully with zero profiles. Zero profiles are recorded
 //	nowhere (aaa.RecordLoginProfiles skips len(profiles)==0, login_profiles.go:46),
-//	so authz.Store.Authorize finds no assignment and no login profiles and, when
-//	no config user exists (hasUsers==false), returns BuiltinAdminProfile
-//	(authz.go:385-390). An empty mapping therefore grants admin: the exact
-//	opposite of the operator's intent in restricting that level.
+//	so authz.Store.Authorize would find no assignment and no login profiles. This
+//	test enforces the primary guard: the login is rejected here, before
+//	authorization runs. authz.Store.Authorize now also fails closed in that case
+//	(spec-fixit-authz-admin-fallthrough); before that fix an empty mapping granted
+//	admin, the exact opposite of the operator's intent in restricting that level.
 func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
 	privMap := map[int][]string{
 		15: {"admin"},
@@ -184,6 +186,50 @@ func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
 			assert.Empty(t, result.Profiles)
 		})
 	}
+}
+
+// TestTacacsAuthenticatorDropsReservedProfile is defense-in-depth for the
+// spec-fixit-authz-admin-fallthrough review (finding 1): even though the priv-lvl
+// map is config-derived and ValidateAuthzConfig rejects reserved references, the
+// authenticator strips any reserved name so a priv-level can never resolve to a
+// reserved identity. A level mapped only to the reserved name resolves to nothing
+// and is rejected; a mixed mapping keeps only the real name.
+//
+// VALIDATES: a reserved profile name in the priv-lvl map is dropped, never emitted.
+// PREVENTS: a reserved-identity spoof surviving to AuthResult.Profiles.
+func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
+	privMap := map[int][]string{
+		15: {aaa.ReservedRecoveryProfile},              // reserved-only -> denied
+		14: {aaa.ReservedRecoveryProfile, "read-only"}, // mixed -> only read-only survives
+	}
+	key := []byte("test-key")
+
+	// Reserved-only level: stripped to nothing, so the login is rejected.
+	srv := newTestServer(t, key, replyWithPrivLvl(15))
+	defer srv.close()
+	client := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+		Timeout: 2 * time.Second,
+	})
+	res, err := NewTacacsAuthenticator(client, privMap, nil).
+		Authenticate(authz.AuthRequest{Username: "u", Password: "p"})
+	assert.ErrorIs(t, err, authz.ErrAuthRejected, "reserved-only priv-lvl must be rejected")
+	assert.False(t, res.Authenticated)
+	assert.NotContains(t, res.Profiles, aaa.ReservedRecoveryProfile)
+
+	// Mixed level: the real profile survives, the reserved name is dropped.
+	srv2 := newTestServer(t, key, replyWithPrivLvl(14))
+	defer srv2.close()
+	client2 := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv2.addr(), Key: key}},
+		Timeout: 2 * time.Second,
+	})
+	res2, err2 := NewTacacsAuthenticator(client2, privMap, nil).
+		Authenticate(authz.AuthRequest{Username: "u2", Password: "p"})
+	require.NoError(t, err2)
+	assert.True(t, res2.Authenticated)
+	assert.Equal(t, []string{"read-only"}, res2.Profiles)
+	assert.NotContains(t, res2.Profiles, aaa.ReservedRecoveryProfile)
 }
 
 // TestTacacsAuthenticatorAuthenticatedImpliesProfiles states the invariant the

@@ -81,8 +81,26 @@ type profileRecordingAuthenticator struct {
 }
 
 func (p profileRecordingAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
+	// Fail closed: no externally-supplied username may bear the reserved prefix.
+	// A reserved username is a bug or an attempt to spoof a server-injected
+	// internal/recovery identity that authz.Store.Authorize trusts (the reserved
+	// prefix short-circuits to Allow). This wrapper is the one authentication
+	// choke point every surface (ssh, web, api) passes through, so rejecting here
+	// stops any backend -- including a hostile remote TACACS+/RADIUS server -- from
+	// ever making such a username Authenticated. Server-injected internal
+	// identities never pass through authentication, so they are unaffected.
+	if IsReservedName(request.Username) {
+		return AuthResult{}, ErrAuthRejected
+	}
 	result, err := p.next.Authenticate(request)
 	if err == nil && result.Authenticated {
+		// NOTE: do NOT FilterReservedNames(result.Profiles) here. The trusted local
+		// backend legitimately delivers the reserved break-glass recovery profile
+		// through this exact path (UserCredential.Profiles -> AuthResult.Profiles;
+		// cmd/ze/hub/main_servers.go usersFromZefsDB), so a central strip here would
+		// erase the recovery grant and lock out the bootstrap admin. Reserved-name
+		// filtering therefore lives in each UNTRUSTED wire backend (radius mapProfiles,
+		// tacacs handlePass), which never has a legitimate reason to emit one.
 		RecordLoginProfiles(request.Username, result.Profiles)
 	}
 	return result, err

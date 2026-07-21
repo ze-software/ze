@@ -128,6 +128,43 @@ func TestRadiusProfileMapping(t *testing.T) {
 	assert.Equal(t, []string{"netops", "read-only"}, res.Profiles)
 }
 
+// TestRadiusDropsReservedProfileName pins the fail-closed wire-ingress guard
+// (spec-fixit-authz-admin-fallthrough review finding 1): a Filter-Id value is
+// untrusted server input, so a reserved name in it (e.g. the break-glass recovery
+// profile) must be DROPPED, never mapped to a profile. Otherwise a hostile or
+// compromised RADIUS server sends Filter-Id = the reserved recovery name, which
+// flows to LoginProfiles and authz.Store.Authorize grants allow-all admin.
+//
+// VALIDATES: a reserved Filter-Id is dropped; a mixed reply keeps only real names.
+// PREVENTS: a RADIUS server spoofing the recovery/internal identity over the wire.
+func TestRadiusDropsReservedProfileName(t *testing.T) {
+	key := []byte("testing123")
+
+	// Reserved-only reply: after dropping there are no profiles and no default, so
+	// the login is rejected (never authenticated as recovery admin).
+	srv := newReplyServer(t, key, CodeAccessAccept,
+		[]Attr{{Type: AttrFilterID, Value: []byte(aaa.ReservedRecoveryProfile)}})
+	defer srv.close()
+	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{ProfileAttr: AttrFilterID})
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
+	assert.ErrorIs(t, err, aaa.ErrAuthRejected, "reserved-only reply must be rejected after dropping")
+	assert.False(t, res.Authenticated)
+	assert.NotContains(t, res.Profiles, aaa.ReservedRecoveryProfile)
+
+	// Mixed reply: the real profile survives, the reserved name is dropped.
+	srv2 := newReplyServer(t, key, CodeAccessAccept, []Attr{
+		{Type: AttrFilterID, Value: []byte("read-only")},
+		{Type: AttrFilterID, Value: []byte(aaa.ReservedRecoveryProfile)},
+	})
+	defer srv2.close()
+	a2 := testAuthenticator(t, srv2.addr, key, ExtractedConfig{ProfileAttr: AttrFilterID})
+	res2, err2 := a2.Authenticate(aaa.AuthRequest{Username: "bob", Password: "pw"})
+	require.NoError(t, err2)
+	assert.True(t, res2.Authenticated)
+	assert.Equal(t, []string{"read-only"}, res2.Profiles)
+	assert.NotContains(t, res2.Profiles, aaa.ReservedRecoveryProfile)
+}
+
 // VALIDATES: authBudget clamps to [minAuthBudget, maxAuthBudget] across the
 // configured timeout/retries boundaries (R-5: login can never hang unbounded).
 // PREVENTS: a zero budget cutting logins off instantly, or retries=10 producing
@@ -159,11 +196,12 @@ func TestAuthBudgetBounds(t *testing.T) {
 //
 //	out-of-the-box config with no default-profile, authenticating with zero
 //	profiles. Zero profiles are recorded nowhere (aaa.RecordLoginProfiles skips
-//	len(profiles)==0, login_profiles.go:46), so authz.Store.Authorize finds no
-//	assignment and no login profiles and, when no config user exists
-//	(hasUsers==false), returns BuiltinAdminProfile (authz.go:385-390). Such an
-//	Accept therefore grants ADMIN, and unlike the TACACS sibling it needs no
-//	operator misconfiguration: GetSlice returns nil for an absent leaf-list.
+//	len(profiles)==0, login_profiles.go:46), so authz.Store.Authorize would find no
+//	assignment and no login profiles. This test enforces the primary guard: the
+//	login is rejected here, before authorization runs. authz.Store.Authorize now
+//	also fails closed in that case (spec-fixit-authz-admin-fallthrough); before
+//	that fix such an Accept granted ADMIN with no operator misconfiguration, since
+//	GetSlice returns nil for an absent leaf-list.
 func TestRadiusAuthenticateProfileResolutionShapes(t *testing.T) {
 	filterID := func(vals ...string) []Attr {
 		attrs := make([]Attr, 0, len(vals))

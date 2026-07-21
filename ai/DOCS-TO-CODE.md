@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 297 design docs, 3031 files
+Total: 297 design docs, 3032 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -790,6 +790,7 @@ Total: 297 design docs, 3031 files
 | `cmd/ze/internal/helpfmt/helpfmt.go` | CLI help formatting |
 | `cmd/ze/internal/suggest/suggest.go` | CLI command suggestions |
 | `internal/component/aaa/login_profiles.go` | AAA login-resolved profiles |
+| `internal/component/aaa/reserved.go` | reserved AAA identity namespace |
 | `internal/component/authz/authz.go` | authorization component |
 | `internal/component/bgp/cli/childmode.go` | BGP CLI commands |
 | `internal/component/bgp/cli/decode.go` | BGP CLI commands |

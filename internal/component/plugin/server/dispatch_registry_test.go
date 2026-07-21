@@ -150,6 +150,39 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	assert.JSONEq(t, string(marshaled), string(direct), "JSON and Direct results diverged")
 }
 
+// TestOpUpdateRouteInjectsInternalIdentity pins the fix for the route-propagation
+// break (spec-fixit-authz-admin-fallthrough review finding 3). opUpdateRoute is an
+// internal route-push RPC (RS/OSPF/IS-IS `update text`); before the fix it built a
+// CommandContext with no Username, so on a box with authorization configured it hit
+// the now-fail-closed "denied: empty identity" branch and route propagation broke.
+// It must inject the reserved internal identity like the other dispatch paths.
+//
+// VALIDATES: opUpdateRoute dispatches under the reserved internal identity.
+// PREVENTS: internal route push failing closed on an RBAC-configured box.
+func TestOpUpdateRouteInjectsInternalIdentity(t *testing.T) {
+	t.Parallel()
+
+	d := NewDispatcher()
+	var gotUsername string
+	// A single-token key "peer" matches "peer <sel> route" with args [<sel>,route];
+	// the handler records the identity the internal dispatch injected.
+	d.Register("peer", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+		gotUsername = ctx.Username
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "peer")
+
+	s := &Server{subscriptions: NewSubscriptionManager(), dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "routepush"})
+	params := []byte(`{"command":"route","peer-selector":"p1"}`)
+	_, err := s.opUpdateRoute(proc, params)
+	require.NoError(t, err)
+	assert.Equal(t, internalPluginIdentity("routepush"), gotUsername,
+		"opUpdateRoute must inject the reserved internal identity, not an empty username")
+}
+
 // TestEngineOpInjectWireRouteJSONFallback exercises the inject-wire-route JSON
 // codec fallback end-to-end (AC-6): dispatch the wire method through the Direct
 // path, prove opInjectWireRoute unmarshals rpc.InjectWireRouteInput and forwards

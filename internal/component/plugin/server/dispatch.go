@@ -471,6 +471,11 @@ func (s *Server) handleUpdateRouteSelDirect(proc *process.Process, sel *selector
 		RequestContext: s.Context(),
 		Peer:           peer,
 		Meta:           meta,
+		// Reserved trusted internal identity (spec-fixit-authz-admin-fallthrough
+		// O-4): the typed update-route-sel path is an internal route push too, so it
+		// must authorize like opUpdateRoute rather than fail closed on an empty
+		// username when authorization is configured.
+		Username: internalPluginIdentity(proc.Name()),
 	}
 
 	var tb textbuf.Buffer
@@ -502,6 +507,25 @@ func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
 	return output
 }
 
+// internalRPCIdentity is the reserved username wrapHandler injects for a trusted
+// in-process RPC call that carries no plugin identity (spec-fixit-authz-admin-
+// fallthrough O-4). It is un-typeable, so no authenticated user can present it;
+// authz.Store.Authorize grants it as a trusted internal caller. Without an
+// injected identity an empty username would reach the now-fail-closed Authorize
+// and every RPC method would be denied.
+const internalRPCIdentity = aaa.ReservedInternalPrefix + "rpc"
+
+// internalPluginIdentity builds the reserved username the engine injects when a
+// plugin dispatches a command in-process (spec O-4/F-6, regularizing the former
+// bare `plugin:<name>` identity that fell through to the admin default). The
+// plugin name is kept after the reserved prefix for accounting and audit; it
+// never affects the authorization decision. The prefix is un-typeable, so no
+// authenticated identity can spoof a trusted internal caller.
+func internalPluginIdentity(pluginName string) string {
+	var tb textbuf.Buffer
+	return tb.Str(aaa.ReservedInternalPrefix).Str("plugin:").Str(pluginName).String()
+}
+
 // dispatchCommandArgs is the core dispatch-command-args logic shared by JSON and typed paths.
 // It routes an exact registered plugin command with pre-tokenized args, avoiding
 // command-string tokenization for runtime data while preserving dispatch-command output.
@@ -514,7 +538,7 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 		Process:        proc,
 		RequestContext: s.Context(),
 		Peer:           peer,
-		Username:       func() string { var tb textbuf.Buffer; return tb.Str("plugin:").Str(proc.Name()).String() }(),
+		Username:       internalPluginIdentity(proc.Name()),
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
@@ -549,7 +573,7 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 		Server:         s,
 		Process:        proc,
 		RequestContext: s.Context(),
-		Username:       func() string { var tb textbuf.Buffer; return tb.Str("plugin:").Str(proc.Name()).String() }(),
+		Username:       internalPluginIdentity(proc.Name()),
 	}
 
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)

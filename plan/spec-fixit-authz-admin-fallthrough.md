@@ -688,43 +688,71 @@ N/A — no protocol behavior. No `// RFC` annotations expected.
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (initial — independent adversarial security review)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (not yet run) | | |
+| 1 | BLOCKER | Reserved-name mechanism spoofable via untrusted AAA wire input: a hostile TACACS+/RADIUS server could return a `\x00ze:` reserved profile name (recovery/internal) and have `Store.Authorize` short-circuit to Allow | `radius/authenticator.go` mapProfiles, `tacacs/authenticator.go` handlePass | Fixed: drop `IsReservedName` values in both untrusted backends before assembling profiles (`FilterReservedNames`) |
+| 2 | ISSUE | Reserved USERNAME spoof: an attacker-chosen username matching a reserved identity could be authenticated by a backend and recorded as login profiles | `aaa/login_profiles.go` | Fixed: `profileRecordingAuthenticator.Authenticate` rejects `IsReservedName(request.Username)` with `ErrAuthRejected` before consulting any backend — the single auth choke point |
+| 3 | ISSUE | Internal RPC route-propagation dispatch built a CommandContext with an empty username → Denied on a strict RBAC box → route push broken | `plugin/server/dispatch_registry.go` opUpdateRoute, `dispatch.go` handleUpdateRouteSelDirect | Fixed: inject `internalPluginIdentity(proc.Name())` reserved internal identity on all five internal dispatch constructions |
 
 ### Fixes applied
-- (none yet)
+- `radius/authenticator.go:203` mapProfiles drops reserved Filter-Id values; `tacacs/authenticator.go:114` `FilterReservedNames(profiles)` before the empty-check.
+- `aaa/login_profiles.go:92` rejects a reserved `request.Username` before the backend; documented invariant that the reserved recovery profile is NOT stripped here (trusted local backend delivers it via this path — see comment) so break-glass is preserved.
+- `plugin/server/{dispatch_registry.go:247, dispatch.go:478,541,576, server.go:137}` inject the reserved internal identity on every internal CommandContext.
+- RED-first tests added for each: `TestRadiusDropsReservedProfileName`, `TestTacacsAuthenticatorDropsReservedProfile`, `TestProfileRecordingAuthenticatorRejectsReservedUsername`, `TestOpUpdateRouteInjectsInternalIdentity`; `.ci`: `authz-recovery-admin`, `authz-no-applicable-profile`, `authz-rpc-identity`.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| — | CLEAN | Re-review: BLOCKER-1 DEAD, ISSUE-2 DEAD, ROUTE-PROP FIXED, core vuln stays dead, break-glass recovery works (no lockout), all tests non-vacuous (fail on pre-fix code) | whole changeset | none required |
+| N1 | NOTE | Reserved-PROFILE filtering distributed across untrusted backends rather than centralized; a future wire-sourcing backend that forgets to filter could reopen BLOCKER-1 | `aaa/login_profiles.go` | Addressed by an explicit anti-pattern comment at the choke point documenting WHY a central `FilterReservedNames` would break recovery (the trusted local backend delivers the reserved recovery profile through this exact path) — prevents a future "helpful" centralization |
+| N2 | NOTE | `reactor.ExecuteCommand` builds a CommandContext with empty Username → Deny on RBAC box; no production caller, can only fail closed | `bgp/reactor/reactor.go:740` | Pre-existing, outside this changeset; fail-closed, not a hole |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above (or explicitly "none") — 2 NOTEs, both non-blocking (N1 addressed by documented invariant, N2 pre-existing fail-closed)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/aaa/reserved.go` | Yes | `ReservedInternalPrefix`, `ReservedRecoveryProfile`, `IsReservedName`, `FilterReservedNames` |
+| `test/plugin/authz-recovery-admin.ci` | Yes | break-glass recovery admin reaches strict RBAC box |
+| `test/plugin/authz-no-applicable-profile.ci` | Yes | authenticated + no resolved profile → Deny |
+| `test/plugin/authz-rpc-identity.ci` | Yes | plugin RPC dispatch authorizes via reserved internal identity |
+| `plan/learned/1242-fixit-authz-admin-fallthrough.md` | Yes | learned summary |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | No profiles resolved → Deny (not admin) | `authz.go:440` S-2 `return Deny`; `TestStoreAuthorizeProfilesNoAssignmentsDeniesNotAdmin` |
+| AC-2 | Bootstrap admin reaches box via reserved recovery profile | `main_servers.go:144` `ReservedRecoveryProfile`; `TestStoreAuthorizeRecoveryProfile`; `authz-recovery-admin.ci` |
+| AC-3/AC-10 | Internal RPC / `plugin:<name>` dispatch keeps working via reserved internal identity | `internalPluginIdentity` at dispatch_registry.go:247, dispatch.go:478/541/576, server.go:137; `TestOpUpdateRouteInjectsInternalIdentity`; `authz-rpc-identity.ci` |
+| AC-4 | Store naming only undefined profiles fails closed | `authz.go:484` final `return Deny` |
+| AC-6 | Log states which rule decided | `authzLogger` decision lines; `authz-recovery-admin.ci` asserts "break-glass recovery admin" log line |
+| AC-8/AC-9 | Empty tacacs profile mapping cannot grant admin | discharged in sibling spec + `FilterReservedNames` guard (tacacs/authenticator.go:114) |
+| — (security) | Reserved names spoof-proof from AAA wire | radius/authenticator.go:203 `IsReservedName` drop; tacacs/authenticator.go:114 `FilterReservedNames`; login_profiles.go:92 username reject |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| ssh auth → aaa chain → `Store.Authorize` S-2 (recovery profile) | `authz-recovery-admin.ci` | Pass (darwin) |
+| tacacs authen → empty login profiles → `Store.Authorize` S-2 → Deny | `authz-no-applicable-profile.ci` | Pass (darwin) |
+| plugin RPC → reserved internal identity → `Store.Authorize` | `authz-rpc-identity.ci` | Pass (darwin) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-5 | Confirmed | Store naming undefined profiles unreachable from config; direct-API only, fails closed (`authz.go:484`) |
+| Q-2/Q-3/Q-4 | Resolved (user 2026-07-16/17) | Deny always (Q-2); reserved recovery profile O-3' (Q-3); reserved internal identity O-4 (Q-4) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Recovery account / break-glass rule | `docs/guide/operator-access-rbac.md` "The recovery account" section | Yes |
+| TACACS empty-profile → deny, no admin default | `docs/guide/tacacs.md` | Yes |
+| `Store.Authorize` godoc matches implemented rule | `authz.go` godoc updated | Yes |
 
 ## Checklist
 

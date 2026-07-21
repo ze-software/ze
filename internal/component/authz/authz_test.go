@@ -186,23 +186,35 @@ func TestProfileCaseInsensitive(t *testing.T) {
 // --- Store tests ---
 
 func TestStoreAuthorizeNoProfiles(t *testing.T) {
-	// VALIDATES: user with no profile gets admin (allow all)
-	// PREVENTS: users locked out when no profile assigned
+	// spec-fixit-authz-admin-fallthrough (Q-2, deny always): a named, authenticated
+	// user who resolves NO applicable profile is DENIED, not granted admin. A
+	// non-nil Store means authorization is in use, so "nothing applied" fails
+	// closed. The "no authorization configured" case is a NIL store handled one
+	// layer up (StoreAuthorizer), never an empty Store here.
+	//
+	// VALIDATES: authenticated user with no resolvable profile is denied (fail closed)
+	// PREVENTS: the privilege escalation where an unassigned user became admin
 	s := NewStore()
-	if got := s.Authorize("someuser", "restart", true); got != Allow {
-		t.Errorf("no profiles: expected Allow (admin default), got %v", got)
+	if got := s.Authorize("someuser", "restart", true); got != Deny {
+		t.Errorf("no profiles: expected Deny (fail closed), got %v", got)
 	}
-	if got := s.Authorize("someuser", "config set", false); got != Allow {
-		t.Errorf("no profiles (edit): expected Allow (admin default), got %v", got)
+	if got := s.Authorize("someuser", "config set", false); got != Deny {
+		t.Errorf("no profiles (edit): expected Deny (fail closed), got %v", got)
 	}
 }
 
 func TestStoreAuthorizeNoAuth(t *testing.T) {
-	// VALIDATES: empty username (no auth configured) allows all
-	// PREVENTS: breaking backwards compatibility when no auth
+	// spec-fixit-authz-admin-fallthrough (S-1, Q-4/O-4): an EMPTY username reaching
+	// a non-nil Store fails closed. An empty identity is a bug (an RPC path that
+	// forgot to inject one) or an attack; the RPC boundary now injects an explicit
+	// reserved internal identity, so a legitimate internal caller never arrives
+	// empty. The no-auth-configured box is a NIL store (allowed one layer up).
+	//
+	// VALIDATES: empty username is denied by a non-nil store (fail closed)
+	// PREVENTS: the S-1 hole where an empty username was granted allow-all
 	s := NewStore()
-	if got := s.Authorize("", "restart", true); got != Allow {
-		t.Errorf("empty user: expected Allow, got %v", got)
+	if got := s.Authorize("", "restart", true); got != Deny {
+		t.Errorf("empty user: expected Deny (fail closed), got %v", got)
 	}
 }
 
@@ -322,13 +334,18 @@ func TestStoreMultiProfileDefaultFallback(t *testing.T) {
 }
 
 func TestStoreProfileNotFound(t *testing.T) {
-	// VALIDATES: user assigned a non-existent profile gets admin default
+	// spec-fixit-authz-admin-fallthrough (S-3, AC-4): an assignment naming only
+	// undefined profiles fails closed, not admin allow-all. Unreachable from config
+	// (ValidateAuthzConfig rejects undefined user and tacacs-profile references),
+	// so this only guards the direct Store API, but it must still deny.
+	//
+	// VALIDATES: assignment to a missing profile is denied (fail closed)
+	// PREVENTS: a dangling assignment granting admin
 	s := NewStore()
 	s.AssignProfiles("user1", []string{"nonexistent"})
 
-	// Profile doesn't exist -> admin default (allow all)
-	if got := s.Authorize("user1", "restart", true); got != Allow {
-		t.Errorf("expected Allow (admin default for missing profile), got %v", got)
+	if got := s.Authorize("user1", "restart", true); got != Deny {
+		t.Errorf("expected Deny (fail closed for missing profile), got %v", got)
 	}
 }
 
@@ -881,9 +898,11 @@ func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
 	aaa.RecordLoginProfiles("known", []string{"read-only"})
 	t.Cleanup(func() { aaa.ForgetLoginProfiles("known") })
 
-	// "other" never authenticated. Assignments exist, so it fails closed.
+	// "other" never authenticated: no assignment, no login profiles. A non-nil
+	// store means authorization is in use, so it fails closed regardless of whether
+	// any other user is assigned.
 	if got := s.Authorize("other", "show bgp summary", true); got != Deny {
-		t.Errorf("unassigned user with assignments present must fail closed: got %v", got)
+		t.Errorf("unassigned user with no resolved profile must fail closed: got %v", got)
 	}
 }
 
@@ -903,7 +922,9 @@ func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
 func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
-	// A local user exists, so hasUsers is true and an unassigned user fails closed.
+	// A local user is assigned only to demonstrate coexistence; the decision below
+	// no longer depends on it -- a non-nil store fails closed for any name that
+	// resolves no profile.
 	s.AssignProfiles("local-admin", []string{"read-only"})
 
 	aaa.RecordLoginProfiles("tacacs-typo", []string{"does-not-exist"})
@@ -934,5 +955,151 @@ func TestStoreAuthorizeKeepsResolvableLoginProfiles(t *testing.T) {
 	}
 	if got := s.Authorize("mixed", "request quiesce", false); got != Deny {
 		t.Errorf("resolvable name's edit deny must apply: got %v", got)
+	}
+}
+
+// --- spec-fixit-authz-admin-fallthrough: the privilege-escalation fix ---
+
+// TestStoreAuthorizeProfilesNoAssignmentsDeniesNotAdmin is the core vulnerability
+// test. A TACACS/RADIUS-only box has system.authorization profiles configured but
+// NO system.authentication.user assignments (assignments come only from local
+// users). Before the fix, hasUsers was false and any authenticated user whose
+// profiles did not resolve fell through to BuiltinAdminProfile (allow-all). The
+// store existing IS the "authorization is in use" signal, so this must deny.
+//
+// VALIDATES: AC-1 -- authenticated user, profiles configured, no assignment, no
+//
+//	login profile -> Deny, NOT admin.
+//
+// PREVENTS: the privilege escalation where a TACACS/RADIUS-only box authorized an
+//
+//	arbitrary authenticated user as admin.
+func TestStoreAuthorizeProfilesNoAssignmentsDeniesNotAdmin(t *testing.T) {
+	s := NewStore()
+	// A profiles-with-no-assignments store is exactly what extractAuthzConfig
+	// builds for a TACACS/RADIUS-only box.
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+
+	// No AssignProfiles, no RecordLoginProfiles: the arbitrary authenticated user
+	// resolves nothing.
+	if got := s.Authorize("tacacs-user", "restart", true); got != Deny {
+		t.Errorf("run: expected Deny (fail closed), got %v (admin fallthrough?)", got)
+	}
+	if got := s.Authorize("tacacs-user", "router bgp", false); got != Deny {
+		t.Errorf("edit: expected Deny (fail closed), got %v (admin fallthrough?)", got)
+	}
+}
+
+// TestStoreAuthorizeTacacsUnresolvedLoginDeniesNotAdmin covers the same box where
+// the authenticated user DID resolve login profiles, but none names a profile the
+// store defines (e.g. a tacacs-profile mapping to a name that does not exist).
+// Before the fix this fell through to admin; it must deny.
+//
+// VALIDATES: AC-1 -- login profiles that do not resolve deny, not admin.
+func TestStoreAuthorizeTacacsUnresolvedLoginDeniesNotAdmin(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+
+	aaa.RecordLoginProfiles("tacacs-priv15", []string{"does-not-exist"})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("tacacs-priv15") })
+
+	if got := s.Authorize("tacacs-priv15", "restart", true); got != Deny {
+		t.Errorf("expected Deny (fail closed), got %v (admin fallthrough?)", got)
+	}
+}
+
+// TestStoreAuthorizeEmptyUsernameWithProfiles pins S-1 on a store that has
+// profiles but no assignments (the shape where the old empty-username branch
+// returned Allow because hasUsers was false).
+//
+// VALIDATES: AC-3 -- an empty username fails closed even when hasUsers would be false.
+func TestStoreAuthorizeEmptyUsernameWithProfiles(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+
+	if got := s.Authorize("", "restart", true); got != Deny {
+		t.Errorf("empty username with profiles: expected Deny, got %v", got)
+	}
+}
+
+// TestStoreAuthorizeReservedInternalIdentity pins O-4: a trusted in-process caller
+// whose username bears aaa.ReservedInternalPrefix (injected at the RPC boundary) is
+// allowed even on a strict store, so internal plugin dispatch keeps working. The
+// descriptor after the prefix (here a plugin name) is preserved for audit and
+// does not change the decision.
+//
+// VALIDATES: AC-3/AC-10 -- reserved internal identity authorizes; plugin dispatch works.
+func TestStoreAuthorizeReservedInternalIdentity(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+	s.AssignProfiles("operator", []string{"read-only"})
+
+	rpc := aaa.ReservedInternalPrefix + "rpc"
+	plug := aaa.ReservedInternalPrefix + "plugin:ospf"
+	for _, id := range []string{rpc, plug} {
+		if got := s.Authorize(id, "restart", true); got != Allow {
+			t.Errorf("reserved internal identity %q run: expected Allow, got %v", id, got)
+		}
+		if got := s.Authorize(id, "router bgp", false); got != Allow {
+			t.Errorf("reserved internal identity %q edit: expected Allow, got %v", id, got)
+		}
+	}
+}
+
+// TestStoreAuthorizeRecoveryProfile pins O-3': the ze init bootstrap admin reaches
+// a strict box via the reserved recovery profile, delivered through login-resolved
+// profiles (never a config assignment). It is honored regardless of what the store
+// defines, so a strict default cannot brick a profiles-but-no-config-admin box.
+//
+// VALIDATES: AC-2 -- break-glass recovery admin reaches a misconfigured box.
+func TestStoreAuthorizeRecoveryProfile(t *testing.T) {
+	s := NewStore()
+	// A store with an unrelated profile and NO assignment for the admin: the
+	// exposed profiles-but-no-config-admin shape.
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+
+	aaa.RecordLoginProfiles("admin", []string{aaa.ReservedRecoveryProfile})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("admin") })
+
+	if got := s.Authorize("admin", "restart", true); got != Allow {
+		t.Errorf("recovery run: expected Allow, got %v", got)
+	}
+	if got := s.Authorize("admin", "router bgp", false); got != Allow {
+		t.Errorf("recovery edit: expected Allow, got %v", got)
+	}
+}
+
+// TestStoreAuthorizeConfigAssignmentWinsOverRecoveryName proves the recovery grant
+// only fires through the login-resolved route. A config assignment (the operator's
+// stated intent) is evaluated first, so even the reserved name in an assignment
+// does not short-circuit to allow-all -- and the reserved name resolves to no
+// defined profile, so it fails closed.
+//
+// VALIDATES: recovery is a login-route-only escape hatch, not a config back door.
+func TestStoreAuthorizeConfigAssignmentWinsOverRecoveryName(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+	s.AssignProfiles("evil", []string{aaa.ReservedRecoveryProfile})
+
+	// The assignment names only the reserved recovery profile, which the store
+	// does not define -> fails closed, does not become admin.
+	if got := s.Authorize("evil", "restart", true); got != Deny {
+		t.Errorf("reserved name as config assignment must fail closed: got %v", got)
+	}
+}
+
+// TestIsReservedAuthzName guards the un-typeable namespace helper used by
+// ValidateAuthzConfig to reject reserved names in configuration.
+func TestIsReservedAuthzName(t *testing.T) {
+	if !aaa.IsReservedName(aaa.ReservedRecoveryProfile) {
+		t.Errorf("recovery profile must be reserved")
+	}
+	if !aaa.IsReservedName(aaa.ReservedInternalPrefix + "plugin:x") {
+		t.Errorf("internal identity must be reserved")
+	}
+	for _, name := range []string{"admin", "read-only", "operator", "plugin:ospf", ""} {
+		if aaa.IsReservedName(name) {
+			t.Errorf("%q must not be reserved (config-typeable names)", name)
+		}
 	}
 }

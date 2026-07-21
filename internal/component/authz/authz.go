@@ -10,13 +10,21 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 var errProfileNameCannotBeEmpty = errors.New("profile name cannot be empty")
+
+// authzLogger records authorization decisions so an operator can tell "denied by
+// profile" from "denied because no profile applied", and can see when a
+// break-glass recovery or trusted-internal grant was used (fail-closed-guards.md:
+// the layer that knows the reason is the one that must say so).
+var authzLogger = slogutil.Logger("authz")
 
 // Action represents an authorization decision.
 type Action int
@@ -334,19 +342,49 @@ func (s *Store) HasUserAssignments() bool {
 }
 
 // Authorize checks if a user is allowed to execute a command.
-// When user assignments are configured, empty username and unassigned users
-// are denied (fail closed). When no assignments exist, all access is allowed.
+//
+// It FAILS CLOSED. A non-nil Store means the operator configured
+// system.authorization, so authorization IS in use: an identity that resolves to
+// no applicable profile is DENIED, never granted an implicit admin default. The
+// "no authorization configured" case is carried by a NIL store one layer up
+// (StoreAuthorizer.Authorize in register.go, and Dispatcher.isAuthorized), which
+// never reaches this function; there is deliberately no permissive fall-through
+// here. Whether any local user is assigned a profile is NOT an input: a
+// TACACS/RADIUS-only box has profiles but no assignments, and its authenticated
+// users must still resolve a profile or be denied.
+//
+// Two reserved identities keep the strict default from bricking or breaking a box:
+//   - A trusted in-process caller, whose username bears ReservedInternalPrefix
+//     (injected at the plugin RPC boundary), is allowed so internal dispatch
+//     keeps working. Its prefix is un-typeable, so no authenticated identity can
+//     spoof it.
+//   - The break-glass recovery admin, whose LOGIN-RESOLVED profiles include
+//     ReservedRecoveryProfile (delivered to the `ze init` bootstrap admin, never
+//     as a config assignment), is allowed so an operator can always reach a
+//     misconfigured box.
+//
+// Every audit-worthy decision (a trusted-internal grant, a recovery grant, and
+// each deny reason) is logged so an operator can distinguish "denied by profile"
+// from "denied because no profile applied".
 func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	hasUsers := len(s.assignments) > 0
-
-	if username == "" {
-		if hasUsers {
-			return Deny
-		}
+	// Trusted in-process caller injected at the RPC boundary. Not a config
+	// subject: the prefix is un-typeable, so this cannot be reached by an
+	// authenticated user or a config assignment.
+	if strings.HasPrefix(username, aaa.ReservedInternalPrefix) {
+		authzLogger.Debug("authorized: trusted internal caller",
+			"identity", username, "command", command)
 		return Allow
+	}
+
+	// Fail closed: an empty identity is a bug (an RPC path that forgot to inject
+	// an identity) or an attack, never a legitimate caller. Was: allow-all when
+	// no local user was assigned a profile.
+	if username == "" {
+		authzLogger.Warn("denied: empty identity", "command", command)
+		return Deny
 	}
 
 	profileNames, hasAssignment := s.assignments[username]
@@ -370,6 +408,16 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 		// default -- turning a typo in tacacs-profile into allow-all. Dropping
 		// them here leaves the decision to the fail-closed branch below.
 		if loginNames, ok := aaa.LoginProfiles(username); ok {
+			// The break-glass recovery admin is delivered here, never as a config
+			// assignment (which would flip the operator's RBAC posture). It is
+			// honored regardless of what the store defines, so a strict default
+			// cannot lock an operator out of a box whose authorization config is
+			// wrong or partial.
+			if slices.Contains(loginNames, aaa.ReservedRecoveryProfile) {
+				authzLogger.Info("authorized: break-glass recovery admin",
+					"username", username, "command", command)
+				return Allow
+			}
 			known := make([]string, 0, len(loginNames))
 			for _, name := range loginNames {
 				if s.profiles[name] != nil {
@@ -383,11 +431,13 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 		}
 	}
 	if !hasAssignment || len(profileNames) == 0 {
-		if hasUsers {
-			return Deny
-		}
-		admin := BuiltinAdminProfile()
-		return admin.Authorize(command, isReadOnly)
+		// Fail closed: authenticated but no applicable profile resolved. Was:
+		// BuiltinAdminProfile allow-all whenever no local user was assigned
+		// (hasUsers == false) -- the privilege escalation this store's existence
+		// now closes. The store existing IS the "authorization is in use" signal.
+		authzLogger.Warn("denied: no applicable profile",
+			"username", username, "command", command)
+		return Deny
 	}
 
 	// Multi-profile: first profile with a matching entry wins.
@@ -425,7 +475,11 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 		return *firstDefault
 	}
 
-	// All referenced profiles were missing -> admin default
-	admin := BuiltinAdminProfile()
-	return admin.Authorize(command, isReadOnly)
+	// Fail closed: every profile the assignment named was undefined. Was: admin
+	// default (allow-all). Unreachable from config -- ValidateAuthzConfig rejects
+	// undefined user and tacacs-profile references -- so this denies rather than
+	// grants admin only on the direct Store API (assignment to a missing profile).
+	authzLogger.Warn("denied: assigned profiles all undefined",
+		"username", username, "command", command)
+	return Deny
 }

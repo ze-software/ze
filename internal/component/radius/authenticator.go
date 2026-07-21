@@ -145,9 +145,12 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		// Returning success with an empty set would ESCALATE rather than restrict.
 		// aaa.RecordLoginProfiles ignores an empty slice (login_profiles.go:46), so
 		// nothing is recorded; authz.Store.Authorize then finds no assignment and no
-		// login profiles and, with no config user defined (hasUsers==false), falls
-		// back to BuiltinAdminProfile (authz.go:385-390). A server that omits
-		// Filter-Id would be handing every user admin.
+		// login profiles. This is the primary guard: it rejects the login here,
+		// before authorization runs. authz.Store.Authorize now also fails closed for
+		// a user that resolves no profile (spec-fixit-authz-admin-fallthrough), so
+		// the escalation is closed at both layers; historically this branch fell
+		// through to the built-in admin profile and a server that omitted Filter-Id
+		// handed every user admin.
 		//
 		// This is NOT the R-4 case above. There, SendToServers produced no answer at
 		// all, so asking the next backend is right and locking the operator out on an
@@ -187,9 +190,22 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 func (a *radiusAuthenticator) mapProfiles(resp *Packet) []string {
 	var profiles []string
 	for _, v := range resp.FindAllAttr(a.profileAttr) {
-		if s := string(v); s != "" {
-			profiles = append(profiles, s)
+		s := string(v)
+		if s == "" {
+			continue
 		}
+		// Fail closed: the reply attribute is untrusted server input and can never
+		// name a reserved identity. Dropping it stops a hostile or compromised
+		// RADIUS server from spoofing the break-glass recovery profile (or any
+		// reserved name) over the wire, which authz.Store.Authorize would otherwise
+		// grant as allow-all admin. The only legitimate source of a reserved
+		// profile is the code-controlled local backend (usersFromZefsDB).
+		if aaa.IsReservedName(s) {
+			a.logger.Warn("RADIUS reply named a reserved profile; dropping",
+				"attr", a.profileAttr)
+			continue
+		}
+		profiles = append(profiles, s)
 	}
 	if len(profiles) == 0 {
 		return a.defaultProfiles

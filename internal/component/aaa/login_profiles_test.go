@@ -103,6 +103,45 @@ func TestBuildWrapsAuthenticatorWithProfileRecording(t *testing.T) {
 	assert.Equal(t, []string{"read-only"}, got)
 }
 
+// TestProfileRecordingAuthenticatorRejectsReservedUsername pins the fail-closed
+// ingress guard (spec-fixit-authz-admin-fallthrough review finding 2): an
+// externally-supplied username bearing the reserved prefix must be rejected at the
+// authentication choke point, before any backend sees it, so it can never become
+// Authenticated and reach authz.Store.Authorize (which trusts the reserved prefix
+// and would return allow-all). Server-injected internal identities never pass
+// through authentication and are unaffected.
+//
+// VALIDATES: reserved-name usernames are rejected at AAA ingress.
+// PREVENTS: a RADIUS/TACACS+ server (or any surface) letting a client spoof a
+//
+//	reserved internal/recovery identity via the username.
+func TestProfileRecordingAuthenticatorRejectsReservedUsername(t *testing.T) {
+	inner := &fakeBackend{result: AuthResult{Authenticated: true, Source: "fake", Profiles: []string{"admin"}}}
+	auth := profileRecordingAuthenticator{next: inner}
+
+	reserved := []string{
+		ReservedInternalPrefix + "rpc",
+		ReservedInternalPrefix + "plugin:evil",
+		ReservedRecoveryProfile,
+	}
+	for _, name := range reserved {
+		res, err := auth.Authenticate(AuthRequest{Username: name, Password: "x"})
+		assert.ErrorIs(t, err, ErrAuthRejected, "reserved username %q must be rejected", name)
+		assert.False(t, res.Authenticated, "reserved username %q must not authenticate", name)
+		if _, ok := LoginProfiles(name); ok {
+			t.Errorf("reserved username %q must not record login profiles", name)
+			ForgetLoginProfiles(name)
+		}
+	}
+	assert.False(t, inner.called, "backend must not be consulted for a reserved username")
+
+	// Sanity: a normal username still authenticates through the wrapper.
+	t.Cleanup(func() { ForgetLoginProfiles("alice") })
+	res, err := auth.Authenticate(AuthRequest{Username: "alice", Password: "x"})
+	assert.NoError(t, err)
+	assert.True(t, res.Authenticated)
+}
+
 // fakeAuthBackend is a Backend contributing only an Authenticator.
 type fakeAuthBackend struct {
 	name   string

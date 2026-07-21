@@ -239,6 +239,12 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 		RequestContext: s.Context(),
 		Peer:           peer,
 		Meta:           input.Meta,
+		// Inject the reserved trusted internal identity, same as the other internal
+		// dispatch paths (spec-fixit-authz-admin-fallthrough O-4). Without it this
+		// route-push RPC carries an empty username and, on a box with authorization
+		// configured, hits the now-fail-closed "denied: empty identity" branch --
+		// silently breaking route propagation (RS/OSPF/IS-IS `update text`).
+		Username: internalPluginIdentity(proc.Name()),
 	}
 	// Route injection commands are always peer-scoped subcommands
 	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.

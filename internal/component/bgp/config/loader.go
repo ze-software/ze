@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
@@ -228,6 +229,14 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 
 	// Validate each profile's entries (regex syntax, empty match).
 	for name, profileTree := range profiles {
+		// Fail closed: reserved names live outside the config namespace (the
+		// break-glass recovery profile and the trusted internal identity). They are
+		// un-typeable by construction, so this only fires on a hand-crafted tree,
+		// but rejecting it here keeps an operator from ever defining a profile that
+		// collides with a reserved allow-all name (spec R-8).
+		if aaa.IsReservedName(name) {
+			return fmt.Errorf("authorization profile %q uses a reserved name", name)
+		}
 		p := authz.Profile{Name: name}
 		if runContainer := profileTree.GetContainer("run"); runContainer != nil {
 			p.Run = extractAuthzSection(runContainer)
@@ -247,7 +256,13 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 	}
 
 	for username, userTree := range auth.GetList("user") {
+		if aaa.IsReservedName(username) {
+			return fmt.Errorf("user %q uses a reserved name", username)
+		}
 		for _, pn := range userTree.GetSlice("profile") {
+			if aaa.IsReservedName(pn) {
+				return fmt.Errorf("user %q references reserved profile %q", username, pn)
+			}
 			if _, ok := profiles[pn]; !ok {
 				return fmt.Errorf("user %q references undefined profile %q", username, pn)
 			}
@@ -266,6 +281,9 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 	// whose profile silently does not apply.
 	for level, entry := range auth.GetList("tacacs-profile") {
 		for _, pn := range entry.GetSlice("profile") {
+			if aaa.IsReservedName(pn) {
+				return fmt.Errorf("tacacs-profile %q references reserved profile %q", level, pn)
+			}
 			if _, ok := profiles[pn]; !ok {
 				return fmt.Errorf("tacacs-profile %q references undefined profile %q", level, pn)
 			}

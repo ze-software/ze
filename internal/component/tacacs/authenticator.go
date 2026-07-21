@@ -99,12 +99,21 @@ func (a *TacacsAuthenticator) handlePass(username string, reply *AuthenReply) (a
 	// Returning success with an empty set would ESCALATE rather than restrict.
 	// aaa.RecordLoginProfiles ignores an empty slice (login_profiles.go:46), so
 	// nothing is recorded; authz.Store.Authorize then finds no assignment and no
-	// login profiles and, with no config user defined (hasUsers==false), falls back
-	// to BuiltinAdminProfile (authz.go:385-390). The operator who mapped a level to
-	// nothing would be handing that level admin.
+	// login profiles. This is the primary guard: it denies the login here, before
+	// authorization ever runs. authz.Store.Authorize now also fails closed for a
+	// user that resolves no profile (spec-fixit-authz-admin-fallthrough), so the
+	// escalation is closed at both layers; historically this branch fell through
+	// to the built-in admin profile and handed the level admin.
 	profiles, ok := a.privLvlMap[privLvl]
+	// Defense in depth: ValidateAuthzConfig already rejects a reserved-name
+	// reference in a tacacs-profile mapping, but strip any that reach here so a
+	// priv-level can never resolve to a reserved identity (the break-glass recovery
+	// profile or the trusted internal identity) even if the map were built without
+	// validation. Only the code-controlled local backend may deliver a reserved
+	// profile. This also returns a fresh slice, never aliasing the config map.
+	profiles = aaa.FilterReservedNames(profiles)
 	if !ok || len(profiles) == 0 {
-		// AC-18: unmapped priv-lvl denies access.
+		// AC-18: an unmapped, empty, or all-reserved priv-lvl denies access.
 		a.logger.Warn("TACACS+ unmapped privilege level",
 			"username", username, "priv-lvl", privLvl)
 		return aaa.AuthResult{Source: "tacacs"}, aaa.ErrAuthRejected

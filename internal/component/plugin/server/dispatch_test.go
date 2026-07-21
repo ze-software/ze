@@ -254,7 +254,10 @@ func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 	var output rpc.DispatchCommandOutput
 	require.NoError(t, json.Unmarshal(result, &output))
 	assert.Equal(t, plugin.StatusDone, output.Status)
-	assert.Equal(t, "plugin:identity-check", gotUsername)
+	// spec-fixit-authz-admin-fallthrough O-4: internal dispatch injects the
+	// reserved trusted identity (un-typeable), keeping the plugin name after the
+	// prefix for audit while authorizing as a trusted in-process caller.
+	assert.Equal(t, internalPluginIdentity("identity-check"), gotUsername)
 	assert.Same(t, serverCtx, gotContext)
 
 	serverCancel()
@@ -591,7 +594,8 @@ func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
 // TestDispatchCommandArgsPreservesPluginIdentity verifies typed dispatch uses
 // the caller plugin identity and structured auth path for authorization.
 //
-// VALIDATES: dispatch-command-args authorizes as plugin:<caller> with exact command, args, and peer.
+// VALIDATES: dispatch-command-args authorizes as the reserved internal identity
+// carrying the caller plugin name, with exact command, args, and peer.
 // PREVENTS: typed dispatch flattening auth inputs before built-in authorizers can inspect them.
 func TestDispatchCommandArgsPreservesPluginIdentity(t *testing.T) {
 	t.Parallel()
@@ -611,7 +615,7 @@ func TestDispatchCommandArgsPreservesPluginIdentity(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.NotNil(t, out)
 	assert.Equal(t, plugin.StatusError, out.Status)
-	assert.Equal(t, "plugin:caller-plugin", auth.username)
+	assert.Equal(t, internalPluginIdentity("caller-plugin"), auth.username)
 	assert.Equal(t, "request target echo", auth.command)
 	assert.Equal(t, wantArgs, auth.args)
 	assert.Equal(t, "10.0.0.1", auth.peer)
@@ -644,7 +648,7 @@ func TestDispatchCommandArgsLegacyAuthorizationCanonicalizesPeerScope(t *testing
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.NotNil(t, out)
 	assert.Equal(t, plugin.StatusError, out.Status)
-	assert.Equal(t, "plugin:caller-plugin", auth.username)
+	assert.Equal(t, internalPluginIdentity("caller-plugin"), auth.username)
 	assert.Equal(t, aaa.CanonicalCommand("request target echo", wantArgs, "10.0.0.1"), auth.command)
 	assert.False(t, auth.readOnly)
 }
