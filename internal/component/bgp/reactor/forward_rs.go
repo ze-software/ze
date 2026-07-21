@@ -206,6 +206,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), asn4))
 		wire.SetMessageID(update.WireUpdate.MessageID())
 		wire.SetSourceID(update.WireUpdate.SourceID())
+		// Site 5: buf backs the per-key local-AS / dual-AS variant aliased zero-copy
+		// into async writes; adopt onto the entry, return at eviction (D-1/D-2).
+		update.adoptFwdHandle(buf)
 		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
 		return wire, true
 	}
@@ -379,6 +382,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), false))
 				wire.SetMessageID(update.WireUpdate.MessageID())
 				wire.SetSourceID(update.WireUpdate.SourceID())
+				// Site 6: buf backs the per-call RS-client transcode wire aliased
+				// zero-copy into async writes; adopt onto the entry, return at
+				// eviction (D-1/D-2).
+				update.adoptFwdHandle(buf)
 				rsTranscodeWire = wire
 			}
 			if rsTranscodeWire != nil {

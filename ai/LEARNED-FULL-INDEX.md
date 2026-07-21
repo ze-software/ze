@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1205 summaries
+Total: 1206 summaries
 
 ## 000-099
 
@@ -1279,3 +1279,4 @@ Total: 1205 summaries
 | 1231 | fixit-private-asn-leak | `plan/learned/1231-fixit-private-asn-leak.md` |
 | 1232 | fixit-reject-fence-observability | `plan/learned/1232-fixit-reject-fence-observability.md` |
 | 1233 | fixit-supply-chain-hardening | `plan/learned/1233-fixit-supply-chain-hardening.md` |
+| 1234 | fixit-forward-readbuf-leak | `plan/learned/1234-fixit-forward-readbuf-leak.md` |

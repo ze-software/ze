@@ -43,6 +43,11 @@ func nextMsgID() uint64 {
 // Memory contract: WireUpdate slices into poolBuf.Buf; all derived slices share it.
 // When cache evicts this entry, poolBuf is returned to the buffer multiplexer.
 // EBGP variant buffers (in ebgpSlotASN4/ebgpSlotASN2) are returned on eviction too.
+// Per-forward wire variants that are NOT one of the two atomic ebgpSlot caches
+// (dual-AS prepend, per-key local-AS override, ASN4->ASN2 transcode, export-filter
+// override) hang their read-pool handle on fwdHandles via adoptFwdHandle and are
+// returned on eviction as well -- the same single return point as poolBuf and the
+// slots (recent_cache.go evictLocked / Delete).
 // Message ID is stored in WireUpdate, accessible via WireUpdate.MessageID().
 type ReceivedUpdate struct {
 	// WireUpdate contains the UPDATE payload with zero-copy accessors.
@@ -86,6 +91,56 @@ type ReceivedUpdate struct {
 	// ebgpSlotASN2 holds the lazily-generated EBGP wire for 2-byte ASN peers.
 	// nil until the first EBGPWire(_, _, false) call generates and publishes it.
 	ebgpSlotASN2 atomic.Pointer[ebgpWireSlot]
+
+	// fwdHandleMu is a dedicated LEAF mutex guarding fwdHandles. Lock ordering:
+	// adopters (the forward path) hold NO other lock when calling adoptFwdHandle;
+	// the cache takes it strictly inside cache.mu when draining at eviction
+	// (cache.mu -> fwdHandleMu is the only nesting). Never acquire another lock
+	// while holding it; do NOT reuse ebgpMu (that would couple unrelated
+	// lifecycles). See spec-fixit-forward-readbuf-leak D-3.
+	fwdHandleMu sync.Mutex
+
+	// fwdHandles holds read-pool buffer handles borrowed on the forward path
+	// (reactor_api_forward.go / forward_rs.go) for per-destination wire variants
+	// that are NOT one of the two atomic ebgpSlot caches. Same ownership contract
+	// as poolBuf and the ebgpSlot handles: returned to the pool exactly once when
+	// the cache evicts this entry. Appended by adoptFwdHandle immediately after
+	// the wire is built on the success path; drained by returnFwdHandles.
+	fwdHandles []BufHandle
+}
+
+// adoptFwdHandle takes ownership of a read-pool buffer handle borrowed on the
+// forward path for a per-destination wire variant (dual-AS prepend, per-key
+// local-AS override, ASN4->ASN2 transcode, or export-filter override). The handle
+// backs a *wireu.WireUpdate that is aliased zero-copy into async worker writes, so
+// it MUST NOT be returned at end of the forward call; it is returned exactly once
+// when the cache evicts this entry -- the same point that returns poolBuf and the
+// ebgpSlot handles (spec-fixit-forward-readbuf-leak D-1/D-2). Callers adopt on the
+// success path ONLY; error paths return the handle immediately (D-5). A zero
+// handle (Buf == nil) is ignored. Adopters must hold no other lock (D-3).
+func (u *ReceivedUpdate) adoptFwdHandle(h BufHandle) {
+	if h.Buf == nil {
+		return
+	}
+	u.fwdHandleMu.Lock()
+	u.fwdHandles = append(u.fwdHandles, h)
+	u.fwdHandleMu.Unlock()
+}
+
+// returnFwdHandles returns every adopted forward-path handle to the pool and
+// empties the list. Called by the cache under cache.mu when the entry is evicted
+// (evictLocked) or deleted (Delete) -- the single return point for entry-owned
+// per-forward read-pool handles. Idempotent: a second call (e.g. a hypothetical
+// double-evict) finds an empty list and returns nothing twice. ReturnReadBuffer
+// runs outside fwdHandleMu so the leaf lock never nests the pool mutex.
+func (u *ReceivedUpdate) returnFwdHandles() {
+	u.fwdHandleMu.Lock()
+	handles := u.fwdHandles
+	u.fwdHandles = nil
+	u.fwdHandleMu.Unlock()
+	for _, h := range handles {
+		ReturnReadBuffer(h)
+	}
 }
 
 // getReadBuf gets a buffer handle from the appropriate multiplexer.

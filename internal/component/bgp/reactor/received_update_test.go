@@ -9,6 +9,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // buildUpdatePayload builds an UPDATE message body from components.
@@ -496,4 +499,101 @@ func TestReceivedUpdate_EBGPWireErrorDoesNotPublish(t *testing.T) {
 	if err2 == nil {
 		t.Fatal("expected error on retry with truncated payload")
 	}
+}
+
+// TestReceivedUpdateAdoptedHandlesReturnedOnce verifies the adopt-list mechanism
+// shared by all six forward borrow sites: handles adopted onto the entry are
+// returned to the pool exactly once when the cache evicts the entry (via ack or
+// Delete), an entry with no adopted handles is a no-op, and a second drain (the
+// hypothetical double-evict) returns nothing twice.
+//
+// VALIDATES: A-4 / AC-1 -- adoptFwdHandle + eviction drain return each handle once.
+// PREVENTS: leaked forward buffers, or a double-return corrupting the pool.
+func TestReceivedUpdateAdoptedHandlesReturnedOnce(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	// newEntry builds a cache-resident ReceivedUpdate with a no-op poolBuf so only
+	// adopted handles move the shared pool counter.
+	// nlri is a real NLRI section (192.0.2.0/24) so the update carries reachable
+	// routes like a forwarded UPDATE would.
+	nlri := []byte{24, 192, 0, 2}
+	newEntry := func(t *testing.T) (*RecentUpdateCache, *ReceivedUpdate, uint64) {
+		t.Helper()
+		wu := wireu.NewWireUpdate(buildUpdatePayload([]byte{0x40, 0x01, 0x01, 0x00}, nlri), ctxID)
+		id := nextMsgID()
+		wu.SetMessageID(id)
+		update := &ReceivedUpdate{
+			WireUpdate:   wu,
+			poolBuf:      BufHandle{ID: noPoolBufID, Buf: make([]byte, 4096)},
+			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+			ReceivedAt:   time.Now(),
+		}
+		cache := NewRecentUpdateCache(100)
+		cache.RegisterConsumer("test-plugin")
+		cache.Add(update)
+		cache.Activate(id, 1)
+		return cache, update, id
+	}
+
+	t.Run("empty list is a no-op on eviction", func(t *testing.T) {
+		_, before := bufMuxStd.Stats()
+		cache, _, id := newEntry(t)
+		require.NoError(t, cache.Ack(id, "test-plugin"))
+		_, after := bufMuxStd.Stats()
+		assert.Equal(t, before, after, "eviction with no adopted handles must not touch the pool")
+	})
+
+	for _, k := range []int{1, 2, 3} {
+		t.Run("evict returns each of K handles once", func(t *testing.T) {
+			_, before := bufMuxStd.Stats()
+			cache, update, id := newEntry(t)
+
+			for range k {
+				h := bufMuxStd.Get()
+				require.NotNil(t, h.Buf, "pool must hand out a buffer")
+				update.adoptFwdHandle(h)
+			}
+			_, afterAdopt := bufMuxStd.Stats()
+			require.Equal(t, before+k, afterAdopt, "K adopted handles must be in use")
+
+			require.NoError(t, cache.Ack(id, "test-plugin"))
+			_, ok := cache.Get(id)
+			require.False(t, ok, "entry must be evicted after ack")
+
+			_, after := bufMuxStd.Stats()
+			assert.Equal(t, before, after, "all K adopted handles must be returned exactly once at eviction")
+		})
+	}
+
+	t.Run("Delete also drains the adopted handles", func(t *testing.T) {
+		_, before := bufMuxStd.Stats()
+		cache, update, id := newEntry(t)
+		h := bufMuxStd.Get()
+		require.NotNil(t, h.Buf)
+		update.adoptFwdHandle(h)
+
+		require.True(t, cache.Delete(id), "Delete must find and remove the entry")
+		_, after := bufMuxStd.Stats()
+		assert.Equal(t, before, after, "Delete must return the adopted handle to the pool")
+	})
+
+	t.Run("second drain returns nothing twice", func(t *testing.T) {
+		_, before := bufMuxStd.Stats()
+		update := &ReceivedUpdate{
+			WireUpdate: wireu.NewWireUpdate(buildUpdatePayload([]byte{0x40, 0x01, 0x01, 0x00}, nil), ctxID),
+		}
+		h := bufMuxStd.Get()
+		require.NotNil(t, h.Buf)
+		update.adoptFwdHandle(h)
+
+		update.returnFwdHandles()
+		_, afterFirst := bufMuxStd.Stats()
+		require.Equal(t, before, afterFirst, "first drain returns the handle")
+
+		// A second drain (idempotent) must be a pure no-op: no double-return.
+		update.returnFwdHandles()
+		_, afterSecond := bufMuxStd.Stats()
+		assert.Equal(t, before, afterSecond, "second drain must return nothing (idempotent)")
+	})
 }

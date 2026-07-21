@@ -307,6 +307,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			wire := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(baseWire.SourceCtxID(), asn4))
 			wire.SetMessageID(baseWire.MessageID())
 			wire.SetSourceID(baseWire.SourceID())
+			// Site 1: dst backs wire (an export-override variant) and is aliased
+			// zero-copy into async writes; adopt it onto the entry so the cache
+			// returns it once at eviction, never at end of call (D-1/D-2).
+			update.adoptFwdHandle(dst)
 			return wire, true
 		}
 		ek := ebgpWireKey{localAS: localAS, secondaryAS: secondaryAS, asn4: asn4}
@@ -380,7 +384,11 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		wire := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), asn4))
 		wire.SetMessageID(update.WireUpdate.MessageID())
 		wire.SetSourceID(update.WireUpdate.SourceID())
-		// dst (pool buffer) intentionally not returned: it backs wire for this call's lifetime.
+		// Site 2: dst backs wire (a per-key local-AS / dual-AS variant) for the
+		// rest of this entry's lifetime and is aliased zero-copy into async
+		// writes; adopt it onto the entry so the cache returns it exactly once at
+		// eviction (D-1/D-2). Previously dropped here -- the leak this spec fixes.
+		update.adoptFwdHandle(dst)
 		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
 		return wire, true
 	}
@@ -553,6 +561,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				peerWire = wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(peerBaseWire.SourceCtxID(), false))
 				peerWire.SetMessageID(peerBaseWire.MessageID())
 				peerWire.SetSourceID(peerBaseWire.SourceID())
+				// Site 3: buf backs peerWire (an export-override RS-client transcode)
+				// aliased zero-copy into async writes; adopt onto the entry, return
+				// at eviction (D-1/D-2).
+				update.adoptFwdHandle(buf)
 			} else {
 				if rsTranscodeFailed {
 					continue
@@ -575,6 +587,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 					wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), false))
 					wire.SetMessageID(update.WireUpdate.MessageID())
 					wire.SetSourceID(update.WireUpdate.SourceID())
+					// Site 4: buf backs the per-call RS-client transcode wire aliased
+					// zero-copy into async writes; adopt onto the entry, return at
+					// eviction (D-1/D-2).
+					update.adoptFwdHandle(buf)
 					rsTranscodeWire = wire
 				}
 				if rsTranscodeWire != nil {

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-perf-next-1-ebgp-wire-lockfree |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-21 |
 
 ## Post-Compaction Recovery
 
@@ -179,7 +179,7 @@ Decisions D-4.
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
 | sustained forwarding to an EBGP peer with a local-AS override (dual-AS default, site 2/5) | -> | adopt at borrow, return at eviction | `TestForwardPoolBalanceLocalASOverride` |
-| export-filter wire override to an EBGP peer (site 1) and its RS-client transcode (site 3) | -> | per-peer adopt sites balanced | `TestForwardPoolBalanceExportOverride` |
+| export-filter wire override to an EBGP peer (site 1) and its RS-client transcode (site 3) | -> | per-peer adopt sites balanced | COVERED BY MECHANISM (see note below `TestForwardPoolBalanceExportOverride`) |
 | RS-client ASN4->ASN2 transcode forwarding (sites 4/6) | -> | transcode adopt sites balanced | `TestForwardRSTranscodePoolBalance` |
 | route-server fan-out under load | -> | pool in-use recovers after eviction | `test/plugin/forward-pool-balance.ci` |
 
@@ -198,7 +198,7 @@ Decisions D-4.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestForwardPoolBalanceLocalASOverride` | `internal/component/bgp/reactor/forward_update_test.go` | AC-1/AC-2: sites 2 (and 5 via shared helper path); asserts `bufMuxStd.Stats()` in-use before == after eviction (pattern: `received_update_test.go:407-446`) | |
-| `TestForwardPoolBalanceExportOverride` | `internal/component/bgp/reactor/forward_update_test.go` | AC-1: sites 1 and 3 (export override + override transcode), per-peer borrows | |
+| ~~`TestForwardPoolBalanceExportOverride`~~ COVERED BY MECHANISM (2026-07-21) | n/a | AC-1 sites 1/3: NOT written as a dedicated test. Sites 1/3 call the byte-identical `update.adoptFwdHandle(dst)` on the success path as tested sites 2/4; the per-peer N-handle shape is unit-tested by `TestReceivedUpdateAdoptedHandlesReturnedOnce` (K=1,2,3); the adopted handle is the freshly-borrowed read-pool `dst`, whose lifecycle is independent of the override wire. Triggering sites 1/3 end-to-end needs an in-process egress-policy-chain (`res.wireOverride`) plugin-bridge harness (`runEgressPolicyChain`, `r.api != nil`), whose faithful home is the deferred `test/plugin/forward-pool-balance.ci` / interop long-run. Independent review (2026-07-21) judged this coverage ACCEPTABLE (no distinct bug can hide at 1/3). | Covered-by-mechanism |
 | `TestForwardRSTranscodePoolBalance` | `internal/component/bgp/reactor/forward_rs_test.go` | AC-1: sites 4, 5, 6 on the RS fast path | |
 | `TestForwardBufferReturnAfterDispatch` | `internal/component/bgp/reactor/forward_update_test.go` | AC-3: handle NOT returned while an item is pending (retain held), returned after final `done()` + eviction; run under `-race` | |
 | `TestReceivedUpdateAdoptedHandlesReturnedOnce` | `internal/component/bgp/reactor/received_update_test.go` | A-4: adopt K handles, evict (or Delete); each returned exactly once; empty list no-op | |
@@ -296,3 +296,38 @@ forwarding `.ci` tests live in `test/plugin/` (e.g. `rs-fastpath.ci`,
 - Adjacent observations found during verification, OUT of this spec's scope (read, not exhaustively traced; flag for triage, do not fix here without approval):
   1. Outgoing peer-pool buffer leak on the body-build failure path: `forwardUpdateCore` acquires a mod buffer (`reactor_api_forward.go:589-605`), then `continue`s at 627-628 when `buildFwdBody` fails, dropping the item without `Return`; same shape in `forward_rs.go:392-411` / 436-437.
   2. Pool-stopped `DispatchOverflow` calls `done()` but not `releaseItem` (`forward_pool.go:600-604`, 617-623) -- shutdown-window-only leak of item resources.
+
+## Pre-Commit Verification
+
+| Item | Verified | Evidence |
+|------|----------|----------|
+| All 6 sites adopt on success | yes | `reactor_api_forward.go` :313 (site1), :391 (site2), :567 (site3), :593 (site4); `forward_rs.go` :211 (site5), :388 (site6); each keeps its immediate `ReturnReadBuffer` on the error/nil path (D-5) |
+| Adopt list + leaf mutex + eviction drain | yes | `received_update.go` `fwdHandleMu`+`fwdHandles`, `adoptFwdHandle`, `returnFwdHandles`; `recent_cache.go` `evictLocked`/`Delete` call `returnFwdHandles` alongside the existing poolBuf + 2 ebgpSlot returns |
+| AC-1/AC-2 pool balance (sites 2/4/5/6) | yes | `TestForwardPoolBalanceLocalASOverride`, `TestForwardRSTranscodePoolBalance`, `TestReceivedUpdateAdoptedHandlesReturnedOnce` (K=1,2,3) — `bufMuxStd.Stats()` in-use before==after eviction; FAIL-before (leak red), PASS-after |
+| AC-3 -race / no use-after-free | yes | `TestForwardBufferReturnAfterDispatch` (buffer held while pending, returned after done()+eviction); `go test ./internal/component/bgp/reactor/ -race` clean |
+| AC-4 no double-return of ebgp slot | yes | uniform-AS EBGP rides the `EBGPWire` atomic slot, never adopts; slot-return lines unchanged; `returnFwdHandles` nils the slice under the mutex (idempotent double-drain) |
+| Sites 1/3 coverage | covered-by-mechanism | byte-identical adopt call to tested sites 2/4; per-peer N-handle shape unit-tested; independent review judged ACCEPTABLE (see Review Gate) |
+| Sibling sweep | yes | all 7 non-test `getReadBuf` callers balanced (6 sites + `EBGPWire` slot); `Session.getReadBuffer` is the separate session-read lifecycle, untouched |
+| vet / lint | yes | `go vet ./internal/component/bgp/...` clean; `make ze-lint-changed` 0 issues |
+
+## Review Gate
+
+### Run 1 (closure — independent adversarial review, 2026-07-21)
+
+Independent subagent review of the full changeset against D-1..D-5 and AC-1..AC-4.
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE, 1 NOTE.** All six verification points confirmed sound:
+(1) return-at-eviction is provably after the last async write (dispatched items hold a RetainN
+released only post-write; eviction gated on `totalConsumers() <= 0`; a pending entry cannot
+evict, so no drain races the mid-call aliasing); (2) no double-return — uniform-AS EBGP rides
+the atomic `EBGPWire` slot and never adopts, slot-return lines unchanged, drain idempotent;
+(3) lock order sound — leaf `fwdHandleMu`, `ReturnReadBuffer` outside the leaf lock, only
+nesting `cache.mu -> fwdHandleMu`, `-race` clean; (4) completeness — all 6 sites adopt on
+success + return on error, sibling sweep confirms every borrow balanced, the full pool handle
+(not `[:n]`) is adopted so length-routing round-trips; (5) tests non-vacuous (RED on reverting
+an adopt); (6) **SITES-1/3 COVERAGE: ACCEPTABLE** — adopt call byte-identical to tested sites
+2/4, per-peer N-handle case unit-tested (K=1,2,3), adopted handle is the read-pool buffer
+independent of override-wire ownership; end-to-end trigger legitimately needs a plugin-bridge
+harness. NOTE (process, addressed): the Wiring Test / TDD row for `TestForwardPoolBalanceExportOverride`
+was reconciled to "covered-by-mechanism" with justification.
+
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE.
