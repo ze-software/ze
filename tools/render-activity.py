@@ -23,6 +23,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 LOC_ACTIVITY = GH_PAGES / "presentations" / "tools" / "loc_activity.py"
 DEST = GH_PAGES / "activity" / "index.html"
+MAIN_REPO = (GH_PAGES.parent / "main").resolve()
 
 
 def slice_between(text, start_marker, end_marker, start_from=0):
@@ -59,22 +60,27 @@ def extract(raw):
         .replace("<h3>Vendored Dependencies</h3>", "<h3>Dependencies</h3>")
     )
 
-    tables_h2 = raw.index('<h2 id="top-heading">')
-    panel_start = raw.rindex('<div class="panel">', 0, tables_h2)
-    first_table_end = raw.index("</table>", tables_h2) + len("</table>")
-    second_table_end = raw.index("</table>", first_table_end) + len("</table>")
-    panel_end = raw.index("</div>", second_table_end) + len("</div>")
-    tables_html = raw[panel_start:panel_end]
 
     tooltip_start = raw.index('<div id="activity-tooltip"')
-    tooltip_end = raw.index("</div>", tooltip_start) + len("</div>")
+    tooltip_last_span = raw.index("</span>", raw.index("tooltip-secondary", tooltip_start)) + len("</span>")
+    tooltip_end = raw.index("</div>", tooltip_last_span) + len("</div>")
     tooltip_html = raw[tooltip_start:tooltip_end]
 
     script_start = raw.index("<script>")
     script_end = raw.index("</script>") + len("</script>")
     script_html = re.sub(r'"peakLabel":"Peak (line|commit) day \([^)]+\)"', r'"peakLabel":"Peak \1 day"', raw[script_start:script_end])
+    script_html = re.sub(r',"topHeading":"[^"]+","topColumn":"[^"]+"', "", script_html)
+    script_html = re.sub(r'^\s*setEl\("top-heading".*\n', "", script_html, flags=re.MULTILINE)
+    script_html = re.sub(
+        r'^\s*for \(const table of document\.querySelectorAll\("\[data-top-table\]"\)\) \{\n'
+        r"\s*table\.hidden = table\.dataset\.topTable !== metric;\n"
+        r"\s*\}\n",
+        "",
+        script_html,
+        flags=re.MULTILINE,
+    )
 
-    return stats_html, chart_html, go_panel_html, tables_html, tooltip_html, script_html
+    return stats_html, chart_html, go_panel_html, tooltip_html, script_html
 
 
 PAGE = """<!doctype html>
@@ -129,9 +135,6 @@ PAGE = """<!doctype html>
                         <div class="left-stack">
 {chart}
 {go_panel}
-                        </div>
-                        <div class="right-stack">
-{tables}
                         </div>
                     </div>
 {tooltip}
@@ -346,14 +349,8 @@ STYLE = """
             font-weight: 800;
             white-space: nowrap;
         }
-        .activity-widget .dashboard-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(13rem, 16rem);
-            gap: 0.9rem;
-            align-items: start;
-        }
-        .activity-widget .left-stack,
-        .activity-widget .right-stack {
+        .activity-widget .dashboard-grid,
+        .activity-widget .left-stack {
             display: grid;
             gap: 1rem;
         }
@@ -478,8 +475,7 @@ STYLE = """
             font-size: 1.05rem;
             letter-spacing: -0.02em;
         }
-        .activity-widget .go-panel h2::before,
-        .activity-widget .right-stack .panel h2::before {
+        .activity-widget .go-panel h2::before {
             content: "";
             display: inline-block;
             width: 0.62rem;
@@ -488,10 +484,6 @@ STYLE = """
             border-radius: 999px;
             background: var(--grape-base);
             box-shadow: 0 0 0 0.28rem rgba(160, 110, 220, 0.16);
-        }
-        .activity-widget .right-stack .panel h2::before {
-            background: var(--tangerine-base);
-            box-shadow: 0 0 0 0.28rem rgba(255, 148, 0, 0.16);
         }
         .activity-widget .go-breakdown {
             display: grid;
@@ -590,7 +582,6 @@ STYLE = """
             line-height: 1.4;
         }
         @media (max-width: 980px) {
-            .activity-widget .dashboard-grid { grid-template-columns: 1fr; }
             .activity-widget .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .activity-widget .metric-control {
                 grid-column: 1 / -1;
@@ -617,8 +608,8 @@ STYLE = """
 """
 
 
-def render_markdown(stats_html, go_panel_html, tables_html):
-    """Reuses the same stats/go-panel/tables HTML fragments extract() already
+def render_markdown(stats_html, go_panel_html):
+    """Reuses the same stats and Go-panel HTML fragments extract() already
     sliced out of loc_activity.py's raw output -- run through
     sitelib.html_to_markdown -- rather than the SVG heatmap or the tab-switch
     script, neither of which mean anything as text."""
@@ -631,8 +622,6 @@ def render_markdown(stats_html, go_panel_html, tables_html):
         sitelib.html_to_markdown(stats_html, base_url=base).strip(),
         "",
         sitelib.html_to_markdown(go_panel_html, base_url=base).strip(),
-        "",
-        sitelib.html_to_markdown(tables_html, base_url=base).strip(),
         "",
     ]
     return "\n".join(parts).strip() + "\n"
@@ -648,6 +637,8 @@ def main():
                 "--compact",
                 "--output",
                 str(raw_path),
+                "--repo",
+                str(MAIN_REPO),
                 "--days",
                 "365",
             ],
@@ -659,9 +650,7 @@ def main():
             return 1
         raw = raw_path.read_text()
 
-    stats_html, chart_html, go_panel_html, tables_html, tooltip_html, script_html = (
-        extract(raw)
-    )
+    stats_html, chart_html, go_panel_html, tooltip_html, script_html = extract(raw)
 
     page = PAGE.format(
         style=STYLE,
@@ -671,9 +660,8 @@ def main():
         site_js=sitelib.asset_url("../", "assets/site.js"),
         navblock=sitelib.build_navblock("../"),
         stats=stats_html,
-        chart=chart_html,
         go_panel=go_panel_html,
-        tables=tables_html,
+        chart=chart_html,
         tooltip=tooltip_html,
         script=script_html,
         footer=sitelib.footer_html("../"),
@@ -682,9 +670,7 @@ def main():
     page = sitelib.patch_social_meta(page)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(page)
-    sitelib.write_markdown_sibling(
-        DEST, render_markdown(stats_html, go_panel_html, tables_html)
-    )
+    sitelib.write_markdown_sibling(DEST, render_markdown(stats_html, go_panel_html))
     print("rendered activity heatmap -> %s (+ index.md)" % DEST)
     return 0
 

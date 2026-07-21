@@ -11,9 +11,10 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 165** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Test files that expect a specific error | Q2 | **831 / 2593** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **6** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-8 further metric(s) are within threshold and are listed in full below.
+7 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -21,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 19889 (floor 136)** (ok)
+**136 / 19957 (floor 136)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -81,6 +82,27 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 *Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
+### Test files that expect a specific error
+
+**831 / 2593** (attention)
+
+Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
+
+*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
+
+| area | negative | files | percent |
+|---|---|---|---|
+| internal/chaos/report | 0 | 6 | 0.0 |
+| internal/chaos/web | 0 | 7 | 0.0 |
+| internal/core/rib | 0 | 9 | 0.0 |
+| internal/core/stats | 0 | 5 | 0.0 |
+| internal/plugins/completion | 0 | 5 | 0.0 |
+| internal/test/mock | 0 | 7 | 0.0 |
+| internal/component/doctor | 1 | 12 | 8.3 |
+| internal/chaos/peer | 1 | 11 | 9.1 |
+| internal/component/sysrib | 1 | 10 | 10.0 |
+| internal/component/cmd | 2 | 19 | 10.5 |
+
 ### RFC MUST requirements proven by a positive+negative test pair
 
 **971 / 2716** (ok)
@@ -104,32 +126,11 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**19918 test functions** (ok)
+**19986 test functions** (ok)
 
-2575 Go test files, 72 fuzz targets, 121 benchmarks, 1444 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2593 Go test files, 72 fuzz targets, 122 benchmarks, 1447 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
-
-### Test files that expect a specific error
-
-**829 / 2575** (ok)
-
-Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
-
-*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
-
-| area | negative | files | percent |
-|---|---|---|---|
-| internal/chaos/report | 0 | 6 | 0.0 |
-| internal/chaos/web | 0 | 7 | 0.0 |
-| internal/core/rib | 0 | 9 | 0.0 |
-| internal/core/stats | 0 | 5 | 0.0 |
-| internal/plugins/completion | 0 | 5 | 0.0 |
-| internal/test/mock | 0 | 7 | 0.0 |
-| internal/component/doctor | 1 | 12 | 8.3 |
-| internal/chaos/peer | 1 | 11 | 9.1 |
-| internal/component/sysrib | 1 | 10 | 10.0 |
-| internal/component/cmd | 2 | 19 | 10.5 |
 
 ### Technique adoption by package age
 
@@ -142,7 +143,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 480 | 29 | 88 | 30 |
+| 2026 | 481 | 29 | 88 | 30 |
 
 ## Integrity
 

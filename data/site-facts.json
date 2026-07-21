@@ -8,20 +8,20 @@
     "core_experimental": 48,
     "planned": 6
   },
-  "generated_at": "2026-07-20",
-  "github_stars": 46,
+  "generated_at": "2026-07-21",
+  "github_stars": 47,
   "interop": {
-    "scenario_dirs_raw": 102,
-    "scenarios": 102,
+    "scenario_dirs_raw": 105,
+    "scenarios": 104,
     "target_display": "8",
     "targets": 8
   },
   "tests": {
-    "e2e": 1444,
+    "e2e": 1447,
     "e2e_display": "1,400+",
     "fuzz": 72,
     "fuzz_display": "72",
-    "unit": 19896,
-    "unit_display": "19,800+"
+    "unit": 19982,
+    "unit_display": "19,900+"
   }
 }

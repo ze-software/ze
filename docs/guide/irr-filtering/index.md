@@ -92,15 +92,15 @@ If `ze.conf` already contains the BGP peer but no IRR filter, stop Ze and add th
 
 ```console
 $ sudo systemctl stop ze.service
-$ ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-$ ze config set --no-reload ze.conf bgp policy irr server whois.radb.net
-$ ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600
-$ ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
-$ ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config set ze.conf bgp policy irr server whois.radb.net
+$ ze config set ze.conf bgp policy irr refresh-interval 3600
+$ ze config set ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
+$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
 $ sudo systemctl start ze.service
 ```
 
-`--no-reload` updates ZeFS without contacting the stopped daemon. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
+`ze config set` updates ZeFS without contacting the daemon: it does not reload by default (add `--reload` to notify a running daemon), and here the daemon is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
 
 Run `ze config cat ze.conf` before and after these commands when you want to review the exact stored changes. The terminal demonstration below starts from a configuration without any IRR settings and executes this workflow.
 
@@ -169,23 +169,23 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 
 Populate a stored configuration with the IRR plugin, server, AS-SET, and import filter, then prove registered routes pass and unregistered routes do not.
 
-[Play the WebM recording](../../../assets/demos/irr-filter.webm?v=2e92536b54) · [View the poster](../../../assets/demos/irr-filter.png?v=fe5a6a44e7) · [Plain-text transcript](../../../assets/demos/irr-filter.txt?v=899777d430)
+[Play the WebM recording](../../../assets/demos/irr-filter.webm?v=6d4db8f71b) · [View the poster](../../../assets/demos/irr-filter.png?v=fd5f3c7eae) · [Plain-text transcript](../../../assets/demos/irr-filter.txt?v=3fd732070b)
 
 Recorded with Ze 26.07.20 on macOS and Linux using VHS 0.11.0. Duration: 3 minutes 37 seconds.
 
 ```console
 $ ze config cat ze.conf | grep -q bgp-filter-irr || echo 'IRR filtering is not configured'
 IRR filtering is not configured
-$ ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-set plugin internal bgp-filter-irr use = bgp-filter-irr
-$ ze config set --no-reload ze.conf bgp policy irr server 127.0.0.1:4343
-set bgp policy irr server = 127.0.0.1:4343
-$ ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600
-set bgp policy irr refresh-interval = 3600
-$ ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-TEST
-set bgp peer customer-a session irr as-set = AS-TEST
-$ ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
-set bgp peer customer-a filter import = bgp-filter-irr:65001
+$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+set plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config set ze.conf bgp policy irr server 127.0.0.1:4343
+set bgp policy irr server 127.0.0.1:4343
+$ ze config set ze.conf bgp policy irr refresh-interval 3600
+set bgp policy irr refresh-interval 3600
+$ ze config set ze.conf bgp peer customer-a session irr as-set AS-TEST
+set bgp peer customer-a session irr as-set AS-TEST
+$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+set bgp peer customer-a filter import bgp-filter-irr:65001
 
 $ ze cli -c 'show bgp irr | no-more'
 asn: 65001

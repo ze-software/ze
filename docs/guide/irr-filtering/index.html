@@ -125,14 +125,14 @@ bgp {
 <h2 id="add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</h2>
 <p>If <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add the five required settings directly to the stored configuration:</p>
 <pre><code class="language-console">$ sudo systemctl stop ze.service
-$ ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-$ ze config set --no-reload ze.conf bgp policy irr server whois.radb.net
-$ ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600
-$ ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
-$ ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config set ze.conf bgp policy irr server whois.radb.net
+$ ze config set ze.conf bgp policy irr refresh-interval 3600
+$ ze config set ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
+$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
 $ sudo systemctl start ze.service
 </code></pre>
-<p><code>--no-reload</code> updates ZeFS without contacting the stopped daemon. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
+<p><code>ze config set</code> updates ZeFS without contacting the daemon: it does not reload by default (add <code>--reload</code> to notify a running daemon), and here the daemon is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
 <p>Run <code>ze config cat ze.conf</code> before and after these commands when you want to review the exact stored changes. The terminal demonstration below starts from a configuration without any IRR settings and executes this workflow.</p>
 <h2 id="choose-the-as-set">Choose the AS-SET</h2>
 <p>Set <code>session { irr { as-set AS-CUSTOMER; } }</code> when you know the correct AS-SET. This is the most predictable production configuration.</p>
@@ -186,29 +186,29 @@ $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
       <span>irr-filter.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/irr-filter.png?v=fe5a6a44e7" aria-label="Add IRR filtering to an existing BGP peer demonstration">
-      <source src="../../../assets/demos/irr-filter.webm?v=2e92536b54" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/irr-filter.webm?v=2e92536b54">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/irr-filter.png?v=fd5f3c7eae" aria-label="Add IRR filtering to an existing BGP peer demonstration">
+      <source src="../../../assets/demos/irr-filter.webm?v=6d4db8f71b" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/irr-filter.webm?v=6d4db8f71b">Download the recording</a>.
     </video>
   </div>
   <figcaption>
     <span>Ze 26.07.20</span><span>3 minutes 37 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../../assets/demos/irr-filter.txt?v=899777d430">Plain-text transcript</a>
+    <a href="../../../assets/demos/irr-filter.txt?v=3fd732070b">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze config cat ze.conf | grep -q bgp-filter-irr || echo &#x27;IRR filtering is not configured&#x27;
 IRR filtering is not configured
-$ ze config set --no-reload ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-set plugin internal bgp-filter-irr use = bgp-filter-irr
-$ ze config set --no-reload ze.conf bgp policy irr server 127.0.0.1:4343
-set bgp policy irr server = 127.0.0.1:4343
-$ ze config set --no-reload ze.conf bgp policy irr refresh-interval 3600
-set bgp policy irr refresh-interval = 3600
-$ ze config set --no-reload ze.conf bgp peer customer-a session irr as-set AS-TEST
-set bgp peer customer-a session irr as-set = AS-TEST
-$ ze config set --no-reload ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
-set bgp peer customer-a filter import = bgp-filter-irr:65001
+$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+set plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config set ze.conf bgp policy irr server 127.0.0.1:4343
+set bgp policy irr server 127.0.0.1:4343
+$ ze config set ze.conf bgp policy irr refresh-interval 3600
+set bgp policy irr refresh-interval 3600
+$ ze config set ze.conf bgp peer customer-a session irr as-set AS-TEST
+set bgp peer customer-a session irr as-set AS-TEST
+$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+set bgp peer customer-a filter import bgp-filter-irr:65001
 
 $ ze cli -c &#x27;show bgp irr | no-more&#x27;
 asn: 65001

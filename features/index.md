@@ -192,7 +192,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 - A year of **commits** and added lines, at a glance
 - Regenerated from git history, not curated
-- Top commit and line days, ranked
+- Current Go code composition
 
 [Learn more](https://ze-software.net/activity/)
 

@@ -15,21 +15,21 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 48 shipped or experimental feature cards, 6 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 32 weekly change entries.
-- Test evidence counts: 19,800+ unit tests, 72 fuzz targets, 1,400+ end-to-end transcript steps, 102 interop scenarios across 8 target implementations.
-- Generated date: 2026-07-20.
+- Test evidence counts: 19,900+ unit tests, 72 fuzz targets, 1,400+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
+- Generated date: 2026-07-21.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 19,800+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 19,900+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 72 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 102 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 104 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -64,7 +64,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 - MCP Integration [automate, current]: chips: MCP, OAuth 2.1; Streamable HTTP transport, OAuth 2.1 resource server; Server-initiated elicitation, task-augmented tool calls; MCP Apps UI with embedded panels; link: https://ze-software.net/docs/features/mcp-integration/index.md
 - ExaBGP Compatibility [automate, current]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Smooth transition path; link: https://ze-software.net/docs/features/exabgp-compatibility/index.md
 - Evidence Over Claims [observe, current]: chips: Fuzz, Interop, Docker; Unit, functional, fuzz, chaos; Performance benchmarks; Interop vs FRR, BIRD, GoBGP; link: https://ze-software.net/docs/features/interoperability-testing/index.md
-- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Regenerated from git history, not curated; Top commit and line days, ranked; link: https://ze-software.net/activity/index.md
+- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Regenerated from git history, not curated; Current Go code composition; link: https://ze-software.net/activity/index.md
 - Prometheus Telemetry [observe, current]: chips: Netdata, Prometheus; 138 metrics from /proc and /sys; Netdata naming, drop-in replacement; Existing Grafana dashboards keep working; link: https://ze-software.net/docs/guide/monitoring/index.md
 - Health Registry [observe, current]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/docs/features/index.md
 - Host Inventory [observe, current]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/docs/features/index.md
