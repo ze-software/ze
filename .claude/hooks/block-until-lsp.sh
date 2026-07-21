@@ -55,6 +55,6 @@ cat >&2 <<'EOF'
    No task-type exception (shell-only, docs-only, trivial, etc.) applies.
 
    Bypass for existing sessions (rare, e.g. hook added mid-session):
-       touch tmp/session/.lsp-loaded-$(whichever _session_id resolves to)
+       touch "tmp/session/.lsp-loaded-$(python3 .claude/hooks/lib/session_id.py)"
 EOF
 exit 2

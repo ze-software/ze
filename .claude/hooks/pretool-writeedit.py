@@ -13,10 +13,9 @@ Exit codes: 0 allow, 1 non-blocking warning, 2 block. Most severe wins when
 several checks fire. Fails OPEN (exit 0) on an unexpected internal error.
 """
 
-import base64
+import importlib.util
 import os
 import re
-import subprocess
 import sys
 import time
 
@@ -84,146 +83,27 @@ def isfile(path):
     return os.path.isfile(path)
 
 
-# --- session id + state file (ported from lib/session-id.sh, lib/state-file.sh) ---
+# --- session id + state file ---
+#
+# The session id is resolved by the ONE shared resolver, .claude/hooks/lib/
+# session_id.py -- the SAME code the shell hooks run (via the lib/session-id.sh
+# shim) to WRITE the markers this file READS (.lsp-invoked-<sid>, .source-read-<sid>,
+# .session-<sid>, session-state-<sid>.md). One implementation, so the two ends
+# cannot drift; a disagreement fails CLOSED, blocking work already done (incident
+# 2026-07-16, spec-fixit-session-id-collision). state_file() below is the local
+# path-naming twin of lib/state-file.sh's _state_file().
 
-
-def _ps(field, pid):
-    try:
-        return subprocess.run(
-            ["ps", "-o", field, "-p", str(pid)], capture_output=True, text=True
-        ).stdout.strip()
-    except Exception:
-        return ""
-
-
-def _session_id_from_argv(argv):
-    """Return the value following --session-id in an argv list, or ''."""
-    for i, a in enumerate(argv):
-        if a == "--session-id" and i + 1 < len(argv):
-            return argv[i + 1]
-        if a.startswith("--session-id="):
-            return a.split("=", 1)[1]
-    return ""
-
-
-# Last resort, mirroring lib/session-id.sh: a fixed constant. It is shared across
-# concurrent sessions, but it is STABLE. $PPID is not -- it differs for every
-# short-lived hook subprocess, so a pid-derived id never matches the marker a
-# previous subprocess wrote, and marker matching fails silently.
-SESSION_ID_FALLBACK = "claude-session-fallback"
-
-# An id is used only when it is safe as a filename component. Mirrors _sid_safe in
-# lib/session-id.sh: reject rather than rewrite, so the two ends cannot disagree.
-_SID_SAFE_RE = re.compile(r"\A[A-Za-z0-9._-]+\Z")
-
-
-def _sid_safe(sid):
-    """Return sid when it is usable as a filename component, else ''."""
-    return sid if sid and _SID_SAFE_RE.match(sid) else ""
-
-
-def _sid_from_env():
-    """This session's UUID as exported by the CLI, or ''.
-
-    The CLI puts CLAUDE_CODE_SESSION_ID in the environment of every process it
-    spawns, so it reaches each short-lived hook subprocess with no ps walk and no
-    parsing. Subagents and forks inherit the PARENT session's value (verified
-    2026-07-16): a subagent therefore sees the markers its parent wrote, which is
-    required -- .lsp-invoked-<sid> and .source-read-<sid> are fail-CLOSED gates.
-    """
-    return _sid_safe(os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
-
-
-def _sid_from_process_tree():
-    """The Claude CLI's own --session-id, read up the process tree, or ''.
-
-    This is the canonical session UUID: unique per session and constant across the
-    many short-lived hook subprocesses. It does NOT depend on the CLI being named
-    `claude` -- its argv0 is the version string (e.g. .../versions/2.1.206), which
-    is why an older name-only match never fired.
-    """
-    pid = os.getpid()
-    while pid > 1:
-        try:
-            cmdline = f"/proc/{pid}/cmdline"
-            if os.path.isfile(cmdline):
-                with open(cmdline, "rb") as fh:
-                    raw = fh.read()
-                argv = [a.decode("utf-8", "replace") for a in raw.split(b"\0") if a]
-                ppid = ""
-                try:
-                    with open(f"/proc/{pid}/status") as fh:
-                        for ln in fh:
-                            if ln.startswith("PPid:"):
-                                ppid = ln.split()[1]
-                                break
-                except Exception:
-                    ppid = ""
-            else:
-                argv = _ps("command=", pid).split()
-                ppid = _ps("ppid=", pid).strip()
-            sid = _sid_safe(_session_id_from_argv(argv))
-            if sid:
-                return sid
-            if not ppid:
-                break
-            pid = int(ppid)
-        except Exception:
-            break
-    return ""
-
-
-def _sid_from_jwt():
-    """session_id from CLAUDE_CODE_SESSION_ACCESS_TOKEN, or ''."""
-    tok = os.environ.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN")
-    if not tok:
-        return ""
-    try:
-        payload = tok.split(".")[1].replace("_", "/").replace("-", "+")
-        mod = len(payload) % 4
-        if mod == 2:
-            payload += "=="
-        elif mod == 3:
-            payload += "="
-        decoded = base64.b64decode(payload).decode("utf-8", "replace")
-        m = re.search(r'"session_id":\s*"([^"]*)"', decoded)
-        if m and m.group(1):
-            return _sid_safe(m.group(1))
-    except Exception:
-        pass
-    return ""
+_SID_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "lib", "session_id.py"
+)
+_sid_spec = importlib.util.spec_from_file_location("ze_session_id", _SID_MODULE_PATH)
+_ze_session_id = importlib.util.module_from_spec(_sid_spec)
+_sid_spec.loader.exec_module(_ze_session_id)
 
 
 def session_id():
-    """Resolve this session's id.
-
-    The order MUST stay identical to .claude/hooks/lib/session-id.sh, because that
-    library is what the SHELL hooks use to WRITE the markers this file READS:
-    .lsp-invoked-<sid> and .source-read-<sid> (mark-lsp-invoked.sh,
-    mark-source-read.sh), .session-<sid>, and session-state-<sid>.md.
-
-    When the two ends disagree, every marker check here looks for a file nothing
-    writes. That does not fail open -- it fails CLOSED, blocking work that was in
-    fact done, and no amount of redoing it clears the block. On 2026-07-16 this
-    made c_design_without_lsp unsatisfiable: the shell wrote
-    .lsp-invoked-claude-session-fallback while this function returned a pid, so a
-    spec write was refused for "no implementation investigated" after the source had
-    been read and the LSP invoked. tmp/session/ still carries the pid-named symlinks
-    nine earlier sessions used to paper over it.
-
-    _sid_from_env is FIRST because the other two sources are routinely absent: an
-    interactive `claude` carries no --session-id in argv, and subscription auth
-    issues no access token. With both missing, every concurrent session fell through
-    to SESSION_ID_FALLBACK and SHARED one marker set -- so `spec-session.sh claim`
-    silently overwrote another session's claim (observed 2026-07-16: two sessions,
-    one marker, the second clobbered the first's spec).
-    """
-    return (
-        _sid_from_env()
-        or _sid_from_process_tree()
-        or _sid_from_jwt()
-        or SESSION_ID_FALLBACK
-    )
+    """Resolve this session's id via the ONE shared resolver (session_id.py)."""
+    return _ze_session_id.session_id()
 
 
 def state_file(sid):

@@ -81,16 +81,27 @@ _cleanup_stale_markers() {
     mkdir -p tmp/session
     find tmp/session/ -maxdepth 1 -name '.session-*' -mmin +1440 -delete 2>/dev/null
     find tmp/session/ -maxdepth 1 -name '.compaction-detected-*' -mmin +1440 -delete 2>/dev/null
+    # Minted-fallback id caches (session_id.py source 4). A live session keeps its
+    # cache fresh (session_id.py touches it on every hit), so only a dead session's
+    # cache ages out here -- after which PID reuse can no longer alias its id.
+    find tmp/session/ -maxdepth 1 -name '.sid-by-pid-*' -mmin +1440 -delete 2>/dev/null
     # Also clean legacy .claude/ location
     find .claude/ -maxdepth 1 -name '.session-*' -mmin +1440 -delete 2>/dev/null
     find .claude/ -maxdepth 1 -name '.compaction-detected-*' -mmin +1440 -delete 2>/dev/null
     # Clean up orphaned session state files (no matching session marker)
     for state in tmp/session/session-state-*-*.md; do
         [ -f "$state" ] || continue
-        # Extract SID from filename: session-state-<stem>-<SID>.md or session-state-<SID>.md
+        # Extract SID from filename: session-state-<stem>-<SID>.md or session-state-<SID>.md.
+        # The SID is a UUID (8-4-4-4-12) in the normal case; grab that trailing shape so a
+        # hyphenated <stem> is not mistaken for the id. Fall back to the last hyphen group
+        # for a non-UUID id (a bare "${fname##*-}" mangled every UUID into its final group).
         local fname sid marker
         fname=$(basename "$state" .md)
-        sid="${fname##*-}"
+        if [[ "$fname" =~ -([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$ ]]; then
+            sid="${BASH_REMATCH[1]}"
+        else
+            sid="${fname##*-}"
+        fi
         marker="tmp/session/.session-${sid}"
         # If marker doesn't exist and state file is older than 24h, remove
         if [ ! -f "$marker" ]; then

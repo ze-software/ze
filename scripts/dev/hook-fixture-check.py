@@ -37,16 +37,22 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
 )
 HOOKS = os.path.join(ROOT, ".claude", "hooks")
 DEV = os.path.abspath(os.path.dirname(__file__))
+
+# A UUID in any version (the minted fallback is v4). Used to prove the no-source
+# path resolves a per-session id, never the old shared constant.
+_UUID_RE = re.compile(r"\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\Z")
 
 
 def _fixture_root() -> str:
@@ -740,6 +746,152 @@ def _sid_python(env: dict) -> str:
     return r.stdout.strip()
 
 
+def _sid_commit_helper(env: dict) -> str:
+    """commit_helper.claude_session_fingerprint() under a given environment.
+
+    Registered in sys.modules before exec so its frozen dataclasses can resolve
+    their own module during introspection; scripts/dev on the path so its sibling
+    imports (discovery_sources) resolve.
+    """
+    code = (
+        "import sys, importlib.util;"
+        "sys.path.insert(0, sys.argv[1]);"
+        "spec=importlib.util.spec_from_file_location('commit_helper', sys.argv[2]);"
+        "m=importlib.util.module_from_spec(spec);"
+        "sys.modules['commit_helper']=m;"
+        "spec.loader.exec_module(m);"
+        "print(m.claude_session_fingerprint())"
+    )
+    r = subprocess.run(
+        [sys.executable, "-c", code, DEV, os.path.join(DEV, "commit_helper.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return r.stdout.strip()
+
+
+def _load_session_id_module():
+    """Import lib/session_id.py in-process, for testing the minting internals."""
+    spec = importlib.util.spec_from_file_location(
+        "ze_session_id_test", os.path.join(HOOKS, "lib", "session_id.py")
+    )
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def _grep_lines(pattern: str, *paths: str) -> list[str]:
+    r = subprocess.run(
+        # Exclude this harness: it names the very symbols it greps for (as string
+        # literals in the checks below), which would self-match every scan.
+        [
+            "grep",
+            "-rn",
+            "--include=*.py",
+            "--include=*.sh",
+            "--exclude=hook-fixture-check.py",
+            "--",
+            pattern,
+            *paths,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return [ln for ln in r.stdout.splitlines() if ln.strip()]
+
+
+def _run_session_id_mint(results: Results) -> None:
+    """AC-10/AC-11: the minted fallback is per-key UNIQUE and per-key STABLE.
+
+    Tested at the mint primitive (_mint_cached) with explicit cache dir + cache key,
+    so the real uniqueness axis (same dir, different CLI-ancestor PID) is exercised
+    without process-tree games -- the axis a project-dir-only test would mask."""
+    mod = _load_session_id_module()
+    cache = tempfile.mkdtemp(prefix="ze-sid-mint-", dir=_fixture_root())
+    try:
+        a1 = mod._mint_cached(cache, 111)
+        a2 = mod._mint_cached(cache, 111)  # same key -> stable
+        b1 = mod._mint_cached(cache, 222)  # distinct key -> unique
+        results.check(
+            "session-id-mint-stable",
+            a1 == a2 and _UUID_RE.match(a1) is not None,
+            f"a1={a1!r} a2={a2!r}",
+        )
+        results.check(
+            "session-id-mint-unique",
+            a1 != b1 and _UUID_RE.match(b1) is not None,
+            f"a1={a1!r} b1={b1!r}",
+        )
+        results.check(
+            "session-id-mint-not-constant",
+            "claude-session-fallback" not in (a1, b1),
+            f"a1={a1!r} b1={b1!r}",
+        )
+        # ISSUE-1 regression: a POISONED (empty) cache file -- what a crash between an
+        # O_EXCL create and the separate write leaves behind -- MUST be treated as a
+        # miss and overwritten with a full id, then stay stable. The pre-fix code read
+        # "" from the empty file, hit FileExistsError on the O_EXCL create, and returned
+        # a FRESH uuid on every call (never healed until 24h cleanup): the session
+        # stopped matching its own markers and gates re-blocked already-done work.
+        empty = os.path.join(cache, ".sid-by-pid-333")
+        with open(empty, "w"):
+            pass  # zero bytes, exactly what a crashed O_EXCL create leaves
+        c1 = mod._mint_cached(cache, 333)
+        c2 = mod._mint_cached(cache, 333)
+        results.check(
+            "session-id-mint-heals-empty-cache",
+            c1 == c2
+            and _UUID_RE.match(c1) is not None
+            and c1 != "claude-session-fallback",
+            f"c1={c1!r} c2={c2!r}",
+        )
+    finally:
+        shutil.rmtree(cache, ignore_errors=True)
+
+
+def _run_session_id_cleanup_reparse(results: Results) -> None:
+    """R-11: _cleanup_stale_markers must recover a FULL UUID sid, not its last group.
+
+    A live session's state file (its .session-<sid> marker exists) that happens to be
+    older than the 24h threshold must SURVIVE. The pre-fix `${fname##*-}` mangled the
+    UUID, looked for a marker that never existed, called the live file an orphan, and
+    deleted it."""
+    work = tempfile.mkdtemp(prefix="ze-sid-cleanup-", dir=_fixture_root())
+    try:
+        sess = os.path.join(work, "tmp", "session")
+        os.makedirs(sess)
+        sid = "8d3d7c6b-fbad-4077-8f06-4678828041d0"
+        state = os.path.join(sess, f"session-state-spec-vrrp-4-transport-{sid}.md")
+        with open(state, "w") as fh:
+            fh.write("spec-vrrp-4-transport\n")
+        with open(os.path.join(sess, f".session-{sid}"), "w") as fh:
+            fh.write("spec-vrrp-4-transport\n")
+        old = time.time() - 26 * 3600  # older than the 1440-min cleanup threshold
+        os.utime(state, (old, old))
+        subprocess.run(
+            [
+                "bash",
+                "-c",
+                'source "$1"; _cleanup_stale_markers',
+                "_",
+                os.path.join(HOOKS, "lib", "state-file.sh"),
+            ],
+            cwd=work,
+            capture_output=True,
+            text=True,
+        )
+        results.check(
+            "session-id-cleanup-keeps-live-uuid-state",
+            os.path.isfile(state),
+            "live UUID state file wrongly deleted (sid mis-parse)",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def run_session_id(results: Results) -> None:
     """Lock the shell writer and the Python reader to ONE session id.
 
@@ -783,27 +935,84 @@ def run_session_id(results: Results) -> None:
     )
 
     # An id unusable as a filename component is REJECTED, not rewritten: both ends
-    # must fall through together, or they would disagree on the marker path.
-    for label, bad in (
-        ("traversal", "../../../etc/passwd"),
-        ("slash", "a/b"),
-        ("space", "has space"),
-        ("empty", ""),
-    ):
-        e3 = env_with(bad)
-        b3, p3 = _sid_bash(e3), _sid_python(e3)
-        results.check(
-            f"session-id-rejects-{label}",
-            b3 == p3 and "/" not in b3 and b3 != "" and b3 != bad,
-            f"bash={b3!r} py={p3!r}",
-        )
+    # must fall through together, or they would disagree on the marker path. A
+    # dedicated project dir keeps the fall-through's minted cache out of the live
+    # tmp/session/.
+    reject_proj = tempfile.mkdtemp(prefix="ze-sid-reject-", dir=_fixture_root())
+    try:
+        for label, bad in (
+            ("traversal", "../../../etc/passwd"),
+            ("slash", "a/b"),
+            ("space", "has space"),
+            ("empty", ""),
+        ):
+            e3 = env_with(bad)
+            e3["CLAUDE_PROJECT_DIR"] = reject_proj
+            b3, p3 = _sid_bash(e3), _sid_python(e3)
+            results.check(
+                f"session-id-rejects-{label}",
+                b3 == p3 and "/" not in b3 and b3 != "" and b3 != bad,
+                f"bash={b3!r} py={p3!r}",
+            )
+    finally:
+        shutil.rmtree(reject_proj, ignore_errors=True)
 
-    # With no id source at all, both ends still agree (on the shared constant).
-    e4 = env_with(None)
-    b4, p4 = _sid_bash(e4), _sid_python(e4)
+    # With no id source at all, the resolver MUST NOT collapse onto a shared
+    # constant (the collision this spec fixes, AC-10/AC-11): it mints a per-session
+    # UUID cached by the CLI-ancestor PID, stable across hook subprocesses. Both ends
+    # resolve the SAME id -- one CLI ancestor, one project dir, so bash mints and
+    # python reads the same cache. A dedicated project dir keeps the minted cache out
+    # of the live repo and makes the assertion deterministic.
+    proj = tempfile.mkdtemp(prefix="ze-sid-nosrc-", dir=_fixture_root())
+    try:
+        e4 = env_with(None)
+        e4["CLAUDE_PROJECT_DIR"] = proj
+        b4, p4 = _sid_bash(e4), _sid_python(e4)
+        results.check(
+            "session-id-no-source-parity",
+            b4 == p4
+            and b4 != ""
+            and b4 != "claude-session-fallback"
+            and _UUID_RE.match(b4) is not None,
+            f"bash={b4!r} py={p4!r}",
+        )
+    finally:
+        shutil.rmtree(proj, ignore_errors=True)
+
+    # AC-9: the THIRD derivation is gone -- commit_helper keys on the SAME id, and
+    # the env source dominates all three ends.
+    e5 = env_with("cccccccc-1111-2222-3333-444444444444")
+    ch = _sid_commit_helper(e5)
     results.check(
-        "session-id-no-source-parity", b4 == p4 and b4 != "", f"bash={b4!r} py={p4!r}"
+        "session-id-commit-helper-agrees",
+        ch == _sid_bash(e5) == "cccccccc-1111-2222-3333-444444444444",
+        f"commit_helper={ch!r}",
     )
+
+    # AC-9: exactly ONE derivation survives. The independent copies' signature tokens
+    # are gone from every consumer; only session_id.py carries the resolution logic.
+    fallback_const = _grep_lines("SESSION_ID_FALLBACK", ".claude/hooks", "scripts/dev")
+    results.check(
+        "session-id-no-python-fallback-constant",
+        not fallback_const,
+        "; ".join(fallback_const),
+    )
+    psfield = _grep_lines("_ps_field", "scripts/dev/commit_helper.py")
+    results.check(
+        "session-id-commit-helper-walk-removed", not psfield, "; ".join(psfield)
+    )
+    argv_files = {
+        ln.split(":", 1)[0]
+        for ln in _grep_lines("_session_id_from_argv", ".claude/hooks")
+    }
+    results.check(
+        "session-id-one-argv-walk",
+        argv_files == {".claude/hooks/lib/session_id.py"},
+        f"files={sorted(argv_files)}",
+    )
+
+    _run_session_id_mint(results)
+    _run_session_id_cleanup_reparse(results)
 
 
 # --------------------------------------------------------------------------- #

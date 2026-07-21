@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import base64
+import importlib.util
 import json
 import os
 import re
@@ -162,53 +162,32 @@ def validate_remove_path(repo: Path, path: str) -> None:
         raise UsageError(f"--remove path is not tracked: {path}")
 
 
-def _ps_field(field: str, pid: int) -> str:
-    try:
-        return subprocess.run(
-            ["ps", "-o", field, "-p", str(pid)],
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout.strip()
-    except Exception:
-        return ""
+# The commit-script session file (tmp/commit-session-id-<id>) MUST key on the SAME
+# session id the hooks use. This once carried a THIRD, independent derivation
+# (JWT-first / comm-walk / getppid) that drifted from both hook resolvers for weeks
+# (spec-fixit-session-id-collision). It now delegates to the ONE shared resolver.
+_SID_MODULE_PATH = (
+    Path(__file__).resolve().parents[2] / ".claude" / "hooks" / "lib" / "session_id.py"
+)
+_sid_spec = importlib.util.spec_from_file_location(
+    "ze_session_id", str(_SID_MODULE_PATH)
+)
+_ze_session_id = importlib.util.module_from_spec(_sid_spec)
+_sid_spec.loader.exec_module(_ze_session_id)
 
 
 def claude_session_fingerprint() -> str:
     """Identify the Claude session that owns this process.
 
     Concurrent Claude sessions share tmp/; when they also shared one
-    tmp/commit-session-id they shared one tmp/commit-<SESSION>.sh, and a
-    --replace from one session silently overwrote the other session's
-    prepared script (observed 2026-06-10). Keying the session file by the
-    owning Claude session gives every session its own script path. Uses
-    the session_id claim of the access token when present, else the PID
-    of the `claude` ancestor process (stable across Bash tool calls of
-    one session), else the parent PID.
+    tmp/commit-session-id they shared one tmp/commit-<SESSION>.sh, and a --replace
+    from one session silently overwrote the other's prepared script (observed
+    2026-06-10). Delegates to the ONE shared session-id resolver
+    (.claude/hooks/lib/session_id.py), so this file keys its session script on the
+    exact id the hooks use -- no fourth spelling to drift. The resolver already
+    guarantees the id is a safe filename component.
     """
-    tok = os.environ.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "")
-    if tok.count(".") >= 2:
-        try:
-            payload = tok.split(".")[1].replace("_", "/").replace("-", "+")
-            payload += "=" * (-len(payload) % 4)
-            decoded = base64.b64decode(payload).decode("utf-8", "replace")
-            m = re.search(r'"session_id":\s*"([^"]+)"', decoded)
-            if m:
-                return re.sub(r"[^A-Za-z0-9._-]", "-", m.group(1))
-        except Exception:
-            pass
-    pid = os.getpid()
-    for _ in range(64):
-        if pid <= 1:
-            break
-        argv0 = _ps_field("comm=", pid)
-        if argv0.rsplit("/", 1)[-1] == "claude":
-            return str(pid)
-        ppid = _ps_field("ppid=", pid)
-        if not ppid.isdigit():
-            break
-        pid = int(ppid)
-    return str(os.getppid())
+    return _ze_session_id.session_id()
 
 
 def session_id(repo: Path, requested: str | None) -> str:

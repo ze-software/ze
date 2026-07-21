@@ -132,6 +132,40 @@ Automated enforcement of `ai/rules/` requirements.
 |------|----------------|
 | `block-destructive-git.sh` | force push, reset, clean |
 
+## Session Identity
+
+Every hook that names a per-session marker under `tmp/session/`
+(`.lsp-loaded-<sid>`, `.lsp-invoked-<sid>`, `.source-read-<sid>`, `.session-<sid>`,
+`session-state-<sid>.md`) resolves `<sid>` through **one** resolver:
+`.claude/hooks/lib/session_id.py`. It has two faces:
+
+- an importable `session_id()` for the in-process Python callers
+  (`pretool-writeedit.py`, `scripts/dev/commit_helper.py`); and
+- a `__main__` that prints the id for the Bash hooks, which reach it through the
+  one-line shim `.claude/hooks/lib/session-id.sh` (`_session_id`).
+
+There is deliberately no second copy. Three independent derivations (Bash,
+Python-hook, `commit_helper`) previously drifted for weeks despite a prose "MUST
+stay identical" note, and a disagreement fails **closed**: the reader looks for a
+marker nothing wrote and blocks work already done. A shim cannot drift from the
+code it calls. See `plan/learned/` (spec `spec-fixit-session-id-collision`).
+
+### Resolution precedence
+
+| # | Source | Notes |
+|---|--------|-------|
+| 1 | `$CLAUDE_CODE_SESSION_ID` | The session UUID the CLI exports into every child process. Free, canonical, no walk. Forks/subagents inherit the **parent** session's value on purpose, so a fork sees the fail-closed markers its parent wrote. |
+| 2 | `--session-id` in the process tree | The CLI's own flag, present only when launched with it. `/proc` on Linux, `ps` on macOS/BSD. |
+| 3 | `CLAUDE_CODE_SESSION_ACCESS_TOKEN` JWT `session_id` claim | Empty for subscription auth. |
+| 4 | Minted UUID at `tmp/session/.sid-by-pid-<clipid>` | Last resort: a UUID minted once and cached, keyed by the long-lived **CLI-ancestor PID** (never the id itself). Per-session unique **and** stable across the many short-lived hook subprocesses. Replaces the old shared constant `claude-session-fallback`, which every concurrent session collided on. |
+
+An id from any source is used only when it is safe as a filename component
+(`[A-Za-z0-9._-]`); anything else falls through, so the Bash and Python entry
+points cannot disagree on the marker path.
+
+The regression harness is `scripts/dev/hook-fixture-check.py` (section
+`session-id`), run by `make ze-hook-test`.
+
 ## Exit Codes
 
 | Code | Meaning | Effect |

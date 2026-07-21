@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | 0/N (research) |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-21 |
 
 ## Task
 
@@ -623,6 +623,22 @@ REMAINING list in Proposed Design for the exact five items.
 | AC-10 | Any session, any hook, on a machine where no `--session-id` and no JWT exist (i.e. the normal case, measured 2026-07-16) | The resolved id is **per-session unique**. The literal `claude-session-fallback` appears nowhere in the resolved output, and `grep -r claude-session-fallback` over `.claude/` and `scripts/` returns no id-producing hit |
 | AC-11 | Two concurrent sessions, neither able to resolve a canonical id, both on the minted fallback | They mint two different UUIDs, and each session's id is identical across its own repeated hook subprocesses (uniqueness and stability together, the trade-off `session-id.sh:58-59` treated as forced) |
 
+→ **Known limitation on AC-10/AC-11 (source-4 only, honest floor).** The minted
+fallback (source 4) keys its per-session UUID on the CLI-ancestor PID
+(`_cli_ancestor_pid`), found by matching `claude` as a `comm` basename OR an argv
+path component (`session_id.py` `_is_cli`, robust to the CLI's argv being a
+version-path string). Its per-session uniqueness is **not absolute**: if NO ancestor
+carries a `claude` marker anywhere in its comm/argv, the key falls back to the
+topmost walkable ancestor, and two sessions launched from ONE shell would then share
+that ancestor and mint a single id. This irreducible floor of a process-tree-only
+key is reachable ONLY when **all four** hold at once: `CLAUDE_CODE_SESSION_ID` unset
+(source 1), no `--session-id` in argv (source 2), no JWT (source 3), and a
+`claude`-marker-free co-shelled ancestry. On current CLIs source 1 is always set, so
+source 4 -- and therefore this floor -- is never reached in practice. The uniqueness
+axis that CAN be simulated deterministically (distinct CLI-PID key -> distinct id) is
+tested (`session-id-mint-unique`); the co-shelled-shared-top case needs a real
+process tree and is not simulated. Documented also at `_cli_ancestor_pid`'s docstring.
+
 ## Risks & Assumptions
 
 ### Assumptions
@@ -708,3 +724,122 @@ REMAINING list in Proposed Design for the exact five items.
 - [ ] `.claude/hooks/README.md`, `.claude/rules/post-compaction.md`, `.claude/rules/session-start.md` updated to match the new derivation (`ai/rules/discovery-updates.md`).
 - [ ] Stale `tmp/session/` markers, symlinks, and forged files handled; user asked before any deletion (`ai/rules/never-destroy-work.md`).
 - [ ] Review Gate: 0 BLOCKER, 0 ISSUE.
+
+## Implementation Audit
+
+### Requirements from Task (the STILL REMAINING five, Proposed Design)
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. One shared resolver | Done | `.claude/hooks/lib/session_id.py` (new) + `session-id.sh` shim + `pretool-writeedit.py` importlib delegate + `commit_helper.py` importlib delegate | Two copies collapsed to one; Bash reaches it via shim, Python via importlib |
+| 2. Minted-UUID fallback (no shared constant) | Done | `session_id.py` `_mint_cached()` / `_sid_minted()`; cache `tmp/session/.sid-by-pid-<clipid>` | Replaces `claude-session-fallback`; per-CLI-PID cache key |
+| 3. `commit_helper.py` third derivation migrated | Done | `commit_helper.py` `claude_session_fingerprint()` now `return _ze_session_id.session_id()`; `_ps_field` deleted, `base64` import dropped | Was JWT-first / comm-walk / getppid |
+| 4. `_cleanup_stale_markers()` UUID re-parse | Done | `state-file.sh:93` region — `[[ =~ -(UUID)$ ]]` with `${fname##*-}` fallback; also ages out `.sid-by-pid-*` | Recovers full UUID, not last hyphen group |
+| 5. Docs | Done | `.claude/hooks/README.md` new "Session Identity" section; `block-until-lsp.sh:58` hint made concrete | `post-compaction.md`/`session-start.md` unchanged: `<SID>` naming unaffected (a UUID is a safe filename component) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `session-id-env-parity`, `session-id-rejects-*`, `session-id-no-source-parity` (all PASS) | Both ends call the SAME `session_id.py`, so agreement is by construction, not by mirroring |
+| AC-2 | Done | `session-id-distinct-sessions-differ`; `session-id-mint-unique`; live demo A(pid1001)≠B(pid2002) | Distinct sessions → distinct ids → distinct marker/state paths |
+| AC-3 | Done | `session-id-no-source-parity`, `session-id-mint-unique`, `session-id-mint-not-constant` | Fallback is per-session unique, never the constant |
+| AC-4 | Done | `c_design_without_lsp` resolves `session_id()` (now the shared resolver); `mark-source-read-*` (8 PASS) prove the write path; markers keyed identically | Gate logic unchanged; keyed on the single id |
+| AC-5 | Done | Follows from AC-2 (distinct sids); `block-until-lsp.sh` sources the shim → shared resolver | A's `.lsp-loaded-<sidA>` never matches B's `<sidB>` |
+| AC-6 | Done | `session-id-mint-stable`; live demo A1==A2, B1==B2; env source is a constant env var | No `$PPID`-style per-subprocess drift |
+| AC-7 | Done | Distinct sids (AC-2) → distinct `state_file()` paths; `session-id-cleanup-keeps-live-uuid-state` | State-file naming preserved |
+| AC-8 | Done | `scripts/dev/hook-fixture-check.py` section `session-id` (15 checks), run by `make ze-hook-test`, wired in `scripts/status/verify_run.go` `stagesForMode` | Executable invariant, not prose |
+| AC-9 | Done | `session-id-commit-helper-agrees`, `session-id-no-python-fallback-constant`, `session-id-commit-helper-walk-removed`, `session-id-one-argv-walk` | Exactly one derivation; the other two copies gone |
+| AC-10 | Done | `session-id-no-source-parity` (UUID, not constant); `grep -r claude-session-fallback` over `.claude/hooks`+`scripts/dev` returns only `session_id.py:33` (docstring, non-producing) | No id-producing constant hit; see the → Known limitation note after the AC table for the honest source-4 floor |
+| AC-11 | Done | `session-id-mint-unique` + `session-id-mint-stable` + `session-id-mint-heals-empty-cache`; live demo (unique across pids, stable within a pid, empty cache heals to a stable UUID) | Uniqueness and stability together; the mint is atomic (write-temp + `os.replace`) so a poisoned/empty cache heals rather than minting fresh each call. Per-session uniqueness has an honest floor: see the → Known limitation note |
+
+### Tests from TDD Plan (the `.claude/hooks/tests/*.py` paths are SUPERSEDED; homed in `hook-fixture-check.py`)
+| Planned test | Status | Harness home |
+|--------------|--------|--------------|
+| `test_bash_and_python_resolve_identical_id` | Done | `session-id-env-parity`, `session-id-no-source-parity` |
+| `test_concurrent_sessions_get_distinct_ids` | Done | `session-id-distinct-sessions-differ`, `session-id-mint-unique` |
+| `test_no_shared_constant_is_ever_returned` (the RED-first test) | Done | `session-id-no-source-parity` (tightened from `b4==p4 and b4!=""` to UUID + not-constant) |
+| `test_id_stable_across_subprocesses` / `test_minted_fallback_stable_across_subprocesses` | Done | `session-id-mint-stable` |
+| `test_single_derivation_in_repo` | Done | `session-id-no-python-fallback-constant`, `session-id-one-argv-walk` |
+| `test_commit_helper_uses_shared_resolver` | Done | `session-id-commit-helper-agrees`, `session-id-commit-helper-walk-removed` |
+| `test_cleanup_reparses_uuid_sid` | Done | `session-id-cleanup-keeps-live-uuid-state` |
+| `test_resolver_works_without_proc` (macOS `ps` path) | Done | Exercised implicitly: this run is macOS (no `/proc`); every `_sid_bash`/`_sid_python` uses the `ps` branch |
+| empty-cache heal (review-driven, ISSUE-1 regression; not in original TDD plan) | Done | `session-id-mint-heals-empty-cache` — RED-first against the non-atomic mint, GREEN after the write-temp + `os.replace` fix |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `.claude/hooks/lib/session_id.py` | Created | The one resolver (importable + `__main__`) |
+| `.claude/hooks/lib/session-id.sh` | Reduced to shim | `_ZE_SID_DIR` + `python3 session_id.py`; 11 Bash consumers unchanged |
+| `.claude/hooks/pretool-writeedit.py` | Modified | Deleted `_ps`/`_session_id_from_argv`/`SESSION_ID_FALLBACK`/`_sid_*`; `session_id()` delegates; dropped `base64`+`subprocess` imports |
+| `scripts/dev/commit_helper.py` | Modified | `claude_session_fingerprint()` delegates; deleted `_ps_field`; dropped `base64` import |
+| `.claude/hooks/lib/state-file.sh` | Modified | UUID sid re-parse; `.sid-by-pid-*` aged out |
+| `.claude/hooks/block-until-lsp.sh` | Modified | Concrete bypass hint |
+| `.claude/hooks/README.md` | Modified | New "Session Identity" section |
+| `scripts/dev/hook-fixture-check.py` | Modified | Tightened + 8 new session-id checks |
+| `.claude/hooks/tests/*.py` | Not created (SUPERSEDED) | Homed in `hook-fixture-check.py` per the AMENDED plan |
+
+### Audit Summary
+- **Total items:** 5 requirements, 11 ACs, 8 tests, 9 files
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** test home is `hook-fixture-check.py`, not `.claude/hooks/tests/` (per the spec's own AMENDED 2026-07-17 note, not a new deviation)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task section) | Evidence Type | Concrete Evidence |
+|--------------------------|---------------|-------------------|
+| Stop the terminal fallback returning a SHARED constant; make it per-session unique yet stable | Regression test + live demo | `session-id-no-source-parity` PASS; demo: A(pid1001)=`75031610-…` twice, B(pid2002)=`eb0e1aee-…` twice, A≠B |
+| Collapse the three divergent derivations to ONE | Regression test | `make ze-hook-test`: `session-id-one-argv-walk` (`_session_id_from_argv` only in `session_id.py`), `session-id-no-python-fallback-constant`, `session-id-commit-helper-walk-removed`, `session-id-commit-helper-agrees` all PASS |
+| Bash and Python ends never disagree on the marker path | Cross-language regression | 15/15 `session-id` checks in `make ze-hook-test`; both ends call the same file |
+| `_cleanup_stale_markers()` no longer mis-parses a UUID sid (no live state-file loss) | Discriminating test | `session-id-cleanup-keeps-live-uuid-state` PASS (live 26h-old UUID state file with existing marker survives; pre-fix parse deleted it) |
+| No collateral damage | Full harness | `make ze-hook-test`: 131/131 dispatcher parity + 87/87 fixtures OK; `make ze-lint-changed`: no changed Go |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `.claude/hooks/lib/session_id.py` | Yes | `py_compile` OK; `ruff check` "All checks passed"; runs standalone (`CLAUDE_CODE_SESSION_ID=abc-123 → abc-123`) |
+| `.claude/hooks/lib/session-id.sh` | Yes | `bash -n` OK; `source … ; _session_id` returns env id and resolves from any cwd |
+| `.claude/hooks/lib/state-file.sh` | Yes | `bash -n` OK |
+| `scripts/dev/hook-fixture-check.py` | Yes | `py_compile` OK; `ruff` clean; 15/15 session-id checks |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1/AC-3/AC-10/AC-11 | No-source path mints a unique, stable, non-constant UUID; ends agree | `python3 scripts/dev/hook-fixture-check.py --only session-id` → `session-id-no-source-parity`, `-mint-stable`, `-mint-unique`, `-mint-not-constant` all PASS |
+| AC-2/AC-6/AC-11 | Unique per CLI-PID, stable per CLI-PID | live demo: `_mint_cached(d,1001)` twice equal, `_mint_cached(d,2002)` twice equal, 1001≠2002 |
+| AC-8 | Regression harness runs in verify/CI | `grep -n 'hook-fixture-check' scripts/status/verify_run.go` / `Makefile:266` `ze-hook-test` |
+| AC-9 | One derivation | `session-id-commit-helper-agrees`, `-no-python-fallback-constant`, `-commit-helper-walk-removed`, `-one-argv-walk` PASS |
+| AC-10 | Constant produced nowhere | `grep -rn --include='*.py' --include='*.sh' --exclude=hook-fixture-check.py 'claude-session-fallback' .claude/hooks scripts/dev` → only `session_id.py:33` (docstring) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | Test | Verified |
+|-------------|------|----------|
+| Bash hook → shim → `session_id.py` | `mark-source-read-*` (8 PASS): drives `mark-source-read.sh` end-to-end through the shim, marker written | Yes |
+| Python hook `session_id()` → `session_id.py` | `session-id-env-parity` / `-no-source-parity` (subprocess-loads `pretool-writeedit.py`) | Yes |
+| `commit_helper` script naming → `session_id.py` | `session-id-commit-helper-agrees`; `commit_helper.py session` writes `tmp/commit-session-id-<shared-id>` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (unchanged) | `--session-id` absent from interactive argv; handled by sources 1 & 4 |
+| A-2 | confirmed | Shim serves all 11 Bash consumers unchanged; `mark-source-read` + smoke tests pass |
+| A-3 | broken → resolved | `commit_helper` third derivation migrated (`-commit-helper-walk-removed` PASS) |
+| A-6 | confirmed | Harness `hook-fixture-check.py` extended, run by `make ze-hook-test` |
+| A-7 | confirmed (relied upon, not required) | Source-1 shipped by `6254969e4`; the minted fallback (source 4) does not depend on it |
+| A-8 | relied upon | Distinct top-level sessions differ (`session-id-distinct-sessions-differ`); forks share by design |
+| A-9 | confirmed | CLI-ancestor-PID cache key is stable-per-key and unique-per-key: `session-id-mint-stable`/`-unique` + live demo |
+
+### Documentation Verified
+| Documentation claim | Source evidence | Verified |
+|---------------------|-----------------|----------|
+| README "Session Identity" precedence table matches code | `session_id.py` `session_id()` source order (env→argv→jwt→minted) | Yes |
+| `post-compaction.md` / `session-start.md` unchanged | `<SID>` is a UUID (safe filename component); naming `session-state-<stem>-<sid>.md` unchanged | Yes |
+
+## Review Gate
+
+- Independent adversarial review (subagent `ab8405fd319bf7b74`) over the full changeset: **0 BLOCKER**. Primary path CLEAN — env-primary is unchanged so existing markers are preserved; the Bash shim execs the same `session_id.py` the Python callers import, so the two ends cannot drift; `state-file.sh`'s SID-reparse makes orphan cleanup strictly MORE conservative (correct marker match); the tightened `session-id-no-source-parity` and the new checks are non-vacuous.
+- Two source-4-only ISSUEs found and FIXED (loop-to-zero): (1) non-atomic mint (O_EXCL create then separate write) could leave a poisoned empty cache -> unstable id -> fail-closed block; rewritten to write-temp-then-`os.replace` so the cache is never empty/partial and a poisoned file is overwritten. (2) `_cli_ancestor_pid` fell to a shared top ancestor on `comm != claude`, a residual cross-session collision; reduced via `_is_cli` matching `claude` as an argv path component, with the irreducible floor (env-absent + no `claude` marker anywhere + co-shelled) documented honestly in the code and after the AC table. Regression tests added: `session-id-mint-heals-empty-cache` (RED->GREEN) and `session-id-mint-unique`.
+- Artifact: `review_gate.py check` CLEAN over the 7 changeset source files (hashes match).
+- Verification gate: `make ze-hook-test` GREEN (131/131 dispatcher parity + 88/88 fixtures, 16/16 session-id); `make ze-lint-changed` "No changed Go packages"; `ruff` clean; `py_compile`/`bash -n` clean on every edited file.
