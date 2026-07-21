@@ -124,9 +124,10 @@ looked at. 23 live rows without a home had accumulated behind that hole.
 
 The gate is one notch wider than this rule on purpose: it accepts any existing
 `plan/**.md`, not only `plan/spec-*.md`. The one sanctioned non-spec destination
-is `plan/known-failures.md`, for a test that stays red and is tracked there
-rather than fixed. Everything else lands in a spec. The gate cannot tell a
-deliberate `known-failures.md` row from a lazy one, so the judgement stays here,
+is a shard under `plan/known-failures/` (e.g. `plan/known-failures/<make-target>-<test-name>.md`),
+for a test that stays red and is tracked there rather than fixed. Everything else
+lands in a spec. The gate cannot tell a deliberate `known-failures/` shard from a
+lazy one, so the judgement stays here,
 in the rule: if you are pointing a deferral anywhere other than a spec, be able
 to say why the work is not spec-shaped.
 

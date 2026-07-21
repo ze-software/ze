@@ -81,17 +81,17 @@ The answer is always "no."
 | "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Fix it or log it to `plan/known-failures.md`. A passing comment is not logging |
+| "Pre-existing issue" | Fix it or log it to `plan/known-failures/`. A passing comment is not logging |
 **Every test failure gets fixed or formally logged. BLOCKING.**
 1. **Fix it** as a separate commit (not mixed with feature work). Do not block current work on a
 failure you didn't cause, but DO fix it in the same session after completing the primary task.
-2. **If fixing requires deep investigation beyond session scope**, add a structured entry to
+2. **If fixing requires deep investigation beyond session scope**, add a
 3. **Mechanical check before session end:** if your session encountered any failure you did not fix,
 | Banned | Why |
 |--------|-----|
 | "Pre-existing, not my changes" | Acknowledging a failure without fixing or logging it means the next session hits the same wall |
-| "Known issue with the netlink API" | Known to whom? If it's not in `known-failures.md`, it's not known to the project |
-| Mentioning a failure only in response text | Response text is ephemeral. `known-failures.md` persists across sessions |
+| "Known issue with the netlink API" | Known to whom? If it's not in `known-failures/`, it's not known to the project |
+| Mentioning a failure only in response text | Response text is ephemeral. `known-failures/` persists across sessions |
 | "The only failures are..." (then moving on) | Enumeration without action is rationalization |
 ## Completion
 | Excuse | Answer |
@@ -226,7 +226,7 @@ Prefer `make` targets.
 ## Bare `go test` Lies -- Always Pass The Feature Tags
 `go test ./...` is **NOT** equivalent to `make ze-unit-test`.
 **Prefer a make target** (`make ze-unit-test`, `make ze-verify-changed`). When you
-**This has cost real time.** On 2026-07-15 two `plan/known-failures.md` entries
+**This has cost real time.** On 2026-07-15 two `plan/known-failures/` entries
 ## No Pipes On Expensive Commands
 Never pipe `make`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any test/verify/build command through `head`, `tail`, `grep`, `awk`, `sed`, `cat`.
 **Exception:** `| tee <file>` is allowed -- it is non-lossy and captures
@@ -1566,7 +1566,7 @@ A functional test that EXISTS is not the same as one that GATES.
 
 ## Git Safety
 `ai/rules/git-safety.md`
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for deferrals, still single for known-failures) cross-commits between concurrent sessions. — **Severity:** advisory
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for both deferrals and known-failures) cross-commits between concurrent sessions. — **Severity:** advisory
 
 ## Directives
 ## Commit Rules
@@ -1583,7 +1583,7 @@ A functional test that EXISTS is not the same as one that GATES.
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures.md`). This makes "verify before commit" enforced rather than honor-system.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
 4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
 **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
@@ -1611,7 +1611,7 @@ BLOCKING only when the commit could plausibly affect build, tests, or generated 
 ### Step 1: If `ze-verify` applies (BLOCKING)
 `make ze-verify` (timeout 240s).
 ### Structural Gates Are Never Known-Red (BLOCKING)
-The item-2 "log to `plan/known-failures.md`" path is for **non-deterministic** failures only -- flaky or environmental TEST reds (load-sensitive races, GC-pressure pool flakes, host-specific listener probes).
+The item-2 "log to `plan/known-failures/`" path is for **non-deterministic** failures only -- flaky or environmental TEST reds (load-sensitive races, GC-pressure pool flakes, host-specific listener probes).
 ### Thomas Owner Override: Commit Without Verify
 Thomas owns the repository and may explicitly override the `ze-verify` requirement for commit-script preparation.
 1. prepare a commit script, and
@@ -3558,7 +3558,7 @@ One-line lesson + rule pointer.
 - **Wrapper struct pattern** (alloc-4). Pass raw bytes + existing iterators. Never wrap data in accessor types.
 - **Tests-pass != done** (RECURRING). Tests are step 10 of 12. Continue to docs/spec/summary/audit. `ai/rules/quality.md`.
 - **Mechanism-not-behavior test** (prefix-limit). Assert the AC, not a code-path proxy. No-op passes = wrong test. `ai/rules/tdd.md`.
-- **"Pre-existing" failures** (RESOLVED). Fix in-session after primary task; log to `plan/known-failures.md` if >10 min. `ai/rules/anti-rationalization.md`.
+- **"Pre-existing" failures** (RESOLVED). Fix in-session after primary task; log to `plan/known-failures/` if >10 min. `ai/rules/anti-rationalization.md`.
 - **Plugin placement anchor bias** (jsonrpc). "Delete the folder" test. Cross-cutting -> `internal/component/`. Domain -> `bgp/plugins/`. Infra -> `internal/core/`.
 - **Docs from assumption** (RECURRING). Read source before any factual claim. `ai/rules/documentation.md` Source Anchors.
 - **Spec deleted without committing** (lg-overhaul, ZERO TOL). TWO commits: (A) code+spec, (B) `git rm` spec + add summary. `ai/rules/spec-preservation.md`.

@@ -101,7 +101,7 @@ run reveals a defect, that defect gets its own spec.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | No qualifying host is available, so the spec sits open indefinitely while its deferral rows look "homed" | The spec stays `skeleton` for months | Better than the current state: the rows at least name a real file. If it stalls, record the environment requirement in `plan/known-failures.md` rather than deleting the spec |
+| R-1 | No qualifying host is available, so the spec sits open indefinitely while its deferral rows look "homed" | The spec stays `skeleton` for months | Better than the current state: the rows at least name a real file. If it stalls, record the environment requirement in `plan/known-failures/` rather than deleting the spec |
 | R-2 | The run reveals a genuine product defect, and the temptation is to fix it here | The evidence run turns into a debugging session | Any defect found gets its OWN spec; this spec's output is evidence, per `ai/rules/interop-and-goal-validation.md` |
 
 ## Wiring Test (MANDATORY — NOT deferrable)

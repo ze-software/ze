@@ -32,7 +32,7 @@ One-line lesson + rule pointer. Full root-cause in the linked learned summary.
 - **Wrapper struct pattern** (alloc-4). Pass raw bytes + existing iterators. Never wrap data in accessor types.
 - **Tests-pass != done** (RECURRING). Tests are step 10 of 12. Continue to docs/spec/summary/audit. `ai/rules/quality.md`.
 - **Mechanism-not-behavior test** (prefix-limit). Assert the AC, not a code-path proxy. No-op passes = wrong test. `ai/rules/tdd.md`.
-- **"Pre-existing" failures** (RESOLVED). Fix in-session after primary task; log to `plan/known-failures.md` if >10 min. `ai/rules/anti-rationalization.md`.
+- **"Pre-existing" failures** (RESOLVED). Fix in-session after primary task; log to `plan/known-failures/` if >10 min. `ai/rules/anti-rationalization.md`.
 - **Plugin placement anchor bias** (jsonrpc). "Delete the folder" test. Cross-cutting -> `internal/component/`. Domain -> `bgp/plugins/`. Infra -> `internal/core/`.
 - **Docs from assumption** (RECURRING). Read source before any factual claim. `ai/rules/documentation.md` Source Anchors.
 - **Spec deleted without committing** (lg-overhaul, ZERO TOL). TWO commits: (A) code+spec, (B) `git rm` spec + add summary. `ai/rules/spec-preservation.md`.

@@ -873,45 +873,63 @@ def _year_of(stamp: int) -> str:
     return datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc).strftime("%Y")
 
 
+def _shard_is_struck(shard: Path) -> bool:
+    """True when a live shard's first `### ` heading is struck through (`~~...~~`).
+
+    The sharded model never writes a struck live shard (a cleared red is moved to
+    RESOLVED.md and its shard deleted), but a stray strike must not be able to
+    inflate the live-debt figure, so it is treated as resolved.
+    """
+    for line in shard.read_text(encoding="utf-8", errors="ignore").splitlines():
+        if line.startswith("### "):
+            return line[4:].strip().startswith("~~")
+    return False
+
+
 def collect_known_failures(root: Path) -> Metric:
-    """Tests logged as known-red. Debt that is tracked but still debt."""
-    path = root / "plan/known-failures.md"
-    if not path.exists():
+    """Tests logged as known-red. Debt that is tracked but still debt.
+
+    The single `plan/known-failures.md` file was sharded into
+    `plan/known-failures/` (spec-fixit-shared-plan-file-contention) so concurrent
+    sessions never cross-commit each other's rows. One file per LIVE failure;
+    RESOLVED.md archives the history verbatim; README.md holds the logging
+    instructions. Neither of those two is a live failure. The aggregate is folded
+    on read here, never stored.
+    """
+    directory = root / "plan/known-failures"
+    if not directory.is_dir():
         # An absent input is unmeasured, never healthy. Reporting "0 known
-        # failures" for a file nobody could read is the sensor-rot failure the
-        # page exists to expose.
+        # failures" for a directory nobody could read is the sensor-rot failure
+        # the page exists to expose. (Mirrors the old absent-file branch.)
         return Metric(
             key="known-failures",
             question="Q3",
             label="Logged known-failing tests",
             status=UNKNOWN,
             value="unknown",
-            detail="plan/known-failures.md does not exist, so nothing was measured.",
-            action="Restore the file, or drop this metric if the log was retired.",
+            detail="plan/known-failures/ does not exist, so nothing was measured.",
+            action="Restore the directory, or drop this metric if the log was retired.",
         )
-    # Count only LIVE entries. The file keeps its history: resolved entries are
-    # struck through in place and a `## Resolved` section holds the rest. Counting
-    # those would report the debt this project has already paid off, which is the
-    # mirror image of the inflated-test-count error this page exists to correct.
+    # LIVE = one shard file per live failure, excluding the two bookkeeping files.
+    # Counting the RESOLVED archive would report the debt this project has already
+    # paid off, the mirror of the inflated-test-count error this page corrects.
+    non_shards = {"README.md", "RESOLVED.md"}
     live = 0
-    resolved = 0
-    section = ""
-    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-        if line.startswith("## "):
-            section = line[3:].strip().lower()
+    struck = 0
+    for shard in sorted(directory.glob("*.md")):
+        if shard.name in non_shards:
             continue
-        if not line.startswith("### "):
-            continue
-        title = line[4:].strip()
-        # ONLY a struck-through title, or the historical `## Resolved` section,
-        # marks an entry done. Matching the substring "not failures" in a heading
-        # zeroed the whole `## Harness notes (not failures)` section, which holds
-        # three LIVE reds -- one of them a deterministic `slice bounds out of
-        # range` panic in ze. A section's wording must not be able to hide debt.
-        if section.startswith("resolved") or title.startswith("~~"):
-            resolved += 1
+        if _shard_is_struck(shard):
+            struck += 1
             continue
         live += 1
+
+    resolved = struck
+    archive = directory / "RESOLVED.md"
+    if archive.exists():
+        for line in archive.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("### "):
+                resolved += 1
 
     return Metric(
         key="known-failures",
@@ -919,10 +937,10 @@ def collect_known_failures(root: Path) -> Metric:
         label="Logged known-failing tests",
         status=OK if live == 0 else WARN,
         value=str(live),
-        detail=f"Reds logged rather than fixed ({resolved} further entries are struck "
-        f"through or filed under Resolved and are not counted). Structural gates may "
-        f"never be logged here, but a live entry is not necessarily flaky: some are "
-        f"deterministic product bugs awaiting a fix.",
+        detail=f"Reds logged rather than fixed, one shard file per live failure "
+        f"({resolved} entries archived in plan/known-failures/RESOLVED.md are not "
+        f"counted). Structural gates may never be logged here, but a live entry is "
+        f"not necessarily flaky: some are deterministic product bugs awaiting a fix.",
         action="Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.",
         data={"live": live, "resolved": resolved},
     )

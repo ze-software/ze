@@ -304,7 +304,7 @@ func extractObserverFailLine(stderr string, idx int) string {
 // test author added a dedicated reject= directive.
 //
 // Kept in sync with test/scripts/ze_api.py `_OBSERVER_FAIL_SENTINEL`.
-// See plan/known-failures.md section 8 and plan/learned/550 for background.
+// See plan/known-failures/README.md and plan/learned/550 for background.
 const observerFailSentinel = "ZE-OBSERVER-FAIL"
 
 // validateLogging validates logging expectations against stderr and syslog output.

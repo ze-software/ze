@@ -523,7 +523,7 @@ def verify_status(repo: Path) -> tuple[str, str]:
 # the tree is structurally broken -- a module-tier misplacement, a lint or vet
 # violation, a broken plugin boundary, an unresolved iface, a stale generated
 # file, or a stale wiring index. They are therefore NOT eligible to be parked
-# in plan/known-failures.md
+# in plan/known-failures/
 # or waved through with --unverified. Every name here MUST be a stage that
 # stagesForMode actually emits, or it matches nothing and gates nothing;
 # that is enforced by TestStructuralGatesAreLiveStages (Go, scripts/status)
@@ -1333,7 +1333,7 @@ def create(args: argparse.Namespace) -> int:
         validate_remove_path(repo, path)
     # Verify gate: a commit script must not be prepared over a non-green verify
     # unless the caller explicitly acknowledges why (owner override, or a
-    # known-red logged in plan/known-failures.md). This turns "verify before
+    # known-red logged in plan/known-failures/). This turns "verify before
     # commit" from honor-system into an enforced, overridable gate. See
     # ai/rules/git-safety.md.
     vstate, detail = verify_status(repo)
@@ -1341,7 +1341,7 @@ def create(args: argparse.Namespace) -> int:
         # A DETERMINISTIC STRUCTURAL GATE red (tier/lint/vet/plugin-boundary/
         # iface-resolution/regen-check-readonly/wiring-docs) is never flaky or
         # environmental: it means the tree is structurally broken. Such a red is
-        # NOT bypassable by --unverified or a plan/known-failures.md known-red
+        # NOT bypassable by --unverified or a plan/known-failures/ known-red
         # (those cover flaky TEST stages only). This closes the hole that let a
         # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
         # shipped red on main. See ai/rules/git-safety.md.
@@ -1353,7 +1353,7 @@ def create(args: argparse.Namespace) -> int:
                 "  Structural gates (tier/lint/vet/plugin-boundary/iface-resolution/\n"
                 "  regen-check-readonly/wiring-docs) never fail for flaky or environmental\n"
                 "  reasons -- a red means the tree is structurally broken. They are\n"
-                "  NOT eligible for --unverified or a plan/known-failures.md known-red.\n"
+                "  NOT eligible for --unverified or a plan/known-failures/ known-red.\n"
                 "  Fix it at the source (run `make " + gate_reds[0] + "` to see the\n"
                 "  failure). To CLEAR this refusal you must refresh the verify record:\n"
                 "  only `make ze-verify` (or `make ze-verify-changed`) rewrites\n"
@@ -1368,7 +1368,7 @@ def create(args: argparse.Namespace) -> int:
                 "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
                 '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
                 "  override, or a flaky/environmental known-red logged in\n"
-                "  plan/known-failures.md; structural gates are never eligible)."
+                "  plan/known-failures/; structural gates are never eligible)."
             )
     # Discovery-index gate: the generated maps (ai/PACKAGE-MAP.md,
     # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
@@ -1590,7 +1590,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--unverified",
         help="reason to allow a commit when ze-verify is not FRESH-green "
         "(owner override, or a flaky/environmental known-red logged in "
-        "plan/known-failures.md; deterministic structural gates are never eligible)",
+        "plan/known-failures/; deterministic structural gates are never eligible)",
     )
     create_cmd.add_argument(
         "--stale-index-ok",

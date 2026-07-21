@@ -477,7 +477,7 @@ Detection hook: `c_observer_sys_exit` in `.claude/hooks/pretool-writeedit.py`
 exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
 `dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
 hide real races). When your change removes sleeps, lower the baseline in the same
-change. Known violations are tracked in `plan/known-failures.md`
+change. Known violations are tracked in `plan/known-failures/`
 and must be migrated.
 
 **Sleep justification (BLOCKING):** every `time.sleep(` that the ratchet tolerates

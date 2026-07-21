@@ -758,3 +758,67 @@ for the re-verified producer citations.
 - [ ] `commit_helper.py:1122` `O_EXCL` is wrapped in a bounded retry; a losing concurrent
       session allocates the next number instead of raising `FileExistsError` (R-6, now
       load-bearing)
+
+## Review Gate
+
+Each of the three phases got its own independent adversarial review (fresh subagent over the
+diff) before its commit; findings were fixed and re-verified. Summary:
+
+### Phase 1 (`.counter`)
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| P1-1 | BLOCKER | Agent skills (`ze-implement`/`ze-commit`/`ze-commit-check`/`ze-progress`) + `METHODOLOGY.md` still told agents to stage/read the deleted `.counter` and run the removed `ze-learned-counter` target | Fixed: repointed all at `commit_helper.py learned-next`; `ze-ai-sync` regenerated copies |
+| P1 | CLEAN | Core allocator/gate/scripts/tests correct across 8 lenses; allocator scenarios (empty dir, 3/4-digit, gaps, retry-on-existing, bad slug) run-verified | none |
+
+### Phase 2 (deferrals)
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| P2-1 | ISSUE | `test_cleared_by_deferrals_shard_in_commit` vacuous: the asserted shard path was never written to disk, so `git add` aborted and it passed under old AND new code | Fixed: write the shard to disk; non-vacuity proven (new clears, old blocks) |
+| P2-2 | NOTE | 5 stale refs to the deleted `plan/deferrals.md` (3 docs + 2 `.go` comments) | Fixed: repointed to `plan/deferrals/` |
+| P2-3 | NOTE | `deferral_unassigned` globbed top-level while `deferral_in_diff` cleared any depth | Fixed: `rglob`, subdir-fold test added |
+| P2 | CLEAN | Gates correct + not spoofable (lookalike rejected), fold preserves the exact pre-migration verdict (10 rows), reconciliation byte-for-byte (109), no dual source, monolithic commit passes both gates | none |
+
+### Phase 3 (known-failures)
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| P3 | (review pending at commit) | Health-collector rewrite folds the directory; AC-5' live count 6==6; reconciliation 32 = 6 live + 26 resolved; `commit_helper.py` text-only; no other machine reader | independent review recorded via `review_gate.py` |
+
+### Final status
+- [x] Every phase reviewed independently; all BLOCKER/ISSUE fixed and re-verified.
+- [x] The tool modified (`commit_helper.py`) was verified working after each phase (`learned-next` reserved 1244 for THIS closure with `.counter` gone).
+
+## Pre-Commit Verification
+
+### Files Exist
+| Path | Evidence |
+|------|----------|
+| `plan/deferrals/` | 68 shards (phase 2, committed `e0858769a`) |
+| `plan/known-failures/` | 6 live shards + RESOLVED.md + README.md (phase 3) |
+| `plan/learned/.counter` | DELETED (phase 1, committed `5b9cba48d`) |
+| `plan/deferrals.md` / `plan/known-failures.md` | DELETED (sharded) |
+
+### AC Verified
+| AC | Claim | Evidence |
+|----|-------|----------|
+| AC-1 | Two sessions record deferrals; each commit carries only its own | `test_two_sessions_no_cross_commit` + `test_single_file_would_cross_commit` (contrast) |
+| AC-2 | `/ze-status` answers "what is open" folding the shards | skills repointed at the `plan/deferrals/` glob |
+| AC-3 | Known-failure correction lands on the failure's record | per-failure shard keyed by `<make-target>-<test-name>` |
+| AC-4 | Concurrent learned allocation unique, loser retries | `test_learned_next_retries_on_existing` / `..._unique_without_counter` |
+| AC-5' | `--unverified` unchanged after known-failures shard | text-only `commit_helper.py`; gate never parsed the file |
+| AC-6 | Learned commit succeeds without staging `.counter` | gate dropped; `TestCommitHelperRequiresLessonsForWorkflowChanges` |
+| AC-7 | `ze-learned-numbers-check` green with `.counter` gone | run green (phase 1) |
+| known-failures AC-5' | health live count unchanged | 6 live before == 6 after (matches `test/health/latest.json`) |
+
+### Verification
+- Phase 1: `ze-learned-numbers-check` green, `learned-next` allocation + retry proven.
+- Phase 2: `ze-hook-test` 131/131 + deferral fixtures, `go test ./scripts/dev/`, deferral gates dry-run-proven on the 92-file commit.
+- Phase 3: `collect_known_failures` live=6, `go test ./scripts/dev/` (73 tests), `ze-doc-test` green, `ze-lint-changed` 0.
+
+## Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| End the shared-file cross-commit for `.counter` | file deleted; allocator is `max(glob)+1` with `O_EXCL` retry; nothing to cross-commit |
+| End it for deferrals | `plan/deferrals.md` -> 68 per-source-spec shards; `test_two_sessions_no_cross_commit` proves disjoint commits; gates fold the directory |
+| End it for known-failures | `plan/known-failures.md` -> per-failure shards + RESOLVED archive; health metric folds on read, live count invariant held |
+| Aggregate stays answerable without a tracked rollup (R-1) | no aggregate file tracked; `/ze-status`, the health collector, and the commit gates all fold-on-read |

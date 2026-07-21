@@ -1,47 +1,13 @@
-# Known Failures
+# Known Failures -- Resolved Archive
 
-Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
-Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
+Verbatim archive of resolved and struck-through known-failure entries,
+moved out of `plan/known-failures.md` when it was sharded into
+`plan/known-failures/`. Entries here are never edited; they exist as
+history so a cleared red is not simply forgotten. `collect_known_failures`
+(`scripts/dev/testing_health.py`) counts every `### ` entry in this file as
+resolved.
 
-**Scope: non-deterministic (flaky/environmental) TEST reds only.** Deterministic
-structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-vet-evidence`,
-`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-regen-check-readonly`,
-`ze-verify-wiring-docs`) are NEVER logged here -- a red means the tree is
-structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
-this by refusing `--unverified` while a structural gate is red (see
-`ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
-
-## BEFORE LOGGING ANYTHING HERE: reproduce with the Makefile's build tags
-
-Bare `go test ./...` is **NOT** equivalent to `make ze-unit-test` in this repo.
-Features compile out behind build tags (`//go:build ze_isis`, `ze_ospf`, `ze_web`,
-`ze_ssh`, ...), and the Makefile always supplies them (`Makefile:51` `ZE_FEATURES`
-read from `feature-gates.txt`, `Makefile:65` `GO_TEST_TAGS`). A bare run silently
-drops those plugins, so their registrations, validators and listeners never exist
-and unrelated tests fail with phantom reds.
-
-```
-go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" ./path/...
-```
-
-This is not hypothetical: on 2026-07-15 two of the four entries below (7 tests)
-were disproven as pure tags artifacts. Both had been logged with a confident but
-wrong root cause (a "macOS socket-stack quirk", a "broken listener-conflict
-validator"), and one had been "re-confirmed" six days later by repeating the same
-flawed invocation. Reproducing a symptom is not attributing a cause.
-
-**Status 2026-07-15: 1 open entry (`rsvpte-lsp-setup`, genuinely
-non-deterministic). Of the other three: 2 disproven as tags artifacts (7 tests,
-never broken) and 1 fixed (`TestCmdMethods`, a real stale literal).**
-
-**Status 2026-07-04 (historical): three open entries (below).**
-`TestBuildCommandTreeEnsureExists` (config/yang) is now resolved (stale test
-retargeted to the typed name selector -- see Resolved). A new open entry, the
-`rsvpte-lsp-setup` load-only panic, is added. The OSPF build break and
-`plugin/all` golden-snapshot failures from 2026-07-02 are resolved (the
-concurrent OSPF session's `multi_instance.go` work landed and snapshots are
-current). Every previously tracked entry from 2026-07-01 and earlier remains
-resolved (see below).
+## Struck-through (resolved in place, were not yet under `## Resolved`)
 
 ### ~~`internal/component/doctor` -- 4 listener/schema tests fail on macOS~~ -- RESOLVED 2026-07-15: DISPROVEN, was a missing-build-tags artifact
 
@@ -128,57 +94,6 @@ component as broken, and a later session "re-confirmed" it by repeating the same
 flawed invocation. Symptom-matching a red does not attribute it. Reproduce with
 the Makefile tags first.
 
-### `rsvpte-lsp-setup` -- load-only `slice bounds` panic in `ze`, pre-existing
-
-Observed 2026-07-04 (~1 of 4 full `ze-verify` functional runs): the `ze` engine
-process panics during the `rsvpte-lsp-setup` functional test with
-`panic: runtime error: slice bounds out of range [:5448] with capacity 512`
-(exit 2 -> `expect exit-code 0` fails). A cap-512 buffer is resliced to hold
-5448 bytes -- a "trust a length, do not grow/check the buffer" bug; 5448 bytes
-is the size of a large boot-time frame (e.g. the share-registry command dump the
-external `rsvpte-setup` plugin receives). The test config boots rsvp-te + a BGP
-peer (`accept false`, never establishes) + the external JSON plugin.
-
-Reproduction is environment-specific, NOT raw repetition: 0 panics across 40
-serial + ~360 parallel isolated `ze-test rsvpte 3` runs, 0 under a `-race` build
-in isolation (no data race detected at that load), 0 under heavy synthetic load
-(which only produced 15s timeouts). It only appears in the full-verify
-environment (all feature plugins compiled in, GOMAXPROCS=13, real suite load).
-The verify aggregator truncates the goroutine stack to 2 lines
-(`goroutine N [running]:`); the runner itself keeps up to 10 MB / 200 lines
-(`runner_exec_util.go:55`, `report.go:175`), so a full-suite repro captured via
-`ze-test rsvpte --all -v` (not the aggregator) will carry the crash site.
-
-Ruled out (producers read, all safe): BGP text/JSON format scratch buffers
-(`format/text_human.go:224`, `format/text_json.go:375` -- both guarded by
-`if n > cap(raw)`), the RPC frame/batch pools (`pkg/plugin/rpc/framing.go`
-4 KB-cap, `batch.go`, `conn.go:writeAppended`, `mux.go` -- all `append`-based),
-and the RSVP message builder (`rsvpte/build.go:encodeMessage`, 1500-cap). The
-BGP forwarding/update pools do not run (the peer never establishes). The cap-512
-buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
-this session (debugging continues).
-
-**UPDATE 2026-07-13 — the cap-512 diagnosis is DISPROVEN; likely already-fixed or
-misattributed.** Two independent exhaustive static sweeps (share-registry send
-path + repo-wide pooled/fixed-cap reslice) found NO cap-512 buffer resliced to a
-data-driven length on any boot-reachable path: the registry send is
-`json.Marshal` + `append` (`plugin/server/startup.go:733` -> `ipc/rpc.go:171` ->
-`rpc/mux.go:110`/`conn.go:286` -> `framePool` cap **4096**, append-grown); the BGP
-`SessionBuffer` is 4096/65535, never 512 (`core/bgp/wire/writer.go:48`); the only
-cap-512 format scratches (`format/text_human.go:219`, `text_json.go:370`) are
-guarded and hold <=512 raw bytes. Dynamic: **0 reproductions in 160 runs** (40
-isolated + 120 under `scripts/dev/stress-repro.py` full-core CPU+GC load,
-`GOTRACEBACK=all`). The 2026-07-04 crash also predates the plugin
-startup/RPC-dispatch refactors (`1eb89f509`, `3404c4396`, `8f3203ef5`, 07-07/08)
-that rewrote this exact area. Conclusion: either already fixed by those refactors,
-or the truncated 2-line aggregator stack misattributed another concurrent suite's
-`ze` crash to rsvpte. **Do not chase the cap-512 share-registry hypothesis.** If a
-`rsvpte-lsp` exit-2 recurs, reproduce with `scripts/dev/stress-repro.py rsvpte`
-(keeps the untruncated stack) and grep every concurrent daemon's stderr in the
-failing run before attributing. A separate `rsvpte-lsp-teardown` exit-2 (no stack
-in the 200-line capture) was seen once on 2026-07-13 and did not reproduce in 160
-runs; it is not the same panic and its cause is unverified.
-
 ### ~~`internal/chaos/inprocess` `TestInProcessChaosReconnect`~~ -- FIXED 2026-07-16: the runner stopped virtual time while the system still needed it
 
 **Fixed in `runner.go` (Run's teardown). Never a flake, and never a BGP defect.**
@@ -229,133 +144,6 @@ plausible mechanisms (the new iface chaos weights; the blocking timer send at
 `virtualclock.go:168`; "the advance loop is slow") were each disproven by
 experiment. The goroutine dump settled in one run what code-reading had got wrong
 three times: when a test hangs, dump the stacks before theorising.
-
-### `reload` suite -- 6 iface tunnel/wireguard tests time out without CAP_NET_ADMIN (unprivileged sandbox)
-
-Observed 2026-07-09 (rootless Linux sandbox; `unshare --net` returns
-"Operation not permitted", no CAP_NET_ADMIN). Six `.ci` tests in the `reload`
-suite time out (20s each), blocking a native `make ze-verify` /
-`ze-functional-test` from completing:
-
-- `test-tx-iface-tunnel-modify-key` (id 26)
-- `test-tx-iface-tunnel-remove` (id 27)
-- `test-tx-iface-wireguard-invalid-bad-public-key` (id 29)
-- `test-tx-iface-wireguard-invalid-no-private-key` (id 30)
-- `test-tx-iface-wireguard-modify` (id 31)
-- `test-tx-iface-wireguard-remove` (id 32)
-
-Root cause is environmental, not a product regression. All six put a real
-Linux interface (gre tunnel or wireguard) in the **boot** config. At startup
-the iface plugin's `OnConfigure` handler
-(`internal/component/iface/register.go:395`, error return at `:416`) calls
-`applyConfig`, which invokes the netlink create
-(`internal/plugins/iface/netlink/tunnel_linux.go:42-51`,
-`internal/plugins/iface/netlink/wireguard_linux.go:33-41`). Without
-CAP_NET_ADMIN that returns EPERM ("operation not permitted"). Unlike the
-reload path, a startup create failure is FATAL: `OnConfigure` returns the
-error, which fails the interface plugin's Config-stage handshake in
-`deliverConfigRPC` (`internal/component/plugin/server/startup.go:691,713`),
-cascading to "config-path plugin startup failed". The daemon never serves
-BGP, so the peer never connects and the test's route+EOR expectation times
-out.
-
-The four sibling tests that apply the interface on **reload** rather than at
-boot (`test-tx-iface-apply` id 23, `test-tx-iface-bgp-chain` id 24,
-`test-tx-iface-tunnel-create` id 25, `test-tx-iface-wireguard-apply` id 28)
-PASS natively: the daemon boots with no interface, the BGP peer receives
-route+EOR (assertion satisfied) before the failing reload, and a reload
-create failure rolls back without killing the already-running daemon.
-
-These are legitimately privilege-dependent (create-then-modify/remove a real
-netdev), so they pass under QEMU-root / a privileged host, not in this
-sandbox. Per `ai/rules/qemu-testing.md` the six boot-config tests arguably
-belong on `option=needs-linux` rather than the current
-`option=skip-os:value=darwin`, BUT (a) `needs-linux` only skips on non-Linux
-GOOS, so it would NOT change native-Linux behavior here (still run, still time
-out), and (b) reclassifying adds them to `ze-qemu-needs-linux-test`, whose
-Alpine VM kernel must carry the gre/wireguard modules -- `runtime.config` has
-`CONFIG_WIREGUARD`/`CONFIG_NET_UDP_TUNNEL`/`CONFIG_TUN` but no explicit GRE
-symbol, so this needs QEMU verification before flipping. Classification change
-deferred pending that verification; the native timeout is documented here so
-`ze-verify` in an unprivileged sandbox is not treated as a structural red.
-Owner: whichever session runs these under QEMU-root and confirms the kernel
-modules.
-
-## Harness notes (not failures)
-
-### `.ci` suites -- 108 quick-exit `ze` commands across 50 files are silently unasserted
-
-Found 2026-07-15 while building the vrrp suite. `expect=exit:code=` is
-**file-level**: `Record.ExpectExitCode` is a single value (`record_parse.go:486`
--- a later line overwrites an earlier one) and `runOrchestrated` compares it
-against `lastQuickZeErr`, the exit status of only the **last** quick-exit `ze`
-command (`runner_exec.go:911-915`; the `case quickZe:` branch just stores the
-error and continues). A file running several `ze config validate` commands
-therefore asserts only the final one. Proven with a probe: a file whose `seq=1`
-ran a **valid** config (exit 0) under `expect=exit:code=1` **passed**.
-
-Stdout expectations are file-level in the same way (matched against accumulated
-output), so `expect=stdout:contains=` can be satisfied by a different command
-than intended -- e.g. two rejection cases both asserting `contains=vrid` are both
-satisfied by the first one's message.
-
-Fixed at the source for new tests: `cmd=...:exit=N` asserts a command's own exit
-code the moment it finishes (`ci-format.md` "Process Commands"). It is opt-in, so
-existing files are unaffected -- and consequently still unasserted.
-
-Worst offenders (`quick-ze` commands / unasserted): `test/ui/format-operators.ci`
-15/14, `test/ospf/ospf-config.ci` 7/6, `test/ospf/ospf-bfd-config.ci` 5/4,
-`test/ospf/ospf-virtual-link-config.ci` 5/4, `test/ospfv3/ospf-ipsec-config.ci`
-5/4, `test/ui/skills-list-get.ci` 5/4, `test/isis/isis-doctor.ci` 4/3.
-
-**Not yet swept:** arming the 108 belongs to the suites' owners -- it may surface
-real defects (a validation that never rejected what its test claimed). Re-measure
-with the script in the vrrp session, or by counting `cmd=foreground` quick-`ze`
-lines without `:exit=` in any file that has more than one.
-
-The full plugin suite shows load-induced flakiness under max parallelism -- e.g.
-`257`, `258`, `312` failed in one `--all` run but pass 3/3 in isolation. Running
-two full `--all` suites back-to-back melts down (resource exhaustion: ~50
-timeouts, ~200 "failures"). Triage individual tests in isolation; treat a
-contiguous block of failures or a spike of timeouts in `--all` as a
-harness/resource artifact, not real regressions.
-
-### `sync.Pool` capacity/identity unit flakes under full-suite GC pressure
-
-Observed 2026-07-07 in a full `ze-verify` run (stage 07 `ze-unit-test-cached`):
-`internal/core/textbuf` `TestPoolPreservesCapacityWithoutString` (`"128" is not
-greater than or equal to "300"`) and `internal/core/bufpool`
-`TestGetReturnsSameBufferAfterPut`. Both assert a `sync.Pool` preserves a
-buffer's capacity/identity across Get/Put, which the GC can invalidate under the
-memory pressure of the full parallel suite. textbuf passes 5/5 in isolation
-(`go test ./internal/core/textbuf/ -run TestPoolPreservesCapacityWithoutString
--count=5`). Same non-deterministic class as learned 881. Triage in isolation;
-not a regression from an unrelated change.
-
-### `internal/component/iface` `TestIntegrationApplyConfigVLANUnitAddressReconcile` -- pre-existing, VLAN unit address change never applied on reload
-
-Confirmed pre-existing 2026-07-15 by `git archive HEAD` into a scratch tree and
-running the test there in the QEMU VM: it fails **identically** on committed
-`HEAD` (no VRRP work present), so `spec-vrrp-3-macvlan` did not cause it. Also
-reproduced with the new owned-device reconcile pass compiled out, and
-`config_apply.go`'s diff is purely additive (+143/-0), so the reconcile path is
-byte-identical to `HEAD` in that configuration.
-
-Symptom: `unit_integration_linux_test.go:133` -- after
-`applyConfig(current, previous, b)` swaps a VLAN unit's address from
-`10.60.200.1/24` to `10.60.200.2/24`, the new address is absent from
-`parent0.200`. The reload's `applyConfig` returns **no errors**, so the address
-loop believes it succeeded; the device itself survives (the `linkExists` check
-above passes). The initial apply and its `requireAddress` assertion both pass,
-so this is specific to the address-change-on-reload path for VLAN sub-interface
-units, not to unit creation.
-
-Fix owner: whichever session next works `internal/component/iface` VLAN unit
-reconcile (`config_apply.go` unit/address loops). Not fixed by the VRRP umbrella
-(`plan/spec-vrrp-0-umbrella.md`): unrelated code path, and VRRP's virtual
-addresses reach the kernel through the owner registry, which is covered by
-`registry_integration_linux_test.go` and the new
-`device_owner_integration_linux_test.go` and is green.
 
 ### ~~`internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute`~~ -- FIXED 2026-07-16 (`9af30c440`): the test violated a documented setter contract
 
@@ -426,23 +214,6 @@ comment). The test's teardowns-nil assertion has been failing deterministically
 since that commit; the setups-nil and flag-not-cleared assertions remain
 correct. Fix: update the test to expect the drained teardown event. Owner:
 whichever session next touches `internal/component/l2tp/reactor_kernel_linux_test.go`.
-
-### `l2tp` functional suite `session-stopccn-cascade` -- pre-existing, predates the initiator work
-
-Confirmed pre-existing 2026-07-10 by building `bin/ze` + `bin/ze-test` at commit
-`fe6aa242f` (the parent of `b68e7e9c9`, the first `spec-followup-l2tp-call`
-commit) via `git archive` and running the test: it fails there **3/3**
-deterministically, identically to `HEAD` (5/5). So `spec-followup-l2tp-call`
-did not cause it. Symptom: `test/l2tp/session-stopccn-cascade.ci` step 2
-(`expect=stderr:contains=StopCCN clearing sessions`) does not match. Root cause
-lies in the answering-side reliable-receive path: after the tunnel + session 1
-establish, ze's receive window does not advance past the second session's
-rapid-fire ICRQ, so the peer's later StopCCN (a higher Ns) is never delivered to
-`handleStopCCN` (`tunnel_fsm.go:582`), and the `StopCCN clearing sessions` log at
-`tunnel_fsm.go:597` never fires. It belongs to the answering-side
-reliable-receive path, not this initiator spec. Fix owner: whichever session
-next works the L2TP reliable-transport receive path. `.ci` unchanged since
-before this spec.
 
 ## Resolved
 

@@ -25,23 +25,23 @@ Rationale: `ai/rationale/anti-rationalization.md`
 | "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Fix it or log it to `plan/known-failures.md`. A passing comment is not logging |
+| "Pre-existing issue" | Fix it or log it to `plan/known-failures/`. A passing comment is not logging |
 
 **Every test failure gets fixed or formally logged. BLOCKING.**
 
 1. **Fix it** as a separate commit (not mixed with feature work). Do not block current work on a
    failure you didn't cause, but DO fix it in the same session after completing the primary task.
-2. **If fixing requires deep investigation beyond session scope**, add a structured entry to
-   `plan/known-failures.md` with: failure output, root-cause hypothesis, and reproduction command.
+2. **If fixing requires deep investigation beyond session scope**, add a
+   `plan/known-failures/<make-target>-<test-name>.md` shard with: failure output, root-cause hypothesis, and reproduction command.
    This is not optional. A casual mention in your response is not logging.
 3. **Mechanical check before session end:** if your session encountered any failure you did not fix,
-   grep `plan/known-failures.md` for a matching entry dated today. No entry = violation.
+   grep `plan/known-failures/` for a matching entry dated today. No entry = violation.
 
 | Banned | Why |
 |--------|-----|
 | "Pre-existing, not my changes" | Acknowledging a failure without fixing or logging it means the next session hits the same wall |
-| "Known issue with the netlink API" | Known to whom? If it's not in `known-failures.md`, it's not known to the project |
-| Mentioning a failure only in response text | Response text is ephemeral. `known-failures.md` persists across sessions |
+| "Known issue with the netlink API" | Known to whom? If it's not in `known-failures/`, it's not known to the project |
+| Mentioning a failure only in response text | Response text is ephemeral. `known-failures/` persists across sessions |
 | "The only failures are..." (then moving on) | Enumeration without action is rationalization |
 
 ## Completion

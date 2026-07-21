@@ -261,7 +261,7 @@ func TestCommitHelperVerifyGate(t *testing.T) {
 // tmp/ze-verify-failures.json (here ze-tier-check) is NOT bypassable by
 // --unverified, while a flaky TEST-stage red (ze-functional-test) still is.
 // PREVENTS: parking a structural gate (e.g. a misplaced module tier like
-// routeinstall) in plan/known-failures.md and shipping it red on main.
+// routeinstall) in plan/known-failures/ and shipping it red on main.
 func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
 	root := makeCommitHelperFixture(t)
 	writeFixture(t, root, ".gitignore", "tmp/*\n")

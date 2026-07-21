@@ -366,7 +366,7 @@ work; the change is the harness those `.ci` files run on.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|-----------------------|
-| R-1 | A-1 is wrong and 7.1.1 still crashes | Step 1 crashes the same way | STOP. Re-scope to diagnosing the crash. Do NOT keep the suite skipped silently: if it cannot run, say so in `plan/known-failures.md` with the evidence |
+| R-1 | A-1 is wrong and 7.1.1 still crashes | Step 1 crashes the same way | STOP. Re-scope to diagnosing the crash. Do NOT keep the suite skipped silently: if it cannot run, say so in `plan/known-failures/` with the evidence |
 | R-2 | The kernel build makes the full QEMU target so slow nobody runs it | The target grows a ~30-minute prelude | This is the reason stock was chosen (`:441`). Cache/prebuild the artifact; consider a checked-in or CI-published kernel; keep a documented stock-kernel escape hatch for suites that do not need 7.x |
 | R-3 | A silent fallback to stock when the kernel is missing | The suite passes suspiciously fast, or the crash returns | AC-4: hard-fail, mirroring the `test -f` guard the labs already use |
 | R-4 | The kernel/initramfs seam breaks obscurely (VM boots, subtle driver differences) | Unrelated suites fail only under QEMU | Bisect per suite; AC-5 requires no regressions |

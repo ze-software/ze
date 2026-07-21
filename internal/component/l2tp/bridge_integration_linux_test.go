@@ -4,7 +4,7 @@
 //
 // EXECUTION IS ENVIRONMENT-BLOCKED in the dev sandbox: PPPIOCBRIDGECHAN /
 // PPPIOCGCHAN require CAP_NET_ADMIN and a /dev/ppp node, neither available
-// here (plan/known-failures.md: no root/CAP_NET_ADMIN/netns). The test is
+// here (plan/known-failures/: no root/CAP_NET_ADMIN/netns). The test is
 // authored + compiled (`go test -tags 'integration linux' -run xxx -count=0
 // ./internal/component/l2tp/`) and gated with t.Skipf so it no-ops without
 // the capability. Runbook to run it on a capable host / QEMU guest:

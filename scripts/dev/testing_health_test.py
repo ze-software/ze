@@ -229,52 +229,83 @@ class TestMutationAggregation(unittest.TestCase):
 
 
 class TestKnownFailures(unittest.TestCase):
-    """Resolved entries stay in the file as history and must not be counted.
+    """The live-debt figure is folded from the sharded plan/known-failures/.
 
-    VALIDATES: the live-debt figure is live debt.
+    The single tracked file was sharded into a directory
+    (spec-fixit-shared-plan-file-contention) so concurrent sessions never
+    cross-commit each other's rows: one file per LIVE failure, RESOLVED.md
+    archives the history, README.md holds the logging instructions.
+
+    VALIDATES: AC-5' -- live = shard files (excluding README.md/RESOLVED.md),
+    resolved = `### ` entries in RESOLVED.md.
     PREVENTS: reporting debt already paid off, the mirror of the inflated
-    test-count error this page exists to correct.
+    test-count error this page exists to correct; and the sensor-rot failure
+    where an absent input reads as a healthy zero.
     """
 
-    def test_resolved_and_struck_entries_are_excluded(self):
-        """Only strike-through and `## Resolved` exclude an entry.
+    def _write_dir(self, root, shards, resolved_titles):
+        for name, body in shards.items():
+            write(root, f"plan/known-failures/{name}", body)
+        write(root, "plan/known-failures/README.md", "# Known Failures\n\nlog here\n")
+        archive = "# Resolved\n\n" + "\n".join(
+            f"### {t}\n\nsome body\n" for t in resolved_titles
+        )
+        write(root, "plan/known-failures/RESOLVED.md", archive)
 
-        The expectation CHANGED deliberately (2 live, not 1). Excluding any
-        section whose heading contains "not failures" zeroed the real file's
-        `## Harness notes (not failures)` section, which holds three LIVE reds
-        including a deterministic `slice bounds out of range` panic in ze. The
-        published figure was 2 when the true live count was 6. A section's
-        wording must not be able to hide debt, so the entry under that heading
-        is now counted, and this fixture asserts that.
-        """
+    def test_live_shards_counted_resolved_archived(self):
+        """One shard file per live failure; RESOLVED.md entries are not counted."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(
+            self._write_dir(
                 root,
-                "plan/known-failures.md",
-                textwrap.dedent(
-                    """\
-                    # Known Failures
-
-                    ## Active
-
-                    ### `pkg/a` -- flaky under load
-                    ### ~~`pkg/b` -- fixed~~ -- FIXED 2026-01-01
-
-                    ## Harness notes (not failures)
-
-                    ### `pkg/d` -- deterministic panic, filed under a soft heading
-
-                    ## Resolved
-
-                    ### `pkg/c` -- long gone
-                    """
-                ),
+                {
+                    "ze-unit-test-pkg-a.md": "### `pkg/a` -- flaky under load\n\nbody\n",
+                    "reload-pkg-d.md": "### `pkg/d` -- deterministic panic\n\nbody\n",
+                },
+                ["`pkg/b` -- fixed", "`pkg/c` -- long gone", "`pkg/e` -- resolved"],
             )
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 2)
-            self.assertEqual(m.data["resolved"], 2)
+            self.assertEqual(m.data["resolved"], 3)
             self.assertEqual(m.value, "2")
+            self.assertEqual(m.status, th.WARN)
+
+    def test_readme_and_resolved_are_not_live(self):
+        """A directory with no live shard is zero live debt, and OK, not UNKNOWN."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_dir(root, {}, ["`pkg/x` -- gone"])
+            m = th.collect_known_failures(root)
+            self.assertEqual(m.data["live"], 0)
+            self.assertEqual(m.data["resolved"], 1)
+            self.assertEqual(m.status, th.OK)
+
+    def test_absent_directory_is_unknown(self):
+        """An unmeasured input fails closed to UNKNOWN, never a healthy zero."""
+        with tempfile.TemporaryDirectory() as tmp:
+            m = th.collect_known_failures(Path(tmp))
+            self.assertEqual(m.status, th.UNKNOWN)
+            self.assertEqual(m.value, "unknown")
+
+    def test_struck_live_shard_counts_resolved(self):
+        """Defensive: a shard whose heading is struck through is not live debt.
+
+        The model never writes one, but a stray strike must not inflate live
+        debt. Removing the strike check in collect_known_failures fails this.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_dir(
+                root,
+                {
+                    "live-one.md": "### `pkg/a` -- flaky under load\n\nbody\n",
+                    "stray-struck.md": "### ~~`pkg/z` -- fixed in place~~ -- FIXED\n\nbody\n",
+                },
+                ["`pkg/c` -- long gone"],
+            )
+            m = th.collect_known_failures(root)
+            self.assertEqual(m.data["live"], 1, "a struck shard must not count as live")
+            self.assertEqual(m.data["resolved"], 2, "struck shard + 1 archived entry")
 
 
 class TestRatchetStatus(unittest.TestCase):
@@ -761,7 +792,7 @@ class TestWriteCheckRoundTrip(unittest.TestCase):
             root, "internal/a/a_test.go", "package a\n\nfunc TestA(t *testing.T) {}\n"
         )
         write(root, th.SLEEP_BASELINE, "10\n")
-        write(root, "plan/known-failures.md", "# Known Failures\n\n## Active\n")
+        write(root, "plan/known-failures/README.md", "# Known Failures\n\nlog here\n")
         git_init(root)
         return root
 
@@ -968,7 +999,7 @@ class TestEntryPoints(unittest.TestCase):
             root, "internal/a/a_test.go", "package a\n\nfunc TestA(t *testing.T) {}\n"
         )
         write(root, th.SLEEP_BASELINE, "10\n")
-        write(root, "plan/known-failures.md", "# Known Failures\n\n## Active\n")
+        write(root, "plan/known-failures/README.md", "# Known Failures\n\nlog here\n")
         write(root, th.BASELINE, json.dumps({"assert-nothing": 9, "tag-orphan": 9}))
         git_init(root)
         return root

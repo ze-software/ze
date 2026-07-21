@@ -1,6 +1,6 @@
 # Git Safety
 
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for deferrals, still single for known-failures) cross-commits between concurrent sessions.
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for both deferrals and known-failures) cross-commits between concurrent sessions.
 **Severity:** advisory
 
 ## Directives
@@ -23,18 +23,19 @@ is allowed; committing outside a script is not.
 *granularity*. `git add <file>` stages the WHOLE file, including hunks
 another session left uncommitted in it. The fix is to SHARD the log so each
 session writes only files it owns and git merges disjoint creations without
-conflict. **Deferrals are already sharded**: they live one file per source
-under `plan/deferrals/` (`ai/rules/deferral-tracking.md`), so `git add
-plan/deferrals/<source>.md` stages only your row. `plan/known-failures.md`
-is still a single appended file and still cross-commits -- whoever commits
-first carries everyone else's pending rows. The hazard was observed twice on
-2026-07-15/16 (before deferrals were sharded): one session's `deferrals.md`
-edits landed inside two unrelated VRRP commits, and three concurrent sessions
-(ping, ipc, lg) each had the single `deferrals.md` file in their own `--file`
-list at the same time.
+conflict. **Both cross-spec logs are now sharded.** Deferrals live one file
+per source under `plan/deferrals/` (`ai/rules/deferral-tracking.md`), so `git
+add plan/deferrals/<source>.md` stages only your row. Known failures live one
+file per failure under `plan/known-failures/` (a `<make-target>-<test-name>.md`
+shard, with `RESOLVED.md` archiving the history and `README.md` holding the
+logging instructions), so `git add plan/known-failures/<make-target>-<test-name>.md`
+stages only your entry. The hazard was observed twice on 2026-07-15/16 (before
+either was sharded): one session's `deferrals.md` edits landed inside two
+unrelated VRRP commits, and three concurrent sessions (ping, ipc, lg) each had
+the single `deferrals.md` file in their own `--file` list at the same time.
 
-Consequences (they still apply to any un-sharded shared log, e.g.
-`plan/known-failures.md`), in order of importance:
+Consequences (they apply whenever two sessions touch the same tracked file, so
+keep each shard single-writer), in order of importance:
 
 | Situation | Do |
 |-----------|-----|
@@ -57,7 +58,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures.md`). This makes "verify before commit" enforced rather than honor-system.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
    Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes)+1 and creates the file immediately, so concurrent sessions **sharing one working tree** cannot allocate the same number. Never hand-pick a number.
@@ -222,12 +223,12 @@ under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 ```
 [ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-verify` or `make ze-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
 [ ] 1. `make ze-verify` (240s) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
-[ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures.md`.
+[ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures/` (one `<make-target>-<test-name>.md` shard per failure).
 ```
 
 ### Structural Gates Are Never Known-Red (BLOCKING)
 
-The item-2 "log to `plan/known-failures.md`" path is for **non-deterministic**
+The item-2 "log to `plan/known-failures/`" path is for **non-deterministic**
 failures only -- flaky or environmental TEST reds (load-sensitive races,
 GC-pressure pool flakes, host-specific listener probes). A **deterministic
 structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
@@ -246,7 +247,7 @@ Known gap, recorded rather than papered over. Several checks run under BOTH
 `ze-doc-test` and `ze-regen-check-readonly`. That overlap is harmless: the runner
 continues across stage failures, so one underlying red fails both stages in the
 same run, `structural_gate_reds` always sees `ze-regen-check-readonly`, and the
-commit is blocked regardless of what `plan/known-failures.md` says about
+commit is blocked regardless of what `plan/known-failures/` says about
 `ze-doc-test`. The real gap is the checks that run ONLY under `ze-doc-test` --
 `doc_drift.go`, `commands.go`, `digest_check.py`, and `rfc_requirements.py
 --check-fresh` (`mk/inventory.mk`; note the script's `--selftest`/`--check`
@@ -274,8 +275,8 @@ refuses to prepare a script while any structural gate is red, even with
 `--unverified` (`structural_gate_reds` / `STRUCTURAL_GATES`). A green verify
 rewrites the artifact, so a fixed-and-reverified gate clears automatically. This
 closed the hole that let a misplaced-tier gate (`routeinstall`) be logged as
-"pre-existing" and ship red on `main` for a week (see `plan/known-failures.md`
-Resolved 2026-07-07).
+"pre-existing" and ship red on `main` for a week (see `plan/known-failures/RESOLVED.md`,
+2026-07-07).
 
 ### Thomas Owner Override: Commit Without Verify
 
@@ -333,7 +334,7 @@ what we changed"), never inferred from a red suite alone.
 
 **The red must be attributed, not assumed (BLOCKING).** "Known-red" means you
 have identified the specific failing stage/test and confirmed it is pre-existing
-(logged in `plan/known-failures.md`) or owned by another active session. An
+(logged in `plan/known-failures/`) or owned by another active session. An
 *undocumented* red is NOT scope-aroundable: treat it as possibly your own
 regression until proven otherwise. Scope-to-changed has a blind spot -- it tests
 packages you edited, not packages your edit breaks **transitively**: a new import
@@ -349,7 +350,7 @@ global suite is being cleared, not a standing mode. A `ze-verify` that stays red
 across sessions hides newly-introduced breakage under the existing red -- that is
 exactly how an import cycle, a YANG typedef gap, and stale registry snapshots all
 landed under one persistent red without any gate firing. Log the failing stage in
-`plan/known-failures.md` with who owns clearing it; if nobody does, clearing it
+`plan/known-failures/` with who owns clearing it; if nobody does, clearing it
 comes before stacking more changes on top.
 
 ### Concurrent Verify Runs (BLOCKING)

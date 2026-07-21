@@ -425,7 +425,7 @@ one command, keep that command in its own file (see `test/vrrp/vrrp-doctor-quiet
 
 **Known gap:** 108 quick-exit `ze` commands across 50 `.ci` files predate `exit=`
 and are still unasserted (their `expect=exit:code=` never reaches them). Arming
-them may surface real defects; tracked in `plan/known-failures.md`.
+them may surface real defects; tracked in `plan/known-failures/`.
 
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
