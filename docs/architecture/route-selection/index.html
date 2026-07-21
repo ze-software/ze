@@ -20,15 +20,31 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/docs/architecture/route-selection/" />
+        <meta property="og:url" content="https://ze-software.net/docs/architecture/route-selection/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-routing">
@@ -47,6 +63,7 @@
 <li><a href="#phase-2-best-path-selection-rfc-4271-section-912">Phase 2: Best-Path Selection (RFC 4271 Section 9.1.2)</a>
 <ol>
 <li><a href="#candidate-extraction">Candidate Extraction</a></li>
+<li><a href="#enforced-before-selection-not-best-path-reasons">Enforced Before Selection (Not Best-Path Reasons)</a></li>
 <li><a href="#not-yet-implemented">Not Yet Implemented</a></li>
 </ol></li>
 <li><a href="#complete-reason-table">Complete Reason Table</a></li>
@@ -326,19 +343,28 @@ decides.</p>
 flat <code>Candidate</code> struct: LocalPref, ASPathLen, FirstAS, Origin, MED, PeerASN,
 LocalASN, OriginatorIP, PeerIP, PeerAddr, StaleLevel. Router ID and peer address
 comparisons use typed <code>netip.Addr</code> fields for zero-allocation numeric ordering.</p>
+<h3 id="enforced-before-selection-not-best-path-reasons">Enforced Before Selection (Not Best-Path Reasons)</h3>
+<p>These checks are implemented, but as ingress filters that reject the UPDATE
+before it reaches best-path selection, so they never appear as a reason in the
+enum above:</p>
+<ul>
+<li><strong>AS loop detection</strong> (own ASN in AS_PATH): rejected on ingress by the reactor
+  loop filter on all sessions (RFC 4271 Section 9).</li>
+<li><strong>Cluster-list loop detection</strong> (RFC 4456, own Router ID in CLUSTER_LIST):
+  rejected on ingress by the same loop filter (iBGP sessions).</li>
+<li><strong>Originator-ID loop detection</strong> (RFC 4456, own Router ID as ORIGINATOR_ID):
+  rejected on ingress by the same loop filter (iBGP sessions).</li>
+<li><strong>OTC mismatch</strong> (RFC 9234, Only-To-Customer attribute validation): enforced
+  by the bgp-role plugin.</li>
+</ul>
+<!-- source: internal/component/bgp/reactor/filter/loop.go -- ingress AS/cluster-list/originator-id loop filter -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- RFC 9234 OTC validation -->
+
 <h3 id="not-yet-implemented">Not Yet Implemented</h3>
 <ul>
-<li><strong>AS loop detection</strong> (own ASN in AS_PATH): biorouting checks this in Adj-RIB-In.
-  Ze does not currently reject routes with AS loops before selection.</li>
-<li><strong>Cluster-list loop detection</strong> (RFC 4456, own Cluster ID in CLUSTER_LIST):
-  not currently checked.</li>
-<li><strong>Originator-ID loop detection</strong> (RFC 4456, own Router ID as ORIGINATOR_ID):
-  not currently checked.</li>
-<li><strong>OTC mismatch</strong> (RFC 9234, Only-To-Customer attribute validation):
-  not currently checked.</li>
-<li><strong>IGP cost to next-hop</strong> (step 15): requires IGP integration.</li>
+<li><strong>IGP cost to next-hop</strong> (step 15): requires IGP integration. This would be an
+  additional best-path reason when implemented.</li>
 </ul>
-<p>These would be additional validation reasons in Phase 1 when implemented.</p>
 <h2 id="complete-reason-table">Complete Reason Table</h2>
 <p>All reasons in evaluation order. A route gets exactly one reason: the first check
 it fails.</p>
@@ -485,7 +511,7 @@ it fails.</p>
             </section>
         </main>
 
-        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

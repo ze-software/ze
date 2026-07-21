@@ -6,10 +6,17 @@ lives under assets/css/: 10-base.css carries the legacy bulk stylesheet, while
 smaller later files hold extracted tokens, shared components, and responsive
 rules. New CSS should move into those smaller files instead of growing the bulk
 file.
+
+The published file is minified (rcssmin): comments and whitespace are stripped
+so the byte the browser downloads is as small as the source allows. The source
+files under assets/css/ stay human-readable; only this generated output is
+minified, the same split the JS build uses (assets/js/ -> assets/site.js).
 """
 
 import pathlib
 import re
+
+import rcssmin
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
@@ -43,8 +50,12 @@ def expand(path, seen=None):
 
 def main():
     css = expand(SOURCE).strip() + "\n"
-    DEST.write_text(css)
-    print("rendered %s -> %s (%d bytes)" % (SOURCE, DEST, len(css.encode())))
+    minified = rcssmin.cssmin(css)
+    DEST.write_text(minified)
+    print(
+        "rendered %s -> %s (%d bytes, minified from %d)"
+        % (SOURCE, DEST, len(minified.encode()), len(css.encode()))
+    )
     return 0
 
 

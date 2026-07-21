@@ -3,9 +3,9 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Interoperability Testing - Ze</title>
+        <title>Interoperability Testing (Testing Architecture) - Ze</title>
         <meta name="description" content="Ze documentation: architecture/testing/interop.md" />
-        <meta property="og:title" content="Interoperability Testing - Ze" />
+        <meta property="og:title" content="Interoperability Testing (Testing Architecture) - Ze" />
         <meta property="og:description" content="Ze documentation: architecture/testing/interop.md" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
@@ -13,22 +13,38 @@
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Interoperability Testing - Ze" />
+        <meta name="twitter:title" content="Interoperability Testing (Testing Architecture) - Ze" />
         <meta name="twitter:description" content="Ze documentation: architecture/testing/interop.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/docs/architecture/testing/interop/" />
+        <meta property="og:url" content="https://ze-software.net/docs/architecture/testing/interop/" />
+        <link rel="stylesheet" href="../../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../"></div>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../../#top">Ze</a>
+                    <a href="../../../../#top">Home</a>
+                    <a href="../../../../docs/">Docs</a>
+                    <a href="../../../../features/">Features</a>
+                    <a href="../../../../compare/">Compare</a>
+                    <a href="../../../../roadmap/">Roadmap</a>
+                    <a href="../../../../changes/">Changes</a>
+                    <a href="../../../../faq/">FAQ</a>
+                    <a href="../../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-routing">
@@ -296,7 +312,7 @@ existing scenario (e.g., <code>01-ebgp-ipv4-frr/check.py</code>) as a template.<
 <!-- source: test/interop/interop.py -- wait_session, wait_route, check_route -->
 
 <h3 id="scenario-inventory">Scenario Inventory</h3>
-<p>The suite has grown to 97 scenario directories in <code>test/interop/scenarios/</code>. The table
+<p>The suite has grown to over 100 scenario directories in <code>test/interop/scenarios/</code>. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
 reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
 max-prefix cease, GTSM, AS112, and full IS-IS (auth, convergence, dual-stack, LAN DIS,
@@ -716,7 +732,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             </section>
         </main>
 
-        <script src="../../../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

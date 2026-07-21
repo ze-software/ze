@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --with markdown python3
+#!/usr/bin/env -S uv run --with markdown --with rcssmin --with rjsmin python3
 """Regenerate the entire gh-pages site in one command.
 
 Usage:
@@ -6,7 +6,9 @@ Usage:
     tools/build.py --only docs,nav  # just the listed steps
 
 Steps (default order, also the --only vocabulary):
-    css       assets/css/site.css imports -> assets/site.css (tools/render-css.py)
+    css       assets/css/site.css imports -> assets/site.css, minified
+              (tools/render-css.py)
+    js        assets/js/site.js -> assets/site.js, minified (tools/render-js.py)
     docs      main/docs/*.md -> docs/**/index.html      (tools/page_registry.py DOCS_MANIFEST)
     usage    usage/*.md -> usage/**/index.html      (tools/render-doc.py)
     blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
@@ -83,6 +85,7 @@ import page_registry  # noqa: E402
 
 STEPS = [
     "css",
+    "js",
     "docs",
     "usage",
     "labdetails",
@@ -161,6 +164,11 @@ def load_module(stem):
 def step_css():
     render_css = load_module("render-css")
     return render_css.main()
+
+
+def step_js():
+    render_js = load_module("render-js")
+    return render_js.main()
 
 
 def step_docs():
@@ -257,9 +265,24 @@ def step_test_health():
     return render_test_health.main()
 
 
-def step_config():
+def _extract_plugin_registry_once():
+    """Regenerate data/plugin-registry.json from ../main, at most once per
+    build. Both step_config and step_plugins consume it; without this guard a
+    full build parsed every internal/**/register.go twice."""
+    if _extract_plugin_registry_once.done:
+        return 0
     extract_plugin_registry = load_module("extract-plugin-registry")
     rc = extract_plugin_registry.main()
+    if not rc:
+        _extract_plugin_registry_once.done = True
+    return rc
+
+
+_extract_plugin_registry_once.done = False
+
+
+def step_config():
+    rc = _extract_plugin_registry_once()
     if rc:
         return rc
     extract_yang_config_tree = load_module("extract-yang-config-tree")
@@ -271,8 +294,7 @@ def step_config():
 
 
 def step_plugins():
-    extract_plugin_registry = load_module("extract-plugin-registry")
-    rc = extract_plugin_registry.main()
+    rc = _extract_plugin_registry_once()
     if rc:
         return rc
     render_plugin_catalog = load_module("render-plugin-catalog")
@@ -466,10 +488,11 @@ def step_links():
         text = path.read_text()
         updated = sitelib.patch_external_link_targets(text)
         updated = sitelib.patch_asset_versions(updated)
+        updated = sitelib.patch_canonical(updated, rel.as_posix())
         if updated != text:
             path.write_text(updated)
             patched += 1
-    print("patched external links and asset versions -> %d html files" % patched)
+    print("patched external links, asset versions, canonical -> %d html files" % patched)
     return 0
 
 
@@ -480,6 +503,7 @@ def step_linkcheck():
 
 STEP_FUNCS = {
     "css": step_css,
+    "js": step_js,
     "docs": step_docs,
     "usage": step_usage,
     "labdetails": step_labdetails,
@@ -523,16 +547,6 @@ STEP_FUNCS = {
 # they are always live and cannot drift -- the checks are gone with them.
 
 
-def check_homepage_proof_drift():
-    """Homepage proof-strip counts now come from data/site-facts.json.
-
-    The facts step computes them from ../main before index rendering, so the
-    old floor drift check is obsolete. Keep this hook as a named no-op because
-    main() still runs the shared drift hooks before selected build steps.
-    """
-    return
-
-
 def check_llms_md_siblings():
     """llms.txt links every nav.json entry to a sibling index.md alongside
     its index.html. Every render-*.py that produces one of these pages
@@ -542,6 +556,7 @@ def check_llms_md_siblings():
 
     nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
     hrefs = [link["href"] for link in nav["trailing_links"]]
+    hrefs.extend(link["href"] for link in nav.get("top_links", []))
     for dropdown in nav["dropdowns"]:
         # Dynamic dropdowns (e.g. Blog) have no static "columns" -- their
         # entries are generated at render time, so there is nothing to check.
@@ -570,6 +585,47 @@ def check_markdown_mirrors():
         if sitelib.contains_block_html(md_path.read_text()):
             sitelib.warn(
                 "%s contains block HTML instead of plain Markdown" % rel.as_posix()
+            )
+
+
+def check_homepage_proof_drift():
+    """index.html's proof strip quotes four evidence numbers (unit tests, end
+    to end tests, fuzz targets, interop targets). render-index.py generates
+    them from data/site-facts.json, but the numbers are also the site's most
+    load-bearing trust claim, so this guard re-reads the rendered page and
+    fails the build if any of the four no longer matches the facts snapshot --
+    catching a render bug or a hand-edit before it ships a stale headline
+    number. Same drift class as check_performance_stat_drift."""
+    import json
+    import re
+
+    facts_path = GH_PAGES / "data" / "site-facts.json"
+    page_path = GH_PAGES / "index.html"
+    if not facts_path.exists() or not page_path.exists():
+        return
+
+    facts = json.loads(facts_path.read_text())
+    page = page_path.read_text()
+
+    # label as it appears in the proof strip -> its facts display value
+    expected = {
+        "unit tests": facts["tests"]["unit_display"],
+        "end to end tests": facts["tests"]["e2e_display"],
+        "fuzz targets": facts["tests"]["fuzz_display"],
+        "interop targets": facts["interop"]["target_display"],
+    }
+
+    for label, want in expected.items():
+        match = re.search(
+            r"<strong\s*>\s*([\d,]+\+?)\s*<span class=\"label\">%s</span>"
+            % re.escape(label),
+            page,
+        )
+        got = match.group(1).strip() if match else None
+        if got != want:
+            sitelib.warn(
+                "index.html proof strip shows %r for %r but data/site-facts.json "
+                "says %r -- rerun tools/build.py --only index" % (got, label, want)
             )
 
 
@@ -633,83 +689,56 @@ def main():
         )
         return 1
 
-    check_homepage_proof_drift()
     check_performance_stat_drift()
     check_llms_md_siblings()
 
     failures = []
-    for step in steps:
-        print("=== %s ===" % step)
+
+    def run_step(step, always=False):
+        label = "%s (always runs)" % step if always else step
+        print("=== %s ===" % label)
         try:
             rc = STEP_FUNCS[step]()
-        except Exception as exc:
+        except (Exception, SystemExit) as exc:
+            # SystemExit is caught deliberately: a renderer that calls
+            # sys.exit() (e.g. render-cli-catalog's production-binary guard)
+            # must fail its own step, not tear down the interpreter and skip
+            # every downstream step -- including the ALWAYS_RUN guardrails.
             print("error: step %s raised %r" % (step, exc), file=sys.stderr)
             failures.append(step)
-            continue
+            return
         if rc:
             failures.append(step)
 
+    # These guardrails run at the very end of every build in this fixed order,
+    # whether or not --only names them, so the documented invariants hold for
+    # partial builds too: nav before links (external-link patching sees the
+    # final markup), links before linkcheck (validation sees patched anchors),
+    # and llms last (every page it links to already has its index.md sibling on
+    # disk). Running them in the main loop as well would invert this order for
+    # e.g. `--only llms`, so the loop skips them and they run once here.
+    TAIL = ["nav", "links", "linkcheck", "llms"]
+
+    for step in steps:
+        if step in TAIL:
+            continue
+        run_step(step)
+
+    # facts stays in the loop at its STEPS position for full builds (so content
+    # renderers that follow it read fresh counts); a partial build that omits it
+    # still refreshes the one public snapshot the menus read.
     if "facts" not in steps:
-        # Every partial build refreshes the one public snapshot used by menus.
-        print("=== facts (always runs) ===")
-        try:
-            rc = step_facts()
-        except Exception as exc:
-            print("error: step facts raised %r" % exc, file=sys.stderr)
-            failures.append("facts")
-        else:
-            if rc:
-                failures.append("facts")
+        run_step("facts", always=True)
 
-    if "nav" not in steps:
-        # Apply final facts and menu data after every selected renderer.
-        print("=== nav (always runs) ===")
-        try:
-            rc = step_nav()
-        except Exception as exc:
-            print("error: step nav raised %r" % exc, file=sys.stderr)
-            failures.append("nav")
-        else:
-            if rc:
-                failures.append("nav")
-
-    if "links" not in steps and "linkcheck" not in steps:
-        # Runs even when --only excludes it: external links should consistently
-        # open in fresh tabs after any generator rewrites a page.
-        print("=== links (always runs) ===")
-        try:
-            rc = step_links()
-        except Exception as exc:
-            print("error: step links raised %r" % exc, file=sys.stderr)
-            failures.append("links")
-        else:
-            if rc:
-                failures.append("links")
-
-    if "linkcheck" not in steps:
-        print("=== linkcheck (always runs) ===")
-        try:
-            rc = step_linkcheck()
-        except Exception as exc:
-            print("error: step linkcheck raised %r" % exc, file=sys.stderr)
-            failures.append("linkcheck")
-        else:
-            if rc:
-                failures.append("linkcheck")
-    if "llms" not in steps:
-        # Runs even when --only excludes it: llms.txt must never go stale
-        # relative to whatever this invocation just changed.
-        print("=== llms (always runs) ===")
-        try:
-            rc = step_llms()
-        except Exception as exc:
-            print("error: step llms raised %r" % exc, file=sys.stderr)
-            failures.append("llms")
-        else:
-            if rc:
-                failures.append("llms")
+    for step in TAIL:
+        run_step(step, always=step not in steps)
 
     check_markdown_mirrors()
+    # Runs after the steps so it validates the freshly rendered homepage (and
+    # freshly written site-facts) rather than the pre-build copy -- a full
+    # build that corrects the number must not still fail on the stale one, and
+    # a partial build that moved the facts without rebuilding index must fail.
+    check_homepage_proof_drift()
 
     # Drift warnings (sitelib.warn) fail the build here, at the very end, so
     # the whole site is still generated but the build goes red until every one

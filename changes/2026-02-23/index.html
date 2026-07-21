@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-02-23/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-02-23/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🛰️ Route Server (RFC 7947)">
                         <div class="md-content">
-                            <h3>🛰️ Route Server (RFC 7947)</h3>
+                            <h2>🛰️ Route Server (RFC 7947)</h2>
                             <p>The route-server plugin is renamed from bgp-rr to bgp-rs to match what it actually does (forward-all Route Server semantics, not Route Reflector client/non-client selection); <code>rs status</code>/<code>rs peers</code> commands replace the old <code>rr</code> names.</p>
 <ul>
 <li>Reconnecting peers now get a targeted replay of just their own routes from a dedicated adj-rib-in plugin, instead of triggering a full ROUTE-REFRESH storm across every peer and family</li>
@@ -55,25 +71,25 @@
                     </div>
                     <div class="blog-block" aria-label="🔌 Plugin protocol">
                         <div class="md-content">
-                            <h3>🔌 Plugin protocol</h3>
+                            <h2>🔌 Plugin protocol</h2>
                             <p>External plugins can now speak a simple line-based text protocol instead of JSON-RPC for their startup handshake and event delivery, an easier path for writing plugins in languages other than Go.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🧩 Config validation">
                         <div class="md-content">
-                            <h3>🧩 Config validation</h3>
+                            <h2>🧩 Config validation</h2>
                             <p>YANG config trees are now validated recursively against schema (enums, ranges, patterns, mandatory fields), with an extensible <code>ze:validate</code> mechanism for custom runtime checks.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <p>Event delivery, IPC framing, and TCP session reads got a round of allocation and syscall reduction: zero-alloc text formatting, batched IPC delivery, buffered TCP reads, and RPC calls without a goroutine per request.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="📊 ze-chaos">
                         <div class="md-content">
-                            <h3>📊 ze-chaos</h3>
+                            <h2>📊 ze-chaos</h2>
                             <p>The chaos-testing dashboard got a UX pass: live convergence charts, a peer health view, and clearer sync-state visibility (peers now show Established → Syncing → Up instead of jumping straight to Up).</p>
                         </div>
                     </div>
@@ -105,7 +121,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

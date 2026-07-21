@@ -1,8 +1,29 @@
 # Ze System Architecture
 
-**Status:** Implemented (Hub Mode)
+**Status:** Superseded / legacy design note (kept for background only)
 **Last Updated:** 2026-01-30
 **Purpose:** Describes Ze's hub/orchestrator mode with separate plugin processes
+
+---
+
+> **Legacy document.** The hub/orchestrator concepts below are still broadly
+> accurate, but several concrete details have changed and its examples no longer
+> match the shipping system:
+>
+> - The daemon is started with `ze start`, not `ze config.conf` or
+>   `ze /etc/ze/config.conf`.
+> - The `local-as` / `peer-as` / `peer-group` config grammar shown here has been
+>   removed; local AS is now `session { asn { local ... } }` and peer groups are
+>   `group` blocks (see [deprecated config options](../config/deprecated-options/index.md)
+>   and [config syntax](https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md)).
+> - Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
+>   as separate `external ... { run "ze bgp" }` processes; the `external` block
+>   is for third-party out-of-process plugins.
+> - The source tree is organised under `internal/core`, `internal/component`, and
+>   `internal/plugins`; there is no `internal/bgp/...` layout as sketched below.
+>
+> For the current architecture see [Core Design](https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md) (canonical) and
+> [Hub Architecture](https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md).
 
 ---
 

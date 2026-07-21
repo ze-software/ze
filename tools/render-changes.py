@@ -216,9 +216,9 @@ def render_post(meta, intro, sections, covers):
             ensure_blank_line_before_lists(section_body),
             extensions=["fenced_code", "sane_lists"],
         )
-        parts.append('                    <div class="blog-block" aria-label="%s">' % header.replace('"', ""))
+        parts.append('                    <div class="blog-block" aria-label="%s">' % html.escape(header, quote=True))
         parts.append('                        <div class="md-content">')
-        parts.append("                            <h3>%s</h3>" % header)
+        parts.append("                            <h2>%s</h2>" % html.escape(header))
         parts.append("                            %s" % html_body)
         parts.append("                        </div>")
         parts.append("                    </div>")
@@ -317,13 +317,6 @@ INDEX_CSS = """        <style>
             .ch-draft { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--acc-deep, var(--muted)); margin-left: 0.5rem; }
         </style>
 """
-
-# Category filter: a legend of the categories actually present, reusing the
-# same .legend component and press/toggle behaviour as the Features page. A
-# week carries every category it touched in data-cats (space-separated), so
-# clicking a category shows every week that touched it (a week matches more
-# than one). #hash arrives pre-filtered, like features/#routing.
-FILTER_SCRIPT = ""
 
 # Legend order matches the Features page (sitelib.CATEGORIES), with the
 # neutral meta bucket last.

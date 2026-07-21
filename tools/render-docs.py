@@ -33,11 +33,15 @@ def main():
     render_doc = HERE / "render-doc.py"
     link_manifest = page_registry.docs_link_manifest()
 
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, dir=HERE) as f:
+    # The link manifest is written to a system temp file (not the tools/ source
+    # dir) and cleaned up by the context manager on any exit, so a crash never
+    # leaves a stray tools/tmp*.json behind. The child render-doc.py processes
+    # read it by path while this `with` block keeps it on disk.
+    with tempfile.NamedTemporaryFile("w", suffix=".json") as f:
         json.dump(link_manifest, f)
+        f.flush()
         manifest_path = pathlib.Path(f.name)
 
-    try:
         failures = []
         for doc_path, cat in page_registry.DOCS_MANIFEST.items():
             source = MAIN_DOCS / doc_path
@@ -70,8 +74,6 @@ def main():
                 failures.append("%s: %s" % (doc_path, result.stderr.strip()))
             else:
                 print(result.stdout.strip())
-    finally:
-        manifest_path.unlink(missing_ok=True)
 
     if failures:
         print("\n%d failure(s):" % len(failures), file=sys.stderr)

@@ -18,6 +18,7 @@ the .md mirror can never disagree with the HTML.
 """
 
 import datetime
+import html
 import json
 import pathlib
 
@@ -146,9 +147,6 @@ EXTRA_HEAD = """        <style>
 """
 
 
-FILTER_SCRIPT = ""
-
-
 def render_item(m):
     href = "../changes/%s/" % m["blog"] if m.get("blog") else None
     parts = [
@@ -159,8 +157,10 @@ def render_item(m):
         % (m["date"], month_label(m["date"])),
         '                        <div class="tl-card">',
         '                            <div class="tl-head">',
-        '                                <h3 class="tl-title">%s</h3>' % m["title"],
-        '                                <span class="tl-cat">%s</span>' % m["category"],
+        '                                <h3 class="tl-title">%s</h3>'
+        % html.escape(m["title"], quote=False),
+        '                                <span class="tl-cat">%s</span>'
+        % html.escape(m["category"], quote=False),
         "                            </div>",
         "                            <p>%s</p>" % sitelib.bold(m["blurb"]),
     ]
@@ -191,7 +191,7 @@ def render(data):
     )
     out.append(
         "                    <p>%d milestones, newest first. %s</p>"
-        % (count, data["intro"])
+        % (count, html.escape(data["intro"], quote=False))
     )
     out.append("                </div>")
     out.append('                <div class="section-note reveal">')

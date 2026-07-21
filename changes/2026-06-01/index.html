@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-06-01/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-06-01/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,13 +60,13 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🖥️ CLI">
                         <div class="md-content">
-                            <h3>🖥️ CLI</h3>
+                            <h2>🖥️ CLI</h2>
                             <p>The verb-first, show-a-noun command grammar reached the rest of the command surface this week: interfaces, process lifecycle, cache, log, metrics, MPLS, DNS, traffic/QoS, IKE, traceroute, ping, monitor, and BGP peer/cache/commit commands all follow the same pattern now. Bare list/summary commands without an explicit verb are gone. Interface commands also got smarter: creating a sub-interface auto-creates its parent, and the MAC address setting moved under a <code>mac { }</code> container.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="📊 MRT tooling">
                         <div class="md-content">
-                            <h3>📊 MRT tooling</h3>
+                            <h2>📊 MRT tooling</h2>
                             <p>Ze can now record, replay, and analyze BGP sessions in MRT format (RFC 6396/6397/8050), the standard used by RouteViews and RIPE RIS:</p>
 <ul>
 <li>A daemon component recording three independent dump streams with time-based file rotation</li>
@@ -61,15 +77,15 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="💿 Appliance & installer">
+                    <div class="blog-block" aria-label="💿 Appliance &amp; installer">
                         <div class="md-content">
-                            <h3>💿 Appliance & installer</h3>
+                            <h2>💿 Appliance &amp; installer</h2>
                             <p>The installer kernel now builds from a base config plus a profile (qemu or hardware), with a <code>--profile</code> override and PXE boot args tuned per architecture. ISO images gained a framebuffer console line for physical hardware with a monitor, plus gzip compression to shrink the image.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔒 Reliability fixes">
                         <div class="md-content">
-                            <h3>🔒 Reliability fixes</h3>
+                            <h2>🔒 Reliability fixes</h2>
                             <ul>
 <li>BMP now defaults to monitor-only, matching its role as a passive monitoring protocol (RFC 7854); it no longer injects received routes by default</li>
 <li>RPKI's validation gate now skips cleanly when no RTR cache servers are configured, instead of leaving every route waiting 30 seconds for a validation response that will never arrive</li>
@@ -81,7 +97,7 @@
                     </div>
                     <div class="blog-block" aria-label="🧩 Config validation">
                         <div class="md-content">
-                            <h3>🧩 Config validation</h3>
+                            <h2>🧩 Config validation</h2>
                             <p>Required-field enforcement, previously BGP-specific, is now generic: any YANG list can mark fields required and have them checked on <code>ze config validate</code> and in the editor, currently applied to VPN, PKI, and L2TP sections.</p>
                         </div>
                     </div>
@@ -113,7 +129,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

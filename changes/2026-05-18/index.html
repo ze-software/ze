@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-05-18/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-05-18/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔒 IPsec / IKEv2 VPN">
                         <div class="md-content">
-                            <h3>🔒 IPsec / IKEv2 VPN</h3>
+                            <h2>🔒 IPsec / IKEv2 VPN</h2>
                             <p>Ze gained a native IKEv2 implementation built from the wire format up, interop-tested against strongSwan:</p>
 <ul>
 <li>IKEv2 crypto primitives and wire codec, with an FSM-driven engine handling auth, transport, and reconciliation</li>
@@ -56,9 +72,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🛰️ Routing, BGP & subscriber access">
+                    <div class="blog-block" aria-label="🛰️ Routing, BGP &amp; subscriber access">
                         <div class="md-content">
-                            <h3>🛰️ Routing, BGP & subscriber access</h3>
+                            <h2>🛰️ Routing, BGP &amp; subscriber access</h2>
                             <ul>
 <li>SRv6 Prefix-SID support (RFC 9252, RFC 8669)</li>
 <li>Recursive next-hop resolution, ECMP path grouping, and IGP-cost-aware best-path selection, feeding richer route attributes (type, metric, table, MPLS) into both the kernel and VPP FIB backends</li>
@@ -70,9 +86,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🖥️ CLI & diagnostics">
+                    <div class="blog-block" aria-label="🖥️ CLI &amp; diagnostics">
                         <div class="md-content">
-                            <h3>🖥️ CLI & diagnostics</h3>
+                            <h2>🖥️ CLI &amp; diagnostics</h2>
                             <ul>
 <li>A pure-Go packet capture command (<code>show capture interface</code>), an AF_PACKET-based tcpdump replacement for gokrazy appliances</li>
 <li>An mtr-style <code>monitor traceroute</code> with parallel per-hop probing, ECMP path awareness, and pipe support</li>
@@ -84,9 +100,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="💿 Appliance, provisioning & readiness">
+                    <div class="blog-block" aria-label="💿 Appliance, provisioning &amp; readiness">
                         <div class="md-content">
-                            <h3>💿 Appliance, provisioning & readiness</h3>
+                            <h2>💿 Appliance, provisioning &amp; readiness</h2>
                             <ul>
 <li><code>ze install</code> restructured into <code>local</code> and <code>remote</code> subcommands, plus a new <code>ze uninstall</code></li>
 <li>Zero-touch provisioning: PXE boot extensions on the DHCP server, a TFTP server, and an HTTP image server, all shipped as ordinary Ze plugins</li>
@@ -99,13 +115,13 @@
                     </div>
                     <div class="blog-block" aria-label="⚡ Performance">
                         <div class="md-content">
-                            <h3>⚡ Performance</h3>
+                            <h2>⚡ Performance</h2>
                             <p>A focused pass on BGP's hot path: attributes are parsed once per UPDATE instead of once per NLRI, AS-PATH prepend and hold-timer resets are allocation-free on the fast path, JSON formatting for monitors and RIB output skips work when nothing is watching, and GC pressure across the reactor and event pipeline dropped significantly.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <p>ZeFS, Ze's internal storage layer, gained per-record CRC32c checksums, in-place writes, and a check/repair CLI. Remote fleet management got easier with per-service SSH credential storage and a <code>ze remote</code> CLI for targeting other instances. DNS resolver cache management (list, selective delete, flush, stats reset), firewall masquerade port mapping, additional conntrack helpers (NFS, SQL*Net), and per-interface rate tracking (CLI, Prometheus, web) also landed.</p>
                         </div>
                     </div>
@@ -137,7 +153,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

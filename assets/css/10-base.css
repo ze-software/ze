@@ -248,6 +248,35 @@ a {
     transform: translateY(-100%);
 }
 
+/* No-JavaScript fallback navigation, rendered only when site.js does not load
+   (it otherwise replaces the mount's contents with the full menu). */
+.site-header-fallback {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 1.1rem;
+    padding: 0.85rem clamp(1rem, 4vw, 2.5rem);
+    border-bottom: 1px solid var(--header-border);
+    background: var(--header-bg);
+    font-weight: 700;
+}
+
+.site-header-fallback .brand {
+    font-family: var(--font-display, inherit);
+    font-size: 1.15rem;
+    margin-right: 0.4rem;
+}
+
+.site-header-fallback a {
+    color: var(--text, inherit);
+    text-decoration: none;
+}
+
+.site-header-fallback a:hover,
+.site-header-fallback a:focus {
+    text-decoration: underline;
+}
+
 .nav {
     display: flex;
     align-items: center;
@@ -3255,8 +3284,14 @@ footer {
     padding: 0;
 }
 
-.blog-block h3 {
+/* Weekly-update section headers are <h2> (the first heading under the page
+   <h1>) but keep the compact purple treatment of the old <h3>, not the large
+   .md-content h2 size. */
+.blog-block h2 {
+    margin-top: 1.8rem;
     margin-bottom: 0.4rem;
+    color: var(--purple);
+    font-size: clamp(1.25rem, 2.4vw, 1.6rem);
 }
 
 .md-content h1 {

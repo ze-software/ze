@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-04-06/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-04-06/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔒 BFD liveness detection">
                         <div class="md-content">
-                            <h3>🔒 BFD liveness detection</h3>
+                            <h2>🔒 BFD liveness detection</h2>
                             <p>A complete BFD implementation shipped end to end:</p>
 <ul>
 <li>Transport hardening (GTSM, jitter, single-hop and multi-hop per RFC 5881/5883)</li>
@@ -57,7 +73,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛰️ BGP routing and policy">
                         <div class="md-content">
-                            <h3>🛰️ BGP routing and policy</h3>
+                            <h2>🛰️ BGP routing and policy</h2>
                             <ul>
 <li>BMP (RFC 7854): wire format, receiver, sender, and Adj-RIB-Out support (RFC 8671)</li>
 <li>Route reflection (RFC 4456), next-hop control, and multipath</li>
@@ -69,13 +85,13 @@
                     </div>
                     <div class="blog-block" aria-label="🧩 Config editor and API">
                         <div class="md-content">
-                            <h3>🧩 Config editor and API</h3>
+                            <h2>🧩 Config editor and API</h2>
                             <p>A real REST and gRPC API landed on top of a shared transport engine, with TLS, a Swagger UI, and a working config editor with per-user auth.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔌 Interfaces">
                         <div class="md-content">
-                            <h3>🔌 Interfaces</h3>
+                            <h2>🔌 Interfaces</h2>
                             <ul>
 <li>WireGuard support: configure, reconcile, and tear down interfaces</li>
 <li>GRE, IPIP, SIT, and IP6TNL tunnel interfaces</li>
@@ -86,13 +102,13 @@
                     </div>
                     <div class="blog-block" aria-label="💿 Appliance">
                         <div class="md-content">
-                            <h3>💿 Appliance</h3>
+                            <h2>💿 Appliance</h2>
                             <p>A gokrazy VM appliance build for x86_64.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="📣 Presentation: Net Manchester">
                         <div class="md-content">
-                            <h3>📣 Presentation: Net Manchester</h3>
+                            <h2>📣 Presentation: Net Manchester</h2>
                             <p>Presented "Ze: Redoing and improving on ExaBGP" at Net Manchester this week,
 walking through why Ze exists and what it does differently from ExaBGP. Good
 session, and a good crowd to have that conversation with in person.</p>
@@ -126,7 +142,7 @@ session, and a good crowd to have that conversation with in person.</p>
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

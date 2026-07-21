@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-05-25/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-05-25/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🛰️ MPLS">
                         <div class="md-content">
-                            <h3>🛰️ MPLS</h3>
+                            <h2>🛰️ MPLS</h2>
                             <p>Label switching across three layers, verified live in QEMU against FRR:</p>
 <ul>
 <li>Kernel MPLS dataplane: push, swap, and pop programmed via netlink, with relabel support that updates a route ze already owns without clobbering another writer's</li>
@@ -54,9 +70,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="📊 Observability & telemetry">
+                    <div class="blog-block" aria-label="📊 Observability &amp; telemetry">
                         <div class="md-content">
-                            <h3>📊 Observability & telemetry</h3>
+                            <h2>📊 Observability &amp; telemetry</h2>
                             <ul>
 <li>Flow export: sFlow v5, NetFlow v9 (RFC 3954), and IPFIX (RFC 7011), with per-flow records and interface counter export to external collectors</li>
 <li>A new gNMI component (Capabilities, Get, Set, Subscribe over gRPC) for YANG-modeled config management</li>
@@ -68,25 +84,25 @@
                     </div>
                     <div class="blog-block" aria-label="🖥️ CLI">
                         <div class="md-content">
-                            <h3>🖥️ CLI</h3>
+                            <h2>🖥️ CLI</h2>
                             <p>All plugin-owned commands were renamed to a consistent verb-first grammar. Command arguments are now declared as typed YANG leaves, driving completion, validation, and docs from one source. Other additions: <code>ze help command</code> for a self-documenting command catalog, <code>| first N</code> and <code>| last N</code> pipe operators, session transcript recording (so a crash or dropped SSH session still leaves a local record), a configurable default output format, and ANSI color support in the terminal buffer library.</p>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🔒 Config & commit reliability">
+                    <div class="blog-block" aria-label="🔒 Config &amp; commit reliability">
                         <div class="md-content">
-                            <h3>🔒 Config & commit reliability</h3>
+                            <h2>🔒 Config &amp; commit reliability</h2>
                             <p>Config commits are now transactional: changes go through candidate/active/rollback versions and are only promoted after a runtime reload actually succeeds, with automatic cleanup of failed candidates. A new operation-graph solver orders config changes correctly across components (so, for example, an address and the peer that depends on it apply in the right sequence). Config schemas now carry a release-based stamp with an evolution framework for future migrations, and YANG <code>type empty</code> leaves can be used as simple presence flags. Separately, a real auth bug was fixed: PXE and bootstrap-provisioned appliances were never loading the zefs "power user," which silently broke SSH login and the web/API per-user auth path on freshly provisioned boxes.</p>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🛰️ BGP policy & RIB efficiency">
+                    <div class="blog-block" aria-label="🛰️ BGP policy &amp; RIB efficiency">
                         <div class="md-content">
-                            <h3>🛰️ BGP policy & RIB efficiency</h3>
+                            <h2>🛰️ BGP policy &amp; RIB efficiency</h2>
                             <p>New policy actions: an AS-PATH-length filter, increment/decrement on numeric attributes (local-preference, MED, AIGP), community add/remove, and an RFC 6996 remove-private-as filter. Policy chains can now use plain, operator-facing filter names instead of <code>&lt;plugin&gt;:&lt;filter&gt;</code> refs, and <code>show policy test</code> runs a chain against a supplied UPDATE without touching live state. On the RIB side, peer reconnect replay and <code>bgp rib clear out</code> now use cursor-based grouped resend instead of per-route sends, cutting reconnect replay time on large tables from seconds to roughly 100-200ms.</p>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="💿 Appliance & provisioning">
+                    <div class="blog-block" aria-label="💿 Appliance &amp; provisioning">
                         <div class="md-content">
-                            <h3>💿 Appliance & provisioning</h3>
+                            <h2>💿 Appliance &amp; provisioning</h2>
                             <p>PXE boot option support (RFC 4578) rounds out last week's DHCP/TFTP/image-server work. A busybox-based initrd now handles bare-metal PXE installs end to end (fetch, verify, write, reboot), and a first-boot bootstrap mode brings up DHCP and SSH automatically when a box has zefs but no config yet. Elsewhere: OTA image push via a vendored gokrazy updater, a unified update backend with platform-aware dispatch, and <code>ze service</code> for installing Ze as a systemd service on standard (non-gokrazy) Linux hosts.</p>
                         </div>
                     </div>
@@ -118,7 +134,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

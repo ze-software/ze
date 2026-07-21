@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-01-19/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-01-19/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,37 +60,37 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🧩 Process architecture">
                         <div class="md-content">
-                            <h3>🧩 Process architecture</h3>
+                            <h2>🧩 Process architecture</h2>
                             <p>Ze now starts as a hub/orchestrator process (<code>ze config.conf</code>) that forks BGP as a separate child process, coordinating startup with plugins over a multi-stage handshake (declare, configure, negotiate capabilities, register, ready). Config can be reloaded live with SIGHUP: the reactor re-parses the file, diffs peers, and adds or removes sessions without a restart.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔌 Plugin SDK">
                         <div class="md-content">
-                            <h3>🔌 Plugin SDK</h3>
+                            <h2>🔌 Plugin SDK</h2>
                             <p>A new SDK and developer guide (protocol details, YANG schema authoring, verify/apply handlers, command registration, testing) makes it possible to write BGP plugins outside the core tree, with a working example included. Plugins now declare a load priority so verify/apply runs in a predictable order across plugins.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🧰 Config validation">
                         <div class="md-content">
-                            <h3>🧰 Config validation</h3>
+                            <h2>🧰 Config validation</h2>
                             <p>Configuration is validated against YANG schemas (peer, peer-group, route-map, prefix-list, plugin config), with range and pattern constraints checked before anything is applied. The config editor validates as you type (debounced, with an error count in the status bar) and enforces RFC 4271's hold-time rule (0 or 3+ seconds), blocking commit while errors remain. Unsaved edits now persist between editor sessions.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🧩 Config syntax">
                         <div class="md-content">
-                            <h3>🧩 Config syntax</h3>
+                            <h2>🧩 Config syntax</h2>
                             <p>BGP configuration is now wrapped in a <code>bgp {}</code> block, with template inheritance for peer groups, laying groundwork for other protocols to sit alongside BGP in the same config file.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛠️ CLI">
                         <div class="md-content">
-                            <h3>🛠️ CLI</h3>
+                            <h2>🛠️ CLI</h2>
                             <p>Daemon and peer commands moved under a <code>bgp</code> namespace (<code>bgp daemon</code>, <code>bgp peer &lt;selector&gt;</code>) for a more consistent command surface, alongside new RIB introspection and event-subscription commands.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🐛 Fixes">
                         <div class="md-content">
-                            <h3>🐛 Fixes</h3>
+                            <h2>🐛 Fixes</h2>
                             <ul>
 <li>VPN routes carrying an SRv6 Prefix-SID were silently dropping the attribute; it's included correctly now</li>
 <li>JSON output places next-hop consistently across all NLRI families (FlowSpec had it in a different spot than everything else)</li>
@@ -109,7 +125,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

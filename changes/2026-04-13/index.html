@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-04-13/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-04-13/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -42,9 +58,9 @@
             </section>
             <section class="blog-post reveal">
                 <div class="blog-grid">
-                    <div class="blog-block" aria-label="🛰️ L2TP & PPP access">
+                    <div class="blog-block" aria-label="🛰️ L2TP &amp; PPP access">
                         <div class="md-content">
-                            <h3>🛰️ L2TP & PPP access</h3>
+                            <h2>🛰️ L2TP &amp; PPP access</h2>
                             <p>Ze gained a full L2TPv2 implementation for broadband access.</p>
 <ul>
 <li>Wire layer, tunnel FSM (SCCRQ/SCCRP/SCCCN handshake with tie-breaker resolution), and session FSM (ICRQ/ICRP/ICCN, OCRQ/OCRP, CDN)</li>
@@ -54,18 +70,18 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🔐 Authentication & AAA">
+                    <div class="blog-block" aria-label="🔐 Authentication &amp; AAA">
                         <div class="md-content">
-                            <h3>🔐 Authentication & AAA</h3>
+                            <h2>🔐 Authentication &amp; AAA</h2>
                             <ul>
 <li>TACACS+ client wired into SSH, web, and API authentication, behind a new pluggable AAA backend registry</li>
 <li>Multi-user YANG-based login, <code>ze passwd</code>, and Junos-style plaintext password import</li>
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🧱 Firewall, traffic control & VPP">
+                    <div class="blog-block" aria-label="🧱 Firewall, traffic control &amp; VPP">
                         <div class="md-content">
-                            <h3>🧱 Firewall, traffic control & VPP</h3>
+                            <h2>🧱 Firewall, traffic control &amp; VPP</h2>
                             <ul>
 <li>New nftables firewall backend and tc-netlink traffic-control backend, sharing one YANG data model, plus <code>show firewall</code>/<code>show traffic-control</code> CLI commands</li>
 <li>VPP dataplane support: connection management, startup.conf generation, DPDK binding, FIB programming via GoVPP, and a VPP interface backend with MAC/monitor support</li>
@@ -73,9 +89,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🔌 Interfaces & sysctl">
+                    <div class="blog-block" aria-label="🔌 Interfaces &amp; sysctl">
                         <div class="md-content">
-                            <h3>🔌 Interfaces & sysctl</h3>
+                            <h2>🔌 Interfaces &amp; sysctl</h2>
                             <ul>
 <li>IPv6 default routes are now managed from Router Advertisements</li>
 <li>DHCP-installed routes can carry a configurable priority (route metric), for multi-uplink setups</li>
@@ -85,13 +101,13 @@
                     </div>
                     <div class="blog-block" aria-label="⚡ Route-server performance">
                         <div class="md-content">
-                            <h3>⚡ Route-server performance</h3>
+                            <h2>⚡ Route-server performance</h2>
                             <p>Route-server forwarding got a fast path: a reactor-owned forwarding cache cuts allocations on the per-UPDATE hot path. RIB best-path records are packed more tightly with a shared interner, next-hops now store as typed IP addresses instead of strings, and encoding for FlowSpec/BGP-LS JSON and static/MVPN UPDATEs got zero- or low-allocation paths.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <p>New <code>show host *</code> commands surface hardware inventory. MCP now speaks Streamable HTTP transport with session management. The gokrazy appliance boots its config entirely from zefs (no static files), with first-boot bootstrap merging a template with live interface discovery, and a management proxy now exposes gokrazy's own console through Ze's web server. BFD authentication state now survives a session restart. BMP Route Monitoring was silently sending collectors headerless, malformed messages; it now emits complete RFC 4271 BGP messages. Redistribution can now filter per source family.</p>
                         </div>
                     </div>
@@ -123,7 +139,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

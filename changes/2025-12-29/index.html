@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2025-12-29/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2025-12-29/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,13 +60,13 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔒 Session hardening">
                         <div class="md-content">
-                            <h3>🔒 Session hardening</h3>
+                            <h2>🔒 Session hardening</h2>
                             <p>Ze no longer binds one global BGP listener. Listeners are now derived automatically from each peer's configured local address, so BGP is only exposed on interfaces that actually have a peer configured. This is a breaking change: the old TCP.Bind environment variable is gone, and every peer needs a local address set.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛰️ Route families">
                         <div class="md-content">
-                            <h3>🛰️ Route families</h3>
+                            <h2>🛰️ Route families</h2>
                             <ul>
 <li>Labeled-unicast (SAFI 4) routes, including BGP Prefix-SID, now round-trip through the API with full Adj-RIB-Out support.</li>
 <li>MPLS VPN (L3VPN) routes can be announced directly from config announce blocks, and the split /N syntax already used for plain routes now works for VPN routes too.</li>
@@ -62,7 +78,7 @@
                     </div>
                     <div class="blog-block" aria-label="🔧 Protocol correctness">
                         <div class="md-content">
-                            <h3>🔧 Protocol correctness</h3>
+                            <h2>🔧 Protocol correctness</h2>
                             <ul>
 <li>AS_PATH and AGGREGATOR now encode correctly under 4-octet ASN negotiation (RFC 6793).</li>
 <li>Path attributes are emitted in RFC 4271 Appendix F.3 order.</li>
@@ -72,9 +88,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🧰 CLI & config">
+                    <div class="blog-block" aria-label="🧰 CLI &amp; config">
                         <div class="md-content">
-                            <h3>🧰 CLI & config</h3>
+                            <h2>🧰 CLI &amp; config</h2>
                             <ul>
 <li>New <code>zebgp decode</code> command turns raw hex BGP messages into JSON.</li>
 <li>New <code>zebgp encode</code> command does the reverse: turns a route command into wire-format hex, with round-trip verification across every supported family.</li>
@@ -87,7 +103,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛠️ Reliability">
                         <div class="md-content">
-                            <h3>🛠️ Reliability</h3>
+                            <h2>🛠️ Reliability</h2>
                             <ul>
 <li>Session teardown and reconnect handling is more robust.</li>
 <li>A data race in process shutdown is fixed, and processes now receive a shutdown signal before termination instead of being killed outright.</li>
@@ -123,7 +139,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

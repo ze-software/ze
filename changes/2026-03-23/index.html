@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-03-23/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-03-23/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🖥️ Web interface">
                         <div class="md-content">
-                            <h3>🖥️ Web interface</h3>
+                            <h2>🖥️ Web interface</h2>
                             <p>A browser-based config editor shipped alongside the existing CLI and SSH editor:</p>
 <ul>
 <li>YANG-driven rendering with per-user drafts, inline diffs, and live SSE updates</li>
@@ -57,19 +73,19 @@
                     </div>
                     <div class="blog-block" aria-label="🧩 Fleet management">
                         <div class="md-content">
-                            <h3>🧩 Fleet management</h3>
+                            <h2>🧩 Fleet management</h2>
                             <p>A managed/fleet-config system landed: named hub blocks with per-client authentication, a managed client with first-boot TLS bootstrap, duplicate-client rejection, and CLI flags for managed mode. A client stops itself automatically if <code>managed</code> is turned off in its config.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔌 Redistribution filtering">
                         <div class="md-content">
-                            <h3>🔌 Redistribution filtering</h3>
+                            <h2>🔌 Redistribution filtering</h2>
                             <p>External plugins can now filter and modify routes on ingress and egress: a YANG-configured filter chain with piped transforms and reject short-circuit, wired into the reactor's forwarding path, shipped with a working community filter plugin.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔒 Plugin and session security">
                         <div class="md-content">
-                            <h3>🔒 Plugin and session security</h3>
+                            <h2>🔒 Plugin and session security</h2>
                             <ul>
 <li>Plugin TLS hardened with per-plugin tokens, certificate pinning, and secret clearing from the environment</li>
 <li>The ExaBGP compatibility bridge gained a TLS connect-back mode for engine-launched plugins</li>
@@ -80,7 +96,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛰️ Routing correctness">
                         <div class="md-content">
-                            <h3>🛰️ Routing correctness</h3>
+                            <h2>🛰️ Routing correctness</h2>
                             <ul>
 <li>Route loop detection: AS-path, ORIGINATOR_ID, and CLUSTER_LIST loops are caught and silently withdrawn before reaching prefix limits or plugins (RFC 4271 §9, RFC 4456 §8)</li>
 <li>Hold timer split in two per RFC 9687: <code>receive-hold-time</code> (the classic RFC 4271 timer) and <code>send-hold-time</code> (auto by default)</li>
@@ -93,7 +109,7 @@
                     </div>
                     <div class="blog-block" aria-label="📊 Observability and prefix hygiene">
                         <div class="md-content">
-                            <h3>📊 Observability and prefix hygiene</h3>
+                            <h2>📊 Observability and prefix hygiene</h2>
                             <ul>
 <li>Prometheus instrumentation expanded with histograms, session lifecycle, wire metrics, and plugin health (status, restarts, delivery)</li>
 <li>New prefix data infrastructure pulls maximum-prefix guidance from PeeringDB and IRR/RIR delegation data, tracks staleness, and warns on stale data at login and in <code>show</code></li>
@@ -103,7 +119,7 @@
                     </div>
                     <div class="blog-block" aria-label="⚡ Performance and benchmarking">
                         <div class="md-content">
-                            <h3>⚡ Performance and benchmarking</h3>
+                            <h2>⚡ Performance and benchmarking</h2>
                             <p>TCP_NODELAY is now enabled on production BGP sessions, and outgoing packets get DSCP CS6 marking. The <code>ze-perf</code> benchmarking tool grew report generation and gained more implementations to compare against: RustyBGP, freeRtr, and GoBGP alongside BIRD.</p>
                         </div>
                     </div>
@@ -135,7 +151,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

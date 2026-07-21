@@ -236,9 +236,6 @@ def render_markdown(commands, groups):
     return "\n".join(parts).strip() + "\n"
 
 
-FILTER_SCRIPT = ""
-
-
 def render(commands, groups):
     root = "../"
     title = "CLI Reference - Ze"

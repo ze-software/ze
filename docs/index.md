@@ -32,9 +32,13 @@ Task-oriented guides for protocol setup, access services, migration, and diagnos
 - [Looking glass publish read-only BGP visibility](https://ze-software.net/docs/guide/looking-glass-howto/)
 - [Firewall and policy routing protect and steer traffic](https://ze-software.net/docs/guide/firewall/)
 - [OSPF, IS-IS, and static routes bring routing protocols online](https://ze-software.net/docs/guide/ospf/)
+- [MPLS label switching with LDP and RSVP-TE](https://ze-software.net/docs/guide/mpls/)
+- [SRv6 segment routing over IPv6 and SID programming](https://ze-software.net/docs/features/srv6/)
+- [Traffic control shape, queue, and prioritise egress traffic](https://ze-software.net/docs/guide/traffic-control/)
 - [PPPoE and L2TP access concentration paths](https://ze-software.net/docs/guide/pppoe/)
 - [Native IPsec configure IKEv2 initiator and responder tunnels](https://ze-software.net/docs/guide/ipsec/)
 - [Monitoring and diagnostics flow export, MRT, and production checks](https://ze-software.net/docs/guide/monitoring/)
+- [Debugging tools trace netlink, capture packets, and inspect state](https://ze-software.net/docs/guide/debugging-tools/)
 - [BGP peering groups, families, capabilities, and verification](https://ze-software.net/docs/guide/bgp-peering/)
 - [BGP policy import, export, validation, and redistribution](https://ze-software.net/docs/guide/bgp-policy/)
 - [BGP resilience refresh, GR, persistence, reflection, and multipath](https://ze-software.net/docs/guide/bgp-resilience/)
@@ -72,6 +76,7 @@ Information-oriented pages generated from live data where possible.
 Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.
 
 - [Architecture engine, config, plugins, and operator surfaces](https://ze-software.net/docs/architecture/)
+- [Route selection how Ze picks the best path, step by step](https://ze-software.net/docs/architecture/route-selection/)
 - [Compare Ze against BIRD, FRR, GoBGP, and others](https://ze-software.net/compare/)
 - [Performance measured BGP benchmarks and methodology](https://ze-software.net/performance/)
 - [VPP deployment reference startup.conf, NIC, LCP, and notes](https://ze-software.net/docs/research/vpp-deployment-reference/)
@@ -87,11 +92,15 @@ Explanation pages for architecture, comparisons, performance, labs, and deployme
 
 Project context for people deciding whether to try Ze or help shape it.
 
+- [Why Ze what makes Ze different and who it is for](https://ze-software.net/docs/why-ze/)
 - [Roadmap the path to the first release](https://ze-software.net/roadmap/)
 - [Changes what shipped, week by week](https://ze-software.net/changes/)
 - [Blog longer notes behind the work](https://ze-software.net/blog/)
 - [FAQ answers before you commit time](https://ze-software.net/faq/)
 - [Contribute code, bug reports, and interop results](https://ze-software.net/contribute/)
+- [Developer setup build, test, and debug the Ze source tree](https://ze-software.net/docs/guide/developer-setup/)
+- [RFC implementation guide how a new RFC gets built and proven](https://ze-software.net/docs/contributing/rfc-implementation-guide/)
+- [Documentation testing keep docs honest with tested command output](https://ze-software.net/docs/contributing/documentation-testing/)
 - [Project history how ExaBGP's programmable model grew into Ze](https://ze-software.net/docs/history/)
 - [Glossary BGP, policy, configuration, operator, and testing terms](https://ze-software.net/docs/glossary/)
 - [Contributor testing choose the right proof layer and run it locally](https://ze-software.net/docs/contributing/testing/)

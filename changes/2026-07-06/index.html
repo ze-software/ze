@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-07-06/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-07-06/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔐 IPsec / IKEv2">
                         <div class="md-content">
-                            <h3>🔐 IPsec / IKEv2</h3>
+                            <h2>🔐 IPsec / IKEv2</h2>
                             <p>Ze can now sit on the answering side of an IPsec tunnel, not just dial one:</p>
 <ul>
 <li>Full IKEv2 responder role: it accepts an unsolicited IKE_SA_INIT, authenticates with PSK, X.509, or EAP (acting as the EAP-MSCHAPv2 / EAP-TLS server), and brings up the first Child SA.</li>
@@ -54,7 +70,7 @@
                     </div>
                     <div class="blog-block" aria-label="🌐 Encrypted and validated DNS">
                         <div class="md-content">
-                            <h3>🌐 Encrypted and validated DNS</h3>
+                            <h2>🌐 Encrypted and validated DNS</h2>
                             <ul>
 <li>The AS112 and GeoDNS servers gained DNS-over-TLS (RFC 7858) and DNS-over-HTTPS (RFC 8484) listeners, answering with the same authoritative policy as cleartext.</li>
 <li>The stub resolver added DNSSEC validation modes (off, permissive, strict): strict fails closed on a broken chain, permissive fails open and logs. Exposed via <code>ze resolve dns --dnssec</code>.</li>
@@ -63,7 +79,7 @@
                     </div>
                     <div class="blog-block" aria-label="📡 L2TP as initiator, PPPoE relay">
                         <div class="md-content">
-                            <h3>📡 L2TP as initiator, PPPoE relay</h3>
+                            <h2>📡 L2TP as initiator, PPPoE relay</h2>
                             <p>L2TP previously only answered; it can now originate:</p>
 <ul>
 <li>The initiator half of the L2TPv2 control channel: dial a tunnel, drive the SCCRP handshake with mutual CHAP, and place calls.</li>
@@ -73,7 +89,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛡️ DDoS mitigation">
                         <div class="md-content">
-                            <h3>🛡️ DDoS mitigation</h3>
+                            <h2>🛡️ DDoS mitigation</h2>
                             <ul>
 <li>Mitigation is now direction-aware: a victim is classified as box-local (dropped at INPUT) or transit (FORWARD drop or FlowSpec upstream), and a single allow/deny traffic policy with longest-prefix rules replaces the old per-responder allowlists.</li>
 <li>A bandwidth (bits-per-second) trigger now catches low-packet, high-volume amplification (NTP, memcached, CLDAP) that a packet-rate trigger misses. Detection baselines persist across restarts, and each incident carries a confidence score shown in <code>show ddos incidents</code>.</li>
@@ -83,7 +99,7 @@
                     </div>
                     <div class="blog-block" aria-label="🔌 VPP data plane">
                         <div class="md-content">
-                            <h3>🔌 VPP data plane</h3>
+                            <h2>🔌 VPP data plane</h2>
                             <p>The VPP backend gained a lot of parity with the kernel path:</p>
 <ul>
 <li>Tunnels: GRE, GRETAP, IPIP, and VXLAN.</li>
@@ -96,7 +112,7 @@
                     </div>
                     <div class="blog-block" aria-label="🖥️ Web UI and operator auth">
                         <div class="md-content">
-                            <h3>🖥️ Web UI and operator auth</h3>
+                            <h2>🖥️ Web UI and operator auth</h2>
                             <ul>
 <li>Web login now runs through the AAA chain, so RADIUS and TACACS+ admins can sign in, with local users as fallback. A new RADIUS PAP backend (RFC 2865) also covers SSH and MCP operator logins.</li>
 <li>Role-based access control: read-only sessions are blocked from the admin console and config editor (page and mutation enforced by the same authorizer), and edit controls are hidden from them.</li>
@@ -109,7 +125,7 @@
                     </div>
                     <div class="blog-block" aria-label="📊 Observability fixes">
                         <div class="md-content">
-                            <h3>📊 Observability fixes</h3>
+                            <h2>📊 Observability fixes</h2>
                             <ul>
 <li>Two long-standing bugs fixed: telemetry memory gauges under-reported by 1024x (kilobytes read as bytes), and MRT dumps had never activated in production because their config was never applied. Both are now correct, with tests pinning them.</li>
 <li>The <code>/metrics</code> endpoint now exposes Go runtime and process stats (goroutines, GC, CPU, memory, file descriptors), plus new counters for AS_PATH loop rejects and ASPA validation outcomes.</li>
@@ -118,7 +134,7 @@
                     </div>
                     <div class="blog-block" aria-label="💿 Appliance and resilience">
                         <div class="md-content">
-                            <h3>💿 Appliance and resilience</h3>
+                            <h2>💿 Appliance and resilience</h2>
                             <ul>
 <li>The gokrazy init was bumped to clear CVE-2026-25680.</li>
 <li>Unreachable external services (NTP, a RADIUS CoA server, the managed hub) can no longer stall boot or a config commit.</li>
@@ -128,7 +144,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <ul>
 <li>Twelve config parsers that compared YANG values as if already typed now coerce the string form correctly, so valid config is no longer silently defaulted.</li>
 <li>MCP consolidated onto the Streamable HTTP transport and the legacy handler was removed; the ExaBGP bridge is now an internal, config-delivered plugin; and the managed hub finally serves fleet clients that used to be dropped after authenticating.</li>
@@ -138,7 +154,7 @@
                     </div>
                     <div class="blog-block" aria-label="🔭 Coming up">
                         <div class="md-content">
-                            <h3>🔭 Coming up</h3>
+                            <h2>🔭 Coming up</h2>
                             <p>Design work has started on a RIB architecture refresh (long-lived graceful restart, RFC 5549 next-hops, real-time ECMP in the FIB) and on advanced graceful restart (RFC 8538 Hard Reset and notification-aware route retention). A DHCPv6 server remains on the drawing board.</p>
                         </div>
                     </div>
@@ -170,7 +186,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

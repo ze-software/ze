@@ -24,9 +24,9 @@ changelog. A feed (blog/feed.xml) is written only once at least one article
 exists.
 """
 
+import html
 import pathlib
 import re
-import sys
 from datetime import date
 from xml.sax.saxutils import escape
 
@@ -138,11 +138,11 @@ def render_index(articles):
         cats = ["cat-operate", "cat-routing", "cat-automate", "cat-observe", "cat-secure", "cat-services", "cat-platform"]
         for i, a in enumerate(articles):
             parts.append('                    <article class="card card-post %s">' % cats[i % 7])
-            parts.append('                        <h3><a href="%s/">%s</a></h3>' % (a["slug"], a["title"]))
+            parts.append('                        <h3><a href="%s/">%s</a></h3>' % (a["slug"], html.escape(a["title"])))
             if a["date"]:
-                parts.append('                        <span class="chip">%s</span>' % a["date"])
+                parts.append('                        <span class="chip">%s</span>' % html.escape(a["date"]))
             if a["description"]:
-                parts.append("                        <p>%s</p>" % a["description"])
+                parts.append("                        <p>%s</p>" % html.escape(a["description"]))
             parts.append('                        <span class="post-more">Read the article</span>')
             parts.append("                    </article>")
         parts.append("                </div>")

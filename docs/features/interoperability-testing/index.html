@@ -20,15 +20,31 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/docs/features/interoperability-testing/" />
+        <meta property="og:url" content="https://ze-software.net/docs/features/interoperability-testing/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-observe">
@@ -59,7 +75,7 @@ daemon instances in containers and exchange real BGP messages.</p>
 </tr>
 <tr>
 <td>Scenario count</td>
-<td>96 scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3)</td>
+<td>100+ scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3)</td>
 </tr>
 <tr>
 <td>Runner</td>
@@ -73,7 +89,7 @@ daemon instances in containers and exchange real BGP messages.</p>
 </table>
 <h2 id="scenarios">Scenarios</h2>
 <p>The table below is a representative subset covering the core BGP protocol and
-extensions. The full suite has 96 scenarios; the remainder exercise RPKI, BMP,
+extensions. The full suite has over 100 scenarios; the remainder exercise RPKI, BMP,
 IS-IS, and OSPF/OSPFv3 interoperability against FRR.</p>
 <table>
 <thead>
@@ -300,7 +316,7 @@ BGP daemons. Ze's suite has more scenarios and tests against more target impleme
             </aside>
         </main>
 
-        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

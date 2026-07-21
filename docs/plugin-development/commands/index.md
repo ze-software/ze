@@ -24,7 +24,7 @@ Register a handler with `OnExecuteCommand` before calling `Run`. The handler rec
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status, data string, err error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     switch command {
     case "my-plugin status":
         return "done", `{"status":"running","uptime":3600}`, nil
@@ -66,7 +66,7 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 
 ## Return Values
 
-The `OnExecuteCommand` handler returns three values: `(status, data string, err error)`.
+The `OnExecuteCommand` handler returns three values: `(status string, data any, err error)`.
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleExecuteCommand -->
 
 ### Success with Data
@@ -138,7 +138,7 @@ The engine sends these fields in the `execute-command` RPC:
 Arguments arrive in the `args` parameter of the handler:
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     if command == "my-plugin get" {
         if len(args) < 1 {
             return "error", "usage: my-plugin get <key>", nil
@@ -174,7 +174,7 @@ Commands are declared with these fields:
 Return structured JSON data for API consumers:
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     if command == "monitor metrics" {
         data, _ := json.Marshal(struct {
             Checks    int     `json:"checks"`

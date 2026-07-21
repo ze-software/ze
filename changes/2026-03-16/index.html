@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-03-16/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-03-16/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔒 RPKI route origin validation">
                         <div class="md-content">
-                            <h3>🔒 RPKI route origin validation</h3>
+                            <h2>🔒 RPKI route origin validation</h2>
                             <p>A complete RPKI pipeline shipped this week:</p>
 <ul>
 <li>A new plugin speaks the RTR protocol, maintains a ROA cache, and validates route origins against it</li>
@@ -53,9 +69,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🛰️ Routing & RFC compliance">
+                    <div class="blog-block" aria-label="🛰️ Routing &amp; RFC compliance">
                         <div class="md-content">
-                            <h3>🛰️ Routing & RFC compliance</h3>
+                            <h2>🛰️ Routing &amp; RFC compliance</h2>
                             <ul>
 <li>RFC 9234 Only-to-Customer (OTC) attribute processing, enforcing customer/peer/provider role safety</li>
 <li>RFC 9494 Long-Lived Graceful Restart, extending stale-route retention beyond the standard GR timer</li>
@@ -71,13 +87,13 @@
                     </div>
                     <div class="blog-block" aria-label="📡 Route delivery reliability">
                         <div class="md-content">
-                            <h3>📡 Route delivery reliability</h3>
+                            <h2>📡 Route delivery reliability</h2>
                             <p>Adj-RIB-in now replays known routes to a peer as soon as it reaches Established, so new or reconnecting peers don't wait on fresh updates to converge. Outbound forwarding is also non-blocking now: a bounded per-peer overflow buffer and write deadline mean one slow or stuck peer can no longer stall delivery to everyone else, with peer-congested/peer-resumed events exposed to plugins.</p>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🖥️ CLI & operator experience">
+                    <div class="blog-block" aria-label="🖥️ CLI &amp; operator experience">
                         <div class="md-content">
-                            <h3>🖥️ CLI & operator experience</h3>
+                            <h2>🖥️ CLI &amp; operator experience</h2>
                             <ul>
 <li>New <code>bgp monitor</code> command streams live BGP events</li>
 <li><code>ze config ls</code>, <code>cat</code>, <code>import</code>, and <code>rename</code> round out config file management</li>
@@ -89,15 +105,15 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🔐 Daemon & security hardening">
+                    <div class="blog-block" aria-label="🔐 Daemon &amp; security hardening">
                         <div class="md-content">
-                            <h3>🔐 Daemon & security hardening</h3>
+                            <h2>🔐 Daemon &amp; security hardening</h2>
                             <p>SSH is now the only external interface to the daemon: Unix sockets, flock files, and PID files are gone, and <code>ze cli</code>, <code>signal</code>, <code>status</code>, <code>config edit</code>, <code>run</code>, and <code>show</code> all connect over SSH. <code>ze init</code> bootstraps the credential store and <code>ze start</code> resolves the default config and launches the daemon. The daemon also now binds privileged ports as root and drops to a configured user/group afterward, and external plugin transport moved from Unix socketpairs to TLS.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🧪 Interop testing">
                         <div class="md-content">
-                            <h3>🧪 Interop testing</h3>
+                            <h2>🧪 Interop testing</h2>
                             <p>GoBGP joins BIRD and FRR as a third interop target, and the interop test suite was rewritten in Python with 9 new scenarios.</p>
                         </div>
                     </div>
@@ -129,7 +145,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

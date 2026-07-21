@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-07-01/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-07-01/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🌐 AS112 anycast DNS">
                         <div class="md-content">
-                            <h3>🌐 AS112 anycast DNS</h3>
+                            <h2>🌐 AS112 anycast DNS</h2>
                             <p>The AS112 node flagged last week as design work has shipped (RFC 7534 / 7535):</p>
 <ul>
 <li>An authoritative sink for misdirected RFC 1918 and link-local reverse-DNS queries, plus the EMPTY.AS112.ARPA DNAME redirection zone.</li>
@@ -55,7 +71,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛡️ Behavioral anomaly detection">
                         <div class="md-content">
-                            <h3>🛡️ Behavioral anomaly detection</h3>
+                            <h2>🛡️ Behavioral anomaly detection</h2>
                             <p>A new security domain, separate from volumetric DDoS, that watches how traffic behaves rather than how much of it there is:</p>
 <ul>
 <li>A report-only detector builds a per-source baseline (fan-out, out/in ratio, destination-port entropy, new-peer and rare-port activity, coarse beaconing), scores deviation and cohort rarity, and correlates weak signals into a single incident with a confirm/clear lifecycle. Visible under <code>show anomaly</code>.</li>
@@ -67,7 +83,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛰️ Routing">
                         <div class="md-content">
-                            <h3>🛰️ Routing</h3>
+                            <h2>🛰️ Routing</h2>
                             <ul>
 <li>OSPF gained a full extension family across both OSPFv2 and OSPFv3: Segment Routing, traffic engineering, TI-LFA and LFA fast reroute, graceful restart, BFD, LDP-IGP sync, virtual links, NBMA and point-to-multipoint, multi-instance, OSPFv3 multi-AF, and OSPFv3 IPsec.</li>
 <li>BGP now emits AS4_PATH toward two-octet peers when a four-octet origin AS cannot be mapped, so the peer recovers the real origin instead of seeing AS_TRANS (RFC 6793).</li>
@@ -79,7 +95,7 @@
                     </div>
                     <div class="blog-block" aria-label="⌨️ Verb-first CLI">
                         <div class="md-content">
-                            <h3>⌨️ Verb-first CLI</h3>
+                            <h2>⌨️ Verb-first CLI</h2>
                             <p>Command syntax is now uniformly verb-first, enforced so it stays that way:</p>
 <ul>
 <li>Reads consistently: <code>show host</code>, <code>show crashes</code>, <code>show event list</code>, <code>show metrics pool</code>, <code>request config archive</code>.</li>
@@ -89,9 +105,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🔒 Security & hardening">
+                    <div class="blog-block" aria-label="🔒 Security &amp; hardening">
                         <div class="md-content">
-                            <h3>🔒 Security & hardening</h3>
+                            <h2>🔒 Security &amp; hardening</h2>
                             <ul>
 <li>Six outbound services (BMP, RPKI/RTR, flow-export, IRR whois, the managed hub TLS client, and LDP) can now bind to a chosen source address; unset means OS-selected, unchanged.</li>
 <li>Config archive now redacts credentials from both error and success messages.</li>
@@ -101,7 +117,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <ul>
 <li>The VPP backend reloads on crash or reconnect to clear stale state instead of running on.</li>
 <li>DNS serving moved to a shared in-core harness (now behind both GeoDNS and AS112) with the recursion guard turned into an enforced invariant.</li>
@@ -110,7 +126,7 @@
                     </div>
                     <div class="blog-block" aria-label="🔭 Looking ahead">
                         <div class="md-content">
-                            <h3>🔭 Looking ahead</h3>
+                            <h2>🔭 Looking ahead</h2>
                             <p>The near-term focus is proving the capabilities already shipped hold up in real deployments. Further out, with no fixed order, some design threads are being sketched, including IPsec / IKEv2 hardening and a DHCPv6 server.</p>
                         </div>
                     </div>
@@ -142,7 +158,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

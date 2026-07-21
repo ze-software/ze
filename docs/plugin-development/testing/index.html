@@ -20,15 +20,31 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/docs/plugin-development/testing/" />
+        <meta property="og:url" content="https://ze-software.net/docs/plugin-development/testing/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-observe">
@@ -224,7 +240,7 @@ a serial, command name, args, and peer address, and returns status, data, and er
 <pre><code class="language-go">func TestCommandHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
-    p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+    p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
         if command == &quot;show-status&quot; {
             return &quot;done&quot;, `{&quot;status&quot;:&quot;healthy&quot;}`, nil
         }
@@ -328,7 +344,7 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
         t.Run(tt.name, func(t *testing.T) {
             p, engineMux := newTestPair(t)
 
-            p.OnExecuteCommand(func(serial, cmd string, args []string, peer string) (string, string, error) {
+            p.OnExecuteCommand(func(serial, cmd string, args []string, peer string) (string, any, error) {
                 if cmd == &quot;show-routes&quot; {
                     return &quot;done&quot;, `{&quot;count&quot;:42}`, nil
                 }
@@ -406,7 +422,7 @@ p.OnEvent(func(event string) error {
             </section>
         </main>
 
-        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

@@ -735,9 +735,6 @@ def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
     return "\n".join(lines).strip() + "\n"
 
 
-FILTER_SCRIPT = ""
-
-
 def main():
     mapping, commands, rc = load_inputs()
     if rc:

@@ -127,7 +127,7 @@ Called at runtime when the engine routes a command to the plugin.
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status, data string, err error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     // serial: request correlation ID
     // command: the command name (e.g., "rib adjacent status")
     // args: additional arguments

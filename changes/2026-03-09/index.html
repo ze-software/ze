@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-03-09/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-03-09/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -42,9 +58,9 @@
             </section>
             <section class="blog-post reveal">
                 <div class="blog-grid">
-                    <div class="blog-block" aria-label="🔒 Security & session hardening">
+                    <div class="blog-block" aria-label="🔒 Security &amp; session hardening">
                         <div class="md-content">
-                            <h3>🔒 Security & session hardening</h3>
+                            <h2>🔒 Security &amp; session hardening</h2>
                             <ul>
 <li>TCP MD5 authentication for BGP sessions (RFC 2385), with platform-specific handling on Linux, FreeBSD, and macOS</li>
 <li>An SSH server component (built on Charm Wish) with password auth and a per-session command UI, now the primary way to reach the CLI</li>
@@ -53,9 +69,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🧩 Config editing & safety">
+                    <div class="blog-block" aria-label="🧩 Config editing &amp; safety">
                         <div class="md-content">
-                            <h3>🧩 Config editing & safety</h3>
+                            <h2>🧩 Config editing &amp; safety</h2>
                             <ul>
 <li>Config storage moved onto a dedicated blob-store backend (zefs), with atomic writes and path-traversal protection, backing config history, rollback, and diff</li>
 <li>Concurrent config editing: sessions, conflict detection, and a set+meta format so multiple operators can edit safely</li>
@@ -66,9 +82,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🛰️ CLI & operations">
+                    <div class="blog-block" aria-label="🛰️ CLI &amp; operations">
                         <div class="md-content">
-                            <h3>🛰️ CLI & operations</h3>
+                            <h2>🛰️ CLI &amp; operations</h2>
                             <ul>
 <li>New <code>bgp log show/set</code> and <code>bgp metrics show/list</code> commands for runtime control and visibility</li>
 <li><code>rib show</code> gained community and AS-path regex filters, and output now supports yaml/json/table formats</li>
@@ -108,7 +124,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

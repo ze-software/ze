@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-02-16/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-02-16/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,19 +60,19 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔀 Route reflector hardening">
                         <div class="md-content">
-                            <h3>🔀 Route reflector hardening</h3>
+                            <h2>🔀 Route reflector hardening</h2>
                             <p>The route reflector had a rough week of bug-hunting and came out solid. Fixes landed for routes being dropped under a slow consumer, deadlocks from subscribing to both directions of a session, incorrect per-family filtering, and log spam during backpressure. The UPDATE cache is now refcounted with configurable size and TTL, out-of-order acknowledgements are treated as no-ops instead of protocol violations, and forwarding moved to per-source and per-destination worker pools so one slow peer no longer stalls the others. Shutdown got faster too: sequential per-component timeouts that used to compound are now parallel waits under a single deadline, making daemon stop near-instant.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🌪️ Chaos tool dashboard">
                         <div class="md-content">
-                            <h3>🌪️ Chaos tool dashboard</h3>
+                            <h2>🌪️ Chaos tool dashboard</h2>
                             <p>The chaos testing tool (now renamed <code>ze-chaos</code>) gained a live web dashboard (<code>--web :8080</code>) with real-time SSE event streaming, a peer status grid, a route matrix heatmap, and pause/resume/rate controls. Underneath it: an in-process simulation mode with virtual time that runs over 100x faster than driving real TCP connections, a set of composable RFC property assertions (route consistency, convergence deadlines, no duplicate routes, hold-timer enforcement, message ordering) checked against every run, and a shrink engine that reduces a failing run down to a minimal reproduction automatically. Chaos fault injection can now also be wired directly into a running Ze process via CLI flag, environment variable, or config.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="📄 A new IETF draft: ATTR_TOMBSTONE">
                         <div class="md-content">
-                            <h3>📄 A new IETF draft: ATTR_TOMBSTONE</h3>
+                            <h2>📄 A new IETF draft: ATTR_TOMBSTONE</h2>
                             <p>RFC 7606's "attribute discard" action says a malformed attribute MUST be
 removed and the UPDATE continues to be processed. The conventional way to do
 that is to rebuild the whole path attributes section: shift every attribute
@@ -82,7 +98,7 @@ own wire encoding: operate on the buffer in place instead of copying it.</p>
                     </div>
                     <div class="blog-block" aria-label="🛰️ Protocol and config">
                         <div class="md-content">
-                            <h3>🛰️ Protocol and config</h3>
+                            <h2>🛰️ Protocol and config</h2>
                             <ul>
 <li>Duplicate router IDs within the same AS are now rejected on OPEN per RFC 4271 §4.2</li>
 <li>All BGP capabilities (ASN4, route refresh, extended message, add-path, graceful restart, extended next-hop) now share the same four enforcement modes as address families: enable, disable, require, refuse</li>
@@ -94,7 +110,7 @@ own wire encoding: operate on the buffer in place instead of copying it.</p>
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <p>BGP capability handling (route refresh, graceful restart, hostname, software version) moved out of the core engine into independent plugins, and a lightweight "summary" subscription format was added for consumers that only need announce/withdraw and family information rather than fully decoded attributes.</p>
                         </div>
                     </div>
@@ -126,7 +142,7 @@ own wire encoding: operate on the buffer in place instead of copying it.</p>
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

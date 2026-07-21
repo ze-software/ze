@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-01-05/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-01-05/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,13 +60,13 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔄 Route refresh">
                         <div class="md-content">
-                            <h3>🔄 Route refresh</h3>
+                            <h2>🔄 Route refresh</h2>
                             <p>Enhanced Route Refresh (RFC 7313) is now handled end to end: a refresh request gets a Begin-of-RR, the matching routes, then an End-of-RR, and the capability negotiation bug that stopped BoRR/EoRR from ever being sent when <code>route-refresh</code> was configured is fixed. New <code>msg-id retain</code> / <code>release</code> / <code>expire</code> / <code>list</code> commands let an API program control how long UPDATE messages stay cached, which graceful-restart tooling can use to replay routes.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🧩 Plugin API: routes and families">
                         <div class="md-content">
-                            <h3>🧩 Plugin API: routes and families</h3>
+                            <h2>🧩 Plugin API: routes and families</h2>
                             <ul>
 <li>ADD-PATH (RFC 7911) path-ids are now preserved through the plugin event stream, so plugins can tell multiple paths to the same prefix apart</li>
 <li>A FlowSpec text-mode parser (RFC 8955) covering all twelve match-component types and both numeric and bitmask operators</li>
@@ -64,7 +80,7 @@
                     </div>
                     <div class="blog-block" aria-label="🐛 Protocol correctness">
                         <div class="md-content">
-                            <h3>🐛 Protocol correctness</h3>
+                            <h2>🐛 Protocol correctness</h2>
                             <ul>
 <li>UPDATE messages built via the text API always include ORIGIN and AS_PATH, the two RFC 4271 mandatory attributes that could previously be missing</li>
 <li>Fixed attribute ordering in batched UPDATE messages (AS_PATH and NEXT_HOP were landing in the wrong position, and iBGP sessions were missing LOCAL_PREF)</li>
@@ -101,7 +117,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

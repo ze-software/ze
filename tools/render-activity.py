@@ -33,8 +33,17 @@ def slice_between(text, start_marker, end_marker, start_from=0):
 
 
 def extract(raw):
-    stats_start = raw.index('<section class="stats"')
-    stats_end = raw.index("</section>", stats_start) + len("</section>")
+    def idx(marker, start=0):
+        pos = raw.find(marker, start)
+        if pos == -1:
+            raise ValueError(
+                "activity extract: marker %r not found in loc_activity output; "
+                "presentations/tools/loc_activity.py markup may have changed" % marker
+            )
+        return pos
+
+    stats_start = idx('<section class="stats"')
+    stats_end = idx("</section>", stats_start) + len("</section>")
     stats_html = raw[stats_start:stats_end]
     stats_html = stats_html.replace(
         '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem">',
@@ -42,13 +51,13 @@ def extract(raw):
     )
     stats_html = re.sub(r"Peak (line|commit) day \([^)]+\)", r"Peak \1 day", stats_html)
 
-    chart_start = raw.index('<div class="chart-scroll">')
-    legend_open = raw.index('<div class="legend">', chart_start)
-    legend_end = raw.index("</div>", legend_open) + len("</div>")
+    chart_start = idx('<div class="chart-scroll">')
+    legend_open = idx('<div class="legend">', chart_start)
+    legend_end = idx("</div>", legend_open) + len("</div>")
     chart_html = raw[chart_start:legend_end]
 
-    go_panel_start = raw.index('<section class="panel go-panel"')
-    go_panel_end = raw.index("</section>", go_panel_start) + len("</section>")
+    go_panel_start = idx('<section class="panel go-panel"')
+    go_panel_end = idx("</section>", go_panel_start) + len("</section>")
     go_panel_html = raw[go_panel_start:go_panel_end]
     # bucket titles repeat the original panel name in every heading.
     # The panel h2 is clearer on its own, so drop the redundant suffix.
@@ -61,13 +70,13 @@ def extract(raw):
     )
 
 
-    tooltip_start = raw.index('<div id="activity-tooltip"')
-    tooltip_last_span = raw.index("</span>", raw.index("tooltip-secondary", tooltip_start)) + len("</span>")
-    tooltip_end = raw.index("</div>", tooltip_last_span) + len("</div>")
+    tooltip_start = idx('<div id="activity-tooltip"')
+    tooltip_last_span = idx("</span>", idx("tooltip-secondary", tooltip_start)) + len("</span>")
+    tooltip_end = idx("</div>", tooltip_last_span) + len("</div>")
     tooltip_html = raw[tooltip_start:tooltip_end]
 
-    script_start = raw.index("<script>")
-    script_end = raw.index("</script>") + len("</script>")
+    script_start = idx("<script>")
+    script_end = idx("</script>") + len("</script>")
     script_html = re.sub(r'"peakLabel":"Peak (line|commit) day \([^)]+\)"', r'"peakLabel":"Peak \1 day"', raw[script_start:script_end])
     script_html = re.sub(r',"topHeading":"[^"]+","topColumn":"[^"]+"', "", script_html)
     script_html = re.sub(r'^\s*setEl\("top-heading".*\n', "", script_html, flags=re.MULTILINE)

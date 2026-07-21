@@ -20,15 +20,31 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/quality/health/" />
+        <meta property="og:url" content="https://ze-software.net/quality/health/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
 
@@ -57,12 +73,12 @@
 .th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid rgba(0,0,0,.08); }
 </style>
 
-<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>36 / 165</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Test files that expect a specific error</td><td>Q2</td><td><strong>831 / 2593</strong></td><td>Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>6</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
+<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>36 / 165</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Test files that expect a specific error</td><td>Q2</td><td><strong>831 / 2594</strong></td><td>Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>6</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">136 / 19970 (floor 136) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="136 of 19970"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 19970 (0.7%)</p>
+  <p class="th-value">136 / 19977 (floor 136) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="136 of 19977"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 19977 (0.7%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>cmd/ze/hub/aaa_lifecycle_test.go</code></td><td><code>TestCloseAAABundleNoBundle</code></td></tr><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr></tbody></table>
@@ -95,8 +111,8 @@
 </article>
 <article class="th-card th-warn">
   <h3>Test files that expect a specific error</h3>
-  <p class="th-value">831 / 2593 <span class="th-status">Needs attention</span></p>
-  <div class="th-meter" role="img" aria-label="831 of 2593"><span class="th-meter-fill" style="width:32.0%"></span></div><p class="th-meter-note">831 of 2593 (32.0%)</p>
+  <p class="th-value">831 / 2594 <span class="th-status">Needs attention</span></p>
+  <div class="th-meter" role="img" aria-label="831 of 2594"><span class="th-meter-fill" style="width:32.0%"></span></div><p class="th-meter-note">831 of 2594 (32.0%)</p>
   <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
   <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
   <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>9</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>10</code></td><td><code>1</code></td><td><code>10.0</code></td></tr><tr><td><code>internal/component/cmd</code></td><td><code>19</code></td><td><code>2</code></td><td><code>10.5</code></td></tr></tbody></table>
@@ -111,9 +127,9 @@
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">19999 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">20006 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>2593 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>2594 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
 </article>
@@ -168,7 +184,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

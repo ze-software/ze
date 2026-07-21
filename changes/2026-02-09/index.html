@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-02-09/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-02-09/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,19 +60,19 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🌪️ Chaos testing tool">
                         <div class="md-content">
-                            <h3>🌪️ Chaos testing tool</h3>
+                            <h2>🌪️ Chaos testing tool</h2>
                             <p>A new dedicated tool, <code>ze-bgp-chaos</code>, landed this week: a seed-based fault-injection harness for exercising Ze's BGP route propagation. It grew from a single-peer session driver into a multi-peer validation framework with scripted chaos events (drops, resets, malformed messages) and coverage for seven address families (IPv4/IPv6 unicast, IPv4/IPv6 VPN, EVPN, IPv4/IPv6 FlowSpec).</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔁 Config reload">
                         <div class="md-content">
-                            <h3>🔁 Config reload</h3>
+                            <h2>🔁 Config reload</h2>
                             <p>Live reload now runs through the hub/orchestrator architecture: plugins get a verify pass before an apply pass, and the reload coordinator is hardened so a crashing plugin can't corrupt the process (any plugin that dies mid-reload aborts the reload cleanly instead of applying a partial config). Committing in the config editor now triggers a live daemon reload over the API socket directly. A new <code>ze signal</code> command plus PID-file locking makes it possible to reload, stop, or query a running daemon without hunting down its PID, and prevents two instances from starting against the same config.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛰️ Protocol correctness">
                         <div class="md-content">
-                            <h3>🛰️ Protocol correctness</h3>
+                            <h2>🛰️ Protocol correctness</h2>
                             <ul>
 <li>Malformed UPDATE messages are now handled per RFC 7606: depending on the error, Ze treats the route as withdrawn, discards just the bad attribute, or resets the session, instead of one blunt response for every case</li>
 <li>Early support for RFC 9234 BGP Roles: peers can declare a role, and the engine validates role pairs on OPEN, sending a NOTIFICATION on mismatch (OTC handling is still to come)</li>
@@ -66,13 +82,13 @@
                     </div>
                     <div class="blog-block" aria-label="🔄 ExaBGP migration">
                         <div class="md-content">
-                            <h3>🔄 ExaBGP migration</h3>
+                            <h2>🔄 ExaBGP migration</h2>
                             <p>The migration tool now passes all 37 compatibility test configs, with L2VPN/VPLS migration completed and ExaBGP watchdog processes bridged through Ze's API socket.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="⚡ Performance">
                         <div class="md-content">
-                            <h3>⚡ Performance</h3>
+                            <h2>⚡ Performance</h2>
                             <p>The BGP UPDATE encoding path had its remaining heap allocations eliminated: attribute writes, SRv6 TLVs, withdrawals, and RIB NLRI paths all now write into pooled buffers instead of allocating per message.</p>
                         </div>
                     </div>
@@ -104,7 +120,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

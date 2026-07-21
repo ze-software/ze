@@ -96,19 +96,28 @@ flat `Candidate` struct: LocalPref, ASPathLen, FirstAS, Origin, MED, PeerASN,
 LocalASN, OriginatorIP, PeerIP, PeerAddr, StaleLevel. Router ID and peer address
 comparisons use typed `netip.Addr` fields for zero-allocation numeric ordering.
 
+### Enforced Before Selection (Not Best-Path Reasons)
+
+These checks are implemented, but as ingress filters that reject the UPDATE
+before it reaches best-path selection, so they never appear as a reason in the
+enum above:
+
+- **AS loop detection** (own ASN in AS_PATH): rejected on ingress by the reactor
+  loop filter on all sessions (RFC 4271 Section 9).
+- **Cluster-list loop detection** (RFC 4456, own Router ID in CLUSTER_LIST):
+  rejected on ingress by the same loop filter (iBGP sessions).
+- **Originator-ID loop detection** (RFC 4456, own Router ID as ORIGINATOR_ID):
+  rejected on ingress by the same loop filter (iBGP sessions).
+- **OTC mismatch** (RFC 9234, Only-To-Customer attribute validation): enforced
+  by the bgp-role plugin.
+
+<!-- source: internal/component/bgp/reactor/filter/loop.go -- ingress AS/cluster-list/originator-id loop filter -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- RFC 9234 OTC validation -->
+
 ### Not Yet Implemented
 
-- **AS loop detection** (own ASN in AS_PATH): biorouting checks this in Adj-RIB-In.
-  Ze does not currently reject routes with AS loops before selection.
-- **Cluster-list loop detection** (RFC 4456, own Cluster ID in CLUSTER_LIST):
-  not currently checked.
-- **Originator-ID loop detection** (RFC 4456, own Router ID as ORIGINATOR_ID):
-  not currently checked.
-- **OTC mismatch** (RFC 9234, Only-To-Customer attribute validation):
-  not currently checked.
-- **IGP cost to next-hop** (step 15): requires IGP integration.
-
-These would be additional validation reasons in Phase 1 when implemented.
+- **IGP cost to next-hop** (step 15): requires IGP integration. This would be an
+  additional best-path reason when implemented.
 
 ## Complete Reason Table
 

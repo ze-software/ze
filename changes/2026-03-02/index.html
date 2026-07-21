@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-03-02/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-03-02/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🛰️ Routing">
                         <div class="md-content">
-                            <h3>🛰️ Routing</h3>
+                            <h2>🛰️ Routing</h2>
                             <ul>
 <li>On-demand best-path selection in the RIB (<code>rib show best</code>), covering LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP/iBGP preference, ORIGINATOR_ID, and peer-address tiebreak per RFC 4271 §9.1.2</li>
 <li>A new persistence plugin tracks outbound routes per peer, retaining cache entries on send and releasing them on withdrawal, then replays the full outbound set with End-of-RIB markers on reconnect</li>
@@ -54,9 +70,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🖥️ CLI & editor">
+                    <div class="blog-block" aria-label="🖥️ CLI &amp; editor">
                         <div class="md-content">
-                            <h3>🖥️ CLI & editor</h3>
+                            <h2>🖥️ CLI &amp; editor</h2>
                             <ul>
 <li>New <code>ze show</code> and <code>ze run</code> split: read-only commands vs. everything including destructive ones, each RPC now declares its own safety level</li>
 <li>Dual-mode config editor (edit/command mode switching), <code>ze config set</code> with YANG validation and <code>--dry-run</code>, and <code>ze config edit</code> now offers to create a missing config file instead of failing</li>
@@ -68,7 +84,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <p>Panic recovery now wraps every long-lived BGP goroutine (peer loop, delivery, listener, reactor monitor): a fault inside one peer tears down and re-establishes that session instead of crashing the daemon. Builds now report a version (YY.MM.DD) and build date.</p>
                         </div>
                     </div>
@@ -100,7 +116,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

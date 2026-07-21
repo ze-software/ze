@@ -6,7 +6,6 @@
 content. Head, sidebar, and footer rendering also live here.
 """
 
-import hashlib
 import html
 import json
 import pathlib
@@ -34,6 +33,10 @@ FONT_CSS_URL = (
     "https://fonts.googleapis.com/css2?"
     "family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
 )
+# HTML-attribute-safe form (the raw URL's & must be &amp; inside an href). Used
+# both when emitting the <link> and when patching it back into authored pages,
+# so the two paths can never disagree on escaping.
+FONT_CSS_URL_HTML = html.escape(FONT_CSS_URL, quote=True)
 
 
 # Build-time drift warnings that MUST be resolved before a build can pass.
@@ -307,6 +310,72 @@ def live_counts():
         "changes": facts.get("changes", "?"),
         "articles": facts.get("blog_articles", "?"),
     }
+
+
+_NUMBER_TOKEN_RE = re.compile(r"\{\{ze:([a-z0-9-]+)\}\}")
+
+
+def number_tokens():
+    """Display strings for the ``{{ze:...}}`` prose number tokens, sourced from
+    the live counts in data/site-facts.json (computed from ../main each build).
+
+    Website-owned page sources (compare/, usage/, faq/, ...) embed these tokens
+    instead of hardcoding a count, so published prose can never silently drift
+    from the facts snapshot -- the class of bug where one page said "13,700+
+    unit tests" while the homepage said "19,900+". Imported ../main/docs pages
+    must NOT use them: those files also render raw on the code host, where a
+    literal ``{{ze:...}}`` would show through.
+
+    Substitution happens at render time (render-doc reads the fresh facts), so
+    in steady state a single build is correct; a build immediately after a
+    ../main count change may lag one build, which the check_*_drift guards
+    catch and a rebuild resolves."""
+    try:
+        facts = sitefacts.load_facts()
+    except (OSError, KeyError, ValueError):
+        return {}
+    tests = facts.get("tests", {})
+    interop = facts.get("interop", {})
+    features = facts.get("features", {})
+    raw = {
+        "unit-tests": tests.get("unit_display"),
+        "e2e-tests": tests.get("e2e_display"),
+        "fuzz-targets": tests.get("fuzz_display"),
+        "interop-targets": interop.get("target_display"),
+        "interop-scenarios": interop.get("scenarios"),
+        "cli-commands": facts.get("cli_commands"),
+        "config-sections": facts.get("config_sections"),
+        "dependencies": facts.get("dependencies"),
+        "features": features.get("core_experimental"),
+        "changes": facts.get("changes"),
+    }
+    return {name: str(value) for name, value in raw.items() if value is not None}
+
+
+def substitute_number_tokens(text):
+    """Replace ``{{ze:<name>}}`` tokens with live site-facts numbers.
+
+    An unknown token is left in place and raised as build drift, so a typo
+    (``{{ze:unit-test}}``) fails the build instead of shipping a literal
+    placeholder. The ``ze:`` namespace keeps the pattern from colliding with
+    template syntax (Go/Jinja ``{{ ... }}``) in documentation code samples."""
+    tokens = number_tokens()
+    if not tokens:
+        # No facts snapshot yet (e.g. a first build before site-facts.json
+        # exists): leave tokens untouched rather than guess.
+        return text
+
+    def repl(match):
+        name = match.group(1)
+        if name in tokens:
+            return tokens[name]
+        warn(
+            "unknown site number token {{ze:%s}} -- valid tokens: %s"
+            % (name, ", ".join(sorted(tokens)))
+        )
+        return match.group(0)
+
+    return _NUMBER_TOKEN_RE.sub(repl, text)
 
 
 def load_nav_data():
@@ -588,8 +657,24 @@ SITE_HEADER_RE = re.compile(
     r'[ \t]*<header\b[^>]*class="site-header"[^>]*>.*?</header>', re.DOTALL
 )
 SHARED_HEADER_MOUNT_RE = re.compile(
-    r'[ \t]*<div\b[^>]*id="site-header-mount"[^>]*></div>'
+    r'[ \t]*<div\b[^>]*id="site-header-mount"[^>]*>.*?</div>', re.DOTALL
 )
+
+# A small, stable set of section hubs shown only when JavaScript is off (site.js
+# replaces the mount's innerHTML with the full menu when it runs). Kept to
+# top-level hubs -- not the whole mega-menu -- so adding or removing a dropdown
+# item in data/nav.json does not rewrite this fallback into every page, which
+# would reintroduce the per-page churn the JS-injected header exists to avoid.
+NOSCRIPT_HUB_LINKS = [
+    ("index.html#top", "Home"),
+    ("docs/", "Docs"),
+    ("features/", "Features"),
+    ("compare/", "Compare"),
+    ("roadmap/", "Roadmap"),
+    ("changes/", "Changes"),
+    ("faq/", "FAQ"),
+    ("contribute/", "Contribute"),
+]
 
 
 def build_shared_header(root):
@@ -617,12 +702,35 @@ def build_shared_header(root):
 
 
 def build_shared_header_mount(root):
-    """Return the stable per-page mount for the external header fragment."""
+    """Return the stable per-page mount for the external header fragment.
+
+    The div holds a <noscript> fallback nav so a page is never a dead end
+    without JavaScript: site.js overwrites the mount's innerHTML with the full
+    menu when it runs, discarding the fallback; when it doesn't, the fallback's
+    hub links render. The fallback carries no nested <div> so the mount regex
+    stays a simple non-greedy match."""
     escaped_root = html.escape(root, quote=True)
+    links = "".join(
+        '                    <a href="%s">%s</a>\n'
+        % (html.escape(rooted_href(root, href), quote=True), html.escape(label))
+        for href, label in NOSCRIPT_HUB_LINKS
+    )
     return (
         '        <div id="site-header-mount" '
-        'data-header-src="%sassets/header.html" data-site-root="%s"></div>'
-    ) % (escaped_root, escaped_root)
+        'data-header-src="%sassets/header.html" data-site-root="%s">\n'
+        "            <noscript>\n"
+        '                <nav class="site-header-fallback" aria-label="Site navigation">\n'
+        '                    <a class="brand" href="%s">Ze</a>\n'
+        "%s"
+        "                </nav>\n"
+        "            </noscript>\n"
+        "        </div>"
+    ) % (
+        escaped_root,
+        escaped_root,
+        html.escape(rooted_href(root, "index.html#top"), quote=True),
+        links,
+    )
 
 
 def write_shared_header():
@@ -682,46 +790,77 @@ def patch_footer(html_text, root):
     return html_text[: m.start()] + footer_html(root) + html_text[end:]
 
 
-_ASSET_VERSIONS = {}
-
-
-def asset_query(relpath):
-    """The ?v=<short content hash> cache-busting suffix for a site asset
-    (site.css, site.js), or "" if the file can't be read. Computed once per
-    asset per build and memoised."""
-    if relpath not in _ASSET_VERSIONS:
-        try:
-            digest = hashlib.sha1((GH_PAGES / relpath).read_bytes()).hexdigest()[:10]
-        except OSError:
-            digest = None
-        _ASSET_VERSIONS[relpath] = digest
-    digest = _ASSET_VERSIONS[relpath]
-    return ("?v=%s" % digest) if digest else ""
-
-
 def asset_url(root, relpath):
-    """Cache-busting URL for a site asset (site.css, site.js).
+    """Stable URL for a site asset (site.css, site.js) -- no ?v= query.
 
-    Appends ?v=<short content hash> so a browser never serves a stale copy
-    after a rebuild: change the file, the hash changes, the URL changes, the
-    browser refetches. Without this, plain http.server / GitHub Pages caching
-    can pin an old site.js and CSS/JS edits silently don't show up."""
-    return "%s%s%s" % (root, relpath, asset_query(relpath))
+    The stylesheet and script are referenced by a version-independent URL so a
+    content change touches only the asset file, never the ~700 pages that link
+    it. Freshness is delegated to HTTP cache validation: GitHub Pages serves
+    assets with an ETag and a short max-age, so a returning visitor revalidates
+    within minutes and a new visitor or hard reload gets the new bytes at once.
+
+    The old ?v=<content-hash> query pinned the version per page, which meant
+    every CSS/JS edit rewrote the <link>/<script> line in every page and forced
+    the whole site to redeploy for a one-file change. A stable URL avoids that
+    churn at the cost of a brief revalidation window, which is the right trade
+    for a documentation site that deploys infrequently."""
+    return "%s%s" % (root, relpath)
 
 
+# Match the asset ref with or without a legacy ?v=<hash> so a single rebuild
+# strips the query from every already-authored page (one-time migration; after
+# that the URL is stable and the pages stop churning on asset edits).
 _ASSET_REF_RE = re.compile(r"assets/site\.(css|js)(?:\?v=[0-9a-f]+)?")
 
 
 def patch_asset_versions(html_text):
     """Refresh shared generated head bits in already-authored pages."""
-    html_text = _ASSET_REF_RE.sub(
-        lambda m: "assets/site.%s%s"
-        % (m.group(1), asset_query("assets/site." + m.group(1))),
-        html_text,
-    )
-    html_text = _FONT_REF_RE.sub(FONT_CSS_URL, html_text)
+    html_text = _ASSET_REF_RE.sub(lambda m: "assets/site.%s" % m.group(1), html_text)
+    html_text = _FONT_REF_RE.sub(FONT_CSS_URL_HTML, html_text)
     html_text = patch_social_meta(html_text)
     return patch_structured_data(html_text)
+
+
+def page_canonical_url(rel_posix):
+    """Absolute canonical URL for a published page from its gh-pages-relative
+    POSIX path: the site root for ``index.html``, the clean directory URL for
+    any ``.../index.html``, else the file URL."""
+    if rel_posix == "index.html":
+        return SITE_BASE
+    if rel_posix.endswith("/index.html"):
+        return SITE_BASE + rel_posix[: -len("index.html")]
+    return SITE_BASE + rel_posix
+
+
+_CANONICAL_LINK_RE = re.compile(r'[ \t]*<link rel="canonical"[^>]*/?>\n')
+_OG_URL_META_RE = re.compile(r'[ \t]*<meta property="og:url"[^>]*/?>\n')
+_SITE_CSS_LINK_RE = re.compile(
+    r'^([ \t]*)<link rel="stylesheet" href="[^"]*assets/site\.css" />', re.MULTILINE
+)
+
+
+def patch_canonical(html_text, rel_posix):
+    """Give a page a self-referential <link rel="canonical"> and og:url.
+
+    Both are anchored on the page's own site.css <link> (present on every
+    generated and hand-authored page) and are idempotent: any existing pair is
+    stripped first, so repeated builds don't accumulate duplicates. Pages that
+    have no site.css link (e.g. the raw presentation exports, which the nav and
+    link steps already skip) are returned unchanged."""
+    url = html.escape(page_canonical_url(rel_posix), quote=True)
+    html_text = _CANONICAL_LINK_RE.sub("", html_text)
+    html_text = _OG_URL_META_RE.sub("", html_text)
+
+    def repl(match):
+        indent = match.group(1)
+        return (
+            '%s<link rel="canonical" href="%s" />\n'
+            '%s<meta property="og:url" content="%s" />\n'
+            "%s" % (indent, url, indent, url, match.group(0))
+        )
+
+    new_text, count = _SITE_CSS_LINK_RE.subn(repl, html_text, count=1)
+    return new_text if count else html_text
 
 
 ANCHOR_OPEN_RE = re.compile(r"<a\b[^>]*>", re.IGNORECASE)
@@ -963,7 +1102,7 @@ def page_head(
         og_image=html.escape(og_image, quote=True),
         root=root,
         site_css=asset_url(root, "assets/site.css"),
-        font_css=html.escape(FONT_CSS_URL, quote=True),
+        font_css=FONT_CSS_URL_HTML,
         shared_header_mount=build_shared_header_mount(root),
         extra_head=extra_head,
         json_ld=structured_data_script(),

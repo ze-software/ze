@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-04-27/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-04-27/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -42,27 +58,27 @@
             </section>
             <section class="blog-post reveal">
                 <div class="blog-grid">
-                    <div class="blog-block" aria-label="🔌 Interfaces & routing">
+                    <div class="blog-block" aria-label="🔌 Interfaces &amp; routing">
                         <div class="md-content">
-                            <h3>🔌 Interfaces & routing</h3>
+                            <h2>🔌 Interfaces &amp; routing</h2>
                             <p>Interface configuration apply is now transactional: if any step (address changes, bridge ports, STP, mirrors, MTU, MAC, VLANs, tunnels) fails partway through, everything already applied gets rolled back instead of leaving a half-configured interface. Sysrib now accepts withdrawal batches that don't carry a specific protocol source, needed for a clean full Loc-RIB teardown, and HTB traffic shaping now uses correct kernel defaults.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🖥️ Web UI">
                         <div class="md-content">
-                            <h3>🖥️ Web UI</h3>
+                            <h2>🖥️ Web UI</h2>
                             <p>The bottom CLI bar was replaced with a dedicated <code>/cli</code> page that matches the SSH CLI layout, with the same tab completion, history, and prompt behavior. Workbench, Finder, and CLI are all switchable at runtime from the top bar, with the choice remembered, and login now redirects back to the page you originally requested.</p>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="📶 Traffic control & telemetry">
+                    <div class="blog-block" aria-label="📶 Traffic control &amp; telemetry">
                         <div class="md-content">
-                            <h3>📶 Traffic control & telemetry</h3>
+                            <h2>📶 Traffic control &amp; telemetry</h2>
                             <p>The netlink traffic-control backend now snapshots and restores the original qdisc instead of leaving it permanently replaced. Prometheus telemetry config was restructured: OS collector settings moved into their own container, HTTP Basic Auth is now available for the metrics endpoint, and a timing side-channel in the auth check was closed.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🛠️ Under the hood">
                         <div class="md-content">
-                            <h3>🛠️ Under the hood</h3>
+                            <h2>🛠️ Under the hood</h2>
                             <p>REST/gRPC API streaming endpoints are now fully wired end to end, with authorization, accounting, and panic recovery. FIB startup no longer clobbers routes owned by static routing. L2TP route redistribution now emits real add/remove events instead of a stub.</p>
                         </div>
                     </div>
@@ -94,7 +110,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

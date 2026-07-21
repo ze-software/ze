@@ -10,14 +10,14 @@ daemon instances in containers and exchange real BGP messages.
 | Feature | Description |
 |---------|-------------|
 | Target daemons | FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready) |
-| Scenario count | 96 scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
+| Scenario count | 100+ scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
 | Runner | `make ze-interop-test` (all) or `make ze-interop-test INTEROP_SCENARIO=name` (single) |
 | Container images | Customizable via env vars (e.g., `FRR_IMAGE=quay.io/frrouting/frr:10.3`) |
 
 ## Scenarios
 
 The table below is a representative subset covering the core BGP protocol and
-extensions. The full suite has 96 scenarios; the remainder exercise RPKI, BMP,
+extensions. The full suite has over 100 scenarios; the remainder exercise RPKI, BMP,
 IS-IS, and OSPF/OSPFv3 interoperability against FRR.
 
 | # | Scenario | Target |

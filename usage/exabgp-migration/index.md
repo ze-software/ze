@@ -17,7 +17,8 @@ ze config validate ze.conf              # Validate the result
 | ExaBGP | Ze |
 |--------|-----|
 | `neighbor <ip> { ... }` | `peer <ip> { ... }` |
-| `local-as`, `peer-as`, `router-id` | Same keywords in ze syntax |
+| `local-as`, `peer-as` | `session { asn { local ... } }` / `session { asn { remote ... } }` |
+| `router-id` | `session { router-id ... }` (same keyword, moved under `session`) |
 | `family { ... }` | `family { ... }` |
 | `capability { ... }` | `capability { ... }` |
 | `static { route ... }` | Static route config or update commands |
@@ -36,8 +37,8 @@ Run existing ExaBGP process scripts with ze using the compatibility bridge:
 ```
 plugin {
     external my-exabgp-plugin {
-        run "ze exabgp plugin /path/to/my-plugin.py"
-        encoder json
+        run "ze exabgp plugin /path/to/my-plugin.py";
+        encoder json;
     }
 }
 
@@ -59,7 +60,7 @@ bgp {
             }
         }
         process my-exabgp-plugin {
-            receive [ update state ]
+            receive [ update state ];
         }
     }
 }
@@ -125,9 +126,35 @@ writes route commands to stdout:
 process inject-routes {
     run python3 /opt/scripts/inject.py;
     encoder json;
-    receive {
-        parsed;
-        update;
+}
+
+neighbor 10.0.0.1 {
+    description "transit-a";
+    router-id 10.0.0.2;
+    local-address 10.0.0.2;
+    local-as 65000;
+    peer-as 65001;
+    api {
+        processes [ inject-routes ];
+        receive {
+            parsed;
+            update;
+        }
+    }
+}
+
+neighbor 10.0.1.1 {
+    description "transit-b";
+    router-id 10.0.0.2;
+    local-address 10.0.1.2;
+    local-as 65000;
+    peer-as 65002;
+    api {
+        processes [ inject-routes ];
+        receive {
+            parsed;
+            update;
+        }
     }
 }
 ```
@@ -156,8 +183,8 @@ Run the existing script through the bridge:
 ```text
 plugin {
     external inject-routes {
-        run "ze exabgp plugin python3 /opt/scripts/inject.py"
-        encoder json
+        run "ze exabgp plugin python3 /opt/scripts/inject.py";
+        encoder json;
     }
 }
 ```

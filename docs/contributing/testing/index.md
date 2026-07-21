@@ -148,13 +148,13 @@ See `make help-test` for the full list.
 
 `ze-verify` is the pre-commit gate. It uses a two-pass strategy to stay fast:
 
-1. **Lint** (26 linters via golangci-lint)
+1. **Lint** (27 linters via golangci-lint)
 2. **Vet evidence** (cross-compile evidence scripts for Linux)
 3. **Cached full pass** (`go test` without `-race`): Go caches by source hash,
    so when nothing changed this is instant. Catches logic regressions everywhere.
 4. **Race pass on changed groups** (`go test -race` only on packages with
    modified `.go` files): catches data races in what you touched.
-5. **Functional tests** (12 suites)
+5. **Functional tests** (the gating functional suites; see `mk/test-functional.mk`)
 6. **ExaBGP compatibility**
 
 Common case (one group changed): ~2 min total instead of 6+.

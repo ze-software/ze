@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2025-12-15/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2025-12-15/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,31 +60,31 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🏗️ Core BGP engine">
                         <div class="md-content">
-                            <h3>🏗️ Core BGP engine</h3>
+                            <h2>🏗️ Core BGP engine</h2>
                             <p>The foundational pieces of a BGP speaker landed: wire-format encoding/decoding, all BGP message types, capability negotiation, path attributes, NLRI types, a RIB, the finite state machine, and the session/reactor layer that drives peer connections. A zero-copy byte-deduplication pool underpins the encoding path from the start.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🧩 Config and CLI">
                         <div class="md-content">
-                            <h3>🧩 Config and CLI</h3>
+                            <h2>🧩 Config and CLI</h2>
                             <p>A schema-driven config parser landed with ExaBGP-compatible syntax (set-style blocks, arrays, serialization), wired straight through to the reactor. The CLI grew daemon and API run modes plus an interactive editor with autocomplete.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔌 API and self-check testing">
                         <div class="md-content">
-                            <h3>🔌 API and self-check testing</h3>
+                            <h2>🔌 API and self-check testing</h2>
                             <p>An API layer for external processes to talk to Ze, alongside a functional self-check test harness and a testpeer package that exercises the daemon against ExaBGP for compatibility, including passive-peer handling.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="📜 RFC compliance pass">
                         <div class="md-content">
-                            <h3>📜 RFC compliance pass</h3>
+                            <h2>📜 RFC compliance pass</h2>
                             <p>A broad pass brought the engine's attribute and NLRI handling in line with the relevant RFCs: EVPN Type 1, Type 4, and Type 5 (RFC 7432), BGP-LS, MVPN, VPLS, and FlowSpec VPN (SAFI 134) route support, extended next-hop encoding (RFC 5549/8950), AFI/SAFI family validation (RFC 4760), VPN next-hop RD parsing (RFC 4364/4659), MP-NLRI chunking (RFC 4271), AS_CONFED handling in AS4_PATH and ASN4-aware AS_PATH encoding (RFC 6793), and path attribute ordering (RFC 4271 Appendix F.3). Fixes went in for extended community parsing, FlowSpec numeric match operators, software-version capability parsing, and IPv6 route sending with correct end-of-RIB markers.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="📦 Config migration and batched updates">
                         <div class="md-content">
-                            <h3>📦 Config migration and batched updates</h3>
+                            <h2>📦 Config migration and batched updates</h2>
                             <p>Config syntax moved from <code>neighbor</code> to <code>peer</code>, with <code>static</code> routes migrating to <code>announce</code>, template-based <code>group</code>/<code>match</code> blocks, peer glob patterns (<code>peer 192.168.*.*</code>), and CLI commands to check and migrate older configs. Per-family negotiation now supports enable/disable/require modes plus a lenient ignore mode for UPDATE validation. On the sending side, routes are now grouped by shared attributes and packed into batched UPDATE messages per peer, with per-peer Adj-RIB-Out, transactional commits, and a CommitService that flushes and sends grouped UPDATEs as a unit.</p>
                         </div>
                     </div>
@@ -100,7 +116,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

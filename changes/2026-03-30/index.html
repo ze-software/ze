@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-03-30/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-03-30/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -44,7 +60,7 @@
                 <div class="blog-grid">
                     <div class="blog-block" aria-label="🔌 Interfaces">
                         <div class="md-content">
-                            <h3>🔌 Interfaces</h3>
+                            <h2>🔌 Interfaces</h2>
                             <p>A new interface management subsystem landed with a JunOS-style unit model.</p>
 <ul>
 <li>Netlink-backed interface monitoring, with <code>ze show interface</code> and <code>ze interface migrate</code> over SSH</li>
@@ -55,9 +71,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🌐 DNS & resolution">
+                    <div class="blog-block" aria-label="🌐 DNS &amp; resolution">
                         <div class="md-content">
-                            <h3>🌐 DNS & resolution</h3>
+                            <h2>🌐 DNS &amp; resolution</h2>
                             <ul>
 <li>New offline <code>ze resolve</code> command for DNS, Team Cymru ASN lookups, PeeringDB, and IRR queries, with 1-hour caching for the PeeringDB/IRR lookups</li>
 <li>DNS queries now advertise a 4096-byte EDNS0 buffer, and truncated responses log a warning instead of failing silently</li>
@@ -66,7 +82,7 @@
                     </div>
                     <div class="blog-block" aria-label="🧩 Config-driven plugins">
                         <div class="md-content">
-                            <h3>🧩 Config-driven plugins</h3>
+                            <h2>🧩 Config-driven plugins</h2>
                             <ul>
 <li>BGP can now be loaded and unloaded at config reload time without restarting Ze, with plugin startup ordered by a dependency chain</li>
 <li>Plugins in general can be dynamically loaded and unloaded on reload</li>
@@ -74,9 +90,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="🖥️ CLI & Looking Glass">
+                    <div class="blog-block" aria-label="🖥️ CLI &amp; Looking Glass">
                         <div class="md-content">
-                            <h3>🖥️ CLI & Looking Glass</h3>
+                            <h2>🖥️ CLI &amp; Looking Glass</h2>
                             <ul>
 <li>One-shot commands via <code>ze -c</code> (replacing <code>--run</code>)</li>
 <li>Structured, colored help across all commands, with dispatch-key discoverability</li>
@@ -87,7 +103,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛰️ Routing">
                         <div class="md-content">
-                            <h3>🛰️ Routing</h3>
+                            <h2>🛰️ Routing</h2>
                             <ul>
 <li>New BGP healthcheck plugin: monitors service availability via shell probes and drives route announce/withdraw (or a MED override) through watchdog groups</li>
 <li>Long-lived graceful restart (RFC 9494): stale routes are now correctly filtered or withdrawn per peer on egress, based on each peer's LLGR capability</li>
@@ -98,7 +114,7 @@
                     </div>
                     <div class="blog-block" aria-label="⚡ Under the hood">
                         <div class="md-content">
-                            <h3>⚡ Under the hood</h3>
+                            <h2>⚡ Under the hood</h2>
                             <p>Forwarding to peers now defaults to zero-copy, only copying a buffer when an egress filter needs to modify the payload; the forwarding pool also auto-sizes per peer based on burst size instead of using fixed global pools. HTTP responses now carry an <code>X-Ze-Version</code> header.</p>
                         </div>
                     </div>
@@ -130,7 +146,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

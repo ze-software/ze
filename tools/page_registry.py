@@ -308,7 +308,13 @@ def docs_link_manifest():
 
 
 def page_root_for_dest(dest_rel):
+    """Relative path from a page back to the site root.
+
+    Depth is the number of directory segments above the file, so this works for
+    any page, not only ``index.html`` ones: a top-level ``404.html`` gets ``""``
+    and ``a/b/index.html`` gets ``../../``. (It used to require an
+    ``index.html`` name and raise otherwise, which meant any standalone page
+    carrying the shared header -- e.g. a future ``404.html`` -- crashed the nav
+    step instead of being patched.)"""
     rel = pathlib.PurePosixPath(str(dest_rel))
-    if rel.name != "index.html":
-        raise ValueError("site page destinations must end in index.html: %s" % dest_rel)
     return "../" * (len(rel.parts) - 1)

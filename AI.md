@@ -61,7 +61,9 @@ gh-pages/
                                               and reader-intent related links used by sitelib.py
   tools/
     render-css.py                         -- expands assets/css/site.css imports into
-                                              the published assets/site.css bundle
+                                              the published assets/site.css bundle, minified
+    render-js.py                          -- minifies assets/js/site.js into the published
+                                              assets/site.js
     sitelib.py                            -- shared head/sidebar/footer chrome and the renderer for
                                               assets/header.html; also migrates embedded headers to
                                               stable fragment mounts and owns Markdown mirrors
@@ -172,17 +174,36 @@ per-step failures.
   reachability stays opt-in with
   `tools/check-page-links.py --check-network` or
   `tools/check-page-links.py --check-network --all-html`.
-- **CSS source layers.** `assets/site.css` is generated from
+- **CSS source layers.** `assets/site.css` is generated (and minified) from
   `assets/css/site.css` by `tools/render-css.py`. The source manifest imports
   `10-base.css`, the legacy bulk stylesheet, followed by smaller extracted
   files for tokens, shared components, and responsive fixes. Keep new CSS in
   the smallest source file that matches the concern, then run the `css` build
-  step so every generated page gets the correct asset hash.
-- **JS behavior model.** `assets/site.js` loads `assets/header.html` into each
-  page's stable mount, then provides navigation interactions and progressive
-  enhancement for reveal effects, search-like controls, and generated page
-  explorers. `data/nav.json` remains the navigation source of truth. Page body
-  content and evidence must remain meaningful without JavaScript.
+  step. Edit only the source files under `assets/css/`, never the minified
+  `assets/site.css`.
+- **JS behavior model.** The editable script is `assets/js/site.js`; the `js`
+  build step (`tools/render-js.py`) minifies it into the published
+  `assets/site.js`. It loads `assets/header.html` into each page's stable
+  mount, then provides navigation interactions and progressive enhancement for
+  reveal effects, search-like controls, and generated page explorers.
+  `data/nav.json` remains the navigation source of truth. Page body content and
+  evidence must remain meaningful without JavaScript. Edit only
+  `assets/js/site.js`, never the minified `assets/site.js`.
+- **Asset URLs and cache-busting.** Pages link `assets/site.css` and
+  `assets/site.js` by a stable URL with no `?v=` query, so a stylesheet or
+  script edit touches only the asset file, not every page. Freshness is left to
+  HTTP cache validation (GitHub Pages serves an ETag with a short max-age).
+  Never reintroduce a per-page version query: it rewrites every page on any
+  asset change.
+- **Prose number tokens.** Website-owned page sources (e.g. `compare/*.md`) may
+  embed `{{ze:<name>}}` tokens (`unit-tests`, `e2e-tests`, `fuzz-targets`,
+  `interop-targets`, `interop-scenarios`, `cli-commands`, `config-sections`,
+  `dependencies`, `features`, `changes`) that `tools/render-doc.py` resolves
+  from `data/site-facts.json` at render time, so counts can never silently
+  drift from the live facts. Use tokens only where the source path differs from
+  its published path (compare pages qualify; `usage/*/index.md`, whose source
+  is its own publish target, and imported `../main/docs/*.md`, which render raw
+  on the code host, must use literal numbers).
 - **Verification commands.** Use targeted commands, not a project-wide build,
   while editing architecture scripts:
   `python3 -m py_compile tools/page_registry.py tools/build.py tools/render-docs.py tools/check-page-links.py`,

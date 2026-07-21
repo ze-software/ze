@@ -33,9 +33,13 @@ job you are trying to do, then follow the links inside that path.
             <a href="guide/looking-glass-howto/">Looking glass <span>publish read-only BGP visibility</span></a>
             <a href="guide/firewall/">Firewall and policy routing <span>protect and steer traffic</span></a>
             <a href="guide/ospf/">OSPF, IS-IS, and static routes <span>bring routing protocols online</span></a>
+            <a href="guide/mpls/">MPLS <span>label switching with LDP and RSVP-TE</span></a>
+            <a href="features/srv6/">SRv6 <span>segment routing over IPv6 and SID programming</span></a>
+            <a href="guide/traffic-control/">Traffic control <span>shape, queue, and prioritise egress traffic</span></a>
             <a href="guide/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>
             <a href="guide/ipsec/">Native IPsec <span>configure IKEv2 initiator and responder tunnels</span></a>
             <a href="guide/monitoring/">Monitoring and diagnostics <span>flow export, MRT, and production checks</span></a>
+            <a href="guide/debugging-tools/">Debugging tools <span>trace netlink, capture packets, and inspect state</span></a>
             <a href="guide/bgp-peering/">BGP peering <span>groups, families, capabilities, and verification</span></a>
             <a href="guide/bgp-policy/">BGP policy <span>import, export, validation, and redistribution</span></a>
             <a href="guide/bgp-resilience/">BGP resilience <span>refresh, GR, persistence, reflection, and multipath</span></a>
@@ -73,6 +77,7 @@ job you are trying to do, then follow the links inside that path.
         <p>Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.</p>
         <div class="link-list">
             <a href="architecture/">Architecture <span>engine, config, plugins, and operator surfaces</span></a>
+            <a href="architecture/route-selection/">Route selection <span>how Ze picks the best path, step by step</span></a>
             <a href="../compare/">Compare <span>Ze against BIRD, FRR, GoBGP, and others</span></a>
             <a href="../performance/">Performance <span>measured BGP benchmarks and methodology</span></a>
             <a href="research/vpp-deployment-reference/">VPP deployment reference <span>startup.conf, NIC, LCP, and notes</span></a>
@@ -88,11 +93,15 @@ job you are trying to do, then follow the links inside that path.
         <h2>Keep up and contribute</h2>
         <p>Project context for people deciding whether to try Ze or help shape it.</p>
         <div class="link-list">
+            <a href="why-ze/">Why Ze <span>what makes Ze different and who it is for</span></a>
             <a href="../roadmap/">Roadmap <span>the path to the first release</span></a>
             <a href="../changes/">Changes <span>what shipped, week by week</span></a>
             <a href="../blog/">Blog <span>longer notes behind the work</span></a>
             <a href="../faq/">FAQ <span>answers before you commit time</span></a>
             <a href="../contribute/">Contribute <span>code, bug reports, and interop results</span></a>
+            <a href="guide/developer-setup/">Developer setup <span>build, test, and debug the Ze source tree</span></a>
+            <a href="contributing/rfc-implementation-guide/">RFC implementation guide <span>how a new RFC gets built and proven</span></a>
+            <a href="contributing/documentation-testing/">Documentation testing <span>keep docs honest with tested command output</span></a>
             <a href="history/">Project history <span>how ExaBGP's programmable model grew into Ze</span></a>
             <a href="glossary/">Glossary <span>BGP, policy, configuration, operator, and testing terms</span></a>
             <a href="contributing/testing/">Contributor testing <span>choose the right proof layer and run it locally</span></a>

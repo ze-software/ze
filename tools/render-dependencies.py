@@ -107,9 +107,6 @@ def render_group(category, versions):
     return "\n".join(parts)
 
 
-FILTER_SCRIPT = ""
-
-
 def render_markdown(versions, data, total):
     parts = [
         "# Dependencies",

@@ -18,7 +18,10 @@ SKIP_TOP = {
     "tmp",
     "tools",
 }
-PRESENTATION_PAGE_NAMES = {"index.html", "index-inlined.html"}
+# Only the canonical presentation page belongs in the sitemap. The
+# ``index-inlined.html`` twin is the same slides at a second URL, so listing
+# both would put duplicate content in the index.
+PRESENTATION_PAGE_NAMES = {"index.html"}
 
 REDIRECT_PAGE_DIRS = {
     pathlib.Path("docs/architecture/testing/l2tp-interop"),

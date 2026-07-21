@@ -133,9 +133,6 @@ def render_section(section):
     return "\n".join(parts)
 
 
-FILTER_SCRIPT = ""
-
-
 def render(data):
     root = "../"
     core = next(s for s in data["sections"] if s["id"] == "core")

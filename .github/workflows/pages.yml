@@ -54,7 +54,7 @@ jobs:
         run: make -C main bin/ze
 
       - name: Build website
-        run: uv run --with markdown python3 tools/build.py
+        run: uv run --with markdown --with rcssmin --with rjsmin python3 tools/build.py
         working-directory: site
 
       - name: Configure Pages

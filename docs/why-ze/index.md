@@ -35,7 +35,7 @@ structured events, in a compiled multithreaded daemon.
 
 ### BGP monitoring and analysis
 
-Ze decodes 21 address families across 15 path attribute types. The `ze bgp decode`
+Ze decodes 23 address families across 15 path attribute types. The `ze bgp decode`
 command turns hex wire bytes into structured JSON. The event subscription system
 streams every BGP state transition and route change in real time. The Adj-RIB-In
 plugin can replay raw hex for forensic analysis.
@@ -87,10 +87,12 @@ dataplane features according to the status labels in `features.md`.
 
 ### You need a full routing suite
 
-Ze does BGP, BFD, LDP, RSVP-TE, static routes, route redistribution, IPsec/IKE,
-L2TP/PPP, PPPoE, and several dataplane integrations. It does not implement OSPF,
-IS-IS, or PIM today. If you need a mature multi-protocol routing suite, FRR is the
-open-source option with the broadest coverage.
+Ze does BGP, OSPFv2/OSPFv3, IS-IS, BFD, LDP, RSVP-TE, static routes, route
+redistribution, IPsec/IKE, L2TP/PPP, PPPoE, and several dataplane integrations.
+OSPF and IS-IS ship as experimental (pre-release, not production-hardened), and
+PIM multicast routing is not implemented. If you need a mature, battle-tested
+multi-protocol routing suite, FRR is the open-source option with the broadest
+coverage.
 
 ### You need proven production stability
 
@@ -105,7 +107,7 @@ Netnod. Production confidence comes from production use, and Ze does not have th
 | Missing feature | Impact | Alternative |
 |---|---|---|
 | MRT dump (RFC 6396) | No route data archival in standard format | rustbgpd, BIRD 3, FRR, GoBGP |
-| Mature OSPF / IS-IS | No IGP suite in Ze today | FRR, BIRD |
+| Production-hardened OSPF / IS-IS | Ze ships OSPFv2/OSPFv3 and IS-IS, but they are experimental, not battle-tested | FRR, BIRD |
 | Full BGP confederation behavior | AS path parsing exists, deployment support is not listed as supported | BIRD 3, FRR, GoBGP |
 | PIM multicast routing | Not implemented | FRR |
 | Embeddable library | Cannot import Ze as a Go library into your application | GoBGP |

@@ -20,16 +20,32 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-06-15/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-06-15/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="blog-post" aria-labelledby="post-title">
@@ -42,9 +58,9 @@
             </section>
             <section class="blog-post reveal">
                 <div class="blog-grid">
-                    <div class="blog-block" aria-label="🛰️ IS-IS & MPLS">
+                    <div class="blog-block" aria-label="🛰️ IS-IS &amp; MPLS">
                         <div class="md-content">
-                            <h3>🛰️ IS-IS & MPLS</h3>
+                            <h2>🛰️ IS-IS &amp; MPLS</h2>
                             <ul>
 <li>A native IS-IS link-state IGP (ISO/IEC 10589, RFC 1195/5305/5308/5301/5303/5304/5310/2966): full PDU/TLV codec, adjacency FSM for point-to-point and LAN, LSDB flooding, DIS election, SPF with ECMP install into the Loc-RIB, HMAC auth, and dual-stack IPv6, interop-tested against FRR's isisd. Interface config now nests under <code>interfaces { }</code>, matching OSPF's convention.</li>
 <li>RSVP-TE fast reroute (RFC 4090 facility backup): a Point of Local Repair redirects a protected LSP onto a pre-armed bypass on link failure without tearing down the LSP, and tunnels reconcile correctly across a config reload.</li>
@@ -54,7 +70,7 @@
                     </div>
                     <div class="blog-block" aria-label="🛰️ BGP">
                         <div class="md-content">
-                            <h3>🛰️ BGP</h3>
+                            <h2>🛰️ BGP</h2>
                             <ul>
 <li>SR-Policy routes: decode, JSON output, and CLI <code>--nlri decode</code> support</li>
 <li>A pass fixing eight RFC 9252 compliance bugs in SRv6 Prefix-SID, found during external review (wire-format field sizes, TLV bounds checks, SID length validation)</li>
@@ -66,25 +82,25 @@
                     </div>
                     <div class="blog-block" aria-label="🔒 Firewall / IRR">
                         <div class="md-content">
-                            <h3>🔒 Firewall / IRR</h3>
+                            <h2>🔒 Firewall / IRR</h2>
                             <p>A new firewall plugin resolves ASN and AS-SET references against the Internet Routing Registry and turns them into nftables prefix-list filters automatically, with dual-stack support, per-interface source validation, and commit-time verification that rejects any reference that hasn't been cached yet.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🔌 Interfaces">
                         <div class="md-content">
-                            <h3>🔌 Interfaces</h3>
+                            <h2>🔌 Interfaces</h2>
                             <p>Interfaces can now bind to the underlying kernel device by hardware MAC address instead of by OS-assigned name, so the binding survives a NIC rename or a MAC override. <code>show interface</code> also now exposes the permanent factory MAC and OS device name.</p>
                         </div>
                     </div>
                     <div class="blog-block" aria-label="🖥️ CLI">
                         <div class="md-content">
-                            <h3>🖥️ CLI</h3>
+                            <h2>🖥️ CLI</h2>
                             <p>Running <code>ze</code> with no arguments now opens a hierarchical TUI menu of every command, with type-ahead filtering and drill-down into sub-commands. Environment-key values now autocomplete in both the operational CLI and the shell, and help output is consistently colored across every surface.</p>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="💿 Appliance & provisioning">
+                    <div class="blog-block" aria-label="💿 Appliance &amp; provisioning">
                         <div class="md-content">
-                            <h3>💿 Appliance & provisioning</h3>
+                            <h2>💿 Appliance &amp; provisioning</h2>
                             <p>Provisioning now logs per-request detail (DHCP lease, TFTP read, served image identity) at a visible level by default, so a PXE boot sequence isn't silent, and an installed appliance can report which build it's running via <code>ze version</code>. PXE-provisioned interfaces get their address auto-configured. The runtime kernel picked up fixes for L2TP support on kernel 7.0 and for the serial console driver, and the installer now shows console output on headless serial hardware and recovers from a foreign DHCP lease that has no route back to the install server.</p>
                         </div>
                     </div>
@@ -116,7 +132,7 @@
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

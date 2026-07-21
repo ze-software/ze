@@ -16,6 +16,7 @@ import json
 import pathlib
 import posixpath
 import re
+import shutil
 import sys
 
 import markdown
@@ -27,6 +28,40 @@ import terminal_demos
 def first_h1(md_text):
     match = re.search(r"^#\s+(.+)$", md_text, re.MULTILINE)
     return match.group(1).strip() if match else "Ze"
+
+
+_IMG_REF_RE = re.compile(
+    r"!\[[^\]]*\]\(\s*([^)\s]+)"  # ![alt](path ...)
+    r"|<img\b[^>]*?\bsrc=[\"']([^\"']+)[\"']"  # <img ... src="path">
+)
+
+
+def copy_referenced_images(source, dest, md_text):
+    """Copy the local images a page references from beside its Markdown source
+    to beside its published HTML, preserving the relative path.
+
+    Doc pages live one directory deeper once published (foo.md ->
+    foo/index.html), so an ``img/x.png`` reference resolves against the source
+    dir on one side and the page's own dir on the other; copying keeps the
+    relative link valid. Remote (http/data) and rooted/parent paths are left
+    alone -- only same-tree relative assets are published."""
+    copied = 0
+    for match in _IMG_REF_RE.finditer(md_text):
+        ref = match.group(1) or match.group(2)
+        if not ref or "://" in ref or ref.startswith(("/", "#", "data:", "..")):
+            continue
+        src_img = (source.parent / ref).resolve()
+        if not src_img.is_file():
+            sitelib.warn(
+                "%s references image %r that does not exist at %s"
+                % (source.name, ref, src_img)
+            )
+            continue
+        dst_img = dest.parent / ref
+        dst_img.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_img, dst_img)
+        copied += 1
+    return copied
 
 
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)", re.S)
@@ -497,6 +532,9 @@ def render(
 ):
     source_text = source.read_text()
     metadata, md_text = parse_front_matter(source_text)
+    # Resolve {{ze:...}} number tokens once, before rendering, so both the HTML
+    # and its index.md sibling carry the live count rather than the placeholder.
+    md_text = sitelib.substitute_number_tokens(md_text)
     title = metadata.get("title") or first_h1(md_text)
     description = desc or metadata.get("description") or "Ze documentation."
     category = cat or metadata.get("category")
@@ -552,6 +590,7 @@ def render(
         head + body_html + "\n            </section>\n" + sitelib.page_foot(root)
     )
     sitelib.write_markdown_sibling(dest, md_out)
+    copy_referenced_images(source, dest, md_text)
     print("rendered %s -> %s (+ index.md)" % (source, dest))
 
 

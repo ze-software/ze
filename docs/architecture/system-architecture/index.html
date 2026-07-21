@@ -20,22 +20,38 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/docs/architecture/system-architecture/" />
+        <meta property="og:url" content="https://ze-software.net/docs/architecture/system-architecture/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-platform">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Architecture</span>
     <h1 id="ze-system-architecture">Ze System Architecture</h1>
-    <p><strong>Status:</strong> Implemented (Hub Mode)
+    <p><strong>Status:</strong> Superseded / legacy design note (kept for background only)
 <strong>Last Updated:</strong> 2026-01-30
 <strong>Purpose:</strong> Describes Ze's hub/orchestrator mode with separate plugin processes</p>
 </div>
@@ -112,6 +128,27 @@
 <li><a href="#example-session">Example Session</a></li>
 <li><a href="#related-documents">Related Documents</a></li>
 </ol></nav>
+<hr />
+<blockquote>
+<p><strong>Legacy document.</strong> The hub/orchestrator concepts below are still broadly
+accurate, but several concrete details have changed and its examples no longer
+match the shipping system:</p>
+<ul>
+<li>The daemon is started with <code>ze start</code>, not <code>ze config.conf</code> or
+  <code>ze /etc/ze/config.conf</code>.</li>
+<li>The <code>local-as</code> / <code>peer-as</code> / <code>peer-group</code> config grammar shown here has been
+  removed; local AS is now <code>session { asn { local ... } }</code> and peer groups are
+  <code>group</code> blocks (see <a href="../config/deprecated-options/">deprecated config options</a>
+  and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md" target="_blank" rel="noopener">config syntax</a>).</li>
+<li>Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
+  as separate <code>external ... { run "ze bgp" }</code> processes; the <code>external</code> block
+  is for third-party out-of-process plugins.</li>
+<li>The source tree is organised under <code>internal/core</code>, <code>internal/component</code>, and
+  <code>internal/plugins</code>; there is no <code>internal/bgp/...</code> layout as sketched below.</li>
+</ul>
+<p>For the current architecture see <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md" target="_blank" rel="noopener">Core Design</a> (canonical) and
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">Hub Architecture</a>.</p>
+</blockquote>
 <hr />
 <h2 id="overview">Overview</h2>
 <p>Ze supports two operating modes:</p>
@@ -887,7 +924,7 @@ $ kill -TERM $(pgrep -f &quot;ze config.conf&quot;)
             </section>
         </main>
 
-        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

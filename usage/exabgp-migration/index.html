@@ -20,15 +20,31 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <link rel="canonical" href="https://ze-software.net/usage/exabgp-migration/" />
+        <meta property="og:url" content="https://ze-software.net/usage/exabgp-migration/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-automate">
@@ -77,8 +93,12 @@ ze config validate ze.conf              # Validate the result
 <td><code>peer &lt;ip&gt; { ... }</code></td>
 </tr>
 <tr>
-<td><code>local-as</code>, <code>peer-as</code>, <code>router-id</code></td>
-<td>Same keywords in ze syntax</td>
+<td><code>local-as</code>, <code>peer-as</code></td>
+<td><code>session { asn { local ... } }</code> / <code>session { asn { remote ... } }</code></td>
+</tr>
+<tr>
+<td><code>router-id</code></td>
+<td><code>session { router-id ... }</code> (same keyword, moved under <code>session</code>)</td>
 </tr>
 <tr>
 <td><code>family { ... }</code></td>
@@ -108,8 +128,8 @@ ze config validate ze.conf              # Validate the result
 <p>Run existing ExaBGP process scripts with ze using the compatibility bridge:</p>
 <pre><code>plugin {
     external my-exabgp-plugin {
-        run &quot;ze exabgp plugin /path/to/my-plugin.py&quot;
-        encoder json
+        run &quot;ze exabgp plugin /path/to/my-plugin.py&quot;;
+        encoder json;
     }
 }
 
@@ -131,7 +151,7 @@ bgp {
             }
         }
         process my-exabgp-plugin {
-            receive [ update state ]
+            receive [ update state ];
         }
     }
 }
@@ -217,9 +237,35 @@ writes route commands to stdout:</p>
 <pre><code class="language-text">process inject-routes {
     run python3 /opt/scripts/inject.py;
     encoder json;
-    receive {
-        parsed;
-        update;
+}
+
+neighbor 10.0.0.1 {
+    description &quot;transit-a&quot;;
+    router-id 10.0.0.2;
+    local-address 10.0.0.2;
+    local-as 65000;
+    peer-as 65001;
+    api {
+        processes [ inject-routes ];
+        receive {
+            parsed;
+            update;
+        }
+    }
+}
+
+neighbor 10.0.1.1 {
+    description &quot;transit-b&quot;;
+    router-id 10.0.0.2;
+    local-address 10.0.1.2;
+    local-as 65000;
+    peer-as 65002;
+    api {
+        processes [ inject-routes ];
+        receive {
+            parsed;
+            update;
+        }
     }
 }
 </code></pre>
@@ -242,8 +288,8 @@ ze config validate ze.conf
 <p>Run the existing script through the bridge:</p>
 <pre><code class="language-text">plugin {
     external inject-routes {
-        run &quot;ze exabgp plugin python3 /opt/scripts/inject.py&quot;
-        encoder json
+        run &quot;ze exabgp plugin python3 /opt/scripts/inject.py&quot;;
+        encoder json;
     }
 }
 </code></pre>
@@ -309,7 +355,7 @@ rewrite.</p>
             </aside>
         </main>
 
-        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

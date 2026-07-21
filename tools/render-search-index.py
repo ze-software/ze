@@ -29,7 +29,6 @@ the mirrors and the config tree it reads are current.
 import json
 import pathlib
 import re
-import sys
 
 import sitelib
 
