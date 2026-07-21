@@ -343,6 +343,25 @@ decision so an implementer need not re-litigate (a) vs (b). Thomas: override if 
 | Test genuinely gates | mutation | `as4PathForPath` → `return nil`: 11 tests red across both files. Fast-path guard → `if false`: exactly the 2 fast-path tests red. Both restored, green |
 | No hot-path regression | benchmark | `BenchmarkRewriteASPath/ASN4_to_ASN4`: 20.33→20.77 ns/op, **0 B/op, 0 allocs/op** before and after |
 
+## Review Gate
+
+### Run 1 (closure — independent verification, 2026-07-21)
+
+The AS4_PATH fix landed in commit `fb3e6f20b` ("fix(bgp): emit AS4_PATH when transcoding to
+an old speaker"). An independent verification pass confirmed **all 10 ACs met** by the committed
+code with producing `file:line` for each (AS4_PATH wire bytes `aspath_rewrite.go:552`
+`writeAS4PathAttr`; shared owner `aspath_as4.go`; MUST-NOT-emit for all-mappable/AS4-capable
+`aspath_as4.go:60/81`; confed excluded `:31-43`; dual rewrite `aspath_rewrite.go:420`; boundary
+65535/65536/max `aspath_as4.go:37`; 0-alloc hot path `BenchmarkRewriteASPath`). The tests
+genuinely gate the behavior (mutation: returning nil from `as4PathForPath` reds 16 tests across
+BOTH the rewrite/`as4_rfc6793` AND `aspath_transcode` test files; the two MUST-NOT tests
+correctly stay green — proving the rule is genuinely SHARED, not parallel). `make ze-rfc-check`
+green (RFC6793-4.2.2-*/6-* tags resolve); `go vet` clean; 32 AS4 tests pass. The on-wire `.ci`
+is legitimately deferred (harness one-rule-per-message limit) to the spec that owns the harness
+contract; the behavior is proven byte-exact by unit tests instead.
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE.** Gate satisfied.
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
