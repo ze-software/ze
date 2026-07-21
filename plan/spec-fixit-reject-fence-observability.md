@@ -287,3 +287,33 @@ Consequences, all applied here:
 - [ ] Tests PASS after the signal is added
 - [ ] `make ze-test` green (host subset) + `make ze-qemu-needs-linux-test` for l2tp reload
 - [ ] Review Gate: `/ze-review` clean (0 BLOCKER, 0 ISSUE)
+
+## Review Gate
+
+### Run 1 (closure — independent adversarial review, 2026-07-21)
+
+Independent subagent review of the Phase-1 changeset (commit `a7815341e`:
+`reload_generation.go`, `server.go`, `main_reload.go`, `reload_status.go`,
+`ze-cli-show-cmd.yang`, `reload-listener-rejected.ci`) against AC-1/AC-2/AC-4.
+
+| Severity | Finding | Location | Action |
+|----------|---------|----------|--------|
+| NOTE | `generation_of` catches `JSONDecodeError` but a non-dict `data` would raise an uncaught `AttributeError`; harmless because `handleShowReloadStatus` always returns a `plugin.Map` | `test/plugin/reload-listener-rejected.ci:44-54` | Purely defensive; not a defect |
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE, 1 NOTE.** ACs supported by producing code:
+AC-1 `reload_generation.go:44-54` (`mark` increments on both applied/rejected branches),
+driven from `main_reload.go:93-94` (`MarkReloadProcessed(err == nil)`); increment ordering
+correct (the l2tp reject WARN at `l2tp/subsystem_reload.go:75` via `eng.Reload` returns
+before `doReload` marks, so the fence advances strictly AFTER the rejection). Race-free
+(`sync.Mutex` snapshot; `-race` `TestReloadStatusConcurrent` passes). AC-2 `reload_status.go:40-63`
+wired via `RegisterRPCs("ze-show:reload-status")` + YANG `container reload-status`; the `.ci`
+fences on `dispatch_until` and hard-fails "reload generation never advanced" (mutation-proven
+fence, original `expect=stderr:contains=` proof retained). AC-4 the only reader is the display
+handler; nothing branches on the counter to decide reload behavior (write-only observational).
+Artifact: `tmp/review/fixit-reject-fence-observability-<session>.md` (verdict clean).
+
+AC-3 is honestly declared unmet (AC-3a done; AC-3b moved out to
+`spec-fixit-reject-fence-observability-deferred-external-plugin-signals`, learned 1171); the
+spec closes at Phase 1 with AC-1/AC-2/AC-3a/AC-4.
+
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE.
