@@ -364,7 +364,6 @@ def lesson_comment(
     remove_paths: tuple[str, ...],
     required: bool,
     lesson_not_needed: str | None,
-    existing_lesson: bool,
 ) -> str:
     paths = add_paths + remove_paths
     learned = learned_paths(add_paths)
@@ -378,13 +377,9 @@ def lesson_comment(
             "--lesson-required cannot be combined with --lesson-not-needed"
         )
     if learned:
-        if not existing_lesson and "plan/learned/.counter" not in add_paths:
-            raise UsageError("new learned summaries must add plan/learned/.counter")
         return "Lesson: " + ", ".join(learned)
     if required:
-        raise UsageError(
-            "lesson is required; include plan/learned/NNN-name.md and plan/learned/.counter"
-        )
+        raise UsageError("lesson is required; include plan/learned/NNN-name.md")
     if lesson_worthy(paths):
         if not reason:
             raise UsageError(
@@ -1391,7 +1386,6 @@ def create(args: argparse.Namespace) -> int:
         remove_paths,
         args.lesson_required,
         args.lesson_not_needed,
-        args.lesson_existing,
     )
     block = CommitBlock(
         tag,
@@ -1445,37 +1439,48 @@ def print_session(args: argparse.Namespace) -> int:
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
+LEARNED_NEXT_RETRIES = 8
+
+
 def learned_next(args: argparse.Namespace) -> int:
     """Allocate the next learned-summary number collision-free.
 
-    Concurrent sessions used to read .counter hours apart and both write the
-    same number (13 duplicate prefixes exist). Allocation here is
-    max(existing file prefixes, .counter) + 1 and the file is created
-    immediately, so any later session sees it and allocates past it.
+    The plan/learned/NNNN-slug.md filenames ARE the record, so the next number
+    is max(existing prefixes) + 1 -- no separate .counter cache. The file is
+    created with an exclusive O_EXCL open, so any later session in the same tree
+    sees it and allocates past it. If a concurrent session wins the same number
+    in the window between the glob and the create, the O_EXCL fails; we re-glob
+    (the winner's file now raises the floor) and retry a bounded number of
+    times, always landing on the next free number rather than crashing.
+
+    Duplicate numbers across BRANCHES cannot be prevented here (two trees, no
+    shared filesystem); scripts/dev/learned_numbers.py --check is the backstop.
     """
     repo = repo_root(args.repo)
     slug = args.slug
     if not SLUG_RE.match(slug):
         raise UsageError(f"slug {slug!r} must be lower-kebab-case")
     learned_dir = repo / "plan" / "learned"
-    counter_path = learned_dir / ".counter"
-    highest = 0
-    for entry in learned_dir.glob("[0-9]*-*.md"):
-        prefix = entry.name.split("-", 1)[0]
-        if prefix.isdigit():
-            highest = max(highest, int(prefix))
-    try:
-        counter = int(counter_path.read_text().strip())
-    except (OSError, ValueError):
-        counter = 0
-    number = max(highest + 1, counter)
-    path = learned_dir / f"{number:03d}-{slug}.md"
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-    with os.fdopen(fd, "w") as fh:
-        fh.write(f"# {slug}\n\n<!-- write the learned summary here -->\n")
-    counter_path.write_text(f"{number + 1}\n")
-    print(path.relative_to(repo).as_posix())
-    return 0
+    for _ in range(LEARNED_NEXT_RETRIES):
+        highest = 0
+        for entry in learned_dir.glob("[0-9]*-*.md"):
+            prefix = entry.name.split("-", 1)[0]
+            if prefix.isdigit():
+                highest = max(highest, int(prefix))
+        number = highest + 1
+        path = learned_dir / f"{number:03d}-{slug}.md"
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        except FileExistsError:
+            continue  # a concurrent session won this number; re-glob and retry
+        with os.fdopen(fd, "w") as fh:
+            fh.write(f"# {slug}\n\n<!-- write the learned summary here -->\n")
+        print(path.relative_to(repo).as_posix())
+        return 0
+    raise UsageError(
+        f"could not allocate a learned number after {LEARNED_NEXT_RETRIES} "
+        f"attempts; concurrent allocation contention for slug {slug!r}"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1498,7 +1503,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     learned_cmd = sub.add_parser(
         "learned-next",
-        help="allocate the next plan/learned number, create the file, bump .counter",
+        help="allocate the next plan/learned number and create the file",
     )
     learned_cmd.add_argument(
         "slug", help="lower-kebab-case summary name (no NNN- prefix)"
@@ -1550,11 +1555,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--lesson-required",
         action="store_true",
         help="require a new plan/learned/NNN-name.md in --file",
-    )
-    create_cmd.add_argument(
-        "--lesson-existing",
-        action="store_true",
-        help="the learned file is an edit to an existing lesson, so .counter is not required",
     )
     create_cmd.add_argument(
         "--lesson-not-needed",

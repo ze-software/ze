@@ -2,10 +2,25 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | 1/3 (ready to implement; phase 1 = `.counter`, ships alone) |
-| Updated | 2026-07-17 |
+| Phase | 2/3 (phase 1 `.counter` retirement DONE in this commit; phases 2 deferrals + 3 known-failures remain) |
+| Updated | 2026-07-21 |
+
+> **Phase 1 landed (2026-07-21).** `plan/learned/.counter` retired: the allocator
+> (`commit_helper.py learned_next`) is counter-free (`max(glob)+1`) with a bounded
+> `O_EXCL` retry so a losing racer lands on the next free number rather than crashing
+> (R-6/AC-4); the staging gate (AC-6), `learned_numbers.py` invariant 3, the
+> `ze-learned-counter` make target, and the `.counter` half of `rebase_learned.py` are
+> all removed; agent-facing skills (`ze-implement`/`ze-commit`/`ze-commit-check`/
+> `ze-progress`) and `METHODOLOGY.md` were repointed at `learned-next`. Two independent
+> adversarial reviews: the first confirmed the core allocator/gate/scripts/tests correct
+> (all 8 lenses CLEAN, allocator scenarios run-verified), and caught a BLOCKER — the
+> skills/methodology still referenced the deleted `.counter` — which was then fixed and
+> re-verified. `make ze-learned-numbers-check` green with `.counter` gone (AC-7); the
+> new `test_learned_next_retries_on_existing` / `test_learned_next_unique_without_counter`
+> are RED-first proven. **Phases 2-3 (shard `plan/deferrals.md` per source spec; shard
+> `plan/known-failures.md` per failure) are NOT done — the spec stays OPEN.**
 
 > **DESIGN.** Research done 2026-07-16; Current Behavior below is traced to producing
 > functions. Two claims carried from the skeleton were BROKEN by that research (A-3,

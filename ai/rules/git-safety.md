@@ -1,6 +1,6 @@
 # Git Safety
 
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals, known-failures, .counter) cross-commit between concurrent sessions.
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals, known-failures) cross-commit between concurrent sessions.
 **Severity:** advisory
 
 ## Directives
@@ -21,8 +21,8 @@ is allowed; committing outside a script is not.
 **Shared plan files cross-commit even with a correct, explicit `--file`
 list.** The rule above fixes staging *timing*; it cannot fix staging
 *granularity*. `git add <file>` stages the WHOLE file, including hunks
-another session left uncommitted in it. `plan/deferrals.md`,
-`plan/known-failures.md` and `plan/learned/.counter` are single files that
+another session left uncommitted in it. `plan/deferrals.md` and
+`plan/known-failures.md` are single files that
 every session appends to, so whoever commits first carries everyone else's
 pending rows into their commit. Observed twice on 2026-07-15/16: one
 session's `deferrals.md` edits landed inside two unrelated VRRP commits,
@@ -54,9 +54,9 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures.md`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
-4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` and `plan/learned/.counter` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
-   Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes, .counter)+1, creates the file immediately, and bumps `.counter`, so concurrent sessions **sharing one working tree** cannot allocate the same number. Never hand-read `.counter` to pick a number.
-   **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py:1120`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
+4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
+   Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes)+1 and creates the file immediately, so concurrent sessions **sharing one working tree** cannot allocate the same number. Never hand-pick a number.
+   **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
 7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
@@ -106,8 +106,7 @@ scripts/dev/commit_helper.py create \
   --replace \
   --subject "rules: add goroutine lifecycle rule" \
   --file ai/rules/goroutine-lifecycle.md \
-  --file plan/learned/042-goroutine-lifecycle.md \
-  --file plan/learned/.counter
+  --file plan/learned/042-goroutine-lifecycle.md
 ```
 
 Key flags: `--replace` for the first commit in a session, `--append`
@@ -373,8 +372,7 @@ loops. Wait for completion.
 
 ```
 [ ] 3. Spec completion gate (if driven by a plan/ spec):
-      [ ] Learned summary written to plan/learned/NNN-<name>.md (NNN from .counter)
-      [ ] plan/learned/.counter bumped to NNN+1
+      [ ] Learned summary written to plan/learned/NNN-<name>.md (NNN from `commit_helper.py learned-next <slug>`)
       [ ] Spec file staged for deletion (git rm)
       Not done -> STOP.
 [ ] 4. Executive Summary Report (rules/planning.md). What was done, what is left.
@@ -419,13 +417,12 @@ via `git rebase <branch>`, never `git merge`. Linear history.
 ## Rebase Onto Diverged main: driving the bookkeeping conflicts
 
 A rebase of local commits onto a diverged `origin/main` re-conflicts on
-`plan/learned/.counter` and `ai/LEARNED-FULL-INDEX.md` at nearly every
-learned-touching commit -- the cross-branch learned-number collision covered
-in "Commit Rules" step 4 and `plan/learned/1155`. Both files are derivable, so
-drive the rebase with `scripts/dev/rebase_learned.py`: the human starts (and,
-if needed, aborts) the rebase; the script resolves the two bookkeeping files at
-each stop (`.counter` -> max+1, index regenerated via `learned_index.py`) and
-HALTS on any other unmerged path. Resolve that file, then re-run with
+`ai/LEARNED-FULL-INDEX.md` at nearly every learned-touching commit -- the
+cross-branch learned-number collision covered in "Commit Rules" step 4 and
+`plan/learned/1155`. That file is derivable, so drive the rebase with
+`scripts/dev/rebase_learned.py`: the human starts (and, if needed, aborts) the
+rebase; the script regenerates the index (via `learned_index.py`) at each stop
+and HALTS on any other unmerged path. Resolve that file, then re-run with
 `--take-theirs PATH` / `--take-ours PATH` / `--accept-incoming-delete` (each
 logged, never silent). `--help` documents the flags and exit codes.
 

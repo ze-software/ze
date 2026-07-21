@@ -20,12 +20,11 @@ from learned_numbers import (
 )
 
 
-def learned_dir(tmp: str, files: dict[str, str], counter: str = "999\n") -> Path:
+def learned_dir(tmp: str, files: dict[str, str]) -> Path:
     d = Path(tmp) / "plan" / "learned"
     d.mkdir(parents=True)
     for name, text in files.items():
         (d / name).write_text(text)
-    (d / ".counter").write_text(counter)
     return d
 
 
@@ -77,7 +76,6 @@ class TestCheck(unittest.TestCase):
             d = learned_dir(
                 tmp,
                 {"001-foo.md": "# 001 -- Foo\n", "002-bar.md": "# 002 -- Bar\n"},
-                "3\n",
             )
             self.assertEqual(check(d), [])
 
@@ -88,7 +86,6 @@ class TestCheck(unittest.TestCase):
             d = learned_dir(
                 tmp,
                 {"007-vrrp.md": "# 007 -- VRRP\n", "007-rib.md": "# 007 -- RIB\n"},
-                "8\n",
             )
             problems = check(d)
             self.assertEqual(len(problems), 1)
@@ -98,24 +95,41 @@ class TestCheck(unittest.TestCase):
 
     def test_h1_filename_mismatch_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = learned_dir(tmp, {"409-gc.md": "# 401 -- GC Pressure\n"}, "410\n")
+            d = learned_dir(tmp, {"409-gc.md": "# 401 -- GC Pressure\n"})
             problems = check(d)
             self.assertEqual(len(problems), 1)
             self.assertIn("H1 says 401, filename says 409", problems[0])
 
-    def test_stale_counter_is_reported(self):
-        # commit_helper.learned_next uses max(highest+1, counter); a counter at
-        # or below the highest is stale and misleading.
+    def test_check_passes_without_counter(self):
+        # AC-7/R-7: .counter is retired. A tree with no .counter is not a
+        # problem, and invariants 1 (uniqueness) and 2 (H1 matches filename) --
+        # the reason this tool exists -- still fire on seeded breakage.
         with tempfile.TemporaryDirectory() as tmp:
-            d = learned_dir(tmp, {"100-foo.md": "# 100 -- Foo\n"}, "50\n")
-            problems = check(d)
+            clean = learned_dir(
+                tmp,
+                {"100-foo.md": "# 100 -- Foo\n", "101-bar.md": "# 101 -- Bar\n"},
+            )
+            self.assertFalse((clean / ".counter").exists())
+            self.assertEqual(check(clean), [])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dup = learned_dir(
+                tmp,
+                {"200-a.md": "# 200 -- A\n", "200-b.md": "# 200 -- B\n"},
+            )
+            problems = check(dup)
             self.assertEqual(len(problems), 1)
-            self.assertIn(".counter is 50", problems[0])
-            self.assertIn("expected at least 101", problems[0])
+            self.assertIn("number 200 claimed by 2 summaries", problems[0])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            mismatch = learned_dir(tmp, {"300-x.md": "# 299 -- X\n"})
+            problems = check(mismatch)
+            self.assertEqual(len(problems), 1)
+            self.assertIn("H1 says 299, filename says 300", problems[0])
 
     def test_unnumbered_heading_is_not_a_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = learned_dir(tmp, {"100-foo.md": "# Learned: Foo\n"}, "101\n")
+            d = learned_dir(tmp, {"100-foo.md": "# Learned: Foo\n"})
             self.assertEqual(check(d), [])
 
 

@@ -104,8 +104,8 @@ One additional step: scan Design Insights + Known Limitations for **Consequences
 
 ## Numbering
 
-`plan/learned/.counter` contains the next available number. Read it, use it as NNN, then bump it (write NNN+1) and `git add plan/learned/.counter` in the commit script.
+Reserve the next number with `python3 scripts/dev/commit_helper.py learned-next <name>`: it takes max(existing `plan/learned/NNNN-*.md` prefixes) + 1 and creates the `NNNN-<name>.md` file immediately, so concurrent sessions in one tree cannot allocate the same number. The filenames ARE the record -- there is no separate counter cache to read, bump, or stage.
 
-If `.counter` is missing or wrong, run `make ze-learned-counter` to rebuild it from the directory.
+`make ze-learned-numbers-check` is the uniqueness/consistency backstop (no two summaries share a number, each H1 matches its filename); duplicate numbers across branches surface only on merge/rebase and are resolved with `make ze-learned-numbers-fix`.
 
 Write the summary to `plan/learned/NNN-<name>.md` instead of moving the full spec to `done/`.

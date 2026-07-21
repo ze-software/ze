@@ -841,7 +841,6 @@ help-dev:
 	@echo "  Spec management:"
 	@echo "    ze-spec-status           Spec inventory with progress status"
 	@echo "    ze-spec-status-json      Same as JSON"
-	@echo "    ze-learned-counter       Rebuild plan/learned/.counter (recovery)"
 	@echo ""
 	@echo "  Code:"
 	@echo "    fmt                      Format code (gofmt + goimports)"

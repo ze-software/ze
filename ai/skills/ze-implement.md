@@ -126,14 +126,13 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
     Running the commit script finishes the work. There is no step 17. The script is the
     final action. Everything below MUST be in that single script.
 
-    a. Write the learned summary to `plan/learned/NNN-<spec-stem>.md` following `plan/learned/METHODOLOGY.md`.
-       Number NNN: read `plan/learned/.counter` (contains the next available number).
+    a. Reserve the number and create the file: `python3 scripts/dev/commit_helper.py learned-next <spec-stem>` allocates NNN (max(existing `plan/learned/NNNN-*.md` prefixes) + 1) and creates `plan/learned/NNN-<spec-stem>.md` immediately, so concurrent sessions in one tree cannot collide. Write the learned summary into that file following `plan/learned/METHODOLOGY.md`.
        Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
     b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
     c. Release this session's spec claim: `scripts/dev/spec-session.sh release`.
     d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
     e. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
-       - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md`, `plan/learned/.counter`, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.
+       - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md`, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.
        - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
        - Use `--lesson-required` for Commit A. Use `--lesson-not-needed "spec closure only; lesson is in Commit A"` for Commit B.
        - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and learned-summary checks.

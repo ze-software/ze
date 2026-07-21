@@ -2,18 +2,15 @@
 """Enforce unique, self-consistent numbering across plan/learned/NNN-*.md.
 
 Why this exists: `scripts/dev/commit_helper.py learned-next` allocates via
-`number = max(highest + 1, counter)` (commit_helper.py:1120) against the LOCAL
-filesystem. It cannot see a number allocated on another branch, so two branches
-developed in parallel both allocate the same number and the duplicate only
-appears when they merge or rebase. Nothing detected that: the number silently
-stops identifying a summary, and `ai/LEARNED-FULL-INDEX.md` renders two rows
-with the same `#`.
+`number = max(existing prefixes) + 1` against the LOCAL filesystem. It cannot
+see a number allocated on another branch, so two branches developed in parallel
+both allocate the same number and the duplicate only appears when they merge or
+rebase. Nothing detected that: the number silently stops identifying a summary,
+and `ai/LEARNED-FULL-INDEX.md` renders two rows with the same `#`.
 
 Invariants enforced:
   1. no two summaries share a number
   2. a summary's H1 number, when it carries one, matches its filename number
-  3. plan/learned/.counter is at least highest+1, so the next allocation cannot
-     land on an existing file
 
 `--fix` resolves duplicates by keeping, in each colliding group, the summary
 with the most references elsewhere in the tree (renumbering it would churn the
@@ -83,13 +80,6 @@ def retitle(text: str, number: int) -> str:
     return "\n".join(lines)
 
 
-def counter_value(learned_dir: Path) -> int:
-    try:
-        return int((learned_dir / ".counter").read_text().strip())
-    except (OSError, ValueError):
-        return 0
-
-
 def check(learned_dir: Path) -> list[str]:
     """Return a list of problems; empty means the numbering is sound."""
     problems: list[str] = []
@@ -114,13 +104,6 @@ def check(learned_dir: Path) -> list[str]:
             if got is not None and got != num:
                 problems.append(f"{name}: H1 says {got}, filename says {num}")
 
-    highest = max(items)
-    counter = counter_value(learned_dir)
-    if counter < highest + 1:
-        problems.append(
-            f".counter is {counter} but the highest summary is {highest}; "
-            f"expected at least {highest + 1}"
-        )
     return problems
 
 
@@ -237,14 +220,11 @@ def fix(root: Path, learned_dir: Path) -> int:
                 )
                 retitled += 1
 
-    highest = max(summaries(learned_dir))
-    (learned_dir / ".counter").write_text(f"{highest + 1}\n")
-
     for old, new, _ in plan:
         print(f"{old} -> {new}")
     print(
         f"renumbered {len(plan)} summaries, rewrote {edited} files, "
-        f"retitled {retitled} H1s, .counter := {highest + 1}"
+        f"retitled {retitled} H1s"
     )
     print("now run: make ze-discovery-index")
     return 0

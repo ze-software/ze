@@ -208,7 +208,7 @@ After all tests pass, complete IN ORDER:
 [ ] 6. Critical Review (BLOCKING — rules/quality.md)
 [ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 7. Write learned summary: plan/learned/NNN-<name>.md (NNN from plan/learned/.counter; bump after)
+[ ] 7. Write learned summary: plan/learned/NNN-<name>.md (allocate NNN with `scripts/dev/commit_helper.py learned-next <slug>`)
 [ ] 7. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 10) must exist. Name the file in the report.
@@ -216,7 +216,6 @@ After all tests pass, complete IN ORDER:
 [ ] 7. Commit (when user says so) -- ONE helper-generated script, TWO commits (per Spec Closure above):
         - **Commit A:** `scripts/dev/commit_helper.py create --replace` with `--file` for all implementation files (code, tests, docs, schema)
           + `--file plan/learned/NNN-<name>.md` + `--file plan/spec-<name>.md` (preserves edits)
-          + Bump `plan/learned/.counter` and include `--file plan/learned/.counter`
           + include `--file ai/LEARNED-INDEX.md` if updated
         - **Commit B:** `scripts/dev/commit_helper.py create --append --remove plan/spec-<name>.md` (spec closure)
         Run the generated script yourself and the work is done. There is no
@@ -247,7 +246,7 @@ deletion, the design work is lost from git history forever.
 The helper-generated commit script MUST produce two commits:
 1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
    with `--file` for all code, tests, docs, learned summary, LEARNED-INDEX,
-   counter bump, AND the spec file itself (with all edits from implementation).
+   AND the spec file itself (with all edits from implementation).
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
 
 This preserves the final spec state in git history. `git log -p -- plan/<spec>` shows
@@ -370,8 +369,7 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 ## Writing Learned Summaries
 
 When a spec is complete, write a concise summary to `plan/learned/` using the next available number.
-`plan/learned/.counter` contains the next number. Read it, use it, bump it, and include it in the Commit A helper command.
-Recovery: `make ze-learned-counter`.
+Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>`: it takes max(existing `plan/learned/NNNN-*.md` prefixes) + 1 and creates the file immediately, so concurrent sessions in one tree cannot collide. Include the created file in the Commit A helper command.
 
 The summary (~25-35 lines) uses this fixed 5-section format:
 

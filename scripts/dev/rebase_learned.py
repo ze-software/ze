@@ -4,16 +4,14 @@ bookkeeping files, auto-resolving only what is mechanically derivable and
 halting on anything that needs judgment.
 
 WHY THIS EXISTS
-    Rebasing a local branch onto a diverged origin/main routinely stops on
-    conflicts in the two files every learned-summary commit touches:
+    Rebasing a local branch onto a diverged origin/main routinely stops on a
+    conflict in the file every learned-summary commit regenerates:
 
-      - plan/learned/.counter          (a monotonic "next free number")
       - ai/LEARNED-FULL-INDEX.md        (fully generated from the *.md files)
 
-    Both are DERIVABLE, so resolving them by hand on every one of ~20 commits
-    is pure toil. This tool resolves them the only correct way at each stop:
+    It is DERIVABLE, so resolving it by hand on every one of ~20 commits is
+    pure toil. This tool resolves it the only correct way at each stop:
 
-      - .counter          -> max(existing plan/learned/NNNN-*.md numbers) + 1
       - LEARNED-FULL-INDEX -> regenerate with scripts/dev/learned_index.py
 
     Everything else is a judgment call, so the tool STOPS and reports rather
@@ -59,16 +57,13 @@ NOTES
 """
 
 import os
-import re
 import pathlib
 import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-LEARNED = ROOT / "plan" / "learned"
-COUNTER = "plan/learned/.counter"
 INDEX = "ai/LEARNED-FULL-INDEX.md"
-BOOKKEEPING = {COUNTER, INDEX}
+BOOKKEEPING = {INDEX}
 MAX_ITERS = 200
 
 ENV = dict(os.environ, GIT_EDITOR="true", GIT_SEQUENCE_EDITOR="true")
@@ -166,21 +161,6 @@ def take_side(path, stage):
     git("add", "--", path, check=True)
 
 
-def max_learned_number():
-    nums = []
-    for p in LEARNED.glob("*.md"):
-        m = re.match(r"(\d+)-", p.name)
-        if m:
-            nums.append(int(m.group(1)))
-    return max(nums) if nums else 0
-
-
-def resolve_counter():
-    nxt = max_learned_number() + 1
-    (LEARNED / ".counter").write_text(f"{nxt}\n", encoding="utf-8")
-    return nxt
-
-
 def regen_index():
     r = subprocess.run(
         [sys.executable, "scripts/dev/learned_index.py"],
@@ -255,17 +235,14 @@ def main():
                 )
                 return 3
 
-            # Resolve the derivable bookkeeping files.
+            # Resolve the derivable bookkeeping file.
             added = []
-            if COUNTER in um:
-                nxt = resolve_counter()
-                added.append(COUNTER)
-                print(f"[iter {it}] .counter -> {nxt}")
             if INDEX in um:
                 regen_index()
                 added.append(INDEX)
                 print(f"[iter {it}] regenerated {INDEX}")
-            git("add", *added, check=True)
+            if added:
+                git("add", *added, check=True)
 
         # Unstaged changes to tracked files block --continue with a MISLEADING
         # "edit all merge conflicts" message. Surface the real cause clearly.

@@ -32,10 +32,10 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
 4. **Draft commit message:** Base the subject and body on the scoped changes.
    Do not run `git log` just to imitate style unless the user explicitly asks.
 5. **Lesson check:** If the commit changes agent workflow, rules, tooling,
-   verification, discovery paths, or a reusable gotcha, write a
-   `plan/learned/NNN-<name>.md` summary, bump `plan/learned/.counter`, and
-   include both files. If no reusable lesson is useful, pass
-   `--lesson-not-needed "<reason>"` to the helper.
+   verification, discovery paths, or a reusable gotcha, reserve the number and
+   create the file with `python3 scripts/dev/commit_helper.py learned-next <name>`,
+   write the `plan/learned/NNN-<name>.md` summary into it, and `--file` it. If no
+   reusable lesson is useful, pass `--lesson-not-needed "<reason>"` to the helper.
 6. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the
    session ID, message file, executable script, ignored-path checks,
    `git commit -F`, and lesson gate are handled consistently:

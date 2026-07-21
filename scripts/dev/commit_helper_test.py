@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import subprocess
@@ -11,6 +12,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 import commit_helper as ch
@@ -695,6 +697,84 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
     def test_structural_gates_is_not_empty(self):
         # The subset assertion above is satisfied by an empty frozenset too.
         self.assertTrue(ch.STRUCTURAL_GATES)
+
+
+class TestLearnedNextCounterFree(unittest.TestCase):
+    """learned_next allocates from max(glob)+1 alone, with no plan/learned/.counter.
+
+    The .counter cache is retired: the NNNN-slug.md filenames ARE the record,
+    so allocation is max(existing prefixes) + 1 and the O_EXCL create is the
+    only same-tree mutual exclusion. A losing racer must retry onto the next
+    free number, never surface an uncaught FileExistsError.
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        return ch.repo_root(str(root))
+
+    def test_learned_next_unique_without_counter(self):
+        # AC-4: two allocations in one tree with no .counter present yield
+        # distinct numbers, relying solely on the O_EXCL create + max(glob).
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp)
+            learned = repo / "plan" / "learned"
+            learned.mkdir(parents=True)
+            (learned / "500-seed.md").write_text("# 500 -- seed\n")
+
+            self.assertEqual(
+                ch.learned_next(argparse.Namespace(repo=str(repo), slug="alpha")), 0
+            )
+            self.assertEqual(
+                ch.learned_next(argparse.Namespace(repo=str(repo), slug="beta")), 0
+            )
+
+            nums = sorted(
+                int(p.name.split("-", 1)[0]) for p in learned.glob("[0-9]*-*.md")
+            )
+            self.assertEqual(nums, [500, 501, 502])
+            self.assertFalse((learned / ".counter").exists())
+
+    def test_learned_next_retries_on_existing(self):
+        # AC-4/R-6: simulate the same-tree race -- a concurrent session wins
+        # the target number in the window between this session's glob and its
+        # O_EXCL create. Today the uncaught FileExistsError escapes learned_next
+        # (main() catches only UsageError); the bounded retry must re-glob past
+        # the winner and land on the next free number instead of crashing.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp)
+            learned = repo / "plan" / "learned"
+            learned.mkdir(parents=True)
+            (learned / "500-seed.md").write_text("# 500 -- seed\n")
+
+            real_open = os.open
+            first = {"pending": True}
+
+            def racing_open(path, *a, **k):
+                # First exclusive create of a summary: a concurrent session
+                # wins that number (create the file), then fail this caller's
+                # O_EXCL exactly as the kernel would.
+                if first["pending"] and str(path).endswith(".md"):
+                    first["pending"] = False
+                    os.close(
+                        real_open(
+                            str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644
+                        )
+                    )
+                    raise FileExistsError(17, "File exists", str(path))
+                return real_open(path, *a, **k)
+
+            args = argparse.Namespace(repo=str(repo), slug="alpha")
+            with mock.patch.object(ch.os, "open", side_effect=racing_open):
+                rc = ch.learned_next(args)
+
+            self.assertEqual(rc, 0)
+            nums = sorted(
+                int(p.name.split("-", 1)[0]) for p in learned.glob("[0-9]*-*.md")
+            )
+            # 500 seed, 501 the racing winner, 502 this session after the retry.
+            self.assertEqual(nums, [500, 501, 502])
+            self.assertFalse((learned / ".counter").exists())
 
 
 if __name__ == "__main__":

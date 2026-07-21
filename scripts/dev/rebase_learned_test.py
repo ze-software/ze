@@ -2,8 +2,8 @@
 """Unit tests for rebase_learned.py (learned-bookkeeping rebase driver).
 
 Two layers:
-  * pure decision logic (arg parsing, counter derivation, merge-stage reading)
-    exercised with the module's git()/LEARNED globals monkeypatched;
+  * pure decision logic (arg parsing, merge-stage reading) exercised with the
+    module's git() global monkeypatched;
   * one real-git test that PROVES the premise the tool's exit code 6 exists for
     -- `git rebase --continue` refusing with a "merge conflicts" message when
     the real cause is unstaged tracked changes. That claim is sourced to git's
@@ -75,34 +75,6 @@ class TestParseArgs(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             self.run_with(["--help"])
         self.assertEqual(cm.exception.code, 0)
-
-
-class TestCounterDerivation(unittest.TestCase):
-    def test_max_number_ignores_unnumbered_files(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            d = Path(tmp)
-            (d / "0100-a.md").write_text("x")
-            (d / "1154-b.md").write_text("x")
-            (d / "README.md").write_text("x")
-            (d / ".counter").write_text("1\n")
-            old = rebase_learned.LEARNED
-            try:
-                rebase_learned.LEARNED = d
-                self.assertEqual(rebase_learned.max_learned_number(), 1154)
-                # counter is "next free" -- matches commit_helper.py:1120,1125
-                self.assertEqual(rebase_learned.resolve_counter(), 1155)
-                self.assertEqual((d / ".counter").read_text(), "1155\n")
-            finally:
-                rebase_learned.LEARNED = old
-
-    def test_empty_dir_yields_zero(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            old = rebase_learned.LEARNED
-            try:
-                rebase_learned.LEARNED = Path(tmp)
-                self.assertEqual(rebase_learned.max_learned_number(), 0)
-            finally:
-                rebase_learned.LEARNED = old
 
 
 class TestMergeStages(unittest.TestCase):

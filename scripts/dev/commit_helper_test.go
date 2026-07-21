@@ -154,8 +154,10 @@ func TestCommitHelperReusesSessionAndAppends(t *testing.T) {
 	mustContain(t, script, "git commit -F tmp/commit-msg-deadbeef-b.txt")
 }
 
-// VALIDATES: workflow/tooling commits must carry a learned summary or an explicit no-lesson reason.
-// PREVENTS: structural agent-workflow changes shipping without a reusable lesson record.
+// VALIDATES: workflow/tooling commits must carry a learned summary or an explicit no-lesson reason,
+// and a new learned summary commits WITHOUT staging plan/learned/.counter (the retired counter cache).
+// PREVENTS: structural agent-workflow changes shipping without a reusable lesson record; a resurrected
+// .counter staging requirement that would reintroduce the shared-file cross-commit it was retired to fix.
 func TestCommitHelperRequiresLessonsForWorkflowChanges(t *testing.T) {
 	root := makeCommitHelperFixture(t)
 	writeFixture(t, root, ".gitignore", "tmp/*\n")
@@ -174,8 +176,9 @@ func TestCommitHelperRequiresLessonsForWorkflowChanges(t *testing.T) {
 	}
 	mustContain(t, stderr, "lesson-worthy paths changed")
 
+	// The learned summary alone satisfies the gate; .counter is no longer created
+	// or staged, so it is deliberately absent from --file (AC-6).
 	writeFixture(t, root, "plan/learned/833-commit-helper.md", "# lesson\n")
-	writeFixture(t, root, "plan/learned/.counter", "834\n")
 	out, stderr, code := runCommitHelper(t, root,
 		"--repo", root,
 		"create",
@@ -183,7 +186,6 @@ func TestCommitHelperRequiresLessonsForWorkflowChanges(t *testing.T) {
 		"--subject", "tools: change workflow",
 		"--file", "scripts/dev/workflow.py",
 		"--file", "plan/learned/833-commit-helper.md",
-		"--file", "plan/learned/.counter",
 		"--replace",
 	)
 	if code != 0 {
