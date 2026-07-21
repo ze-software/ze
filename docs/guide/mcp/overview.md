@@ -1,3 +1,6 @@
+---
+title: MCP Integration (Guide)
+---
 # MCP Integration
 
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->

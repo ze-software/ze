@@ -144,8 +144,8 @@ Nothing is stable yet. Expect changes in:
 
 ### Choose another routing suite if you need
 
-- **Mature OSPF/IS-IS** -- OSPF has config wiring and transport skeleton only, and full cross-vendor routing behavior is still being built.
-- **Production-proven router functionality** -- Ze has FIB, static, connected, kernel, MPLS, LDP, RSVP-TE, firewall, interface, OSPF config wiring, and VPP code in tree, but it remains pre-release
+- **Production-hardened OSPF/IS-IS** -- Ze ships experimental OSPFv2/OSPFv3 and IS-IS engines (SPF, LSDB, areas, redistribution), but they are pre-release and not yet proven across vendors in production.
+- **Production-proven router functionality** -- Ze has FIB, static, connected, kernel, MPLS, LDP, RSVP-TE, firewall, interface, OSPF, IS-IS, and VPP code in tree, but it remains pre-release
 
 ## For the Brave
 

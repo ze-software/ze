@@ -1,3 +1,6 @@
+---
+title: Looking Glass (Guide)
+---
 # Looking Glass
 
 Ze includes a built-in looking glass that provides public, read-only access to BGP session state and route information. It runs as a separate HTTP server from the authenticated web UI.

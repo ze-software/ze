@@ -844,7 +844,7 @@ expect=exit:code=0
 | `make ze-verify` | lint + unit + functional + exabgp (pre-commit gate) |
 | `make ze-unit-test` | Unit tests with race detector |
 | `make ze-functional-test` | All `.ci` functional tests |
-| `make ze-lint` | 26 linters via golangci-lint |
+| `make ze-lint` | 27 linters via golangci-lint |
 | `make ze-fuzz-test` | Fuzz tests (10s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility suite |
 | `make ze-chaos-test` | Chaos unit + functional + web dashboard tests |
@@ -855,7 +855,7 @@ passes the full suite.
 
 ### Linting
 
-26 linters via golangci-lint. No linter is ever disabled. The only exclusions are
+27 linters via golangci-lint. No linter is ever disabled. The only exclusions are
 `fieldalignment` (govet) and test-file exclusions for `dupl`/`goconst`/`prealloc`/`gosec`.
 
 ### Chaos Testing

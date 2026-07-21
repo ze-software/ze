@@ -5,7 +5,7 @@ Get Ze running with two BGP peers in under 5 minutes.
 ## Build
 
 ```bash
-git clone https://github.com/ze-software/ze.git
+git clone https://codeberg.org/thomas-mangin/ze.git
 cd ze
 make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 ```

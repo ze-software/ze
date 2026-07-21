@@ -274,7 +274,7 @@ ze-test bgp encode --start 42 # Resume at id 42
 
 ### Linting
 ```bash
-make lint                     # 26 linters via golangci-lint
+make lint                     # 27 linters via golangci-lint
 ```
 
 ---

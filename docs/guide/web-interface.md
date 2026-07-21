@@ -1,3 +1,6 @@
+---
+title: Web Interface (Guide)
+---
 # Web Interface
 
 Ze provides an HTTPS web interface for browsing configuration, editing values, and running commands through a browser. The web UI uses the same YANG schemas, user database, and command grammar as the SSH CLI.

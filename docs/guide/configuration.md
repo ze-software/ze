@@ -1,3 +1,6 @@
+---
+title: Configuration (Guide)
+---
 # Configuration
 
 Ze uses a JUNOS-like hierarchical configuration format.

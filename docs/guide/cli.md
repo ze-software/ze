@@ -1,3 +1,6 @@
+---
+title: CLI Reference (Guide)
+---
 # CLI Reference
 
 Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.

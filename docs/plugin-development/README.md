@@ -286,7 +286,7 @@ p.OnEvent(func(event string) error {
     return nil
 })
 
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     // Handle command execution. Return (status, data, error).
     return "done", `{"status":"running"}`, nil
 })

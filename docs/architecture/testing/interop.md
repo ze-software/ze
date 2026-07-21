@@ -1,3 +1,6 @@
+---
+title: Interoperability Testing (Testing Architecture)
+---
 # Interoperability Testing
 
 Ze validates protocol correctness against production BGP daemons in two complementary ways:
@@ -126,7 +129,7 @@ All session waiters poll with a configurable timeout (default 90s, override via 
 
 ### Scenario Inventory
 
-The suite has grown to 97 scenario directories in `test/interop/scenarios/`. The table
+The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
 reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
 max-prefix cease, GTSM, AS112, and full IS-IS (auth, convergence, dual-stack, LAN DIS,
