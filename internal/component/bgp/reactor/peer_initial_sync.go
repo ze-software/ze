@@ -89,7 +89,7 @@ func (p *Peer) sendInitialRoutes() {
 					routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 					continue
 				}
-				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.settings.LinkLocal, p.sendCtx.Load())
 				err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
 				message.PutUpdateBuilder(ub)
@@ -100,7 +100,7 @@ func (p *Peer) sendInitialRoutes() {
 			} else {
 				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
 				// Use size-aware builder to respect max message size
-				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 				params := make([]message.UnicastParams, 0, len(routes))
 				for i := range routes {
 					r := &routes[i]
@@ -138,7 +138,7 @@ func (p *Peer) sendInitialRoutes() {
 				continue
 			}
 			addPath := p.addPathFor(routeFamily(route))
-			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.settings.LinkLocal, p.sendCtx.Load())
 			err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
 			message.PutUpdateBuilder(ub)
@@ -211,6 +211,9 @@ func (p *Peer) sendInitialRoutes() {
 			fam := op.Route.NLRI().Family()
 			addPath := p.addPathFor(fam)
 			attrHandle := getBuildBuf()
+			// p.settings.IsIBGP() read directly: this is inside a p.mu.Lock section, so it is
+			// already synchronized with the resolveDynamicPeerSettings write. Using the
+			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
@@ -354,6 +357,9 @@ func (p *Peer) sendInitialRoutes() {
 			fam := op.Route.NLRI().Family()
 			addPath := p.addPathFor(fam)
 			attrHandle := getBuildBuf()
+			// p.settings.IsIBGP() read directly: this is inside a p.mu.Lock section, so it is
+			// already synchronized with the resolveDynamicPeerSettings write. Using the
+			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
@@ -532,7 +538,7 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 		}
 
 		addPath := p.addPathFor(fam)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		update := ub.BuildPlugin(toPluginParams(*route, fam))
 		// A single plugin route (e.g. an atomic FlowSpec rule) cannot be split;
 		// skip it rather than emit an UPDATE the peer would reject.
@@ -570,7 +576,7 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, maxMsgSize int, sendFn 
 	addPath := p.addPathFor(g.fam)
 	base := toPluginParams(*g.rep, g.fam)
 	emit := func(nlri []byte) {
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		params := base
 		params.NLRI = nlri
 		update := ub.BuildPlugin(params)
@@ -582,7 +588,7 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, maxMsgSize int, sendFn 
 
 	// Common case: build the whole group once and send it if it fits.
 	full := concatNLRIs(g.nlris)
-	ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+	ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 	params := base
 	params.NLRI = full
 	update := ub.BuildPlugin(params)
@@ -599,7 +605,7 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, maxMsgSize int, sendFn 
 
 	// Oversized group: split NLRIs across multiple size-bounded UPDATEs.
 	batches := packNLRIs(g.nlris, maxMsgSize, func(batch []byte) int {
-		mub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		mub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		mparams := base
 		mparams.NLRI = batch
 		sz := pluginUpdateSize(mub.BuildPlugin(mparams))
@@ -684,7 +690,7 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 
 		// Build a default route UPDATE: 0.0.0.0/0 for IPv4, ::/0 for IPv6.
 		addPath := p.addPathFor(fam)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		params := message.UnicastParams{
 			Prefix:  defaultPrefix,
 			NextHop: nextHop,
@@ -743,7 +749,9 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		[]filterapi.FilterRef{{Name: filterName}},
 		"export",
 		p.settings.Address.String(),
-		p.settings.PeerAS,
+		// Guarded PeerAS: sendInitialRoutes runs on its own goroutine and can outlive a
+		// teardown, so a stale run may read PeerAS while a new establishment writes it.
+		p.PeerAS(),
 		updateText,
 		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
 	)

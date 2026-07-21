@@ -136,7 +136,11 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}
-	filters := peer.settings.ImportFilters
+	// Guarded read: a dynamic peer resolves its ImportFilters under p.mu on establishment.
+	// This ingress step runs on the peer's read goroutine, which after the FSM
+	// transition-queue change can process an UPDATE while the establishment callback still
+	// runs on the drainer goroutine, so the read must go through the accessor.
+	filters := peer.ImportFilters()
 	// No import policy configured is a legitimate accept (an absent precondition,
 	// not a guard miss): nothing to run.
 	if len(filters) == 0 {

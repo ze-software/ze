@@ -116,7 +116,7 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 
 			payload := testUpdatePayload()
 			wireUpdate := wireu.NewWireUpdate(payload, 0)
-			_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+			_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 
 			select {
 			case <-gotMsg:

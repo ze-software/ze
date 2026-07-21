@@ -44,6 +44,13 @@ func (a RFC7606Action) String() string {
 	}
 }
 
+// AttrRange is a byte range [Start, End) within a path-attributes section,
+// identifying one whole attribute (flags + type + length + value).
+type AttrRange struct {
+	Start int
+	End   int
+}
+
 // RFC7606ValidationResult contains the result of UPDATE validation.
 type RFC7606ValidationResult struct {
 	Action         RFC7606Action
@@ -51,6 +58,15 @@ type RFC7606ValidationResult struct {
 	Reason         uint8          // Discard reason code (draft-mangin-idr-attr-tombstone-00 Section 4.4)
 	Description    string         // Human-readable error description for the strongest error
 	DiscardEntries []DiscardEntry // Attributes to discard with reason codes when Action is AttributeDiscard
+	// DuplicateRanges holds the byte range of every later (keep-first) occurrence
+	// of a non-MP attribute code that appeared more than once. RFC 7606 Section 3.g
+	// says duplicates other than MP_REACH/MP_UNREACH must be handled by discarding
+	// all but the first occurrence; recording the ranges here lets the enforcement
+	// layer actually strip those bytes (StripAttrRanges) so every downstream
+	// consumer sees a single copy, rather than merely skipping their validation and
+	// leaving the duplicate on the wire. Ranges are in ascending order and
+	// non-overlapping (one forward parse). Empty when there are no duplicates.
+	DuplicateRanges []AttrRange
 }
 
 // Attribute type codes per RFC 4271.
@@ -198,6 +214,10 @@ func ValidateUpdateRFC7606AddPath(
 	var strongestDesc string
 	var discardEntries []DiscardEntry
 
+	// RFC 7606 Section 3.g: byte ranges of later (keep-first) occurrences of a
+	// duplicated non-MP attribute, recorded so the enforcement layer can strip them.
+	var duplicateRanges []AttrRange
+
 	// recordError updates the strongest action and tracks discard entries.
 	recordError := func(r *RFC7606ValidationResult) {
 		if r.Action == RFC7606ActionAttributeDiscard {
@@ -213,6 +233,7 @@ func ValidateUpdateRFC7606AddPath(
 	// Parse attributes
 	pos := 0
 	for pos < len(pathAttrs) {
+		attrStart := pos // start of this attribute (flags byte); used for duplicate stripping
 		// Need at least flags + type code
 		if pos+2 > len(pathAttrs) {
 			// RFC 7606 Section 4: "If the remaining number of octets ... is less than three
@@ -278,9 +299,13 @@ func ValidateUpdateRFC7606AddPath(
 		}
 
 		// RFC 7606 Section 3.g: Handle duplicate attributes
-		// MP_REACH/MP_UNREACH duplicates are handled below with session-reset
-		// Other duplicates: discard all but first (skip validation/tracking)
+		// MP_REACH/MP_UNREACH duplicates are handled below with session-reset.
+		// Other duplicates: "Discard all but first occurrence." Record the byte
+		// range of this later occurrence so the enforcement layer strips it
+		// keep-first; skipping validation alone would leave the duplicate bytes on
+		// the wire, which the attribute index later rejects as malformed.
 		if seenCodes[attrCode] && attrCode != attrCodeMPReachNLRI && attrCode != attrCodeMPUnreachNLRI {
+			duplicateRanges = append(duplicateRanges, AttrRange{Start: attrStart, End: pos})
 			continue
 		}
 		seenCodes[attrCode] = true
@@ -393,14 +418,15 @@ func ValidateUpdateRFC7606AddPath(
 	}
 
 	if strongest == RFC7606ActionNone {
-		return &RFC7606ValidationResult{Action: RFC7606ActionNone}
+		return &RFC7606ValidationResult{Action: RFC7606ActionNone, DuplicateRanges: duplicateRanges}
 	}
 
 	return &RFC7606ValidationResult{
-		Action:         strongest,
-		AttrCode:       strongestCode,
-		Description:    strongestDesc,
-		DiscardEntries: discardEntries,
+		Action:          strongest,
+		AttrCode:        strongestCode,
+		Description:     strongestDesc,
+		DiscardEntries:  discardEntries,
+		DuplicateRanges: duplicateRanges,
 	}
 }
 

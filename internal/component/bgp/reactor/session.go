@@ -16,6 +16,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/netip"
 	"runtime"
@@ -38,9 +39,28 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// sessionLogger is the session subsystem logger (lazy initialization).
+// sessionLoggerRef holds the session subsystem logger provider (lazy initialization).
 // Controlled by ze.log.bgp.reactor.session environment variable.
-var sessionLogger = slogutil.LazyLogger("bgp.reactor.session")
+//
+// The provider lives behind an atomic.Value so tests can override it (to measure logging
+// cost when Debug is disabled) without racing the cold-path callers on background goroutines
+// -- keepalive/hold timer callbacks and the cancel goroutine -- that log through
+// sessionLogger(). A plain package var read/written concurrently is a data race that surfaces
+// under stress when a test swaps the logger while another session's timer is still firing.
+var sessionLoggerRef = func() *atomic.Pointer[sessionLoggerProvider] {
+	p := new(atomic.Pointer[sessionLoggerProvider])
+	base := sessionLoggerProvider(slogutil.LazyLogger("bgp.reactor.session"))
+	p.Store(&base)
+	return p
+}()
+
+// sessionLoggerProvider resolves the current session subsystem logger (lazy).
+type sessionLoggerProvider func() *slog.Logger
+
+// sessionLogger returns the session subsystem logger.
+func sessionLogger() *slog.Logger {
+	return (*sessionLoggerRef.Load())()
+}
 
 // bufMuxBlockSize is the number of buffers per block in the pool multiplexer.
 // Each block is one contiguous allocation. Sized for typical concurrent peer counts.
@@ -169,8 +189,13 @@ const sendHoldTimerMin = 8 * time.Minute
 // ctxID is the encoding context for zero-copy decisions.
 // buf is the pool buffer handle for received messages (zero-value for sent).
 // meta is route metadata from ReceivedUpdate (sent events only); nil for received.
+// sentSourcePeerStr is the forwarding source peer's address string for sent forward-pool
+// writes (ribOut stale-scoping), captured at the write site inside the sender's writeMu
+// critical section; "" for received messages and non-forward sends. It travels as an
+// argument rather than being re-read from peer.session in the receiver, which would race
+// the peer run goroutine that nils/replaces peer.session under peer.mu.
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) (kept bool)
 
 // Lock hierarchy (acquire in this order; never reverse):
 //
@@ -707,6 +732,17 @@ func (s *Session) logFSMEvent(event fsm.Event) {
 // instant cancellation response on all connection types (including net.Pipe).
 func (s *Session) Run(ctx context.Context) error {
 	defer close(s.done)
+
+	// When the read loop exits the session is finished, so stop its timers: no keepalive,
+	// hold, or send-hold goroutine may outlive Run. The message-driven teardown paths
+	// (handleConnectionClose, handleNotification, Close) already StopAll, but a plain
+	// ctx-cancel exit does not — which would leave the PERIODIC keepalive timer firing after
+	// the session is dead, its callback reading state (e.g. the package-global sessionLogger)
+	// long after Run returned. StopAll and stopSendHoldTimer are idempotent, so the redundant
+	// call on the paths that already stop timers is harmless. Not a hot path (once per session
+	// lifecycle).
+	defer s.stopSendHoldTimer()
+	defer s.timers.StopAll()
 
 	// Cancel goroutine: watches for shutdown signals and closes the connection
 	// to unblock ReadFull. Sets closeReason before closing so the read loop

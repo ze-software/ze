@@ -104,7 +104,7 @@ func TestSessionRFC7606TreatAsWithdrawTwoFamiliesDispatchesBoth(t *testing.T) {
 	var dispatched [][]byte
 	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any,
+		_ BufHandle, _ map[string]any, _ string,
 	) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatched = append(dispatched, append([]byte(nil), wu.Payload()...))
@@ -247,7 +247,7 @@ func TestSessionRFC7606TreatAsWithdrawExtraFamilyForwardCacheEligible(t *testing
 	var captured []capture
 	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		buf BufHandle, _ map[string]any,
+		buf BufHandle, _ map[string]any, _ string,
 	) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			captured = append(captured, capture{

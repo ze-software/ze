@@ -124,6 +124,33 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		}
 	}
 
+	// RFC 7606 Section 3.g keep-first: strip duplicate non-MP attributes recorded by the
+	// validator so every downstream consumer (RIB, filters, cross-context re-encode) sees a
+	// single occurrence of each code. The attribute index (attribute.AttributesWire) rejects
+	// a duplicate code as a hard error, which silently drops MP routes at the RIB
+	// (rib_structured.go MPReach/MPUnreach return nil on that error and skip the family).
+	// MP_REACH/MP_UNREACH duplicates are session-reset by the validator and never recorded
+	// here. Nothing to strip for session-reset (not processed) or treat-as-withdraw (the body
+	// is re-synthesized into withdrawals downstream). Reuses the ATTR_DISCARD rebuild path and
+	// allocates only on this malformed-input path.
+	if len(result.DuplicateRanges) > 0 &&
+		result.Action != message.RFC7606ActionSessionReset &&
+		result.Action != message.RFC7606ActionTreatAsWithdraw {
+		dedupedAttrs := message.StripAttrRanges(pathAttrs, result.DuplicateRanges)
+		oldCtxID := wu.SourceCtxID()
+		oldSourceID := wu.SourceID()
+		newBody := message.RebuildUpdateBody(body, dedupedAttrs)
+		wu = wireu.NewWireUpdate(newBody, oldCtxID)
+		wu.SetSourceID(oldSourceID)
+		// Keep body and pathAttrs consistent (pathAttrs a subslice of body) so the
+		// ATTR_DISCARD branch's in-place ApplyAttrDiscard shows through. The withdrawn
+		// section is unchanged by the rebuild, so the attrs still start at offset.
+		body = newBody
+		pathAttrs = body[offset : offset+len(dedupedAttrs)]
+		sessionLogger().Debug("RFC 7606 Section 3.g: stripped duplicate attributes keep-first",
+			"peer", s.settings.Address, "count", len(result.DuplicateRanges))
+	}
+
 	switch result.Action {
 	case message.RFC7606ActionNone:
 		return wu, message.RFC7606ActionNone, nil

@@ -1658,7 +1658,7 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 
 	// Track callback invocations
 	callbackCount := new(int)
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any) bool {
+	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
 		if direction == rpc.DirectionReceived {
 			*callbackCount++
 		}
@@ -1669,6 +1669,16 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 
 	client, server := net.Pipe()
 	cleanup := func() {
+		// Stop the session's timers BEFORE closing the pipe. exchangeOpenKeepalive drives
+		// the session to Established, which starts the PERIODIC keepalive timer (and the
+		// RFC 9687 send-hold timer) on the real clock. Without stopping them the keepalive
+		// timer goroutine outlives the test and keeps firing (every holdTime/3), reading the
+		// package-global sessionLogger from its callback (session.go OnKeepaliveTimerExpires)
+		// — which races tests that swap that global (TestRFC7606DiagnosticsCostsNothingWhen-
+		// Disabled). StopAll drains keepalive/hold/connect-retry; stopSendHoldTimer drains
+		// the send-hold timer. This mirrors production teardown (Session.Close -> StopAll).
+		session.timers.StopAll()
+		session.stopSendHoldTimer()
 		client.Close() //nolint:errcheck // test cleanup
 		server.Close() //nolint:errcheck // test cleanup
 	}
@@ -1939,7 +1949,7 @@ func TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal(t *testing.T) {
 	var dispatchCount int
 	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any,
+		_ BufHandle, _ map[string]any, _ string,
 	) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatchCount++
@@ -2317,7 +2327,7 @@ func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 
 			var messageCallbacks int
 			var refreshCallbacks int
-			session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any) bool {
+			session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
 				if msgType == message.TypeROUTEREFRESH {
 					messageCallbacks++
 				}
@@ -2378,7 +2388,7 @@ func TestRouteRefreshValidLengthDelivered(t *testing.T) {
 
 	var messageCallbacks int
 	var refreshCallbacks int
-	session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any) bool {
+	session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
 		if msgType == message.TypeROUTEREFRESH {
 			messageCallbacks++
 			assert.Equal(t, []byte{0x00, 0x01, 0x00, 0x01}, raw)

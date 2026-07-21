@@ -198,7 +198,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		if addr == update.SourcePeerIP {
 			s := peer.Settings()
 			srcInfo = forwardSourceInfo{
-				isIBGP:         s.IsIBGP(),
+				// Guarded: source may be a dynamic peer still resolving its ASN.
+				isIBGP:         peer.IsIBGP(),
 				isRRClient:     s.RouteReflectorClient,
 				remoteRouterID: peer.RemoteRouterID(),
 				globalLocalAS:  s.GlobalLocalAS,
@@ -206,7 +207,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			if len(a.r.egressFilters) > 0 {
 				srcInfo.filterInfo = filterapi.PeerFilterInfo{
 					Address: s.Address,
-					PeerAS:  s.PeerAS,
+					PeerAS:  peer.PeerAS(),
 					// Effective per-peer local AS, mirroring the dest filterInfo
 					// (peer_forward_facts.go). Kept in sync so no egress filter
 					// ever reads a silent zero from src.LocalAS.

@@ -17,16 +17,16 @@ import (
 // captureSessionLog swaps the package's session logger for one writing into a buffer at
 // the given level, restoring it afterwards.
 //
-// sessionLogger is a package var of func type (session.go:43), built by
+// sessionLogger is a package function backed by an atomic.Value (session.go), built by
 // slogutil.LazyLogger over its own handler. slog.SetDefault does NOT intercept it, so the
 // usual default-logger recorder used elsewhere in this package cannot see these lines.
+// swapSessionLogger overrides it through that atomic.Value so the override is race-free
+// against any live session's cold-path logging.
 func captureSessionLog(t *testing.T, level slog.Level) *bytes.Buffer {
 	t.Helper()
 	buf := &bytes.Buffer{}
 	lg := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level}))
-	saved := sessionLogger
-	sessionLogger = func() *slog.Logger { return lg }
-	t.Cleanup(func() { sessionLogger = saved })
+	t.Cleanup(swapSessionLogger(func() *slog.Logger { return lg }))
 	return buf
 }
 

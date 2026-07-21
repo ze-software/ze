@@ -55,7 +55,11 @@ func checkRouterIDConflict(peers map[netip.AddrPort]*Peer, excludeKey netip.Addr
 		if key == excludeKey {
 			continue
 		}
-		if peer.settings.PeerAS != peerAS {
+		// PeerAS via the p.mu-guarded accessor: a dynamic peer's PeerAS is written under
+		// p.mu on establishment (resolveDynamicPeerSettings), and this runs on another
+		// peer's OPEN-validation goroutine. Caller holds r.mu.RLock, so this keeps the
+		// existing r.mu -> p.mu order (no new edge).
+		if peer.PeerAS() != peerAS {
 			continue
 		}
 		peer.mu.RLock()

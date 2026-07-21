@@ -282,6 +282,37 @@ func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
 	return uint8(flags)
 }
 
+// StripAttrRanges returns a copy of pathAttrs with the given byte ranges removed.
+//
+// RFC 7606 Section 3.g: "Discard all but first occurrence" of a duplicate non-MP
+// attribute. The ranges are the later occurrences recorded by the validator
+// (RFC7606ValidationResult.DuplicateRanges); they are in ascending order and
+// non-overlapping (a single forward parse), each covering one whole attribute.
+// Removing them enforces keep-first at the byte level so downstream consumers
+// (RIB, filters, cross-context re-encode, the attribute index) see one copy.
+//
+// Returns pathAttrs unchanged (no copy) when ranges is empty. Uses make+copy
+// rather than append, matching rebuildWithAttrDiscard: this runs only on the
+// malformed-UPDATE path, and the result is a caller-owned copy.
+func StripAttrRanges(pathAttrs []byte, ranges []AttrRange) []byte {
+	if len(ranges) == 0 {
+		return pathAttrs
+	}
+	removed := 0
+	for _, r := range ranges {
+		removed += r.End - r.Start
+	}
+	out := make([]byte, len(pathAttrs)-removed)
+	wpos := 0
+	prev := 0
+	for _, r := range ranges {
+		wpos += copy(out[wpos:], pathAttrs[prev:r.Start])
+		prev = r.End
+	}
+	copy(out[wpos:], pathAttrs[prev:])
+	return out
+}
+
 // RebuildUpdateBody reconstructs an UPDATE message body with new path attributes.
 // Used when ATTR_TOMBSTONE rebuild changes the path attributes section size.
 //

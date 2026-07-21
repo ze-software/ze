@@ -108,13 +108,16 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 			continue
 		}
 		found = true
-		peerAS = s.PeerAS
+		// PeerAS and filter chains via the guarded accessors: this policy dry-run runs on
+		// an API goroutine that can race a dynamic peer's establishment write (caller holds
+		// r.mu.RLock).
+		peerAS = p.PeerAS()
 		localAS = s.LocalAS
 		switch direction {
 		case directionImport:
-			filterRefs = append([]filterapi.FilterRef(nil), s.ImportFilters...)
+			filterRefs = append([]filterapi.FilterRef(nil), p.ImportFilters()...)
 		case directionExport:
-			filterRefs = append([]filterapi.FilterRef(nil), s.ExportFilters...)
+			filterRefs = append([]filterapi.FilterRef(nil), p.ExportFilters()...)
 		}
 		break
 	}

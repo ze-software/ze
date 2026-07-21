@@ -352,7 +352,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		Name:            settings.Name,
 		GroupName:       settings.GroupName,
 		LocalAS:         settings.LocalAS,
-		PeerAS:          settings.PeerAS,
+		PeerAS:          peer.PeerAS(), // guarded: a dynamic peer may still be resolving its ASN
 		RouterID:        settings.RouterID,
 		State:           peer.State().PluginState(),
 	}

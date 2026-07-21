@@ -191,9 +191,11 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 		Name:            s.Name,
 		GroupName:       s.GroupName,
 		LocalAS:         s.LocalAS,
-		PeerAS:          s.PeerAS,
-		RouterID:        s.RouterID,
-		State:           peer.State().PluginState(),
+		// PeerAS via the guarded accessor: this runs on the congestion controller
+		// goroutine, which can race a dynamic peer's establishment write of PeerAS.
+		PeerAS:   peer.PeerAS(),
+		RouterID: s.RouterID,
+		State:    peer.State().PluginState(),
 	}
 	r.mu.RUnlock()
 
@@ -215,7 +217,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // direction is rpc.DirectionSent or rpc.DirectionReceived.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -232,9 +234,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Name:            s.Name,
 			GroupName:       s.GroupName,
 			LocalAS:         s.LocalAS,
-			PeerAS:          s.PeerAS,
-			RouterID:        s.RouterID,
-			State:           peer.State().PluginState(),
+			// PeerAS via the guarded accessor: the sent direction runs on forward-pool /
+			// timer / plugin-RPC goroutines, which can race a dynamic peer's establishment
+			// write of PeerAS. (On the received direction this is the peer's own read
+			// goroutine, where the accessor is merely redundant, not wrong.)
+			PeerAS:   peer.PeerAS(),
+			RouterID: s.RouterID,
+			State:    peer.State().PluginState(),
 		}
 		// Increment per-peer counters (lock-free atomics).
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
@@ -357,11 +363,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			}
 		}
 
-		var sentSourcePeerStr string
-		if direction == rpc.DirectionSent && hasPeer && peer.session != nil {
-			sentSourcePeerStr = peer.session.sentSourcePeerStr
-		}
-
+		// Source peer for ribOut stale-scoping on sent forward-pool writes. The value
+		// is captured at the sender's write site inside its writeMu critical section
+		// (session_write.go) and arrives as the sentSourcePeerStr argument. This
+		// replaces an unlocked double-read of peer.session here, which raced the peer
+		// run goroutine that nils/replaces peer.session under peer.mu (non-nil-then-nil
+		// panic, or reading a reconnected session's writeMu-guarded field without its
+		// writeMu). "" for received and non-forward sends.
 		msg = bgptypes.RawMessage{
 			Type:          msgType,
 			RawBytes:      bytes,
@@ -407,6 +415,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			src.LoopDisabled = peer.settings.LoopDisabled
 		}
 		// ASN4 from negotiated capabilities (peer may have disconnected).
+		// AC-5 verified-benign unlocked peer.session read: this whole block runs only on
+		// the received path (direction == DirectionReceived, guarded above), which
+		// executes on the peer's session read goroutine — the SAME goroutine that writes
+		// p.session under p.mu in runOnce (peer_run.go). Program order gives a
+		// happens-before edge, so no lock is needed here and none is added (unlike the
+		// sent path, whose callbacks run on other goroutines). Negotiated() itself takes
+		// s.mu.RLock for the field it reads.
 		if hasPeer && peer.session != nil {
 			if neg := peer.session.Negotiated(); neg != nil {
 				src.ASN4 = neg.ASN4
@@ -432,7 +447,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			// Honor a policy teardown request (e.g. filter_family tear-down):
 			// queue a NOTIFICATION + session close for the session read loop to
 			// run after this callback (session_read.go), and drop the route.
-			// peer.session is the session whose read goroutine invoked us.
+			// AC-5 verified-benign unlocked peer.session read: peer.session is the
+			// session whose read goroutine invoked us — the same goroutine that writes
+			// p.session under p.mu (peer_run.go), so program order gives happens-before
+			// and no lock is needed (received path only).
 			if res.teardown {
 				if hasPeer && peer.session != nil {
 					code := message.NotifyErrorCode(res.notifyCode)

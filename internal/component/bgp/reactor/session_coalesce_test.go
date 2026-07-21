@@ -74,7 +74,7 @@ func newCoalesceSession(t *testing.T) (*Session, *[][]byte) {
 	session.onMessageReceived = func(
 		_ netip.Addr, msgType message.MessageType, rawBytes []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
-		_ BufHandle, _ map[string]any,
+		_ BufHandle, _ map[string]any, _ string,
 	) bool {
 		if msgType == message.TypeUPDATE {
 			mu.Lock()

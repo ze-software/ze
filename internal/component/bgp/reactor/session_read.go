@@ -209,7 +209,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 					extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
 					extraWU.SetSourceID(wireUpdate.SourceID())
 					s.onMessageReceived(s.settings.Address, message.TypeUPDATE, extra, extraWU,
-						ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil)
+						ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "")
 				}
 			}
 			wireUpdate = primary
@@ -276,7 +276,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool
 	if s.onMessageReceived != nil {
-		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil)
+		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "")
 	}
 
 	// A policy filter on the import chain (e.g. filter_family tear-down) may have

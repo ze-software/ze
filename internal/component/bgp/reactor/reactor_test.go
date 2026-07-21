@@ -1453,7 +1453,7 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	// Call notifyMessageReceiver directly (same package)
 	// In normal flow, session creates WireUpdate and passes it through
 	// Pass nil buf since we're not testing caching here
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, rpc.DirectionReceived, BufHandle{}, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, rpc.DirectionReceived, BufHandle{}, nil, "")
 
 	// Verify WireUpdate is set
 	require.NotNil(t, receivedMsg.WireUpdate, "WireUpdate should be set for UPDATE")
@@ -1517,7 +1517,7 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 	// Call notifyMessageReceiver with direction="sent" and non-zero ctxID
 	// Non-zero ctxID triggers AttrsWire creation for sent messages
 	ctxID := bgpctx.ContextID(1)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, ctxID, rpc.DirectionSent, BufHandle{}, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, ctxID, rpc.DirectionSent, BufHandle{}, nil, "")
 
 	// Verify AttrsWire is set
 	require.NotNil(t, sentMsg.AttrsWire, "AttrsWire should be created for sent UPDATE with ctxID")
@@ -1561,7 +1561,7 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	copy(updatePayload[4:], attrs)
 
 	// Call with ctxID=0 (no context)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, rpc.DirectionSent, BufHandle{}, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "")
 
 	// Sent UPDATEs always get AttrsWire for ribOut storage, even with ctxID=0.
 	// Basic attribute parsing (ORIGIN, communities, etc.) works without encoding context.
@@ -1741,7 +1741,7 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := testPoolBuf(t)
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
 
 	// Wait for the delivery goroutine to enter the callback (proves it was dispatched).
 	select {
@@ -1805,7 +1805,7 @@ func TestCacheInsertionBeforeDelivery(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := testPoolBuf(t)
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
 
 	select {
 	case <-cacheCheckDone:
@@ -1843,7 +1843,7 @@ func TestActivateAfterAllDeliveries(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := testPoolBuf(t)
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
 
 	var msgID uint64
 	select {
@@ -1902,14 +1902,14 @@ func TestDeliveryBackpressure(t *testing.T) {
 	// First 2 UPDATEs fill the channel buffer
 	for range 2 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// 3rd send in goroutine — should block (channel full, no reader)
 	thirdDone := make(chan struct{})
 	go func() {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 		close(thirdDone)
 	}()
 
@@ -1953,7 +1953,7 @@ func TestNonUpdateSynchronous(t *testing.T) {
 	defer stop()
 
 	// KEEPALIVE — must be delivered synchronously (before notifyMessageReceiver returns)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, nil, nil, 0, rpc.DirectionReceived, BufHandle{}, nil)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, nil, nil, 0, rpc.DirectionReceived, BufHandle{}, nil, "")
 
 	require.True(t, received, "KEEPALIVE should be delivered synchronously, not through async channel")
 }
@@ -2007,7 +2007,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 		// Send 2 UPDATEs to peer A (1 in delivery + 1 in channel buffer)
 		for range 2 {
 			w := wireu.NewWireUpdate(payload, 0)
-			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 		}
 		close(aSent) // Both sends completed; peer A's channel is full
 	}()
@@ -2023,7 +2023,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 	// The meaningful assertion: peer B's delivery completes while peer A is
 	// still blocked (unblockA has not been closed yet).
 	wB := wireu.NewWireUpdate(payload, 0)
-	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 
 	select {
 	case <-peerBDelivered:
@@ -2068,7 +2068,7 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// Close channel (teardown) — delivery goroutine drains remaining items
@@ -2116,7 +2116,7 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// Now start delivery — all 5 items are already buffered
@@ -2186,7 +2186,7 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 	payload := testUpdatePayload()
 	for range 3 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// After sends, cache has 3 pending entries (Add is synchronous).

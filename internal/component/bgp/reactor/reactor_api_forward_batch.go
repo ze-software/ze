@@ -205,7 +205,8 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 	if srcPeer, ok := a.r.findPeerByAddr(srcAddr); ok {
 		s := srcPeer.Settings()
 		info = forwardSourceInfo{
-			isIBGP:         s.IsIBGP(),
+			// Guarded: source may be a dynamic peer still resolving its ASN.
+			isIBGP:         srcPeer.IsIBGP(),
 			isRRClient:     s.RouteReflectorClient,
 			remoteRouterID: srcPeer.RemoteRouterID(),
 			globalLocalAS:  s.GlobalLocalAS,
@@ -213,7 +214,7 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 		if len(a.r.egressFilters) > 0 {
 			info.filterInfo = filterapi.PeerFilterInfo{
 				Address: s.Address,
-				PeerAS:  s.PeerAS,
+				PeerAS:  srcPeer.PeerAS(),
 				// Effective per-peer local AS, matching the forward-path src/dest
 				// filterInfo fills (reactor_api_forward.go, peer_forward_facts.go)
 				// so no egress filter ever reads a silent zero from src.LocalAS.

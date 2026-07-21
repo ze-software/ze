@@ -78,6 +78,20 @@ type FSM struct {
 	passive  bool          // Passive mode (listen only, no outgoing connection)
 	callback StateCallback // Called on state change
 	timers   *Timers       // RFC 4271 §8.2.2 HoldTimer owned by FSM; nil in tests
+
+	// pending is the FIFO queue of state transitions whose callback has not yet run.
+	// Appended under mu by change() in Event order; drained in that order by the first
+	// enqueuer that finds no active drainer (draining==false). See change() for the
+	// non-blocking serialization contract that keeps callbacks ordered and non-overlapping
+	// without holding mu across the (re-entrant) callback.
+	pending  []transition
+	draining bool
+}
+
+// transition records a single (from, to) state change awaiting its callback.
+type transition struct {
+	from State
+	to   State
 }
 
 // New creates a new FSM in the IDLE state.
@@ -104,6 +118,13 @@ func (f *FSM) setState(s State) {
 }
 
 // SetCallback sets the state change callback.
+//
+// Ordering contract: the callback is invoked once per state change, never concurrently with
+// itself, and always in transition order (the order in which the state writes happened under
+// the FSM lock). It is invoked WITHOUT the FSM lock held, so it may call State()/Event() on
+// this FSM. In the uncontended case it completes synchronously before Event returns; when a
+// transition races another goroutine's transition, it may run ordered-async on the draining
+// goroutine (see change). The callback MUST NOT block indefinitely.
 func (f *FSM) SetCallback(cb StateCallback) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -138,18 +159,70 @@ func (f *FSM) IsPassive() bool {
 	return f.passive
 }
 
-// change transitions to a new state and calls the callback.
+// change transitions to a new state and schedules the state-change callback.
+//
+// Callbacks are serialized through a per-FSM FIFO queue so they never overlap and always
+// run in transition order, WITHOUT holding f.mu across the callback. The callback re-enters
+// FSM/session code (it calls session.Negotiated() -> s.mu.RLock, p.setEncodingContexts, and
+// more), so holding f.mu across it self-deadlocks on any State() call, and making an Event
+// caller WAIT for another goroutine's callback deadlocks the hold-timer path, which fires
+// Event while holding s.mu (session.go) that the to-Established callback needs. The queue
+// avoids both: enqueue is non-blocking and the callback runs with f.mu released.
+//
+// The invariant:
+//   - The state write happens under f.mu, in Event order (Event holds f.mu for the whole
+//     handler).
+//   - Each transition needing a callback is appended to f.pending under f.mu, in the same
+//     order as the state writes.
+//   - The first goroutine to enqueue while no drainer is active (draining==false) becomes
+//     the drainer: it pops entries in order and runs each callback with f.mu released, then
+//     re-acquires f.mu. When the queue empties it clears draining.
+//   - A goroutine that finds a drainer already active just enqueues and returns; it NEVER
+//     waits, so it can safely fire Event while holding another lock (the hold-timer path).
+//
+// Uncontended case (common): the firing goroutine is the drainer and runs its own callback
+// synchronously before Event returns, preserving prior semantics — the read loop still sees
+// establishment fully set up before it processes the next message. Contended case (the
+// previous corruption window, where two callbacks could overlap and finish out of order):
+// callbacks run ordered-async on whichever goroutine is draining; a dead session is never
+// left Established after a later Established->Idle transition.
+//
+// Deadlock-freedom rests on a verified fact: the only callback arm that takes s.mu (the
+// to-Established arm, via session.Negotiated / setEncodingContexts) is only ever reached
+// from an OpenConfirm->Established transition, which is fired ONLY by the session read
+// goroutine (handleKeepalive), and that goroutine does not hold s.mu when it fires Event.
+// Goroutines that DO hold s.mu when firing Event (hold-timer, send-hold-timer) only ever
+// fire HoldTimerExpires, whose callback arm (from-Established teardown) takes no s.mu. So no
+// s.mu-holding goroutine ever drains a to-Established callback.
+//
+// change is called with f.mu held and returns with f.mu held.
 func (f *FSM) change(to State) {
 	from := f.state
 	f.state = to
 
-	if f.callback != nil && from != to {
-		// Call callback without holding lock
+	if f.callback == nil || from == to {
+		return
+	}
+
+	f.pending = append(f.pending, transition{from: from, to: to})
+	if f.draining {
+		// Another goroutine is draining; it will run this callback in order.
+		return
+	}
+
+	f.draining = true
+	for len(f.pending) > 0 {
+		t := f.pending[0]
+		f.pending = f.pending[1:]
 		cb := f.callback
 		f.mu.Unlock()
-		cb(from, to)
+		if cb != nil {
+			cb(t.from, t.to)
+		}
 		f.mu.Lock()
 	}
+	f.pending = nil // release the drained backing array
+	f.draining = false
 }
 
 // Event processes an FSM event and returns any error.

@@ -285,7 +285,7 @@ func TestSessionRFC7606ValidUpdateDispatchesAnnouncement(t *testing.T) {
 	var dispatchCount int
 	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any,
+		_ BufHandle, _ map[string]any, _ string,
 	) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatchCount++

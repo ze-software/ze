@@ -103,6 +103,12 @@ func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreac
 	attrs = make(map[string]any)
 	offset := 0
 
+	// RFC 7606 Section 3.g keep-first: a repeated attribute code is decoded once (first
+	// occurrence wins). This mirrors the session's enforceRFC7606 duplicate strip so that
+	// `ze bgp decode` of a malformed peer's UPDATE shows the same attributes an established
+	// session would keep, rather than last-write-wins from the map overwrite (D-4b).
+	var seen [256]bool
+
 	for offset < len(data) {
 		if offset+2 > len(data) {
 			break
@@ -129,6 +135,12 @@ func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreac
 		if offset+hdrLen+valueLen > len(data) {
 			break
 		}
+
+		if seen[code] {
+			offset += hdrLen + valueLen
+			continue
+		}
+		seen[code] = true
 
 		value := data[offset+hdrLen : offset+hdrLen+valueLen]
 		wf := wireFlags(flags)

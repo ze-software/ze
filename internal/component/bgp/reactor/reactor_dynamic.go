@@ -313,8 +313,12 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	if open.ASN4 > 0 {
 		remoteAS = open.ASN4
 	}
-	p.settings.PeerAS = remoteAS
 
+	// These reads and the dyn* template capture run on the establishment goroutine, the
+	// only writer of these fields, so they need no lock here. resolveDynamicPeerSettings
+	// is never called concurrently with itself for one peer (a peer has one session at a
+	// time). Compute the resolved filter slices before taking p.mu so resolveFilterVars
+	// (which allocates) runs outside the lock.
 	remoteIP := p.settings.Address.String()
 	localAS := p.settings.LocalAS
 
@@ -325,12 +329,29 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	if p.dynExportFilters == nil && len(p.settings.ExportFilters) > 0 {
 		p.dynExportFilters = p.settings.ExportFilters
 	}
+	var newImport, newExport []filterapi.FilterRef
 	if p.dynImportFilters != nil {
-		p.settings.ImportFilters = resolveFilterVars(p.dynImportFilters, localAS, remoteAS, remoteIP)
+		newImport = resolveFilterVars(p.dynImportFilters, localAS, remoteAS, remoteIP)
 	}
 	if p.dynExportFilters != nil {
-		p.settings.ExportFilters = resolveFilterVars(p.dynExportFilters, localAS, remoteAS, remoteIP)
+		newExport = resolveFilterVars(p.dynExportFilters, localAS, remoteAS, remoteIP)
 	}
+
+	// Publish the three mutable settings fields under p.mu so cross-goroutine readers
+	// (checkRouterIDConflict, PeerInfo builders, API/plugin Settings snapshots, filter
+	// getters) observe consistent values via the PeerAS()/ImportFilters()/ExportFilters()
+	// accessors — never a torn slice header or an unsynchronized PeerAS. refreshForwardFacts
+	// is called AFTER releasing p.mu because it re-acquires p.mu.RLock (peer_forward_facts.go)
+	// and RWMutex is not reentrant.
+	p.mu.Lock()
+	p.settings.PeerAS = remoteAS
+	if newImport != nil {
+		p.settings.ImportFilters = newImport
+	}
+	if newExport != nil {
+		p.settings.ExportFilters = newExport
+	}
+	p.mu.Unlock()
 
 	p.refreshForwardFacts()
 }

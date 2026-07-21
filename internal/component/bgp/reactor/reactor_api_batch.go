@@ -90,7 +90,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	}
 
 	for _, peer := range peers {
-		isIBGP := peer.Settings().IsIBGP()
+		// Guarded: this batch-announce path runs on an API/plugin goroutine and may read a
+		// dynamic peer still resolving its ASN (sibling PeerAS read at :886 is guarded too).
+		isIBGP := peer.IsIBGP()
 
 		// Resolve next-hop per peer using RouteNextHop policy
 		nextHop, nhErr := peer.resolveNextHop(batch.NextHop, batch.Family)
@@ -883,7 +885,7 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	body := fwdPackUpdateBody(update)
 	dest := filterapi.PeerFilterInfo{
 		Address: peer.Settings().Address,
-		PeerAS:  peer.Settings().PeerAS,
+		PeerAS:  peer.PeerAS(), // guarded: dest may be a dynamic peer still resolving its ASN
 		LocalAS: localAS,
 	}
 	outcome, modified := a.decideStaleReadvertise(dest, body, batch.Stale)

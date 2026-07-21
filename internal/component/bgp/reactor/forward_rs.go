@@ -236,7 +236,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		srcFilter = filterapi.PeerFilterInfo{Address: sourcePeerAddr}
 		r.mu.RLock()
 		if srcPeer, ok := r.findPeerByAddr(sourcePeerAddr); ok {
-			srcFilter.PeerAS = srcPeer.Settings().PeerAS
+			// Guarded PeerAS: the source peer may be dynamic and still resolving its ASN
+			// on another goroutine; Name/GroupName are immutable after construction.
+			srcFilter.PeerAS = srcPeer.PeerAS()
 			srcFilter.Name = srcPeer.Settings().Name
 			srcFilter.GroupName = srcPeer.Settings().GroupName
 		}

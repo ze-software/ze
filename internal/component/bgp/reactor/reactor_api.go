@@ -72,11 +72,16 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		Name:            s.Name,
 		GroupName:       s.GroupName,
 		LocalAS:         s.LocalAS,
-		PeerAS:          s.PeerAS,
-		RouterID:        s.RouterID,
-		Connect:         s.Connection.Connect,
-		Accept:          s.Connection.Accept,
-		State:           peer.State().PluginState(),
+		// PeerAS via the guarded accessor: unlike OnPeerEstablished (whose callback is always
+		// drained on the read goroutine that also writes PeerAS), a from-Established teardown
+		// can be drained on the hold-timer goroutine, racing a dynamic peer's reconnect
+		// resolveDynamicPeerSettings write (reactor_dynamic.go). Other fields are immutable
+		// post-construction (only PeerAS/ImportFilters/ExportFilters mutate) so stay direct.
+		PeerAS:   peer.PeerAS(),
+		RouterID: s.RouterID,
+		Connect:  s.Connection.Connect,
+		Accept:   s.Connection.Accept,
+		State:    peer.State().PluginState(),
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, reason)
 }
@@ -94,9 +99,15 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	result := make([]plugin.PeerInfo, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
 		s := p.Settings()
+		// PeerAS and the filter chains via the guarded accessors: this API snapshot runs
+		// on a command goroutine that can race a dynamic peer's establishment write. All
+		// other PeerSettings fields are immutable after construction.
+		peerAS := p.PeerAS()
+		importFilters := p.ImportFilters()
+		exportFilters := p.ExportFilters()
 		stats := p.Stats()
 		peerType := "external"
-		if s.LocalAS == s.PeerAS {
+		if s.LocalAS == peerAS {
 			peerType = "internal"
 		}
 		localPort, remotePort := p.TCPPorts()
@@ -108,7 +119,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			Name:                 s.Name,
 			GroupName:            s.GroupName,
 			LocalAS:              s.LocalAS,
-			PeerAS:               s.PeerAS,
+			PeerAS:               peerAS,
 			RouterID:             s.RouterID,
 			ReceiveHoldTime:      s.ReceiveHoldTime,
 			SendHoldTime:         s.SendHoldTime,
@@ -128,8 +139,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
 			NextHopAddress:       s.NextHopAddress,
-			ImportFilters:        filterapi.FilterRefStrings(s.ImportFilters),
-			ExportFilters:        filterapi.FilterRefStrings(s.ExportFilters),
+			ImportFilters:        filterapi.FilterRefStrings(importFilters),
+			ExportFilters:        filterapi.FilterRefStrings(exportFilters),
 
 			OpensReceived:         stats.OpensReceived,
 			OpensSent:             stats.OpensSent,
@@ -1132,7 +1143,9 @@ func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 		asn := sel.ASNValue()
 		var peers []*Peer
 		for _, peer := range a.r.peers {
-			if peer.settings.PeerAS == asn {
+			// Guarded PeerAS read: peer selection runs on an API/plugin goroutine that
+			// can race a dynamic peer's establishment write (caller holds r.mu).
+			if peer.PeerAS() == asn {
 				peers = append(peers, peer)
 			}
 		}

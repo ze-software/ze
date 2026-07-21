@@ -238,6 +238,47 @@ func TestRFC7606MultipleMPReach(t *testing.T) {
 	require.Contains(t, result.Description, "3.g")
 }
 
+// TestRFC7606DuplicateOriginRecorded verifies RFC 7606 Section 3.g keep-first for a
+// duplicated non-MP attribute: the validator accepts the UPDATE (action none, both
+// ORIGINs are individually valid) but records the byte range of the second occurrence
+// so the enforcement layer can strip it. Before this fix the duplicate was silently
+// skipped and its bytes left on the wire, which the attribute index later rejects.
+//
+// rfc-test-change-approved: 2026-07-21 correcting a test authored moments earlier in
+// this same session (never committed, not enrolled in the RFC ledger): dropped a
+// premature `RFC requirement: RFC7606-3.g-2` tag that would enroll a non-existent
+// requirement id, and fixed a stripped-value index typo (index 2 -> 3). No committed
+// RFC proof is weakened; this is a behavioral test for spec AC-4.
+//
+// VALIDATES: the validator records the byte range of a later duplicate non-MP
+// attribute (keep-first) instead of silently skipping it.
+// PREVENTS: a duplicate ORIGIN's bytes surviving on the wire, which the attribute
+// index rejects, silently dropping MP routes downstream.
+func TestRFC7606DuplicateOriginRecorded(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP (first, offset 0..4)
+		0x40, 0x02, 0x00, // AS_PATH (empty, offset 4..7)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP = 192.0.2.1 (offset 7..14)
+		0x40, 0x01, 0x01, 0x01, // ORIGIN = EGP (DUPLICATE, offset 14..18)
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action,
+		"two individually-valid ORIGINs is not itself an error; §3.g is keep-first, not reject")
+	require.Len(t, result.DuplicateRanges, 1, "the second ORIGIN must be recorded for stripping")
+	require.Equal(t, AttrRange{Start: 14, End: 18}, result.DuplicateRanges[0],
+		"range must cover exactly the second ORIGIN attribute")
+
+	// Stripping the recorded range keeps the first occurrence and drops the second.
+	stripped := StripAttrRanges(pathAttrs, result.DuplicateRanges)
+	require.Len(t, stripped, len(pathAttrs)-4)
+	// First ORIGIN (flags,code,len,value); value 0x00 = IGP at index 3. The EGP
+	// (0x01) duplicate is gone.
+	require.Equal(t, byte(0x00), stripped[3], "first ORIGIN (IGP) is kept")
+	require.Nil(t, ValidateUpdateRFC7606(stripped, true, false, false).DuplicateRanges,
+		"stripped attributes carry no further duplicates")
+}
+
 // TestRFC7606ExtendedCommunityLength verifies RFC 7606 Section 7.14.
 func TestRFC7606ExtendedCommunityLength(t *testing.T) {
 	pathAttrs := []byte{

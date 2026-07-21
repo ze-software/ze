@@ -1,0 +1,10 @@
+# RFC 7606 Section 3.g keep-first decode: an UPDATE carrying TWO ORIGIN attributes
+# (IGP first, EGP second) decodes with the FIRST ORIGIN kept (igp), not the last, and
+# does not error. This matches the session's enforceRFC7606 duplicate strip so
+# `ze bgp decode` diagnostics agree with on-session behavior (spec D-4b).
+#
+# Body: withdrawn 0, attrs = ORIGIN(IGP) AS_PATH([65001]) NEXT_HOP(192.0.2.1) ORIGIN(EGP dup),
+# NLRI = 192.0.2.0/24.
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000016400101004002040201FDE9400304C00002014001010118C00002
+cmd=foreground:seq=1:exec=ze bgp decode --json --update -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"update":{"attr":{"as-path":{"optional":false,"partial":false,"transitive":true,"value":[65001]},"origin":{"optional":false,"partial":false,"transitive":true,"value":"igp"}},"ipv4/unicast":[{"action":"add","next-hop":"192.0.2.1","nlri":["192.0.2.0/24"]}]}},"type":"bgp"}

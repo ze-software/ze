@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-07-21 |
 
 ## Post-Compaction Recovery
 
@@ -352,3 +352,44 @@ reproduction per lead before any fix lands.
   (Task cites :280-285); `reactor/session_validation.go` `isIBGP`'s read of
   `s.settings.PeerAS` is now :99 (cited :73) and `enforceRFC7606` is at :34 (cited :26).
   Behaviors are unchanged; per R-3 the implementer MUST re-grep these two files before fixing.
+
+## Implementation Audit
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| Lead 1: FSM ordered non-blocking transition queue | Done | `fsm/fsm.go` `change`/drain (`f.pending`/`f.draining`); `fsm/fsm_ordering_test.go` (`TestFSMCallbackOrderingRace`), `reactor/peer_established_ordering_test.go` (`TestPeerEstablishedTeardownOrdering`); reviewer confirmed deadlock-free (per-session FSM + draining flag mutual-exclusion, no `f.mu->s.mu` cycle) |
+| Lead 2: source-peer via `MessageCallback` arg, delete `peer.session` re-read | Done | `session.go` (`MessageCallback` +`sentSourcePeerStr`), 5 sent sites in `session_write.go` under `writeMu`, received `""` in `session_read.go`; `reactor_notify.go` re-read deleted + AC-5 comments; `reactor/reactor_notify_test.go` (`TestPeerSessionSentPathRace`) `-race` clean |
+| Lead 3: `p.mu`-guarded write + accessors; cross-goroutine readers converted | Done | `reactor_dynamic.go:346-354` write under `p.mu`; `peer.go` accessors `PeerAS/ImportFilters/ExportFilters/IsIBGP/IsEBGP`; readers converted in routerid_unique/reactor_api/reactor_api_batch/reactor_api_forward*/policy_dryrun/reactor_peers/peer_initial_sync; under-lock sites (`peer_initial_sync.go:217,363`) left direct (RLock-would-deadlock); `reactor/reactor_dynamic_race_test.go` (`TestDynamicPeerSettingsRace`) 30/30 `-race -cpu=1` |
+| Lead 4: RFC 7606 keep-first strip at the boundary; guard unchanged | Done | `message/rfc7606.go` records dup byte ranges; `session_validation.go` strips via `RebuildUpdateBody`; `cli/decode_update.go` aligned (D-4b); `ensureIndexLocked` unchanged; `rfc7606_test.go`/`session_validate_test.go`/`wire_test.go`/`cli/decode_duplicate_test.go`/`test/decode/bgp-update-duplicate-origin.ci` |
+| AC-5: received-path reads documented verified-benign | Done | same-goroutine justification comments in `reactor_notify.go` (received-direction reads); no lock added |
+| Pre-existing `sessionLogger` race fixed at root (not parked) | Done | `session.go` atomic-backed provider + `Run` `defer StopAll/stopSendHoldTimer`; `session_logger_swap_test.go`; `make ze-race-reactor` DATA RACE=0 |
+
+## Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| All four concurrency/consistency leads fixed at the owning layer, each from a reproduction | Per-lead RED-then-GREEN reproductions listed in the audit; the two `-race` reproductions (AC-2/AC-3) and the ordering test (AC-1) plus the crafted duplicate-ORIGIN decode/session tests (AC-4) |
+| No new data race; reactor race gate clean | `make ze-race-reactor` (count=20): `DATA RACE count: 0`, both packages `ok`, ~101s (no hang => no deadlock). `go test -race -count=1 ./reactor/...` and `./fsm/...` `ok` |
+| No new lock-order edge | Reviewer traced: transition queue non-blocking; `s.mu->p.mu` reads only on existing edge (`reactor_api.go` `OnPeerClosed` reads `PeerAS()` after `peer_run.go:423` `RUnlock`); `peerMu->shard.mu` untouched |
+| Protocol-observable keep-first works end to end | `test/decode/bgp-update-duplicate-origin.ci` asserts `origin:"igp"` (first), discriminating against last-write-wins; `TestDuplicateAttributeIndexStillRejects` keeps the fail-closed guard |
+| Changed packages build/lint/test clean | `go build ./...` RC=0; `go vet ./internal/component/bgp/...` clean; `make ze-lint-changed` 0 issues; `make ze-verify-changed` all changed BGP packages `ok` |
+
+## Review Gate
+
+- Independent adversarial review by subagent `a1366a114fa2abcb9` over the full changeset: **0 BLOCKER**. Two ISSUEs (flaky `TestDynamicPeerSettingsRace`; incomplete `IsIBGP` cross-goroutine sibling audit) were fixed by the author context and the same reviewer re-confirmed **CLEAN**. Coordinator statically cleared the fix delta and the `reactor_api.go` `OnPeerClosed` residual conversion, and re-ran the gates (`ze-race-reactor` DATA RACE=0; `TestDynamicPeerSettingsRace` 30/30 `-race -cpu=1`).
+- Artifact: `review_gate.py check` CLEAN over all 39 changeset code/test files (hashes match).
+- Residual (non-blocking, tracked): reviewer NOTE `forward_rs.go` RS fast path does not set `sentSourcePeerStr` (attribution gap, value preserved exactly as before; not a regression) — noted in learned 1245 for a future reactor-hardening pass.
+
+## Pre-Commit Verification
+
+| Table | Item | Verification |
+|-------|------|--------------|
+| Files Exist | `fsm/fsm_ordering_test.go`, `reactor/{peer_established_ordering_test.go,reactor_notify_test.go,reactor_dynamic_race_test.go,session_logger_swap_test.go}`, `cli/decode_duplicate_test.go`, `test/decode/bgp-update-duplicate-origin.ci` | `git status` shows all created (untracked) + 32 modified `.go` |
+| AC Verified | AC-1 | `TestFSMCallbackOrderingRace` + `TestPeerEstablishedTeardownOrdering` green under `-race`; reviewer deadlock analysis CLEAN |
+| AC Verified | AC-2 | `TestPeerSessionSentPathRace` green under `-race`; 5 sent sites pass `sentSourcePeerStr` under `writeMu` (grepped) |
+| AC Verified | AC-3 | `TestDynamicPeerSettingsRace` 30/30 `-race -cpu=1`; complete `IsIBGP`/`IsEBGP`/`PeerAS` sibling audit (reviewer re-grep) |
+| AC Verified | AC-4 | `TestRFC7606DuplicateOriginRecorded`, `TestEnforceRFC7606DuplicateRebuild`, `TestDuplicateAttributeIndexStillRejects`, `bgp-update-duplicate-origin.ci` all green |
+| AC Verified | AC-5 | received-path comments present in `reactor_notify.go`; no lock added |
+| Wiring Verified | duplicate-ORIGIN decode `.ci` | `test/decode/bgp-update-duplicate-origin.ci` exercises `ze bgp decode` end to end (keep-first output) |
+| Verify | full-suite status | `make ze-verify-changed`: all changed BGP packages `ok`; functional+ExaBGP pass EXCEPT two ATTRIBUTED pre-existing reds — install/kernel suite (darwin environmental: no Docker/`tools/kernel-builder`, `ModuleNotFoundError 'run'`; changeset touches no install code) and `plugin` test 223 `forward-mpreach-nexthop-self-two-peer` (F2 harness `parse_error` for a vacuous peer block, tracked open deferral -> `spec-fixit-redistribute-establishment-stall` F4; changeset touches neither the `.ci` nor the harness). `make ze-race-reactor` DATA RACE=0. A single non-reproducing load-sensitive `ze-race-reactor` flake was static-cleared (site: `OnPeerClosed`, `p.mu` released before call) and did not recur across count=1 + count=20 reruns. Commit uses `--unverified` for the two attributed reds. |
+| Assumptions | A-1..A-5 | A-1/A-2/A-3/A-4 confirmed (reproductions + reviewer); A-5 (contended async ordering) validated: reviewer confirmed the to-Established callback is always drained on the read goroutine, so no UPDATE-before-established gap |

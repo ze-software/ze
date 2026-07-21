@@ -334,8 +334,58 @@ func NewPeer(settings *PeerSettings) *Peer {
 }
 
 // Settings returns the configured peer settings.
+//
+// The returned pointer is shared: for a dynamic peer, resolveDynamicPeerSettings mutates
+// PeerAS, ImportFilters, and ExportFilters on the pointed-to struct under p.mu when the
+// session establishes. A caller running on a different goroutine than that write MUST read
+// those three fields through PeerAS()/ImportFilters()/ExportFilters(), not off this
+// pointer, or it races the establishment write. Every other PeerSettings field is set at
+// construction and never mutated, so reading it off this pointer is race-free.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// PeerAS returns the peer's ASN under p.mu. For a dynamic peer this is 0 until the OPEN is
+// processed and resolveDynamicPeerSettings publishes the learned ASN; a static peer sets it
+// at construction and never mutates it. Cross-goroutine readers MUST use this accessor
+// rather than p.settings.PeerAS, which resolveDynamicPeerSettings writes under p.mu.
+func (p *Peer) PeerAS() uint32 {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.PeerAS
+}
+
+// ImportFilters returns the peer's import filter chain under p.mu. resolveDynamicPeerSettings
+// replaces this slice (with $-variables resolved) on a dynamic peer's establishment, so
+// cross-goroutine readers MUST use this accessor. The returned header is a snapshot; the
+// backing array is never mutated in place (resolveFilterVars always allocates a new slice).
+func (p *Peer) ImportFilters() []filterapi.FilterRef {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.ImportFilters
+}
+
+// ExportFilters returns the peer's export filter chain under p.mu. See ImportFilters.
+func (p *Peer) ExportFilters() []filterapi.FilterRef {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.ExportFilters
+}
+
+// IsIBGP reports whether this is an IBGP session (LocalAS == PeerAS) under p.mu.
+// Cross-goroutine callers MUST use this rather than settings.IsIBGP(), which reads the
+// mutable PeerAS off the shared settings pointer without synchronization.
+func (p *Peer) IsIBGP() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.LocalAS == p.settings.PeerAS
+}
+
+// IsEBGP reports whether this is an EBGP session under p.mu. See IsIBGP.
+func (p *Peer) IsEBGP() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.LocalAS != p.settings.PeerAS
 }
 
 // NegotiatedHoldTime returns the negotiated hold time in seconds.

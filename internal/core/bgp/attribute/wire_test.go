@@ -2,6 +2,7 @@ package attribute
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 	"testing"
 
@@ -98,6 +99,36 @@ func TestAttributesWireGetError(t *testing.T) {
 	_, err := aw.Get(AttrOrigin)
 	if err == nil {
 		t.Error("Get() on truncated header should return error")
+	}
+}
+
+// TestDuplicateAttributeIndexStillRejects pins the fail-closed guard that the RFC 7606
+// Section 3.g keep-first fix relies on: the attribute index (ensureIndexLocked) treats a
+// duplicate attribute code as a hard error and never silently keeps one copy. The session
+// validator strips duplicates at the boundary so this guard never sees session-path
+// duplicates, but the guard itself MUST stay strict for locally built and injected wire
+// (ai/rules/fail-closed-guards.md). If this test ever goes green with a weaker guard, the
+// duplicate-attribute defense has been removed from every other caller.
+//
+// VALIDATES: two attributes with the same code make the attribute index error.
+// PREVENTS: silently accepting a duplicate attribute (RFC 4271 Malformed Attribute List).
+func TestDuplicateAttributeIndexStillRejects(t *testing.T) {
+	t.Parallel()
+	ctxID := setupTestContext(true)
+
+	// Two ORIGIN attributes — a duplicate code.
+	origin1 := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
+	origin2 := packAttr(FlagTransitive, AttrOrigin, []byte{0x01})
+	packed := packAttrs(origin1, origin2)
+
+	aw := NewAttributesWire(packed, ctxID)
+
+	_, err := aw.Get(AttrOrigin)
+	if err == nil {
+		t.Fatal("Get() on a duplicate attribute must return an error (guard must stay strict)")
+	}
+	if !strings.Contains(err.Error(), "duplicate attribute") {
+		t.Errorf("error = %q, want it to name the duplicate attribute", err.Error())
 	}
 }
 

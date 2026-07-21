@@ -95,7 +95,10 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil)
+		// s.sentSourcePeerStr is read here inside writeMu, its owning critical section
+		// (session.go contract), and carried to notifyMessageReceiver as an argument so
+		// the receiver never re-reads peer.session unlocked. "" for non-forward sends.
+		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
 	}
 
 	return nil
@@ -297,7 +300,9 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta)
+		// sentMeta and sentSourcePeerStr are the forward-pool per-write fields, both set
+		// under writeMu by fwdBatchHandler and read here in the same writeMu section.
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
 	}
 
 	if s.onWrite != nil {
@@ -333,7 +338,9 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 
 	if s.onMessageReceived != nil {
 		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta)
+		// Forward-pool raw-body write: sentMeta and sentSourcePeerStr are set under
+		// writeMu by fwdBatchHandler and read here in the same writeMu section.
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
 	}
 
 	if s.onWrite != nil {
@@ -530,7 +537,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
 	}
 
 	return nil
@@ -577,7 +584,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
 	}
 
 	return nil

@@ -27,10 +27,11 @@ import (
 // Section 6 does not hand a peer a cost-amplification lever.
 func TestRFC7606DiagnosticsCostsNothingWhenDisabled(t *testing.T) {
 	// A handler that reports Debug disabled, exactly as the default WARN level would.
-	saved := sessionLogger
+	// swapSessionLogger overrides the provider through session.go's atomic.Value, so the
+	// override is race-free against any live session's cold-path logging (a plain package-var
+	// swap raced leaked timer callbacks under stress).
 	lg := slog.New(slog.NewTextHandler(discardWriter{}, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	sessionLogger = func() *slog.Logger { return lg }
-	t.Cleanup(func() { sessionLogger = saved })
+	t.Cleanup(swapSessionLogger(func() *slog.Logger { return lg }))
 
 	s := rfc7606DiagSession()
 	wu := wireu.NewWireUpdate(malformedOriginUpdate(), 0)
