@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Web Interface - Ze</title>
+        <meta name="description" content="Ze documentation: guide/web-interface.md" />
+        <meta property="og:title" content="Web Interface - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/web-interface.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Web Interface - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/web-interface.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="web-interface">Web Interface</h1>
+    <p>Ze provides an HTTPS web interface for browsing configuration, editing values, and running commands through a browser. The web UI uses the same YANG schemas, user database, and command grammar as the SSH CLI.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#starting-the-web-server">Starting the Web Server</a>
+<ol>
+<li><a href="#command-line">Command Line</a></li>
+<li><a href="#workbench-ui">Workbench UI</a></li>
+<li><a href="#configuration">Configuration</a></li>
+</ol></li>
+<li><a href="#authentication">Authentication</a>
+<ol>
+<li><a href="#browser-sessions">Browser Sessions</a></li>
+<li><a href="#json-api">JSON API</a></li>
+<li><a href="#security-headers">Security Headers</a></li>
+</ol></li>
+<li><a href="#navigation">Navigation</a>
+<ol>
+<li><a href="#url-scheme">URL Scheme</a></li>
+<li><a href="#finder-navigation">Finder Navigation</a></li>
+<li><a href="#context-heading">Context Heading</a></li>
+<li><a href="#list-table-view">List Table View</a></li>
+<li><a href="#breadcrumb-navigation">Breadcrumb Navigation</a></li>
+<li><a href="#content-negotiation">Content Negotiation</a></li>
+</ol></li>
+<li><a href="#config-editing">Config Editing</a>
+<ol>
+<li><a href="#workflow">Workflow</a></li>
+<li><a href="#validation">Validation</a></li>
+<li><a href="#notifications">Notifications</a></li>
+<li><a href="#input-auto-save">Input Auto-Save</a></li>
+<li><a href="#conflict-detection">Conflict Detection</a></li>
+<li><a href="#session-limits">Session Limits</a></li>
+</ol></li>
+<li><a href="#cli-bar">CLI Bar</a>
+<ol>
+<li><a href="#integrated-mode">Integrated Mode</a></li>
+<li><a href="#terminal-mode">Terminal Mode</a></li>
+<li><a href="#tab-completion">Tab Completion</a></li>
+</ol></li>
+<li><a href="#live-updates">Live Updates</a>
+<ol>
+<li><a href="#event-format">Event Format</a></li>
+</ol></li>
+<li><a href="#admin-commands">Admin Commands</a></li>
+<li><a href="#resilience">Resilience</a></li>
+</ol></nav>
+<!-- source: internal/component/web/handler.go -- URL routing, three-tier scheme -->
+<!-- source: internal/component/web/auth.go -- AuthMiddleware uses ssh.AuthenticateUser -->
+
+<h2 id="starting-the-web-server">Starting the Web Server</h2>
+<h3 id="command-line">Command Line</h3>
+<pre><code class="language-bash">ze start --web 8443                              # Start daemon + web on port 8443
+ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
+</code></pre>
+<p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.</p>
+<!-- source: cmd/ze/main.go -- cmdStart, webPort/insecureWeb flags -->
+<!-- source: internal/component/web/server.go -- GenerateWebCertWithAddr -->
+
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--web &lt;port&gt;</code></td>
+<td>Start web interface on <code>0.0.0.0:&lt;port&gt;</code> (requires config)</td>
+</tr>
+<tr>
+<td><code>--web-only</code></td>
+<td>Start web UI only, no daemon (config editing only, default port 3443)</td>
+</tr>
+<tr>
+<td><code>--insecure-web</code></td>
+<td>Disable authentication (forces <code>127.0.0.1</code>, requires <code>--web</code> or <code>--web-only</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workbench-ui">Workbench UI</h3>
+<p>Ze defaults to a RouterOS-style operator workbench UI. The workbench keeps the same authentication and commit flow; the CLI is available as a separate <code>/cli</code> tab instead of a bottom bar. BGP peer rows ship with related operator tools (peer detail, capabilities, statistics, flush, teardown) that run the same dispatched commands as the SSH CLI. Confirmation prompts gate destructive tools.</p>
+<p>To roll back to the legacy Finder UI:</p>
+<pre><code class="language-bash">ZE_WEB_UI=finder ze start --web 8443
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<p>The web server listen address can also be set in the ze configuration file:</p>
+<pre><code>environment {
+    web {
+        enabled true;
+        server main {
+            ip 0.0.0.0;
+            port 8443;
+        }
+    }
+}
+</code></pre>
+<!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
+
+<h2 id="authentication">Authentication</h2>
+<p>The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.</p>
+<!-- source: internal/component/web/auth.go -- AuthMiddleware, LoginHandler, parseBasicAuth -->
+
+<h3 id="browser-sessions">Browser Sessions</h3>
+<ol>
+<li>Navigate to <code>https://&lt;host&gt;:8443/</code>. Unauthenticated requests receive a login page.</li>
+<li>Enter username and password. On success, a <code>ze-session</code> cookie is set.</li>
+<li>The cookie is <code>Secure</code>, <code>HttpOnly</code>, and <code>SameSite=Strict</code>.</li>
+<li>Each user can have one active session. Logging in again invalidates the previous session.</li>
+</ol>
+<h3 id="json-api">JSON API</h3>
+<p>API clients that send <code>Accept: application/json</code> (or append <code>?format=json</code> to the URL) can authenticate with HTTP Basic Auth instead of session cookies. No session is created for Basic Auth requests.</p>
+<pre><code class="language-bash">curl -k -u admin:password https://localhost:8443/show/bgp/?format=json
+</code></pre>
+<h3 id="security-headers">Security Headers</h3>
+<p>All authenticated responses include security headers: HSTS (<code>max-age=63072000</code>), Content-Security-Policy (<code>default-src 'self'</code>), X-Frame-Options <code>DENY</code>, X-Content-Type-Options <code>nosniff</code>, and <code>Cache-Control: no-store</code>.</p>
+<!-- source: internal/component/web/auth.go -- addSecurityHeaders -->
+
+<h2 id="navigation">Navigation</h2>
+<h3 id="url-scheme">URL Scheme</h3>
+<p>URLs follow a verb-first three-tier pattern:</p>
+<!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>URL Pattern</th>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>View</td>
+<td><code>/show/&lt;yang-path&gt;</code></td>
+<td>GET</td>
+<td>Read-only config tree view</td>
+</tr>
+<tr>
+<td>View</td>
+<td><code>/monitor/&lt;yang-path&gt;</code></td>
+<td>GET</td>
+<td>View with auto-polling</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/edit/&lt;path&gt;</code></td>
+<td>GET</td>
+<td>Editable config tree view</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/set/&lt;path&gt;</code></td>
+<td>POST</td>
+<td>Set a leaf value</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/add/&lt;path&gt;</code></td>
+<td>POST</td>
+<td>Create a list entry (with optional field values)</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/add-form/&lt;path&gt;</code></td>
+<td>GET</td>
+<td>Fetch add-entry overlay form</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/rename/&lt;path&gt;</code></td>
+<td>POST</td>
+<td>Rename a keyed list entry</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/delete/&lt;path&gt;</code></td>
+<td>POST</td>
+<td>Delete a leaf value</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><span class="ev-src"><span class="ev-ref"><code>/config/commit/</code></span></span></td>
+<td>GET/POST</td>
+<td>View diff and commit changes</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><span class="ev-src"><span class="ev-ref"><code>/config/discard/</code></span></span></td>
+<td>POST</td>
+<td>Discard pending changes</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>/config/changes</code></td>
+<td>GET</td>
+<td>Commit bar state (pending change count)</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><span class="ev-src"><span class="ev-ref"><code>/config/compare/</code></span></span></td>
+<td>GET</td>
+<td>Compare pending vs committed</td>
+</tr>
+<tr>
+<td>Admin</td>
+<td><code>/admin/&lt;yang-path&gt;</code></td>
+<td>GET/POST</td>
+<td>Administrative commands</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td><code>/login</code></td>
+<td>POST</td>
+<td>Login (no auth required)</td>
+</tr>
+<tr>
+<td>Static</td>
+<td><span class="ev-src"><span class="ev-ref"><code>/assets/</code></span></span></td>
+<td>GET</td>
+<td>CSS, JS, images (no auth required)</td>
+</tr>
+</tbody>
+</table>
+<p>The root URL <code>/</code> redirects to <code>/show/</code>.</p>
+<h3 id="finder-navigation">Finder Navigation</h3>
+<p>The left panel uses a Finder-style column browser (similar to macOS Finder). It shows up to 3 columns, scrolling horizontally as you navigate deeper.</p>
+<!-- source: internal/component/web/fragment.go -- buildFinderColumns, buildColumnAt -->
+
+<p><strong>Named vs unnamed containers:</strong> Named containers (lists with YANG keys, like <code>peer</code>, <code>group</code>) appear above unnamed containers (global settings like <code>local</code>, <code>timer</code>), separated by a horizontal rule. This makes keyed sections easy to find.</p>
+<p><strong>Simple lists:</strong> Lists without unique constraints show as a flat column of clickable entries with a <code>+ new</code> button.</p>
+<h3 id="context-heading">Context Heading</h3>
+<p>When inside a list entry, the detail panel shows a context heading at the top with the list name and entry key (e.g., <code>PEER london</code>). This provides immediate context without checking the breadcrumb.</p>
+<!-- source: internal/component/web/fragment.go -- buildContextHeading, ContextEntry -->
+
+<h3 id="list-table-view">List Table View</h3>
+<p>Lists that have YANG <code>unique</code> constraints (e.g., <code>peer</code> with <code>unique "remote/ip"</code>) display as an interactive table in the detail panel. The table shows the list key and all unique fields as columns.</p>
+<!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
+<!-- source: internal/component/web/templates/component/list_table.html -->
+
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rename button</td>
+<td>Opens a modal, normalizes the new key, and renames the entry without losing its subtree</td>
+</tr>
+<tr>
+<td>Key column (e.g., name)</td>
+<td>Clickable link, navigates into the entry's config subtree</td>
+</tr>
+<tr>
+<td>Unique field columns (e.g., remote/ip)</td>
+<td>Editable inline, saves on blur/Enter/auto-save (1s debounce)</td>
+</tr>
+<tr>
+<td>Delete button</td>
+<td>Removes the entry after confirmation</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>+ new</code> button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.</p>
+<!-- source: internal/component/web/handler_config.go -- HandleConfigAdd, HandleConfigAddForm -->
+<!-- source: internal/component/web/templates/component/add_form_overlay.html -->
+
+<h3 id="breadcrumb-navigation">Breadcrumb Navigation</h3>
+<p>Every page displays a breadcrumb trail from root to the current YANG path. Clicking any breadcrumb segment navigates to that level.</p>
+<!-- source: internal/component/web/handler_config.go -- buildBreadcrumbs -->
+
+<h3 id="content-negotiation">Content Negotiation</h3>
+<p>The response format is determined by:</p>
+<ol>
+<li><code>?format=json</code> query parameter (takes precedence)</li>
+<li><code>Accept: application/json</code> header (when <code>text/html</code> is not also present)</li>
+<li>Default: HTML</li>
+</ol>
+<h2 id="config-editing">Config Editing</h2>
+<p>Each authenticated user gets an independent editor session with its own working tree. Changes are tracked per-user and do not affect other users until committed.</p>
+<!-- source: internal/component/web/editor.go -- EditorManager, userSession -->
+
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><strong>Browse:</strong> Navigate to a list (e.g., <code>/show/bgp/peer/</code>) to see entries in a table.</li>
+<li><strong>Add:</strong> Click <code>+ new</code> to create an entry. Fill in the name and unique fields. Values are validated against YANG types (e.g., IP addresses must be valid).</li>
+<li><strong>Rename:</strong> In table views, click the rename button to change an entry key. The new key is trimmed and lowercased, and the existing subtree stays attached to the renamed entry.</li>
+<li><strong>Edit:</strong> Click an entry name to see its full config. Edit leaf values through inline fields.</li>
+<li><strong>Review:</strong> The commit bar at the bottom shows pending change count. Click "Review &amp; Commit" to see a diff.</li>
+<li><strong>Commit:</strong> Apply changes. Conflicts with other users are detected and reported.</li>
+<li><strong>Discard:</strong> Click "Discard" to abandon all pending changes.</li>
+</ol>
+<h3 id="validation">Validation</h3>
+<p>Field values are validated server-side against YANG types before being accepted:</p>
+<!-- source: internal/component/config/schema.go -- ValidateValue -->
+
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IP address</td>
+<td>Must be a valid IPv4 or IPv6 address</td>
+</tr>
+<tr>
+<td>IPv4</td>
+<td>Must be a valid IPv4 address</td>
+</tr>
+<tr>
+<td>IPv6</td>
+<td>Must be a valid IPv6 address</td>
+</tr>
+<tr>
+<td>Prefix</td>
+<td>Must be a valid CIDR prefix</td>
+</tr>
+<tr>
+<td>Uint16/Uint32</td>
+<td>Must be a valid unsigned integer in range</td>
+</tr>
+<tr>
+<td>Boolean</td>
+<td>Normalized to <code>true</code>/<code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>YANG <code>unique</code> constraints are enforced: duplicate values are rejected with an error naming the conflicting entry.</p>
+<!-- source: internal/component/web/handler_config_walk.go -- checkUniqueConstraint, validateUniqueOnSet -->
+
+<p>Entry key names are automatically lowercased and trimmed for both add and rename operations.</p>
+<p>Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.</p>
+<p>Navigating to a non-existent list entry (e.g., <code>/show/bgp/peer/london/</code> when <code>london</code> has not been created) redirects to the root view with an error notification.</p>
+<!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
+
+<h3 id="notifications">Notifications</h3>
+<p>Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.</p>
+<!-- source: internal/component/web/templates/component/notification_error.html -->
+
+<h3 id="input-auto-save">Input Auto-Save</h3>
+<p>Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus.</p>
+<!-- source: internal/component/web/templates/input/text.html -- hx-trigger with input changed delay:1s -->
+
+<h3 id="conflict-detection">Conflict Detection</h3>
+<p>When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.</p>
+<!-- source: internal/component/web/handler_config.go -- handleCommitPost, result.Conflicts -->
+
+<h3 id="session-limits">Session Limits</h3>
+<p>The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.</p>
+<!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
+
+<h2 id="cli-bar">CLI Bar</h2>
+<p>The web interface includes a CLI bar at the bottom of the page that accepts the same command grammar as the SSH CLI. The CLI bar sends the current URL path as context, so <code>set</code> and <code>delete</code> commands operate relative to the current view.</p>
+<!-- source: internal/component/web/cli.go -- HandleCLICommand, knownCLIVerbs -->
+<!-- source: internal/component/web/assets/cli.js -- path extraction, fetch to /cli -->
+
+<h3 id="integrated-mode">Integrated Mode</h3>
+<p>In integrated mode, CLI commands update the page content directly:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>edit &lt;path&gt;</code></td>
+<td>Navigate to a config path</td>
+</tr>
+<tr>
+<td><code>set &lt;leaf&gt; &lt;value&gt;</code></td>
+<td>Set a value at the current context path</td>
+</tr>
+<tr>
+<td><code>delete &lt;leaf&gt;</code></td>
+<td>Delete a value at the current context path</td>
+</tr>
+<tr>
+<td><code>show [path]</code></td>
+<td>Display config text at the current or specified path</td>
+</tr>
+<tr>
+<td><code>top</code></td>
+<td>Navigate to root</td>
+</tr>
+<tr>
+<td><code>up</code></td>
+<td>Navigate one level up</td>
+</tr>
+<tr>
+<td><code>commit</code></td>
+<td>Commit pending changes</td>
+</tr>
+<tr>
+<td><code>discard</code></td>
+<td>Discard pending changes</td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td>List available commands</td>
+</tr>
+</tbody>
+</table>
+<p>The prompt shows the current context path: <code>ze[bgp peer]#</code>.</p>
+<!-- source: internal/component/web/cli.go -- formatCLIPrompt, dispatchCLICommand -->
+
+<h3 id="terminal-mode">Terminal Mode</h3>
+<p>Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.</p>
+<!-- source: internal/component/web/cli.go -- HandleCLITerminal, executeTerminalCommand -->
+
+<h3 id="tab-completion">Tab Completion</h3>
+<p>The CLI bar provides tab completion via a JSON endpoint at <code>/cli/complete</code>. Completions are context-aware: when at <code>/show/bgp/peer/london/</code>, typing <code>set</code> + Tab suggests <code>remote</code>, <code>local</code>, <code>timer</code> (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., <code>local/ip</code> accepting an IP address or <code>auto</code>), the enum values are offered as completions.</p>
+<!-- source: internal/component/web/cli.go -- HandleCLIComplete -->
+<!-- source: internal/component/cli/completer.go -- valueCompletions, Yunion handling -->
+
+<h2 id="live-updates">Live Updates</h2>
+<p>The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.</p>
+<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange -->
+
+<p>Connect to the SSE stream at <code>/events</code> (requires authentication). The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.</p>
+<h3 id="event-format">Event Format</h3>
+<p>Events use the standard SSE wire format:</p>
+<pre><code>event: config-change
+data: &lt;html-fragment&gt;
+</code></pre>
+<p>The HTML fragment contains a notification banner with the change description and action buttons.</p>
+<h2 id="admin-commands">Admin Commands</h2>
+<p>The <code>/admin/</code> tier provides a browsable tree of administrative commands. Container nodes display navigable links to sub-commands. Leaf commands display a parameter form with an "Execute" button.</p>
+<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute -->
+
+<p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
+<h2 id="resilience">Resilience</h2>
+<p><strong>Corrupt change files:</strong> If a per-user change file in the blob store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.</p>
+<!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
+
+<p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
+<!-- source: internal/component/web/render.go -- AssetHandler -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

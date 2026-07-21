@@ -208,7 +208,7 @@ Selected routes move through a shared route-decision pipeline:
 |-------|----------|
 | Full design document | [DESIGN.md](https://github.com/ze-software/ze/blob/main/docs/DESIGN.md) |
 | Canonical architecture reference | [architecture/core-design.md](https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md) |
-| System architecture (hub mode) | [architecture/system-architecture.md](https://github.com/ze-software/ze/blob/main/docs/architecture/system-architecture.md) |
+| System architecture (hub mode) | [architecture/system-architecture.md](system-architecture/index.md) |
 | Buffer-first architecture | [architecture/buffer-architecture.md](https://github.com/ze-software/ze/blob/main/docs/architecture/buffer-architecture.md) |
 | Pool architecture | [architecture/pool-architecture.md](https://github.com/ze-software/ze/blob/main/docs/architecture/pool-architecture.md) |
 | Wire format details | [architecture/wire/](https://github.com/ze-software/ze/tree/main/docs/architecture/wire) |

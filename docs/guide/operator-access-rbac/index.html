@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -41,7 +41,11 @@
 <li><a href="#1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</a></li>
 <li><a href="#2-decide-the-profiles">2. Decide the profiles</a></li>
 <li><a href="#3-build-and-load-a-set-format-update">3. Build and load a set-format update</a></li>
-<li><a href="#4-test-each-account">4. Test each account</a></li>
+<li><a href="#4-test-each-account">4. Test each account</a>
+<ol>
+<li><a href="#how-authorization-decides">How authorization decides</a></li>
+<li><a href="#the-recovery-account">The recovery account</a></li>
+</ol></li>
 <li><a href="#5-add-ssh-public-keys">5. Add SSH public keys</a></li>
 <li><a href="#6-add-tacacs-later">6. Add TACACS+ later</a></li>
 <li><a href="#7-operational-checks">7. Operational checks</a></li>
@@ -202,6 +206,22 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
 <pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager
 </code></pre>
 <p>Pick a real command the profile denies when you write your own check. A command Ze does not have reports <code>unknown command</code> and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. <code>configure</code> is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so <code>ze cli -c "configure"</code> is never an authorization test. To check the edit path, run a command that writes, such as <code>set system ...</code>, or log in and try <code>configure</code> interactively.</p>
+<h3 id="how-authorization-decides">How authorization decides</h3>
+<p>Once you define any <code>system.authorization</code> profile, authorization is in use and it fails closed:</p>
+<ul>
+<li>A user who authenticates but resolves <strong>no applicable profile</strong> is <strong>denied every command</strong>, not granted access. Assign every account a profile. A profile reaches an account either through <code>system.authentication.user &lt;name&gt; profile ...</code> (local users) or through the TACACS+/RADIUS priv-level mapping (remote users).</li>
+<li>A box that defines <strong>no</strong> <code>system.authorization</code> profile at all stays fully permissive: with authorization unconfigured there is nothing to enforce.</li>
+</ul>
+<p>The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":</p>
+<pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager | grep -i authorize
+</code></pre>
+<h3 id="the-recovery-account">The recovery account</h3>
+<p>The <code>admin</code> account created by <code>ze init</code> is the break-glass identity. It always keeps a path to the box, <strong>even on a box that has authorization profiles configured but no <code>admin</code> user of its own</strong> (for example one where the profiles were staged before the operator accounts, or a TACACS+/RADIUS-only box). Two independent recovery paths exist:</p>
+<ul>
+<li>The <code>ze init</code> bootstrap admin carries an internal, reserved recovery profile, so it is never locked out by a strict authorization default.</li>
+<li>Defining <code>set system authentication user admin profile admin</code> (as this guide does) makes <code>admin</code> a normal config account with an explicit profile.</li>
+</ul>
+<p>If you never want the bootstrap admin to authenticate, disable it explicitly with <code>meta/instance/admin-disabled</code>; accept that you then depend entirely on your configured accounts for access.</p>
 <figure class="terminal-demo" data-terminal-demo="rbac">
   <div class="terminal-demo__intro">
     <div>

@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -36,7 +36,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Project</span>
                     <h1 id="features-title">Every feature Ze ships.</h1>
-                    <p>48 features plus a spec&#x27;d roadmap, color-coded by category.</p>
+                    <p>49 features plus a spec&#x27;d roadmap, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
@@ -45,7 +45,7 @@
                     <button class="cat-operate" data-cat="operate" aria-pressed="false" aria-label="Filter features by Operate, 6 features">Operate <span class="legend-count" aria-hidden="true">6</span></button>
                     <button class="cat-routing" data-cat="routing" aria-pressed="false" aria-label="Filter features by Routing, 9 features">Routing <span class="legend-count" aria-hidden="true">9</span></button>
                     <button class="cat-services" data-cat="services" aria-pressed="false" aria-label="Filter features by Services, 9 features">Services <span class="legend-count" aria-hidden="true">9</span></button>
-                    <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 6 features">Automate <span class="legend-count" aria-hidden="true">6</span></button>
+                    <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 7 features">Automate <span class="legend-count" aria-hidden="true">7</span></button>
                     <button class="cat-observe" data-cat="observe" aria-pressed="false" aria-label="Filter features by Observe, 9 features">Observe <span class="legend-count" aria-hidden="true">9</span></button>
                     <button class="cat-secure" data-cat="secure" aria-pressed="false" aria-label="Filter features by Secure, 4 features">Secure <span class="legend-count" aria-hidden="true">4</span></button>
                     <button class="cat-platform" data-cat="platform" aria-pressed="false" aria-label="Filter features by Platform, 5 features">Platform <span class="legend-count" aria-hidden="true">5</span></button>
@@ -728,6 +728,20 @@
                     <li><strong>ExaBGP bridge</strong> for SR-Policy migration</li>
                     </ul>
                     </article>
+                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../docs/guide/fleet-config/">Fleet Management</a></h3>
+                    <div class="chips">
+                    <span class="chip">Managed config</span>
+                    <span class="chip">TLS hub</span>
+                    </div>
+                    <ul>
+                    <li>Per-client <strong>configuration</strong> and authentication</li>
+                    <li>Cached config with <strong>reconnect</strong> and heartbeat</li>
+                    <li>Version hashing and <strong>two-phase</strong> fetch</li>
+                    </ul>
+                    </article>
                 </div>
             </section>
 
@@ -767,20 +781,6 @@
                     <li>VRF as a <strong>first-class</strong> concept</li>
                     <li>Per-VRF <strong>BGP stacks</strong>, YANG config</li>
                     <li>Kernel <strong>VRF devices</strong>, table binding</li>
-                    </ul>
-                    </article>
-                    <article class="card feature-card aspiration cat-automate" data-cat="automate">
-                    <span class="cat">Automate</span>
-                    <span class="status">Spec&#x27;d</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-fleet-0-umbrella.md" target="_blank" rel="noopener">Fleet Management</a></h3>
-                    <div class="chips">
-                    <span class="chip">Registry</span>
-                    <span class="chip">Rollout</span>
-                    </div>
-                    <ul>
-                    <li>Device <strong>registry</strong>, config templates</li>
-                    <li><strong>Staged rollout</strong>, config freeze</li>
-                    <li>Fleet <strong>audit trail</strong>, inventory health</li>
                     </ul>
                     </article>
                     <article class="card feature-card aspiration cat-secure" data-cat="secure">

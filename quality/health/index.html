@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -61,8 +61,8 @@
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">136 / 19957 (floor 136) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="136 of 19957"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 19957 (0.7%)</p>
+  <p class="th-value">136 / 19970 (floor 136) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="136 of 19970"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 19970 (0.7%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>cmd/ze/hub/aaa_lifecycle_test.go</code></td><td><code>TestCloseAAABundleNoBundle</code></td></tr><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr></tbody></table>
@@ -111,9 +111,9 @@
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">19986 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">19999 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>2593 Go test files, 72 fuzz targets, 122 benchmarks, 1447 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>2593 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
 </article>

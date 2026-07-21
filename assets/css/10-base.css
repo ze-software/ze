@@ -459,6 +459,7 @@ a {
     display: flex;
 }
 
+#nav-panel-docs,
 #nav-panel-examples {
     position: fixed;
     top: 3.25rem;
@@ -2941,6 +2942,7 @@ footer {
         box-shadow: none;
     }
 
+    #nav-panel-docs,
     #nav-panel-examples {
         position: static;
         top: auto;

@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-48 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+49 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -493,6 +493,16 @@ Implemented and tested, not yet production-proven.
 
 [Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy)
 
+### Fleet Management
+
+*automate / Experimental* -- `Managed config` `TLS hub`
+
+- Per-client **configuration** and authentication
+- Cached config with **reconnect** and heartbeat
+- Version hashing and **two-phase** fetch
+
+[Learn more](https://ze-software.net/docs/guide/fleet-config/)
+
 ## Spec'd, not built.
 
 Aspirations with written, reviewed specs. Nothing here is usable today.
@@ -518,16 +528,6 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 - Kernel **VRF devices**, table binding
 
 [Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md)
-
-### Fleet Management
-
-*automate / Spec'd* -- `Registry` `Rollout`
-
-- Device **registry**, config templates
-- **Staged rollout**, config freeze
-- Fleet **audit trail**, inventory health
-
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-fleet-0-umbrella.md)
 
 ### IRR Route Filtering
 

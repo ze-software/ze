@@ -7,11 +7,12 @@ Usage:
 llms.txt is the single fast path for AI crawlers. It is intentionally
 more than a sitemap: it denormalizes the product facts, generated
 inventories, command surface, plugin registry, dependency rationale,
-quality model, and the normal Markdown page map into one plain-text file.
+quality model, curated navigation, and the complete published page map into one plain-text file.
 
 The source of truth remains the structured site inputs:
 
-* data/nav.json for the site map and generated page order.
+* data/nav.json for curated navigation and generated page order.
+* tools/page_registry.py and page Markdown for the complete documentation map.
 * data/site-facts.json for live counts emitted by the build.
 * data/features.json for the product inventory.
 * data/cli-commands.json for the live command catalog generated from ze.
@@ -33,6 +34,7 @@ import re
 from collections import Counter, defaultdict
 
 import sitelib
+import page_registry
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
@@ -446,6 +448,66 @@ def render_dependency_inventory():
     return "\n".join(lines)
 
 
+def markdown_title_and_summary(path: pathlib.Path) -> tuple[str, str]:
+    """Return the H1 and first prose paragraph from a published source."""
+    lines = path.read_text().splitlines()
+    if lines and lines[0].strip() == "---":
+        closing = next(
+            (index for index, line in enumerate(lines[1:], 1) if line.strip() == "---"),
+            None,
+        )
+        if closing is not None:
+            lines = lines[closing + 1 :]
+
+    text = "\n".join(lines)
+    title_match = re.search(r"^#\s+(.+)$", text, flags=re.MULTILINE)
+    title = (
+        clean(title_match.group(1))
+        if title_match
+        else path.stem.replace("-", " ").title()
+    )
+
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    list_fallback = ""
+    list_item = re.compile(r"^(?:[-+*]|\d+[.)])\s+")
+    for block in re.split(r"\n\s*\n", text):
+        block_lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if not block_lines:
+            continue
+        first = block_lines[0]
+        if first.startswith(("```", "~~~", "#", ">", "|", "<")):
+            continue
+        if list_item.match(first):
+            if not list_fallback:
+                list_fallback = trim(list_item.sub("", first), 220)
+            continue
+        return title, trim(" ".join(block_lines), 220)
+
+    return title, list_fallback
+
+
+def render_published_documentation():
+    """List every hand-authored docs and usage page registered for publication."""
+    lines = ["## Complete documentation index", ""]
+    main_docs = GH_PAGES.parent / "main" / "docs"
+    for source in page_registry.DOCS_MANIFEST:
+        title, desc = markdown_title_and_summary(main_docs / source)
+        href = "docs/%s/" % page_registry.doc_stem(source)
+        lines.append(
+            "- [%s](%s): %s (web: %s)"
+            % (title, local_md_url(href), desc, local_web_url(href))
+        )
+    for page in page_registry.USAGE_PAGES:
+        title, desc = markdown_title_and_summary(GH_PAGES / "usage" / page.source)
+        href = page.dest.removesuffix("index.html")
+        lines.append(
+            "- [%s](%s): %s (web: %s)"
+            % (title, local_md_url(href), desc, local_web_url(href))
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_page_map(nav):
     parts = ["## Page map", ""]
     parts.append("Every link points to the page Markdown mirror first. The web URL is the human-rendered version of the same page.")
@@ -486,6 +548,7 @@ def render(nav):
         render_cli_inventory(),
         render_command_equivalents_inventory(),
         render_dependency_inventory(),
+        render_published_documentation(),
         render_page_map(nav),
     ]
     text = "\n".join(parts).rstrip() + "\n"

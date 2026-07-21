@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -349,7 +349,7 @@ active <code>backend</code> leaf does not implement a feature it uses (e.g. <cod
 with a <code>bridge</code>, <code>tunnel</code>, <code>wireguard</code>, <code>veth</code>, or <code>mirror</code> entry) is
 rejected with one error per offending YANG path, matching the diagnostic
 the running daemon produces on reload. See
-<a href="https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md#backend-capability-errors" target="_blank" rel="noopener">Backend Capability Errors</a>.</p>
+<a href="../configuration/#backend-capability-errors">Backend Capability Errors</a>.</p>
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures -->
 
@@ -1974,7 +1974,7 @@ ze start --web 8443 --mcp 9718                   # Both web and MCP
 </table>
 <p>The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) with SANs
 for localhost, 127.0.0.1, ::1, and the listen address.</p>
-<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/web-interface.md" target="_blank" rel="noopener">Web Interface Guide</a> for full usage documentation.</p>
+<p>See <a href="../web-interface/">Web Interface Guide</a> for full usage documentation.</p>
 <!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
 
 <h3 id="debug-set-delete-show-clear">debug (set / delete / show / clear)</h3>

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Developer Setup - Ze</title>
+        <meta name="description" content="Ze documentation: guide/developer-setup.md" />
+        <meta property="og:title" content="Developer Setup - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/developer-setup.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Developer Setup - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/developer-setup.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-platform">
+<!-- source: scripts/dev/dev-setup.py -- tool list and OS detection -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="developer-setup">Developer Setup</h1>
+    <p>Set up a Ze development environment with all build, lint, and test dependencies.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#check-mode">Check Mode</a></li>
+<li><a href="#what-it-installs">What It Installs</a>
+<ol>
+<li><a href="#build-and-lint">Build and Lint</a></li>
+<li><a href="#appliance-and-evidence">Appliance and Evidence</a></li>
+<li><a href="#optional">Optional</a></li>
+</ol></li>
+<li><a href="#platform-notes">Platform Notes</a>
+<ol>
+<li><a href="#macos">macOS</a></li>
+<li><a href="#linux">Linux</a></li>
+</ol></li>
+<li><a href="#after-setup">After Setup</a></li>
+<li><a href="#drift-guard">Drift Guard</a></li>
+</ol></nav>
+<h2 id="quick-start">Quick Start</h2>
+<pre><code class="language-bash">git clone &lt;repo-url&gt; &amp;&amp; cd ze
+make ze-setup
+</code></pre>
+<p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
+missing tools, vendors Go dependencies, and reports what it did.</p>
+<h2 id="check-mode">Check Mode</h2>
+<p>Probe the current host without installing anything:</p>
+<pre><code class="language-bash">make ze-setup CHECK=1
+</code></pre>
+<p>Exits 0 if all required tools are present, nonzero if any are missing.
+Useful as a CI preflight check.</p>
+<h2 id="what-it-installs">What It Installs</h2>
+<h3 id="build-and-lint">Build and Lint</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>go</code></td>
+<td>Go toolchain</td>
+</tr>
+<tr>
+<td><code>git</code></td>
+<td>Version control</td>
+</tr>
+<tr>
+<td><code>protobuf</code> (<code>protoc</code>)</td>
+<td>Protocol buffer compiler</td>
+</tr>
+<tr>
+<td><code>jq</code></td>
+<td>JSON processing</td>
+</tr>
+<tr>
+<td><code>golangci-lint</code></td>
+<td>Go linter (via <code>go install</code>)</td>
+</tr>
+<tr>
+<td><code>goimports</code></td>
+<td>Go import formatter (via <code>go install</code>)</td>
+</tr>
+<tr>
+<td><code>python3</code></td>
+<td>Runs evidence and dev scripts</td>
+</tr>
+<tr>
+<td><code>pipx</code></td>
+<td>Python tool installer</td>
+</tr>
+<tr>
+<td><code>ruff</code></td>
+<td>Python linter (via <code>pipx</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="appliance-and-evidence">Appliance and Evidence</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv</code></td>
+<td>Python package runner for SSH probe (<code>uv run --with paramiko</code>)</td>
+</tr>
+<tr>
+<td><code>qemu</code></td>
+<td>QEMU functional and install gate tests</td>
+</tr>
+<tr>
+<td><code>e2fsprogs</code></td>
+<td><code>mkfs.ext4</code> and <code>debugfs</code> for appliance builds</td>
+</tr>
+<tr>
+<td><code>xorriso</code></td>
+<td>ISO image creation</td>
+</tr>
+<tr>
+<td><code>grub</code></td>
+<td>GRUB EFI tooling for ISO builds (Linux only)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="optional">Optional</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sshpass</code></td>
+<td>SSH probe fallback (uv+paramiko is primary)</td>
+</tr>
+<tr>
+<td><code>docker</code> / <code>colima</code></td>
+<td>Container appliance and kernel builds</td>
+</tr>
+</tbody>
+</table>
+<h2 id="platform-notes">Platform Notes</h2>
+<h3 id="macos">macOS</h3>
+<ul>
+<li><strong>e2fsprogs</strong> is keg-only on Homebrew. The Ze code resolves it via the
+  Cellar path; no PATH modification is needed after <code>brew install e2fsprogs</code>.</li>
+<li><strong>grub</strong> has no first-party Homebrew formula. ISO builds require Linux or
+  a container (colima/docker). The setup script skips grub on macOS.</li>
+</ul>
+<h3 id="linux">Linux</h3>
+<p>The script prints <code>sudo apt-get install ...</code> commands but never runs <code>sudo</code>
+automatically. Copy and run the printed commands to install.</p>
+<p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
+<code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
+Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
+launch Chrome (<code>No usable sandbox!</code>). Setup checks this tunable as
+<code>userns-unrestricted</code>. When it is restricted, <code>make ze-setup</code> (install mode)
+echoes and then runs these commands via <code>sudo</code> to lift it globally:</p>
+<pre><code class="language-bash">echo &quot;kernel.apparmor_restrict_unprivileged_userns = 0&quot; | sudo tee /etc/sysctl.d/60-ze-userns.conf
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+</code></pre>
+<p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. This is the one
+place setup runs <code>sudo</code>; if <code>sudo</code> is unavailable it prints the commands to run
+by hand instead. <code>make ze-setup CHECK=1</code> only reports the state, never changes
+it.</p>
+<h2 id="after-setup">After Setup</h2>
+<p>Verify everything works:</p>
+<pre><code class="language-bash">make ze-smoke    # lint + unit tests + build (~2 min)
+</code></pre>
+<p>Check that appliance tools are detected:</p>
+<pre><code class="language-bash">bin/ze-setup appliance iso --check
+</code></pre>
+<h2 id="drift-guard">Drift Guard</h2>
+<p>The dev setup script and <code>ze doctor</code> appliance checks share the same tool
+list. A Go test (<code>TestDevSetupMatchesDoctor</code> in
+<code>internal/appliance/dev_setup_drift_test.go</code>) fails if they disagree,
+preventing the lists from drifting apart.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

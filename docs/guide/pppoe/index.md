@@ -46,7 +46,7 @@ pppoe {
 }
 ```
 
-See [configuration guide](https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md#pppoe-access) for all settings.
+See [configuration guide](../configuration/index.md#pppoe-access) for all settings.
 
 ## CLI Commands
 

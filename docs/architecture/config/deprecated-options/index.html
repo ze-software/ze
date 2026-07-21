@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Deprecated Configuration Options - Ze</title>
+        <meta name="description" content="Ze documentation: architecture/config/deprecated-options.md" />
+        <meta property="og:title" content="Deprecated Configuration Options - Ze" />
+        <meta property="og:description" content="Ze documentation: architecture/config/deprecated-options.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Deprecated Configuration Options - Ze" />
+        <meta name="twitter:description" content="Ze documentation: architecture/config/deprecated-options.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../"></div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<!-- source: internal/component/config/cli/cmd_migrate.go -- migration implementation -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Architecture</span>
+    <h1 id="deprecated-configuration-options">Deprecated Configuration Options</h1>
+    <p>This document lists configuration syntax that has been deprecated and the migration path for each.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#v2-syntax-deprecated">v2 Syntax (Deprecated)</a>
+<ol>
+<li><a href="#neighbor-keyword">neighbor keyword</a></li>
+<li><a href="#root-level-peer-globs">Root-level peer globs</a></li>
+<li><a href="#template-neighbor">template { neighbor }</a></li>
+</ol></li>
+<li><a href="#unsupported-features">Unsupported Features</a>
+<ol>
+<li><a href="#multi-session-capability">multi-session capability</a></li>
+<li><a href="#operational-capability">operational capability</a></li>
+<li><a href="#operational-block">operational block</a></li>
+</ol></li>
+<li><a href="#migration-commands">Migration Commands</a></li>
+</ol></nav>
+<h2 id="v2-syntax-deprecated">v2 Syntax (Deprecated)</h2>
+<p>The following v2 syntax is deprecated and should be migrated to v3:</p>
+<h3 id="neighbor-keyword">neighbor keyword</h3>
+<p><strong>Deprecated:</strong></p>
+<pre><code>neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+</code></pre>
+<p><strong>Current (v3):</strong></p>
+<pre><code>peer upstream1 {
+    remote {
+        ip 192.0.2.1;
+        as 65001;
+    }
+    local { as 65000; }
+}
+</code></pre>
+<p><strong>Migration:</strong> <code>ze config migrate -o config-v3.conf config.conf</code></p>
+<hr />
+<h3 id="root-level-peer-globs">Root-level peer globs</h3>
+<p><strong>Deprecated:</strong></p>
+<pre><code>peer * {
+    hold-time 90;
+}
+
+peer 192.168.*.* {
+    hold-time 180;
+}
+</code></pre>
+<p><strong>Current (v3):</strong></p>
+<pre><code>template {
+    match * {
+        timer { hold-time 90; }
+    }
+    match 192.168.*.* {
+        timer { hold-time 180; }
+    }
+}
+</code></pre>
+<p><strong>Why:</strong> Glob patterns now live in <code>template { match }</code> blocks, keeping peer definitions for actual peers only.</p>
+<hr />
+<h3 id="template-neighbor">template { neighbor }</h3>
+<p><strong>Deprecated:</strong></p>
+<pre><code>template {
+    neighbor ibgp-rs {
+        peer-as 65000;
+    }
+}
+</code></pre>
+<p><strong>Current (v3):</strong></p>
+<pre><code>template {
+    group ibgp-rs {
+        peer-as 65000;
+    }
+}
+</code></pre>
+<p><strong>Why:</strong> <code>neighbor</code> renamed to <code>group</code> for clarity - these are named template groups, not neighbors.</p>
+<hr />
+<h2 id="unsupported-features">Unsupported Features</h2>
+<p>These ExaBGP features are parsed but ignored:</p>
+<h3 id="multi-session-capability">multi-session capability</h3>
+<pre><code>capability {
+    multi-session;  # Ignored - ExaBGP-specific
+}
+</code></pre>
+<p>ZeBGP uses standard BGP session handling.</p>
+<h3 id="operational-capability">operational capability</h3>
+<pre><code>capability {
+    operational;  # Ignored - ExaBGP-specific
+}
+</code></pre>
+<h3 id="operational-block">operational block</h3>
+<pre><code>peer upstream1 {
+    remote {
+        ip 192.0.2.1;
+        as 65001;
+    }
+    operational {
+        # All operational messages ignored
+    }
+}
+</code></pre>
+<p>ExaBGP operational messages (ASM, ADM, RPCQ, etc.) are not supported.</p>
+<hr />
+<h2 id="migration-commands">Migration Commands</h2>
+<pre><code class="language-bash"># Check what needs migration
+ze config validate config.conf
+
+# Preview changes
+ze config migrate --dry-run config.conf
+
+# Apply migration to new file
+ze config migrate -o config-v3.conf config.conf
+</code></pre>
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/config-migration.md" target="_blank" rel="noopener">config-migration.md</a> for full details.</p>
+            </section>
+        </main>
+
+        <script src="../../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

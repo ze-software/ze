@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -233,9 +233,17 @@ entries.</p>
 </tr>
 </tbody>
 </table>
-<p>Levels not present in <code>tacacs-profile</code> reject the login. Look for
-<code>TACACS+ unmapped privilege level</code> in the daemon log when extending the
-upstream config.</p>
+<p>Levels not present in <code>tacacs-profile</code>, and levels mapped to an empty profile
+list, reject the login. Look for <code>TACACS+ unmapped privilege level</code> in the daemon
+log when extending the upstream config. A TACACS+ user therefore always reaches
+authorization with at least one resolved profile, or does not authenticate at
+all: there is no path where an authenticated TACACS+ user has no profile.</p>
+<p>Even so, authorization fails closed at the second layer: if a session ever reaches
+authorization resolving no applicable profile, every command is denied rather than
+allowed. A priv-level whose mapping names only profiles you have not defined
+resolves nothing and is denied, not granted admin. Local break-glass accounts
+(the <code>ze init</code> bootstrap admin, or any <code>system.authentication.user</code> you keep) are
+the way back into a box whose mapping is wrong.</p>
 <h3 id="what-the-mapped-profiles-govern">What the mapped profiles govern</h3>
 <p>The mapped profiles decide every command the session may run, not just whether
 the login succeeds. Ze resolves them once at authentication and authorizes each

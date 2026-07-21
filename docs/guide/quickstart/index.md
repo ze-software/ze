@@ -250,8 +250,8 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
 
 ## Next Steps
 
-- [Configuration](https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md) -- peer groups, capabilities, static routes
+- [Configuration](../configuration/index.md) -- peer groups, capabilities, static routes
 - [Plugins](../plugins/index.md) -- RIB, route server, RPKI, graceful restart
-- [CLI Reference](https://github.com/ze-software/ze/blob/main/docs/guide/cli.md) -- interactive CLI, route injection, monitoring
-- [Logging](https://github.com/ze-software/ze/blob/main/docs/guide/logging.md) -- log levels, backends, per-subsystem tuning
-- [Operations](https://github.com/ze-software/ze/blob/main/docs/guide/operations.md) -- SSH setup, signals, health checks, troubleshooting
+- [CLI Reference](../cli/index.md) -- interactive CLI, route injection, monitoring
+- [Logging](../logging/index.md) -- log levels, backends, per-subsystem tuning
+- [Operations](../operations/index.md) -- SSH setup, signals, health checks, troubleshooting

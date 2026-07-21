@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Transit Edge with RPKI - Ze</title>
+        <meta name="description" content="Build a dual-transit Internet edge with RPKI origin validation and tested failover." />
+        <meta property="og:title" content="Transit Edge with RPKI - Ze" />
+        <meta property="og:description" content="Build a dual-transit Internet edge with RPKI origin validation and tested failover." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Transit Edge with RPKI - Ze" />
+        <meta name="twitter:description" content="Build a dual-transit Internet edge with RPKI origin validation and tested failover." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Usage</span>
+    <h1 id="transit-edge-with-rpki">Transit Edge with RPKI</h1>
+    <p>This deployment shape uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference for deterministic failover.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#topology">Topology</a></li>
+<li><a href="#complete-edge-configuration">Complete edge configuration</a></li>
+<li><a href="#add-origin-validation">Add origin validation</a></li>
+<li><a href="#import-policy">Import policy</a></li>
+<li><a href="#failure-behaviour">Failure behaviour</a></li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#what-to-watch">What to watch</a></li>
+</ol></nav>
+<h2 id="topology">Topology</h2>
+<pre><code class="language-text">                 Transit A AS 64496
+                         |
+                         |
+                   Ze edge AS 64500
+                         |
+                         |
+                 Transit B AS 64497
+</code></pre>
+<p>The two sessions may carry full tables or a constrained lab table. Size prefix limits and host resources for the intended route volume.</p>
+<h2 id="complete-edge-configuration">Complete edge configuration</h2>
+<p>Save this two-transit example as <code>transit-edge.conf</code>. Transit A receives local
+preference 200 and Transit B receives 100, so Transit A wins when both paths are
+otherwise eligible. RPKI Invalid routes are rejected before they reach the RIB.</p>
+<pre><code class="language-text">plugin {
+    internal rib { use bgp-rib; }
+    internal adj-rib-in { use bgp-adj-rib-in; }
+    internal rpki { use bgp-rpki; }
+    internal role { use bgp-role; }
+    internal modify { use bgp-filter-modify; }
+}
+
+bgp {
+    router-id 192.0.2.10;
+    session { asn { local 64500; } }
+
+    rpki {
+        cache-server 203.0.113.53 { port 323; }
+        action { invalid reject; not-found accept; }
+    }
+
+    policy {
+        modify TRANSIT-A-PREF {
+            set { local-preference 200; }
+        }
+        modify TRANSIT-B-PREF {
+            set { local-preference 100; }
+        }
+    }
+
+    group transit {
+        session {
+            family {
+                ipv4/unicast { prefix { maximum 1000000; } }
+            }
+        }
+        role { import customer; strict false; }
+        process rpki { receive [ update ]; }
+        process adj-rib-in { receive [ update state ]; }
+
+        peer transit-a {
+            connection {
+                local { ip 192.0.2.10; }
+                remote { ip 192.0.2.1; }
+            }
+            session { asn { remote 64496; } }
+            filter { import [ modify:TRANSIT-A-PREF ]; }
+        }
+
+        peer transit-b {
+            connection {
+                local { ip 198.51.100.10; }
+                remote { ip 198.51.100.1; }
+            }
+            session { asn { remote 64497; } }
+            filter { import [ modify:TRANSIT-B-PREF ]; }
+        }
+    }
+}
+</code></pre>
+<p>Replace the documentation addresses, RTR cache, ASNs, and limits. Keep
+<code>strict false</code> until both providers advertise a compatible BGP Role, then test
+and enable strict enforcement deliberately.</p>
+<pre><code class="language-console">ze config validate transit-edge.conf
+ze start transit-edge.conf
+</code></pre>
+<p>For a full table, confirm memory and convergence evidence on the
+<a href="../../performance/">performance page</a> before treating a configuration maximum
+as a capacity claim.</p>
+<h2 id="add-origin-validation">Add origin validation</h2>
+<p>Configure one or more RTR cache servers and apply RPKI validation in the import chain. The deployment policy must state what happens to Valid, Invalid, and NotFound routes.</p>
+<p>A common starting policy is:</p>
+<ul>
+<li>accept Valid;</li>
+<li>reject Invalid;</li>
+<li>accept or mark NotFound while monitoring its proportion.</li>
+</ul>
+<p>The correct choice depends on the network's policy and rollback plan. See <a href="../../docs/guide/rpki/">RPKI origin validation</a> for cache configuration, validation flow, policy actions, and operator commands.</p>
+<h2 id="import-policy">Import policy</h2>
+<p>RPKI is one input to policy, not a replacement for prefix and AS-path controls. A transit edge normally combines:</p>
+<ul>
+<li>AS loop prevention;</li>
+<li>RPKI origin validation;</li>
+<li>bogon and default-route rejection where appropriate;</li>
+<li>maximum prefix protection;</li>
+<li>local preference or another explicit primary/backup policy;</li>
+<li>community handling for operator and upstream control.</li>
+</ul>
+<p>Use <a href="../../docs/guide/bgp-policy/">BGP policy</a> to keep these filters ordered and independently testable.</p>
+<h2 id="failure-behaviour">Failure behaviour</h2>
+<p>Decide cache failure behaviour before deployment. A cache timeout can fail open, fail closed, or retain a previously validated state depending on the configured component and policy. Record that decision and test it with the cache unavailable.</p>
+<p>A transit failure and an RPKI cache failure are different events. Monitor them separately so a routing incident does not hide a validation outage.</p>
+<h2 id="verification">Verification</h2>
+<pre><code class="language-console">ze cli -c &quot;show bgp summary&quot;
+ze cli -c &quot;show bgp peer transit-a capabilities&quot;
+ze cli -c &quot;show bgp rpki status&quot;
+ze cli -c &quot;show bgp rpki cache&quot;
+ze cli -c &quot;show bgp rpki summary&quot;
+ze cli -c &quot;show bgp rib best&quot;
+ze cli -c &quot;show warnings&quot;
+</code></pre>
+<p>Test at least four routes:</p>
+<ol>
+<li>A Valid route from the preferred transit.</li>
+<li>An Invalid route that must be rejected.</li>
+<li>A NotFound route with the deployment's chosen action.</li>
+<li>The same valid prefix from both transits, proving the expected best path and failover.</li>
+</ol>
+<p>Then disconnect the preferred transit. Confirm the alternate path becomes active and is installed in the FIB. Restore the session and verify the intended preference returns without stale paths.</p>
+<h2 id="what-to-watch">What to watch</h2>
+<ul>
+<li>RTR session state and serial updates</li>
+<li>Valid, Invalid, and NotFound route counts</li>
+<li>Prefix-limit utilisation per peer and family</li>
+<li>Best-path changes and installed next hops</li>
+<li>Policy timeout or fail-open warnings</li>
+<li>Session resets during large validation updates</li>
+<li>Memory and convergence time for the actual table size</li>
+</ul>
+<p>Do not treat an Established BGP session as proof that validation and failover work. Exercise the route state transitions directly.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Usage example</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../usage/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment shapes.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">Lab evidence</span>
+                        <small>Real daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -236,7 +236,7 @@ The harness runs Ze with ExaBGP-derived configurations and compares the wire byt
 produces against known-good ExaBGP output. 42 test cases are defined as `.ci` files in
 `test/exabgp-compat/encoding/`. These `.ci` files use a format specific to the ExaBGP
 compat harness (`option=file:`, `option=serial`, `1:cmd:`, `1:raw:`, `1:json:` lines),
-not the [standard `.ci` format](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/ci-format.md) used by Ze's functional tests.
+not the [standard `.ci` format](../ci-format/index.md) used by Ze's functional tests.
 `option=serial` marks process-driven fixtures that must not overlap other ExaBGP
 harness instances; the runner executes those after the parallel batch.
 
@@ -299,7 +299,7 @@ Not yet covered by interop tests:
 
 ## Related Documents
 
-- [`.ci` test format](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/ci-format.md) -- Ze's standard functional test file format
+- [`.ci` test format](../ci-format/index.md) -- Ze's standard functional test file format
 - [Functional test system](https://github.com/ze-software/ze/blob/main/docs/functional-tests.md) -- complete guide to the functional test system
 - [BGP implementation comparison](https://github.com/ze-software/ze/blob/main/docs/comparison.md) -- feature matrix comparing Ze with FRR, BIRD, GoBGP, ExaBGP, and others
 - [ExaBGP comparison report](https://github.com/ze-software/ze/blob/main/docs/exabgp/exabgp-comparison-report.md) -- detailed implementation differences between Ze and ExaBGP

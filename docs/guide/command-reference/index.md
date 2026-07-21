@@ -121,7 +121,7 @@ active `backend` leaf does not implement a feature it uses (e.g. `backend vpp`
 with a `bridge`, `tunnel`, `wireguard`, `veth`, or `mirror` entry) is
 rejected with one error per offending YANG path, matching the diagnostic
 the running daemon produces on reload. See
-[Backend Capability Errors](https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md#backend-capability-errors).
+[Backend Capability Errors](../configuration/index.md#backend-capability-errors).
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures -->
 
@@ -1570,7 +1570,7 @@ ze start --web 8443 --mcp 9718                   # Both web and MCP
 The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) with SANs
 for localhost, 127.0.0.1, ::1, and the listen address.
 
-See [Web Interface Guide](https://github.com/ze-software/ze/blob/main/docs/guide/web-interface.md) for full usage documentation.
+See [Web Interface Guide](../web-interface/index.md) for full usage documentation.
 <!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
 
 ### debug (set / delete / show / clear)

@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Route Selection - Ze</title>
+        <meta name="description" content="Ze documentation: architecture/route-selection.md" />
+        <meta property="og:title" content="Route Selection - Ze" />
+        <meta property="og:description" content="Ze documentation: architecture/route-selection.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Route Selection - Ze" />
+        <meta name="twitter:description" content="Ze documentation: architecture/route-selection.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Architecture</span>
+    <h1 id="route-selection">Route Selection</h1>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#design-unified-rejection-reason">Design: Unified Rejection Reason</a></li>
+<li><a href="#phase-1-validation">Phase 1: Validation</a>
+<ol>
+<li><a href="#rfc-7606-error-escalation">RFC 7606 Error Escalation</a></li>
+<li><a href="#rpki-validation">RPKI Validation</a></li>
+</ol></li>
+<li><a href="#phase-2-best-path-selection-rfc-4271-section-912">Phase 2: Best-Path Selection (RFC 4271 Section 9.1.2)</a>
+<ol>
+<li><a href="#candidate-extraction">Candidate Extraction</a></li>
+<li><a href="#not-yet-implemented">Not Yet Implemented</a></li>
+</ol></li>
+<li><a href="#complete-reason-table">Complete Reason Table</a></li>
+<li><a href="#implementation-notes">Implementation Notes</a></li>
+<li><a href="#related-documentation">Related Documentation</a></li>
+</ol></nav>
+<h2 id="overview">Overview</h2>
+<p>Every route received by ze goes through two phases before it can become the best path
+for a prefix. Phase 1 determines whether the route is valid and eligible. Phase 2
+determines which eligible route wins. A route that fails at any step gets a reason
+explaining why it was not selected.</p>
+<h2 id="design-unified-rejection-reason">Design: Unified Rejection Reason</h2>
+<p>Each non-best route carries a single reason (<code>uint8</code>) recording why it was not selected.
+The reason is set once: either during validation (the route is ineligible) or during
+best-path comparison (the route lost to a better candidate). The winning route has
+reason <code>none</code> (0).</p>
+<p>This is a single mechanism, not two separate ones. Whether a route was disqualified
+before the race or lost at step N of the race, the answer is the same type of value
+on the same field.</p>
+<h2 id="phase-1-validation">Phase 1: Validation</h2>
+<p>Routes that fail validation never enter best-path selection.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Reason</th>
+<th>Check</th>
+<th>RFC</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>nlri-syntax-invalid</code></td>
+<td>NLRI prefix length exceeds remaining bytes</td>
+<td>7606</td>
+<td><span class="ev-src"><span class="ev-ref"><code>message/rfc7606.go</code></span></span></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>attr-structure-malformed</code></td>
+<td>Path attribute header/length out of bounds</td>
+<td>7606</td>
+<td><span class="ev-src"><span class="ev-ref"><code>message/rfc7606.go</code></span></span></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>duplicate-mp-reach</code></td>
+<td>Multiple MP_REACH_NLRI or MP_UNREACH_NLRI</td>
+<td>7606</td>
+<td><span class="ev-src"><span class="ev-ref"><code>message/rfc7606.go</code></span></span></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>attr-flags-invalid</code></td>
+<td>Well-known attribute missing Transitive or has Optional</td>
+<td>7606</td>
+<td><span class="ev-src"><span class="ev-ref"><code>message/rfc7606.go</code></span></span></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>attr-value-invalid</code></td>
+<td>Per-attribute validation (ORIGIN range, AS_PATH structure, NEXT_HOP format, length checks for MED/LOCAL_PREF/AGGREGATOR/COMMUNITY/ORIGINATOR_ID/CLUSTER_LIST/EXT_COMMUNITY/LARGE_COMMUNITY, MP_REACH/MP_UNREACH structure)</td>
+<td>7606</td>
+<td><span class="ev-src"><span class="ev-ref"><code>message/rfc7606.go</code></span></span></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>mandatory-attr-missing</code></td>
+<td>ORIGIN, AS_PATH, or NEXT_HOP absent (when required)</td>
+<td>4271</td>
+<td><span class="ev-src"><span class="ev-ref"><code>message/rfc7606.go</code></span></span></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>family-not-negotiated</code></td>
+<td>MP_REACH/MP_UNREACH AFI/SAFI not in OPEN capabilities</td>
+<td>4271</td>
+<td><span class="ev-src"><span class="ev-ref"><code>reactor/session_validation.go</code></span></span></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>as-loop</code></td>
+<td>Local ASN found in AS_PATH (AS_SEQUENCE or AS_SET)</td>
+<td>4271 S9</td>
+<td>Not yet implemented</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>originator-id-loop</code></td>
+<td>ORIGINATOR_ID matches local Router ID (iBGP only)</td>
+<td>4456 S8</td>
+<td>Not yet implemented</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>cluster-list-loop</code></td>
+<td>Local Router ID found in CLUSTER_LIST (iBGP only)</td>
+<td>4456 S8</td>
+<td>Not yet implemented</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>rpki-invalid</code></td>
+<td>Origin AS does not match any covering VRP</td>
+<td>6811</td>
+<td><span class="ev-src"><span class="ev-ref"><code>plugins/adj_rib_in/rib_validation.go</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/message/rfc7606.go -- RFC 7606 validation checks -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- family negotiation check (validateUpdateFamilies) -->
+
+<h3 id="rfc-7606-error-escalation">RFC 7606 Error Escalation</h3>
+<p>Validation collects all errors and applies the strongest action:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Strength</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>none</code></td>
+<td>0</td>
+<td>Route accepted</td>
+</tr>
+<tr>
+<td><code>attribute-discard</code></td>
+<td>1</td>
+<td>Malformed attribute removed, route continues</td>
+</tr>
+<tr>
+<td><code>treat-as-withdraw</code></td>
+<td>2</td>
+<td>Entire UPDATE treated as withdrawal</td>
+</tr>
+<tr>
+<td><code>session-reset</code></td>
+<td>3</td>
+<td>NOTIFICATION sent, session closed</td>
+</tr>
+</tbody>
+</table>
+<p>Multiple errors in one UPDATE do not produce multiple reasons. The strongest action
+determines the outcome. Attribute-discard marks the specific attribute in-place
+(draft-mangin-idr-attr-tombstone-00) but the route itself continues.</p>
+<h3 id="rpki-validation">RPKI Validation</h3>
+<p>RPKI validation is asynchronous with a 30-second fail-open timeout. Routes pending
+validation are held in a separate map. On timeout, the route is promoted with state
+<code>not-validated</code> and enters best-path selection normally.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>not-validated</code></td>
+<td>0</td>
+<td>Default or timeout (fail-open)</td>
+</tr>
+<tr>
+<td><code>valid</code></td>
+<td>1</td>
+<td>Origin AS matches a covering VRP</td>
+</tr>
+<tr>
+<td><code>not-found</code></td>
+<td>2</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>invalid</code></td>
+<td>3</td>
+<td>Covering VRP exists but no AS match</td>
+</tr>
+<tr>
+<td><code>pending</code></td>
+<td>4</td>
+<td>Awaiting validation (internal only)</td>
+</tr>
+</tbody>
+</table>
+<p>Only state 3 (<code>invalid</code>) produces a rejection reason. States 0, 1, and 2 allow the
+route to proceed to best-path selection.</p>
+<h2 id="phase-2-best-path-selection-rfc-4271-section-912">Phase 2: Best-Path Selection (RFC 4271 Section 9.1.2)</h2>
+<p>Eligible routes compete pairwise. The loser at each step gets tagged with the
+step that eliminated it. Steps are evaluated in strict order; the first difference
+decides.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Reason</th>
+<th>Rule</th>
+<th>RFC</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9</td>
+<td><code>stale-deprioritized</code></td>
+<td>Route at or above depreference threshold loses to fresh route</td>
+<td>9494</td>
+<td>GR/LLGR stale-level; threshold = 2</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>lost-local-pref</code></td>
+<td>Highest LOCAL_PREF wins</td>
+<td>4271</td>
+<td>Default 100 if absent</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>lost-as-path-length</code></td>
+<td>Shortest AS_PATH wins</td>
+<td>4271</td>
+<td>AS_SET counts as 1</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>lost-origin</code></td>
+<td>Lowest ORIGIN wins (IGP=0 &lt; EGP=1 &lt; INCOMPLETE=2)</td>
+<td>4271</td>
+<td></td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>lost-med</code></td>
+<td>Lowest MED wins (same neighbor AS only)</td>
+<td>4271</td>
+<td>Compared only when first AS matches</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>lost-ebgp-over-ibgp</code></td>
+<td>eBGP preferred over iBGP</td>
+<td>4271</td>
+<td>eBGP = PeerASN != LocalASN</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>lost-igp-cost</code></td>
+<td>Lowest IGP cost to next-hop</td>
+<td>4271</td>
+<td>Not yet implemented</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>lost-router-id</code></td>
+<td>Lowest Router ID / ORIGINATOR_ID wins</td>
+<td>4271/4456</td>
+<td>Numeric IP comparison</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>lost-peer-address</code></td>
+<td>Lowest peer IP address wins (final tiebreak)</td>
+<td>4271</td>
+<td>Numeric IP comparison</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
+
+<h3 id="candidate-extraction">Candidate Extraction</h3>
+<p>Before comparison, each route's attributes are extracted from pool handles into a
+flat <code>Candidate</code> struct: LocalPref, ASPathLen, FirstAS, Origin, MED, PeerASN,
+LocalASN, OriginatorIP, PeerIP, PeerAddr, StaleLevel. Router ID and peer address
+comparisons use typed <code>netip.Addr</code> fields for zero-allocation numeric ordering.</p>
+<h3 id="not-yet-implemented">Not Yet Implemented</h3>
+<ul>
+<li><strong>AS loop detection</strong> (own ASN in AS_PATH): biorouting checks this in Adj-RIB-In.
+  Ze does not currently reject routes with AS loops before selection.</li>
+<li><strong>Cluster-list loop detection</strong> (RFC 4456, own Cluster ID in CLUSTER_LIST):
+  not currently checked.</li>
+<li><strong>Originator-ID loop detection</strong> (RFC 4456, own Router ID as ORIGINATOR_ID):
+  not currently checked.</li>
+<li><strong>OTC mismatch</strong> (RFC 9234, Only-To-Customer attribute validation):
+  not currently checked.</li>
+<li><strong>IGP cost to next-hop</strong> (step 15): requires IGP integration.</li>
+</ul>
+<p>These would be additional validation reasons in Phase 1 when implemented.</p>
+<h2 id="complete-reason-table">Complete Reason Table</h2>
+<p>All reasons in evaluation order. A route gets exactly one reason: the first check
+it fails.</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Reason</th>
+<th>Phase</th>
+<th>RFC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>none</code></td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>nlri-syntax-invalid</code></td>
+<td>Validation</td>
+<td>7606</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>attr-structure-malformed</code></td>
+<td>Validation</td>
+<td>7606</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>duplicate-mp-reach</code></td>
+<td>Validation</td>
+<td>7606</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>attr-flags-invalid</code></td>
+<td>Validation</td>
+<td>7606</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>attr-value-invalid</code></td>
+<td>Validation</td>
+<td>7606</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>mandatory-attr-missing</code></td>
+<td>Validation</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>family-not-negotiated</code></td>
+<td>Validation</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>rpki-invalid</code></td>
+<td>Validation</td>
+<td>6811</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>stale-deprioritized</code></td>
+<td>Selection</td>
+<td>9494</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>lost-local-pref</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>lost-as-path-length</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>lost-origin</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>lost-med</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>lost-ebgp-over-ibgp</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>lost-igp-cost</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>lost-router-id</code></td>
+<td>Selection</td>
+<td>4271/4456</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>lost-peer-address</code></td>
+<td>Selection</td>
+<td>4271</td>
+</tr>
+</tbody>
+</table>
+<h2 id="implementation-notes">Implementation Notes</h2>
+<ul>
+<li><strong>Type:</strong> <code>uint8</code> -- 18 values (0-17), extensible up to 255.</li>
+<li><strong>One field, not two:</strong> Biorouting splits this into <code>HiddenReason</code> (validation) and
+  implicit sort order (selection). Ze uses one field because both answer the same
+  question: "why is this route not the best?"</li>
+<li><strong>String conversion:</strong> Only on JSON output. Internal representation is always <code>uint8</code>.</li>
+<li><strong>Cost:</strong> One byte per route entry. Set once during validation or selection, never
+  updated after.</li>
+</ul>
+<h2 id="related-documentation">Related Documentation</h2>
+<ul>
+<li><code>docs/architecture/route-types.md</code> -- route struct inventory and data flow</li>
+<li><code>docs/architecture/core-design.md</code> -- reactor, FSM, wire layer</li>
+<li><code>docs/architecture/wire/messages.md</code> -- BGP message parsing</li>
+<li><code>docs/architecture/plugin/rib-storage-design.md</code> -- RIB storage internals</li>
+<li><code>rfc/short/rfc4271.md</code> -- BGP-4 specification</li>
+<li><code>rfc/short/rfc7606.md</code> -- revised error handling for UPDATE messages</li>
+<li><code>rfc/short/rfc6811.md</code> -- RPKI-based origin validation</li>
+</ul>
+            </section>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

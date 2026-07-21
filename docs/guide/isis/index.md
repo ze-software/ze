@@ -14,7 +14,7 @@ user-facing behaviour; the wire format is documented in
 > the logical name equals the kernel device, but an interface configured with an
 > `os-name` selector binds a logical name to a different kernel device; IS-IS resolves
 > the name to its kernel device through the shared iface resolver. See
-> [Logical Name and the `os-name` Selector](https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md#logical-name-and-the-os-name-selector).
+> [Logical Name and the `os-name` Selector](../configuration/index.md#logical-name-and-the-os-name-selector).
 
 <!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->

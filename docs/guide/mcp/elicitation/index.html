@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>MCP Elicitation - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mcp/elicitation.md" />
+        <meta property="og:title" content="MCP Elicitation - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mcp/elicitation.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MCP Elicitation - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mcp/elicitation.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<!-- source: internal/component/mcp/elicit.go -- session.Elicit -->
+<!-- source: internal/component/mcp/session.go -- correlation + capability bit -->
+<!-- source: internal/component/mcp/streamable.go -- POST -> SSE upgrade -->
+<!-- source: internal/component/mcp/tools.go -- ze_execute missing-command branch -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="mcp-elicitation">MCP Elicitation</h1>
+    <p>Ze implements the MCP 2025-06-18
+<a href="https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation" target="_blank" rel="noopener">elicitation</a>
+capability. A tool handler that needs information it does not have yet --
+typically because the client omitted an argument -- can ask the client for
+it mid-dispatch instead of failing with a validation error. The canonical
+example is the handcrafted <code>ze_execute</code> tool: when called without a
+<code>command</code> argument, the server responds with an <code>elicitation/create</code>
+request asking the client which ze command to run, waits for the reply,
+then dispatches the accepted command.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#capability-negotiation">Capability Negotiation</a></li>
+<li><a href="#transport-shape">Transport Shape</a></li>
+<li><a href="#schema-subset">Schema Subset</a></li>
+<li><a href="#accept-decline-cancel">Accept / Decline / Cancel</a></li>
+<li><a href="#writing-an-elicit-aware-tool-handler">Writing an Elicit-Aware Tool Handler</a></li>
+<li><a href="#testing-with-ze-test-mcp">Testing With ze-test mcp</a></li>
+</ol></nav>
+<h2 id="capability-negotiation">Capability Negotiation</h2>
+<p>The spec requires clients that support elicitation to declare it at
+initialize:</p>
+<pre><code class="language-json">{
+    &quot;method&quot;: &quot;initialize&quot;,
+    &quot;params&quot;: {
+        &quot;protocolVersion&quot;: &quot;2025-06-18&quot;,
+        &quot;capabilities&quot;: { &quot;elicitation&quot;: {} }
+    }
+}
+</code></pre>
+<p>The server records a single bit (<code>clientElicit</code>) per session from that
+declaration and refuses to emit <code>elicitation/create</code> for any session where
+the bit is clear. Tool handlers that rely on elicitation are expected to
+fall back to a hard error when <code>session.ClientSupportsElicit()</code> returns
+false, so a client that never advertised the capability still gets a
+deterministic outcome (e.g. <code>missing required argument: command</code>) rather
+than a hang on a response that will never arrive.</p>
+<h2 id="transport-shape">Transport Shape</h2>
+<p>Ze answers every client <code>POST /mcp</code> with either <code>application/json</code> (the
+common case) or <code>text/event-stream</code>. The response upgrades to SSE
+automatically when, and only when, the tool handler invokes
+<code>session.Elicit</code>. Concretely:</p>
+<ol>
+<li>Client sends <code>tools/call</code> over <code>POST /mcp</code>.</li>
+<li>Handler calls <code>session.Elicit(ctx, message, schema)</code> with a flat
+   object JSON Schema describing the requested fields.</li>
+<li>The POST's reply sink upgrades in place from <code>jsonReplySink</code> to
+   <code>sseReplySink</code>. Headers go out as <code>Content-Type: text/event-stream</code>,
+   the <code>elicitation/create</code> request frame is written, the handler
+   suspends on the per-elicit correlation channel.</li>
+<li>Client reads the SSE frame, prompts the operator (or routes through
+   the agent's confirmation flow), and POSTs a JSON-RPC response whose
+   <code>id</code> matches. No new stream is opened -- the reply is a normal
+   <code>POST /mcp</code> with the <code>Mcp-Session-Id</code> header and no <code>method</code> field.</li>
+<li>Server routes the response to the suspended handler via the
+   correlation map. The handler resumes and its terminal result rides
+   the same SSE stream as a final frame.</li>
+</ol>
+<p>The terminal response is guaranteed to reach the same HTTP response
+body that carried the elicit. Clients do not need a separate GET SSE
+stream for elicitation flows.</p>
+<h2 id="schema-subset">Schema Subset</h2>
+<p>Per the spec, elicitation schemas MUST be flat (no nested objects, no
+<code>oneOf</code>/<code>anyOf</code>/<code>allOf</code>, no arrays as root). Ze enforces this before
+sending the frame:</p>
+<table>
+<thead>
+<tr>
+<th>Allowed at property level</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type: string</code> (optionally with <code>enum</code>)</td>
+<td><code>enum</code> is validated for non-empty string members</td>
+</tr>
+<tr>
+<td><code>type: number</code> / <code>integer</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>type: boolean</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>description</code>, <code>title</code>, <code>default</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>The server rejects a schema with <code>ErrElicitSchemaInvalid</code> instead of
+sending a malformed frame. Reject-at-verify is symmetric with the rest of
+ze's configuration and protocol surface.</p>
+<h2 id="accept-decline-cancel">Accept / Decline / Cancel</h2>
+<p>The client's response carries one of three actions. Ze translates each
+into a typed outcome the handler can branch on:</p>
+<table>
+<thead>
+<tr>
+<th>Client action</th>
+<th>Handler sees</th>
+<th>Typical handler response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accept</code> with <code>content</code></td>
+<td><code>content map[string]any, nil</code></td>
+<td>Extract fields, dispatch the intended work</td>
+</tr>
+<tr>
+<td><code>decline</code></td>
+<td><code>nil, ErrElicitDeclined</code></td>
+<td>Report an error to the user; do not dispatch</td>
+</tr>
+<tr>
+<td><code>cancel</code></td>
+<td><code>nil, ErrElicitCanceled</code></td>
+<td>Same as decline; the client backed out</td>
+</tr>
+<tr>
+<td>malformed / unknown action</td>
+<td><code>nil, ErrElicitMalformed</code></td>
+<td>Return a protocol error</td>
+</tr>
+<tr>
+<td>context canceled</td>
+<td><code>nil, ctx.Err()</code></td>
+<td>Clean up, return early</td>
+</tr>
+<tr>
+<td>capability absent</td>
+<td><code>nil, ErrElicitUnsupported</code></td>
+<td>Handler should have pre-checked with <code>ClientSupportsElicit</code></td>
+</tr>
+<tr>
+<td>too many pending</td>
+<td><code>nil, ErrElicitTooMany</code></td>
+<td>Back off; per-session cap is 32</td>
+</tr>
+</tbody>
+</table>
+<h2 id="writing-an-elicit-aware-tool-handler">Writing an Elicit-Aware Tool Handler</h2>
+<ol>
+<li>Pre-check <code>s.session != nil &amp;&amp; s.session.ClientSupportsElicit()</code>.
+   If false, return an <code>isError</code> tool result with a message that tells
+   the caller what is missing.</li>
+<li>Build a flat schema as <code>map[string]any</code> describing the fields.</li>
+<li>Call <code>s.session.Elicit(ctx, humanMessage, schema)</code>.</li>
+<li>On <code>err == nil</code>, extract fields with the <code>_, _ := content[k].(T)</code>
+   idiom and treat an empty/zero result as a failure.</li>
+<li>On <code>errors.Is(err, ErrElicitDeclined)</code> or <code>ErrElicitCanceled</code>, return
+   an <code>isError</code> result; do not treat it as a bug.</li>
+<li>On any other error, surface the error text verbatim.</li>
+</ol>
+<p>The <code>ze_execute</code> handler in <code>internal/component/mcp/tools.go</code> is the
+reference implementation. Functional coverage lives in
+<code>test/plugin/elicitation-{accept,decline,no-capability}.ci</code>.</p>
+<h2 id="testing-with-ze-test-mcp">Testing With <code>ze-test mcp</code></h2>
+<p>The <code>ze-test mcp</code> client understands elicitation scenarios. Add
+<code>--elicit</code> to declare the capability, and use stdin directives to queue
+replies:</p>
+<pre><code># Stdin lines (in order)
+elicit-accept {&quot;command&quot;:&quot;show bgp peer list&quot;}
+@ze_execute {&quot;command&quot;:&quot;&quot;}
+</code></pre>
+<p>Other directives: <code>elicit-decline</code>, <code>elicit-cancel</code>. When the client
+encounters an elicit frame and the queue is empty, it auto-replies with
+<code>cancel</code> so a misconfigured test does not hang the daemon.</p>
+<p>See the <code>elicitation-*.ci</code> scenarios in <code>test/plugin/</code> for complete
+orchestration examples.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

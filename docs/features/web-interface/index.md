@@ -62,4 +62,4 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 <!-- source: internal/component/web/sse.go -- EventBroker SSE broadcast -->
 <!-- source: internal/component/web/editor.go -- EditorManager per-user sessions -->
 
-See [Web Interface Guide](https://github.com/ze-software/ze/blob/main/docs/guide/web-interface.md) for usage instructions.
+See [Web Interface Guide](../../guide/web-interface/index.md) for usage instructions.

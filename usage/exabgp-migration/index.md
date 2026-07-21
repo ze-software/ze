@@ -42,15 +42,22 @@ plugin {
 }
 
 bgp {
+    router-id 10.0.0.2;
+    session { asn { local 65000; } }
+
     peer upstream1 {
         connection {
             remote { ip 10.0.0.1; }
             local { ip 10.0.0.2; }
         }
         session {
-            asn { local 65000; remote 65001; }
+            asn { remote 65001; }
+            family {
+                ipv4/unicast {
+                    prefix { maximum 10000; }
+                }
+            }
         }
-        ...
         process my-exabgp-plugin {
             receive [ update state ]
         }
@@ -108,6 +115,87 @@ The migration tool adds `prefix { maximum 10000; }` to every converted address f
 4. **Bridge plugins:** Update `run` directives to use `ze exabgp plugin`
 5. **Test:** Run ze with the new config and verify sessions establish
 6. **Port plugins:** Gradually rewrite plugins to use the ze SDK directly
+
+## Worked migration
+
+Consider an ExaBGP process that receives updates from two transit sessions and
+writes route commands to stdout:
+
+```text
+process inject-routes {
+    run python3 /opt/scripts/inject.py;
+    encoder json;
+    receive {
+        parsed;
+        update;
+    }
+}
+```
+
+Convert the complete configuration, retain the original as a read-only
+reference, and validate the generated Ze file:
+
+```bash
+cp exabgp.conf exabgp.conf.before-ze
+ze exabgp migrate exabgp.conf > ze.conf
+ze config validate ze.conf
+```
+
+Review the generated file before starting. In particular:
+
+1. Give each peer a stable, meaningful name.
+2. Confirm every local and remote address and ASN.
+3. Adjust the generated per-family prefix maximum. The migration default is a
+   starting point, not a full-table recommendation.
+4. Confirm which peers bind the converted process.
+5. Review static announcements and next-hop handling.
+6. Remove capabilities that the remote peer should not negotiate.
+
+Run the existing script through the bridge:
+
+```text
+plugin {
+    external inject-routes {
+        run "ze exabgp plugin python3 /opt/scripts/inject.py"
+        encoder json
+    }
+}
+```
+
+Bind that process only to the peers whose events it should receive. The bridge
+keeps the ExaBGP JSON and text-command contract at the script boundary while Ze
+uses its native event and command model internally.
+
+Start Ze and verify each boundary rather than treating an Established session
+as sufficient proof:
+
+```console
+ze start ze.conf
+ze cli -c "show bgp summary"
+ze cli -c "show bgp peer transit-a detail"
+ze cli -c "show bgp rib status"
+ze cli -c "show warnings"
+ze cli -c "show errors"
+```
+
+Trigger one representative announcement and withdrawal through the existing
+script. Confirm the route appears in the expected peer's outbound RIB, reaches
+the adjacent router, and disappears after withdrawal.
+
+### Cutover checklist
+
+- The converted configuration validates.
+- Every intended address family and capability is negotiated.
+- Received and advertised prefix counts match the old deployment.
+- Existing process scripts receive the events they depend on.
+- Announcements, withdrawals, and watchdog actions behave as before.
+- Warnings, errors, and operational reports contain no unexpected entries.
+- The old ExaBGP configuration and binary remain available for rollback during
+  the first maintenance window.
+
+Port scripts to the native SDK one at a time after the bridge deployment is
+stable. This avoids combining a routing-engine migration with an application
+rewrite.
 
 ## When to Port Plugins
 

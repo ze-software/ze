@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>YANG Schema Authoring - Ze</title>
+        <meta name="description" content="Ze documentation: plugin-development/schema.md" />
+        <meta property="og:title" content="YANG Schema Authoring - Ze" />
+        <meta property="og:description" content="Ze documentation: plugin-development/schema.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="YANG Schema Authoring - Ze" />
+        <meta name="twitter:description" content="Ze documentation: plugin-development/schema.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Documentation</span>
+    <h1 id="yang-schema-authoring">YANG Schema Authoring</h1>
+    <p>Plugins declare their configuration schema using YANG (RFC 7950). This guide covers the basics for plugin authors.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#registering-a-schema">Registering a Schema</a>
+<ol>
+<li><a href="#schemadecl-fields">SchemaDecl Fields</a></li>
+<li><a href="#embedding-yang-files">Embedding YANG Files</a></li>
+</ol></li>
+<li><a href="#minimal-schema">Minimal Schema</a></li>
+<li><a href="#module-structure">Module Structure</a></li>
+<li><a href="#common-types">Common Types</a></li>
+<li><a href="#constraints">Constraints</a>
+<ol>
+<li><a href="#range-numbers">Range (Numbers)</a></li>
+<li><a href="#length-strings">Length (Strings)</a></li>
+<li><a href="#pattern-regex">Pattern (Regex)</a></li>
+<li><a href="#enumeration">Enumeration</a></li>
+</ol></li>
+<li><a href="#containers-and-lists">Containers and Lists</a>
+<ol>
+<li><a href="#container-single-instance">Container (Single Instance)</a></li>
+<li><a href="#list-multiple-instances">List (Multiple Instances)</a></li>
+</ol></li>
+<li><a href="#mandatory-and-default">Mandatory and Default</a></li>
+<li><a href="#references-leafref">References (leafref)</a></li>
+<li><a href="#best-practices">Best Practices</a></li>
+<li><a href="#example-complete-plugin-with-schema">Example: Complete Plugin with Schema</a>
+<ol>
+<li><a href="#example-yang-schema">Example YANG Schema</a></li>
+</ol></li>
+</ol></nav>
+<h2 id="registering-a-schema">Registering a Schema</h2>
+<p>Schemas are declared via the <code>Schema</code> field of <code>sdk.Registration</code>, which is passed to
+<code>p.Run()</code>. The <code>Schema</code> field is a pointer to <code>sdk.SchemaDecl</code>.</p>
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
+
+<pre><code class="language-go">p := sdk.NewWithConn(&quot;my-plugin&quot;, conn)
+
+p.Run(ctx, sdk.Registration{
+    Schema: &amp;sdk.SchemaDecl{
+        Module:    &quot;ze-my-plugin&quot;,
+        Namespace: &quot;urn:ze:my-plugin&quot;,
+        YANGText:  myPluginYANG,        // YANG module text (string)
+        Handlers:  []string{&quot;my-plugin&quot;},
+    },
+    WantsConfig: []string{&quot;my-plugin&quot;},
+})
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+
+<h3 id="schemadecl-fields">SchemaDecl Fields</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Module</code></td>
+<td><code>string</code></td>
+<td>YANG module name</td>
+</tr>
+<tr>
+<td><code>Namespace</code></td>
+<td><code>string</code></td>
+<td>YANG namespace URI</td>
+</tr>
+<tr>
+<td><code>YANGText</code></td>
+<td><code>string</code></td>
+<td>Full YANG module text</td>
+</tr>
+<tr>
+<td><code>Handlers</code></td>
+<td><code>[]string</code></td>
+<td>Config path prefixes this plugin handles</td>
+</tr>
+</tbody>
+</table>
+<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
+
+<h3 id="embedding-yang-files">Embedding YANG Files</h3>
+<p>Internal plugins use <code>//go:embed</code> to embed YANG files at compile time:</p>
+<!-- source: internal/component/bgp/plugins/rib/yang/embed.go -- ZeRibYANG (go:embed) -->
+<!-- source: internal/component/bgp/plugins/rib/register.go -- YANG field set to ribschema.ZeRibYANG -->
+
+<pre><code class="language-go">import _ &quot;embed&quot;
+
+//go:embed my-plugin.yang
+var myPluginYANG string
+</code></pre>
+<p>The embedded string is then passed as <code>YANGText</code> in the <code>SchemaDecl</code>.</p>
+<p>For external plugins, the YANG text can come from any source (file read, constant, etc.).</p>
+<h2 id="minimal-schema">Minimal Schema</h2>
+<pre><code class="language-yang">module my-plugin {
+    namespace &quot;urn:my-company:my-plugin&quot;;
+    prefix mp;
+
+    container my-plugin {
+        leaf enabled {
+            type boolean;
+            default true;
+        }
+    }
+}
+</code></pre>
+<h2 id="module-structure">Module Structure</h2>
+<pre><code class="language-yang">module name {
+    namespace &quot;urn:...&quot;;  // Unique namespace URI
+    prefix prefix;        // Short prefix for references
+
+    // Content: containers, lists, leafs
+}
+</code></pre>
+<h2 id="common-types">Common Types</h2>
+<table>
+<thead>
+<tr>
+<th>YANG Type</th>
+<th>Go Type</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td><code>"hello"</code></td>
+</tr>
+<tr>
+<td><code>boolean</code></td>
+<td><code>bool</code></td>
+<td><code>true</code>/<code>false</code></td>
+</tr>
+<tr>
+<td><code>uint8/16/32/64</code></td>
+<td><code>uintN</code></td>
+<td><code>42</code></td>
+</tr>
+<tr>
+<td><code>int8/16/32/64</code></td>
+<td><code>intN</code></td>
+<td><code>-42</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="constraints">Constraints</h2>
+<h3 id="range-numbers">Range (Numbers)</h3>
+<pre><code class="language-yang">leaf port {
+    type uint16 {
+        range &quot;1..65535&quot;;
+    }
+}
+
+leaf hold-time {
+    type uint16 {
+        range &quot;0 | 3..65535&quot;;  // 0 or 3+
+    }
+}
+</code></pre>
+<h3 id="length-strings">Length (Strings)</h3>
+<pre><code class="language-yang">leaf name {
+    type string {
+        length &quot;1..64&quot;;
+    }
+}
+</code></pre>
+<h3 id="pattern-regex">Pattern (Regex)</h3>
+<pre><code class="language-yang">leaf ipv4-address {
+    type string {
+        pattern '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+';
+    }
+}
+</code></pre>
+<h3 id="enumeration">Enumeration</h3>
+<pre><code class="language-yang">leaf action {
+    type enumeration {
+        enum allow;
+        enum deny;
+        enum log;
+    }
+}
+</code></pre>
+<h2 id="containers-and-lists">Containers and Lists</h2>
+<h3 id="container-single-instance">Container (Single Instance)</h3>
+<pre><code class="language-yang">container settings {
+    leaf timeout { type uint32; }
+    leaf retries { type uint8; }
+}
+</code></pre>
+<p>Config:</p>
+<pre><code>settings {
+    timeout 30;
+    retries 3;
+}
+</code></pre>
+<h3 id="list-multiple-instances">List (Multiple Instances)</h3>
+<pre><code class="language-yang">list endpoint {
+    key &quot;name&quot;;
+
+    leaf name { type string; }
+    leaf url { type string; }
+    leaf enabled { type boolean; default true; }
+}
+</code></pre>
+<p>Config:</p>
+<pre><code>endpoint api {
+    url &quot;https://api.example.com&quot;;
+}
+endpoint backup {
+    url &quot;https://backup.example.com&quot;;
+    enabled false;
+}
+</code></pre>
+<h2 id="mandatory-and-default">Mandatory and Default</h2>
+<pre><code class="language-yang">leaf required-field {
+    type string;
+    mandatory true;  // Must be provided
+}
+
+leaf optional-field {
+    type uint32;
+    default 100;     // Used if not provided
+}
+</code></pre>
+<h2 id="references-leafref">References (leafref)</h2>
+<p>Reference values from other parts of config:</p>
+<pre><code class="language-yang">// In ze-bgp-conf module
+list peer-group {
+    key &quot;name&quot;;
+    leaf name { type string; }
+}
+
+// In your module - reference peer-group
+leaf group {
+    type leafref {
+        path &quot;/bgp/peer-group/name&quot;;
+    }
+}
+</code></pre>
+<p>Ze validates that referenced values exist.</p>
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li><strong>Use meaningful namespaces</strong> -- include your organization</li>
+<li><strong>Add descriptions</strong> -- help users understand fields</li>
+<li><strong>Set sensible defaults</strong> -- reduce required config</li>
+<li><strong>Validate early</strong> -- use YANG constraints, not just code</li>
+<li><strong>Use the <code>Handlers</code> field</strong> -- list the config path prefixes your plugin manages</li>
+</ol>
+<h2 id="example-complete-plugin-with-schema">Example: Complete Plugin with Schema</h2>
+<p>A complete example showing YANG schema registration with the SDK:</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;context&quot;
+    _ &quot;embed&quot;
+    &quot;log&quot;
+    &quot;os&quot;
+    &quot;os/signal&quot;
+
+    &quot;codeberg.org/thomas-mangin/ze/pkg/plugin/sdk&quot;
+)
+
+//go:embed acme-monitor.yang
+var acmeMonitorYANG string
+
+func main() {
+    p, err := sdk.NewFromEnv(&quot;acme-monitor&quot;)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    p.OnConfigure(func(sections []sdk.ConfigSection) error {
+        for _, s := range sections {
+            log.Printf(&quot;config root=%s data=%s&quot;, s.Root, s.Data)
+        }
+        return nil
+    })
+
+    p.OnEvent(func(event string) error {
+        log.Printf(&quot;event: %s&quot;, event)
+        return nil
+    })
+
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    defer cancel()
+
+    if err := p.Run(ctx, sdk.Registration{
+        Schema: &amp;sdk.SchemaDecl{
+            Module:    &quot;acme-monitor&quot;,
+            Namespace: &quot;urn:acme:monitor&quot;,
+            YANGText:  acmeMonitorYANG,
+            Handlers:  []string{&quot;acme-monitor&quot;},
+        },
+        WantsConfig: []string{&quot;acme-monitor&quot;},
+    }); err != nil {
+        log.Fatal(err)
+    }
+}
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnEvent -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
+
+<h3 id="example-yang-schema">Example YANG Schema</h3>
+<pre><code class="language-yang">module acme-monitor {
+    namespace &quot;urn:acme:monitor&quot;;
+    prefix acme;
+
+    description &quot;ACME endpoint monitoring plugin&quot;;
+
+    container acme-monitor {
+        description &quot;Monitor configuration&quot;;
+
+        leaf endpoint {
+            type string;
+            mandatory true;
+            description &quot;HTTPS endpoint to monitor&quot;;
+        }
+
+        leaf interval {
+            type uint32 {
+                range &quot;10..3600&quot;;
+            }
+            default 60;
+            description &quot;Check interval in seconds&quot;;
+        }
+
+        list alert {
+            key &quot;name&quot;;
+            description &quot;Alert destinations&quot;;
+
+            leaf name {
+                type string {
+                    length &quot;1..64&quot;;
+                }
+            }
+
+            leaf email {
+                type string;
+            }
+        }
+    }
+}
+</code></pre>
+            </section>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

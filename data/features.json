@@ -1134,6 +1134,28 @@
             "MPLS and **SRv6** binding SID, tunnel encap",
             "**ExaBGP bridge** for SR-Policy migration"
           ]
+        },
+        {
+          "category": "automate",
+          "status": "experimental",
+          "title": "Fleet Management",
+          "href": "docs/guide/fleet-config/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Managed config",
+              "mode": false
+            },
+            {
+              "text": "TLS hub",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Per-client **configuration** and authentication",
+            "Cached config with **reconnect** and heartbeat",
+            "Version hashing and **two-phase** fetch"
+          ]
         }
       ]
     },
@@ -1189,28 +1211,6 @@
             "VRF as a **first-class** concept",
             "Per-VRF **BGP stacks**, YANG config",
             "Kernel **VRF devices**, table binding"
-          ]
-        },
-        {
-          "category": "automate",
-          "status": "aspiration",
-          "title": "Fleet Management",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-fleet-0-umbrella.md",
-          "external": true,
-          "chips": [
-            {
-              "text": "Registry",
-              "mode": false
-            },
-            {
-              "text": "Rollout",
-              "mode": false
-            }
-          ],
-          "bullets": [
-            "Device **registry**, config templates",
-            "**Staged rollout**, config freeze",
-            "Fleet **audit trail**, inventory health"
           ]
         },
         {

@@ -1306,7 +1306,31 @@
     <loc>https://ze-software.net/docs/architecture/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/architecture/command-ownership/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/architecture/config/deprecated-options/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/architecture/route-selection/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/architecture/system-architecture/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/architecture/testing/ci-format/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/architecture/testing/interop/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/contributing/documentation-testing/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/contributing/rfc-implementation-guide/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/contributing/testing/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/features/</loc>
@@ -1642,10 +1666,22 @@
     <loc>https://ze-software.net/docs/features/rfc-status/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/features/srv6/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/features/web-interface/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/glossary/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/add-path/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/anomaly/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/api/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/appliance/</loc>
@@ -1669,19 +1705,55 @@
     <loc>https://ze-software.net/docs/guide/bfd/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/bgp-peering/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/bgp-policy/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/bgp-resilience/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/bgp-role/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/bmp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/chaos-testing/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/cli/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/command-reference/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/config-archive/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/config-editor/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/configuration/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/ddos-mitigation/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/debugging-tools/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/developer-setup/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/environment-variables/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/firewall/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/fleet-config/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/flow-export/</loc>
@@ -1693,7 +1765,16 @@
     <loc>https://ze-software.net/docs/guide/flowspec-route-reflector/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/gnmi/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/graceful-restart/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/health-checks/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/healthcheck/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/ipsec/</loc>
@@ -1708,13 +1789,40 @@
     <loc>https://ze-software.net/docs/guide/l2tp/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/lifecycle/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/logging/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/looking-glass-howto/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/looking-glass/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/mcp/chaos/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/mcp/elicitation/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/mcp/overview/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/mcp/remote-access/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/monitoring/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/mpls/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/mrt-analysis/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/operations/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/operator-access-rbac/</loc>
@@ -1741,10 +1849,19 @@
     <loc>https://ze-software.net/docs/guide/radius/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/redistribution/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/route-injection/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/rpki/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/rsvp-te/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/self-update/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/static-routes/</loc>
@@ -1754,6 +1871,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/terminal-demonstrations/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/traffic-control/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/traffic-usage/</loc>
@@ -1768,13 +1888,43 @@
     <loc>https://ze-software.net/docs/guide/vrrp/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/web-interface/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/ze-install/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/history/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/performance/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/plugin-development/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/plugin-development/commands/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/plugin-development/handlers/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/plugin-development/metrics/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/plugin-development/protocol/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/plugin-development/schema/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/plugin-development/testing/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/research/vpp-deployment-reference/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/why-ze/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/faq/</loc>
@@ -1876,13 +2026,28 @@
     <loc>https://ze-software.net/usage/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/usage/as-path-topology/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/usage/as112/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/usage/bgp-performance/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/usage/chaos-tested-peering/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/usage/exabgp-migration/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/usage/flowspec-injection/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/usage/route-server/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/usage/transit-edge-rpki/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/zeledon/</loc>

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Lifecycle, Rollback, and Recovery - Ze</title>
+        <meta name="description" content="Ze documentation: guide/lifecycle.md" />
+        <meta property="og:title" content="Lifecycle, Rollback, and Recovery - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/lifecycle.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Lifecycle, Rollback, and Recovery - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/lifecycle.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="lifecycle-rollback-and-recovery">Lifecycle, Rollback, and Recovery</h1>
+    <p>Use this guide for routine daemon control and configuration recovery. Ze separates configuration reload, process restart, and host reboot because they have different routing consequences.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#before-first-start">Before first start</a></li>
+<li><a href="#choose-the-right-action">Choose the right action</a></li>
+<li><a href="#review-and-commit-configuration">Review and commit configuration</a></li>
+<li><a href="#archive-and-rollback">Archive and rollback</a></li>
+<li><a href="#logging-and-reports">Logging and reports</a></li>
+<li><a href="#software-updates">Software updates</a></li>
+<li><a href="#recovery-order">Recovery order</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></nav>
+<h2 id="before-first-start">Before first start</h2>
+<pre><code class="language-console">ze init
+ze config validate ze.conf
+ze doctor
+ze start ze.conf
+</code></pre>
+<p><code>ze init</code> creates the local credential and blob database. Validation checks the candidate configuration without applying it. <code>ze doctor</code> checks host capabilities and dependencies. See <a href="../operations/">Operations</a> and <a href="../ze-install/">Installation</a> for systemd and appliance-specific setup.</p>
+<h2 id="choose-the-right-action">Choose the right action</h2>
+<table>
+<thead>
+<tr>
+<th>Intent</th>
+<th>Action</th>
+<th>Routing effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Apply a validated configuration change</td>
+<td><code>ze signal reload</code></td>
+<td>Transactional subsystem reload, with the current config retained on failure</td>
+</tr>
+<tr>
+<td>Stop normally</td>
+<td><code>ze signal stop</code></td>
+<td>Graceful shutdown, peers receive a normal teardown</td>
+</tr>
+<tr>
+<td>Restart with BGP GR signalling</td>
+<td><code>ze signal restart</code></td>
+<td>Writes the restart marker used by the Graceful Restart path</td>
+</tr>
+<tr>
+<td>Inspect process state</td>
+<td><code>ze signal status</code></td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>Capture goroutines and exit</td>
+<td><code>ze signal quit</code></td>
+<td>Diagnostic termination, not a routine stop</td>
+</tr>
+<tr>
+<td>Check liveness</td>
+<td><code>ze status</code></td>
+<td>TCP liveness check only</td>
+</tr>
+</tbody>
+</table>
+<p>A failed reload clears the candidate and keeps the previous active configuration. Do not replace reload with a process restart merely to apply a normal edit.</p>
+<h2 id="review-and-commit-configuration">Review and commit configuration</h2>
+<p>The CLI and web editor maintain a candidate separate from the active configuration:</p>
+<ol>
+<li>Enter an edit session.</li>
+<li>Make the smallest change.</li>
+<li>Validate and review the diff.</li>
+<li>Commit.</li>
+<li>Verify live state and health.</li>
+</ol>
+<p>Use <code>show config dump</code> for the fully resolved configuration and <code>show config diff</code> before rollback or commit.</p>
+<h2 id="archive-and-rollback">Archive and rollback</h2>
+<p>Ze stores configuration revisions in the configured storage backend. The archive guide covers revision pointers, named archive destinations, schema evolution, and recovery.</p>
+<p>Useful commands include:</p>
+<p>Copy the snapshot key returned by <code>show config history</code> before running <code>cat</code>:</p>
+<pre><code class="language-console">ze cli -c &quot;show config history&quot;
+ze cli -c &quot;show config diff&quot;
+ze cli -c &quot;show config cat &lt;snapshot-key&gt;&quot;
+ze cli -c &quot;request config archive&quot;
+</code></pre>
+<p>See <a href="../config-archive/">Configuration archive</a> for the current archive and rollback workflow. Review the selected revision before moving the active pointer. A syntactically valid historical revision can still be unsuitable after a schema or topology change.</p>
+<h2 id="logging-and-reports">Logging and reports</h2>
+<p>Start with bounded operational views:</p>
+<pre><code class="language-console">ze cli -c &quot;show warnings&quot;
+ze cli -c &quot;show errors&quot;
+ze cli -c &quot;show event recent&quot;
+ze cli -c &quot;show health&quot;
+</code></pre>
+<p>Raise a subsystem's log level only while investigating:</p>
+<pre><code class="language-console">ze cli -c &quot;request log level bgp.fsm debug&quot;
+</code></pre>
+<p>Persistent log configuration and destinations are described in <a href="../logging/">Logging</a>. Use structured command output for automation rather than scraping human log messages.</p>
+<h2 id="software-updates">Software updates</h2>
+<p>The update mechanism is platform-aware. Standard Linux, systemd, and appliance deployments do not all use the same backend. Follow <a href="../self-update/">Self update</a>, then decide whether the BGP restart path is required for the maintenance window.</p>
+<p>Before updating:</p>
+<ol>
+<li>Archive the active configuration.</li>
+<li>Confirm the current version and health.</li>
+<li>Confirm peers negotiated the resilience mechanisms the maintenance plan assumes.</li>
+<li>Record peer and RIB counts.</li>
+<li>Keep the previous binary or appliance slot available for rollback.</li>
+</ol>
+<p>After updating:</p>
+<ol>
+<li>Confirm the process is running.</li>
+<li>Check warnings, errors, and component health.</li>
+<li>Compare peer and RIB counts with the pre-change snapshot.</li>
+<li>Confirm stale routes were purged and no replay remains in progress.</li>
+<li>Exercise one representative management path.</li>
+</ol>
+<h2 id="recovery-order">Recovery order</h2>
+<p>When a change fails, recover in this order:</p>
+<ol>
+<li>Preserve warnings, errors, events, and crash output.</li>
+<li>Determine whether the failure is configuration, one subsystem, or the process.</li>
+<li>Discard or roll back the candidate when configuration caused the failure.</li>
+<li>Reload if the process remains healthy.</li>
+<li>Restart only when process state must be rebuilt.</li>
+<li>Reboot the host only for kernel, dataplane, or appliance failures that require it.</li>
+</ol>
+<p>See <a href="../production-diagnostics/">Production diagnostics</a> for symptom-led checks and support bundle collection.</p>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../operations/">Operations</a></li>
+<li><a href="../config-archive/">Configuration archive</a></li>
+<li><a href="../logging/">Logging</a></li>
+<li><a href="../self-update/">Self update</a></li>
+<li><a href="../bgp-resilience/">BGP resilience</a></li>
+<li><a href="../production-diagnostics/">Production diagnostics</a></li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

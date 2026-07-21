@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>RFC Implementation Guide for Ze - Ze</title>
+        <meta name="description" content="Ze documentation: contributing/rfc-implementation-guide.md" />
+        <meta property="og:title" content="RFC Implementation Guide for Ze - Ze" />
+        <meta property="og:description" content="Ze documentation: contributing/rfc-implementation-guide.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC Implementation Guide for Ze - Ze" />
+        <meta name="twitter:description" content="Ze documentation: contributing/rfc-implementation-guide.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Documentation</span>
+    <h1 id="rfc-implementation-guide-for-ze">RFC Implementation Guide for Ze</h1>
+    <p>This guide provides a step-by-step checklist for implementing an RFC in Ze. Use it alongside <code>planning.md</code> to ensure complete implementations.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#phase-0-preparation">Phase 0: Preparation</a>
+<ol>
+<li><a href="#01-rfc-analysis">0.1 RFC Analysis</a></li>
+<li><a href="#02-codebase-analysis">0.2 Codebase Analysis</a></li>
+<li><a href="#03-exabgp-migration-consideration">0.3 ExaBGP Migration Consideration</a></li>
+<li><a href="#04-spec-creation">0.4 Spec Creation</a></li>
+</ol></li>
+<li><a href="#phase-1-capability-if-applicable">Phase 1: Capability (if applicable)</a>
+<ol>
+<li><a href="#11-define-capability">1.1 Define Capability</a></li>
+<li><a href="#12-wire-format">1.2 Wire Format</a></li>
+<li><a href="#13-negotiation">1.3 Negotiation</a></li>
+<li><a href="#14-tests">1.4 Tests</a></li>
+</ol></li>
+<li><a href="#phase-2-attribute-if-applicable">Phase 2: Attribute (if applicable)</a>
+<ol>
+<li><a href="#21-define-attribute">2.1 Define Attribute</a></li>
+<li><a href="#22-wire-format">2.2 Wire Format</a></li>
+<li><a href="#23-builder-integration">2.3 Builder Integration</a></li>
+<li><a href="#24-iterator-support">2.4 Iterator Support</a></li>
+<li><a href="#25-tests">2.5 Tests</a></li>
+</ol></li>
+<li><a href="#phase-3-nlri-if-applicable">Phase 3: NLRI (if applicable)</a>
+<ol>
+<li><a href="#31-define-family">3.1 Define Family</a></li>
+<li><a href="#32-define-nlri-type">3.2 Define NLRI Type</a></li>
+<li><a href="#33-wire-format">3.3 Wire Format</a></li>
+<li><a href="#34-iterator-support">3.4 Iterator Support</a></li>
+<li><a href="#35-tests">3.5 Tests</a></li>
+</ol></li>
+<li><a href="#phase-4-message-changes-if-applicable">Phase 4: Message Changes (if applicable)</a>
+<ol>
+<li><a href="#41-new-message-type">4.1 New Message Type</a></li>
+<li><a href="#42-message-modification">4.2 Message Modification</a></li>
+<li><a href="#43-tests">4.3 Tests</a></li>
+</ol></li>
+<li><a href="#phase-5-fsm-changes-if-applicable">Phase 5: FSM Changes (if applicable)</a>
+<ol>
+<li><a href="#51-stateevent-changes">5.1 State/Event Changes</a></li>
+<li><a href="#52-timer-changes">5.2 Timer Changes</a></li>
+<li><a href="#53-tests">5.3 Tests</a></li>
+</ol></li>
+<li><a href="#phase-6-configuration">Phase 6: Configuration</a>
+<ol>
+<li><a href="#61-schema-definition">6.1 Schema Definition</a></li>
+<li><a href="#62-parsing">6.2 Parsing</a></li>
+<li><a href="#63-validation">6.3 Validation</a></li>
+<li><a href="#64-tests">6.4 Tests</a></li>
+</ol></li>
+<li><a href="#phase-7-api-commands-if-applicable">Phase 7: API Commands (if applicable)</a>
+<ol>
+<li><a href="#71-text-commands">7.1 Text Commands</a></li>
+<li><a href="#72-response-format">7.2 Response Format</a></li>
+<li><a href="#73-tests">7.3 Tests</a></li>
+</ol></li>
+<li><a href="#phase-8-engine-integration">Phase 8: Engine Integration</a>
+<ol>
+<li><a href="#81-reactor-changes">8.1 Reactor Changes</a></li>
+<li><a href="#82-peer-changes">8.2 Peer Changes</a></li>
+<li><a href="#83-tests">8.3 Tests</a></li>
+</ol></li>
+<li><a href="#phase-9-functional-tests">Phase 9: Functional Tests</a>
+<ol>
+<li><a href="#91-user-scenario-tests">9.1 User Scenario Tests</a></li>
+<li><a href="#92-encoding-tests">9.2 Encoding Tests</a></li>
+<li><a href="#93-plugin-tests">9.3 Plugin Tests</a></li>
+<li><a href="#94-config-tests">9.4 Config Tests</a></li>
+<li><a href="#95-integration-tests">9.5 Integration Tests</a></li>
+<li><a href="#96-negative-tests">9.6 Negative Tests</a></li>
+<li><a href="#97-rfc-requirement-coverage-tags">9.7 RFC Requirement Coverage Tags</a></li>
+</ol></li>
+<li><a href="#phase-10-documentation">Phase 10: Documentation</a>
+<ol>
+<li><a href="#101-architecture-docs">10.1 Architecture Docs</a></li>
+<li><a href="#102-rfc-summary">10.2 RFC Summary</a></li>
+<li><a href="#103-config-examples">10.3 Config Examples</a></li>
+</ol></li>
+<li><a href="#final-checklist">Final Checklist</a></li>
+<li><a href="#quick-reference-common-patterns">Quick Reference: Common Patterns</a>
+<ol>
+<li><a href="#wire-writing-pattern">Wire Writing Pattern</a></li>
+<li><a href="#capability-pattern">Capability Pattern</a></li>
+<li><a href="#attribute-pattern">Attribute Pattern</a></li>
+<li><a href="#nlri-pattern">NLRI Pattern</a></li>
+<li><a href="#test-pattern">Test Pattern</a></li>
+</ol></li>
+<li><a href="#rfc-implementation-examples">RFC Implementation Examples</a></li>
+</ol></nav>
+<h2 id="overview">Overview</h2>
+<p>An RFC implementation typically touches these areas (not all apply to every RFC):</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Package</th>
+<th>When Needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capability</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/capability/</code></span></span></td>
+<td>RFC introduces a capability</td>
+</tr>
+<tr>
+<td>Attribute</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/attribute/</code></span></span></td>
+<td>RFC introduces path attributes</td>
+</tr>
+<tr>
+<td>NLRI</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/nlri/</code></span></span></td>
+<td>RFC introduces new AFI/SAFI</td>
+</tr>
+<tr>
+<td>Message</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/message/</code></span></span></td>
+<td>RFC modifies message format</td>
+</tr>
+<tr>
+<td>FSM</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/fsm/</code></span></span></td>
+<td>RFC affects state machine</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/config/</code></span></span></td>
+<td>RFC needs configuration</td>
+</tr>
+<tr>
+<td>Plugin</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/plugin/</code></span></span></td>
+<td>RFC needs plugin commands</td>
+</tr>
+<tr>
+<td>Context</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/context/</code></span></span></td>
+<td>RFC affects encoding context</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/core/bgp/context/context.go -- PackContext encoding rules -->
+
+<h2 id="phase-0-preparation">Phase 0: Preparation</h2>
+<h3 id="01-rfc-analysis">0.1 RFC Analysis</h3>
+<pre><code>[ ] Download RFC: curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt
+[ ] Create summary: rfc/short/rfcNNNN.md (use /rfc-summarisation)
+[ ] Identify RFC dependencies (other RFCs this one references)
+[ ] Check dependency RFCs are implemented or summarized
+[ ] Identify which components this RFC affects (table above)
+</code></pre>
+<h3 id="02-codebase-analysis">0.2 Codebase Analysis</h3>
+<pre><code>[ ] Search for existing partial implementation: grep -r &quot;RFC NNNN&quot; internal/
+[ ] Check if related capabilities exist: internal/core/bgp/capability/
+[ ] Check if related attributes exist: internal/core/bgp/attribute/
+[ ] Check if related NLRI types exist: internal/core/bgp/nlri/
+[ ] Read architecture docs for affected areas (see planning.md keyword table)
+</code></pre>
+<h3 id="03-exabgp-migration-consideration">0.3 ExaBGP Migration Consideration</h3>
+<p>If this RFC adds features that ExaBGP users might rely on, check if migration support is needed:</p>
+<table>
+<thead>
+<tr>
+<th>RFC Affects</th>
+<th>Migration Impact</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API commands/events</td>
+<td>ExaBGP plugins expect different JSON format</td>
+<td>Update. <span class="ev-src"><span class="ev-ref"><code>internal/exabgp/bridge/</code></span></span></td>
+</tr>
+<tr>
+<td>Config syntax</td>
+<td>ExaBGP configs have different syntax</td>
+<td>Update. <span class="ev-src"><span class="ev-ref"><code>internal/exabgp/migration/</code></span></span></td>
+</tr>
+<tr>
+<td>Capabilities</td>
+<td>ExaBGP may configure differently</td>
+<td>Check migration handles it</td>
+</tr>
+</tbody>
+</table>
+<pre><code>[ ] Does ExaBGP support this RFC feature?
+[ ] If yes: is config migration needed? (internal/exabgp/migration/)
+[ ] If yes: is API bridge update needed? (internal/exabgp/bridge/)
+</code></pre>
+<p>See <code>ai/rules/compatibility.md</code> for architecture details.</p>
+<h3 id="04-spec-creation">0.4 Spec Creation</h3>
+<pre><code>[ ] Create spec: plan/spec-rfcNNNN-&lt;feature&gt;.md
+[ ] Fill Required Reading section with identified docs
+[ ] git add the spec immediately
+</code></pre>
+<hr />
+<h2 id="phase-1-capability-if-applicable">Phase 1: Capability (if applicable)</h2>
+<p><strong>When:</strong> RFC introduces a BGP capability (advertised in OPEN message)</p>
+<h3 id="11-define-capability">1.1 Define Capability</h3>
+<pre><code>[ ] Add capability code constant to internal/core/bgp/capability/capability.go
+    - Code&lt;Name&gt; Code = NN  // RFC NNNN
+
+[ ] Create capability struct in appropriate file (or new file)
+    - encoding.go for wire-format affecting caps
+    - session.go for session behavior caps
+    - new file for complex capabilities
+
+[ ] Implement Capability interface:
+    - Code() Code
+    - Len() int
+    - WriteTo(buf []byte, off int) int
+
+[ ] Implement ConfigProvider interface if cap provides plugin config:
+    - ConfigValues() map[string]string
+</code></pre>
+<h3 id="12-wire-format">1.2 Wire Format</h3>
+<pre><code>[ ] Document wire format with ASCII diagram in code comment
+[ ] Implement constructor: New&lt;Name&gt;(...) *&lt;Name&gt;
+[ ] Implement parser: parse&lt;Name&gt;(data []byte) (*&lt;Name&gt;, error)
+[ ] Add case to parseCapability() switch in capability.go
+[ ] Handle malformed data gracefully (return error, don't panic)
+</code></pre>
+<h3 id="13-negotiation">1.3 Negotiation</h3>
+<pre><code>[ ] If cap affects encoding: add field to EncodingCaps (encoding.go)
+[ ] If cap affects session: add field to SessionCaps (session.go)
+[ ] Update Negotiate() to handle intersection logic
+[ ] Update Negotiated accessors if needed
+[ ] Document negotiation rules in code comments with RFC section refs
+</code></pre>
+<h3 id="14-tests">1.4 Tests</h3>
+<pre><code>[ ] Unit test: WriteTo round-trips correctly
+[ ] Unit test: Parse valid wire bytes
+[ ] Unit test: Parse rejects malformed bytes
+[ ] Unit test: Negotiation logic (both have, one has, neither has)
+[ ] Boundary test: min/max values for any numeric fields
+</code></pre>
+<hr />
+<h2 id="phase-2-attribute-if-applicable">Phase 2: Attribute (if applicable)</h2>
+<p><strong>When:</strong> RFC introduces new BGP path attribute(s)</p>
+<h3 id="21-define-attribute">2.1 Define Attribute</h3>
+<pre><code>[ ] Add attribute code constant to internal/core/bgp/attribute/attribute.go
+    - Attr&lt;Name&gt; AttributeCode = NN  // RFC NNNN
+
+[ ] Create attribute struct (new file if complex, or add to existing)
+
+[ ] Implement Attribute interface:
+    - Code() AttributeCode
+    - Flags() AttributeFlags
+    - Len() int
+    - WriteTo(buf []byte, off int) int
+    - WriteToWithContext(buf []byte, off int, ctx *PackContext) int (if context-dependent)
+    - String() string
+</code></pre>
+<h3 id="22-wire-format">2.2 Wire Format</h3>
+<pre><code>[ ] Document wire format with ASCII diagram
+[ ] Implement constructor: New&lt;Name&gt;(...) *&lt;Name&gt;
+[ ] Implement parser: Parse&lt;Name&gt;(data []byte) (*&lt;Name&gt;, error)
+[ ] Handle optional/transitive flags per RFC
+[ ] If context-dependent: implement WriteToWithContext()
+</code></pre>
+<h3 id="23-builder-integration">2.3 Builder Integration</h3>
+<pre><code>[ ] Add setter to Builder: Set&lt;Name&gt;(...) *Builder
+[ ] Add parser support in builder_parse.go if text syntax needed
+[ ] Document text syntax in builder_parse.go
+</code></pre>
+<h3 id="24-iterator-support">2.4 Iterator Support</h3>
+<pre><code>[ ] Ensure Iterator can return attribute via existing pattern
+[ ] Add helper to extract typed attribute if frequently needed
+</code></pre>
+<h3 id="25-tests">2.5 Tests</h3>
+<pre><code>[ ] Unit test: WriteTo produces correct wire bytes
+[ ] Unit test: Parse valid wire bytes
+[ ] Unit test: Parse rejects malformed bytes
+[ ] Unit test: Flags are set correctly
+[ ] Unit test: Builder integration
+[ ] Boundary test: length limits, value ranges
+</code></pre>
+<hr />
+<h2 id="phase-3-nlri-if-applicable">Phase 3: NLRI (if applicable)</h2>
+<p><strong>When:</strong> RFC introduces new AFI/SAFI or NLRI encoding</p>
+<h3 id="31-define-family">3.1 Define Family</h3>
+<pre><code>[ ] Add AFI constant if new: internal/core/bgp/nlri/constants.go
+[ ] Add SAFI constant if new: internal/core/bgp/nlri/constants.go
+[ ] Add Family constant: var &lt;Name&gt; = Family{AFI: ..., SAFI: ...}
+[ ] Register in familyNames map for string parsing
+</code></pre>
+<h3 id="32-define-nlri-type">3.2 Define NLRI Type</h3>
+<pre><code>[ ] Create NLRI struct (new file for complex types)
+
+[ ] Implement NLRI interface:
+    - Family() Family
+    - Bytes() []byte (payload only, no path ID; returned slice may be shared)
+    - Len() int (payload length, no path ID)
+    - PathID() uint32
+    - WriteTo(buf []byte, off int) int (payload only, no path ID)
+    - SupportsAddPath() bool
+    - String() string
+
+[ ] If ADD-PATH supported:
+    - SupportsAddPath() returns true
+    - Use WriteNLRI() helper for ADD-PATH aware encoding
+</code></pre>
+<h3 id="33-wire-format">3.3 Wire Format</h3>
+<pre><code>[ ] Document wire format with ASCII diagram
+[ ] Implement constructor(s) for creating NLRI
+[ ] Implement parser for wire bytes
+[ ] Handle variable-length fields correctly
+[ ] Add UPDATE builder in internal/component/bgp/message/update_build_&lt;type&gt;.go if needed
+</code></pre>
+<h3 id="34-iterator-support">3.4 Iterator Support</h3>
+<pre><code>[ ] Add parsing support to NLRI iterator if needed
+[ ] Ensure family-specific parsing in iterator works
+</code></pre>
+<h3 id="35-tests">3.5 Tests</h3>
+<pre><code>[ ] Unit test: WriteTo produces correct wire bytes
+[ ] Unit test: Parse valid wire bytes
+[ ] Unit test: Round-trip (create -&gt; write -&gt; parse -&gt; compare)
+[ ] Unit test: ADD-PATH handling (with/without path ID)
+[ ] Unit test: String() produces readable output
+[ ] Boundary test: max prefix length, label values, etc.
+</code></pre>
+<hr />
+<h2 id="phase-4-message-changes-if-applicable">Phase 4: Message Changes (if applicable)</h2>
+<p><strong>When:</strong> RFC modifies BGP message format or introduces new message type</p>
+<h3 id="41-new-message-type">4.1 New Message Type</h3>
+<pre><code>[ ] Add message type constant to internal/component/bgp/message/message.go
+[ ] Create message struct implementing Message interface:
+    - Type() MessageType
+    - Len(ctx *EncodingContext) int
+    - WriteTo(buf []byte, off int, ctx *EncodingContext) int
+[ ] Add case to message dispatcher in message.go
+</code></pre>
+<h3 id="42-message-modification">4.2 Message Modification</h3>
+<pre><code>[ ] Update affected message struct
+[ ] Update Len() calculation
+[ ] Update WriteTo() implementation
+[ ] Update parser if receiving this message
+[ ] Document changes with RFC section references
+</code></pre>
+<h3 id="43-tests">4.3 Tests</h3>
+<pre><code>[ ] Unit test: Message builds correctly
+[ ] Unit test: Message parses correctly
+[ ] Unit test: Round-trip encoding
+[ ] Boundary test: max lengths, extended message handling
+</code></pre>
+<hr />
+<h2 id="phase-5-fsm-changes-if-applicable">Phase 5: FSM Changes (if applicable)</h2>
+<p><strong>When:</strong> RFC affects BGP state machine behavior</p>
+<h3 id="51-stateevent-changes">5.1 State/Event Changes</h3>
+<pre><code>[ ] Add new states if needed (rare)
+[ ] Add new events if needed
+[ ] Update state transition table
+[ ] Document RFC section for each change
+</code></pre>
+<h3 id="52-timer-changes">5.2 Timer Changes</h3>
+<pre><code>[ ] Add new timers if needed
+[ ] Update timer handling logic
+[ ] Document timer semantics with RFC refs
+</code></pre>
+<h3 id="53-tests">5.3 Tests</h3>
+<pre><code>[ ] Unit test: State transitions
+[ ] Unit test: Timer behavior
+[ ] Integration test if complex
+</code></pre>
+<hr />
+<h2 id="phase-6-configuration">Phase 6: Configuration</h2>
+<p><strong>When:</strong> RFC feature needs user configuration</p>
+<h3 id="61-schema-definition">6.1 Schema Definition</h3>
+<pre><code>[ ] Add schema nodes to internal/component/config/schema.go
+[ ] Define value types and constraints
+[ ] Add validation rules
+[ ] Document config syntax in schema comments
+</code></pre>
+<h3 id="62-parsing">6.2 Parsing</h3>
+<pre><code>[ ] Update parser if new syntax patterns needed
+[ ] Add to appropriate config section (global, peer, family)
+[ ] Handle defaults appropriately
+</code></pre>
+<h3 id="63-validation">6.3 Validation</h3>
+<pre><code>[ ] Config rejects unknown keys (Ze rule)
+[ ] Config validates value ranges
+[ ] Config validates inter-field dependencies
+</code></pre>
+<h3 id="64-tests">6.4 Tests</h3>
+<pre><code>[ ] Valid config test: test/parse/&lt;feature&gt;.ci (expect=exit:code=0)
+[ ] Invalid config test: test/parse/&lt;feature&gt;-invalid.ci (expect=exit:code=1 + expect=stderr:contains=)
+[ ] Test all validation rules trigger appropriately
+</code></pre>
+<hr />
+<h2 id="phase-7-api-commands-if-applicable">Phase 7: API Commands (if applicable)</h2>
+<p><strong>When:</strong> RFC feature needs plugin control/visibility</p>
+<h3 id="71-text-commands">7.1 Text Commands</h3>
+<pre><code>[ ] Design command syntax (see docs/architecture/api/update-syntax.md)
+[ ] Implement parser in appropriate location
+[ ] Implement handler
+[ ] Document syntax in architecture docs
+</code></pre>
+<h3 id="72-response-format">7.2 Response Format</h3>
+<pre><code>[ ] Define JSON response structure if applicable
+[ ] Ensure consistency with existing response patterns
+</code></pre>
+<h3 id="73-tests">7.3 Tests</h3>
+<pre><code>[ ] Functional test: test/plugin/&lt;feature&gt;/
+[ ] Test valid command variations
+[ ] Test error handling for invalid commands
+</code></pre>
+<hr />
+<h2 id="phase-8-engine-integration">Phase 8: Engine Integration</h2>
+<p><strong>When:</strong> RFC affects how router processes messages</p>
+<h3 id="81-reactor-changes">8.1 Reactor Changes</h3>
+<pre><code>[ ] Update message handling in reactor
+[ ] Add new handlers if needed
+[ ] Update routing logic if affected
+</code></pre>
+<h3 id="82-peer-changes">8.2 Peer Changes</h3>
+<pre><code>[ ] Update peer state management
+[ ] Update capability negotiation handling
+[ ] Update message sending logic
+</code></pre>
+<h3 id="83-tests">8.3 Tests</h3>
+<pre><code>[ ] Integration tests with test peer
+[ ] Functional tests for end-to-end behavior
+</code></pre>
+<hr />
+<h2 id="phase-9-functional-tests">Phase 9: Functional Tests</h2>
+<p><strong>When:</strong> Always (every RFC implementation needs functional tests)</p>
+<p><strong>Purpose:</strong> Verify the feature works as users expect, end-to-end. Unit tests verify internal correctness; functional tests verify user-facing behavior.</p>
+<h3 id="91-user-scenario-tests">9.1 User Scenario Tests</h3>
+<p>Think from the user's perspective: "If I configure X and send command Y, what should happen?"</p>
+<pre><code>[ ] Identify user-facing scenarios this RFC enables
+[ ] For each scenario, create a functional test that:
+    -&gt; Configures the feature as a user would
+    -&gt; Exercises the feature through normal usage (API commands, peer interaction)
+    -&gt; Verifies the observable outcome (wire bytes sent, events received, state changes)
+</code></pre>
+<p><strong>Example scenarios by RFC type:</strong></p>
+<table>
+<thead>
+<tr>
+<th>RFC Type</th>
+<th>User Scenario</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capability</td>
+<td>"When I enable X, peer receives capability in OPEN"</td>
+</tr>
+<tr>
+<td>Attribute</td>
+<td>"When I announce route with X, UPDATE contains correct attribute"</td>
+</tr>
+<tr>
+<td>NLRI</td>
+<td>"When I announce prefix in family X, wire encoding is correct"</td>
+</tr>
+<tr>
+<td>FSM</td>
+<td>"When peer does X, session transitions to correct state"</td>
+</tr>
+<tr>
+<td>Error</td>
+<td>"When I receive malformed X, session handles it correctly"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-encoding-tests">9.2 Encoding Tests</h3>
+<pre><code>[ ] Create test/encode/&lt;feature&gt;.conf (peer config with feature enabled)
+[ ] Create test/encode/&lt;feature&gt;.ci (command/wire pairs)
+[ ] Test happy path: feature used correctly produces correct wire bytes
+[ ] Test variations: different parameter combinations
+[ ] Test boundaries: min/max values that affect encoding
+</code></pre>
+<h3 id="93-plugin-tests">9.3 Plugin Tests</h3>
+<pre><code>[ ] Create test/plugin/&lt;feature&gt;/ directory
+[ ] Test plugin receives correct JSON events when feature is active
+[ ] Test plugin commands produce correct behavior
+[ ] Test error responses when plugin sends invalid commands
+</code></pre>
+<h3 id="94-config-tests">9.4 Config Tests</h3>
+<pre><code>[ ] Create test/parse/&lt;feature&gt;.ci - valid configurations (expect=exit:code=0)
+[ ] Create test/parse/&lt;feature&gt;-invalid.ci - invalid configs (expect=exit:code=1 + expect=stderr:contains=)
+[ ] Test feature enables/disables correctly via config
+[ ] Test config validation catches user mistakes
+</code></pre>
+<h3 id="95-integration-tests">9.5 Integration Tests</h3>
+<pre><code>[ ] Test end-to-end with ze-peer
+[ ] Test capability negotiation (both peers support, one supports, neither supports)
+[ ] Test message exchange in realistic scenarios
+[ ] Test interop edge cases (if applicable)
+</code></pre>
+<h3 id="96-negative-tests">9.6 Negative Tests</h3>
+<pre><code>[ ] Test graceful handling of malformed input
+[ ] Test behavior when feature is disabled but peer uses it
+[ ] Test error messages are helpful to users
+</code></pre>
+<h3 id="97-rfc-requirement-coverage-tags">9.7 RFC Requirement Coverage Tags</h3>
+<p>Implementing a MUST is only half the job: the enforcing test must be <strong>bound</strong> to
+the requirement, so the coverage gate can prove the link exists and catch a later
+regression. When a test proves an RFC 2119 MUST-level obligation, tag it. In Go:</p>
+<pre><code class="language-go">// RFC requirement: RFC7606-7.1-1 positive -- valid ORIGIN length 1 is accepted
+// RFC requirement: RFC7606-7.1-1 negative -- ORIGIN length 2 is treated as withdraw
+</code></pre>
+<p>A <code>.ci</code> functional test uses a line-start <code>#</code> comment with the same fields (never
+inside a <code>terminator=</code> block):</p>
+<pre><code># RFC requirement: RFC7606-7.1-1 negative -- malformed ORIGIN withdraws the route
+</code></pre>
+<ul>
+<li><strong>Allocate the id with <code>/ze-rfc &lt;rfc&gt;</code>.</strong> Every Compliance Checklist line in
+  <code>rfc/short/rfcNNNN.md</code> gets a permanent <code>RFC&lt;n&gt;-&lt;section&gt;-&lt;ordinal&gt;</code> id, and that
+  id is the contract the tag references. Never renumber or reuse one.</li>
+<li><strong>Provide BOTH polarities.</strong> Every gated MUST needs a <code>positive</code> AND a <code>negative</code>
+  test; a one-sided test passes on blanket accept or blanket reject. If a
+  requirement is genuinely testable only one way, annotate its summary line
+  <code>{single-polarity: positive|negative; why}</code> instead. <code>{gap: why; ref}</code> and
+  <code>{not-applicable: why}</code> cover deliberate divergence and inapplicability, each
+  with a reason (a bare annotation is rejected).</li>
+<li><strong><code>make ze-rfc-check</code> gates coverage; <code>make ze-rfc-index</code> renders the ledger.</strong>
+  For an enrolled RFC (<code>rfc/enrolled.txt</code>) the gate fails unless every MUST has its
+  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC;
+  enrollment is a separate, deliberate step taken once the tests exist.</li>
+<li><strong>Audit letter and spirit with <code>/ze-rfc-audit &lt;rfc&gt;</code>.</strong> The gate proves a link
+  exists but cannot read the test. The audit reads the RFC itself and each tagged
+  test and judges whether the test would fail if the code stopped complying,
+  recording a per-requirement verdict that <code>make ze-rfc-check</code> re-stales when the
+  requirement text or a tagged test changes.</li>
+<li><strong>Never change a tagged test to make it pass.</strong> Once a test carries an
+  <code>RFC requirement:</code> tag it is the requirement: fix your code, not the test.
+  Changing its behavior needs explicit user approval recorded as
+  <code>// rfc-test-change-approved: &lt;date&gt; &lt;what and why&gt;</code>; the <code>rfc-tagged-test</code> hook
+  blocks the edit otherwise.</li>
+</ul>
+<!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags, evaluate -->
+<!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
+
+<p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
+<pre><code>[ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
+[ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
+[ ] make ze-rfc-check passes; rfc/enrolled.txt lists the RFC once its tests exist
+</code></pre>
+<hr />
+<h2 id="phase-10-documentation">Phase 10: Documentation</h2>
+<h3 id="101-architecture-docs">10.1 Architecture Docs</h3>
+<pre><code>[ ] Update relevant docs in docs/architecture/
+[ ] Add wire format documentation if new formats
+[ ] Update capability list if new capability
+[ ] Update attribute list if new attribute
+[ ] Update NLRI list if new family
+</code></pre>
+<h3 id="102-rfc-summary">10.2 RFC Summary</h3>
+<pre><code>[ ] Ensure rfc/short/rfcNNNN.md is complete
+[ ] Add Ze implementation notes section
+[ ] Cross-reference related RFCs
+[ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
+</code></pre>
+<h3 id="103-config-examples">10.3 Config Examples</h3>
+<pre><code>[ ] Add example configs showing feature usage
+[ ] Document in relevant architecture docs
+</code></pre>
+<hr />
+<h2 id="final-checklist">Final Checklist</h2>
+<p>Before marking implementation complete:</p>
+<pre><code>[ ] All tests pass: make ze-test (timeout 300s)
+[ ] All linting passes: make ze-lint (zero issues)
+[ ] All functional tests pass: make ze-functional-test
+[ ] RFC MUST tests tagged both polarities, make ze-rfc-check passes (see 9.7)
+[ ] RFC section comments on all protocol code
+[ ] RFC constraint comments with quoted requirements
+[ ] RFC requirement coverage tags on tests (see 9.7): make ze-rfc-check passes
+[ ] No backwards-compatibility shims (Ze rule)
+[ ] No version numbers in config (Ze rule)
+[ ] Architecture docs updated
+[ ] Write learned summary to plan/learned/NNN-&lt;name&gt;.md
+[ ] All changes in single commit
+</code></pre>
+<hr />
+<h2 id="quick-reference-common-patterns">Quick Reference: Common Patterns</h2>
+<h3 id="wire-writing-pattern">Wire Writing Pattern</h3>
+<pre><code class="language-go">// All wire types implement this
+func (x *Type) WriteTo(buf []byte, off int) int {
+    // Write directly to buf at offset
+    // Return number of bytes written
+}
+
+// Context-dependent types add this
+func (x *Type) WriteToWithContext(buf []byte, off int, ctx *PackContext) int {
+    // Use ctx for ASN4, ADD-PATH decisions
+}
+</code></pre>
+<h3 id="capability-pattern">Capability Pattern</h3>
+<pre><code class="language-go">type MyCap struct {
+    // fields
+}
+
+func (c *MyCap) Code() Code { return CodeMyCap }
+func (c *MyCap) Len() int { /* TLV value length */ }
+func (c *MyCap) WriteTo(buf []byte, off int) int { /* write into buf */ }
+
+func parseMyCap(data []byte) (*MyCap, error) { /* parse */ }
+</code></pre>
+<h3 id="attribute-pattern">Attribute Pattern</h3>
+<pre><code class="language-go">type MyAttr struct {
+    // fields
+}
+
+func (a *MyAttr) Code() AttributeCode { return AttrMyAttr }
+func (a *MyAttr) Flags() AttributeFlags { return FlagTransitive | FlagOptional }
+func (a *MyAttr) Len() int { /* payload length */ }
+func (a *MyAttr) WriteTo(buf []byte, off int) int { /* write */ }
+</code></pre>
+<h3 id="nlri-pattern">NLRI Pattern</h3>
+<pre><code class="language-go">type MyNLRI struct {
+    family  Family
+    pathID  uint32
+    // fields
+}
+
+func (n *MyNLRI) Family() Family { return n.family }
+func (n *MyNLRI) PathID() uint32 { return n.pathID }
+func (n *MyNLRI) Bytes() []byte { /* payload only, no path ID */ }
+func (n *MyNLRI) Len() int { /* payload length, no path ID */ }
+func (n *MyNLRI) WriteTo(buf []byte, off int) int { /* write payload */ }
+func (n *MyNLRI) SupportsAddPath() bool { return true }
+</code></pre>
+<h3 id="test-pattern">Test Pattern</h3>
+<pre><code class="language-go">func TestMyFeature(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   []byte
+        want    *MyType
+        wantErr bool
+    }{
+        {&quot;valid&quot;, []byte{...}, &amp;MyType{...}, false},
+        {&quot;invalid&quot;, []byte{...}, nil, true},
+        {&quot;boundary-min&quot;, []byte{...}, &amp;MyType{...}, false},
+        {&quot;boundary-max&quot;, []byte{...}, &amp;MyType{...}, false},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // test logic
+        })
+    }
+}
+</code></pre>
+<hr />
+<h2 id="rfc-implementation-examples">RFC Implementation Examples</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Components</th>
+<th>Good Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 4724 (GR)</td>
+<td>Capability, FSM</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/capability/session.go</code></span></span></td>
+</tr>
+<tr>
+<td>RFC 7911 (ADD-PATH)</td>
+<td>Capability, NLRI encoding</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/capability/encoding.go</code></span></span></td>
+</tr>
+<tr>
+<td>RFC 4760 (MP)</td>
+<td>Capability, NLRI, Attributes</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/nlri/</code></span><span class="ev-ref"><code>internal/core/bgp/attribute/mpnlri.go</code></span></span></td>
+</tr>
+<tr>
+<td>RFC 8955 (FlowSpec)</td>
+<td>NLRI, UPDATE builder</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/message/update_build_flowspec.go</code></span></span></td>
+</tr>
+<tr>
+<td>RFC 7432 (EVPN)</td>
+<td>NLRI, UPDATE builder</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/message/update_build_evpn.go</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/bgp/capability/session.go -- GR capability -->
+<!-- source: internal/core/bgp/capability/encoding.go -- ADD-PATH capability -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH/MP_UNREACH attributes -->
+            </section>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

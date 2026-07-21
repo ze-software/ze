@@ -140,5 +140,5 @@ The useful property is the shared surface: when a plugin or subsystem registers
 commands, YANG, RPCs, or events, the same metadata can feed CLI, web, generated
 references, automation, authorization, audit, and diagnostics.
 
-See [MCP Guide](https://github.com/ze-software/ze/blob/main/docs/guide/mcp/overview.md) for configuration and
-[MCP Remote Access](https://github.com/ze-software/ze/blob/main/docs/guide/mcp/remote-access.md) for tunneling.
+See [MCP Guide](../../guide/mcp/overview/index.md) for configuration and
+[MCP Remote Access](../../guide/mcp/remote-access/index.md) for tunneling.

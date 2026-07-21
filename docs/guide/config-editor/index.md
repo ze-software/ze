@@ -49,7 +49,7 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `ze config set <file> <path> <value>` | Set a single value programmatically |
 | `ze config history <file>` | List available rollback revisions |
 | `ze config rollback <N> <file>` | Restore revision N |
-| `ze config archive <name> <file>` | Archive config to named destination ([details](https://github.com/ze-software/ze/blob/main/docs/guide/config-archive.md)) |
+| `ze config archive <name> <file>` | Archive config to named destination ([details](../config-archive/index.md)) |
 | `ze config completion <file>` | Query YANG completion engine (debugging) |
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 

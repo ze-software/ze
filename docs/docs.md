@@ -14,6 +14,8 @@ job you are trying to do, then follow the links inside that path.
             <a href="guide/ubuntu-build-install/">Build on Ubuntu <span>compile, install, create zefs, set up SSH</span></a>
             <a href="features/configuration/">Configuration <span>the YANG model Ze uses everywhere</span></a>
             <a href="features/cli-commands/"><code>CLI</code> commands <span>diff, commit, history, and operator commands</span></a>
+            <a href="guide/cli/">CLI tour <span>interactive, one-shot, pipes, and runtime control</span></a>
+            <a href="guide/lifecycle/">Lifecycle and rollback <span>reload, restart, archive, update, and recover</span></a>
         </div>
     </article>
     <article class="card docs-path-card cat-routing">
@@ -34,6 +36,23 @@ job you are trying to do, then follow the links inside that path.
             <a href="guide/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>
             <a href="guide/ipsec/">Native IPsec <span>configure IKEv2 initiator and responder tunnels</span></a>
             <a href="guide/monitoring/">Monitoring and diagnostics <span>flow export, MRT, and production checks</span></a>
+            <a href="guide/bgp-peering/">BGP peering <span>groups, families, capabilities, and verification</span></a>
+            <a href="guide/bgp-policy/">BGP policy <span>import, export, validation, and redistribution</span></a>
+            <a href="guide/bgp-resilience/">BGP resilience <span>refresh, GR, persistence, reflection, and multipath</span></a>
+            <a href="guide/fleet-config/">Fleet Management <span>hub, managed clients, cached config, and reconnect</span></a>
+        </div>
+    </article>
+    <article class="card docs-path-card cat-automate">
+        <span class="cat">Automate</span>
+        <h2>Use and extend every surface</h2>
+        <p>Management transports, browser and public interfaces, and the plugin SDK.</p>
+        <div class="link-list">
+            <a href="guide/api/">REST and gRPC <span>authentication, commands, config sessions, and streaming</span></a>
+            <a href="guide/gnmi/">gNMI <span>Capabilities, Get, Set, Subscribe, TLS, and metrics</span></a>
+            <a href="guide/web-interface/">Web interface <span>workbench, editing, commands, and live updates</span></a>
+            <a href="guide/looking-glass/">Looking Glass <span>routes, topology, Birdwatcher API, and security</span></a>
+            <a href="guide/mcp/overview/">MCP <span>tools, resources, authentication, and remote access</span></a>
+            <a href="plugin-development/">Plugin development <span>SDK, protocol, YANG, handlers, commands, and testing</span></a>
         </div>
     </article>
     <article class="card docs-path-card cat-platform">
@@ -58,6 +77,10 @@ job you are trying to do, then follow the links inside that path.
             <a href="../performance/">Performance <span>measured BGP benchmarks and methodology</span></a>
             <a href="research/vpp-deployment-reference/">VPP deployment reference <span>startup.conf, NIC, LCP, and notes</span></a>
             <a href="../labs/">Labs and usage examples <span>interop proof and deployment shapes</span></a>
+            <a href="guide/chaos-testing/">Chaos testing <span>deterministic faults, properties, replay, and shrink</span></a>
+            <a href="../usage/route-server/">IXP route server <span>member policy, validation, and replay checks</span></a>
+            <a href="../usage/transit-edge-rpki/">Transit edge with RPKI <span>dual transit, origin validation, and failover</span></a>
+            <a href="../usage/flowspec-injection/">FlowSpec injection <span>authorised, atomic, and reversible route control</span></a>
         </div>
     </article>
     <article class="card docs-path-card cat-secure">
@@ -70,6 +93,9 @@ job you are trying to do, then follow the links inside that path.
             <a href="../blog/">Blog <span>longer notes behind the work</span></a>
             <a href="../faq/">FAQ <span>answers before you commit time</span></a>
             <a href="../contribute/">Contribute <span>code, bug reports, and interop results</span></a>
+            <a href="history/">Project history <span>how ExaBGP's programmable model grew into Ze</span></a>
+            <a href="glossary/">Glossary <span>BGP, policy, configuration, operator, and testing terms</span></a>
+            <a href="contributing/testing/">Contributor testing <span>choose the right proof layer and run it locally</span></a>
         </div>
     </article>
 </div>

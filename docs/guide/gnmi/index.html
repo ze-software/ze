@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>gNMI Guide - Ze</title>
+        <meta name="description" content="Ze documentation: guide/gnmi.md" />
+        <meta property="og:title" content="gNMI Guide - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/gnmi.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="gNMI Guide - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/gnmi.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="gnmi-guide">gNMI Guide</h1>
+    <p>Ze includes a gNMI (gRPC Network Management Interface) server that exposes YANG-modeled configuration over the industry-standard gNMI protocol. This allows management by tools like gnmic, Ansible, and network controllers that speak gNMI.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#enabling-gnmi">Enabling gNMI</a></li>
+<li><a href="#authentication">Authentication</a></li>
+<li><a href="#tls">TLS</a></li>
+<li><a href="#supported-rpcs">Supported RPCs</a></li>
+<li><a href="#cli-status">CLI Status</a></li>
+<li><a href="#prometheus-metrics">Prometheus Metrics</a></li>
+<li><a href="#usage-with-gnmic">Usage with gnmic</a></li>
+<li><a href="#limitations">Limitations</a></li>
+</ol></nav>
+<p>Build flavor: gNMI is compiled into default <code>make ze</code> and <code>ze-appliance</code> builds through <code>ze_gnmi</code>. Minimal <code>ze_core</code> and <code>ze-stripped</code> builds omit the gNMI server, config schema, and <code>show gnmi</code>; custom minimal builds that need gNMI must include <code>-tags "ze_core ze_gnmi"</code>.</p>
+<!-- source: feature-gates.txt -- ze_gnmi -->
+<!-- source: Makefile -- ZE_FEATURES, ze-stripped -->
+<!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiBuild -->
+<!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI imports -->
+
+<h2 id="enabling-gnmi">Enabling gNMI</h2>
+<p>gNMI is disabled by default. Enable it via environment variables or YANG config.</p>
+<p>Environment variables:</p>
+<pre><code>ze.gnmi.enabled=true
+ze.gnmi.listen=0.0.0.0:9339
+ze.gnmi.token=your-secret-token
+</code></pre>
+<p>YANG config (in ze.conf):</p>
+<pre><code>environment {
+    gnmi {
+        enabled true;
+        token your-secret-token;
+        server default {
+            ip 0.0.0.0;
+            port 9339;
+        }
+    }
+}
+</code></pre>
+<h2 id="authentication">Authentication</h2>
+<p>When <code>ze.gnmi.token</code> is set, every gNMI request must include a <code>Bearer</code> token in the <code>authorization</code> gRPC metadata header. The token is compared using constant-time comparison (SHA-256 hash with <code>subtle.ConstantTimeCompare</code>) to prevent timing attacks.</p>
+<p>When no token is configured, the server accepts unauthenticated requests. This is only appropriate for loopback or trusted-network deployments.</p>
+<h2 id="tls">TLS</h2>
+<p>To enable TLS on the gNMI gRPC transport:</p>
+<pre><code>ze.gnmi.tls.cert=/path/to/cert.pem
+ze.gnmi.tls.key=/path/to/key.pem
+</code></pre>
+<p>Or in YANG config:</p>
+<pre><code>environment {
+    gnmi {
+        tls {
+            cert /path/to/cert.pem;
+            key /path/to/key.pem;
+        }
+    }
+}
+</code></pre>
+<p>TLS certificates are loaded once at startup. Certificate rotation requires restarting the gNMI server.</p>
+<h2 id="supported-rpcs">Supported RPCs</h2>
+<table>
+<thead>
+<tr>
+<th>RPC</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capabilities</td>
+<td>Returns supported YANG models, encodings (JSON_IETF), and gNMI version</td>
+</tr>
+<tr>
+<td>Get</td>
+<td>Reads config state from the running tree by path</td>
+</tr>
+<tr>
+<td>Set</td>
+<td>Applies config modifications atomically (update, replace, delete)</td>
+</tr>
+<tr>
+<td>Subscribe ONCE</td>
+<td>Snapshot of current config for requested paths</td>
+</tr>
+<tr>
+<td>Subscribe STREAM</td>
+<td>Continuous change notifications (from gNMI Set and external commits)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cli-status">CLI Status</h2>
+<p>Check gNMI server status from the SSH CLI when <code>ze_gnmi</code> is compiled in:</p>
+<pre><code>show gnmi
+</code></pre>
+<p>Returns JSON with: enabled, listen address, token configured, TLS configured, and active subscriber count.</p>
+<!-- source: internal/component/gnmi/show.go -- handleShowGNMI -->
+<!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI RPC import -->
+
+<h2 id="prometheus-metrics">Prometheus Metrics</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_gnmi_requests_total</code></td>
+<td>counter</td>
+<td>rpc</td>
+<td>Total gNMI RPC requests</td>
+</tr>
+<tr>
+<td><code>ze_gnmi_subscribe_active</code></td>
+<td>gauge</td>
+<td>--</td>
+<td>Active Subscribe STREAM connections</td>
+</tr>
+<tr>
+<td><code>ze_gnmi_errors_total</code></td>
+<td>counter</td>
+<td>rpc, code</td>
+<td>gNMI RPC errors by gRPC status code</td>
+</tr>
+</tbody>
+</table>
+<h2 id="usage-with-gnmic">Usage with gnmic</h2>
+<p>Example using gnmic to get the full config tree:</p>
+<pre><code>gnmic -a 192.0.2.1:9339 --token your-secret-token get --path /
+</code></pre>
+<p>Example to subscribe to config changes:</p>
+<pre><code>gnmic -a 192.0.2.1:9339 --token your-secret-token subscribe --path / --mode stream
+</code></pre>
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li>Subscribe POLL mode is not implemented</li>
+<li>Telemetry SAMPLE mode (periodic counter streaming) is not supported</li>
+<li>gNMI path target field (multi-target) is not supported</li>
+<li>TLS certificates are loaded at startup only; no hot rotation</li>
+<li>External config commits (web/CLI) send a generic config-changed notification, not per-path diffs</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

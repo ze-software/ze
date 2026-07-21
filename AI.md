@@ -105,7 +105,7 @@ gh-pages/
     render-config-reference.py            -- data/plugin-registry.json -> config-reference/index.html,
                                               every plugin (not just BGP) grouped by config root
     render-index.py                       -- data/audience.json + template -> index.html
-    render-llms-txt.py                    -- data/nav.json + live counts -> llms.txt
+    render-llms-txt.py                    -- data/nav.json + page_registry.py + Markdown + live counts -> llms.txt
   update-website.sh                       -- thin wrapper at the repo root: `./update-website.sh`
                                               regenerates everything, same as `tools/build.py`.
                                               Forwards args, e.g. `./update-website.sh --only cli`
@@ -130,8 +130,8 @@ per-step failures.
 ### Website architecture
 
 - **Data sources.** Published pages come from structured data and Markdown:
-  `data/nav.json` owns top navigation and the `llms.txt` page map,
-  `data/page-links.json` owns page sidebars and related links,
+  `data/nav.json` owns top navigation and the curated `llms.txt` page order,
+  `tools/page_registry.py` owns the complete published docs and usage page map,
   `data/features.json`, `data/audience.json`, `data/milestones.json`,
   `data/dependencies.json`, and `data/command-equivalents.json` own their
   matching generated pages, and `data/plugin-registry.json` is generated from
@@ -285,10 +285,10 @@ page is already built:
   Re-derived from the HTML on every build, so it can't drift from the page
   the way a hand-maintained companion file would.
 
-`tools/build.py` runs `nav` before `llms` so every page `llms.txt` links to
-already has its `index.md` on disk, and warns on stderr
-(`check_llms_md_siblings`) if a `data/nav.json` entry's `index.md` is
-missing.
+`tools/build.py` runs the page renderers before `llms`, so every registered
+documentation page already has its `index.md` on disk. `llms.txt` combines
+the curated `data/nav.json` order with the complete docs and usage lists from
+`tools/page_registry.py`.
 
 
 ### Site design and content rules
@@ -302,7 +302,8 @@ opaque blobs, unrelated palettes, or custom components without updating the
 style guide in the same change.
 
 Navigation is part of the design system. `data/nav.json` owns the top
-mega-menu and `llms.txt` page map; the `nav` step publishes that menu once as
+mega-menu and curated `llms.txt` sections; `tools/page_registry.py` supplies
+the complete published docs index. The `nav` step publishes the menu once as
 `assets/header.html`. The footer is a
 single license line from `sitelib.footer_html`, not a sitemap or second
 call-to-action block. Group the top menu by reader job: Start, Evaluate, Docs,
@@ -329,8 +330,9 @@ catalogue in HTML.
 Every published page needs an AI-readable `index.md` sibling. Generate it from
 the same Markdown or structured data as the HTML; only hand-authored HTML pages
 may rely on the `nav` step's HTML-to-Markdown extraction. `llms.txt` must remain
-generated from `data/nav.json` plus live counts, must link each page's
-`index.md` first, and must include the human web URL as the secondary link.
+generated from `data/nav.json`, `tools/page_registry.py`, page Markdown, and live
+counts. It must link each page's `index.md` first and include the human web URL
+as the secondary link.
 
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for

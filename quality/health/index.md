@@ -22,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 19957 (floor 136)** (ok)
+**136 / 19970 (floor 136)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -126,9 +126,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**19986 test functions** (ok)
+**19999 test functions** (ok)
 
-2593 Go test files, 72 fuzz targets, 122 benchmarks, 1447 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2593 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 

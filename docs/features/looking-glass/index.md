@@ -20,7 +20,7 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 <!-- source: internal/component/lg/graph.go -- Graph data model -->
 <!-- source: internal/component/lg/layout.go -- Layout algorithm and SVG rendering -->
 
-See [Looking Glass Guide](https://github.com/ze-software/ze/blob/main/docs/guide/looking-glass.md) for configuration and usage.
+See [Looking Glass Guide](../../guide/looking-glass/index.md) for configuration and usage.
 
 ### AS Path Topology Graph
 

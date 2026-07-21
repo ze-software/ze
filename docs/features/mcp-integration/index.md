@@ -88,7 +88,7 @@ with a deterministic error. `ze_execute` illustrates the pattern:
 calling it with `command=""` on an elicit-capable client produces an
 `elicitation/create` asking which ze command to run.
 
-See [MCP Elicitation](https://github.com/ze-software/ze/blob/main/docs/guide/mcp/elicitation.md) for the full flow.
+See [MCP Elicitation](../../guide/mcp/elicitation/index.md) for the full flow.
 
 <!-- source: internal/component/mcp/elicit.go -- session.Elicit, schema validator -->
 <!-- source: internal/component/mcp/tools.go -- ze_execute missing-command branch -->
@@ -100,5 +100,5 @@ synchronization for CI pipelines and -- with `--elicit` plus
 `elicit-accept`/`elicit-decline`/`elicit-cancel` stdin directives --
 covers the server-initiated elicitation flow.
 
-See [MCP Guide](https://github.com/ze-software/ze/blob/main/docs/guide/mcp/overview.md) for details and
-[MCP Remote Access](https://github.com/ze-software/ze/blob/main/docs/guide/mcp/remote-access.md) for tunneling.
+See [MCP Guide](../../guide/mcp/overview/index.md) for details and
+[MCP Remote Access](../../guide/mcp/remote-access/index.md) for tunneling.

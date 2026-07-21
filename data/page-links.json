@@ -815,6 +815,31 @@
               "label": "BGP performance testing with Ze",
               "desc": "Use Ze as the tester for route-server performance runs inspired by bgperf."
             }
+            ,{
+              "href": "usage/route-server/",
+              "label": "IXP route server",
+              "desc": "Member policy, validation, and operational checks."
+            },
+            {
+              "href": "usage/transit-edge-rpki/",
+              "label": "Transit edge with RPKI",
+              "desc": "Dual-transit routing policy and tested failover."
+            },
+            {
+              "href": "usage/flowspec-injection/",
+              "label": "FlowSpec injection",
+              "desc": "Authorised, atomic, and reversible mitigation routes."
+            },
+            {
+              "href": "usage/chaos-tested-peering/",
+              "label": "Chaos-tested peering",
+              "desc": "Deterministic faults, replay, shrink, and recovery."
+            },
+            {
+              "href": "usage/as-path-topology/",
+              "label": "AS-path topology",
+              "desc": "Investigate route visibility in the Looking Glass."
+            }
           ]
         },
         {

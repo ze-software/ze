@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Adding Commands - Ze</title>
+        <meta name="description" content="Ze documentation: plugin-development/commands.md" />
+        <meta property="og:title" content="Adding Commands - Ze" />
+        <meta property="og:description" content="Ze documentation: plugin-development/commands.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Adding Commands - Ze" />
+        <meta name="twitter:description" content="Ze documentation: plugin-development/commands.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Documentation</span>
+    <h1 id="adding-commands">Adding Commands</h1>
+    <p>Plugins can expose commands for runtime interaction via the ze API.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#declaring-commands">Declaring Commands</a></li>
+<li><a href="#handling-commands">Handling Commands</a></li>
+<li><a href="#wire-format">Wire Format</a>
+<ol>
+<li><a href="#request-engine-to-plugin">Request (engine to plugin)</a></li>
+<li><a href="#success-response-plugin-to-engine">Success Response (plugin to engine)</a></li>
+<li><a href="#error-response-plugin-to-engine">Error Response (plugin to engine)</a></li>
+</ol></li>
+<li><a href="#return-values">Return Values</a>
+<ol>
+<li><a href="#success-with-data">Success with Data</a></li>
+<li><a href="#success-without-data">Success without Data</a></li>
+<li><a href="#handler-error">Handler Error</a></li>
+</ol></li>
+<li><a href="#executecommandinput-fields">ExecuteCommandInput Fields</a></li>
+<li><a href="#naming-conventions">Naming Conventions</a></li>
+<li><a href="#command-arguments">Command Arguments</a></li>
+<li><a href="#commanddecl-fields">CommandDecl Fields</a></li>
+<li><a href="#complex-responses">Complex Responses</a></li>
+<li><a href="#dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</a></li>
+<li><a href="#help-text">Help Text</a></li>
+</ol></nav>
+<h2 id="declaring-commands">Declaring Commands</h2>
+<p>Commands are declared in the <code>Registration</code> struct passed to <code>Run</code>. The engine learns about them during Stage 1 (declare-registration).</p>
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
+
+<pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
+    Commands: []sdk.CommandDecl{
+        {Name: &quot;my-plugin status&quot;, Description: &quot;Show current status&quot;},
+        {Name: &quot;my-plugin check&quot;, Description: &quot;Trigger immediate check&quot;, Args: []string{&quot;target&quot;}},
+    },
+})
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, CommandDecl -->
+
+<h2 id="handling-commands">Handling Commands</h2>
+<p>Register a handler with <code>OnExecuteCommand</code> before calling <code>Run</code>. The handler receives the command serial, command name, arguments, and peer selector.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status, data string, err error) {
+    switch command {
+    case &quot;my-plugin status&quot;:
+        return &quot;done&quot;, `{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}`, nil
+    case &quot;my-plugin check&quot;:
+        if len(args) &lt; 1 {
+            return &quot;error&quot;, &quot;usage: my-plugin check &lt;target&gt;&quot;, nil
+        }
+        result := performCheck(args[0])
+        return &quot;done&quot;, result, nil
+    default:
+        return &quot;error&quot;, &quot;unknown command: &quot; + command, nil
+    }
+})
+</code></pre>
+<h2 id="wire-format">Wire Format</h2>
+<p>Commands are delivered to the plugin as <code>execute-command</code> RPCs over the MuxConn connection. The wire format uses <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]</code> framing.</p>
+<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
+
+<h3 id="request-engine-to-plugin">Request (engine to plugin)</h3>
+<pre><code>#17 ze-plugin-callback:execute-command {&quot;serial&quot;:&quot;abc123&quot;,&quot;command&quot;:&quot;my-plugin status&quot;,&quot;args&quot;:[],&quot;peer&quot;:&quot;&quot;}
+</code></pre>
+<h3 id="success-response-plugin-to-engine">Success Response (plugin to engine)</h3>
+<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:&quot;{\&quot;status\&quot;:\&quot;running\&quot;}&quot;}
+</code></pre>
+<h3 id="error-response-plugin-to-engine">Error Response (plugin to engine)</h3>
+<pre><code>#17 error {&quot;message&quot;:&quot;execute-command not supported&quot;}
+</code></pre>
+<h2 id="return-values">Return Values</h2>
+<p>The <code>OnExecuteCommand</code> handler returns three values: <code>(status, data string, err error)</code>.</p>
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleExecuteCommand -->
+
+<h3 id="success-with-data">Success with Data</h3>
+<pre><code class="language-go">return &quot;done&quot;, `{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}`, nil
+</code></pre>
+<p>The SDK wraps this into an <code>ExecuteCommandOutput</code> and sends:</p>
+<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:&quot;{\&quot;count\&quot;:42,\&quot;items\&quot;:[\&quot;a\&quot;,\&quot;b\&quot;]}&quot;}
+</code></pre>
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
+
+<h3 id="success-without-data">Success without Data</h3>
+<pre><code class="language-go">return &quot;done&quot;, &quot;&quot;, nil
+</code></pre>
+<p>Response:</p>
+<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;}
+</code></pre>
+<!-- source: pkg/plugin/rpc/message.go -- FormatResult, FormatOK -->
+
+<h3 id="handler-error">Handler Error</h3>
+<p>If the handler returns a non-nil error, the SDK sends an error response:</p>
+<pre><code class="language-go">return &quot;&quot;, &quot;&quot;, fmt.Errorf(&quot;operation failed: database timeout&quot;)
+</code></pre>
+<p>Response:</p>
+<pre><code>#17 error {&quot;message&quot;:&quot;operation failed: database timeout&quot;}
+</code></pre>
+<!-- source: pkg/plugin/rpc/message.go -- FormatError, NewErrorPayload -->
+
+<h2 id="executecommandinput-fields">ExecuteCommandInput Fields</h2>
+<p>The engine sends these fields in the <code>execute-command</code> RPC:</p>
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>serial</code></td>
+<td>string</td>
+<td>Correlation ID for the request</td>
+</tr>
+<tr>
+<td><code>command</code></td>
+<td>string</td>
+<td>Command name (e.g., <code>"my-plugin status"</code>)</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td>[]string</td>
+<td>Additional arguments (may be empty)</td>
+</tr>
+<tr>
+<td><code>peer</code></td>
+<td>string</td>
+<td>Peer selector (may be empty)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="naming-conventions">Naming Conventions</h2>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Example</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;plugin&gt; status</code></td>
+<td><code>acme-monitor status</code></td>
+<td>Get current state</td>
+</tr>
+<tr>
+<td><code>&lt;plugin&gt; stats</code></td>
+<td><code>acme-monitor stats</code></td>
+<td>Get metrics</td>
+</tr>
+<tr>
+<td><code>&lt;plugin&gt; &lt;action&gt;</code></td>
+<td><code>acme-monitor check</code></td>
+<td>Perform action</td>
+</tr>
+<tr>
+<td><code>&lt;plugin&gt; list</code></td>
+<td><code>acme-monitor list</code></td>
+<td>List items</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rules:</strong>
+- Start with plugin name to avoid conflicts
+- Use kebab-case for multi-word commands
+- Keep commands short and memorable</p>
+<h2 id="command-arguments">Command Arguments</h2>
+<p>Arguments arrive in the <code>args</code> parameter of the handler:</p>
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+    if command == &quot;my-plugin get&quot; {
+        if len(args) &lt; 1 {
+            return &quot;error&quot;, &quot;usage: my-plugin get &lt;key&gt;&quot;, nil
+        }
+        key := args[0]
+        value := getValue(key)
+        return &quot;done&quot;, value, nil
+    }
+    return &quot;error&quot;, &quot;unknown command&quot;, nil
+})
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+
+<p>Invocation:</p>
+<pre><code>ze bgp run &quot;my-plugin get config.timeout&quot;
+</code></pre>
+<h2 id="commanddecl-fields">CommandDecl Fields</h2>
+<p>Commands are declared with these fields:</p>
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Name</code></td>
+<td>string</td>
+<td class="cell-yes">✓</td>
+<td>Command name (e.g., <code>"my-plugin status"</code>)</td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td>string</td>
+<td class="cell-no">✕</td>
+<td>Human-readable description</td>
+</tr>
+<tr>
+<td><code>Args</code></td>
+<td>[]string</td>
+<td class="cell-no">✕</td>
+<td>Expected argument names (for help/completion)</td>
+</tr>
+<tr>
+<td><code>Completable</code></td>
+<td>bool</td>
+<td class="cell-no">✕</td>
+<td>Whether the command supports tab completion</td>
+</tr>
+</tbody>
+</table>
+<h2 id="complex-responses">Complex Responses</h2>
+<p>Return structured JSON data for API consumers:</p>
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+    if command == &quot;monitor metrics&quot; {
+        data, _ := json.Marshal(struct {
+            Checks    int     `json:&quot;checks&quot;`
+            Failures  int     `json:&quot;failures&quot;`
+            LatencyMs float64 `json:&quot;latency-ms&quot;`
+            LastCheck string  `json:&quot;last-check&quot;`
+        }{
+            Checks:    state.checks,
+            Failures:  state.failures,
+            LatencyMs: state.latency,
+            LastCheck: state.lastCheck.Format(time.RFC3339),
+        })
+        return &quot;done&quot;, string(data), nil
+    }
+    return &quot;error&quot;, &quot;unknown command&quot;, nil
+})
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
+
+<p>Note: JSON keys use kebab-case per ze conventions (<code>"latency-ms"</code>, not <code>"latency_ms"</code>).</p>
+<h2 id="dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</h2>
+<p>Plugins can invoke commands on other plugins through the engine's command dispatcher:</p>
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommand -->
+
+<pre><code class="language-go">p.OnStarted(func(ctx context.Context) error {
+    status, data, err := p.DispatchCommand(ctx, &quot;rib show-in ipv4/unicast&quot;)
+    if err != nil {
+        return err
+    }
+    fmt.Printf(&quot;rib response: status=%s data=%s\n&quot;, status, data)
+    return nil
+})
+</code></pre>
+<p>The engine routes the command by longest-match registry lookup and returns the full <code>{status, data}</code> response from the target handler.</p>
+<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
+
+<h2 id="help-text">Help Text</h2>
+<p>Provide usage information via a dedicated command:</p>
+<pre><code class="language-go">// In Registration:
+sdk.CommandDecl{Name: &quot;my-plugin help&quot;, Description: &quot;Show available commands&quot;},
+
+// In handler:
+if command == &quot;my-plugin help&quot; {
+    data, _ := json.Marshal(map[string]any{
+        &quot;commands&quot;: []string{
+            &quot;my-plugin status - Show current status&quot;,
+            &quot;my-plugin check &lt;target&gt; - Trigger immediate check&quot;,
+            &quot;my-plugin metrics - Show performance metrics&quot;,
+        },
+    })
+    return &quot;done&quot;, string(data), nil
+}
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+            </section>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

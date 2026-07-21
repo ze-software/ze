@@ -63,7 +63,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>48 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>49 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -122,6 +122,10 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
                             <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/plugin-development/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
+                            <span><strong>Plugin Development</strong><small>Build in-process and external Ze plugins</small></span>
+                        </a>
                     </div>
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Operate</span>
@@ -140,6 +144,22 @@
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/looking-glass-howto/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
                             <span><strong>Looking Glass</strong><small>Publish read-only BGP visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/bgp-peering/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🌐</span>
+                            <span><strong>BGP Peering</strong><small>Groups, families, capabilities, limits, and checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/bgp-policy/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧱</span>
+                            <span><strong>BGP Policy</strong><small>Import, export, validation, and redistribution</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/bgp-resilience/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">♻️</span>
+                            <span><strong>BGP Resilience</strong><small>Refresh, restart, persistence, and reflection</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/lifecycle/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔄</span>
+                            <span><strong>Lifecycle and Rollback</strong><small>Start, reload, update, recover, and verify</small></span>
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
@@ -173,6 +193,25 @@
                             <span><strong>Native IPsec</strong><small>IKEv2 initiator and responder tunnels</small></span>
                         </a>
                     </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Automate and extend</span>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/api/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>REST and gRPC</strong><small>Commands, config sessions, authentication, and streaming</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/gnmi/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧬</span>
+                            <span><strong>gNMI</strong><small>YANG Get, Set, Subscribe, TLS, and metrics</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/web-interface/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🖥️</span>
+                            <span><strong>Web Interface</strong><small>Configuration workbench, commands, and live state</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/guide/fleet-config/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗂️</span>
+                            <span><strong>Fleet Management</strong><small>Managed config, TLS hub, caching, and reconnect</small></span>
+                        </a>
+                    </div>
                     </div>
                     </div>
                     <div class="nav-dropdown">
@@ -197,6 +236,18 @@
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__usage/bgp-performance/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
                             <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__usage/route-server/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔀</span>
+                            <span><strong>IXP Route Server</strong><small>Member policy, RPKI validation, and replay</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__usage/transit-edge-rpki/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔏</span>
+                            <span><strong>Transit Edge with RPKI</strong><small>Dual-transit policy and tested failover</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__usage/flowspec-injection/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🛡️</span>
+                            <span><strong>FlowSpec Injection</strong><small>Authorised, atomic, reversible mitigation routes</small></span>
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
@@ -240,6 +291,14 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">🏷️</span>
                             <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__usage/chaos-tested-peering/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
+                            <span><strong>Chaos-Tested Peering</strong><small>Deterministic faults, properties, replay, and shrink</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__usage/as-path-topology/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🕸️</span>
+                            <span><strong>AS-Path Topology</strong><small>Investigate path visibility in the Looking Glass</small></span>
+                        </a>
                     </div>
                     </div>
                     </div>
@@ -265,6 +324,25 @@
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/features/rfc-status/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📜</span>
                             <span><strong>RFC Status</strong><small>Implemented RFCs, partial support, and known gaps</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Written references</span>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/glossary/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📖</span>
+                            <span><strong>Glossary</strong><small>Routing, policy, configuration, and testing terms</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/architecture/config/deprecated-options/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗑️</span>
+                            <span><strong>Deprecated Options</strong><small>Removed configuration syntax and replacements</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/history/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🕰️</span>
+                            <span><strong>Project History</strong><small>How ExaBGP&#x27;s programmable model grew into Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__docs/contributing/testing/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✅</span>
+                            <span><strong>Contributor Testing</strong><small>Choose and run the right proof layer</small></span>
                         </a>
                     </div>
                     </div>

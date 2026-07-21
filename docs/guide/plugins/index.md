@@ -12,7 +12,7 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | With RPKI validation | Add `bgp-rpki` + `bgp-adj-rib-in` | Validate origin AS against ROA cache |
 | With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |
 | With graceful restart | Add `bgp-gr` | Hold routes across restarts (RFC 4724) |
-| Service healthcheck | `bgp-healthcheck` + `bgp-watchdog` | Monitor services, control route announcement via MED or withdraw. [Guide](https://github.com/ze-software/ze/blob/main/docs/guide/healthcheck.md) |
+| Service healthcheck | `bgp-healthcheck` + `bgp-watchdog` | Monitor services, control route announcement via MED or withdraw. [Guide](../healthcheck/index.md) |
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
 | Interface-aware BGP | `iface` + `bgp-rib` | React to OS interface changes -- start/stop BGP listeners when addresses appear/disappear |
 | Static routes | (auto-loaded) | Config-driven static routes with ECMP, weighted load balancing, BFD failover. [Guide](../static-routes/index.md) |
@@ -331,7 +331,7 @@ Bus topics in the sysctl pipeline:
 Plugins can declare named filters at stage 1 for import and/or export filtering.
 Each filter specifies which attributes it needs, and the engine sends only those
 attributes as text for each UPDATE. Filters respond accept, reject, or modify
-(delta-only). See [Route Filters](https://github.com/ze-software/ze/blob/main/docs/guide/redistribution.md) for configuration.
+(delta-only). See [Route Filters](../redistribution/index.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
@@ -626,7 +626,7 @@ while True:
         pass
 ```
 
-See [plugin-development/protocol.md](https://github.com/ze-software/ze/blob/main/docs/plugin-development/protocol.md) for the full protocol reference.
+See [plugin-development/protocol.md](../../plugin-development/protocol/index.md) for the full protocol reference.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
 <!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
 

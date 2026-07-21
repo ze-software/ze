@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -71,6 +71,36 @@
 <td>FRR, BIRD, Ze, or another DUT receives and exports generated BGP routes</td>
 <td>Existing Ze performance tooling supplies the report; the page links to AMS-IX, LINX, and bgperf prior art</td>
 </tr>
+<tr>
+<td><a href="route-server/">Route server at an IXP</a></td>
+<td>RFC 7947 route server with member policy, ADD-PATH, and RPKI validation</td>
+<td>IXP members establish one eBGP session and receive eligible member routes</td>
+<td>Configuration checks, replay, Adj-RIB-Out inspection, and restart behaviour</td>
+</tr>
+<tr>
+<td><a href="transit-edge-rpki/">Transit edge with RPKI</a></td>
+<td>Dual-transit Internet edge with origin validation and deterministic preference</td>
+<td>Two transit providers advertise full or partial tables</td>
+<td>RPKI state changes, failover, prefix-limit, memory, and convergence checks</td>
+</tr>
+<tr>
+<td><a href="flowspec-injection/">FlowSpec injection</a></td>
+<td>Authorised source or relay for FlowSpec rules</td>
+<td>Mitigation automation and enforcing BGP peers</td>
+<td>Commit, propagation, enforcement, expiry, and withdrawal checks</td>
+</tr>
+<tr>
+<td><a href="chaos-tested-peering/">Chaos-tested BGP peering</a></td>
+<td>Peer configuration tested against deterministic failures</td>
+<td>A controlled peer or route-server scenario</td>
+<td>Recorded seed, replay, property deadlines, shrinking, and recovery checks</td>
+</tr>
+<tr>
+<td><a href="as-path-topology/">AS-path topology</a></td>
+<td>Looking Glass graph for one prefix and its visible paths</td>
+<td>Authenticated workbench or public Looking Glass clients</td>
+<td>Peer, prefix, route, and graph inspection before and after changes</td>
+</tr>
 </tbody>
 </table>
 <h2 id="what-belongs-here">What belongs here</h2>
@@ -99,6 +129,26 @@
                     <a class="page-sidebar-link" href="../usage/bgp-performance/">
                         <span class="page-sidebar-link-label">BGP performance testing with Ze</span>
                         <small>Use Ze as the tester for route-server performance runs inspired by bgperf.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../usage/route-server/">
+                        <span class="page-sidebar-link-label">IXP route server</span>
+                        <small>Member policy, validation, and operational checks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../usage/transit-edge-rpki/">
+                        <span class="page-sidebar-link-label">Transit edge with RPKI</span>
+                        <small>Dual-transit routing policy and tested failover.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../usage/flowspec-injection/">
+                        <span class="page-sidebar-link-label">FlowSpec injection</span>
+                        <small>Authorised, atomic, and reversible mitigation routes.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../usage/chaos-tested-peering/">
+                        <span class="page-sidebar-link-label">Chaos-tested peering</span>
+                        <small>Deterministic faults, replay, shrink, and recovery.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../usage/as-path-topology/">
+                        <span class="page-sidebar-link-label">AS-path topology</span>
+                        <small>Investigate route visibility in the Looking Glass.</small>
                     </a>
                 </section>
                 <section class="page-sidebar-group">

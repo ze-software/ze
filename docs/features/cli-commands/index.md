@@ -22,7 +22,7 @@
 | `ze config set` | Set a configuration value programmatically |
 | `ze config import` | Import a configuration file into ze |
 | `ze config rename` | Rename a configuration element |
-| `ze config archive <name>` | Archive config to a named destination ([guide](https://github.com/ze-software/ze/blob/main/docs/guide/config-archive.md)) |
+| `ze config archive <name>` | Archive config to a named destination ([guide](../../guide/config-archive/index.md)) |
 | `ze config history` | List rollback revisions |
 | `ze config rollback <N>` | Restore revision N |
 

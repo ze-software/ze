@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -63,14 +63,14 @@
 <td>Junos-style <code>inactive:</code> prefix on any node (leaf, container, list entry, leaf-list value); kept in file, skipped at apply. CLI: <code>ze config deactivate/activate &lt;file&gt; &lt;path&gt;</code>. TUI: <code>deactivate &lt;path&gt;</code> / <code>activate &lt;path&gt;</code>. Engine-level, no schema annotation required. <!-- source: internal/component/config/parser.go -- applyInactive dispatch --> <!-- source: internal/component/config/prune.go -- PruneInactive removes inactive subtrees and leaves --> <!-- source: internal/component/config/cli/cmd_deactivate.go -- one-shot CLI verb --></td>
 </tr>
 <tr>
-<td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/environment-variables.md" target="_blank" rel="noopener">Environment Variables</a></td>
+<td><a href="../guide/environment-variables/">Environment Variables</a></td>
 <td>Supported</td>
 <td>Ze-native env surface: <code>ze.user</code>, <code>ze.pid.file</code>, <code>ze.pprof</code>, <code>ze.bgp.openwait</code>, <code>ze.bgp.announce.delay</code>, <code>ze.cli.format</code>; ExaBGP-compat env keys retired 2026-04 <!-- source: internal/component/config/environment.go -- env var registrations --> <!-- source: internal/component/config/apply_env.go -- ApplyEnvConfig --> <!-- source: cmd/ze/hub/pidfile.go -- writePIDFile, removePIDFile --> <!-- source: internal/exabgp/bridge/bridge_ack.go -- exabgp.api.ack --></td>
 </tr>
 <tr>
 <td>Outbound source-address</td>
 <td>Supported</td>
-<td>Optional <code>source-address</code> local-IP binding for outbound service connections: BMP collector, RPKI/RTR cache, flow-export (UDP), IRR whois, and the managed hub TLS client; LDP binds its <code>transport-address</code> as the session source (RFC 5036). Unset = OS-selected source (unchanged). Shared <code>network.RealDialer</code> applies the bind for TCP/TLS; flow-export binds the UDP socket. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md#outbound-source-address" target="_blank" rel="noopener">Outbound Source Address</a>. <!-- source: internal/core/network/network.go -- RealDialer.LocalAddr --> <!-- source: internal/component/bgp/plugins/bmp/sender.go -- BMP source-address --> <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTR source-address --> <!-- source: internal/plugins/flowexport/sender.go -- UDP source bind --> <!-- source: internal/component/resolve/irr/client.go -- IRR source-address --> <!-- source: internal/component/managed/client.go -- managed hub TLS source-address --> <!-- source: internal/plugins/ldp/register.go -- LDP transport-address binding --></td>
+<td>Optional <code>source-address</code> local-IP binding for outbound service connections: BMP collector, RPKI/RTR cache, flow-export (UDP), IRR whois, and the managed hub TLS client; LDP binds its <code>transport-address</code> as the session source (RFC 5036). Unset = OS-selected source (unchanged). Shared <code>network.RealDialer</code> applies the bind for TCP/TLS; flow-export binds the UDP socket. See <a href="../guide/configuration/#outbound-source-address">Outbound Source Address</a>. <!-- source: internal/core/network/network.go -- RealDialer.LocalAddr --> <!-- source: internal/component/bgp/plugins/bmp/sender.go -- BMP source-address --> <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTR source-address --> <!-- source: internal/plugins/flowexport/sender.go -- UDP source bind --> <!-- source: internal/component/resolve/irr/client.go -- IRR source-address --> <!-- source: internal/component/managed/client.go -- managed hub TLS source-address --> <!-- source: internal/plugins/ldp/register.go -- LDP transport-address binding --></td>
 </tr>
 <tr>
 <td>CLI Default Output Format</td>
@@ -308,7 +308,7 @@
 <td>AI-assisted BGP operations via Model Context Protocol (Streamable HTTP 2025-06-18 transport, OAuth 2.1 resource server, server-initiated elicitation, task-augmented tools/call with background workers per MCP 2025-11-25, MCP Apps UI resources with embedded panels). The service is default-on but compile-out-able with the <code>ze_mcp</code> build tag: <code>make ze</code> and <code>ze-appliance</code> include it, while <code>ze-stripped</code> and bare <code>ze_core</code> builds drop <code>internal/component/mcp</code> and its schema; an omitted MCP exposes no endpoint and its <code>environment { mcp {} }</code> config block is rejected as unknown. <!-- source: feature-gates.txt -- ze_mcp --> <!-- source: cmd/ze/hub/service_mcp.go -- ze_mcp service factory --> <!-- source: cmd/ze/hub/register_mcp.go -- ze_mcp registration --> <!-- source: internal/component/mcp/streamable.go -- Streamable HTTP transport --> <!-- source: internal/component/mcp/elicit.go -- server-initiated elicitation --> <!-- source: internal/component/mcp/tasks.go -- task registry and workers --> <!-- source: internal/component/mcp/resources.go -- MCP Apps UI resources --> <!-- source: internal/component/mcp/tools.go -- ze_execute handcrafted tool --></td>
 </tr>
 <tr>
-<td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/chaos.md" target="_blank" rel="noopener">Chaos MCP</a></td>
+<td><a href="../guide/mcp/chaos/">Chaos MCP</a></td>
 <td>Supported</td>
 <td>AI-queryable chaos test state via MCP: 6 tools (status, problems, peers, scenario, control, execute), Watchdog anomaly detector with structured PROBLEM lines, per-family convergence tracking <!-- source: internal/chaos/mcp/tools.go -- chaos MCP tools --> <!-- source: internal/chaos/watchdog/watchdog.go -- Watchdog consumer --></td>
 </tr>

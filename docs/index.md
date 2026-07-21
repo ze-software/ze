@@ -13,6 +13,8 @@ Learning-oriented pages that take you from a blank shell to a working setup.
 - [Build on Ubuntu compile, install, create zefs, set up SSH](https://ze-software.net/docs/guide/ubuntu-build-install/)
 - [Configuration the YANG model Ze uses everywhere](https://ze-software.net/docs/features/configuration/)
 - [`CLI` commands diff, commit, history, and operator commands](https://ze-software.net/docs/features/cli-commands/)
+- [CLI tour interactive, one-shot, pipes, and runtime control](https://ze-software.net/docs/guide/cli/)
+- [Lifecycle and rollback reload, restart, archive, update, and recover](https://ze-software.net/docs/guide/lifecycle/)
 
 **Operate**
 
@@ -33,6 +35,23 @@ Task-oriented guides for protocol setup, access services, migration, and diagnos
 - [PPPoE and L2TP access concentration paths](https://ze-software.net/docs/guide/pppoe/)
 - [Native IPsec configure IKEv2 initiator and responder tunnels](https://ze-software.net/docs/guide/ipsec/)
 - [Monitoring and diagnostics flow export, MRT, and production checks](https://ze-software.net/docs/guide/monitoring/)
+- [BGP peering groups, families, capabilities, and verification](https://ze-software.net/docs/guide/bgp-peering/)
+- [BGP policy import, export, validation, and redistribution](https://ze-software.net/docs/guide/bgp-policy/)
+- [BGP resilience refresh, GR, persistence, reflection, and multipath](https://ze-software.net/docs/guide/bgp-resilience/)
+- [Fleet Management hub, managed clients, cached config, and reconnect](https://ze-software.net/docs/guide/fleet-config/)
+
+**Automate**
+
+## Use and extend every surface
+
+Management transports, browser and public interfaces, and the plugin SDK.
+
+- [REST and gRPC authentication, commands, config sessions, and streaming](https://ze-software.net/docs/guide/api/)
+- [gNMI Capabilities, Get, Set, Subscribe, TLS, and metrics](https://ze-software.net/docs/guide/gnmi/)
+- [Web interface workbench, editing, commands, and live updates](https://ze-software.net/docs/guide/web-interface/)
+- [Looking Glass routes, topology, Birdwatcher API, and security](https://ze-software.net/docs/guide/looking-glass/)
+- [MCP tools, resources, authentication, and remote access](https://ze-software.net/docs/guide/mcp/overview/)
+- [Plugin development SDK, protocol, YANG, handlers, commands, and testing](https://ze-software.net/docs/plugin-development/)
 
 **Reference**
 
@@ -57,6 +76,10 @@ Explanation pages for architecture, comparisons, performance, labs, and deployme
 - [Performance measured BGP benchmarks and methodology](https://ze-software.net/performance/)
 - [VPP deployment reference startup.conf, NIC, LCP, and notes](https://ze-software.net/docs/research/vpp-deployment-reference/)
 - [Labs and usage examples interop proof and deployment shapes](https://ze-software.net/labs/)
+- [Chaos testing deterministic faults, properties, replay, and shrink](https://ze-software.net/docs/guide/chaos-testing/)
+- [IXP route server member policy, validation, and replay checks](https://ze-software.net/usage/route-server/)
+- [Transit edge with RPKI dual transit, origin validation, and failover](https://ze-software.net/usage/transit-edge-rpki/)
+- [FlowSpec injection authorised, atomic, and reversible route control](https://ze-software.net/usage/flowspec-injection/)
 
 **Community**
 
@@ -69,3 +92,6 @@ Project context for people deciding whether to try Ze or help shape it.
 - [Blog longer notes behind the work](https://ze-software.net/blog/)
 - [FAQ answers before you commit time](https://ze-software.net/faq/)
 - [Contribute code, bug reports, and interop results](https://ze-software.net/contribute/)
+- [Project history how ExaBGP's programmable model grew into Ze](https://ze-software.net/docs/history/)
+- [Glossary BGP, policy, configuration, operator, and testing terms](https://ze-software.net/docs/glossary/)
+- [Contributor testing choose the right proof layer and run it locally](https://ze-software.net/docs/contributing/testing/)

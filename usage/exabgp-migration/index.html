@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -50,6 +50,10 @@
 <li><a href="#automatic-prefix-defaults">Automatic Prefix Defaults</a></li>
 </ol></li>
 <li><a href="#migration-workflow">Migration Workflow</a></li>
+<li><a href="#worked-migration">Worked migration</a>
+<ol>
+<li><a href="#cutover-checklist">Cutover checklist</a></li>
+</ol></li>
 <li><a href="#when-to-port-plugins">When to Port Plugins</a></li>
 </ol></nav>
 <!-- source: internal/plugins/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
@@ -110,15 +114,22 @@ ze config validate ze.conf              # Validate the result
 }
 
 bgp {
+    router-id 10.0.0.2;
+    session { asn { local 65000; } }
+
     peer upstream1 {
         connection {
             remote { ip 10.0.0.1; }
             local { ip 10.0.0.2; }
         }
         session {
-            asn { local 65000; remote 65001; }
+            asn { remote 65001; }
+            family {
+                ipv4/unicast {
+                    prefix { maximum 10000; }
+                }
+            }
         }
-        ...
         process my-exabgp-plugin {
             receive [ update state ]
         }
@@ -200,6 +211,71 @@ the forward pool drains, ensuring the engine processes the route before continui
 <li><strong>Test:</strong> Run ze with the new config and verify sessions establish</li>
 <li><strong>Port plugins:</strong> Gradually rewrite plugins to use the ze SDK directly</li>
 </ol>
+<h2 id="worked-migration">Worked migration</h2>
+<p>Consider an ExaBGP process that receives updates from two transit sessions and
+writes route commands to stdout:</p>
+<pre><code class="language-text">process inject-routes {
+    run python3 /opt/scripts/inject.py;
+    encoder json;
+    receive {
+        parsed;
+        update;
+    }
+}
+</code></pre>
+<p>Convert the complete configuration, retain the original as a read-only
+reference, and validate the generated Ze file:</p>
+<pre><code class="language-bash">cp exabgp.conf exabgp.conf.before-ze
+ze exabgp migrate exabgp.conf &gt; ze.conf
+ze config validate ze.conf
+</code></pre>
+<p>Review the generated file before starting. In particular:</p>
+<ol>
+<li>Give each peer a stable, meaningful name.</li>
+<li>Confirm every local and remote address and ASN.</li>
+<li>Adjust the generated per-family prefix maximum. The migration default is a
+   starting point, not a full-table recommendation.</li>
+<li>Confirm which peers bind the converted process.</li>
+<li>Review static announcements and next-hop handling.</li>
+<li>Remove capabilities that the remote peer should not negotiate.</li>
+</ol>
+<p>Run the existing script through the bridge:</p>
+<pre><code class="language-text">plugin {
+    external inject-routes {
+        run &quot;ze exabgp plugin python3 /opt/scripts/inject.py&quot;
+        encoder json
+    }
+}
+</code></pre>
+<p>Bind that process only to the peers whose events it should receive. The bridge
+keeps the ExaBGP JSON and text-command contract at the script boundary while Ze
+uses its native event and command model internally.</p>
+<p>Start Ze and verify each boundary rather than treating an Established session
+as sufficient proof:</p>
+<pre><code class="language-console">ze start ze.conf
+ze cli -c &quot;show bgp summary&quot;
+ze cli -c &quot;show bgp peer transit-a detail&quot;
+ze cli -c &quot;show bgp rib status&quot;
+ze cli -c &quot;show warnings&quot;
+ze cli -c &quot;show errors&quot;
+</code></pre>
+<p>Trigger one representative announcement and withdrawal through the existing
+script. Confirm the route appears in the expected peer's outbound RIB, reaches
+the adjacent router, and disappears after withdrawal.</p>
+<h3 id="cutover-checklist">Cutover checklist</h3>
+<ul>
+<li>The converted configuration validates.</li>
+<li>Every intended address family and capability is negotiated.</li>
+<li>Received and advertised prefix counts match the old deployment.</li>
+<li>Existing process scripts receive the events they depend on.</li>
+<li>Announcements, withdrawals, and watchdog actions behave as before.</li>
+<li>Warnings, errors, and operational reports contain no unexpected entries.</li>
+<li>The old ExaBGP configuration and binary remain available for rollback during
+  the first maintenance window.</li>
+</ul>
+<p>Port scripts to the native SDK one at a time after the bridge deployment is
+stable. This avoids combining a routing-engine migration with an application
+rewrite.</p>
 <h2 id="when-to-port-plugins">When to Port Plugins</h2>
 <p>The compatibility bridge adds translation overhead. Consider porting to native ze plugins when:
 - You need access to ze-specific features (RPKI events, cache commands, commit workflow)

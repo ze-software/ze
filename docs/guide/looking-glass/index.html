@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Looking Glass - Ze</title>
+        <meta name="description" content="Ze documentation: guide/looking-glass.md" />
+        <meta property="og:title" content="Looking Glass - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/looking-glass.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Looking Glass - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/looking-glass.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="looking-glass">Looking Glass</h1>
+    <p>Ze includes a built-in looking glass that provides public, read-only access to BGP session state and route information. It runs as a separate HTTP server from the authenticated web UI.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#web-ui">Web UI</a></li>
+<li><a href="#birdwatcher-rest-api">Birdwatcher REST API</a></li>
+<li><a href="#alice-lg-integration">Alice-LG Integration</a></li>
+<li><a href="#security">Security</a></li>
+</ol></nav>
+<!-- source: internal/component/lg/server.go -- LGServer -->
+
+<h2 id="configuration">Configuration</h2>
+<p>Add the <code>looking-glass</code> block under <code>environment</code> in your Ze config:</p>
+<pre><code>environment {
+    looking-glass {
+        enabled true
+        server main {
+            ip 0.0.0.0
+            port 8443
+        }
+    }
+}
+</code></pre>
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- YANG schema -->
+
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td><code>false</code></td>
+<td>Enable the looking glass server.</td>
+</tr>
+<tr>
+<td><code>server &lt;name&gt; { ip }</code></td>
+<td><code>0.0.0.0</code></td>
+<td>Listen address. Set to <code>127.0.0.1</code> to restrict to local access.</td>
+</tr>
+<tr>
+<td><code>server &lt;name&gt; { port }</code></td>
+<td><code>8443</code></td>
+<td>Listen port. Must differ from the web UI port.</td>
+</tr>
+<tr>
+<td><code>tls</code></td>
+<td><code>false</code></td>
+<td>Enable TLS. Requires blob storage (<code>ze init</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.tls=true</code>.</p>
+<p>When the <code>looking-glass</code> block is absent, no HTTP server is started and no resources are consumed.</p>
+<!-- source: cmd/ze/hub/main.go -- startLGServer -->
+
+<h2 id="web-ui">Web UI</h2>
+<p>The HTMX web UI is available at <code>http://&lt;host&gt;:&lt;port&gt;/lg/</code>. No authentication is required.</p>
+<table>
+<thead>
+<tr>
+<th>Tab / View</th>
+<th>URL</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Peers tab</td>
+<td><code>/lg/peers</code></td>
+<td>All peers with state, ASN names (Team Cymru), route counts. Live SSE updates.</td>
+</tr>
+<tr>
+<td>Lookup tab</td>
+<td><code>/lg/lookup</code></td>
+<td>Prefix/IP lookup with inline all-peers AS path topology graph (SVG).</td>
+</tr>
+<tr>
+<td>Search tab</td>
+<td><code>/lg/search</code></td>
+<td>Unified search: prefix, AS path pattern, or community. Type selector.</td>
+</tr>
+<tr>
+<td>Per-peer routes</td>
+<td><code>/lg/peer/{address}</code></td>
+<td>Routes received from a specific peer (inline below peers table).</td>
+</tr>
+<tr>
+<td>Route detail</td>
+<td><code>/lg/route/detail</code></td>
+<td>Expanded route attributes (HTMX fragment, click-to-expand).</td>
+</tr>
+<tr>
+<td>AS path graph</td>
+<td><code>/lg/graph?prefix=X</code></td>
+<td>Server-side SVG topology from all peers (auto-loaded on lookup).</td>
+</tr>
+</tbody>
+</table>
+<p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v2.0.4) and SSE extension are embedded.</p>
+<!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
+<!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
+
+<h2 id="birdwatcher-rest-api">Birdwatcher REST API</h2>
+<p>The looking glass exposes a birdwatcher-compatible JSON API for integration with tools like Alice-LG.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /api/looking-glass/status</code></td>
+<td>Router ID, version, uptime.</td>
+</tr>
+<tr>
+<td><code>GET /api/looking-glass/protocols/bgp</code></td>
+<td>Peer list with state and route counts.</td>
+</tr>
+<tr>
+<td><code>GET /api/looking-glass/routes/protocol/{name}</code></td>
+<td>Routes from a named peer.</td>
+</tr>
+<tr>
+<td><code>GET /api/looking-glass/routes/table/{family}</code></td>
+<td>Best routes by address family (URL-encode the <code>/</code> in family, e.g., <code>ipv4%2Funicast</code>).</td>
+</tr>
+<tr>
+<td><code>GET /api/looking-glass/routes/filtered/{name}</code></td>
+<td>Filtered routes per peer.</td>
+</tr>
+<tr>
+<td><code>GET /api/looking-glass/routes/search?prefix=X</code></td>
+<td>Prefix lookup across all peers.</td>
+</tr>
+</tbody>
+</table>
+<p>All API responses use <code>Content-Type: application/json</code> with birdwatcher-convention <code>snake_case</code> field names (not Ze's standard <code>kebab-case</code>).</p>
+<p>The per-peer route counts on <code>/protocols/bgp</code> come from the <code>bgp-rib</code> plugin's
+Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp summary</code>:
+<code>routes_received</code> and <code>routes_imported</code> are both the Adj-RIB-In size (Ze retains
+only accepted routes, so there is no distinct pre-policy received count here),
+and <code>routes_exported</code> is the Adj-RIB-Out size. <code>routes_filtered</code> is always <code>0</code>:
+Ze does not retain import-filtered routes (unlike BIRD's "import keep filtered"),
+so the <code>/routes/filtered/{name}</code> endpoint also returns an empty list. Route
+counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
+<!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
+
+<h2 id="alice-lg-integration">Alice-LG Integration</h2>
+<p>To use Ze as a data source for <a href="https://github.com/alice-lg/alice-lg" target="_blank" rel="noopener">Alice-LG</a>, point Alice-LG's birdwatcher source configuration at the looking glass API:</p>
+<pre><code class="language-yaml">sources:
+  - name: &quot;Ze Router&quot;
+    type: birdwatcher
+    birdwatcher:
+      api: &quot;http://ze-host:8443/api/looking-glass&quot;
+</code></pre>
+<h2 id="security">Security</h2>
+<p>The looking glass is designed for public IXP deployment. It is read-only and unauthenticated. Security measures include:</p>
+<ul>
+<li>Strict input validation on all query parameters (character allowlists, length limits).</li>
+<li><code>Content-Security-Policy</code>, <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code> headers.</li>
+<li>SSE connection limit (100 concurrent clients).</li>
+<li>All HTML output rendered via Go <code>html/template</code> (auto-escaped).</li>
+<li>No direct RIB or plugin imports; all data accessed via command dispatcher.</li>
+</ul>
+<p>When TLS is enabled, the server uses TLS 1.2 minimum with the same certificate infrastructure as the web UI.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>MCP Integration - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mcp/overview.md" />
+        <meta property="og:title" content="MCP Integration - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mcp/overview.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MCP Integration - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mcp/overview.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../../assets/site.css?v=079eb640b0" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
+<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="mcp-integration">MCP Integration</h1>
+    <p>Ze includes an MCP (Model Context Protocol) server that lets AI assistants
+control BGP operations. The server runs inside the daemon and wraps the
+same command dispatcher used by the CLI and web interface.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#starting-the-mcp-server">Starting the MCP Server</a></li>
+<li><a href="#authentication">Authentication</a>
+<ol>
+<li><a href="#bearer-legacy-single-token">bearer (legacy single token)</a></li>
+<li><a href="#bearer-list-per-identity-tokens">bearer-list (per-identity tokens)</a></li>
+<li><a href="#oauth-oauth-21-resource-server">oauth (OAuth 2.1 resource server)</a></li>
+<li><a href="#constant-time-comparison">Constant-time comparison</a></li>
+</ol></li>
+<li><a href="#protocol">Protocol</a></li>
+<li><a href="#tools">Tools</a>
+<ol>
+<li><a href="#ze_execute">ze_execute</a></li>
+<li><a href="#ze_commands">ze_commands</a></li>
+<li><a href="#ze_reference">ze_reference</a></li>
+</ol></li>
+<li><a href="#ai-help-reference">AI Help Reference</a></li>
+<li><a href="#agent-tooling">Agent Tooling</a></li>
+<li><a href="#testing">Testing</a></li>
+</ol></nav>
+<h2 id="starting-the-mcp-server">Starting the MCP Server</h2>
+<p><strong>CLI flag:</strong></p>
+<pre><code class="language-bash">ze start --mcp 9718
+ze --mcp 9718 config.conf
+</code></pre>
+<p><strong>Config file:</strong></p>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        server main {
+            ip 127.0.0.1;
+            port 9718;
+        }
+    }
+}
+</code></pre>
+<p><strong>Environment variable:</strong></p>
+<pre><code class="language-bash">export ze_mcp_listen=127.0.0.1:9718
+# or simply:
+export ze_mcp_enabled=true  # defaults to 127.0.0.1:8080
+</code></pre>
+<p>Precedence: CLI &gt; environment variable &gt; config file.</p>
+<p>The MCP server binds to <code>127.0.0.1</code> only. See
+<a href="../remote-access/">remote-access.md</a> for accessing it from other machines.</p>
+<h2 id="authentication">Authentication</h2>
+<!-- source: internal/component/mcp/auth.go -- AuthMode enum + Identity -->
+<!-- source: internal/component/mcp/bearer.go -- bearer / bearer-list strategies -->
+<!-- source: internal/component/mcp/oauth.go -- OAuth 2.1 resource-server strategy -->
+
+<p>MCP supports four authentication modes selected by <code>environment.mcp.auth-mode</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Use case</th>
+<th>Config</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>none</code></td>
+<td>Loopback dev / tunnel-only deployments</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>bearer</code></td>
+<td>Single shared secret, one trusted caller</td>
+<td><code>token</code> leaf</td>
+</tr>
+<tr>
+<td><code>bearer-list</code></td>
+<td>Per-identity tokens, many callers, scope-scoped sessions</td>
+<td><code>identity[]</code> list</td>
+</tr>
+<tr>
+<td><code>oauth</code></td>
+<td>OAuth 2.1 resource server, external AS manages identities</td>
+<td><code>oauth</code> container + TLS</td>
+</tr>
+</tbody>
+</table>
+<p>Identity is bound at <code>initialize</code> and carried on the session for its lifetime;
+subsequent requests with the assigned <code>Mcp-Session-Id</code> header are trusted by
+session-id validity alone.</p>
+<h3 id="bearer-legacy-single-token">bearer (legacy single token)</h3>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        auth-mode bearer;
+        token my-secret-token;
+        server main { ip 127.0.0.1; port 9718; }
+    }
+}
+</code></pre>
+<p>Env var <code>ze.mcp.token</code> and CLI flag <code>--mcp-token</code> still work. The token leaf
+is <code>ze:sensitive</code> -- masked in <code>show config</code> output. A token set without an
+explicit <code>auth-mode</code> infers <code>bearer</code> for operators upgrading from pre-Phase-2
+configs.</p>
+<h3 id="bearer-list-per-identity-tokens">bearer-list (per-identity tokens)</h3>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        auth-mode bearer-list;
+        identity alice { token alice-token; scope [ mcp.read mcp.write ]; }
+        identity bob   { token bob-token;   scope [ mcp.read ]; }
+        server main { ip 127.0.0.1; port 9718; }
+    }
+}
+</code></pre>
+<p>Each identity's token is compared constant-time. The matching entry's name +
+scopes ride on the session. Add / remove / rotate identities independently.</p>
+<h3 id="oauth-oauth-21-resource-server">oauth (OAuth 2.1 resource server)</h3>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode oauth;
+        oauth {
+            authorization-server https://auth.example/;
+            audience             https://mcp.example/;
+            required-scopes      [ mcp.admin ];
+        }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server main { ip 0.0.0.0; port 443; }
+    }
+}
+</code></pre>
+<p>Tokens are validated locally: RS256 / RS384 / RS512 / ES256 / ES384 signatures
+are verified against JWKS fetched from the authorization server's RFC 8414
+metadata document. HS* (HMAC) and <code>alg: none</code> are always rejected.
+<code>iss</code> / <code>aud</code> / <code>exp</code> / <code>nbf</code> / scope claims are validated with 60 s leeway.</p>
+<p><code>ze config validate</code> rejects internally inconsistent configurations (oauth
+without TLS on a remote bind, oauth without authorization-server, bind-remote
+without auth, etc.) before the daemon starts. See
+<a href="https://github.com/ze-software/ze/blob/main/docs/../ai/rules/exact-or-reject.md" target="_blank" rel="noopener"><code>rules/exact-or-reject.md</code></a> for the
+contract.</p>
+<p>RFC 9728 metadata: when <code>auth-mode oauth</code>, the server publishes
+<code>/.well-known/oauth-protected-resource</code> listing the authorization server(s)
+and supported scopes. Clients discover the AS through this URL when they hit
+a 401.</p>
+<h3 id="constant-time-comparison">Constant-time comparison</h3>
+<p>Bearer tokens (both <code>bearer</code> and <code>bearer-list</code>) use <code>subtle.ConstantTimeCompare</code>
+so response timing does not reveal which entry matched (or whether any did).
+The bearer-list scan visits every entry regardless of early match.</p>
+<h2 id="protocol">Protocol</h2>
+<p>The MCP server speaks JSON-RPC 2.0 over HTTP. Each request is a POST with
+a JSON-RPC body. The server implements the MCP tool-calling protocol:</p>
+<ol>
+<li>Client sends <code>initialize</code> to start a session</li>
+<li>Client calls <code>tools/list</code> to discover available tools</li>
+<li>Client calls <code>tools/call</code> with tool name and arguments</li>
+</ol>
+<h2 id="tools">Tools</h2>
+<!-- source: internal/component/mcp/tools.go -- auto-generated tools from command registry -->
+
+<p>All MCP tools are <strong>auto-generated</strong> from the YANG command registry at
+<code>tools/list</code> time. Each command group (e.g. <code>rib</code>, <code>show config</code>, <code>metrics</code>)
+becomes a tool with an <code>action</code> enum listing its subcommands. When a new
+YANG command is registered, it appears as an MCP tool automatically without
+code changes.</p>
+<p>Run <code>tools/list</code> against a live daemon to see the current tool inventory.</p>
+<p>A small set of handcrafted tools (<code>ze_execute</code>, <code>ze_commands</code>, <code>ze_reference</code>)
+provide escape-hatch and discovery capabilities alongside the generated tools.</p>
+<h3 id="ze_execute">ze_execute</h3>
+<p>Run any command the CLI supports. Use <code>ze_commands</code> to discover available commands.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command</code></td>
+<td>string</td>
+<td class="cell-yes">✓</td>
+<td>Full command string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ze_commands">ze_commands</h3>
+<p>No parameters. Returns the list of all registered daemon commands.</p>
+<h3 id="ze_reference">ze_reference</h3>
+<p>No parameters. Returns the full machine-readable reference for this daemon
+(CLI commands, daemon API endpoints with dispatch keys, plugins, address
+families, config services) as JSON. This is the same data as <code>ze help ai --json</code>,
+assembled from <code>internal/component/aihelp</code> so the CLI and MCP never diverge.
+An MCP client sees this tool in <code>tools/list</code> on connect, so it can discover the
+instance's capabilities without out-of-band documentation.</p>
+<!-- source: internal/component/mcp/tools.go -- ze_reference handcrafted tool -->
+<!-- source: internal/component/aihelp/aihelp.go -- Build assembles the reference -->
+
+<h2 id="ai-help-reference">AI Help Reference</h2>
+<p><code>ze help ai</code> generates a machine-readable reference from the running binary.
+All data comes from the plugin registry, YANG schemas, and RPC registrations,
+so it is never out of date.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze help ai</code></td>
+<td>Summary with counts and quick start</td>
+</tr>
+<tr>
+<td><code>ze help ai --json</code></td>
+<td>Machine-readable JSON with commands, RPCs, plugins, families, services</td>
+</tr>
+<tr>
+<td><code>ze help ai cli</code></td>
+<td>CLI subcommands (ze bgp, ze config, ...)</td>
+</tr>
+<tr>
+<td><code>ze help ai api</code></td>
+<td>Daemon API commands with parameters (YANG RPCs)</td>
+</tr>
+<tr>
+<td><code>ze help ai mcp</code></td>
+<td>MCP tools with parameters and examples</td>
+</tr>
+<tr>
+<td><code>ze help ai dispatch</code></td>
+<td>Dispatch keys for daemon commands</td>
+</tr>
+<tr>
+<td><code>ze help ai all</code></td>
+<td>Everything</td>
+</tr>
+</tbody>
+</table>
+<p>The legacy flag form (<code>ze help --ai --api</code>) is still accepted as a hidden alias.</p>
+<h2 id="agent-tooling">Agent Tooling</h2>
+<p>Offline commands for agent-driven config validation and repair:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze config validate --json &lt;file&gt;</code></td>
+<td>Structured diagnostics with stable codes</td>
+</tr>
+<tr>
+<td><code>ze explain [--json] &lt;code&gt;</code></td>
+<td>Explain a diagnostic code</td>
+</tr>
+<tr>
+<td><code>ze config fix --plan --json &lt;file&gt;</code></td>
+<td>Plan-only repair candidates</td>
+</tr>
+<tr>
+<td><code>ze skills list [--json]</code></td>
+<td>List bundled agent skills</td>
+</tr>
+<tr>
+<td><code>ze skills get &lt;name&gt; [--full]</code></td>
+<td>Load version-matched skill content</td>
+</tr>
+</tbody>
+</table>
+<p>These commands do not require a running daemon. Agents use them to validate
+and fix config before committing.</p>
+<h2 id="testing">Testing</h2>
+<!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
+<!-- source: test/plugin/mcp-announce.ci -- MCP functional test -->
+
+<p><code>ze-test mcp</code> is an MCP client for functional tests. It reads commands from
+stdin and sends them to the MCP endpoint.</p>
+<pre><code class="language-bash"># Start daemon with MCP
+ze --mcp 8080 config.conf &amp;
+
+# Send commands
+echo 'wait-established
+peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24' | ze-test mcp --port 8080
+</code></pre>
+<p>Special stdin directives:</p>
+<table>
+<thead>
+<tr>
+<th>Directive</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code># comment</code></td>
+<td>Ignored</td>
+</tr>
+<tr>
+<td><code>wait &lt;duration&gt;</code></td>
+<td>Pause (e.g. <code>wait 2s</code>)</td>
+</tr>
+<tr>
+<td><code>wait-established</code></td>
+<td>Poll until a BGP peer is Established</td>
+</tr>
+<tr>
+<td><code>@tool_name {json}</code></td>
+<td>Call a specific MCP tool with JSON arguments</td>
+</tr>
+<tr>
+<td><code>&lt;command&gt;</code></td>
+<td>Run via <code>ze_execute</code></td>
+</tr>
+<tr>
+<td><code>task-call &lt;tool&gt; &lt;json&gt;</code></td>
+<td>Call tool with <code>task:{}</code>, print taskId</td>
+</tr>
+<tr>
+<td><code>task-get &lt;id&gt;</code></td>
+<td>Get task status</td>
+</tr>
+<tr>
+<td><code>task-result &lt;id&gt;</code></td>
+<td>Get completed task result</td>
+</tr>
+<tr>
+<td><code>task-cancel &lt;id&gt;</code></td>
+<td>Cancel a running task</td>
+</tr>
+<tr>
+<td><code>task-list</code></td>
+<td>List task IDs for current identity</td>
+</tr>
+<tr>
+<td><code>task-wait &lt;id&gt; &lt;state&gt;</code></td>
+<td>Poll until task reaches state</td>
+</tr>
+<tr>
+<td><code>sse-listen</code></td>
+<td>Open the standalone <code>GET /mcp</code> SSE stream (server-initiated frames)</td>
+</tr>
+<tr>
+<td><code>sse-expect &lt;method&gt;</code></td>
+<td>Wait for a server-initiated frame with that JSON-RPC method, print it</td>
+</tr>
+</tbody>
+</table>
+<p><code>$LAST</code> substitutes the most recent directive output (e.g., taskId from <code>task-call</code>).
+Pass <code>--tasks</code> to declare <code>capabilities.tasks={}</code> at initialize.</p>
+<p>Example using typed tools:</p>
+<pre><code>wait-established
+@ze_announce {&quot;family&quot;:&quot;ipv4/unicast&quot;,&quot;origin&quot;:&quot;igp&quot;,&quot;next-hop&quot;:&quot;1.1.1.1&quot;,&quot;prefixes&quot;:[&quot;10.0.0.0/24&quot;]}
+@ze_peers {}
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

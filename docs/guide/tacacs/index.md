@@ -89,9 +89,18 @@ entries.
 | 0  | minimal access | rarely used; map only if the upstream server returns it |
 | 2-14 | site-defined | only map the levels your TACACS+ server actually returns |
 
-Levels not present in `tacacs-profile` reject the login. Look for
-`TACACS+ unmapped privilege level` in the daemon log when extending the
-upstream config.
+Levels not present in `tacacs-profile`, and levels mapped to an empty profile
+list, reject the login. Look for `TACACS+ unmapped privilege level` in the daemon
+log when extending the upstream config. A TACACS+ user therefore always reaches
+authorization with at least one resolved profile, or does not authenticate at
+all: there is no path where an authenticated TACACS+ user has no profile.
+
+Even so, authorization fails closed at the second layer: if a session ever reaches
+authorization resolving no applicable profile, every command is denied rather than
+allowed. A priv-level whose mapping names only profiles you have not defined
+resolves nothing and is denied, not granted admin. Local break-glass accounts
+(the `ze init` bootstrap admin, or any `system.authentication.user` you keep) are
+the way back into a box whose mapping is wrong.
 
 ### What the mapped profiles govern
 

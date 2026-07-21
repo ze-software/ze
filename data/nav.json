@@ -48,6 +48,7 @@
                     {"href": "docs/features/configuration/", "icon": "⚙️", "title": "Configuration", "desc": "YANG-modeled, one model for everything"},
                     {"href": "docs/features/cli-commands/", "icon": "⌨️", "title": "CLI Commands", "desc": "SSH CLI with diff, commit, and history"},
                     {"href": "docs/architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together"}
+                    ,{"href": "docs/plugin-development/", "icon": "🧩", "title": "Plugin Development", "desc": "Build in-process and external Ze plugins"}
                 ],
                 [
                     {"label_only": "Operate"},
@@ -55,6 +56,10 @@
                     {"href": "docs/guide/monitoring/", "icon": "📈", "title": "Monitoring", "desc": "Metrics, health, and operational visibility"},
                     {"href": "docs/guide/vpp/", "icon": "📦", "title": "VPP Dataplane", "desc": "FIB, traffic, and firewall via VPP"},
                     {"href": "docs/guide/looking-glass-howto/", "icon": "🔭", "title": "Looking Glass", "desc": "Publish read-only BGP visibility"}
+                    ,{"href": "docs/guide/bgp-peering/", "icon": "🌐", "title": "BGP Peering", "desc": "Groups, families, capabilities, limits, and checks"}
+                    ,{"href": "docs/guide/bgp-policy/", "icon": "🧱", "title": "BGP Policy", "desc": "Import, export, validation, and redistribution"}
+                    ,{"href": "docs/guide/bgp-resilience/", "icon": "♻️", "title": "BGP Resilience", "desc": "Refresh, restart, persistence, and reflection"}
+                    ,{"href": "docs/guide/lifecycle/", "icon": "🔄", "title": "Lifecycle and Rollback", "desc": "Start, reload, update, recover, and verify"}
                 ],
                 [
                     {"label_only": "Access and mitigation"},
@@ -65,6 +70,13 @@
                     {"href": "docs/guide/ddos-mitigation/", "icon": "🚨", "title": "DDoS Mitigation", "desc": "Detect floods and respond locally or upstream"},
                     {"href": "docs/guide/anomaly/", "icon": "🔎", "title": "Anomaly Detection", "desc": "Behavioural baselines with shadow-first response"},
                     {"href": "docs/guide/ipsec/", "icon": "🔒", "title": "Native IPsec", "desc": "IKEv2 initiator and responder tunnels"}
+                ]
+                ,[
+                    {"label_only": "Automate and extend"},
+                    {"href": "docs/guide/api/", "icon": "🔌", "title": "REST and gRPC", "desc": "Commands, config sessions, authentication, and streaming"},
+                    {"href": "docs/guide/gnmi/", "icon": "🧬", "title": "gNMI", "desc": "YANG Get, Set, Subscribe, TLS, and metrics"},
+                    {"href": "docs/guide/web-interface/", "icon": "🖥️", "title": "Web Interface", "desc": "Configuration workbench, commands, and live state"},
+                    {"href": "docs/guide/fleet-config/", "icon": "🗂️", "title": "Fleet Management", "desc": "Managed config, TLS hub, caching, and reconnect"}
                 ]
             ]
         },
@@ -77,6 +89,9 @@
                     {"href": "usage/as112/", "icon": "112", "title": "AS112 Anycast DNS", "desc": "Ze as an AS112 DNS server with real router peers"},
                     {"href": "usage/exabgp-migration/", "icon": "🔀", "title": "ExaBGP Migration", "desc": "A practical path from ExaBGP process scripts"},
                     {"href": "usage/bgp-performance/", "icon": "⚡", "title": "BGP performance tests", "desc": "Route-server performance tests with Ze"}
+                    ,{"href": "usage/route-server/", "icon": "🔀", "title": "IXP Route Server", "desc": "Member policy, RPKI validation, and replay"}
+                    ,{"href": "usage/transit-edge-rpki/", "icon": "🔏", "title": "Transit Edge with RPKI", "desc": "Dual-transit policy and tested failover"}
+                    ,{"href": "usage/flowspec-injection/", "icon": "🛡️", "title": "FlowSpec Injection", "desc": "Authorised, atomic, reversible mitigation routes"}
                 ],
                 [
                     {"label_only": "Runnable labs"},
@@ -92,6 +107,8 @@
                     {"href": "labs/appliance-install/", "icon": "💿", "title": "Appliance Installer", "desc": "HTTP/PXE, ISO, Ventoy, and real boots"},
                     {"href": "labs/looking-glass-graph/", "icon": "🔭", "title": "Looking Glass Graph", "desc": "Realistic UK topology, real external ASNs"},
                     {"href": "labs/vlan-qos/", "icon": "🏷️", "title": "VLAN QoS", "desc": "802.1p PCP tagging, actually on the wire"}
+                    ,{"href": "usage/chaos-tested-peering/", "icon": "🧪", "title": "Chaos-Tested Peering", "desc": "Deterministic faults, properties, replay, and shrink"}
+                    ,{"href": "usage/as-path-topology/", "icon": "🕸️", "title": "AS-Path Topology", "desc": "Investigate path visibility in the Looking Glass"}
                 ]
             ]
         },
@@ -104,6 +121,13 @@
                     {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "%(config_sections)s sections, indexed from live YANG"},
                     {"href": "command-equivalents/", "icon": "↔️", "title": "Command Equivalents", "desc": "Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS"},
                     {"href": "docs/features/rfc-status/", "icon": "📜", "title": "RFC Status", "desc": "Implemented RFCs, partial support, and known gaps"}
+                ]
+                ,[
+                    {"label_only": "Written references"},
+                    {"href": "docs/glossary/", "icon": "📖", "title": "Glossary", "desc": "Routing, policy, configuration, and testing terms"},
+                    {"href": "docs/architecture/config/deprecated-options/", "icon": "🗑️", "title": "Deprecated Options", "desc": "Removed configuration syntax and replacements"},
+                    {"href": "docs/history/", "icon": "🕰️", "title": "Project History", "desc": "How ExaBGP's programmable model grew into Ze"},
+                    {"href": "docs/contributing/testing/", "icon": "✅", "title": "Contributor Testing", "desc": "Choose and run the right proof layer"}
                 ]
             ]
         },

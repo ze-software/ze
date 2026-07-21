@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=1211addb1c" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=079eb640b0" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -112,7 +112,7 @@
 <tr>
 <td>Service healthcheck</td>
 <td><code>bgp-healthcheck</code> + <code>bgp-watchdog</code></td>
-<td>Monitor services, control route announcement via MED or withdraw. <a href="https://github.com/ze-software/ze/blob/main/docs/guide/healthcheck.md" target="_blank" rel="noopener">Guide</a></td>
+<td>Monitor services, control route announcement via MED or withdraw. <a href="../healthcheck/">Guide</a></td>
 </tr>
 <tr>
 <td>Monitor only (no RIB)</td>
@@ -745,7 +745,7 @@ changes and re-asserts ze routes when overwritten.</p>
 <p>Plugins can declare named filters at stage 1 for import and/or export filtering.
 Each filter specifies which attributes it needs, and the engine sends only those
 attributes as text for each UPDATE. Filters respond accept, reject, or modify
-(delta-only). See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/redistribution.md" target="_blank" rel="noopener">Route Filters</a> for configuration.</p>
+(delta-only). See <a href="../redistribution/">Route Filters</a> for configuration.</p>
 <p>A single plugin can offer multiple named filters. Config references them as
 <code>&lt;plugin&gt;:&lt;filter&gt;</code> (e.g., <code>rpki:validate</code>, <code>community:scrub</code>).</p>
 <table>
@@ -1063,7 +1063,7 @@ while True:
         # process event JSON
         pass
 </code></pre>
-<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/plugin-development/protocol.md" target="_blank" rel="noopener">plugin-development/protocol.md</a> for the full protocol reference.</p>
+<p>See <a href="../../plugin-development/protocol/">plugin-development/protocol.md</a> for the full protocol reference.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
 <!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
 
