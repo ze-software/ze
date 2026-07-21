@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"log/slog"
 	"net/netip"
 	"sort"
 	"unsafe"
@@ -136,8 +137,21 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		return ingressStepResult{accept: true}
 	}
 	filters := peer.settings.ImportFilters
-	if len(filters) == 0 || r.api == nil {
+	// No import policy configured is a legitimate accept (an absent precondition,
+	// not a guard miss): nothing to run.
+	if len(filters) == 0 {
 		return ingressStepResult{accept: true}
+	}
+	// Import filters configured but the API server (the filter engine that
+	// enforces them) is absent: a guard MISS, not an accept. An import filter is
+	// a guard whose purpose is to reject (it can be security/ACL policy), so
+	// silently accepting unfiltered inbound routes is the fail-open. Deny AND
+	// speak, matching policyFilterFunc (filter_chain.go:368-371: Warn +
+	// PolicyReject) and the export side (egress_inject_filter.go). See
+	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-4).
+	if r.api == nil {
+		slog.Warn("import filter: no API server -- fail-closed", "peer", peerAddr.String())
+		return ingressStepResult{} // accept == false: drop the route
 	}
 
 	attrsWire, _ := wireUpdate.Attrs()
@@ -193,7 +207,11 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
 func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate) egressStepResult {
-	if len(exportFilters) == 0 || r.api == nil {
+	// No export policy configured is a legitimate accept (an absent precondition,
+	// not a guard miss). The r.api == nil MISS (with filters present) is handled
+	// by the shared body runEgressPolicyChainASN4, so the fail-closed guard lives
+	// in exactly one place and never double-warns.
+	if len(exportFilters) == 0 {
 		return egressStepResult{accept: true}
 	}
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
@@ -219,8 +237,25 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 // originated one silently dropped every FilterModify text delta, leaking
 // RFC 6996 private ASNs to EBGP peers (spec-fixit-private-asn-leak).
 func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
-	if len(exportFilters) == 0 || r.api == nil {
+	// No export policy configured is a legitimate accept (an absent precondition,
+	// not a guard miss): nothing to run.
+	if len(exportFilters) == 0 {
 		return egressStepResult{accept: true}
+	}
+	// Export filters configured but the API server (the filter engine that
+	// enforces them) is absent: a guard MISS, not an accept. An export chain is a
+	// guard whose purpose is to reject; silently accepting sends the route
+	// UNFILTERED and leaks whatever the policy exists to strip (e.g. RFC 6996
+	// private ASNs). Deny AND speak, matching policyFilterFunc
+	// (filter_chain.go:368-371: Warn + PolicyReject) and exportFilterForBody
+	// (egress_inject_filter.go). This is the shared body BOTH egress paths reach
+	// (forwardUpdateCore via runEgressPolicyChain, and exportFilterForBody -- the
+	// latter guards r.api itself first, so this branch fires for the forwarded
+	// path and is defense-in-depth for the originated one). See
+	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1).
+	if r.api == nil {
+		slog.Warn("export filter: no API server -- fail-closed", "peer", destAddrStr)
+		return egressStepResult{} // accept == false: suppress route for this peer
 	}
 	attrsWire, attrErr := wireUpdate.Attrs()
 	if attrErr != nil {

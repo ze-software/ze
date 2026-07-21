@@ -376,3 +376,39 @@ N/A — no wire protocol change (the point is that routes stop reaching the wire
 ## Known Limitations
 - Reachability for reactors constructed outside `StartWithContext` is not established (A-2).
 - This spec does not fix the inverted bind/start ordering at `reactor.go:1006-1017`; it only records that the `r.mu` barrier is load-bearing and undocumented (R-2).
+
+## Implementation Summary
+
+Split the three fused fail-open guards `if len(filters) == 0 || r.api == nil { accept }`
+into a `len==0` legitimate-accept (AC-2) followed by an `r.api == nil` Warn + SUPPRESS
+(AC-1/AC-4), matching the precedents `filter_chain.go:368-371` / `peer_initial_sync.go:718-722`:
+`runEgressPolicyChainASN4` (`filter_ordered.go:242/:256`), the thin `runEgressPolicyChain`
+(`:214/:220`), ingress `runIngressPolicyChain` (`:142/:152`). `SetPluginServerAny`
+(`reactor.go:588`) now `slog.Error`s (naming the type) and returns on a failed
+`*pluginserver.Server` assertion instead of silently leaving api nil (AC-3). Deviation:
+bare `slog.Warn`/`slog.Error`, not `reactorLogger()` — verified `slogutil.Logger()` builds its
+own stderr handler, so only the bare-slog path is capturable and consistent with the committed
+`exportFilterForBody`/`api_sync.go` (spec's AC-3 "routes through slog default" claim was wrong).
+AC-5: the ~10 `&Reactor{}` nil-api tests set NO filters (hit `len==0` accept or the
+`len(orderedEgressSteps)>0` gate), so none silently flip to denied-green; new tests drive the
+chain entry point with filters present + nil api. AC-6 sweep: every reactor `r.api==nil` site
+fails closed / speaks. Deferrals rows 106 (R1) + 126 (functional-proof) resolved -> learned 1236.
+
+## Review Gate
+
+### Run 1 (closure — independent adversarial review, 2026-07-21)
+
+**Verdict: CLEAN — 0 BLOCKER, 0 ISSUE, 0 NOTE.** Independent review verified all 7 points:
+(1) fail-closed complete, no residual accept path — all 4 live entry points
+(`reactor_api_forward.go:500`, `reactor_notify.go:424`, `peer_run.go:201`,
+`egress_inject_filter.go:76`) route through a guarded function; (2) no false-deny (`len==0`
+accepts BEFORE the api check at every site); (3) AC-5 crux holds — the existing nil-api tests
+are genuinely filter-free and double-protected by the `len(orderedEgressSteps)>0` gate, none
+flips to denied-green; (4) new tests non-vacuous (RED-before real: old fused guard returned
+`accept:true` with no warn); (5) `SetPluginServerAny` speaks, sole caller passes a real
+`*Server` so nothing depended on the silent no-op; (6) logger choice sound and consistent
+(bare slog routes through `slog.Default`, emitted in production + capturable); (7) AC-6 sweep
+clean, no silent permissive security branch survives. `go test` (reactor) + `-race` + `go vet`
+all green.
+
+Gate satisfied: last run 0 BLOCKER, 0 ISSUE.

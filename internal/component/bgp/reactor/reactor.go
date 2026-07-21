@@ -23,9 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"net/netip"
+	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
@@ -584,9 +586,13 @@ func (r *Reactor) SetPluginServer(s *pluginserver.Server) {
 // SetPluginServerAny is like SetPluginServer but accepts any, type-asserting
 // to *pluginserver.Server. Used by bgp/plugin to avoid importing plugin/server.
 func (r *Reactor) SetPluginServerAny(s any) {
-	if srv, ok := s.(*pluginserver.Server); ok {
-		r.api = srv
+	srv, ok := s.(*pluginserver.Server)
+	if !ok {
+		slog.Error("SetPluginServerAny: expected *pluginserver.Server, got a different type; api left unset",
+			"type", reflect.TypeOf(s))
+		return
 	}
+	r.api = srv
 }
 
 // SetEventBus sets the namespaced EventBus for cross-component notifications.

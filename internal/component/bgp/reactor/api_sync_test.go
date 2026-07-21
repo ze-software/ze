@@ -287,12 +287,16 @@ func TestAPISyncConcurrent(t *testing.T) {
 type warnRecorder struct {
 	mu    sync.Mutex
 	peers []string
+	msgs  []string
 }
 
 func (h *warnRecorder) Enabled(_ context.Context, l slog.Level) bool { return l >= slog.LevelWarn }
 
 //nolint:gocritic // hugeParam: slog.Handler's interface takes slog.Record by value.
 func (h *warnRecorder) Handle(_ context.Context, rec slog.Record) error {
+	h.mu.Lock()
+	h.msgs = append(h.msgs, rec.Message)
+	h.mu.Unlock()
 	rec.Attrs(func(a slog.Attr) bool {
 		if a.Key == "peer" {
 			h.mu.Lock()
@@ -311,6 +315,14 @@ func (h *warnRecorder) warnedPeers() []string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return append([]string(nil), h.peers...)
+}
+
+// messages returns the recorded Warn+ log messages (a copy). Used by tests that
+// assert a miss spoke but carry no "peer" attribute (e.g. SetPluginServerAny).
+func (h *warnRecorder) messages() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]string(nil), h.msgs...)
 }
 
 // armAPISyncPeer adds a peer on the given port, arms its per-session API sync for

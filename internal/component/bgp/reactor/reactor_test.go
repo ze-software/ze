@@ -2476,3 +2476,29 @@ func TestEmitCongestionEvent_CallbacksWired(t *testing.T) {
 	assert.NotNil(t, r.fwdPool.onCongested, "onCongested callback should be wired")
 	assert.NotNil(t, r.fwdPool.onResumed, "onResumed callback should be wired")
 }
+
+// TestSetPluginServerAnyWrongTypeLogsAndDoesNotSilentlyLeaveNil verifies the
+// producer of a nil api speaks instead of silently no-oping on a failed type
+// assertion. SetPluginServerAny is the one plausible producer of a nil api in a
+// reactor that otherwise started fine (reactor.go:586, sole caller register.go).
+//
+// VALIDATES: AC-3. Handed a non-*pluginserver.Server it logs (the miss is made
+// explicit at the producer, per fail-closed-guards.md "make the miss explicit at
+// the producer") and does not set api to a bogus value.
+// PREVENTS: a wiring bug (wrong concrete type from bgp/plugin) silently leaving
+// r.api nil, feeding the now-fail-closed egress/ingress guards forever with no
+// explanation of why every filtered route is being suppressed.
+// captureWarnPeers lives in egress_inject_filter_test.go.
+func TestSetPluginServerAnyWrongTypeLogsAndDoesNotSilentlyLeaveNil(t *testing.T) {
+	rec := captureWarnPeers(t)
+
+	r := &Reactor{}
+	require.Nil(t, r.api, "precondition: api starts nil")
+
+	r.SetPluginServerAny("not a plugin server") // wrong type: a plain string
+
+	require.Nil(t, r.api,
+		"a wrong-type argument must not set api to a bogus value")
+	require.NotEmpty(t, rec.messages(),
+		"a failed type assertion must be logged (fail-closed 'or say something'), not a silent no-op")
+}
