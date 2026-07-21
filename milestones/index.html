@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Milestones - Ze</title>
-        <meta name="description" content="The landmark features Ze has shipped, oldest first: one node per capability the first time it arrived, on a timeline." />
+        <meta name="description" content="The landmark features Ze has shipped, newest first: one node per capability the first time it arrived, on a timeline." />
         <meta property="og:title" content="Milestones - Ze" />
-        <meta property="og:description" content="The landmark features Ze has shipped, oldest first: one node per capability the first time it arrived, on a timeline." />
+        <meta property="og:description" content="The landmark features Ze has shipped, newest first: one node per capability the first time it arrived, on a timeline." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,16 +14,17 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Milestones - Ze" />
-        <meta name="twitter:description" content="The landmark features Ze has shipped, oldest first: one node per capability the first time it arrived, on a timeline." />
+        <meta name="twitter:description" content="The landmark features Ze has shipped, newest first: one node per capability the first time it arrived, on a timeline." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="../assets/site.css?v=1211addb1c" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <style>
             .tl-quarter { margin: 0 0 0.5rem; }
             .tl-quarter-head {
@@ -111,7 +112,6 @@
                 .tl-node { left: -1.4rem; }
             }
         </style>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -123,7 +123,7 @@
                 <div class="section-head journey-hero reveal">
                     <span class="journey-eyebrow">Timeline</span>
                     <h1 id="milestones-title">The road so far.</h1>
-                    <p>23 milestones, oldest first. The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Oldest first, color-coded by category.</p>
+                    <p>23 milestones, newest first. The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each node's color is its category. This is the coarse view: the <a href="../changes/">Changes</a> log has every week, and <a href="../features/">Features</a> lists what ships today. Click a category to filter, click again to show everything.</p>
@@ -141,143 +141,18 @@
 
             <section class="reveal" aria-label="Milestone timeline">
                 <div class="tl-quarter" data-quarter>
-                    <h2 class="tl-quarter-head">Q4 2025</h2>
+                    <h2 class="tl-quarter-head">Q3 2026</h2>
                     <ol class="tl-list">
                     <li class="tl-item cat-routing" data-cat="routing">
                         <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2025-12-15">Dec 2025</time></div>
+                        <div class="tl-date"><time datetime="2026-07-13">Jul 2026</time></div>
                         <div class="tl-card">
                             <div class="tl-head">
-                                <h3 class="tl-title">BGP engine</h3>
+                                <h3 class="tl-title">VRRP first-hop redundancy</h3>
                                 <span class="tl-cat">routing</span>
                             </div>
-                            <p>The foundational BGP speaker lands: wire-format codec, every message type, capability negotiation, path attributes, a RIB, and the finite state machine, tested against ExaBGP from day one.</p>
-                            <a class="tl-link" href="../changes/2025-12-15/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-operate" data-cat="operate">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2025-12-15">Dec 2025</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">Config model and CLI editor</h3>
-                                <span class="tl-cat">operate</span>
-                            </div>
-                            <p>A schema-driven configuration parser with ExaBGP-compatible syntax, wired straight to the reactor, plus an interactive CLI editor with autocomplete.</p>
-                            <a class="tl-link" href="../changes/2025-12-15/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    </ol>
-                </div>
-                <div class="tl-quarter" data-quarter>
-                    <h2 class="tl-quarter-head">Q1 2026</h2>
-                    <ol class="tl-list">
-                    <li class="tl-item cat-automate" data-cat="automate">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-01-12">Jan 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">ExaBGP migration path</h3>
-                                <span class="tl-cat">automate</span>
-                            </div>
-                            <p><code>exabgp migrate</code> converts ExaBGP configs to Ze's format, and a bridge runs existing ExaBGP process plugins under Ze, translating JSON and commands both ways.</p>
-                            <a class="tl-link" href="../changes/2026-01-12/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-platform" data-cat="platform">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-01-19">Jan 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">Hub architecture and Plugin SDK</h3>
-                                <span class="tl-cat">platform</span>
-                            </div>
-                            <p>Ze splits into a hub orchestrator that forks BGP as a child process, gains live config reload over SIGHUP, and ships a documented SDK for writing plugins outside the core tree.</p>
-                            <a class="tl-link" href="../changes/2026-01-19/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-routing" data-cat="routing">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-02-23">Feb 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">BGP Route Server</h3>
-                                <span class="tl-cat">routing</span>
-                            </div>
-                            <p>A forward-all Route Server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.</p>
-                            <a class="tl-link" href="../changes/2026-02-23/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-routing" data-cat="routing">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-03-02">Mar 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">Best-path selection</h3>
-                                <span class="tl-cat">routing</span>
-                            </div>
-                            <p>On-demand best-path selection in the RIB, covering LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP/iBGP preference, and the full tiebreak chain (RFC 4271 section 9.1.2).</p>
-                            <a class="tl-link" href="../changes/2026-03-02/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-secure" data-cat="secure">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-03-09">Mar 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">SSH CLI, TCP-MD5, and RBAC</h3>
-                                <span class="tl-cat">secure</span>
-                            </div>
-                            <p>An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorization.</p>
-                            <a class="tl-link" href="../changes/2026-03-09/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-secure" data-cat="secure">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-03-16">Mar 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">RPKI origin validation</h3>
-                                <span class="tl-cat">secure</span>
-                            </div>
-                            <p>A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes arrive on the adjacency RIB-in path, not after the fact.</p>
-                            <a class="tl-link" href="../changes/2026-03-16/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-operate" data-cat="operate">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-03-23">Mar 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">Web interface</h3>
-                                <span class="tl-cat">operate</span>
-                            </div>
-                            <p>A browser-based config editor with YANG-driven rendering, per-user drafts, inline diffs, live SSE updates, and a light/dark theme, started with <code>ze start --web</code>.</p>
-                            <a class="tl-link" href="../changes/2026-03-23/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-automate" data-cat="automate">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-03-23">Mar 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">MCP server for AI operations</h3>
-                                <span class="tl-cat">automate</span>
-                            </div>
-                            <p>An MCP server exposing tools for AI-assisted BGP operations: announce, withdraw, peer status, peer control, and command execution.</p>
-                            <a class="tl-link" href="../changes/2026-03-23/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-platform" data-cat="platform">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-03-30">Mar 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">Interfaces and kernel FIB</h3>
-                                <span class="tl-cat">platform</span>
-                            </div>
-                            <p>A JunOS-style interface management subsystem (netlink monitoring, DHCP, SLAAC) and a FIB pipeline that installs best-path routes into the kernel via netlink.</p>
-                            <a class="tl-link" href="../changes/2026-03-30/">Read the week &rarr;</a>
+                            <p>First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU.</p>
+                            <a class="tl-link" href="../changes/2026-07-13/">Read the week &rarr;</a>
                         </div>
                     </li>
                     </ol>
@@ -285,28 +160,76 @@
                 <div class="tl-quarter" data-quarter>
                     <h2 class="tl-quarter-head">Q2 2026</h2>
                     <ol class="tl-list">
-                    <li class="tl-item cat-routing" data-cat="routing">
+                    <li class="tl-item cat-secure" data-cat="secure">
                         <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-04-06">Apr 2026</time></div>
+                        <div class="tl-date"><time datetime="2026-06-25">Jun 2026</time></div>
                         <div class="tl-card">
                             <div class="tl-head">
-                                <h3 class="tl-title">BFD liveness detection</h3>
+                                <h3 class="tl-title">DDoS auto-mitigation</h3>
+                                <span class="tl-cat">secure</span>
+                            </div>
+                            <p>Control-plane survival under attack: GTSM/TTL-security (RFC 5082), CoPP policing on TCP/179, and automatic DDoS detection with attack-characterized auto-mitigation.</p>
+                            <a class="tl-link" href="../changes/2026-06-25/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-routing" data-cat="routing">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-06-22">Jun 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">OSPFv2 / OSPFv3</h3>
                                 <span class="tl-cat">routing</span>
                             </div>
-                            <p>A complete BFD implementation (RFC 5880/5881/5883): single- and multi-hop, authentication, echo mode, BGP session opt-in, and operator visibility.</p>
-                            <a class="tl-link" href="../changes/2026-04-06/">Read the week &rarr;</a>
+                            <p>A unified OSPFv2/OSPFv3 engine with IPv6 interop coverage and live SSE state views in the web UI.</p>
+                            <a class="tl-link" href="../changes/2026-06-22/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-routing" data-cat="routing">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-06-15">Jun 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Native IS-IS</h3>
+                                <span class="tl-cat">routing</span>
+                            </div>
+                            <p>A native IS-IS link-state IGP (ISO/IEC 10589, RFC 1195): full PDU/TLV codec, adjacency FSM, LSDB flooding, DIS election, and SPF with ECMP, interop-tested against FRR's isisd.</p>
+                            <a class="tl-link" href="../changes/2026-06-15/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-routing" data-cat="routing">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-05-25">May 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">MPLS label switching</h3>
+                                <span class="tl-cat">routing</span>
+                            </div>
+                            <p>Label switching across three layers, verified in QEMU against FRR: a kernel MPLS dataplane, LDP (RFC 5036), and RSVP-TE.</p>
+                            <a class="tl-link" href="../changes/2026-05-25/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-secure" data-cat="secure">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-05-18">May 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">IPsec / IKEv2 VPN</h3>
+                                <span class="tl-cat">secure</span>
+                            </div>
+                            <p>A native IKEv2 VPN stack built from the wire format up and interop-tested against strongSwan: child SA negotiation, EAP, NAT-T, and route-based VPN via XFRM.</p>
+                            <a class="tl-link" href="../changes/2026-05-18/">Read the week &rarr;</a>
                         </div>
                     </li>
                     <li class="tl-item cat-platform" data-cat="platform">
                         <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-04-06">Apr 2026</time></div>
+                        <div class="tl-date"><time datetime="2026-05-04">May 2026</time></div>
                         <div class="tl-card">
                             <div class="tl-head">
-                                <h3 class="tl-title">gokrazy appliance build</h3>
+                                <h3 class="tl-title">Appliance fleet management</h3>
                                 <span class="tl-cat">platform</span>
                             </div>
-                            <p>The first gokrazy VM appliance build for x86_64: the start of Ze shipping as a self-contained appliance image, not just a daemon.</p>
-                            <a class="tl-link" href="../changes/2026-04-06/">Read the week &rarr;</a>
+                            <p><code>ze appliance</code> manages images end to end: encrypted secrets, TLS and SSH provisioning, day-2 operations, remote push, and export/import for disaster recovery.</p>
+                            <a class="tl-link" href="../changes/2026-05-04/">Read the week &rarr;</a>
                         </div>
                     </li>
                     <li class="tl-item cat-services" data-cat="services">
@@ -345,93 +268,170 @@
                             <a class="tl-link" href="../changes/2026-04-13/">Read the week &rarr;</a>
                         </div>
                     </li>
+                    <li class="tl-item cat-routing" data-cat="routing">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-04-06">Apr 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">BFD liveness detection</h3>
+                                <span class="tl-cat">routing</span>
+                            </div>
+                            <p>A complete BFD implementation (RFC 5880/5881/5883): single- and multi-hop, authentication, echo mode, BGP session opt-in, and operator visibility.</p>
+                            <a class="tl-link" href="../changes/2026-04-06/">Read the week &rarr;</a>
+                        </div>
+                    </li>
                     <li class="tl-item cat-platform" data-cat="platform">
                         <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-05-04">May 2026</time></div>
+                        <div class="tl-date"><time datetime="2026-04-06">Apr 2026</time></div>
                         <div class="tl-card">
                             <div class="tl-head">
-                                <h3 class="tl-title">Appliance fleet management</h3>
+                                <h3 class="tl-title">gokrazy appliance build</h3>
                                 <span class="tl-cat">platform</span>
                             </div>
-                            <p><code>ze appliance</code> manages images end to end: encrypted secrets, TLS and SSH provisioning, day-2 operations, remote push, and export/import for disaster recovery.</p>
-                            <a class="tl-link" href="../changes/2026-05-04/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-secure" data-cat="secure">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-05-18">May 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">IPsec / IKEv2 VPN</h3>
-                                <span class="tl-cat">secure</span>
-                            </div>
-                            <p>A native IKEv2 VPN stack built from the wire format up and interop-tested against strongSwan: child SA negotiation, EAP, NAT-T, and route-based VPN via XFRM.</p>
-                            <a class="tl-link" href="../changes/2026-05-18/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-routing" data-cat="routing">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-05-25">May 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">MPLS label switching</h3>
-                                <span class="tl-cat">routing</span>
-                            </div>
-                            <p>Label switching across three layers, verified in QEMU against FRR: a kernel MPLS dataplane, LDP (RFC 5036), and RSVP-TE.</p>
-                            <a class="tl-link" href="../changes/2026-05-25/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-routing" data-cat="routing">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-06-15">Jun 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">Native IS-IS</h3>
-                                <span class="tl-cat">routing</span>
-                            </div>
-                            <p>A native IS-IS link-state IGP (ISO/IEC 10589, RFC 1195): full PDU/TLV codec, adjacency FSM, LSDB flooding, DIS election, and SPF with ECMP, interop-tested against FRR's isisd.</p>
-                            <a class="tl-link" href="../changes/2026-06-15/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-routing" data-cat="routing">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-06-22">Jun 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">OSPFv2 / OSPFv3</h3>
-                                <span class="tl-cat">routing</span>
-                            </div>
-                            <p>A unified OSPFv2/OSPFv3 engine with IPv6 interop coverage and live SSE state views in the web UI.</p>
-                            <a class="tl-link" href="../changes/2026-06-22/">Read the week &rarr;</a>
-                        </div>
-                    </li>
-                    <li class="tl-item cat-secure" data-cat="secure">
-                        <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-06-25">Jun 2026</time></div>
-                        <div class="tl-card">
-                            <div class="tl-head">
-                                <h3 class="tl-title">DDoS auto-mitigation</h3>
-                                <span class="tl-cat">secure</span>
-                            </div>
-                            <p>Control-plane survival under attack: GTSM/TTL-security (RFC 5082), CoPP policing on TCP/179, and automatic DDoS detection with attack-characterized auto-mitigation.</p>
-                            <a class="tl-link" href="../changes/2026-06-25/">Read the week &rarr;</a>
+                            <p>The first gokrazy VM appliance build for x86_64: the start of Ze shipping as a self-contained appliance image, not just a daemon.</p>
+                            <a class="tl-link" href="../changes/2026-04-06/">Read the week &rarr;</a>
                         </div>
                     </li>
                     </ol>
                 </div>
                 <div class="tl-quarter" data-quarter>
-                    <h2 class="tl-quarter-head">Q3 2026</h2>
+                    <h2 class="tl-quarter-head">Q1 2026</h2>
+                    <ol class="tl-list">
+                    <li class="tl-item cat-platform" data-cat="platform">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-03-30">Mar 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Interfaces and kernel FIB</h3>
+                                <span class="tl-cat">platform</span>
+                            </div>
+                            <p>A JunOS-style interface management subsystem (netlink monitoring, DHCP, SLAAC) and a FIB pipeline that installs best-path routes into the kernel via netlink.</p>
+                            <a class="tl-link" href="../changes/2026-03-30/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-operate" data-cat="operate">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-03-23">Mar 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Web interface</h3>
+                                <span class="tl-cat">operate</span>
+                            </div>
+                            <p>A browser-based config editor with YANG-driven rendering, per-user drafts, inline diffs, live SSE updates, and a light/dark theme, started with <code>ze start --web</code>.</p>
+                            <a class="tl-link" href="../changes/2026-03-23/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-automate" data-cat="automate">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-03-23">Mar 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">MCP server for AI operations</h3>
+                                <span class="tl-cat">automate</span>
+                            </div>
+                            <p>An MCP server exposing tools for AI-assisted BGP operations: announce, withdraw, peer status, peer control, and command execution.</p>
+                            <a class="tl-link" href="../changes/2026-03-23/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-secure" data-cat="secure">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-03-16">Mar 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">RPKI origin validation</h3>
+                                <span class="tl-cat">secure</span>
+                            </div>
+                            <p>A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes arrive on the adjacency RIB-in path, not after the fact.</p>
+                            <a class="tl-link" href="../changes/2026-03-16/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-secure" data-cat="secure">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-03-09">Mar 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">SSH CLI, TCP-MD5, and RBAC</h3>
+                                <span class="tl-cat">secure</span>
+                            </div>
+                            <p>An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorization.</p>
+                            <a class="tl-link" href="../changes/2026-03-09/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-routing" data-cat="routing">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-03-02">Mar 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Best-path selection</h3>
+                                <span class="tl-cat">routing</span>
+                            </div>
+                            <p>On-demand best-path selection in the RIB, covering LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP/iBGP preference, and the full tiebreak chain (RFC 4271 section 9.1.2).</p>
+                            <a class="tl-link" href="../changes/2026-03-02/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-routing" data-cat="routing">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-02-23">Feb 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">BGP Route Server</h3>
+                                <span class="tl-cat">routing</span>
+                            </div>
+                            <p>A forward-all Route Server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.</p>
+                            <a class="tl-link" href="../changes/2026-02-23/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-platform" data-cat="platform">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-01-19">Jan 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Hub architecture and Plugin SDK</h3>
+                                <span class="tl-cat">platform</span>
+                            </div>
+                            <p>Ze splits into a hub orchestrator that forks BGP as a child process, gains live config reload over SIGHUP, and ships a documented SDK for writing plugins outside the core tree.</p>
+                            <a class="tl-link" href="../changes/2026-01-19/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-automate" data-cat="automate">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2026-01-12">Jan 2026</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">ExaBGP migration path</h3>
+                                <span class="tl-cat">automate</span>
+                            </div>
+                            <p><code>exabgp migrate</code> converts ExaBGP configs to Ze's format, and a bridge runs existing ExaBGP process plugins under Ze, translating JSON and commands both ways.</p>
+                            <a class="tl-link" href="../changes/2026-01-12/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    </ol>
+                </div>
+                <div class="tl-quarter" data-quarter>
+                    <h2 class="tl-quarter-head">Q4 2025</h2>
                     <ol class="tl-list">
                     <li class="tl-item cat-routing" data-cat="routing">
                         <span class="tl-node" aria-hidden="true"></span>
-                        <div class="tl-date"><time datetime="2026-07-13">Jul 2026</time></div>
+                        <div class="tl-date"><time datetime="2025-12-15">Dec 2025</time></div>
                         <div class="tl-card">
                             <div class="tl-head">
-                                <h3 class="tl-title">VRRP first-hop redundancy</h3>
+                                <h3 class="tl-title">BGP engine</h3>
                                 <span class="tl-cat">routing</span>
                             </div>
-                            <p>First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU.</p>
-                            <a class="tl-link" href="../changes/2026-07-13/">Read the week &rarr;</a>
+                            <p>The foundational BGP speaker lands: wire-format codec, every message type, capability negotiation, path attributes, a RIB, and the finite state machine, tested against ExaBGP from day one.</p>
+                            <a class="tl-link" href="../changes/2025-12-15/">Read the week &rarr;</a>
+                        </div>
+                    </li>
+                    <li class="tl-item cat-operate" data-cat="operate">
+                        <span class="tl-node" aria-hidden="true"></span>
+                        <div class="tl-date"><time datetime="2025-12-15">Dec 2025</time></div>
+                        <div class="tl-card">
+                            <div class="tl-head">
+                                <h3 class="tl-title">Config model and CLI editor</h3>
+                                <span class="tl-cat">operate</span>
+                            </div>
+                            <p>A schema-driven configuration parser with ExaBGP-compatible syntax, wired straight to the reactor, plus an interactive CLI editor with autocomplete.</p>
+                            <a class="tl-link" href="../changes/2025-12-15/">Read the week &rarr;</a>
                         </div>
                     </li>
                     </ol>

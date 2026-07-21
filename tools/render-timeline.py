@@ -6,7 +6,7 @@ Usage:
 
 Every milestone is data (data/milestones.json), not hand-authored HTML.
 The page is a vertical timeline of the landmark features Ze has shipped,
-oldest first, grouped by quarter and color-coded by the same seven
+newest first, grouped by quarter and color-coded by the same seven
 categories as the Features page (so a routing node reads tangerine, a
 secure node pink, and so on, straight from assets/site.css's cat-* vars).
 
@@ -45,10 +45,10 @@ def month_label(date):
 
 
 def grouped(milestones):
-    """Milestones in the data's order (oldest first), split into
-    (quarter_label, [milestone, ...]) groups, preserving order."""
+    """Milestones sorted newest first, split into
+    (quarter_label, [milestone, ...]) groups."""
     groups = []
-    for m in milestones:
+    for m in sorted(milestones, key=lambda item: item["date"], reverse=True):
         key, label = quarter_of(m["date"])
         if not groups or groups[-1][0] != key:
             groups.append((key, label, []))
@@ -178,7 +178,7 @@ def render(data):
     milestones = data["milestones"]
     count = len(milestones)
     desc = (
-        "The landmark features Ze has shipped, oldest first: one node per "
+        "The landmark features Ze has shipped, newest first: one node per "
         "capability the first time it arrived, on a timeline."
     )
     out = [sitelib.page_head(TITLE, desc, "../", extra_head=EXTRA_HEAD, page_key="milestones/")]
@@ -190,7 +190,7 @@ def render(data):
         '                    <h1 id="milestones-title">The road so far.</h1>'
     )
     out.append(
-        "                    <p>%d milestones, oldest first. %s</p>"
+        "                    <p>%d milestones, newest first. %s</p>"
         % (count, data["intro"])
     )
     out.append("                </div>")
