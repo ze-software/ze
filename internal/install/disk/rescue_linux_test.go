@@ -49,6 +49,12 @@ func TestRescueGateFailsClosedOnMalformedCmdlineValue(t *testing.T) {
 	}
 }
 
+// validRescueAuth is a well-formed "<saltHex>:<digestHex>" credential. The
+// original table used "abcd1234", which is NOT a valid credential in the
+// argon2id encoding, so it exercised the malformed case while claiming to
+// exercise the present case.
+const validRescueAuth = "5a65726573637565536f6c74303031ff:fed7b65bb317bc34097440c9bbd0a2ab3749edb8d88d3d37c94abe6cf62e399b"
+
 func TestFatalPolicyBranch(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -56,8 +62,8 @@ func TestFatalPolicyBranch(t *testing.T) {
 		source     string
 		want       fatalBranch
 	}{
-		{"credential present HTTP", "abcd1234", sourceHTTP, branchGated},
-		{"credential present ISO", "abcd1234", sourceISO, branchGated},
+		{"credential present HTTP", validRescueAuth, sourceHTTP, branchGated},
+		{"credential present ISO", validRescueAuth, sourceISO, branchGated},
 		{"no cred + ISO", "", sourceISO, branchUngated},
 		{"no cred + HTTP", "", sourceHTTP, branchReboot},
 	}
@@ -66,6 +72,38 @@ func TestFatalPolicyBranch(t *testing.T) {
 		got := selectFatalBranch(tt.rescueAuth, tt.source)
 		if got != tt.want {
 			t.Errorf("%s: got %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+// VALIDATES: a ze.rescue-auth the gate cannot verify against must never select
+// the gated branch, on either media.
+// PREVENTS: An unattended box hanging forever at a rescue prompt. rescueauth.Check
+// fails closed on a malformed value, so branchGated would prompt for a token that
+// nothing can satisfy; a network install would then wait at a console instead of
+// rebooting to retry, which is exactly what the three-branch policy exists to
+// avoid. A malformed credential is also never treated as "no credential", because
+// that would open an ungated shell on ISO media off a typo.
+func TestFatalPolicyBranchRejectsMalformedCredential(t *testing.T) {
+	malformed := []string{
+		"abcd1234",
+		"garbage",
+		strings.Repeat("a", 64), // the legacy bare-sha256 form
+		validRescueAuth[1:],     // one char short in the salt
+		validRescueAuth + "a",   // one char long in the digest
+		strings.ToUpper(validRescueAuth),
+		":",
+	}
+
+	for _, source := range []string{sourceHTTP, sourceISO} {
+		for _, auth := range malformed {
+			got := selectFatalBranch(auth, source)
+			if got == branchGated {
+				t.Errorf("source=%s auth=%q selected branchGated: the gate can never accept a token for this value", source, auth)
+			}
+			if got == branchUngated {
+				t.Errorf("source=%s auth=%q selected branchUngated: a malformed credential must not open an unauthenticated shell", source, auth)
+			}
 		}
 	}
 }

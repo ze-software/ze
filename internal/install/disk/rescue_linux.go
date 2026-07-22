@@ -46,13 +46,26 @@ func branchName(b fatalBranch) string {
 }
 
 func selectFatalBranch(rescueAuth, source string) fatalBranch {
-	if rescueAuth != "" {
-		return branchGated
+	if rescueAuth == "" {
+		// No credential configured. On ISO media the operator is physically
+		// present, so a shell costs nothing they could not already do; on a
+		// network install reboot instead, so an unattended box retries rather
+		// than sitting at a console nobody is watching.
+		if source == sourceISO {
+			return branchUngated
+		}
+		return branchReboot
 	}
-	if source == sourceISO {
-		return branchUngated
+	// A credential the gate cannot verify against is not a credential.
+	// rescueauth.Check fails closed on a malformed value, so gating on one would
+	// prompt for a token nothing can satisfy and hang an unattended install
+	// forever. Falling through to the no-credential policy is wrong too: that
+	// would open an UNGATED shell on ISO media off a single typo. Reboot on
+	// either medium, so a bad credential never yields a shell and never hangs.
+	if rescueauth.Validate(rescueAuth) != nil {
+		return branchReboot
 	}
-	return branchReboot
+	return branchGated
 }
 
 // fatalInitrd implements the three-branch rescue policy from

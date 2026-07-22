@@ -435,7 +435,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | cmdline `ze.rescue-auth` is attacker-supplied on a PXE network: shape-validate before use, never let a malformed value open an ungated shell |
-| Fail-open on parse error | A malformed `rescue-auth` MUST select the reboot branch, not the ungated branch |
+| Fail-open on parse error | A malformed `rescue-auth` MUST select the reboot branch, not the ungated branch. VERIFIED and FIXED: `selectFatalBranch` keyed on `rescueAuth != ""`, so a malformed value selected `branchGated` and prompted for a token `rescueauth.Check` can never accept, hanging an unattended install at a console forever. It now returns `branchReboot` on either medium: never a shell on a bad credential, never a hang. `TestFatalPolicyBranchRejectsMalformedCredential` |
 | Secret in logs | The rescue token must never reach `slog`; `initrd_linux.go:43` logs only a boolean today, keep it that way |
 | Timing | Token comparison stays constant-time |
 | Resource exhaustion | argon2 memory parameter is bounded and fixed, not derived from the cmdline |
@@ -596,10 +596,32 @@ are; they already cite the mandating section.
      open (Phase 3 outstanding), so the independent review pass belongs with the
      closure commit, over the complete diff. -->
 
-### Run 1 (initial)
+### Run 1 (2026-07-22, `/ze-review` single pass)
+
+**Independence caveat, stated plainly:** this pass ran in the SAME context that
+wrote the code. `ai/rules/critical-review.md` requires a DIFFERENT context
+(independent reviewer subagents or a fresh session), so this does NOT satisfy the
+Review Gate on its own. It is recorded because it found and fixed a real defect,
+not as a substitute for the independent pass.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | not yet run -- see the note above | | |
+| 1 | BLOCKER | `selectFatalBranch` treated ANY non-empty `rescue-auth` as usable, so a malformed value selected `branchGated` and prompted for a token `rescueauth.Check` can never accept. An unattended network install would wait at a console forever instead of rebooting to retry. The spec's own Security Review row asserted the opposite ("MUST select the reboot branch"), making it a false safety claim in the diff | `internal/install/disk/rescue_linux.go:48-56` | FIXED: malformed now returns `branchReboot` on either medium. `TestFatalPolicyBranchRejectsMalformedCredential` added (red first, 14 cases) |
+| 2 | ISSUE | The existing `TestFatalPolicyBranch` table used `"abcd1234"` as its "credential present" fixture, which is not a valid credential in the argon2id encoding. It was exercising the malformed path while claiming to cover the present path | `internal/install/disk/rescue_linux_test.go:59-60` | FIXED: fixture replaced with a valid pinned credential. No assertion removed; the rows still assert "usable credential -> gated" |
+| 3 | NOTE | `rescueauth.Value` documents "Callers MUST pass a salt of SaltLen bytes" but does not enforce it. A wrong-length salt silently yields a credential that can never verify, because `split` rejects the salt hex length | `internal/core/rescueauth/rescueauth.go` | Accepted. Only `NewValue` (which always passes `SaltLen`) and the pinned-vector test call it; no production caller can get it wrong |
+| 4 | NOTE | `docs/features.md` Installation row describes the installer initrd at length but does not mention the rescue token | `docs/features.md:20` | Accepted. It makes no stale claim, and the guide it links (`docs/guide/ze-install.md`) documents the token fully |
+
+### Pre-checks
+- `python3 scripts/dev/audit-test-relaxation.py 7457a0fcf~1`: 4 findings in this
+  work, all verified legitimate. Three are documented relaxations for DELETED
+  functions (`checkPassword`, `validateShellAuth`, `shellAuthHash`) whose coverage
+  moved to `internal/core/rescueauth`; one `[DELETED]` is the
+  `image-server-invalid-shell-auth.ci` -> `image-server-invalid-rescue-auth.ci`
+  rename, confirmed by the commit stat (20 added / 20 removed) and the replacement
+  passing as parse entry 150.
+- `make ze-validate`: 8 unwired-export issues, none in this work (BGP reactor and
+  test runner belong to a concurrent session; `host/inventory.go` is pre-existing).
+  No symbol introduced here was flagged.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
