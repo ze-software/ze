@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"slices"
 	"sort"
@@ -724,11 +725,11 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 		cfg.RouterID = rid
 		cfg.routerIDFromConfig = true
 	}
-	if v, ok := configNumber(tree["reference-bandwidth"]); ok && v > 0 {
-		cfg.ReferenceBandwidth = uint32(v)
+	if v, ok := configUint32(tree["reference-bandwidth"]); ok && v > 0 {
+		cfg.ReferenceBandwidth = v
 	}
-	if v, ok := configNumber(tree["maximum-paths"]); ok && v > 0 {
-		cfg.MaximumPaths = uint8(v)
+	if v, ok := configUint8(tree["maximum-paths"]); ok && v > 0 {
+		cfg.MaximumPaths = v
 	}
 	cfg.Opaque = configBool(tree["opaque"], false)
 	cfg.ExtendedPrefix = configBool(tree["extended-prefix"], false)
@@ -792,8 +793,8 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 	for _, entry := range keyedList(tree["key-chains"], false) {
 		cfg.KeyChains = append(cfg.KeyChains, parseKeyChain(entry))
 	}
-	if v, ok := configNumber(tree["instance-id"]); ok {
-		cfg.InstanceID = uint8(v)
+	if v, ok := configUint8(tree["instance-id"]); ok {
+		cfg.InstanceID = v
 	}
 	// RFC 5838: each OSPFv3 address family carries its own areas/interfaces/instance-id
 	// under `address-family { <af> { ... } }`. Each parses into a sub-config a v6-codec
@@ -1052,8 +1053,8 @@ func parseDefaultInformation(m map[string]any) defaultInformationConfig {
 	cfg := defaultInformationConfig{Metric: DefaultDefaultMetric, MetricType: metricType2}
 	cfg.Originate = configBool(m["originate"], false)
 	cfg.Always = configBool(m["always"], false)
-	if v, ok := configNumber(m["metric"]); ok {
-		cfg.Metric = uint32(v)
+	if v, ok := configUint32(m["metric"]); ok {
+		cfg.Metric = v
 	}
 	if s := configString(m["metric-type"]); s != "" {
 		cfg.MetricType = s
@@ -1065,11 +1066,11 @@ func parseMaxMetric(m map[string]any) maxMetricConfig {
 	cfg := maxMetricConfig{}
 	if routerLSA, ok := m["router-lsa"].(map[string]any); ok {
 		cfg.RouterLSAAlways = configBool(routerLSA["always"], false)
-		if v, ok := configNumber(routerLSA["on-startup"]); ok {
-			cfg.OnStartupSec = uint32(v)
+		if v, ok := configUint32(routerLSA["on-startup"]); ok {
+			cfg.OnStartupSec = v
 		}
-		if v, ok := configNumber(routerLSA["on-shutdown"]); ok {
-			cfg.OnShutdownSec = uint32(v)
+		if v, ok := configUint32(routerLSA["on-shutdown"]); ok {
+			cfg.OnShutdownSec = v
 		}
 	}
 	return cfg
@@ -1094,8 +1095,8 @@ func parseGracefulRestart(m map[string]any) gracefulRestartConfig {
 		if s := configString(r["support"]); s != "" {
 			cfg.RestarterSupport = parseGRSupport(s)
 		}
-		if v, ok := configNumber(r["restart-interval"]); ok && v > 0 {
-			cfg.RestartInterval = uint16(v)
+		if v, ok := configUint16(r["restart-interval"]); ok && v > 0 {
+			cfg.RestartInterval = v
 		}
 	}
 	if h, ok := m["helper"].(map[string]any); ok {
@@ -1157,20 +1158,20 @@ func routerInfoScope(s string) (OpaqueScope, bool) {
 
 func parseTimers(m map[string]any) timerConfig {
 	t := defaultOSPFConfig().Timers
-	if v, ok := configNumber(m["spf-delay-ms"]); ok {
-		t.SPFDelayMS = uint32(v)
+	if v, ok := configUint32(m["spf-delay-ms"]); ok {
+		t.SPFDelayMS = v
 	}
-	if v, ok := configNumber(m["spf-hold-ms"]); ok {
-		t.SPFHoldMS = uint32(v)
+	if v, ok := configUint32(m["spf-hold-ms"]); ok {
+		t.SPFHoldMS = v
 	}
-	if v, ok := configNumber(m["spf-max-hold-ms"]); ok {
-		t.SPFMaxHoldMS = uint32(v)
+	if v, ok := configUint32(m["spf-max-hold-ms"]); ok {
+		t.SPFMaxHoldMS = v
 	}
-	if v, ok := configNumber(m["min-ls-interval-ms"]); ok {
-		t.MinLSIntervalMS = uint32(v)
+	if v, ok := configUint32(m["min-ls-interval-ms"]); ok {
+		t.MinLSIntervalMS = v
 	}
-	if v, ok := configNumber(m["min-ls-arrival-ms"]); ok {
-		t.MinLSArrivalMS = uint32(v)
+	if v, ok := configUint32(m["min-ls-arrival-ms"]); ok {
+		t.MinLSArrivalMS = v
 	}
 	return t
 }
@@ -1180,14 +1181,14 @@ func parseRedistribute(entry listEntry) redistributeConfig {
 	if s := configString(entry.data["source"]); s != "" {
 		r.Source = s
 	}
-	if v, ok := configNumber(entry.data["metric"]); ok {
-		r.Metric = uint32(v)
+	if v, ok := configUint32(entry.data["metric"]); ok {
+		r.Metric = v
 	}
 	if s := configString(entry.data["metric-type"]); s != "" {
 		r.MetricType = s
 	}
-	if v, ok := configNumber(entry.data["tag"]); ok {
-		r.Tag = uint32(v)
+	if v, ok := configUint32(entry.data["tag"]); ok {
+		r.Tag = v
 	}
 	return r
 }
@@ -1219,15 +1220,15 @@ func parseArea(entry listEntry) (areaConfig, error) {
 		}
 	}
 	a.NoSummary = configBool(entry.data["no-summary"], false)
-	if v, ok := configNumber(entry.data["default-cost"]); ok {
-		a.DefaultCost = uint32(v)
+	if v, ok := configUint32(entry.data["default-cost"]); ok {
+		a.DefaultCost = v
 	}
 	if nssa, ok := entry.data["nssa"].(map[string]any); ok {
 		if s := configString(nssa["translate-role"]); s != "" {
 			a.NSSATranslateRole = s
 		}
-		if v, ok := configNumber(nssa["stability-interval"]); ok {
-			a.NSSAStabilityInterval = uint16(v)
+		if v, ok := configUint16(nssa["stability-interval"]); ok {
+			a.NSSAStabilityInterval = v
 		}
 		a.NSSADefaultOriginate = configBool(nssa["default-originate"], false)
 	}
@@ -1262,8 +1263,8 @@ func parseRange(entry listEntry) (rangeConfig, error) {
 	if s := configString(entry.data["advertise"]); s == rangeNotAdvertise {
 		r.Advertise = false
 	}
-	if v, ok := configNumber(entry.data["cost"]); ok {
-		r.Cost = uint32(v)
+	if v, ok := configUint32(entry.data["cost"]); ok {
+		r.Cost = v
 		r.HasCost = true
 	}
 	return r, nil
@@ -1306,17 +1307,17 @@ func parseVirtualLink(transit types.AreaID, entry listEntry) (virtualLinkConfig,
 		RetransmitInterval: DefaultRetransmitInterval,
 		TransmitDelay:      DefaultTransmitDelay,
 	}
-	if v, ok := configNumber(entry.data["hello-interval"]); ok && v > 0 {
-		vl.HelloInterval = uint16(v)
+	if v, ok := configUint16(entry.data["hello-interval"]); ok && v > 0 {
+		vl.HelloInterval = v
 	}
-	if v, ok := configNumber(entry.data["dead-interval"]); ok && v > 0 {
-		vl.DeadInterval = uint16(v)
+	if v, ok := configUint16(entry.data["dead-interval"]); ok && v > 0 {
+		vl.DeadInterval = v
 	}
-	if v, ok := configNumber(entry.data["retransmit-interval"]); ok && v > 0 {
-		vl.RetransmitInterval = uint16(v)
+	if v, ok := configUint16(entry.data["retransmit-interval"]); ok && v > 0 {
+		vl.RetransmitInterval = v
 	}
-	if v, ok := configNumber(entry.data["transmit-delay"]); ok && v > 0 {
-		vl.TransmitDelay = uint16(v)
+	if v, ok := configUint16(entry.data["transmit-delay"]); ok && v > 0 {
+		vl.TransmitDelay = v
 	}
 	return vl, nil
 }
@@ -1365,8 +1366,8 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 	// other types carry it only when the operator configured a poll interval or neighbor.
 	poll := DefaultPollInterval
 	pollSet := false
-	if v, ok := configNumber(m["poll-interval"]); ok && v > 0 {
-		poll = uint16(v)
+	if v, ok := configUint16(m["poll-interval"]); ok && v > 0 {
+		poll = v
 		pollSet = true
 	}
 	neighbors, err := parseNBMANeighbors(ic.Name, m["nbma-neighbor"])
@@ -1385,22 +1386,22 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 		ic.Cost = uint16(v)
 		ic.HasCost = true
 	}
-	if v, ok := configNumber(m["hello-interval"]); ok && v > 0 {
-		ic.HelloInterval = uint16(v)
+	if v, ok := configUint16(m["hello-interval"]); ok && v > 0 {
+		ic.HelloInterval = v
 	}
-	if v, ok := configNumber(m["dead-interval"]); ok && v > 0 {
-		ic.DeadInterval = uint16(v)
+	if v, ok := configUint16(m["dead-interval"]); ok && v > 0 {
+		ic.DeadInterval = v
 	}
-	if v, ok := configNumber(m["priority"]); ok {
-		ic.Priority = uint8(v)
+	if v, ok := configUint8(m["priority"]); ok {
+		ic.Priority = v
 	}
 	ic.Passive = configBool(m["passive"], false)
 	ic.MTUIgnore = configBool(m["mtu-ignore"], false)
-	if v, ok := configNumber(m["retransmit-interval"]); ok && v > 0 {
-		ic.RetransmitInterval = uint16(v)
+	if v, ok := configUint16(m["retransmit-interval"]); ok && v > 0 {
+		ic.RetransmitInterval = v
 	}
-	if v, ok := configNumber(m["transmit-delay"]); ok {
-		ic.TransmitDelay = uint16(v)
+	if v, ok := configUint16(m["transmit-delay"]); ok {
+		ic.TransmitDelay = v
 		ic.HasTransmitDelay = true
 	}
 	if auth, ok := m["authentication"].(map[string]any); ok {
@@ -1554,8 +1555,8 @@ func parseNBMANeighbors(ifaceName string, v any) ([]nbmaNeighborConfig, error) {
 			}
 			nc.LinkLocal = ll
 		}
-		if p, ok := configNumber(ne.data["priority"]); ok {
-			nc.Priority = uint8(p)
+		if p, ok := configUint8(ne.data["priority"]); ok {
+			nc.Priority = p
 		}
 		out = append(out, nc)
 	}
@@ -1579,8 +1580,8 @@ func parseKeyChain(entry listEntry) keyChainConfig {
 	kc.ExtendedSequence = configBool(entry.data["extended-sequence"], false)
 	for _, keyEntry := range keyedList(entry.data["key"], true) {
 		k := keyConfig{Algorithm: authAlgorithmMD5}
-		if v, ok := configNumber(keyEntry.data["key-id"]); ok {
-			k.KeyID = uint32(v)
+		if v, ok := configUint32(keyEntry.data["key-id"]); ok {
+			k.KeyID = v
 		} else if id, err := strconv.ParseUint(keyEntry.key, 10, 32); err == nil {
 			k.KeyID = uint32(id)
 		}
@@ -1677,6 +1678,44 @@ func addr4Less(a, b netip.Addr) bool { return addr4Value(a) < addr4Value(b) }
 func addr4Value(addr netip.Addr) uint32 {
 	b := addr.As4()
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+}
+
+// configUint8, configUint16 and configUint32 read a config-tree scalar and
+// narrow it, returning false when the value does not fit the target type.
+//
+// The bound belongs here, next to the narrowing, even though the config file
+// parser already rejects anything outside the leaf's declared YANG type range
+// (ValidateLeafValue, internal/component/config/schema.go:787-805, reached from
+// parser.go:266). Relying on a guard three layers up means this code fails OPEN
+// for any future entry point that delivers a tree without that validation, and a
+// bare uintN(v) would then store a silently truncated value rather than reject
+// it (ai/rules/fail-closed-guards.md, ai/rules/exact-or-reject.md).
+//
+// The bound is the target type's own maximum, not a per-leaf maximum: every YANG
+// leaf here declares the same width as the Go field it feeds, so no config the
+// parser accepts can be refused by these helpers.
+func configUint8(v any) (uint8, bool) {
+	n, ok := configNumber(v)
+	if !ok || n > math.MaxUint8 {
+		return 0, false
+	}
+	return uint8(n), true
+}
+
+func configUint16(v any) (uint16, bool) {
+	n, ok := configNumber(v)
+	if !ok || n > math.MaxUint16 {
+		return 0, false
+	}
+	return uint16(n), true
+}
+
+func configUint32(v any) (uint32, bool) {
+	n, ok := configNumber(v)
+	if !ok || n > math.MaxUint32 {
+		return 0, false
+	}
+	return uint32(n), true
 }
 
 func configNumber(v any) (uint64, bool) {

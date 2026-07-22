@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 
@@ -201,6 +202,44 @@ var (
 	ErrSystemIDMismatch = errors.New("isis: system-id does not match the system id derived from net")
 )
 
+// configUint8, configUint16 and configUint32 read a config-tree scalar and
+// narrow it, returning false when the value does not fit the target type.
+//
+// The bound belongs here, next to the narrowing, even though the config file
+// parser already rejects anything outside the leaf's declared YANG type range
+// (ValidateLeafValue, internal/component/config/schema.go:787-805, reached from
+// parser.go:266). Relying on a guard three layers up means this code fails OPEN
+// for any future entry point that delivers a tree without that validation, and a
+// bare uintN(v) would then store a silently truncated value rather than reject
+// it (ai/rules/fail-closed-guards.md, ai/rules/exact-or-reject.md).
+//
+// The bound is the target type's own maximum, not a per-leaf maximum: every YANG
+// leaf here declares the same width as the Go field it feeds, so no config the
+// parser accepts can be refused by these helpers.
+func configUint8(v any) (uint8, bool) {
+	n, ok := configNumber(v)
+	if !ok || n > math.MaxUint8 {
+		return 0, false
+	}
+	return uint8(n), true
+}
+
+func configUint16(v any) (uint16, bool) {
+	n, ok := configNumber(v)
+	if !ok || n > math.MaxUint16 {
+		return 0, false
+	}
+	return uint16(n), true
+}
+
+func configUint32(v any) (uint32, bool) {
+	n, ok := configNumber(v)
+	if !ok || n > math.MaxUint32 {
+		return 0, false
+	}
+	return uint32(n), true
+}
+
 // configNumber coerces a config-tree scalar to a uint64. Tree.ToMap renders
 // every numeric YANG leaf as a JSON string (e.g. "10"); accept a JSON number too
 // for robustness.
@@ -369,11 +408,11 @@ func applyTree(cfg *Config, tree map[string]any) error {
 		cfg.systemIDFromConfig = true
 	}
 	cfg.Level = parseLevel(tree["level"])
-	if v, ok := configNumber(tree["lsp-lifetime"]); ok && v > 0 {
-		cfg.LSPLifetime = uint16(v)
+	if v, ok := configUint16(tree["lsp-lifetime"]); ok && v > 0 {
+		cfg.LSPLifetime = v
 	}
-	if v, ok := configNumber(tree["lsp-refresh-interval"]); ok && v > 0 {
-		cfg.LSPRefreshInterval = uint16(v)
+	if v, ok := configUint16(tree["lsp-refresh-interval"]); ok && v > 0 {
+		cfg.LSPRefreshInterval = v
 	}
 	cfg.Overload = configBool(tree["overload"], false)
 	cfg.Hostname = configString(tree["hostname"])
@@ -415,17 +454,17 @@ func parseInterface(entry listEntry) InterfaceConfig {
 	if configString(m["circuit-type"]) == circuitTypeP2P {
 		ic.CircuitType = CircuitPointToPoint
 	}
-	if v, ok := configNumber(m["metric"]); ok && v > 0 {
-		ic.Metric = uint32(v)
+	if v, ok := configUint32(m["metric"]); ok && v > 0 {
+		ic.Metric = v
 	}
-	if v, ok := configNumber(m["hello-interval"]); ok && v > 0 {
-		ic.HelloInterval = uint16(v)
+	if v, ok := configUint16(m["hello-interval"]); ok && v > 0 {
+		ic.HelloInterval = v
 	}
-	if v, ok := configNumber(m["hold-multiplier"]); ok && v > 0 {
-		ic.HoldMult = uint8(v)
+	if v, ok := configUint8(m["hold-multiplier"]); ok && v > 0 {
+		ic.HoldMult = v
 	}
-	if v, ok := configNumber(m["priority"]); ok {
-		ic.Priority = uint8(v)
+	if v, ok := configUint8(m["priority"]); ok {
+		ic.Priority = v
 	}
 	if l1, ok := m["level-1"].(map[string]any); ok {
 		ic.Level1 = parseLevelInterface(l1)
@@ -447,17 +486,17 @@ func parseInterface(entry listEntry) InterfaceConfig {
 // defaults: a zero field means "inherit the circuit-wide value").
 func parseLevelInterface(m map[string]any) LevelInterfaceConfig {
 	var lc LevelInterfaceConfig
-	if v, ok := configNumber(m["metric"]); ok {
-		lc.Metric = uint32(v)
+	if v, ok := configUint32(m["metric"]); ok {
+		lc.Metric = v
 	}
-	if v, ok := configNumber(m["hello-interval"]); ok {
-		lc.HelloInterval = uint16(v)
+	if v, ok := configUint16(m["hello-interval"]); ok {
+		lc.HelloInterval = v
 	}
-	if v, ok := configNumber(m["hold-multiplier"]); ok {
-		lc.HoldMult = uint8(v)
+	if v, ok := configUint8(m["hold-multiplier"]); ok {
+		lc.HoldMult = v
 	}
-	if v, ok := configNumber(m["priority"]); ok {
-		lc.Priority = uint8(v)
+	if v, ok := configUint8(m["priority"]); ok {
+		lc.Priority = v
 	}
 	lc.AuthKeyChain = configString(m["auth-key-chain"])
 	return lc
@@ -471,8 +510,8 @@ func parseKeyChain(entry listEntry) KeyChainConfig {
 	}
 	for _, keyEntry := range keyedList(entry.data["key"], true) {
 		k := KeyConfig{Algorithm: "hmac-md5"}
-		if v, ok := configNumber(keyEntry.data["key-id"]); ok {
-			k.KeyID = uint16(v)
+		if v, ok := configUint16(keyEntry.data["key-id"]); ok {
+			k.KeyID = v
 		} else if id, err := strconv.ParseUint(keyEntry.key, 10, 16); err == nil {
 			k.KeyID = uint16(id)
 		}

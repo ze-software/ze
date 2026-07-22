@@ -38,9 +38,9 @@ func parseSegmentRouting(m map[string]any) *sr.SRConfig {
 			cfg.Prefixes = append(cfg.Prefixes, p)
 		}
 	}
-	if v, ok := configNumber(m["srms-preference"]); ok {
+	if v, ok := configUint8(m["srms-preference"]); ok {
 		cfg.HasSRMS = true
-		cfg.SRMSPreference = uint8(v)
+		cfg.SRMSPreference = v
 	}
 	if !cfg.Enabled && len(cfg.SRGB) == 0 && len(cfg.SRLB) == 0 && len(cfg.Prefixes) == 0 {
 		return nil
@@ -70,8 +70,8 @@ func parsePrefixSID(entry listEntry) (sr.PrefixSIDConfig, bool) {
 		return sr.PrefixSIDConfig{}, false
 	}
 	p := sr.PrefixSIDConfig{Prefix: prefix, NodeSID: configBool(entry.data["node-sid"], false)}
-	if v, ok := configNumber(entry.data["index"]); ok {
-		p.Index = uint32(v)
+	if v, ok := configUint32(entry.data["index"]); ok {
+		p.Index = v
 	}
 	p.NoPHP = configBool(entry.data["no-php"], false)
 	p.ExplicitNull = configBool(entry.data["explicit-null"], false)
