@@ -24,7 +24,7 @@
 
 One-line lesson + rule pointer. Full root-cause in the linked learned summary.
 
-- **Spec status at START, not end** (RECURRING, ZERO TOL). Hook `block-source-edit-spec-not-in-progress.sh` enforces. `ai/rules/planning.md`.
+- **"Linux-only tests can't run on this macOS host / need hardware" is a LIE** (RECURRING, ZERO TOL). Ze HAS a QEMU Alpine-VM harness: `option=needs-linux` `.ci` tests SKIP on native darwin and RUN under `make ze-qemu-needs-linux-test` / `ze-qemu-all-test`; kernel/netlink/nft/veth/loop tests run via `make ze-qemu-integration-test` and the `ze-qemu-<feature>-test` targets. A Linux-only test that FAILS (not skips) on native darwin is missing its `option=needs-linux` marker (fix: add it, then run it in QEMU), never "environmental / unfixable here". NEVER attribute a Linux test red to "darwin env" or "needs docker/qemu we don't have" — we HAVE QEMU. Run it. `ai/rules/qemu-testing.md`.
 - **Feature not wired** (RECURRING, ZERO TOL). Unit tests != wiring. Name the user entry point. `ai/rules/integration-completeness.md`.
 - **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin needs `cmd/ze/<name>/` offline entry point.
 - **Wrong production path** (rib-04). Grep ALL implementations; trace the consumer's call chain.
