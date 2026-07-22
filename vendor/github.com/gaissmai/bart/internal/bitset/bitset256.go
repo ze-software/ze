@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Karl Gaissmaier
+// Copyright (c) 2026 Karl Gaissmaier
 // SPDX-License-Identifier: MIT
 
 // Package bitset provides a compact and efficient implementation of a fixed-length
@@ -24,9 +24,9 @@ package bitset
 // can inline (*BitSet256).FirstSet with cost 79
 // can inline (*BitSet256).Intersects with cost 48
 // can inline (*BitSet256).Intersection with cost 53
-// can inline (*BitSet256).IntersectionTop with cost 42
+// can inline (*BitSet256).IntersectionTop with cost 67
 // can inline (*BitSet256).IsEmpty with cost 22
-// can inline (*BitSet256).LastSet with cost 37
+// can inline (*BitSet256).LastSet with cost 75
 // can inline (*BitSet256).NextSet with cost 65
 // can inline (*BitSet256).Rank with cost 57
 // can inline (*BitSet256).Set with cost 12
@@ -55,20 +55,21 @@ import (
 // not factored out as functions to make most of the methods
 // inlineable with minimal costs.
 
-// BitSet256 represents a fixed size bitset from [0..255]
+// BitSet256 represents a fixed-size bitset for the range [0..255],
+// stored as four uint64 words (256 bits total).
 type BitSet256 [4]uint64
 
-// Set sets the bit.
+// Set sets the bit at position bit (0..255).
 func (b *BitSet256) Set(bit uint8) {
 	b[bit>>6] |= 1 << (bit & 63)
 }
 
-// Clear clears the bit.
+// Clear clears the bit at position bit (0..255).
 func (b *BitSet256) Clear(bit uint8) {
 	b[bit>>6] &^= 1 << (bit & 63)
 }
 
-// Test if the bit is set.
+// Test reports whether the bit at position bit (0..255) is set.
 func (b *BitSet256) Test(bit uint8) (ok bool) {
 	return b[bit>>6]&(1<<(bit&63)) != 0
 }
@@ -160,7 +161,7 @@ func (b *BitSet256) NextSet(bit uint8) (next uint8, ok bool) {
 //
 // It searches the bitset in descending order and returns the position of the
 // first bit (top bit) with value 1. If at least one bit is set, ok is true.
-// If no bits are set, ok is false and last is undefined.
+// If no bits are set, ok is false and last is 0.
 //
 // Example:
 //
@@ -170,43 +171,40 @@ func (b *BitSet256) NextSet(bit uint8) (next uint8, ok bool) {
 //	bs.Set(214)
 //	index, ok := bs.LastSet()  // index == 214, ok == true
 func (b *BitSet256) LastSet() (last uint8, ok bool) {
-	// optimized for pipelining, sorry, can't inline, cost 81>80
-	// try it again when Go supports SIMD intrinsics
-	//
-	// ### b3 := bits.Len64(b[3])
-	// ### b2 := bits.Len64(b[2])
-	// ### b1 := bits.Len64(b[1])
-	// ### b0 := bits.Len64(b[0])
-
-	// ### if b3 != 0 {
-	// ### 	return uint8(b3 + 191), true
-	// ### }
-	// ### if b2 != 0 {
-	// ### 	return uint8(b2 + 127), true
-	// ### }
-	// ### if b1 != 0 {
-	// ### 	return uint8(b1 + 63), true
-	// ### }
-	// ### if b0 != 0 {
-	// ### 	return uint8(b0 - 1), true
-	// ### }
-	// ### return
-
-	for wIdx := 3; wIdx >= 0; wIdx-- {
-		if word := b[wIdx]; word != 0 {
-			//nolint:gosec  // G115: integer overflow conversion int -> uint
-			return uint8(wIdx<<6 + bits.Len64(word) - 1), true
-		}
+	// optimized by unrolling the loop.
+	// This enables compiler inlining and is ~20% faster.
+	if b[3] != 0 {
+		//nolint:gosec  // G115: integer overflow conversion int -> uint
+		return uint8(bits.Len64(b[3]) + 191), true
 	}
-	return
+	if b[2] != 0 {
+		//nolint:gosec  // G115: integer overflow conversion int -> uint
+		return uint8(bits.Len64(b[2]) + 127), true
+	}
+	if b[1] != 0 {
+		//nolint:gosec  // G115: integer overflow conversion int -> uint
+		return uint8(bits.Len64(b[1]) + 63), true
+	}
+	if b[0] != 0 {
+		//nolint:gosec  // G115: integer overflow conversion int -> uint
+		return uint8(bits.Len64(b[0]) - 1), true
+	}
+	return 0, false
 }
 
-// AsSlice returns a slice containing all set bits in the BitSet256.
+// AsSlice extracts the indices of all set bits in the BitSet256, returning them
+// as uint8 values in strictly ascending order.
 //
-// The bits are returned in ascending order as uint8 values. The provided buf
-// must be a pointer to an array of 256 uint8s; it is used as backing
-// storage for the result to avoid heap allocations. The returned slice shares
-// its backing array with buf and is only valid until buf is modified or reused.
+// Performance Considerations:
+// To guarantee zero heap allocations and enable compiler inlining, the caller must
+// provide a pointer to a 256-byte array (`buf`) as backing storage. The method
+// populates this array in-place and returns a sliced view (`[]uint8`) tailored to
+// the actual number of set bits.
+//
+// Safety and Lifecycle:
+// The returned slice directly shares the underlying storage of `buf` and is only
+// valid until `buf` is modified or reused. This pattern is highly recommended for
+// hot paths and performance-critical loops where heap churn must be avoided.
 func (b *BitSet256) AsSlice(buf *[256]uint8) []uint8 {
 	size := 0
 	for wIdx, word := range b {
@@ -217,30 +215,41 @@ func (b *BitSet256) AsSlice(buf *[256]uint8) []uint8 {
 		}
 	}
 
+	// tailor to the actual number of set bits
 	return buf[:size]
 }
 
-// Bits returns a slice containing all set bits in the BitSet256.
+// Bits returns a slice containing the indices of all set bits in strictly
+// ascending order as uint8 values.
 //
-// The bits are returned in ascending order as uint8 values. Bits allocates
-// a new slice on the heap for the result. For allocation-free collection,
-// use [AsSlice] with a pre-allocated buffer.
+// Performance Considerations:
+// Unlike [AsSlice], this method dynamically allocates a new slice on the
+// heap to store the result. It is designed for convenience and APIs where the lifecycle
+// of the returned slice needs to outlive the immediate caller's stack frame.
 //
-// Example usage:
-//
-//	bits := b.Bits()
-//	// bits now contains the indices of all set bits in b
+// Usage Guidance:
+// Use Bits when convenience is preferred over raw performance, or when the result
+// must be returned across boundaries where stack-allocated buffers cannot safely escape.
+// For high-throughput or allocation-free processing, prefer [AsSlice].
 func (b *BitSet256) Bits() []uint8 {
 	return b.AsSlice(&[256]uint8{})
 }
 
-// IntersectionTop computes the intersection of base set with the compare set.
-// If the result set isn't empty, it returns the top most set bit and true.
+// IntersectionTop computes the intersection of the receiver with c
+// and returns the highest (top-most) set bit of the result.
+// If the intersection is non-empty, it returns the top bit index and true.
+// If the intersection is empty, ok is false and top is 0.
 func (b *BitSet256) IntersectionTop(c *BitSet256) (top uint8, ok bool) {
-	for wIdx := 3; wIdx >= 0; wIdx-- {
-		if word := b[wIdx] & c[wIdx]; word != 0 {
+	// optimized by unrolling the first word check.
+	// This enables compiler inlining and is ~15% faster.
+	if w := b[3] & c[3]; w != 0 {
+		//nolint:gosec  // G115: integer overflow conversion int -> uint8
+		return uint8(191 + bits.Len64(w)), true
+	}
+	for wIdx := 2; wIdx >= 0; wIdx-- {
+		if w := b[wIdx] & c[wIdx]; w != 0 {
 			//nolint:gosec  // G115: integer overflow conversion int -> uint8
-			return uint8(wIdx<<6 + bits.Len64(word) - 1), true
+			return uint8(wIdx<<6 + bits.Len64(w) - 1), true
 		}
 	}
 	return
@@ -276,13 +285,12 @@ func (b *BitSet256) Rank(idx uint8) (rnk int) {
 	return
 }
 
-// IsEmpty returns true if no bit is set.
+// IsEmpty reports whether all 256 bits are zero.
 func (b *BitSet256) IsEmpty() bool {
 	return b[0]|b[1]|b[2]|b[3] == 0
 }
 
-// Intersects returns true if the intersection of base set with the compare set
-// is not the empty set.
+// Intersects reports whether the receiver and c have at least one bit in common.
 func (b *BitSet256) Intersects(c *BitSet256) bool {
 	return b[0]&c[0] != 0 ||
 		b[1]&c[1] != 0 ||
@@ -290,8 +298,8 @@ func (b *BitSet256) Intersects(c *BitSet256) bool {
 		b[3]&c[3] != 0
 }
 
-// Intersection computes the intersection of base set with the compare set.
-// This is the BitSet equivalent of & (and).
+// Intersection returns a new BitSet256 containing only the bits
+// that are set in both the receiver and c (bitwise AND).
 func (b *BitSet256) Intersection(c *BitSet256) (bs BitSet256) {
 	bs[0] = b[0] & c[0]
 	bs[1] = b[1] & c[1]
@@ -300,8 +308,7 @@ func (b *BitSet256) Intersection(c *BitSet256) (bs BitSet256) {
 	return
 }
 
-// Union performs an in-place union of the receiver with c.
-// It is the BitSet equivalent of | (OR).
+// Union sets all bits in the receiver that are set in c (in-place bitwise OR).
 func (b *BitSet256) Union(c *BitSet256) {
 	b[0] |= c[0]
 	b[1] |= c[1]
@@ -309,7 +316,7 @@ func (b *BitSet256) Union(c *BitSet256) {
 	b[3] |= c[3]
 }
 
-// Size is the number of set bits.
+// Size returns the population count, i.e. the number of set bits.
 func (b *BitSet256) Size() (cnt int) {
 	cnt += bits.OnesCount64(b[0])
 	cnt += bits.OnesCount64(b[1])
