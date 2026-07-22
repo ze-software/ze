@@ -96,10 +96,20 @@ kernel.
 | A hugepage build resolves offline (AC-10) | end-to-end | `ze appliance build` with `image.hugepages` and `GOPROXY=off` exits 0, no `go get` in the log, `gokrazy/modcache` unchanged at 811 MB, only the pinned kernel present. Log: `tmp/hp-proof-build-offline.log` (ephemeral; the outcome is quoted here because `tmp/` does not survive). This is the exact A/B that failed on 2026-07-22 |
 | The kernel args still reach the image (AC-9) | end-to-end | `default_hugepagesz=2M hugepagesz=2M hugepages=512` present in the built `.img` cmdline |
 
-**Not proven:** the QEMU boot. The host user is not in the `kvm` group, so
-`effective-vpp-hugepages-qemu.py` would run under tcg and time out exactly as it
-did earlier the same day. The image builds and carries the right cmdline; it was
-not booted. R-2 stands.
+**The QEMU boot is now proven (later the same day).** `make
+ze-vpp-hugepages-qemu-test` reports `PASS cmdline has hugepages=64,
+hugepages-total=64`: an image built through the fixed derived parent boots, and
+the kernel reserved every requested page. Mutation-verified — making
+`hugepageKernelArgs` return nil turns it red naming the missing argument. **R-2
+is closed.**
+
+Reaching that took three further defects, all recorded in
+`plan/learned/1254-gokrazy-derived-parent-discards-pins.md`: the accelerator
+probe tested `/dev/kvm` existence rather than access; the proof asked the
+appliance `cat /proc/cmdline` when its SSH server is the Ze CLI (so it had never
+passed and could not have); and `show host memory` exposed no hugepage counters,
+so the "kernel honored it" half had no operator-visible source. A no-answer under
+a hardware accelerator is now a FAIL rather than a SKIP.
 
 **Still this spec's work:** AC-1 (prepare for *every* build, not only hugepage
 builds), AC-2 (the tree-clean functional test), AC-7/AC-8 (kernel package as an
@@ -265,7 +275,7 @@ Files to Modify list and the CLI integration answer below.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A module missing from the prepared instance makes gok synthesize an empty module and fetch from the network, silently building a different source than the working tree | An image that builds only with network access, or a resolved version differing from the tracked module | Assert per-module resolved versions in the preparer's test and fail the build naming the module. This is exactly the failure A-1 suspects is already live |
-| R-2 | The boot proof is skipped rather than run, and a regression ships behind a green bar | A `SKIP` in the evidence output, or `ZE_GOKRAZY_SKIP_BUILD=1` set | Goal Validation requires a PASS, not a PASS-or-SKIP, and requires the skip variable unset |
+| R-2 | The boot proof is skipped rather than run, and a regression ships behind a green bar | A `SKIP` in the evidence output, or `ZE_GOKRAZY_SKIP_BUILD=1` set | **CLOSED 2026-07-22.** It was worse than the risk described: the proof could not pass at all (it asked the Ze CLI a shell command). Now PASSes, is mutation-verified, and a no-answer under kvm/hvf is a FAIL rather than a SKIP, so the skip path can no longer absorb a regression |
 | R-3 | Project `tmp/` is a symlink after `make ze-migrate-scratch` (`.gitignore:9-16`), so absolute replaces could traverse it | Prepared builds fail only on machines with relocated scratch | Resolve the prepared parent to its real path before writing any absolute replace; cover a symlinked `tmp/` in the preparer test |
 | R-4 | Two concurrent builds in one checkout collide | Interleaved or corrupted builds | Unique prepared directory per build, with the existing cleanup contract |
 | R-5 | The kernel parameter changes operator behaviour: today a stale replace persists until `ze-kernel-clean`, and an implicit "use `tmp/kernel/pkg` if present" rule would persist silently forever | Operators getting a custom kernel they did not ask for | Make the kernel package an explicit parameter, never an implicit filesystem probe. Document the behaviour change |

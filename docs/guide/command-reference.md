@@ -408,7 +408,7 @@ ze show host all                   # Full inventory (all sections), JSON
 ze show host cpu                   # CPU only
 ze show host nic                   # Physical NICs (virtual interfaces filtered)
 ze show host dmi                   # DMI/SMBIOS board identity
-ze show host memory                # /proc/meminfo + ECC counters (edac)
+ze show host memory                # /proc/meminfo (incl. hugepages) + ECC counters (edac)
 ze show host thermal               # hwmon sensors + per-CPU throttle counts
 ze show host storage               # Block devices + NVMe firmware
 ze show host kernel                # Kernel release, cmdline, microcode, arch flags
@@ -430,7 +430,7 @@ the JSON shapes are identical either way.
 | `cpu` | `vendor`, `model-name`, `family`, `model`, `stepping`, `logical-cpus`, `physical-cores`, `threads-per-core`, `hybrid`, `scaling-driver`, `hwp-available`, `base-freq-mhz`, `max-freq-mhz`, `microcode`, `cores[]` with per-core `role` (`performance`/`efficient`/`uniform`), `current-freq-mhz`, `core-throttle-count`, `package-throttle-count` |
 | `nic` | Per physical interface: `name`, `driver`, `pci-vendor`, `pci-device`, `mac`, `link-speed-mbps`, `duplex`, `carrier`, `rx-queues`, `tx-queues`, `ring-rx`, `ring-tx`, `firmware-version` |
 | `dmi` | `system-vendor`, `system-product`, `board-*`, `bios-*`, `chassis-*` |
-| `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
+| `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `hugepages-total`, `hugepages-free`, `hugepage-size-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
 | `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`) |
 | `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only), `smart` (via direct ioctl, no smartctl binary: `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe); `unavailable` + `unavailable-note` when device lacks SMART or insufficient privileges) |
 | `kernel` | `release`, `version`, `architecture`, `cmdline`, `boot-time` (RFC3339), `boot-time-unix`, `microcode-revision`, `arch-flags[]` (security-relevant subset: `smep`, `smap`, `ibt`, `user_shstk`, `ibrs`, `ibrs_enhanced`, `ssbd`) |

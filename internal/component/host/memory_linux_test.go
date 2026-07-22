@@ -36,6 +36,42 @@ func TestDetectMemory_FromMeminfo(t *testing.T) {
 	if got, want := m.CachedBytes, uint64(3908496*1024); got != want {
 		t.Errorf("CachedBytes = %d, want %d", got, want)
 	}
+	// The fixture has no HugePages_* lines at all (a host with no reservation),
+	// which must read as zero rather than tripping the count parser.
+	if m.HugepagesTotal != 0 || m.HugepagesFree != 0 || m.HugepageSizeBytes != 0 {
+		t.Errorf("hugepage fields = %d/%d/%d, want 0/0/0 on a fixture with no HugePages lines",
+			m.HugepagesTotal, m.HugepagesFree, m.HugepageSizeBytes)
+	}
+}
+
+// VALIDATES: `show host memory` reports what the kernel actually reserved, so a
+// hugepage reservation requested through the appliance kernel cmdline can be
+// verified from the operator surface.
+// PREVENTS: reporting HugePages_Total through the kB conversion (64 pages would
+// surface as 65536), and the appliance boot proof having no way to tell a
+// honored reservation from an ignored one.
+func TestDetectMemory_Hugepages(t *testing.T) {
+	d := &Detector{Root: "testdata/hugepages-reserved"}
+	m, err := d.DetectMemory()
+	if err != nil {
+		t.Fatalf("DetectMemory: %v", err)
+	}
+	// Counts, NOT kB: the fixture says 64 pages of 2048 kB each.
+	if got, want := m.HugepagesTotal, uint64(64); got != want {
+		t.Errorf("HugepagesTotal = %d, want %d", got, want)
+	}
+	if got, want := m.HugepagesFree, uint64(62); got != want {
+		t.Errorf("HugepagesFree = %d, want %d", got, want)
+	}
+	// Hugepagesize DOES carry the kB suffix and is converted.
+	if got, want := m.HugepageSizeBytes, uint64(2048*1024); got != want {
+		t.Errorf("HugepageSizeBytes = %d, want %d", got, want)
+	}
+	// The neighboring AnonHugePages/ShmemHugePages/FileHugePages lines are kB
+	// values with similar names; none of them may land in a hugepage count.
+	if got, want := m.TotalBytes, uint64(982708*1024); got != want {
+		t.Errorf("TotalBytes = %d, want %d", got, want)
+	}
 }
 
 // VALIDATES: AC-6 absent edac — ECC counters stay zero and ECCPresent

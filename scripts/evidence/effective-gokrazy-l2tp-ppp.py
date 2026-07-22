@@ -35,8 +35,14 @@ XL2TPD_SOURCE_PORT = os.environ.get("ZE_GOKRAZY_L2TP_XL2TPD_PORT", "1702")
 WEB_HOST_PORT = os.environ.get("ZE_GOKRAZY_WEB_HOST_PORT", "28080")
 SSH_HOST_PORT = os.environ.get("ZE_GOKRAZY_SSH_HOST_PORT", "2222")
 ARCH = os.environ.get("ZE_GOKRAZY_ARCH") or os.environ.get("GOKRAZY_ARCH") or "amd64"
+# No darwin/hvf branch here, unlike the sibling QEMU evidence scripts: this
+# harness drives the LAC through Linux network namespaces (LAC_NS below), so it
+# is Linux-only by construction. os.access, not Path.exists: /dev/kvm is
+# root:kvm 0660, so a user outside the kvm group sees the node while qemu cannot
+# open it ("Could not access KVM kernel module: Permission denied") and never
+# falls back to tcg.
 QEMU_ACCEL = os.environ.get("ZE_GOKRAZY_QEMU_ACCEL") or (
-    "kvm" if Path("/dev/kvm").exists() else "tcg"
+    "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
 )
 NS_SUFFIX = str(os.getpid())
 VETH_SUFFIX = NS_SUFFIX[-6:]

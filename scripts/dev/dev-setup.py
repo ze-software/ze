@@ -13,7 +13,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import getpass
 import glob
+import grp
+import os
 import platform
 import shutil
 import subprocess
@@ -222,6 +225,77 @@ def apply_userns_fix() -> bool:
             print(f"  FAIL: {shown}: {r.stderr.decode().strip()}")
             return False
     return userns_status() == "ok"
+
+
+# --- Linux system state: KVM device access -------------------------------
+#
+# QEMU-backed evidence (appliance boot proofs, the ze-qemu-* targets) runs under
+# KVM when it can. /dev/kvm is root:kvm 0660, so the invoking user must be in the
+# kvm group; without it qemu does not fall back, it dies with "Could not access
+# KVM kernel module: Permission denied" and the caller reports a timeout. Group
+# membership is neither a binary nor a kernel tunable, so like the userns knob it
+# lives outside the Tool machinery.
+#
+# Linux only. macOS has no /dev/kvm: QEMU uses the Apple hypervisor (hvf), which
+# needs no group, and the evidence scripts select it by sys.platform.
+KVM_DEV = Path("/dev/kvm")
+KVM_GROUP = "kvm"
+
+
+def kvm_status() -> str:
+    """Report whether QEMU can use KVM as this user.
+
+    "ok"            -- /dev/kvm is readable and writable in this process now.
+    "pending-login" -- the user IS in the kvm group but the running session
+                       predates that; group membership is fixed at login.
+    "no-group"      -- the device exists and the user is not in the group.
+    "na"            -- no /dev/kvm at all (no hardware virt, or a VM without
+                       nested virt). QEMU still runs under tcg, only slower,
+                       so there is nothing to fix.
+    """
+    if not KVM_DEV.exists():
+        return "na"
+    if os.access(KVM_DEV, os.R_OK | os.W_OK):
+        return "ok"
+    return "pending-login" if in_kvm_group() else "no-group"
+
+
+def in_kvm_group() -> bool:
+    """True when the user is listed in the kvm group in the group database.
+
+    Deliberately not os.access: after `usermod -aG` the database says yes while
+    every already-running process still says no, and telling those two states
+    apart is the difference between "run this command" and "log back in".
+    """
+    try:
+        return getpass.getuser() in grp.getgrnam(KVM_GROUP).gr_mem
+    except KeyError:
+        return False
+
+
+def print_kvm_fix() -> None:
+    """Print the commands that grant KVM access."""
+    print(f"  Run: sudo usermod -aG {KVM_GROUP} {getpass.getuser()}")
+    print(
+        "  Then log out and back in, or prefix a command with:"
+        f" sg {KVM_GROUP} -c '<command>'"
+    )
+
+
+def apply_kvm_fix() -> bool:
+    """Add the invoking user to the kvm group via sudo.
+
+    Returns True when the group database lists the user afterwards. That is NOT
+    the same as usable: this process keeps the groups it was started with, so
+    the caller must still tell the user to log back in.
+    """
+    argv = ["sudo", "usermod", "-aG", KVM_GROUP, getpass.getuser()]
+    print(f"  Run: {' '.join(argv)}")
+    r = subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if r.returncode != 0:
+        print(f"  FAIL: {' '.join(argv)}: {r.stderr.decode().strip()}")
+        return False
+    return in_kvm_group()
 
 
 def detect_os() -> str | None:
@@ -440,6 +514,34 @@ def main() -> int:
             print("  Could not apply automatically; run manually:")
             print_userns_fix()
             pending_manual.append("userns-unrestricted")
+
+    # Linux system state (not a binary): QEMU-backed evidence needs the invoking
+    # user in the kvm group, or qemu refuses to start instead of using tcg.
+    if platform.system() == "Linux":
+        status = kvm_status()
+        if status == "ok":
+            print("  [present]   kvm-access")
+        elif status == "na":
+            print("  [present]   kvm-access (n/a: no /dev/kvm; QEMU uses tcg)")
+        elif status == "pending-login":
+            print(
+                "  [pending]   kvm-access (in the kvm group; log out and back"
+                f" in, or use: sg {KVM_GROUP} -c '<command>')"
+            )
+            pending_manual.append("kvm-access")
+        elif args.check:
+            print("  [missing]   kvm-access (REQUIRED)")
+            missing_required.append("kvm-access")
+        elif apply_kvm_fix():
+            print(
+                "  [installed] kvm-access (log out and back in to pick up the"
+                " new group)"
+            )
+            pending_manual.append("kvm-access")
+        else:
+            print("  Could not apply automatically; run manually:")
+            print_kvm_fix()
+            pending_manual.append("kvm-access")
 
     if not args.check:
         print()

@@ -5,19 +5,23 @@ This is the real coverage behind test/appliance/vpp-hugepages-qemu.ci. It builds
 a HOST ze (ze_core,ze_setup), inits an appliance whose config carries
 image.hugepages + image.memory, builds the gokrazy image (exercising the
 derived-instance-config kernel-argument path in internal/appliance/kernelargs.go),
-boots that image directly in QEMU, logs in over SSH, and asserts:
+boots that image directly in QEMU, logs in over SSH, and asserts, through the Ze
+CLI (the appliance's SSH server is that CLI, not a Unix shell -- `cat /proc/...`
+is answered with "error: unknown command"):
 
-  * /proc/cmdline contains the reserved-pages arguments
+  * `show host kernel | json` .cmdline contains the reserved-pages arguments
     (default_hugepagesz=<sz> hugepagesz=<sz> hugepages=<n>) -- proving the derived
     KernelExtraArgs reached the baked /cmdline.txt (A-4); and
-  * /proc/meminfo reports HugePages_Total >= 1 -- proving the kernel honoured the
-    reservation (A-5/A-6).
+  * `show host memory | json` .hugepages-total >= 1 -- proving the kernel honored
+    the reservation, and that an operator can see it (A-5/A-6).
 
-Self-skip contract: when any prerequisite is missing (go, qemu, KVM/tcg, e2fsprogs,
+Self-skip contract: when any prerequisite is missing (go, qemu, e2fsprogs,
 sshpass, or a target kernel) the script prints a single
 `VPP-HUGEPAGES-QEMU: SKIP <reason>` line and exits 0, so it is safe to wire into
 the functional suite and into CI that lacks the artifacts. A genuine mismatch
-exits non-zero.
+exits non-zero -- and so does an appliance that never answers when a HARDWARE
+accelerator was in use, because that is a failure, not a slow machine. Only the
+software-emulation (tcg) case may still skip on a no-answer.
 
 Env overrides:
   ZE_VPP_HP_ARCH        target arch (amd64|arm64); defaults to the host arch
@@ -76,7 +80,16 @@ def host_arch() -> str:
 
 ARCH = os.environ.get("ZE_VPP_HP_ARCH") or host_arch()
 QEMU_BIN = "qemu-system-aarch64" if ARCH == "arm64" else "qemu-system-x86_64"
-QEMU_ACCEL = "kvm" if Path("/dev/kvm").exists() else "tcg"
+# Per-OS accelerator, same shape as effective-install-qemu.py: macOS has no
+# /dev/kvm and uses the Apple hypervisor. On Linux, existence is not usability --
+# /dev/kvm is root:kvm 0660, so a user outside the kvm group sees the node and
+# qemu then dies with "Could not access KVM kernel module: Permission denied"
+# instead of falling back. Probe access, not presence.
+QEMU_ACCEL = (
+    "hvf"
+    if sys.platform == "darwin"
+    else ("kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg")
+)
 
 
 def skip(reason: str) -> int:
@@ -194,23 +207,51 @@ def boot_and_assert(img: Path) -> int:
             return skip(f"aarch64 UEFI firmware not found at {bios}")
         qemu_cmd[1:1] = ["-cpu", "max", "-bios", bios]
 
-    vm = subprocess.Popen(
-        qemu_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
-    try:
-        cmdline = ssh_capture(ssh_port, "cat /proc/cmdline")
-        meminfo = ssh_capture(ssh_port, "cat /proc/meminfo")
-    finally:
-        vm.terminate()
+    # Keep the serial console: when the appliance does not answer, its boot log
+    # is the only evidence of why, and discarding it once cost a full debugging
+    # session (the daemon was up in 10s; the QUERY was wrong).
+    console = Path(tempfile.gettempdir()) / f"ze-vpp-hp-console-{ssh_port}.log"
+    with console.open("wb") as clog:
+        vm = subprocess.Popen(qemu_cmd, stdout=clog, stderr=subprocess.STDOUT)
         try:
-            vm.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            vm.kill()
+            # The appliance SSH server is the Ze CLI, NOT a Unix shell: `cat
+            # /proc/cmdline` is answered with "error: unknown command". Ask the
+            # operator surface instead, which also proves the reservation is
+            # visible to whoever has to verify it on a real box.
+            kernel_json, kernel_err = ssh_capture(ssh_port, "show host kernel | json")
+            memory_json, memory_err = ssh_capture(ssh_port, "show host memory | json")
+        finally:
+            vm.terminate()
+            try:
+                vm.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                vm.kill()
 
-    if cmdline is None:
-        return skip(
-            "appliance did not reach SSH within the timeout (no KVM / slow tcg?)"
+    if kernel_json is None:
+        tail = console_tail(console)
+        detail = (
+            f"last ssh error: {kernel_err}" if kernel_err else "no ssh error captured"
         )
+        # Under a hardware accelerator a boot that never answers is a FAILURE, not
+        # a slow machine. Reporting it as SKIP is how this stayed broken.
+        if QEMU_ACCEL in ("kvm", "hvf"):
+            print(
+                f"VPP-HUGEPAGES-QEMU: FAIL appliance did not answer over SSH"
+                f" (accel={QEMU_ACCEL}); {detail}\n{tail}"
+            )
+            return 1
+        return skip(
+            f"appliance did not answer over SSH within the timeout"
+            f" (accel={QEMU_ACCEL}, software emulation); {detail}"
+        )
+
+    try:
+        cmdline = json.loads(kernel_json).get("cmdline", "")
+    except ValueError as exc:
+        print(
+            f"VPP-HUGEPAGES-QEMU: FAIL `show host kernel | json` is not JSON: {exc}\n{kernel_json}"
+        )
+        return 1
 
     want_args = [
         f"default_hugepagesz={PAGE_TOKEN}",
@@ -220,29 +261,62 @@ def boot_and_assert(img: Path) -> int:
     for arg in want_args:
         if arg not in cmdline:
             print(
-                f"VPP-HUGEPAGES-QEMU: FAIL /proc/cmdline missing {arg!r}\ncmdline: {cmdline}"
+                f"VPP-HUGEPAGES-QEMU: FAIL kernel cmdline missing {arg!r}\ncmdline: {cmdline}"
             )
             return 1
 
-    total = 0
-    for line in (meminfo or "").splitlines():
-        if line.startswith("HugePages_Total:"):
-            total = int(line.split(":", 1)[1].strip() or "0")
-            break
+    if memory_json is None:
+        print(
+            "VPP-HUGEPAGES-QEMU: FAIL kernel cmdline is right but"
+            f" `show host memory | json` never answered; last ssh error: {memory_err}"
+        )
+        return 1
+    try:
+        total = int(json.loads(memory_json).get("hugepages-total", 0))
+    except ValueError as exc:
+        print(
+            f"VPP-HUGEPAGES-QEMU: FAIL `show host memory | json` is not JSON: {exc}\n{memory_json}"
+        )
+        return 1
+
+    # The cmdline only proves the REQUEST reached the kernel. hugepages-total is
+    # the kernel's answer, and it is the assertion that can fail on a box with
+    # too little contiguous memory.
     if total < 1:
         print(
-            f"VPP-HUGEPAGES-QEMU: FAIL HugePages_Total={total} (kernel did not reserve pages)"
+            f"VPP-HUGEPAGES-QEMU: FAIL hugepages-total={total}"
+            f" (cmdline asked for {HP_COUNT}; kernel reserved none)"
         )
         return 1
 
     print(
-        f"VPP-HUGEPAGES-QEMU: PASS cmdline has {want_args[2]}, HugePages_Total={total}"
+        f"VPP-HUGEPAGES-QEMU: PASS cmdline has {want_args[2]}, hugepages-total={total}"
     )
     return 0
 
 
-def ssh_capture(port: int, remote_cmd: str, deadline_s: int = 180) -> str | None:
+def console_tail(path: Path, lines: int = 25) -> str:
+    """Return the last lines of the captured serial console, for failure output."""
+    try:
+        text = path.read_text(errors="replace")
+    except OSError as exc:
+        return f"  (no serial console captured: {exc})"
+    tail = text.splitlines()[-lines:]
+    return "  serial console tail:\n" + "\n".join(f"    {line}" for line in tail)
+
+
+def ssh_capture(
+    port: int, remote_cmd: str, deadline_s: int = 180
+) -> tuple[str | None, str]:
+    """Run one Ze CLI command over SSH, retrying until the deadline.
+
+    Returns (stdout, last_error). Reporting the last error matters: a refused
+    connection (still booting) and a connected session whose COMMAND was
+    rejected are the same returncode to the caller, and conflating them is what
+    made "error: unknown command" look like a boot timeout for months.
+    """
     end = time.time() + deadline_s
+    last_error = ""
     ssh = [
         "sshpass",
         "-p",
@@ -260,11 +334,13 @@ def ssh_capture(port: int, remote_cmd: str, deadline_s: int = 180) -> str | None
         remote_cmd,
     ]
     while time.time() < end:
-        r = run(ssh, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        r = run(ssh, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if r.returncode == 0:
-            return r.stdout
+            return r.stdout, ""
+        last_error = (r.stderr or r.stdout or "").strip().splitlines()[-1:]
+        last_error = last_error[0] if last_error else f"exit {r.returncode}"
         time.sleep(3)
-    return None
+    return None, last_error
 
 
 def main() -> int:

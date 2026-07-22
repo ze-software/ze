@@ -26,6 +26,16 @@ var meminfoFields = map[string]func(*MemoryInfo, uint64){
 	"Cached":       func(m *MemoryInfo, v uint64) { m.CachedBytes = v },
 	"SwapTotal":    func(m *MemoryInfo, v uint64) { m.SwapTotalBytes = v },
 	"SwapFree":     func(m *MemoryInfo, v uint64) { m.SwapFreeBytes = v },
+	"Hugepagesize": func(m *MemoryInfo, v uint64) { m.HugepageSizeBytes = v },
+}
+
+// meminfoCounts maps the /proc/meminfo keys whose value is a PAGE COUNT, not a
+// size in kB. They must not go through the kB-to-bytes conversion above:
+// "HugePages_Total: 64" means 64 pages, and multiplying it by 1024 would report
+// a nonsense 65536. Only "Hugepagesize" and "Hugetlb" carry the kB suffix.
+var meminfoCounts = map[string]func(*MemoryInfo, uint64){
+	"HugePages_Total": func(m *MemoryInfo, v uint64) { m.HugepagesTotal = v },
+	"HugePages_Free":  func(m *MemoryInfo, v uint64) { m.HugepagesFree = v },
 }
 
 // DetectMemory reads /proc/meminfo and any edac memory-controller
@@ -53,12 +63,16 @@ func (d *Detector) readMeminfo() (*MemoryInfo, error) {
 	info := &MemoryInfo{}
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		key, kb, ok := parseMeminfoLine(scanner.Text())
+		key, value, ok := parseMeminfoLine(scanner.Text())
 		if !ok {
 			continue
 		}
 		if set, known := meminfoFields[key]; known {
-			set(info, kb*1024)
+			set(info, value*1024)
+			continue
+		}
+		if set, known := meminfoCounts[key]; known {
+			set(info, value)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -69,10 +83,12 @@ func (d *Detector) readMeminfo() (*MemoryInfo, error) {
 
 // parseMeminfoLine parses one meminfo line of the form
 //
-//	Key:        <number> kB
+//	Key:        <number>[ kB]
 //
-// Returns key, value in kB, ok.
-func parseMeminfoLine(line string) (key string, kb uint64, ok bool) {
+// Returns the key and the bare number, without interpreting its unit: most
+// lines are kB, the HugePages_* lines are counts, and only the caller's map
+// membership says which. The unit suffix, when present, is ignored here.
+func parseMeminfoLine(line string) (key string, value uint64, ok bool) {
 	k, rest, found := strings.Cut(line, ":")
 	if !found {
 		return "", 0, false

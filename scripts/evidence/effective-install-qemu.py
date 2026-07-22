@@ -76,10 +76,13 @@ def host_arch() -> str:
 
 ARCH = os.environ.get("ZE_INSTALL_ARCH") or host_arch()
 QEMU_BIN = "qemu-system-aarch64" if ARCH == "arm64" else "qemu-system-x86_64"
+# os.access, not Path.exists: /dev/kvm is root:kvm 0660, so a user outside the
+# kvm group sees the node while qemu cannot open it ("Could not access KVM
+# kernel module: Permission denied") and never falls back to tcg.
 QEMU_ACCEL = os.environ.get("ZE_INSTALL_QEMU_ACCEL") or (
     "hvf"
     if sys.platform == "darwin"
-    else ("kvm" if Path("/dev/kvm").exists() else "tcg")
+    else ("kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg")
 )
 
 

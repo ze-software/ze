@@ -252,6 +252,12 @@ type DMIInfo struct {
 }
 
 // MemoryInfo mirrors /proc/meminfo plus edac counters when present.
+//
+// The hugepage fields report what the kernel actually reserved, which is not
+// the same as what was asked for: an operator reserves hugepages through the
+// appliance kernel cmdline (image.hugepages), and the kernel may honor less
+// than the request. HugepagesTotal is the only place that difference is
+// visible, so it is what a hugepage reservation must be verified against.
 type MemoryInfo struct {
 	TotalBytes             uint64 `json:"total-bytes"`
 	FreeBytes              uint64 `json:"free-bytes"`
@@ -260,6 +266,9 @@ type MemoryInfo struct {
 	CachedBytes            uint64 `json:"cached-bytes"`
 	SwapTotalBytes         uint64 `json:"swap-total-bytes"`
 	SwapFreeBytes          uint64 `json:"swap-free-bytes"`
+	HugepagesTotal         uint64 `json:"hugepages-total"`
+	HugepagesFree          uint64 `json:"hugepages-free"`
+	HugepageSizeBytes      uint64 `json:"hugepage-size-bytes"`
 	ECCCorrectableErrors   uint64 `json:"ecc-correctable-errors"`
 	ECCUncorrectableErrors uint64 `json:"ecc-uncorrectable-errors"`
 	ECCPresent             bool   `json:"ecc-present"`

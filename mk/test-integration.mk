@@ -375,8 +375,8 @@ ze-install-qemu-test:
 	fi
 
 ze-vpp-hugepages-qemu-test:
-	@echo "Running VPP hugepage boot-reservation QEMU evidence (builds an appliance with image.hugepages, boots it, asserts /proc/cmdline + /proc/meminfo)..."
-	@echo "Self-skips when qemu / sshpass / e2fsprogs / go are absent."
+	@echo "Running VPP hugepage boot-reservation QEMU evidence (builds an appliance with image.hugepages, boots it, asserts show host kernel + show host memory over the Ze CLI)..."
+	@echo "Self-skips when qemu / sshpass / e2fsprogs / go are absent. On Linux needs the kvm group (make ze-setup checks it as kvm-access)."
 	python3 scripts/evidence/effective-vpp-hugepages-qemu.py
 
 ze-install-iso-qemu-test:

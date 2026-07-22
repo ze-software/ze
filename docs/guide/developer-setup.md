@@ -84,10 +84,41 @@ echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 ```
 
-The `/etc/sysctl.d` drop-in makes the change survive reboots. This is the one
-place setup runs `sudo`; if `sudo` is unavailable it prints the commands to run
-by hand instead. `make ze-setup CHECK=1` only reports the state, never changes
-it.
+The `/etc/sysctl.d` drop-in makes the change survive reboots. If `sudo` is
+unavailable it prints the commands to run by hand instead. `make ze-setup
+CHECK=1` only reports the state, never changes it.
+
+**KVM device access.** `/dev/kvm` is `root:kvm` mode 0660, so QEMU-backed
+evidence (the appliance boot proofs and every `ze-qemu-*` target) needs your
+user in the `kvm` group. Without it QEMU does not quietly fall back to
+emulation: it refuses to start with `Could not access KVM kernel module:
+Permission denied`, and the calling script reports a timeout instead. Setup
+checks this as `kvm-access` and, in install mode, runs:
+
+```bash
+sudo usermod -aG kvm $USER
+```
+
+<!-- source: scripts/dev/dev-setup.py -- kvm_status, apply_kvm_fix -->
+
+Group membership is fixed at login, so an existing shell keeps the old groups
+even after the command succeeds. Log out and back in, or run one command with
+the new group:
+
+```bash
+sg kvm -c 'make ze-vpp-hugepages-qemu-test'
+```
+
+Setup distinguishes the two states: `kvm-access` reports `pending` when the
+group database lists you but the running session predates it, and `missing`
+when the group is not granted at all. A host with no `/dev/kvm` (no hardware
+virtualisation, or a VM without nested virt) reports `n/a`: QEMU runs under
+`tcg` there, only slower. macOS has no `/dev/kvm` and needs no group; the
+evidence scripts select the Apple hypervisor (`hvf`) by platform.
+
+<!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
+
+These two are the only places setup runs `sudo`.
 
 ## After Setup
 

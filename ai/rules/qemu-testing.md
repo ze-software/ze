@@ -224,6 +224,15 @@ reuse the cache in `tmp/qemu/` (~30s boot + test time).
 On macOS: requires `qemu` (`brew install qemu`). Uses HVF acceleration
 when available, falls back to TCG (software emulation).
 
+On Linux: the invoking user MUST be in the `kvm` group. `/dev/kvm` is
+`root:kvm` 0660, so a user outside it does not get a slow run, it gets no run:
+qemu exits with `Could not access KVM kernel module: Permission denied` and the
+calling evidence script reports the generic "did not reach SSH within the
+timeout", which reads as flakiness. `make ze-setup` checks this as `kvm-access`
+and applies `sudo usermod -aG kvm $USER`; the new group only reaches a new
+login, so use `sg kvm -c '<command>'` in an existing shell. A host with no
+`/dev/kvm` reports `n/a` and legitimately runs under TCG.
+
 ## Reference Implementations
 
 | What | File |
@@ -291,3 +300,5 @@ gate, that every `make <target>` any workflow names exists, and that no
 | Forgetting to add package to Makefile | Test compiles but never runs in CI |
 | Using `t.Fatal` for missing capabilities | Use `t.Skip` so the test is portable |
 | Hardcoding `/dev/ttyS0` in a test | Use `pty.Open()` for a real PTY pair |
+| Reading a QEMU evidence timeout as "tcg is slow" | On Linux, check `kvm-access` first (`make ze-setup CHECK=1`). A user outside the `kvm` group makes qemu refuse to start, which surfaces as a timeout |
+| Selecting the accelerator on `Path("/dev/kvm").exists()` | Existence is not access. Probe `os.access(..., R_OK\|W_OK)`, and branch on `sys.platform == "darwin"` for `hvf` |

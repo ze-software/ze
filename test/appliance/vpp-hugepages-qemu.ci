@@ -3,12 +3,16 @@
 # Drives scripts/evidence/effective-vpp-hugepages-qemu.py, which builds a HOST ze,
 # inits an appliance whose config carries image.hugepages + image.memory-bytes,
 # builds the gokrazy image (exercising the derived-instance-config kernel-argument
-# path), boots it in QEMU, logs in over SSH, and asserts /proc/cmdline carries the
-# reserved-pages arguments and /proc/meminfo reports HugePages_Total >= 1.
+# path), boots it in QEMU, logs in over SSH, and asserts through the Ze CLI that
+# `show host kernel | json` carries the reserved-pages arguments and that
+# `show host memory | json` reports hugepages-total >= 1. The appliance's SSH
+# server IS the Ze CLI, so shell commands like `cat /proc/cmdline` are rejected.
 #
-# The driver self-skips with a clear reason when QEMU, KVM/tcg, sshpass, e2fsprogs,
-# or the go toolchain are absent. It exits 0 in both PASS and SKIP cases; a genuine
-# cmdline/meminfo mismatch exits non-zero. The exhaustive run is
+# The driver self-skips with a clear reason when QEMU, sshpass, e2fsprogs, or the
+# go toolchain are absent. It exits 0 in both PASS and SKIP cases; a genuine
+# mismatch exits non-zero, as does an appliance that never answers under a
+# hardware accelerator (kvm/hvf). On Linux that needs the invoking user in the
+# `kvm` group -- `make ze-setup` checks this as kvm-access. The exhaustive run is
 # `make ze-vpp-hugepages-qemu-test`.
 
 cmd=foreground:seq=1:exec=python3 scripts/evidence/effective-vpp-hugepages-qemu.py
