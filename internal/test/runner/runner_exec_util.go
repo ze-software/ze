@@ -140,13 +140,92 @@ func zeReadyFileEnabled(mode, binName, tmpfsTempDir string) bool {
 	return mode == modeForeground || mode == modeBackground
 }
 
+// lockedBuilder is a mutex-guarded output accumulator.
+//
+// A .ci test's non-peer client processes -- the ze daemon plus every
+// cmd=background helper (python collectors, mock servers, observers) -- all
+// write into ONE stdout and ONE stderr accumulator, and os/exec spawns a copy
+// goroutine per stream per process whenever Cmd.Stdout/Stderr is not an
+// *os.File. A bare strings.Builder is not safe for concurrent use: two copy
+// goroutines appending at once lose whole lines, so an expect=stderr:pattern=
+// that the process really did print fails spuriously under load.
+//
+// Safe for concurrent use. Deliberately not a syncWriter: syncWriter re-scans
+// the whole buffer for its pattern on every Write, which is quadratic for a
+// general-purpose accumulator.
+type lockedBuilder struct {
+	mu        sync.Mutex
+	buf       strings.Builder
+	truncated bool
+}
+
+// truncationMarker is appended, exactly once, the first time an accumulator
+// drops output at maxOutputBytes.
+//
+// The cap must SAY it fired. A silent cap is a guard that neither denies nor
+// speaks (ai/rules/fail-closed-guards.md): a positive `expect=stdout:pattern=`
+// whose needle lands past the cap fails over a capture that looks complete, and
+// the failure reads as "the daemon never printed it". The runner sets
+// SLOG_LEVEL=DEBUG for every client, so 10 MB is reachable.
+const truncationMarker = "\n[ze-test: output truncated at maxOutputBytes; the capture below this line is incomplete]\n"
+
+// appendCapped stores as much of s as the cap allows and records whether it had
+// to drop anything. Caller MUST hold b.mu.
+func (b *lockedBuilder) appendCapped(s string) {
+	if b.truncated {
+		return
+	}
+	remaining := maxOutputBytes - b.buf.Len()
+	if len(s) <= remaining {
+		b.buf.WriteString(s) //nolint:errcheck // strings.Builder.WriteString never fails
+		return
+	}
+	if remaining > 0 {
+		b.buf.WriteString(s[:remaining]) //nolint:errcheck // strings.Builder.WriteString never fails
+	}
+	b.buf.WriteString(truncationMarker) //nolint:errcheck // strings.Builder.WriteString never fails
+	b.truncated = true
+}
+
+// Write appends p, capped at maxOutputBytes so a runaway process cannot exhaust
+// memory. It reports the caller's FULL length even when the cap truncates: a
+// short count makes os/exec's io.Copy goroutine abort with ErrShortWrite, which
+// then kills the child with EPIPE and surfaces as a bogus test failure.
+func (b *lockedBuilder) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.appendCapped(string(p))
+	return len(p), nil
+}
+
+// WriteString appends s under the same lock as Write. It keeps the stdlib
+// io.StringWriter signature: a divergent one would shadow the embedded
+// strings.Builder's and make io.WriteString / io.MultiWriter silently fall back
+// to Write after a failed interface probe.
+func (b *lockedBuilder) WriteString(s string) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.appendCapped(s)
+	return len(s), nil
+}
+
+// String returns everything captured so far.
+func (b *lockedBuilder) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
 // Used to wait for ze-peer's "listening on" message before starting the client.
 type syncWriter struct {
-	mu      sync.Mutex
-	buf     strings.Builder
-	pattern string
-	found   bool
+	mu        sync.Mutex
+	buf       strings.Builder
+	pattern   string
+	found     bool
+	truncated bool
 }
 
 // peerListeningPattern is the string ze-peer prints to stdout when ready.
@@ -174,17 +253,33 @@ func (sw *syncWriter) Write(p []byte) (int, error) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	if sw.buf.Len() < maxOutputBytes {
+	// Report the caller's FULL length even when the cap truncates. These writers
+	// are driven by os/exec's per-stream io.Copy goroutine, and io.Copy treats a
+	// short count as io.ErrShortWrite: it aborts the copy, os/exec closes the
+	// pipe read end, the child then gets EPIPE on every later write, and
+	// cmd.Wait() surfaces "short write" -- which an expect=exit:code=0 reads as a
+	// test failure. Worse, teeDaemonStderr fans stderr through an io.MultiWriter
+	// (await_stderr.go), which propagates one leg's ErrShortWrite to the whole
+	// daemon stderr stream. The cap must bound memory via the return value never,
+	// and announce itself in the buffer instead (see truncationMarker).
+	n := len(p)
+	if !sw.truncated {
+		s := string(p)
 		remaining := maxOutputBytes - sw.buf.Len()
-		if len(p) > remaining {
-			p = p[:remaining]
+		if len(s) <= remaining {
+			sw.buf.WriteString(s) //nolint:errcheck // strings.Builder.WriteString never fails
+		} else {
+			if remaining > 0 {
+				sw.buf.WriteString(s[:remaining]) //nolint:errcheck // strings.Builder.WriteString never fails
+			}
+			sw.buf.WriteString(truncationMarker) //nolint:errcheck // strings.Builder.WriteString never fails
+			sw.truncated = true
 		}
-		sw.buf.Write(p) //nolint:errcheck // strings.Builder.Write never fails
 	}
 	if !sw.found && strings.Contains(sw.buf.String(), sw.pattern) {
 		sw.found = true
 	}
-	return len(p), nil
+	return n, nil
 }
 
 // WaitFor waits until the pattern is found or context is canceled.
@@ -222,7 +317,11 @@ func (sw *syncWriter) String() string {
 // synchronization and output capture.
 type peerOutput struct {
 	stdout *syncWriter
-	stderr *strings.Builder
+	// stderr must be concurrency-safe, not a bare strings.Builder: the
+	// peer-never-bound path reads it (runner_exec.go peerBindFailure) while the
+	// peer is STILL RUNNING and its os/exec copy goroutine is still appending --
+	// only the readiness WaitFor timed out, nothing has Wait()ed the process.
+	stderr *lockedBuilder
 	proc   *exec.Cmd
 }
 
@@ -369,9 +468,14 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 // order. Because the fold happens only after Wait() returns, sequential
 // quick-exit steps never write the shared builders concurrently. It returns the
 // command's exit error for the expect=exit check.
-func awaitQuickZe(proc *exec.Cmd, quickStdout, quickStderr, clientStdout, clientStderr *strings.Builder) error {
+// The client accumulators are *lockedBuilder, not *strings.Builder: this merge
+// runs on the runner's own goroutine while background processes' os/exec copy
+// goroutines are still appending to the same two buffers.
+func awaitQuickZe(proc *exec.Cmd, quickStdout, quickStderr *strings.Builder, clientStdout, clientStderr *lockedBuilder) error {
 	waitErr := proc.Wait()
+	//nolint:errcheck // lockedBuilder.WriteString never returns a non-nil error
 	clientStdout.WriteString(quickStdout.String())
+	//nolint:errcheck // lockedBuilder.WriteString never returns a non-nil error
 	clientStderr.WriteString(quickStderr.String())
 	return waitErr
 }

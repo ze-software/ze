@@ -454,7 +454,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Per-process output tracking for ze-peer instances.
 	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
 	var peerOutputs []peerOutput
-	var clientStdout, clientStderr strings.Builder
+	// Every non-peer client process (the ze daemon plus each cmd=background
+	// helper: python collectors, mock servers, observers) shares these two
+	// accumulators, and os/exec runs one copy goroutine per stream per process.
+	// They MUST be concurrency-safe: a plain strings.Builder loses whole lines
+	// when two processes write at once, which silently turns an
+	// expect=stderr:pattern= into a spurious failure under load.
+	var clientStdout, clientStderr lockedBuilder
 
 	// await=stderr fence: when set, the daemon's relayed stderr is teed through
 	// this syncWriter so the runner can block until it carries the needle before
@@ -790,7 +796,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// so WaitFor works independently per process.
 		switch {
 		case strings.Contains(execStr, "ze-peer"):
-			po := peerOutput{stdout: newSyncWriter(), stderr: &strings.Builder{}}
+			po := peerOutput{stdout: newSyncWriter(), stderr: &lockedBuilder{}}
 			peerOutputs = append(peerOutputs, po)
 			proc.Stdout = po.stdout
 			proc.Stderr = po.stderr

@@ -10,6 +10,10 @@
 package runner
 
 import (
+	"bytes"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -141,13 +145,111 @@ func TestSyncWriterCapsOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second Write error: %v", err)
 	}
-	// Write returns len(p) after capping, so n2 == remaining capacity.
-	wantN2 := maxOutputBytes - maxOutputBytes/2
-	if n2 != wantN2 {
-		t.Fatalf("second Write returned %d, want %d (remaining cap)", n2, wantN2)
+	// Write MUST report the caller's full length even though the cap truncated
+	// what it stored. This assertion previously demanded the truncated count,
+	// which encoded a real bug: os/exec's per-stream io.Copy goroutine treats a
+	// short count as io.ErrShortWrite, aborts the copy, and the child then dies
+	// on EPIPE while cmd.Wait() reports "short write" -- read by an
+	// expect=exit:code=0 as a test failure. The cap bounds memory; it must never
+	// signal. Assertion strengthened, not relaxed: it still pins an exact value.
+	if n2 != len(overflow) {
+		t.Fatalf("second Write returned %d, want %d (the caller's full length)", n2, len(overflow))
 	}
 
-	if len(sw.String()) != maxOutputBytes {
-		t.Fatalf("buffered output should be capped at %d, got %d", maxOutputBytes, len(sw.String()))
+	// The cap bounds content at maxOutputBytes and then says so exactly once, so
+	// a reader can tell a truncated capture from a complete one.
+	got := sw.String()
+	if want := maxOutputBytes + len(truncationMarker); len(got) != want {
+		t.Fatalf("buffered output = %d bytes, want %d (cap + one truncation marker)", len(got), want)
+	}
+	if n := strings.Count(got, truncationMarker); n != 1 {
+		t.Fatalf("truncation marker appears %d times, want exactly 1", n)
+	}
+
+	// A further overflowing write must not append a second marker.
+	if _, err := sw.Write(overflow); err != nil {
+		t.Fatalf("third Write error: %v", err)
+	}
+	if n := strings.Count(sw.String(), truncationMarker); n != 1 {
+		t.Fatalf("after a second overflow the marker appears %d times, want 1", n)
+	}
+}
+
+// TestLockedBuilderConcurrentWrites drives lockedBuilder the way os/exec does:
+// one copy goroutine per stream per client process, all appending to the same
+// accumulator.
+//
+// VALIDATES: every line written by every concurrent producer survives, so an
+// expect=stderr:pattern= sees output the process really printed.
+// PREVENTS: regressing the runner-side half of the bmp-locrib (test 97) flake.
+// clientStdout/clientStderr were a bare strings.Builder shared by the ze daemon
+// and every cmd=background helper; concurrent appends dropped whole lines, so a
+// python collector's sentinel vanished from the capture and the test failed
+// under load claiming a pattern the collector had in fact printed.
+func TestLockedBuilderConcurrentWrites(t *testing.T) {
+	var b lockedBuilder
+
+	const producers = 8
+	const linesEach = 500
+
+	var wg sync.WaitGroup
+	wg.Add(producers)
+	for p := range producers {
+		go func() {
+			defer wg.Done()
+			line := []byte("PRODUCER-" + strconv.Itoa(p) + "\n")
+			for range linesEach {
+				if _, err := b.Write(line); err != nil {
+					t.Errorf("Write: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	got := b.String()
+	for p := range producers {
+		want := "PRODUCER-" + strconv.Itoa(p) + "\n"
+		if n := strings.Count(got, want); n != linesEach {
+			t.Errorf("producer %d wrote %d lines, capture has %d", p, linesEach, n)
+		}
+	}
+}
+
+// TestLockedBuilderCapsOutput mirrors TestSyncWriterCapsOutput: the cap bounds
+// memory, but Write still reports the caller's full length so io.Copy does not
+// abort with ErrShortWrite and truncate the rest of a process's output.
+func TestLockedBuilderCapsOutput(t *testing.T) {
+	var b lockedBuilder
+
+	half := bytes.Repeat([]byte{'a'}, maxOutputBytes/2)
+	n1, err := b.Write(half)
+	if err != nil {
+		t.Fatalf("first Write error: %v", err)
+	}
+	if n1 != len(half) {
+		t.Fatalf("first Write returned %d, want %d", n1, len(half))
+	}
+
+	overflow := bytes.Repeat([]byte{'b'}, maxOutputBytes)
+	n2, err := b.Write(overflow)
+	if err != nil {
+		t.Fatalf("second Write error: %v", err)
+	}
+	if n2 != len(overflow) {
+		t.Fatalf("second Write returned %d, want %d (the caller's full length)", n2, len(overflow))
+	}
+
+	// The orchestrated clientStdout/clientStderr were UNCAPPED bare builders
+	// before lockedBuilder replaced them, so this cap is new. It must announce
+	// itself: otherwise a positive expect=stdout:pattern= whose needle lands past
+	// 10 MB fails over a capture that looks complete (ai/rules/fail-closed-guards.md).
+	got := b.String()
+	if want := maxOutputBytes + len(truncationMarker); len(got) != want {
+		t.Fatalf("buffered output = %d bytes, want %d (cap + one truncation marker)", len(got), want)
+	}
+	if n := strings.Count(got, truncationMarker); n != 1 {
+		t.Fatalf("truncation marker appears %d times, want exactly 1", n)
 	}
 }

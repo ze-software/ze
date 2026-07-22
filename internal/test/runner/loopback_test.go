@@ -25,11 +25,11 @@ func TestPerProcessSyncWriter(t *testing.T) {
 	// Create two independent peerOutput instances (simulating what runOrchestrated does).
 	po1 := peerOutput{
 		stdout: newSyncWriter(),
-		stderr: &strings.Builder{},
+		stderr: &lockedBuilder{},
 	}
 	po2 := peerOutput{
 		stdout: newSyncWriter(),
-		stderr: &strings.Builder{},
+		stderr: &lockedBuilder{},
 	}
 
 	// Write "listening on" to first peer only.
@@ -67,8 +67,8 @@ func TestPerProcessSyncWriter(t *testing.T) {
 // VALIDATES: AC-2 (independent WaitFor under concurrent writes)
 // PREVENTS: Race where concurrent write to peer1 satisfies peer2's blocking WaitFor.
 func TestPerProcessSyncWriterConcurrent(t *testing.T) {
-	po1 := peerOutput{stdout: newSyncWriter(), stderr: &strings.Builder{}}
-	po2 := peerOutput{stdout: newSyncWriter(), stderr: &strings.Builder{}}
+	po1 := peerOutput{stdout: newSyncWriter(), stderr: &lockedBuilder{}}
+	po2 := peerOutput{stdout: newSyncWriter(), stderr: &lockedBuilder{}}
 
 	var wg sync.WaitGroup
 
@@ -111,7 +111,7 @@ func TestSinglePeerUnchanged(t *testing.T) {
 	// Single peer: one peerOutput in the slice.
 	po := peerOutput{
 		stdout: newSyncWriter(),
-		stderr: &strings.Builder{},
+		stderr: &lockedBuilder{},
 	}
 	outputs := []peerOutput{po}
 
