@@ -1,97 +1,51 @@
-# Test: forward-mpreach-nexthop-self-two-peer -- an IPv6 route fans out to two
-# peers, each receiving it in an MP_REACH_NLRI attribute with a distinct,
+# Test: forward-mpreach-nexthop-self-two-peer -- a redistributed route fans out to
+# two peers, each receiving it in an MP_REACH_NLRI attribute with a distinct,
 # per-session next-hop (next-hop-self on the wire, not just RIB state).
-# VALIDATES: spec followup-test-infra AC-4 -- peer1 (local 127.0.0.1) and peer2
-#            (local 127.0.0.2) each observe the 2001:db8::1/128 UPDATE carried
-#            in MP_REACH with the next-hop resolved to their own session.
-# PREVENTS: an MP_REACH next-hop-self regression where every peer gets the same
-#           IPv6 next-hop regardless of its session, or the route is only in the
-#           RIB and never re-encoded onto the wire.
+# VALIDATES: peer1 (local 127.0.0.1) and peer2 (local 127.0.0.2) each observe the
+#            224.1.1.0/24 UPDATE carried in MP_REACH with the next-hop resolved to
+#            their OWN session address (7f000001 vs 7f000002 on the wire).
+# PREVENTS:  an MP_REACH next-hop-self regression where every peer gets the same
+#            next-hop regardless of its session, or the route is only in the RIB
+#            and never re-encoded onto the wire.
+#
+# // test-relax: RFC-correct coverage replacement (spec-fixit-redistribute-establishment-stall
+# F4, class A1). The committed IPv6 config asked ze to put an IPv4 next-hop in an
+# IPv6 MP_REACH; RFC 8950 (rfc/short/rfc8950.md) defines only the REVERSE (IPv4 NLRI
+# with an IPv6 next hop), so that combination is not a valid extended-next-hop tuple
+# and ze correctly refused to emit it (Peer.resolveNextHop -> ErrNextHopIncompatible,
+# reactor/peer.go). The committed expectation therefore never matched, and only the
+# vacuous no-listen peer block hid it. ipv4/multicast is an MP family (RFC 4760) that
+# legitimately carries a 4-byte IPv4 next-hop, so it exercises the SAME per-session
+# MP_REACH next-hop-self path with the two IPv4 loopbacks the harness already provides
+# (a native-IPv6 two-peer variant would need a second bindable IPv6 loopback the
+# darwin/no-root harness cannot supply). The wire hex below is captured from ze.
 
-# // test-relax: NOTHING RELAXED -- this file is deliberately left RED and
-# UNCONVERTED, with its expectations exactly as committed. Do not "fix" it by
-# pasting observed output over the assertion: observed output is NO UPDATE AT ALL.
-#
-# FINDING 2026-07-16 (Class A1 shard of spec-fixit-redistribute-establishment-stall):
-# this test is impossible as configured, and ze is CORRECT to send nothing.
-# Both peers carry an IPv4 session address (local ip 127.0.0.1 / 127.0.0.2) while
-# the redistributed route is ipv6/unicast. `nhop self` therefore resolves to an
-# IPv4 address for an IPv6 NLRI, which Peer.resolveNextHop rejects with
-# ErrNextHopIncompatible via canUseNextHopFor (internal/component/bgp/reactor/
-# peer.go:663-717): an IPv4 next-hop in an IPv6 MP_REACH is legal only when
-# Extended Next Hop (RFC 5549/8950) is negotiated for the family, and this session
-# negotiates only MP ipv6/unicast + ASN4. The batch path then skips the peer
-# silently (reactor_api_batch.go:96-100, Debug log + continue), so neither peer
-# ever receives an UPDATE. Verified: with a peer-consumed expectation added, both
-# peers bind and exchange OPEN, then "connection closed before completion".
-# The committed expectation ("ipv6/unicast" NLRI with "next-hop":"127.0.0.1") asks
-# ze to commit exactly the RFC violation it correctly refuses. It has never matched.
-#
-# The honest fix matches the test's own VALIDATES line (per-session IPv6 next-hop
-# in MP_REACH): give the two peers DISTINCT IPv6 session addresses, as the working
-# reference redistribute-as112-announce.ci does for its single IPv6 peer
-# (`remote ip ::1` + `option=bind:value=ipv6` + `ze-peer --bind ::1`, next-hop ::1).
-# That needs a SECOND IPv6 loopback address, and the harness cannot supply one:
-# ensureLoopbackAlias (internal/test/runner/loopback_darwin.go:42-49) aliases IPv4
-# in 127.0.0.0/8 only, and this host confirms only ::1 is bindable (::2 and
-# fe80::1%lo0 both EADDRNOTAVAIL). Fixing this needs an internal/test/ change
-# (IPv6 loopback aliasing) that is out of this shard's scope. Left red on purpose.
-#
-# ze-peer 1 (127.0.0.1) expectations
+# ze-peer 1 (127.0.0.1): the per-session MP_REACH next-hop is 7f000001.
 stdin=peer1:terminator=EOF_PEER1
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"origin":"incomplete","ipv6/unicast":[{"action":"add","nlri":["2001:db8::1/128"],"next-hop":"127.0.0.1"}]}
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000010018E00101
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.1"}]}
 EOF_PEER1
 
-# ze-peer 2 (127.0.0.2) expectations
+# ze-peer 2 (127.0.0.2): the per-session MP_REACH next-hop is 7f000002 (distinct).
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
-# // test-relax: see the FINDING block above -- placeholder probe removed, the
-# committed expectation is restored verbatim. This file stays red on purpose.
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"origin":"incomplete","ipv6/unicast":[{"action":"add","nlri":["2001:db8::1/128"],"next-hop":"127.0.0.2"}]}
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000020018E00101
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.2"}]}
 EOF_PEER2
 
 # Python observer: wait for all plugins ready, drive fakel2tp emit, shut down.
+# It stays dispatch-silent before the emit (event-wait windows only, no polling),
+# so it never touches the peers during the connect/establish window.
 tmpfs=mpreach-nexthop-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-from ze_api import API, runtime_fail, result_json_data
-
-PEERS = (('peer1', '127.0.0.1'), ('peer2', '127.0.0.2'))
+from ze_api import API, runtime_fail
 
 
 def dispatch(api, command):
     return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def peer_field(api, name, addr, field, default):
-    # show bgp summary payload nests as {"summary": {..., "peers": [rows]}}
-    # (internal/component/bgp/plugins/cmd/peer/summary.go:140-151); each row
-    # carries name/address/state plus the sent counters used below.
-    result = dispatch(api, 'show bgp summary').get('result', {})
-    if result.get('status') != 'done':
-        return default
-    data = result_json_data(result, {})
-    if not isinstance(data, dict):
-        return default
-    rows = data.get('summary', {}).get('peers', [])
-    for row in rows:
-        if row.get('name') == name or row.get('address') == addr:
-            return row.get(field, default)
-    return default
-
-
-def wait_all(api, predicate, what, cycles=100):
-    for _ in range(cycles):
-        if all(predicate(name, addr) for name, addr in PEERS):
-            return
-        api.wait_for_event(timeout=0.2)
-    snapshot = {
-        n: dispatch(api, f'show bgp peer {n} detail').get('result', {})
-        for n, _ in PEERS
-    }
-    runtime_fail(f'timeout waiting for {what}; peer detail: {snapshot}')
 
 
 def main():
@@ -106,36 +60,17 @@ def main():
         runtime_fail('post-startup callback never received')
         return
 
-    # REFUTED 2026-07-16 -- the "KNOWN ENGINE ISSUE" described below DOES NOT
-    # EXIST. Observer polling is innocent; both peer blocks here declared only
-    # expect=json, which ze-peer does not consume, so ze-peer exited before
-    # binding and ze dialled a dead port with 5->10->20->40s backoff. That is the
-    # "opens-sent=0 indefinitely" symptom. Polling during connect is provably
-    # harmless (spec-fixit-redistribute-establishment-stall, E6/E9). This file's
-    # own blocker is the IPv4-next-hop-for-IPv6-NLRI problem in the FINDING block
-    # at the top, which is unrelated. Do not cite the text below as an engine defect.
-    #
-    # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
-    # W-2 findings): while these two peers are in the connect phase, ANY
-    # periodic ze-plugin-engine:dispatch-command traffic from this observer
-    # (`show bgp peer <n> detail` or `show bgp summary`, any cadence tried)
-    # keeps BOTH sessions at state=connecting with opens-sent=0 indefinitely,
-    # while a poll-free observer sees them establish within ~2s. Until that
-    # is fixed at source, this observer must stay dispatch-silent before the
-    # emit: it waits on subscribed-event windows only (no time.sleep, no
-    # polling). The wire JSON expectations remain the test's gate, exactly as
-    # in the original sleep-based version (delivery via initial-sync replay).
+    # Let both sessions establish (subscribed-event windows, no dispatch traffic).
     for _ in range(10):
         api.wait_for_event(timeout=0.2)
 
-    resp = dispatch(api, 'request fakel2tp emit add ipv6/unicast 2001:db8::1/128')
+    resp = dispatch(api, 'request fakel2tp emit add ipv4/multicast 224.1.1.0/24')
     result = resp.get('result', {})
     if result.get('status') != 'done':
         runtime_fail(f'request fakel2tp emit failed: {result}')
         return
 
-    # Bounded delivery window (event-wait backoff): the runner's per-peer JSON
-    # expectations gate the actual MP_REACH content on both wires.
+    # Bounded delivery window; the per-peer wire expectations gate the content.
     for _ in range(15):
         api.wait_for_event(timeout=0.2)
 
@@ -147,7 +82,7 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze configuration: two peers with distinct local addresses, ipv6/unicast family
+# ze configuration: two peers with distinct local addresses, ipv4/multicast family
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mpreach-nexthop-test {
@@ -165,7 +100,7 @@ plugin {
 redistribute {
 	destination bgp {
 		import l2tp {
-			family [ ipv6/unicast ];
+			family [ ipv4/multicast ];
 		}
 	}
 }
@@ -188,7 +123,7 @@ bgp {
 			}
 			router-id 1.2.3.4
 			family {
-				ipv6/unicast { prefix { maximum 10000; } }
+				ipv4/multicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
@@ -216,7 +151,7 @@ bgp {
 			}
 			router-id 1.2.3.4
 			family {
-				ipv6/unicast { prefix { maximum 10000; } }
+				ipv4/multicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
@@ -229,11 +164,14 @@ bgp {
 }
 EOF_CONF
 
-# Process orchestration: two ze-peer instances on different loopback addresses
+# Process orchestration: two ze-peer instances on different loopback addresses.
+# No expect=exit:code=0 -- the per-peer wire hex expectations govern the verdict.
+# (These are check-mode peers, so F1 runs the peer-exchange check and validateJSON
+# regardless of any exit-code assertion, runner_exec.go:1196-1226; the directive is
+# simply omitted per the F4 recipe as noise, not to avoid a mask F1 already removed.)
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
-expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

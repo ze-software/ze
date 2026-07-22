@@ -663,6 +663,22 @@ the next one. F1 will likely turn other tests red across the 21 files listed bel
 red is a pre-existing false green, not a regression, and must be triaged not silenced
 (`ai/rules/no-workarounds-for-missing-behavior.md`).
 
+-> Status (2026-07-22, F4 COMPLETE): all 7 `bgp-redistribute-*` and the four
+`redistribute-l2tp-*` tests pass with the converted expectations (committed earlier).
+The last outstanding F4 file, `forward-mpreach-nexthop-self-two-peer.ci`, was converted
+this session. Reading RFC 8950 (`rfc/short/rfc8950.md`) overturned the "enable Extended
+Next Hop" shortcut: RFC 8950 defines only IPv4-NLRI-with-an-IPv6-next-hop (the reverse of
+what the committed IPv6 config asked -- an IPv4 next-hop in an IPv6 MP_REACH), so that
+combination is undefined and ze correctly refuses it (`reactor/peer.go` `ErrNextHopIncompatible`).
+Rewritten to `ipv4/multicast`, an MP family (RFC 4760) that legitimately carries a 4-byte
+IPv4 next-hop, keeping the two existing IPv4 loopback peers and next-hop-self, so each peer's
+MP_REACH next-hop resolves to its own session address (`7f000001` vs `7f000002`). Byte-exact
+`expect=bgp:hex=` on both peers + `expect=json`; mutation-verified (peer2 expecting peer1's
+next-hop -> RED). This exercises the same per-session MP_REACH next-hop-self path WITHOUT the
+second bindable IPv6 loopback the earlier "left red on purpose" note deferred; IPv6 MP_REACH
+next-hop-self stays covered by `redistribute-as112-announce.ci`. Independently reviewed:
+SOUND (one stale-comment defect fixed). F5 and F6 remain open.
+
 | F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go:42-49`, re-read 2026-07-16); `isSelfValidated` returns false ONLY for a check peer (`:60-62`), so with the peer sinked the bare `rec.ExpectExitCode != nil` at `:72` makes it TRUE. `runner_exec.go:1117` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it at `:1141` (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/fail-closed-guards.md` names | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go:1117,1141` (the gate) | Found by the test-219 F4 shard |
 
 -> Evidence (F5, reproduced not inferred): `forward-mpreach-nexthop-self-two-peer.ci`
