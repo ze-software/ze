@@ -31,6 +31,19 @@ Required structure, in this exact order:
 - `make ze-rules-lint` enforces the block; `make ze-rules-condensed` regenerates
   the digest. Both run in `make ze-doc-test`. A rule that fails the lint cannot
   land.
+- **Commit the regenerated `CONDENSED.md` in the SAME commit as the rule edit.**
+  The freshness gate (`ze-rules-condensed-check`, inside the blocking
+  `ze-regen-check-readonly`) regenerates from the WORKING TREE and compares
+  against the working tree's digest, so it is green locally while HEAD is
+  inconsistent. CI checks out HEAD, regenerates from HEAD's rules, and fails.
+  A rule committed without its digest is therefore green on the author's
+  machine and red for everyone else.
+- When a **concurrent session** has an uncommitted rule edit, do NOT commit a
+  digest generated from your working tree: it would publish their unlanded rule
+  text, and still mismatch what CI regenerates from HEAD. Generate the digest
+  from HEAD plus your own edits instead
+  (`git archive HEAD ai/rules scripts/dev/rules_condensed.py | tar -x -C <scratch>`,
+  copy your edited rules in, run the generator there), and commit that.
 
 ## Rationale
 

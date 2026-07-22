@@ -155,6 +155,15 @@ The alert is almost always a stale *vendored upstream manifest*, not your real d
 The re-vendor deletes ~60 tracked files and adds ~60 new ones.
 ## Cache permissions
 Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFLAGS=-modcacherw`): go's default read-only cache permissions (dirs `r-x`) make git unable to delete or overwrite modcache files on later...
+## Module cache hygiene: what may accumulate, and what must never
+`gokrazy/modcache/` is a real Go module cache and Go never garbage-collects it.
+**Expected.** Superseded versions after a pin bump (runbook step 5 tells you to
+**A defect.** Either of these means a build resolved over the network instead of
+| What you find | What it means |
+|---------------|---------------|
+| `codeberg.org/thomas-mangin/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
+| A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's **kernel** |
+**Never `rm -rf gokrazy/modcache`.** 60 tracked files live inside it (the gokrazy
 ## Do not just dismiss
 Dismissing the alert leaves the stale manifest; a future advisory below the pin will re-fire on the same file.
 ## Proactive review cadence (builddir pins)
@@ -3727,6 +3736,8 @@ This rule says "BLOCKING", so it is worth being precise about which gate enforce
 | Forgetting to add package to Makefile | Test compiles but never runs in CI |
 | Using `t.Fatal` for missing capabilities | Use `t.Skip` so the test is portable |
 | Hardcoding `/dev/ttyS0` in a test | Use `pty.Open()` for a real PTY pair |
+| Reading a QEMU evidence timeout as "tcg is slow" | On Linux, check `kvm-access` first (`make ze-setup CHECK=1`). A user outside the `kvm` group makes qemu refuse to start, which surfaces as a timeout |
+| Selecting the accelerator on `Path("/dev/kvm").exists()` | Existence is not access. Probe `os.access(..., R_OK\|W_OK)`, and branch on `sys.platform == "darwin"` for `hvf` |
 
 ---
 
@@ -3927,6 +3938,8 @@ Every `ai/rules/*.md` rule (except the generated `INDEX.md` and `CONDENSED.md`) 
 - Put imperative content under `## Directives` (or the rule's own directive
 - Put the "why" under `## Rationale` and code under `## Examples`. The digest
 - `make ze-rules-lint` enforces the block; `make ze-rules-condensed` regenerates
+- **Commit the regenerated `CONDENSED.md` in the SAME commit as the rule edit.**
+- When a **concurrent session** has an uncommitted rule edit, do NOT commit a
 
 ---
 
