@@ -49,6 +49,50 @@ func loadPKIFromJSON(data string) error {
 	return pki.Load(cfg)
 }
 
+// ValidateIPsecSections parses the delivered config sections and runs every
+// cross-reference check the IPsec data model defines: group references, PKI
+// references (including the RFC 5216 Section 5.3 trust-anchor requirement for
+// EAP-TLS peers), and the remote-access pool and credentials.
+//
+// This is the plugin's OnConfigVerify body. Before it existed the three
+// IPsecConfig validators had no non-test caller anywhere in the repo, so a
+// config naming a missing ike-group, a missing certificate, or an EAP-TLS peer
+// with no CA was accepted at commit and only failed later, at session setup, or
+// not at all.
+//
+// The certificate lookups read the process-wide PKI store, which
+// parseIPsecSections has just loaded from the same config delivery, so a
+// reference to a certificate defined in the very config being verified resolves.
+func ValidateIPsecSections(sections []sdk.ConfigSection) error {
+	cfg, err := parseIPsecSections(sections)
+	if err != nil {
+		return err
+	}
+	if err := cfg.ValidateGroupRefs(); err != nil {
+		return err
+	}
+	if err := cfg.ValidatePKIRefs(hasPKICA, hasPKICertificate, pkiCertificateCN); err != nil {
+		return err
+	}
+	return cfg.ValidateRemoteAccess()
+}
+
+func hasPKICA(name string) bool { return pki.GetCA(name) != nil }
+
+func hasPKICertificate(name string) bool { return pki.GetCertificate(name) != nil }
+
+// pkiCertificateCN returns the subject CN of a stored certificate, or "" when
+// the certificate is absent. Returning "" is safe: ValidatePKIRefs skips the
+// local-id comparison for an empty CN, and a missing certificate is already
+// reported by the hasCert check.
+func pkiCertificateCN(name string) string {
+	entry := pki.GetCertificate(name)
+	if entry == nil || entry.Certificate == nil {
+		return ""
+	}
+	return entry.Certificate.Subject.CommonName
+}
+
 // parseIPsecFromJSON parses the JSON config section data into IPsecConfig.
 func parseIPsecFromJSON(data string) (*ipsec.IPsecConfig, error) {
 	var raw map[string]any

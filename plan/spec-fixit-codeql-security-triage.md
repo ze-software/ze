@@ -541,15 +541,18 @@ are; they already cite the mandating section.
   image-server plugin needs the same encoding; a plugin importing the installer
   package would be a tier violation (`ai/rules/module-tiers.md`). It is a pure
   library with no config-driven lifecycle, so `internal/core/` is its tier.
-- **AC-8 (config-verify rejection) NOT delivered.** `IPsecConfig.ValidatePKIRefs`,
-  `ValidateGroupRefs` and `ValidateRemoteAccess` have no non-test callers anywhere
-  in the repo, so a check added there would be dead code. The runtime path is
-  closed (item 3 above); the operator-visible verify-time rejection needs those
-  three validators wired first, which is separate work.
-- **The `peer.go` belt-and-braces guard NOT applied.** It would change the
-  behaviour of `TestEAPTLSPeerWithoutCASkipsServerValidation`, which carries
-  `RFC requirement: RFC5216-5.3-1 positive`. Only the user may authorise editing an
-  RFC-tagged test (`ai/rules/testing.md`), so this is queued as a question.
+- **AC-8 delivered, but at the reload transaction rather than `ze config validate`.**
+  The three IPsecConfig validators had no non-test caller, so they were wired into
+  a new ike `OnConfigVerify`. `ze config validate` does not invoke plugin verify
+  callbacks (confirmed by the producer: `SendConfigVerify` is reached only from
+  `internal/component/plugin/server/config_tx_bridge.go:206`, the reload transaction
+  path), so the functional test is a `test/reload/` case, matching the existing
+  `test-tx-iface-wireguard-invalid-no-private-key` precedent.
+- **The `peer.go` guard WAS applied, with user approval** (d067ae22d). Thomas asked
+  that the code and the tests do what the RFC requires, which authorised replacing
+  `TestEAPTLSPeerWithoutCASkipsServerValidation` -- a test tagged
+  `RFC5216-5.3-1 positive` while asserting a violation of that very MUST. Both test
+  edits carry `rfc-test-change-approved:` markers.
 
 ## Implementation Audit
 
@@ -624,21 +627,21 @@ are; they already cite the mandating section.
 | AC-1..AC-3 | rescue token minted, printed, verified; wrong token refused | `internal/core/rescueauth` suite green; `TestPrintRescueToken` |
 | AC-4 | old sha256 path deleted, not aliased | full-tree grep: only `test-relax:` provenance comments remain |
 | AC-5..AC-7 | appliance push fails closed / accepts pinned / rejects changed | four `TestSSHExec*` tests green |
-| AC-8 | reject EAP-TLS with no CA at `ze config verify` | **NOT DELIVERED** -- the three ipsec validators are dead code (see Deviations). The runtime path is closed instead (AC-9 evidence) |
+| AC-8 | reject EAP-TLS with no CA at config verification | DELIVERED. `ValidateIPsecSections` (`internal/component/ike/engine/config.go`) is the ike plugin's `OnConfigVerify` body and runs all three previously-orphaned validators. `test/reload/test-tx-ipsec-eap-tls-requires-ca.ci` PASS; mutation-verified (no-op the callback and it FAILs). Note the enforcement point is the reload transaction, not offline `ze config validate`, which does not invoke plugin verify callbacks |
 | AC-9 | EAP-TLS with a CA behaves as before | full `ike/...` suite green after the change |
 | AC-10 | redirect stays same-origin | four web tests, 9 hostile header forms each |
 | AC-11, AC-12 | irr ASN and announce duration rejected, not truncated | `TestUpdateASNRejectsOutOfRange`, `TestParseDurationRejectsOverflow` |
-| AC-13, AC-14 | OSPF/IS-IS local bound; valid config unchanged | **NOT DELIVERED** -- Phase 3 outstanding |
+| AC-13, AC-14 | OSPF/IS-IS local bound; valid config unchanged | DELIVERED in 752051f3e. `TestConfigUintRejectsAboveMax` (mutation-verified) and the full ospf/... + isis/... suites, 28 packages, green before and after |
 | AC-15 | scanning page fully triaged | 0 open alerts, verified by `gh api` listing |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | confirmed | `GOOS=linux go vet -tags 'linux ze_installer' ./internal/install/disk/` exit 0; suite green |
-| A-2 | unvalidated | the QEMU rescue scenario has NOT been run |
+| A-2 | unvalidated -- BLOCKED | `make ze-install-scenarios-qemu-test` SKIPs without `ZE_INSTALL_KERNEL` (needs a vmlinuz with IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in). The installer QEMU harness runs the VM at 1024 MiB (`scripts/evidence/effective-install-qemu.py:352`), against which a 64 MiB argon2id arena is 6%, but that is the harness, not a real appliance floor, and no minimum-RAM figure for the installer is documented anywhere in `docs/`. Genuinely unproven |
 | A-3 | confirmed | `go.mod` byte-identical after `go mod vendor`; one subpackage line added to `vendor/modules.txt` |
 | A-4 | confirmed | full-tree grep after the rename |
-| A-5 | partially validated | the config-file path is proven empirically; the hub-push and web-commit paths were NOT traced |
+| A-5 | partially validated -- and now moot for correctness | the config-file path is proven empirically; the hub-push and web-commit paths were NOT traced. Phase 3 (752051f3e) removed the dependence: the OSPF/IS-IS narrowing is now bounded locally, so an unvalidated entry point can no longer produce a truncated value |
 | A-6 | confirmed | dismissed alert #168, PATCHed it back to `state=open`, re-read it as `open` |
 
 ## Checklist

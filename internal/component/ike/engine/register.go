@@ -236,6 +236,17 @@ func runEngine(conn net.Conn) int {
 		}()
 	}
 
+	// Reject a structurally valid but self-inconsistent config before it is
+	// applied: a peer naming an undefined ike-group or esp-group, a certificate
+	// reference the PKI store cannot resolve, an EAP-TLS peer with no trust
+	// anchor, or a malformed remote-access pool.
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		if err := ValidateIPsecSections(sections); err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
+		return nil
+	})
+
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseIPsecSections(sections)
 		if err != nil {

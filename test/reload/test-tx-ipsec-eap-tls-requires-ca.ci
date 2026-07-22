@@ -1,0 +1,174 @@
+# Test: reload rejects a site-to-site eap-tls peer with no ca-certificate
+# RFC 5216 Section 5.3 makes certificate path validation a MUST on both sides,
+# and the configured trust anchor is the EAP-TLS peer's only means of performing
+# it: EAP carries no server hostname, so there is nothing else to check the
+# authenticator's chain against. ValidatePKIRefs therefore refuses the config,
+# the reload must fail OnConfigVerify, log the failure to stderr, and leave the
+# old config running (daemon survives, BGP peer connection holds).
+#
+# AC-8 wiring test. ze config validate does NOT invoke plugin OnConfigVerify, so
+# the check only fires at daemon reload time; this is the canonical way to
+# exercise it. It is also the wiring proof for the three IPsecConfig validators
+# (ValidateGroupRefs, ValidatePKIRefs, ValidateRemoteAccess), which until this
+# change had no non-test caller anywhere in the repo.
+
+option=skip-os:value=darwin
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+# Initial config: the peer authenticates with a pre-shared secret, which needs
+# no certificate material at all, so the daemon starts clean.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: the peer switches to eap-tls but names no ca-certificate, so
+# it could not path-validate the authenticator. Reload must reject.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode eap-tls
+					certificate client1
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+expect=stderr:contains=eap-tls requires a ca-certificate
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

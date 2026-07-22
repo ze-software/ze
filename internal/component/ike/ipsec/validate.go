@@ -32,8 +32,20 @@ func (c *IPsecConfig) ValidateGroupRefs() error {
 func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN func(string) string) error {
 	for name := range c.Peers {
 		peer := c.Peers[name]
-		if peer.Auth.Mode != AuthX509 {
+		if peer.Auth.Mode != AuthX509 && peer.Auth.Mode != AuthEAPTLS {
 			continue
+		}
+		// RFC 5216 Section 5.3: "Both sides MUST perform certificate path
+		// validation." An EAP-TLS peer validates the authenticator against its
+		// configured trust anchor and has no other way to do so, because EAP
+		// carries no server hostname to check. Without one the session
+		// authenticates nothing, so the config is refused here rather than at
+		// session setup (ai/rules/exact-or-reject.md). The runtime refuses it too,
+		// in eap.PeerSession.startTLSClient and engine.buildPeerTLSConfig.
+		if peer.Auth.Mode == AuthEAPTLS && peer.Auth.CACertificate == "" {
+			return fmt.Errorf(
+				"ipsec peer %q: eap-tls requires a ca-certificate to validate the authenticator (RFC 5216 Section 5.3)",
+				name)
 		}
 		if ca := peer.Auth.CACertificate; ca != "" && !hasCA(ca) {
 			return fmt.Errorf("ipsec peer %q: ca-certificate %q not found in PKI store", name, ca)
