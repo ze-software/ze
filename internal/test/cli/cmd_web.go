@@ -317,7 +317,19 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 		return nil, err
 	}
 
-	if err := zeTestProbeReady(ctx, listenAddr, 30*time.Second); err != nil {
+	// Under `make ze-verify` the functional web suite overlaps the -race unit
+	// stage: every .wb test forks a full --web-only daemon, and under that CPU
+	// starvation a daemon can take well over 30s just to bind its listener
+	// (symptom: connection-refused for the entire fixed window). Scale the
+	// readiness budget by the same contention headroom the runner applies to
+	// per-test budgets (runner.ParallelTimeoutHeadroom) when in verify mode;
+	// standalone runs keep the tight 30s so a genuine "web never starts" still
+	// surfaces fast.
+	readyTimeout := 30 * time.Second
+	if runner.VerifyModeEnabled() {
+		readyTimeout *= runner.ParallelTimeoutHeadroom
+	}
+	if err := zeTestProbeReady(ctx, listenAddr, readyTimeout); err != nil {
 		zeTestKillCmd(cmd)
 		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
 		return nil, fmt.Errorf("daemon not ready: %w", err)
