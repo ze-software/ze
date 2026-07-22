@@ -23,6 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -715,7 +717,7 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 // safe to hold beyond the event handler.
 func (bp *BMPPlugin) cacheOpenPDU(se *rpc.StructuredEvent) {
 	rawBytes, msgType := rawUpdateBytes(se)
-	if rawBytes == nil || msgType != message.TypeOPEN {
+	if rawBytes == nil || msgType != msgtype.TypeOPEN {
 		return
 	}
 
@@ -726,7 +728,7 @@ func (bp *BMPPlugin) cacheOpenPDU(se *rpc.StructuredEvent) {
 	copy(pdu, message.Marker[:])
 	pdu[message.MarkerLen] = byte(pduLen >> 8)     //nolint:gosec // pduLen bounded by maxBMPMsgSize
 	pdu[message.MarkerLen+1] = byte(pduLen & 0xFF) //nolint:gosec // pduLen bounded by maxBMPMsgSize
-	pdu[message.MarkerLen+2] = byte(message.TypeOPEN)
+	pdu[message.MarkerLen+2] = byte(msgtype.TypeOPEN)
 	copy(pdu[message.HeaderLen:], rawBytes)
 
 	bp.mu.Lock()
@@ -926,7 +928,7 @@ func parseUint16(s string, def uint16) uint16 {
 // production it is always *bgptypes.RawMessage (set by server/events.go
 // getStructuredEvent); msg.RawBytes is documented as the message body without
 // marker/header, matching session_read.go body and session_write.go body.
-func rawUpdateBytes(se *rpc.StructuredEvent) ([]byte, message.MessageType) {
+func rawUpdateBytes(se *rpc.StructuredEvent) ([]byte, msgtype.MessageType) {
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil {
 		return nil, 0

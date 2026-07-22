@@ -8,10 +8,11 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -72,11 +73,11 @@ func newCoalesceSession(t *testing.T) (*Session, *[][]byte) {
 	var mu sync.Mutex
 	var bodies [][]byte
 	session.onMessageReceived = func(
-		_ netip.Addr, msgType message.MessageType, rawBytes []byte,
+		_ netip.Addr, msgType msgtype.MessageType, rawBytes []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string,
 	) bool {
-		if msgType == message.TypeUPDATE {
+		if msgType == msgtype.TypeUPDATE {
 			mu.Lock()
 			cp := make([]byte, len(rawBytes))
 			copy(cp, rawBytes)
@@ -229,7 +230,7 @@ func TestCoalesceKeepaliveFlushesBatch(t *testing.T) {
 		keepalive[i] = 0xff
 	}
 	binary.BigEndian.PutUint16(keepalive[16:], 19)
-	keepalive[18] = byte(message.TypeKEEPALIVE)
+	keepalive[18] = byte(msgtype.TypeKEEPALIVE)
 
 	server, client := net.Pipe()
 	defer func() { _ = server.Close() }()

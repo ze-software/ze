@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
@@ -326,10 +328,10 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 // type) -- that is what bgptypes.RawMessage.RawBytes holds. The 19-byte BGP
 // message header per RFC 4271 §4.1 is synthesized inline using msgType so the
 // emitted PDU is a complete BGP message as RFC 7854 §4.6 Route Monitoring
-// requires. In practice the caller always passes message.TypeUPDATE (BMP
+// requires. In practice the caller always passes msgtype.TypeUPDATE (BMP
 // Route Monitoring carries UPDATEs per RFC 7854) but the parameter makes the
 // synthesized header explicit rather than hardcoded.
-func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType message.MessageType, bgpBody []byte) error {
+func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.MessageType, bgpBody []byte) error {
 	bgpPDULen := message.HeaderLen + len(bgpBody)
 	total := CommonHeaderSize + PeerHeaderSize + bgpPDULen
 	buf, err := ss.scratchFor(total)
@@ -371,7 +373,7 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 // RFC 7854 Section 4.7: wraps a complete BGP PDU in TLV type 0.
 // bgpBody is the message body without the 19-byte BGP header; the header
 // is synthesized inline (same pattern as writeRouteMonitoring).
-func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType message.MessageType, bgpBody []byte) error {
+func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType msgtype.MessageType, bgpBody []byte) error {
 	bgpPDULen := message.HeaderLen + len(bgpBody)
 	tlvLen := TLVHeaderSize + bgpPDULen
 	total := CommonHeaderSize + PeerHeaderSize + tlvLen

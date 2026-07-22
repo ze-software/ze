@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
@@ -82,7 +83,7 @@ func newTestServer(t *testing.T) *pluginserver.Server {
 // keepaliveMsg returns a simple KEEPALIVE RawMessage for testing.
 func keepaliveMsg() bgptypes.RawMessage {
 	return bgptypes.RawMessage{
-		Type:      message.TypeKEEPALIVE,
+		Type:      msgtype.TypeKEEPALIVE,
 		Direction: rpc.DirectionReceived,
 	}
 }

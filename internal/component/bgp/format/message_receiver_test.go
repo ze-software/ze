@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -27,12 +29,12 @@ import (
 func TestRawMessageType(t *testing.T) {
 	now := time.Now()
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeUPDATE,
+		Type:      msgtype.TypeUPDATE,
 		RawBytes:  []byte{0x00, 0x00, 0x00, 0x17},
 		Timestamp: now,
 	}
 
-	require.Equal(t, message.TypeUPDATE, msg.Type)
+	require.Equal(t, msgtype.TypeUPDATE, msg.Type)
 	require.Equal(t, []byte{0x00, 0x00, 0x00, 0x17}, msg.RawBytes)
 	require.Equal(t, now, msg.Timestamp)
 }
@@ -58,7 +60,7 @@ func TestFormatSwitchingParsedRawFull(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeUPDATE,
+		Type:      msgtype.TypeUPDATE,
 		RawBytes:  updateBytes,
 		Timestamp: time.Now(),
 	}
@@ -105,7 +107,7 @@ func TestFormatFullWithRoutes(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeUPDATE,
+		Type:      msgtype.TypeUPDATE,
 		RawBytes:  updateBytes,
 		Timestamp: time.Now(),
 	}
@@ -498,7 +500,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 		require.NoError(t, err)
 
 		msg := bgptypes.RawMessage{
-			Type:       message.TypeUPDATE,
+			Type:       msgtype.TypeUPDATE,
 			RawBytes:   body,
 			AttrsWire:  attrsWire,
 			WireUpdate: wireUpdate,
@@ -542,7 +544,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 		require.NoError(t, err)
 
 		msg := bgptypes.RawMessage{
-			Type:       message.TypeUPDATE,
+			Type:       msgtype.TypeUPDATE,
 			RawBytes:   body,
 			AttrsWire:  attrsWire,
 			WireUpdate: wireUpdate,

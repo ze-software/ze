@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -17,7 +19,7 @@ import (
 )
 
 // handleUnknownType handles unknown message types (exabgp-compatible).
-func (s *Session) handleUnknownType(msgType message.MessageType) error {
+func (s *Session) handleUnknownType(msgType msgtype.MessageType) error {
 	s.mu.RLock()
 	conn := s.conn
 	s.mu.RUnlock()
@@ -306,7 +308,7 @@ func (s *Session) validateRouteRefreshLength(body, notificationData []byte) erro
 
 func routeRefreshNotificationData(body []byte) []byte {
 	data := make([]byte, message.HeaderLen+len(body))
-	header := message.Header{Length: uint16(len(data)), Type: message.TypeROUTEREFRESH} //nolint:gosec // received BGP message length is uint16-bounded.
+	header := message.Header{Length: uint16(len(data)), Type: msgtype.TypeROUTEREFRESH} //nolint:gosec // received BGP message length is uint16-bounded.
 	header.WriteTo(data, 0)
 	copy(data[message.HeaderLen:], body)
 	return data

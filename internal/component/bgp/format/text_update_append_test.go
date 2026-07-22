@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -44,7 +45,7 @@ func TestAppendSentMessage_TypeIsSent(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -123,7 +124,7 @@ func TestAppendSentMessage_NoStringsReplaceSurgery(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,

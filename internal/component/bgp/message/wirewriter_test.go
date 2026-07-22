@@ -3,6 +3,8 @@ package message
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
@@ -48,7 +50,7 @@ func TestKeepaliveWriteToWithContext(t *testing.T) {
 	// Verify header is valid
 	h, err := ParseHeader(buf[:n])
 	if assert.NoError(t, err) {
-		assert.Equal(t, TypeKEEPALIVE, h.Type)
+		assert.Equal(t, msgtype.TypeKEEPALIVE, h.Type)
 		assert.Equal(t, uint16(HeaderLen), h.Length)
 	}
 }

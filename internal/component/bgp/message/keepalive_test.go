@@ -3,6 +3,8 @@ package message
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +16,7 @@ import (
 // PREVENTS: Wrong type causing message misrouting.
 func TestKeepaliveType(t *testing.T) {
 	k := &Keepalive{}
-	assert.Equal(t, TypeKEEPALIVE, k.Type())
+	assert.Equal(t, msgtype.TypeKEEPALIVE, k.Type())
 }
 
 // TestKeepalivePack verifies KEEPALIVE packing via PackTo.
@@ -32,7 +34,7 @@ func TestKeepalivePack(t *testing.T) {
 	// Verify it's a valid header
 	h, err := ParseHeader(data)
 	require.NoError(t, err)
-	assert.Equal(t, TypeKEEPALIVE, h.Type)
+	assert.Equal(t, msgtype.TypeKEEPALIVE, h.Type)
 	assert.Equal(t, uint16(HeaderLen), h.Length)
 }
 
@@ -46,7 +48,7 @@ func TestKeepaliveUnpack(t *testing.T) {
 	msg, err := UnpackKeepalive([]byte{})
 	require.NoError(t, err)
 	assert.NotNil(t, msg)
-	assert.Equal(t, TypeKEEPALIVE, msg.Type())
+	assert.Equal(t, msgtype.TypeKEEPALIVE, msg.Type())
 }
 
 // TestKeepaliveRoundTrip verifies pack/unpack symmetry.
@@ -63,7 +65,7 @@ func TestKeepaliveRoundTrip(t *testing.T) {
 
 	parsed, err := UnpackKeepalive(body)
 	require.NoError(t, err)
-	assert.Equal(t, TypeKEEPALIVE, parsed.Type())
+	assert.Equal(t, msgtype.TypeKEEPALIVE, parsed.Type())
 }
 
 // TestKeepaliveSingleton verifies singleton pattern.

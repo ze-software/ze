@@ -3,9 +3,20 @@ package message
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // TestParseHeaderValid verifies parsing of valid BGP header.
 //
@@ -25,29 +36,29 @@ func TestParseHeaderValid(t *testing.T) {
 	h, err := ParseHeader(data)
 	require.NoError(t, err)
 	assert.Equal(t, uint16(19), h.Length)
-	assert.Equal(t, TypeKEEPALIVE, h.Type)
+	assert.Equal(t, msgtype.TypeKEEPALIVE, h.Type)
 }
 
 // TestParseHeaderAllTypes verifies all message type values.
 //
-// VALIDATES: Type byte correctly mapped to MessageType.
+// VALIDATES: Type byte correctly mapped to msgtype.MessageType.
 //
 // PREVENTS: Wrong message type causing incorrect parsing.
 //
 // RFC requirement: RFC2918-3-1 negative -- a header whose type byte is not 5
 // (1..4) decodes to OPEN/UPDATE/NOTIFICATION/KEEPALIVE, never ROUTE-REFRESH; only
-// type byte 5 yields TypeROUTEREFRESH. Proves the type-5 assignment is exclusive,
+// type byte 5 yields msgtype.TypeROUTEREFRESH. Proves the type-5 assignment is exclusive,
 // so a non-5 message is not mistaken for a ROUTE-REFRESH.
 func TestParseHeaderAllTypes(t *testing.T) {
 	tests := []struct {
 		typeByte byte
-		expected MessageType
+		expected msgtype.MessageType
 	}{
-		{1, TypeOPEN},
-		{2, TypeUPDATE},
-		{3, TypeNOTIFICATION},
-		{4, TypeKEEPALIVE},
-		{5, TypeROUTEREFRESH},
+		{1, msgtype.TypeOPEN},
+		{2, msgtype.TypeUPDATE},
+		{3, msgtype.TypeNOTIFICATION},
+		{4, msgtype.TypeKEEPALIVE},
+		{5, msgtype.TypeROUTEREFRESH},
 	}
 
 	for _, tt := range tests {
@@ -64,7 +75,7 @@ func TestParseHeaderAllTypes(t *testing.T) {
 //
 // PREVENTS: Processing garbage as BGP messages.
 func TestParseHeaderInvalidMarker(t *testing.T) {
-	data := makeHeader(19, byte(TypeKEEPALIVE))
+	data := makeHeader(19, byte(msgtype.TypeKEEPALIVE))
 	data[0] = 0x00 // Corrupt marker
 
 	_, err := ParseHeader(data)
@@ -115,7 +126,7 @@ func TestParseHeaderLengthBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data := makeHeader(tt.length, byte(TypeKEEPALIVE))
+			data := makeHeader(tt.length, byte(msgtype.TypeKEEPALIVE))
 			_, err := ParseHeader(data)
 			if tt.err != nil {
 				assert.ErrorIs(t, err, tt.err)
@@ -134,7 +145,7 @@ func TestParseHeaderLengthBounds(t *testing.T) {
 func TestHeaderWriteTo(t *testing.T) {
 	h := Header{
 		Length: 50,
-		Type:   TypeUPDATE,
+		Type:   msgtype.TypeUPDATE,
 	}
 
 	buf := make([]byte, HeaderLen)
@@ -152,7 +163,7 @@ func TestHeaderWriteTo(t *testing.T) {
 	assert.Equal(t, byte(0x32), buf[17]) // 50 = 0x32
 
 	// Check type
-	assert.Equal(t, byte(TypeUPDATE), buf[18])
+	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[18])
 }
 
 // TestHeaderRoundTrip verifies pack/parse symmetry.
@@ -163,7 +174,7 @@ func TestHeaderWriteTo(t *testing.T) {
 func TestHeaderRoundTrip(t *testing.T) {
 	original := Header{
 		Length: 1234,
-		Type:   TypeNOTIFICATION,
+		Type:   msgtype.TypeNOTIFICATION,
 	}
 
 	buf := make([]byte, HeaderLen)
@@ -184,15 +195,15 @@ func TestHeaderRoundTrip(t *testing.T) {
 // PREVENTS: Cryptic numeric values in logs.
 func TestMessageTypeString(t *testing.T) {
 	tests := []struct {
-		t        MessageType
+		t        msgtype.MessageType
 		expected string
 	}{
-		{TypeOPEN, "OPEN"},
-		{TypeUPDATE, "UPDATE"},
-		{TypeNOTIFICATION, "NOTIFICATION"},
-		{TypeKEEPALIVE, "KEEPALIVE"},
-		{TypeROUTEREFRESH, "ROUTE-REFRESH"},
-		{MessageType(99), "UNKNOWN(99)"},
+		{msgtype.TypeOPEN, "OPEN"},
+		{msgtype.TypeUPDATE, "UPDATE"},
+		{msgtype.TypeNOTIFICATION, "NOTIFICATION"},
+		{msgtype.TypeKEEPALIVE, "KEEPALIVE"},
+		{msgtype.TypeROUTEREFRESH, "ROUTE-REFRESH"},
+		{msgtype.MessageType(99), "UNKNOWN(99)"},
 	}
 
 	for _, tt := range tests {
@@ -227,30 +238,30 @@ func makeHeader(length uint16, msgType byte) []byte {
 func TestValidateLengthWithMax(t *testing.T) {
 	tests := []struct {
 		name     string
-		msgType  MessageType
+		msgType  msgtype.MessageType
 		length   uint16
 		extended bool
 		wantErr  bool
 	}{
 		// OPEN: always 4096 max, regardless of extended
-		{"OPEN at 4096", TypeOPEN, 4096, false, false},
-		{"OPEN at 4096 with extended", TypeOPEN, 4096, true, false},
-		{"OPEN over 4096", TypeOPEN, 4097, false, true},
+		{"OPEN at 4096", msgtype.TypeOPEN, 4096, false, false},
+		{"OPEN at 4096 with extended", msgtype.TypeOPEN, 4096, true, false},
+		{"OPEN over 4096", msgtype.TypeOPEN, 4097, false, true},
 		// RFC requirement: RFC8654-4-3 negative -- an OPEN of 4097 octets is rejected even with
 		// the Extended Message capability negotiated; the extension never raises the OPEN/KEEPALIVE
 		// cap above 4096 (internal/component/bgp/message/header.go:197-199).
-		{"OPEN over 4096 with extended", TypeOPEN, 4097, true, true},
+		{"OPEN over 4096 with extended", msgtype.TypeOPEN, 4097, true, true},
 
 		// KEEPALIVE: exactly 19
-		{"KEEPALIVE exact", TypeKEEPALIVE, 19, false, false},
+		{"KEEPALIVE exact", msgtype.TypeKEEPALIVE, 19, false, false},
 		// RFC requirement: RFC8654-6-1 negative -- a KEEPALIVE of 20 octets violates its per-type
 		// length and is rejected by ValidateLengthWithMax (internal/component/bgp/message/header.go:187,155-162).
-		{"KEEPALIVE too long", TypeKEEPALIVE, 20, false, true},
+		{"KEEPALIVE too long", msgtype.TypeKEEPALIVE, 20, false, true},
 
 		// UPDATE: 4096 or 65535
 		// RFC requirement: RFC8654-6-1 positive -- an UPDATE at exactly the 4096-octet per-type
 		// maximum passes ValidateLengthWithMax (internal/component/bgp/message/header.go:200-207).
-		{"UPDATE at 4096", TypeUPDATE, 4096, false, false},
+		{"UPDATE at 4096", msgtype.TypeUPDATE, 4096, false, false},
 		// RFC requirement: RFC8654-4-1 negative -- without the Extended Message capability an UPDATE
 		// above 4096 is rejected, so the up-to-65535 receive capacity is conditioned on advertising
 		// the capability (internal/component/bgp/message/header.go:200-213).
@@ -258,8 +269,8 @@ func TestValidateLengthWithMax(t *testing.T) {
 		// negotiated is rejected, never accepted (internal/component/bgp/message/header.go:200-213).
 		// RFC requirement: RFC8654-5-2 negative -- there is no liberal-acceptance bypass: the same
 		// length gate rejects the over-4096 UPDATE when extended is not negotiated (header.go:200-213).
-		{"UPDATE over 4096 without extended", TypeUPDATE, 4097, false, true},
-		{"UPDATE over 4096 with extended", TypeUPDATE, 4097, true, false},
+		{"UPDATE over 4096 without extended", msgtype.TypeUPDATE, 4097, false, true},
+		{"UPDATE over 4096 with extended", msgtype.TypeUPDATE, 4097, true, false},
 		// RFC requirement: RFC8654-4-1 positive -- with the Extended Message capability negotiated an
 		// UPDATE of 65535 octets is accepted (internal/component/bgp/message/header.go:200-205).
 		// RFC requirement: RFC8654-5-1 positive -- when extended IS negotiated the over-4096 (65535)
@@ -267,17 +278,17 @@ func TestValidateLengthWithMax(t *testing.T) {
 		// RFC requirement: RFC8654-5-2 positive -- the length gate accepts the large UPDATE exactly
 		// when the capability is negotiated, so the policy is no more liberal than negotiation allows
 		// (internal/component/bgp/message/header.go:200-205).
-		{"UPDATE at 65535 with extended", TypeUPDATE, 65535, true, false},
+		{"UPDATE at 65535 with extended", msgtype.TypeUPDATE, 65535, true, false},
 
 		// NOTIFICATION: 4096 or 65535
-		{"NOTIFICATION at 4096", TypeNOTIFICATION, 4096, false, false},
-		{"NOTIFICATION over 4096 without extended", TypeNOTIFICATION, 4097, false, true},
-		{"NOTIFICATION at 65535 with extended", TypeNOTIFICATION, 65535, true, false},
+		{"NOTIFICATION at 4096", msgtype.TypeNOTIFICATION, 4096, false, false},
+		{"NOTIFICATION over 4096 without extended", msgtype.TypeNOTIFICATION, 4097, false, true},
+		{"NOTIFICATION at 65535 with extended", msgtype.TypeNOTIFICATION, 65535, true, false},
 
 		// ROUTE-REFRESH: 4096 or 65535
-		{"ROUTE-REFRESH at 4096", TypeROUTEREFRESH, 4096, false, false},
-		{"ROUTE-REFRESH over 4096 without extended", TypeROUTEREFRESH, 4097, false, true},
-		{"ROUTE-REFRESH at 65535 with extended", TypeROUTEREFRESH, 65535, true, false},
+		{"ROUTE-REFRESH at 4096", msgtype.TypeROUTEREFRESH, 4096, false, false},
+		{"ROUTE-REFRESH over 4096 without extended", msgtype.TypeROUTEREFRESH, 4097, false, true},
+		{"ROUTE-REFRESH at 65535 with extended", msgtype.TypeROUTEREFRESH, 65535, true, false},
 	}
 
 	for _, tt := range tests {
@@ -311,22 +322,22 @@ func TestValidateLengthWithMax(t *testing.T) {
 func TestMaxMessageLength(t *testing.T) {
 	tests := []struct {
 		name     string
-		msgType  MessageType
+		msgType  msgtype.MessageType
 		extended bool
 		want     uint16
 	}{
-		{"OPEN without extended", TypeOPEN, false, 4096},
+		{"OPEN without extended", msgtype.TypeOPEN, false, 4096},
 		// RFC requirement: RFC8654-4-3 positive -- MaxMessageLength for OPEN stays 4096 even when
 		// extended is true, confirming OPEN/KEEPALIVE are never extended (header.go:234-235).
-		{"OPEN with extended", TypeOPEN, true, 4096},
-		{"KEEPALIVE without extended", TypeKEEPALIVE, false, 4096},
-		{"KEEPALIVE with extended", TypeKEEPALIVE, true, 4096},
-		{"UPDATE without extended", TypeUPDATE, false, 4096},
-		{"UPDATE with extended", TypeUPDATE, true, 65535},
-		{"NOTIFICATION without extended", TypeNOTIFICATION, false, 4096},
-		{"NOTIFICATION with extended", TypeNOTIFICATION, true, 65535},
-		{"ROUTE-REFRESH without extended", TypeROUTEREFRESH, false, 4096},
-		{"ROUTE-REFRESH with extended", TypeROUTEREFRESH, true, 65535},
+		{"OPEN with extended", msgtype.TypeOPEN, true, 4096},
+		{"KEEPALIVE without extended", msgtype.TypeKEEPALIVE, false, 4096},
+		{"KEEPALIVE with extended", msgtype.TypeKEEPALIVE, true, 4096},
+		{"UPDATE without extended", msgtype.TypeUPDATE, false, 4096},
+		{"UPDATE with extended", msgtype.TypeUPDATE, true, 65535},
+		{"NOTIFICATION without extended", msgtype.TypeNOTIFICATION, false, 4096},
+		{"NOTIFICATION with extended", msgtype.TypeNOTIFICATION, true, 65535},
+		{"ROUTE-REFRESH without extended", msgtype.TypeROUTEREFRESH, false, 4096},
+		{"ROUTE-REFRESH with extended", msgtype.TypeROUTEREFRESH, true, 65535},
 	}
 
 	for _, tt := range tests {
@@ -354,43 +365,43 @@ func TestMaxMessageLength(t *testing.T) {
 func TestValidateMessageLength(t *testing.T) {
 	tests := []struct {
 		name    string
-		msgType MessageType
+		msgType msgtype.MessageType
 		length  uint16
 		wantErr bool
 	}{
 		// OPEN: minimum 29
-		{"OPEN at minimum", TypeOPEN, 29, false},
-		{"OPEN above minimum", TypeOPEN, 100, false},
-		{"OPEN below minimum", TypeOPEN, 28, true},
-		{"OPEN at header only", TypeOPEN, 19, true},
+		{"OPEN at minimum", msgtype.TypeOPEN, 29, false},
+		{"OPEN above minimum", msgtype.TypeOPEN, 100, false},
+		{"OPEN below minimum", msgtype.TypeOPEN, 28, true},
+		{"OPEN at header only", msgtype.TypeOPEN, 19, true},
 
 		// UPDATE: minimum 23
-		{"UPDATE at minimum", TypeUPDATE, 23, false},
-		{"UPDATE above minimum", TypeUPDATE, 500, false},
-		{"UPDATE below minimum", TypeUPDATE, 22, true},
-		{"UPDATE at header only", TypeUPDATE, 19, true},
+		{"UPDATE at minimum", msgtype.TypeUPDATE, 23, false},
+		{"UPDATE above minimum", msgtype.TypeUPDATE, 500, false},
+		{"UPDATE below minimum", msgtype.TypeUPDATE, 22, true},
+		{"UPDATE at header only", msgtype.TypeUPDATE, 19, true},
 
 		// NOTIFICATION: minimum 21
-		{"NOTIFICATION at minimum", TypeNOTIFICATION, 21, false},
-		{"NOTIFICATION above minimum", TypeNOTIFICATION, 50, false},
-		{"NOTIFICATION below minimum", TypeNOTIFICATION, 20, true},
-		{"NOTIFICATION at header only", TypeNOTIFICATION, 19, true},
+		{"NOTIFICATION at minimum", msgtype.TypeNOTIFICATION, 21, false},
+		{"NOTIFICATION above minimum", msgtype.TypeNOTIFICATION, 50, false},
+		{"NOTIFICATION below minimum", msgtype.TypeNOTIFICATION, 20, true},
+		{"NOTIFICATION at header only", msgtype.TypeNOTIFICATION, 19, true},
 
 		// KEEPALIVE: exactly 19
-		{"KEEPALIVE exact", TypeKEEPALIVE, 19, false},
-		{"KEEPALIVE too long", TypeKEEPALIVE, 20, true},
-		{"KEEPALIVE way too long", TypeKEEPALIVE, 100, true},
+		{"KEEPALIVE exact", msgtype.TypeKEEPALIVE, 19, false},
+		{"KEEPALIVE too long", msgtype.TypeKEEPALIVE, 20, true},
+		{"KEEPALIVE way too long", msgtype.TypeKEEPALIVE, 100, true},
 
 		// ROUTE-REFRESH: header floor only. RFC 7313 exact body length errors
 		// are emitted by receive-path validation as ROUTE-REFRESH Message Error.
-		{"ROUTE-REFRESH header only", TypeROUTEREFRESH, 19, false},
-		{"ROUTE-REFRESH below body length", TypeROUTEREFRESH, 22, false},
-		{"ROUTE-REFRESH at exact body length", TypeROUTEREFRESH, 23, false},
-		{"ROUTE-REFRESH above body length", TypeROUTEREFRESH, 30, false},
-		{"ROUTE-REFRESH below header", TypeROUTEREFRESH, 18, true},
+		{"ROUTE-REFRESH header only", msgtype.TypeROUTEREFRESH, 19, false},
+		{"ROUTE-REFRESH below body length", msgtype.TypeROUTEREFRESH, 22, false},
+		{"ROUTE-REFRESH at exact body length", msgtype.TypeROUTEREFRESH, 23, false},
+		{"ROUTE-REFRESH above body length", msgtype.TypeROUTEREFRESH, 30, false},
+		{"ROUTE-REFRESH below header", msgtype.TypeROUTEREFRESH, 18, true},
 
 		// Unknown type: only basic length check
-		{"Unknown type", MessageType(99), 19, false},
+		{"Unknown type", msgtype.MessageType(99), 19, false},
 	}
 
 	for _, tt := range tests {

@@ -8,11 +8,12 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -31,7 +32,7 @@ func TestPackEventAttrs_AllFields(t *testing.T) {
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {{
 				NextHop: "10.0.0.1",
-				Action:  bgptypes.RouteActionAdd,
+				Action:  routeaction.Add,
 				NLRIs:   []any{"10.0.0.0/24"},
 			}},
 		},
@@ -185,7 +186,7 @@ func TestPackEventAttrs_IPv6NextHopNotPacked(t *testing.T) {
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv6Unicast: {{
 				NextHop: "2001:db8::1",
-				Action:  bgptypes.RouteActionAdd,
+				Action:  routeaction.Add,
 				NLRIs:   []any{"2001:db8::/32"},
 			}},
 		},

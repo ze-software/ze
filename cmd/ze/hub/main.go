@@ -22,9 +22,9 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	ribplugin "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
 	zecli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -430,7 +430,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		MRTMessageCallback: mrtcomp.MessageBridge,
 		MRTPeerCallback:    mrtcomp.PeerBridge,
 	})
-	mrtcomp.SetRIBDumpCallback(ribplugin.RIBDumpBridge)
 
 	pm := pluginmgr.NewManager()
 
@@ -668,10 +667,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
+	sshCfg := infra.ExtractSSHConfig(loadResult.Tree)
 	ephemeralFile := env.Get("ze.ssh.ephemeral")
 	if !sshCfg.HasConfig && !hasBGPBlock && ephemeralFile != "" {
-		sshCfg = bgpconfig.SSHExtractedConfig{
+		sshCfg = infra.SSHExtractedConfig{
 			Listen:    "127.0.0.1:0",
 			HasConfig: true,
 		}
@@ -694,7 +693,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			Users:         users,
 			Recorder:      auditLog,
 			ConfigDir:     configDir,
-			Storage:       bgpconfig.ResolveSSHStorage(store, configDir),
+			Storage:       infra.ResolveSSHStorage(store, configDir),
 			ConfigPath:    configPath,
 			EphemeralFile: ephemeralFile,
 			Dispatch:      sshDispatch,
@@ -707,7 +706,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// closeAAABundle (deferred at the top of runYANGConfig) drains backend
 		// workers on process exit.
 		aaaLog := slogutil.Logger("hub.aaa")
-		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, users, bgpconfig.ExtractAuthzStore(loadResult.Tree), aaaLog)
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, users, infra.ExtractAuthzStore(loadResult.Tree), aaaLog)
 		if aaaErr != nil {
 			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
 			registerAAAAccountingProvider(nil)

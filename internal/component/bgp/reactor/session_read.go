@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -147,7 +149,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 
 	// For UPDATE: create WireUpdate once, use for callback and handler
 	var wireUpdate *wireu.WireUpdate
-	if hdr.Type == message.TypeUPDATE {
+	if hdr.Type == msgtype.TypeUPDATE {
 		wireUpdate = wireu.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
 
@@ -208,7 +210,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 				if s.onMessageReceived != nil {
 					extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
 					extraWU.SetSourceID(wireUpdate.SourceID())
-					s.onMessageReceived(s.settings.Address, message.TypeUPDATE, extra, extraWU,
+					s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU,
 						ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "")
 				}
 			}
@@ -242,7 +244,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 
 	// RFC 4486: Check prefix limits BEFORE delivering to plugins.
 	// Over-limit UPDATEs must not reach the RIB or be forwarded.
-	if hdr.Type == message.TypeUPDATE && wireUpdate != nil {
+	if hdr.Type == msgtype.TypeUPDATE && wireUpdate != nil {
 		prefixNotif, prefixDrop := s.checkPrefixLimits(wireUpdate)
 		if prefixNotif != nil {
 			// teardown=true: send NOTIFICATION and close session.
@@ -266,7 +268,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	// Validate rejectable ROUTE-REFRESH wire shape before callback delivery.
 	// RFC 7313 Section 5 requires invalid body lengths to produce a
 	// ROUTE-REFRESH Message Error; malformed peer input must not reach plugins.
-	if hdr.Type == message.TypeROUTEREFRESH {
+	if hdr.Type == msgtype.TypeROUTEREFRESH {
 		if err := s.validateRouteRefreshLength(body, routeRefreshNotificationData(body)); err != nil {
 			return err, false
 		}
@@ -296,15 +298,15 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 
 	var err error
 	switch hdr.Type { //nolint:exhaustive // unknown in default
-	case message.TypeUPDATE:
+	case msgtype.TypeUPDATE:
 		err = s.handleUpdate(wireUpdate)
-	case message.TypeOPEN:
+	case msgtype.TypeOPEN:
 		err = s.handleOpen(body)
-	case message.TypeKEEPALIVE:
+	case msgtype.TypeKEEPALIVE:
 		err = s.handleKeepalive()
-	case message.TypeNOTIFICATION:
+	case msgtype.TypeNOTIFICATION:
 		err = s.handleNotification(body)
-	case message.TypeROUTEREFRESH:
+	case msgtype.TypeROUTEREFRESH:
 		err = s.handleRouteRefresh(body)
 	default:
 		err = s.handleUnknownType(hdr.Type)

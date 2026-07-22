@@ -1,4 +1,4 @@
-package events
+package ribevents
 
 import (
 	"encoding/json"

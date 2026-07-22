@@ -3,21 +3,32 @@ package message
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
+
 // TestRouteRefreshType verifies ROUTE_REFRESH message type.
 //
 // RFC requirement: RFC2918-3-1 positive -- a ROUTE-REFRESH message reports message
 // type ROUTE-REFRESH, which is the constant 5 (RouteRefresh.Type in routerefresh.go,
-// TypeROUTEREFRESH in header.go).
+// msgtype.TypeROUTEREFRESH in header.go).
 func TestRouteRefreshType(t *testing.T) {
 	r := &RouteRefresh{AFI: 1, SAFI: 1}
-	assert.Equal(t, TypeROUTEREFRESH, r.Type())
-	assert.Equal(t, MessageType(5), r.Type())
+	assert.Equal(t, msgtype.TypeROUTEREFRESH, r.Type())
+	assert.Equal(t, msgtype.MessageType(5), r.Type())
 }
 
 // TestRouteRefreshPack verifies ROUTE_REFRESH packing.
@@ -43,7 +54,7 @@ func TestRouteRefreshPack(t *testing.T) {
 	// Verify header
 	h, err := ParseHeader(data)
 	require.NoError(t, err)
-	assert.Equal(t, TypeROUTEREFRESH, h.Type)
+	assert.Equal(t, msgtype.TypeROUTEREFRESH, h.Type)
 
 	// Verify body
 	body := data[HeaderLen:]

@@ -4,6 +4,12 @@
 // This package imports neither bgp/config, bgp/reactor, nor plugin/server,
 // avoiding all import cycles. It accesses the reactor and server through
 // interfaces and closures stored in the Coordinator.
+//
+// The reactor factory it calls at OnConfigure is registered by bgp/config's
+// init(); that package is linked from the gated CLI composition root
+// cmd/ze/dispatch_bgp.go, NOT from here -- bgp/config's own tests import
+// plugin/all, so an import edge from this package back into it is an import
+// cycle in test (spec-feature-gate-10-bgp).
 
 package plugin
 

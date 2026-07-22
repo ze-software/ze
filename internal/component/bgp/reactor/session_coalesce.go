@@ -12,6 +12,8 @@ import (
 	"io"
 	"net"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
@@ -118,7 +120,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 
 	body := buf.Buf[message.HeaderLen:hdr.Length]
 
-	if hdr.Type != message.TypeUPDATE {
+	if hdr.Type != msgtype.TypeUPDATE {
 		if err := s.flushCoalesce(); err != nil {
 			return err
 		}
@@ -222,7 +224,7 @@ func (s *Session) flushCoalesce() error {
 	totalLen := message.HeaderLen + len(body)
 	hdr := message.Header{
 		Length: uint16(totalLen),
-		Type:   message.TypeUPDATE,
+		Type:   msgtype.TypeUPDATE,
 	}
 
 	processErr, kept := s.processMessage(&hdr, body, coalBuf)

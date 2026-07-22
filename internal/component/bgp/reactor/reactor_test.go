@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -21,6 +23,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // Compile-time interface satisfaction checks.
 // reactorAPIAdapter must implement all sub-interfaces and the composed ReactorLifecycle.
@@ -396,7 +407,7 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 	require.Equal(t, n, length, "length field must match actual message length")
 
 	// RFC 4271 Section 4.1 - Type must be UPDATE (2)
-	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+	require.Equal(t, byte(msgtype.TypeUPDATE), buf[18], "type must be UPDATE")
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes Length (should be 0 for announce)
 	withdrawnLen := int(buf[19])<<8 | int(buf[20])
@@ -428,7 +439,7 @@ func TestWriteAnnounceUpdateIPv6(t *testing.T) {
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
 	// Verify BGP header
-	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+	require.Equal(t, byte(msgtype.TypeUPDATE), buf[18], "type must be UPDATE")
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes Length = 0
 	withdrawnLen := int(buf[19])<<8 | int(buf[20])
@@ -462,7 +473,7 @@ func TestWriteWithdrawUpdateIPv4(t *testing.T) {
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
 	// Verify BGP header
-	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+	require.Equal(t, byte(msgtype.TypeUPDATE), buf[18], "type must be UPDATE")
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes Length > 0 for IPv4 withdrawal
 	withdrawnLen := int(buf[19])<<8 | int(buf[20])
@@ -487,7 +498,7 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
 	// Verify BGP header
-	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+	require.Equal(t, byte(msgtype.TypeUPDATE), buf[18], "type must be UPDATE")
 
 	// RFC 4760 Section 4 - Withdrawn Routes Length = 0 for IPv6
 	withdrawnLen := int(buf[19])<<8 | int(buf[20])
@@ -1453,7 +1464,7 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	// Call notifyMessageReceiver directly (same package)
 	// In normal flow, session creates WireUpdate and passes it through
 	// Pass nil buf since we're not testing caching here
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, rpc.DirectionReceived, BufHandle{}, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, updatePayload, wireUpdate, 0, rpc.DirectionReceived, BufHandle{}, nil, "")
 
 	// Verify WireUpdate is set
 	require.NotNil(t, receivedMsg.WireUpdate, "WireUpdate should be set for UPDATE")
@@ -1517,7 +1528,7 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 	// Call notifyMessageReceiver with direction="sent" and non-zero ctxID
 	// Non-zero ctxID triggers AttrsWire creation for sent messages
 	ctxID := bgpctx.ContextID(1)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, ctxID, rpc.DirectionSent, BufHandle{}, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, updatePayload, nil, ctxID, rpc.DirectionSent, BufHandle{}, nil, "")
 
 	// Verify AttrsWire is set
 	require.NotNil(t, sentMsg.AttrsWire, "AttrsWire should be created for sent UPDATE with ctxID")
@@ -1561,7 +1572,7 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	copy(updatePayload[4:], attrs)
 
 	// Call with ctxID=0 (no context)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, updatePayload, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "")
 
 	// Sent UPDATEs always get AttrsWire for ribOut storage, even with ctxID=0.
 	// Basic attribute parsing (ORIGIN, communities, etc.) works without encoding context.
@@ -1741,7 +1752,7 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := testPoolBuf(t)
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
 
 	// Wait for the delivery goroutine to enter the callback (proves it was dispatched).
 	select {
@@ -1805,7 +1816,7 @@ func TestCacheInsertionBeforeDelivery(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := testPoolBuf(t)
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
 
 	select {
 	case <-cacheCheckDone:
@@ -1843,7 +1854,7 @@ func TestActivateAfterAllDeliveries(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := testPoolBuf(t)
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, buf, nil, "")
 
 	var msgID uint64
 	select {
@@ -1902,14 +1913,14 @@ func TestDeliveryBackpressure(t *testing.T) {
 	// First 2 UPDATEs fill the channel buffer
 	for range 2 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+		_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// 3rd send in goroutine — should block (channel full, no reader)
 	thirdDone := make(chan struct{})
 	go func() {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+		_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 		close(thirdDone)
 	}()
 
@@ -1953,7 +1964,7 @@ func TestNonUpdateSynchronous(t *testing.T) {
 	defer stop()
 
 	// KEEPALIVE — must be delivered synchronously (before notifyMessageReceiver returns)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, nil, nil, 0, rpc.DirectionReceived, BufHandle{}, nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeKEEPALIVE, nil, nil, 0, rpc.DirectionReceived, BufHandle{}, nil, "")
 
 	require.True(t, received, "KEEPALIVE should be delivered synchronously, not through async channel")
 }
@@ -2007,7 +2018,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 		// Send 2 UPDATEs to peer A (1 in delivery + 1 in channel buffer)
 		for range 2 {
 			w := wireu.NewWireUpdate(payload, 0)
-			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+			_ = reactor.notifyMessageReceiver(peerAddrA, msgtype.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 		}
 		close(aSent) // Both sends completed; peer A's channel is full
 	}()
@@ -2023,7 +2034,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 	// The meaningful assertion: peer B's delivery completes while peer A is
 	// still blocked (unblockA has not been closed yet).
 	wB := wireu.NewWireUpdate(payload, 0)
-	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+	_ = reactor.notifyMessageReceiver(peerAddrB, msgtype.TypeUPDATE, payload, wB, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 
 	select {
 	case <-peerBDelivered:
@@ -2068,7 +2079,7 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+		_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// Close channel (teardown) — delivery goroutine drains remaining items
@@ -2116,7 +2127,7 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+		_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// Now start delivery — all 5 items are already buffered
@@ -2186,7 +2197,7 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 	payload := testUpdatePayload()
 	for range 3 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+		_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, w, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
 	}
 
 	// After sends, cache has 3 pending entries (Add is synchronous).

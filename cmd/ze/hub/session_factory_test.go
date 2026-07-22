@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -26,8 +27,8 @@ import (
 func TestMergePluginCommandsNilSafe(t *testing.T) {
 	tree := &command.Node{Children: map[string]*command.Node{}}
 
-	mergePluginCommands(tree, bgpconfig.InfraHookParams{}) // APIServer field nil
-	mergePluginCommands(tree, bgpconfig.InfraHookParams{   // APIServer returns nil server
+	mergePluginCommands(tree, infra.HookParams{}) // APIServer field nil
+	mergePluginCommands(tree, infra.HookParams{   // APIServer returns nil server
 		APIServer: func() *pluginserver.Server { return nil },
 	})
 

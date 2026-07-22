@@ -5,10 +5,21 @@ import (
 	"net"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 func TestPeerHeaderFromEvent(t *testing.T) {
 	// VALIDATES: sender builds correct PeerHeader from structured event
@@ -188,7 +199,7 @@ func TestBMPOpenCaching(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		EventType:   rpc.EventKindOpen,
 		Direction:   rpc.DirectionSent,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeOPEN, RawBytes: openBody},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeOPEN, RawBytes: openBody},
 	}
 	bp.cacheOpenPDU(seSent)
 
@@ -197,7 +208,7 @@ func TestBMPOpenCaching(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		EventType:   rpc.EventKindOpen,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeOPEN, RawBytes: openBody},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeOPEN, RawBytes: openBody},
 	}
 	bp.cacheOpenPDU(seRecv)
 
@@ -386,12 +397,12 @@ func TestBMPRouteMirroringSend(t *testing.T) {
 	cases := []struct {
 		name    string
 		kind    rpc.EventKind
-		msgType message.MessageType
+		msgType msgtype.MessageType
 		body    []byte
 	}{
-		{"UPDATE", rpc.EventKindUpdate, message.TypeUPDATE, []byte{0x00, 0x00, 0x00, 0x00, 0x00}},
-		{"NOTIFICATION", rpc.EventKindNotification, message.TypeNOTIFICATION, []byte{0x06, 0x04}},
-		{"KEEPALIVE", rpc.EventKindKeepalive, message.TypeKEEPALIVE, nil},
+		{"UPDATE", rpc.EventKindUpdate, msgtype.TypeUPDATE, []byte{0x00, 0x00, 0x00, 0x00, 0x00}},
+		{"NOTIFICATION", rpc.EventKindNotification, msgtype.TypeNOTIFICATION, []byte{0x06, 0x04}},
+		{"KEEPALIVE", rpc.EventKindKeepalive, msgtype.TypeKEEPALIVE, nil},
 	}
 
 	for _, tc := range cases {
@@ -479,7 +490,7 @@ func TestBMPRouteMirroringConfig(t *testing.T) {
 		PeerAS:      65001,
 		EventType:   rpc.EventKindNotification,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeNOTIFICATION, RawBytes: []byte{0x06, 0x04}},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeNOTIFICATION, RawBytes: []byte{0x06, 0x04}},
 	}
 
 	bp.handleStructuredEvent(se)
@@ -492,7 +503,7 @@ func TestBMPRouteMirroringConfig(t *testing.T) {
 		PeerAS:      65001,
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeUPDATE, RawBytes: []byte{0x00, 0x00, 0x00, 0x00, 0x00}},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: []byte{0x00, 0x00, 0x00, 0x00, 0x00}},
 	}
 
 	result := asyncRead(server)
@@ -532,7 +543,7 @@ func TestBMPRiboutDedupSameUpdate(t *testing.T) {
 		PeerAS:      65001,
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeUPDATE, RawBytes: updateBody},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: updateBody},
 	}
 
 	// First UPDATE: should be forwarded.
@@ -557,7 +568,7 @@ func TestBMPRiboutDedupSameUpdate(t *testing.T) {
 		PeerAS:      65001,
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeUPDATE, RawBytes: differentBody},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: differentBody},
 	}
 	result = asyncRead(server)
 	bp.handleStructuredEvent(se2)
@@ -594,14 +605,14 @@ func TestBMPRiboutDedupDifferentAttrs(t *testing.T) {
 		PeerAS:      65001,
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeUPDATE, RawBytes: body1},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body1},
 	}
 	se2 := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{Type: message.TypeUPDATE, RawBytes: body2},
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body2},
 	}
 
 	// First UPDATE.

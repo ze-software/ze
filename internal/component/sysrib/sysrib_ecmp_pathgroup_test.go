@@ -25,7 +25,8 @@ import (
 	"net/netip"
 	"testing"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -56,7 +57,7 @@ func TestSysribECMPPathGroup(t *testing.T) {
 	// Loc-RIB emit selected nh1 as best and carried nh2 as an equal-cost sibling
 	// on the Change (locrib.Change.ECMP -> BestChangeEntry.ECMPNextHops).
 	_, changes := s.processEvent(fromLocRIBBatch("isis", family.IPv4Unicast, incomingChange{
-		Action:       bgptypes.RouteActionAdd,
+		Action:       routeaction.Add,
 		Prefix:       pfx,
 		NextHop:      nh1,
 		Priority:     115,
@@ -90,7 +91,7 @@ func TestSysribSinglePathNoECMP(t *testing.T) {
 
 	pfx := netip.MustParsePrefix("10.51.0.0/24")
 	_, changes := s.processEvent(fromLocRIBBatch("bgp", family.IPv4Unicast, incomingChange{
-		Action:   bgptypes.RouteActionAdd,
+		Action:   routeaction.Add,
 		Prefix:   pfx,
 		NextHop:  netip.MustParseAddr("192.0.2.1"),
 		Priority: 20,

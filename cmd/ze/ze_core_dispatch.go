@@ -51,7 +51,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cli"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/schema/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/storage/cli"

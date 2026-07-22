@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,6 +17,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // VALIDATES: Session handler error paths (OPEN version/hold/malformed/caps, unknown type, ROUTE-REFRESH).
 // PREVENTS: Silent acceptance of invalid messages, missing NOTIFICATION on protocol errors.
@@ -140,7 +151,7 @@ func TestOpenRejectsMalformedKnownCapability(t *testing.T) {
 		t.Fatal("timed out waiting for OPEN NOTIFICATION")
 	}
 	require.GreaterOrEqual(t, len(notif), message.HeaderLen+5)
-	assert.Equal(t, byte(message.TypeNOTIFICATION), notif[18])
+	assert.Equal(t, byte(msgtype.TypeNOTIFICATION), notif[18])
 	assert.Equal(t, byte(message.NotifyOpenMessage), notif[message.HeaderLen])
 	assert.Equal(t, message.NotifyOpenUnsupportedCapability, notif[message.HeaderLen+1])
 	assert.Equal(t, []byte{byte(capability.CodeRouteRefresh), 0x01, 0x00}, notif[message.HeaderLen+2:])
@@ -356,7 +367,7 @@ func TestHandleOpen_ValidatorRejects(t *testing.T) {
 func TestHandleUnknownType(t *testing.T) {
 	s := newOpenSentSession(t)
 
-	err := s.handleUnknownType(message.MessageType(99))
+	err := s.handleUnknownType(msgtype.MessageType(99))
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrInvalidMessage)
 	assert.Contains(t, err.Error(), "unknown type 99")

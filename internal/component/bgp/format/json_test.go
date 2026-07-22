@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
 	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled"
@@ -273,7 +274,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 
 	// UPDATE with msg-id
 	msg := bgptypes.RawMessage{
-		Type: message.TypeUPDATE,
+		Type: msgtype.TypeUPDATE,
 		RawBytes: []byte{
 			// Minimal UPDATE with NLRI: 10.0.0.0/24
 			0x00, 0x00, // withdrawn length
@@ -525,7 +526,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeNOTIFICATION,
+		Type:      msgtype.TypeNOTIFICATION,
 		RawBytes:  rawBytes,
 		MessageID: 42,
 		Direction: rpc.DirectionReceived,
@@ -565,7 +566,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeNOTIFICATION,
+		Type:      msgtype.TypeNOTIFICATION,
 		RawBytes:  []byte{0x04, 0x00}, // Hold Timer Expired
 		MessageID: 1,
 		Direction: rpc.DirectionReceived,
@@ -597,7 +598,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeUPDATE,
+		Type:      msgtype.TypeUPDATE,
 		RawBytes:  []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
 		MessageID: 0,                              // No msg-id
 	}
@@ -665,7 +666,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -725,7 +726,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -788,7 +789,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -855,7 +856,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -926,7 +927,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -1111,7 +1112,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -1771,7 +1772,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -1873,7 +1874,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -2032,7 +2033,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -2102,7 +2103,7 @@ func TestEventJSONRawSection(t *testing.T) {
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,

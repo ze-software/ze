@@ -18,11 +18,15 @@ import (
 
 const configRoot = "mrt"
 
+// The RIB dump provider is NOT stored here: it lives in the leaf
+// registry (registry.SetRIBDumpCallback / GetRIBDumpCallback), where the BGP
+// RIB plugin publishes it from its own init(). MRT reads it at component start.
+// That indirection is what lets internal/component/bgp be compiled out
+// (//go:build ze_bgp) without MRT or the hub naming a BGP package.
 var (
-	loggerPtr    atomic.Pointer[slog.Logger]
-	eventBusPtr  atomic.Pointer[ze.EventBus]
-	activeComp   atomic.Pointer[Component]
-	ribDumpCBPtr atomic.Pointer[registry.RIBDumpCallback]
+	loggerPtr   atomic.Pointer[slog.Logger]
+	eventBusPtr atomic.Pointer[ze.EventBus]
+	activeComp  atomic.Pointer[Component]
 )
 
 // MessageBridge implements registry.MessageCallback by forwarding to the
@@ -61,13 +65,6 @@ func (peerBridge) OnPeerClosed(peer any, _ string) {
 		return
 	}
 	comp.onPeerClosed(peer)
-}
-
-// SetRIBDumpCallback stores the RIB dump provider for TABLE_DUMP_V2 snapshots.
-func SetRIBDumpCallback(cb registry.RIBDumpCallback) {
-	if cb != nil {
-		ribDumpCBPtr.Store(&cb)
-	}
 }
 
 func setLogger(l *slog.Logger) {
@@ -129,8 +126,8 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 		comp := New(*cfg, log)
-		if cb := ribDumpCBPtr.Load(); cb != nil {
-			comp.ribDumper = *cb
+		if cb := registry.GetRIBDumpCallback(); cb != nil {
+			comp.ribDumper = cb
 		}
 		comp.Start(getEventBus())
 		activeComp.Store(comp)

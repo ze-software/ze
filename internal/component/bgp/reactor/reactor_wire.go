@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"slices"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
@@ -241,7 +243,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 	off += 2
 
 	// Type = UPDATE
-	buf[off] = byte(message.TypeUPDATE)
+	buf[off] = byte(msgtype.TypeUPDATE)
 	off++
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes Length = 0 (announce, not withdraw)
@@ -462,7 +464,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 	off += 2
 
 	// Type = UPDATE
-	buf[off] = byte(message.TypeUPDATE)
+	buf[off] = byte(msgtype.TypeUPDATE)
 	off++
 
 	if prefix.Addr().Is4() {

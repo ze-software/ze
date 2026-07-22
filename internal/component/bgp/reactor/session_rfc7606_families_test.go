@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -102,7 +104,7 @@ func TestSessionRFC7606TreatAsWithdrawTwoFamiliesDispatchesBoth(t *testing.T) {
 	defer cleanup()
 
 	var dispatched [][]byte
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string,
 	) bool {
@@ -245,7 +247,7 @@ func TestSessionRFC7606TreatAsWithdrawExtraFamilyForwardCacheEligible(t *testing
 		buf     BufHandle
 	}
 	var captured []capture
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		buf BufHandle, _ map[string]any, _ string,
 	) bool {

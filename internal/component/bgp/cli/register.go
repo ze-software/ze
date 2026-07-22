@@ -7,6 +7,7 @@
 package cli
 
 import (
+	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	// init() registers the show bgp decode/encode YANG module (ze-bgp-tools-cmd).
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli/yang"
@@ -41,6 +42,11 @@ func subcommands() string {
 }
 
 func init() {
+	// Publish the hex-packet decoder through the leaf registry seam so the web
+	// tool page can decode in-process without cmd/ze/hub importing this
+	// package (which would pin internal/component/bgp into every binary).
+	pluginreg.SetPacketDecoder(DecodeHexPacket)
+
 	registry.MustRegisterRootHandler("bgp", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{

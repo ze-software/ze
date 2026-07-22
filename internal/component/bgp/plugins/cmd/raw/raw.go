@@ -11,7 +11,8 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
@@ -135,15 +136,15 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 func parseMessageType(s string) (uint8, bool) {
 	switch strings.ToLower(s) {
 	case "open":
-		return uint8(message.TypeOPEN), true
+		return uint8(msgtype.TypeOPEN), true
 	case bgpevents.EventUpdate:
-		return uint8(message.TypeUPDATE), true
+		return uint8(msgtype.TypeUPDATE), true
 	case "notification":
-		return uint8(message.TypeNOTIFICATION), true
+		return uint8(msgtype.TypeNOTIFICATION), true
 	case "keepalive":
-		return uint8(message.TypeKEEPALIVE), true
+		return uint8(msgtype.TypeKEEPALIVE), true
 	case "route-refresh":
-		return uint8(message.TypeROUTEREFRESH), true
+		return uint8(msgtype.TypeROUTEREFRESH), true
 	default: // not a recognized message type name
 		return 0, false
 	}
@@ -151,16 +152,16 @@ func parseMessageType(s string) (uint8, bool) {
 
 // msgTypeName returns human-readable name for message type.
 func msgTypeName(t uint8) string {
-	switch message.MessageType(t) {
-	case message.TypeOPEN:
+	switch msgtype.MessageType(t) {
+	case msgtype.TypeOPEN:
 		return "open"
-	case message.TypeUPDATE:
+	case msgtype.TypeUPDATE:
 		return "update"
-	case message.TypeNOTIFICATION:
+	case msgtype.TypeNOTIFICATION:
 		return "notification"
-	case message.TypeKEEPALIVE:
+	case msgtype.TypeKEEPALIVE:
 		return "keepalive"
-	case message.TypeROUTEREFRESH:
+	case msgtype.TypeROUTEREFRESH:
 		return "route-refresh"
 	default: // numeric fallback for unknown types
 		return textbuf.StrInt("type-", int64(t))

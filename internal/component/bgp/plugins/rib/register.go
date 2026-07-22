@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	ribyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -15,6 +15,11 @@ import (
 )
 
 func init() {
+	// Publish the TABLE_DUMP_V2 snapshot provider through the leaf registry
+	// seam. MRT reads it from there, so neither plugin imports the other and
+	// the always-on hub no longer names a BGP package (spec-feature-gate-10).
+	registry.SetRIBDumpCallback(RIBDumpBridge)
+
 	_ = events.RegisterNamespace(ribevents.Namespace,
 		ribevents.EventCache, ribevents.EventRoute, ribevents.EventBestChange, ribevents.EventReplayRequest,
 	)

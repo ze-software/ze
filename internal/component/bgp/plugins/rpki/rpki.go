@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
@@ -492,7 +494,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 		familyResults := make(map[string]uint8)
 
 		for _, op := range ops {
-			if op.Action != bgptypes.RouteActionAdd {
+			if op.Action != routeaction.Add {
 				continue
 			}
 

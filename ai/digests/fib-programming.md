@@ -64,7 +64,7 @@ Route wins in a protocol, then gets programmed in the kernel:
    `loc.Iterate` and seeds itself with `replayPath` (`:861-869`, `:1102`) so routes already
    in Loc-RIB before sysrib subscribed are not lost. A forked/multi-process deployment (no
    shared singleton) falls back to subscribing `ribevents.BestChange`, the BGP RIB's OWN
-   event (`internal/component/bgp/plugins/rib/events/events.go`), instead (`sysrib.go:886`).
+   event (`internal/core/bgp/ribevents/ribevents.go`), instead (`sysrib.go:886`).
 4. **Convert and arbitrate.** `changeToBatch` (`sysrib.go:1025`) maps a `locrib.Change` to
    sysrib's internal batch shape, resolving the source protocol name via
    `redistevents.ProtocolName(c.Best.Source)` (`:1062`) and tagging `FromLocRIB: true`
@@ -91,7 +91,7 @@ Route wins in a protocol, then gets programmed in the kernel:
    per family (`internal/component/sysrib/events/events.go:79`) on the EventBus.
 8. **fib-kernel installs.** `fibKernel.processEvent`
    (`internal/plugins/fib/kernel/fibkernel.go:245`) dispatches each entry by
-   `c.Action.Verb()` (`internal/component/bgp/types/action.go:100`: Install/Replace/Remove)
+   `c.Action.Verb()` (`internal/core/bgp/routeaction/routeaction.go:109`: Install/Replace/Remove)
    to `addChange`/`replaceChange`/`delChange` (`fibkernel.go:211`, `:223`, `:235`), using
    the `richRouteBackend` path (`internal/plugins/fib/kernel/richroute.go:33`) whenever the
    entry carries labels/ECMP/SRv6/backup/table-ID (`hasRichFields`, `fibkernel.go:192`), or

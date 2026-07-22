@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -139,7 +141,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 				bg.peers = append(bg.peers, peer)
 			} else {
 				// Per-peer path (update groups disabled).
-				maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+				maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 				addPath := peer.addPathFor(batch.Family)
 				asn4 := peer.asn4()
 
@@ -173,7 +175,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// written to TCP. The shared *message.Update references pooled buffers that
 	// are returned after this loop. Async writes would cause use-after-return.
 	for _, bg := range buildGroups {
-		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, bg.key.extended))
+		maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, bg.key.extended))
 
 		attrHandle := getBuildBuf()
 		nlriHandle := getBuildBuf()
@@ -250,7 +252,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 				wg.peers = append(wg.peers, peer)
 			} else {
 				// Per-peer path (update groups disabled).
-				maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+				maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 				addPath := peer.addPathFor(batch.Family)
 
 				attrHandle := getBuildBuf()
@@ -279,7 +281,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 	// written to TCP. The shared *message.Update references pooled buffers that
 	// are returned after this loop. Async writes would cause use-after-return.
 	for _, wg := range wdGroups {
-		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, wg.key.extended))
+		maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, wg.key.extended))
 
 		attrHandle := getBuildBuf()
 		nlriHandle := getBuildBuf()
@@ -869,7 +871,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // filters, never the full egress chain, so a readvertise does not re-apply
 // OTC/community/policy that already ran at the original announce.
 func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) bool {
-	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 	addPath := peer.addPathFor(batch.Family)
 	asn4 := peer.asn4()
 	localAS := peer.Settings().LocalAS

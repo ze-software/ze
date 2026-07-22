@@ -4,9 +4,10 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -89,7 +90,7 @@ func buildBenchUpdate() benchUpdateData {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   payload,
 		Direction:  rpc.DirectionReceived,
 		MessageID:  42,

@@ -3,6 +3,8 @@ package message
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -10,7 +12,7 @@ import (
 // TestUpdateType verifies UPDATE message type.
 func TestUpdateType(t *testing.T) {
 	u := &Update{}
-	assert.Equal(t, TypeUPDATE, u.Type())
+	assert.Equal(t, msgtype.TypeUPDATE, u.Type())
 }
 
 // TestMessageUpdateUsesShared verifies UnpackUpdate uses wire.ParseUpdateSections.
@@ -121,7 +123,7 @@ func TestUpdatePackEmpty(t *testing.T) {
 
 	h, err := ParseHeader(data)
 	require.NoError(t, err)
-	assert.Equal(t, TypeUPDATE, h.Type)
+	assert.Equal(t, msgtype.TypeUPDATE, h.Type)
 }
 
 // TestUpdateRoundTrip verifies pack/unpack symmetry.

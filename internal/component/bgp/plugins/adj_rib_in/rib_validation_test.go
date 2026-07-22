@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -46,7 +47,7 @@ func TestPendingRouteStorage(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -243,7 +244,7 @@ func TestPassthroughWithoutValidation(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -823,7 +824,7 @@ func TestWithdrawalRemovesPending(t *testing.T) {
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
+				{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}

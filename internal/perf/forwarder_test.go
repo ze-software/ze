@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
 )
 
 // forwarderSessionConfig is the SessionConfig used by the forwarder's OPEN message.
@@ -191,7 +191,7 @@ func (f *testForwarder) doHandshake(conn net.Conn) error {
 		return fmt.Errorf("reading peer OPEN: %w", err)
 	}
 
-	if msgType != message.TypeOPEN {
+	if msgType != msgtype.TypeOPEN {
 		return fmt.Errorf("expected OPEN, got type %d", msgType)
 	}
 
@@ -206,7 +206,7 @@ func (f *testForwarder) doHandshake(conn net.Conn) error {
 		return fmt.Errorf("reading peer KEEPALIVE: %w", err)
 	}
 
-	if msgType != message.TypeKEEPALIVE {
+	if msgType != msgtype.TypeKEEPALIVE {
 		return fmt.Errorf("expected KEEPALIVE, got type %d", msgType)
 	}
 
@@ -264,7 +264,7 @@ func (f *testForwarder) forwardUpdates(ctx context.Context, src, dst net.Conn) {
 			return
 		}
 
-		if msgType == message.TypeUPDATE {
+		if msgType == msgtype.TypeUPDATE {
 			if err := WriteMessage(dst, msg); err != nil {
 				return
 			}
@@ -390,7 +390,7 @@ func (f *testSinkForwarder) doHandshake(conn net.Conn) error {
 		return fmt.Errorf("reading peer OPEN: %w", err)
 	}
 
-	if msgType != message.TypeOPEN {
+	if msgType != msgtype.TypeOPEN {
 		return fmt.Errorf("expected OPEN, got type %d", msgType)
 	}
 
@@ -403,7 +403,7 @@ func (f *testSinkForwarder) doHandshake(conn net.Conn) error {
 		return fmt.Errorf("reading peer KEEPALIVE: %w", err)
 	}
 
-	if msgType != message.TypeKEEPALIVE {
+	if msgType != msgtype.TypeKEEPALIVE {
 		return fmt.Errorf("expected KEEPALIVE, got type %d", msgType)
 	}
 

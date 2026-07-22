@@ -334,10 +334,17 @@ func (a *apiStreamTestAccountant) CommandStop(_, _, _, command string) {
 //
 // VALIDATES: API pre-save validation uses ze config validation semantics.
 // PREVENTS: invalid non-plugin config being persisted before reload fails.
+// The fixture uses an always-on config root (interface), not bgp: BGP is
+// compile-out-able (//go:build ze_bgp) and this test also runs in the bare
+// ze_core pass, where a bgp{} block is correctly rejected as an unknown keyword
+// -- which would make the test pass for the wrong reason, proving only that
+// parsing failed rather than that validation ran.
 func TestConfigValidationHookRunsFullValidation(t *testing.T) {
 	hook := configValidationHook("test.conf")
-	err := hook(`bgp { router-id 1.2.3.4; }`, `bgp { router-id invalid; }`)
+	const good = `interface { ethernet eth0 { unit 0 { ipv4 { address [ 192.0.2.1/24 ]; } } } }`
+	const bad = `interface { ethernet eth0 { unit 0 { ipv4 { address [ not-an-address ]; } } } }`
+	err := hook(good, bad)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config validation failed")
-	assert.Contains(t, err.Error(), "router-id")
+	assert.Contains(t, err.Error(), "address")
 }

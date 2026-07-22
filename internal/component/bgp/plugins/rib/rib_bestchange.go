@@ -17,11 +17,12 @@ import (
 	"slices"
 	"sync"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgpredist "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
@@ -354,12 +355,12 @@ func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
 // Reverse-table lookups go through the bounds-safe accessors, so a record
 // whose indices outlive a reset interner emits zero-valued NextHop/Metric
 // rather than panicking.
-func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.RouteAction, prefix netip.Prefix, pathID uint32, addPath bool) bestChangeEntry {
+func (r bestPathRecord) resolve(interner *bestPrevInterner, action routeaction.Action, prefix netip.Prefix, pathID uint32, addPath bool) bestChangeEntry {
 	priority := 200
-	protoType := bgptypes.BGPProtocolIBGP
+	protoType := routeaction.ProtocolIBGP
 	if r.IsEBGP() {
 		priority = 20
-		protoType = bgptypes.BGPProtocolEBGP
+		protoType = routeaction.ProtocolEBGP
 	}
 	return bestChangeEntry{
 		Action:       action,
@@ -721,7 +722,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	)
 	if newBest != nil {
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
-		isEBGP = r.protocolType(newBest) == bgptypes.BGPProtocolEBGP
+		isEBGP = r.protocolType(newBest) == routeaction.ProtocolEBGP
 		if fam.SAFI == family.SAFIMPLSLabel {
 			bestLabels = r.lookupLabelsForBest(fam, nlriBytes, newBest.PeerIP)
 		}
@@ -1039,11 +1040,11 @@ func extractSRv6SIDResultFromOtherAttrs(b storage.Bundle) pool.SRv6SIDResult {
 // ASN comparison. When LocalASN is 0 (unknown, e.g. before OPEN negotiation
 // completes), defaults to ebgp. This is intentional: routes learned before
 // ASN negotiation are assumed external, which is the more common case.
-func (r *RIBManager) protocolType(c *Candidate) bgptypes.BGPProtocolType {
+func (r *RIBManager) protocolType(c *Candidate) routeaction.ProtocolType {
 	if c.LocalASN == 0 || c.PeerASN != c.LocalASN {
-		return bgptypes.BGPProtocolEBGP
+		return routeaction.ProtocolEBGP
 	}
-	return bgptypes.BGPProtocolIBGP
+	return routeaction.ProtocolIBGP
 }
 
 // bestCandidateNextHopAddr extracts the next-hop for the winning candidate's

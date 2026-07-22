@@ -5,9 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 
@@ -79,7 +80,7 @@ func TestBGPProducerBridgeEmitsRouteChange(t *testing.T) {
 		Protocol: "bgp",
 		Family:   family.IPv6Unicast,
 		Changes: []ribevents.BestChangeEntry{{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("2001:db8:5e5::/48"),
 			NextHop:  netip.MustParseAddr("fd00:1e::4"),
 			Metric:   4242,
@@ -114,7 +115,7 @@ func TestBGPProducerBridgeWithdraw(t *testing.T) {
 		Protocol: "bgp",
 		Family:   family.IPv4Unicast,
 		Changes: []ribevents.BestChangeEntry{{
-			Action: bgptypes.RouteActionWithdraw,
+			Action: routeaction.Withdraw,
 			Prefix: netip.MustParsePrefix("192.0.2.0/24"),
 		}},
 	})
@@ -142,9 +143,9 @@ func TestBGPProducerBridgeMapsAllActions(t *testing.T) {
 		Protocol: "bgp",
 		Family:   family.IPv4Unicast,
 		Changes: []ribevents.BestChangeEntry{
-			{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("192.0.2.0/24")},
-			{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("198.51.100.0/24")},
-			{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("203.0.113.0/24")},
+			{Action: routeaction.Add, Prefix: netip.MustParsePrefix("192.0.2.0/24")},
+			{Action: routeaction.Update, Prefix: netip.MustParsePrefix("198.51.100.0/24")},
+			{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("203.0.113.0/24")},
 		},
 	})
 
@@ -174,9 +175,9 @@ func TestBGPProducerBridgeUnknownActionLogged(t *testing.T) {
 		Protocol: "bgp",
 		Family:   family.IPv4Unicast,
 		Changes: []ribevents.BestChangeEntry{
-			{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("192.0.2.0/24")},
+			{Action: routeaction.Add, Prefix: netip.MustParsePrefix("192.0.2.0/24")},
 			// A hypothetical future enumerant the bridge does not map (AC-2).
-			{Action: bgptypes.RouteAction(99), Prefix: netip.MustParsePrefix("198.51.100.0/24")},
+			{Action: routeaction.Action(99), Prefix: netip.MustParsePrefix("198.51.100.0/24")},
 		},
 	})
 

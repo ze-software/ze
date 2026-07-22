@@ -10,18 +10,28 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // testEvent records one event emitted on the in-memory test EventBus.
 type testEvent struct {
@@ -795,14 +805,14 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
 	require.True(t, ok)
-	assert.Equal(t, bgptypes.BGPProtocolEBGP, change.ProtocolType, "eBGP route must have protocol-type ebgp")
+	assert.Equal(t, routeaction.ProtocolEBGP, change.ProtocolType, "eBGP route must have protocol-type ebgp")
 
 	// Verify it survives JSON round-trip (sysrib reads this from payload).
 	data, err := json.Marshal(change)
 	require.NoError(t, err)
 	var decoded bestChangeEntry
 	require.NoError(t, json.Unmarshal(data, &decoded))
-	assert.Equal(t, bgptypes.BGPProtocolEBGP, decoded.ProtocolType)
+	assert.Equal(t, routeaction.ProtocolEBGP, decoded.ProtocolType)
 }
 
 // VALIDATES: AC-7 -- iBGP route has protocol-type "ibgp" in best-change entry.
@@ -824,7 +834,7 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
 	require.True(t, ok)
-	assert.Equal(t, bgptypes.BGPProtocolIBGP, change.ProtocolType, "iBGP route must have protocol-type ibgp")
+	assert.Equal(t, routeaction.ProtocolIBGP, change.ProtocolType, "iBGP route must have protocol-type ibgp")
 }
 
 // VALIDATES: AC-1 (eBGP priority) -- eBGP routes published with priority 20.
@@ -1485,7 +1495,7 @@ func TestBestPathResolve(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), ebgpEntry.NextHop)
 	assert.Equal(t, 20, ebgpEntry.Priority, "eBGP records resolve to priority 20")
 	assert.Equal(t, uint32(500), ebgpEntry.Metric)
-	assert.Equal(t, bgptypes.BGPProtocolEBGP, ebgpEntry.ProtocolType)
+	assert.Equal(t, routeaction.ProtocolEBGP, ebgpEntry.ProtocolType)
 
 	ibgpRec := packBestPath(metricIdx, peerIdx, nhIdx, 0)
 	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, testPfx, 7, true)
@@ -1493,7 +1503,7 @@ func TestBestPathResolve(t *testing.T) {
 	assert.True(t, ibgpEntry.AddPath, "ADD-PATH flag propagates through resolve")
 	assert.Equal(t, uint32(7), ibgpEntry.PathID, "ADD-PATH id propagates through resolve")
 	assert.Equal(t, 200, ibgpEntry.Priority, "iBGP records resolve to priority 200")
-	assert.Equal(t, bgptypes.BGPProtocolIBGP, ibgpEntry.ProtocolType)
+	assert.Equal(t, routeaction.ProtocolIBGP, ibgpEntry.ProtocolType)
 
 	zeroNHIdx, _ := ir.internNextHop(netip.Addr{})
 	zeroRec := packBestPath(metricIdx, peerIdx, zeroNHIdx, 0)

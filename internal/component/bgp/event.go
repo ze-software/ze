@@ -9,7 +9,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -393,9 +394,9 @@ type Event struct {
 // FamilyOperation represents a single add or del operation for a family.
 // RFC 7911: nlri items may have path-id when ADD-PATH is negotiated.
 type FamilyOperation struct {
-	NextHop string               `json:"next-hop,omitempty"` // Only for "add" operations
-	Action  bgptypes.RouteAction `json:"action"`
-	NLRIs   []any                `json:"nlri"` // Strings or {"prefix":"...", "path-id":N}
+	NextHop string             `json:"next-hop,omitempty"` // Only for "add" operations
+	Action  routeaction.Action `json:"action"`
+	NLRIs   []any              `json:"nlri"` // Strings or {"prefix":"...", "path-id":N}
 }
 
 // MessageInfo contains message wrapper for received events.

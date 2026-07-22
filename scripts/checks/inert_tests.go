@@ -898,7 +898,28 @@ func trackedTestFiles(root string) ([]string, error) {
 		if skip {
 			continue
 		}
-		files = append(files, filepath.Join(root, filepath.FromSlash(name)))
+		abs := filepath.Join(root, filepath.FromSlash(name))
+		// git ls-files reads the INDEX; a test file deleted or moved in the
+		// working tree is still listed until that deletion is staged. Parsing
+		// it would fail the whole run with a bare "no such file", which any
+		// developer mid-refactor would hit before they can commit. Skip the
+		// absent entry -- there is no test content to judge, and on the clean
+		// checkout this mode is designed to describe, the deletion is committed
+		// and the entry is simply gone.
+		//
+		// Deliberately narrow: ONLY a not-exist error is tolerated. An
+		// unreadable-but-present file still fails the run rather than silently
+		// shrinking the count the ratchet accepts (ai/rules/fail-closed-guards.md).
+		if _, statErr := os.Stat(abs); statErr != nil {
+			if os.IsNotExist(statErr) {
+				fmt.Fprintf(os.Stderr,
+					"test-sensitivity: skipping %s: tracked by git but absent from the working tree "+
+						"(an unstaged delete or move)\n", name)
+				continue
+			}
+			return nil, fmt.Errorf("stat tracked test file %s: %w", name, statErr)
+		}
+		files = append(files, abs)
 	}
 	sort.Strings(files)
 	return files, nil

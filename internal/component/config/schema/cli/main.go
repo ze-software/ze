@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -466,9 +465,16 @@ func buildSchemaRegistry(extPlugins []string) (*pluginserver.SchemaRegistry, err
 	registry := pluginserver.NewSchemaRegistry()
 	loaded := make(map[string]bool)
 
-	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
-	if err := registerYANG(registry, bgpyang.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp/peer"}, nil, loaded); err != nil {
-		return nil, fmt.Errorf("register ze-bgp: %w", err)
+	// Register ze-bgp schema first (base module) - it provides config, doesn't want it.
+	// The module is read from the plugin registry, where the BGP plugin publishes
+	// it, rather than imported from internal/component/bgp/yang: this file is
+	// always-on and that import would pin the BGP subtree into every binary
+	// (//go:build ze_bgp). An empty result means BGP is compiled out, and the
+	// loop below registers whatever plugins this build does have.
+	if bgpYANG := plugin.GetInternalPluginYANG("bgp"); bgpYANG != "" {
+		if err := registerYANG(registry, bgpYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp/peer"}, nil, loaded); err != nil {
+			return nil, fmt.Errorf("register ze-bgp: %w", err)
+		}
 	}
 
 	// Register internal plugin schemas
@@ -597,10 +603,13 @@ func tryAutoLoadInternal(registry *pluginserver.SchemaRegistry, moduleName strin
 // getInternalYANG returns YANG content, handlers, and plugin ID for an internal module.
 // Returns empty yangContent if module is not found.
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
-	// Core BGP module
+	// Core BGP module, read from the plugin registry (see buildSchemaRegistry).
+	// Falls through to the generic lookup below when BGP is compiled out.
 	if moduleName == bgpConfModule {
-		var tb textbuf.Buffer
-		return bgpyang.ZeBGPConfYANG, []string{"bgp", "bgp/peer"}, tb.Str(internalPluginPrefix).Str("bgp").String()
+		if bgpYANG := plugin.GetInternalPluginYANG("bgp"); bgpYANG != "" {
+			var tb textbuf.Buffer
+			return bgpYANG, []string{"bgp", "bgp/peer"}, tb.Str(internalPluginPrefix).Str("bgp").String()
+		}
 	}
 
 	// Internal plugins

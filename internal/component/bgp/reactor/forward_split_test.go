@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -13,6 +15,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // collectSplit runs message.Splitter.Split with a deep-copying callback so
 // tests can inspect every chunk after Split returns.
@@ -101,7 +112,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 
 	// Get max message size for peer
 	nc := peer.negotiated.Load()
-	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc != nil && nc.ExtendedMessage)
+	maxMsgSize := message.MaxMessageLength(msgtype.TypeUPDATE, nc != nil && nc.ExtendedMessage)
 	require.Equal(t, uint16(message.MaxMsgLen), maxMsgSize,
 		"peer without ExtendedMessage should have 4096 limit")
 
@@ -156,7 +167,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	}
-	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage)
+	maxMsgSize := message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage)
 
 	// Verify update fits
 	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
@@ -202,7 +213,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: true,
 	}
-	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage)
+	maxMsgSize := message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage)
 	require.Equal(t, uint16(message.ExtMsgLen), maxMsgSize,
 		"peer with ExtendedMessage should have 65535 limit")
 
@@ -232,7 +243,7 @@ func TestReplayUpdateSplitting(t *testing.T) {
 	})
 
 	nc := peer.negotiated.Load()
-	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc != nil && nc.ExtendedMessage)
+	maxMsgSize := message.MaxMessageLength(msgtype.TypeUPDATE, nc != nil && nc.ExtendedMessage)
 	require.Equal(t, uint16(message.MaxMsgLen), maxMsgSize,
 		"peer without ExtendedMessage should have 4096 limit")
 }

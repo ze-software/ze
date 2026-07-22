@@ -8,7 +8,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
 )
 
 // RFC 4271 Section 4.1 - BGP message header constants.
@@ -38,37 +38,11 @@ var Marker = [MarkerLen]byte{
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 }
 
-// RFC 4271 Section 4.1 - Type is a 1-octet unsigned integer indicating message type.
-type MessageType uint8
-
-// RFC 4271 Section 4.1 - Message type codes.
-// Types 1-4 are defined in RFC 4271, type 5 (ROUTE-REFRESH) in RFC 2918.
-const (
-	TypeOPEN         MessageType = 1 // RFC 4271 Section 4.1
-	TypeUPDATE       MessageType = 2 // RFC 4271 Section 4.1
-	TypeNOTIFICATION MessageType = 3 // RFC 4271 Section 4.1
-	TypeKEEPALIVE    MessageType = 4 // RFC 4271 Section 4.1
-	TypeROUTEREFRESH MessageType = 5 // RFC 2918
-)
-
-// String returns a human-readable name for the message type.
-func (t MessageType) String() string {
-	switch t {
-	case TypeOPEN:
-		return "OPEN"
-	case TypeUPDATE:
-		return "UPDATE"
-	case TypeNOTIFICATION:
-		return "NOTIFICATION"
-	case TypeKEEPALIVE:
-		return "KEEPALIVE"
-	case TypeROUTEREFRESH:
-		return "ROUTE-REFRESH"
-	default:
-		var b textbuf.Buffer
-		return b.Reset().Str("UNKNOWN(").Int(int64(t)).Byte(')').String()
-	}
-}
+// The message-type code (RFC 4271 Section 4.1) and its RFC-defined values live
+// in the always-on leaf internal/core/bgp/msgtype: always-on consumers (the MRT
+// recorder) classify raw BGP messages by type and must keep compiling when this
+// codec is compiled out (//go:build ze_bgp). Use msgtype.MessageType /
+// msgtype.Type*.
 
 // RFC 4271 Section 4.1 - BGP message header structure.
 // Note: Marker field is not stored as it is always all ones.
@@ -76,7 +50,7 @@ type Header struct {
 	// RFC 4271 Section 4.1 - 2-octet Length indicates total message length including header.
 	Length uint16
 	// RFC 4271 Section 4.1 - 1-octet Type indicates the message type code.
-	Type MessageType
+	Type msgtype.MessageType
 }
 
 // ParseHeader parses a BGP message header from wire format.
@@ -110,7 +84,7 @@ func ParseHeader(data []byte) (Header, error) {
 	// RFC 4271 Section 4.1 - Type is 1-octet unsigned integer at offset 18.
 	return Header{
 		Length: length,
-		Type:   MessageType(data[18]),
+		Type:   msgtype.MessageType(data[18]),
 	}, nil
 }
 
@@ -131,16 +105,16 @@ func (h Header) ValidateLength() error {
 	var exactLen bool
 
 	switch h.Type {
-	case TypeOPEN:
+	case msgtype.TypeOPEN:
 		minLen = MinOpenLen
-	case TypeUPDATE:
+	case msgtype.TypeUPDATE:
 		minLen = MinUpdateLen
-	case TypeNOTIFICATION:
+	case msgtype.TypeNOTIFICATION:
 		minLen = MinNotificationLen
-	case TypeKEEPALIVE:
+	case msgtype.TypeKEEPALIVE:
 		minLen = KeepaliveLen
 		exactLen = true // KEEPALIVE must be exactly 19 octets
-	case TypeROUTEREFRESH:
+	case msgtype.TypeROUTEREFRESH:
 		// RFC 7313 Section 5 assigns malformed ROUTE-REFRESH body length to
 		// ROUTE-REFRESH Message Error / Invalid Message Length, not Message
 		// Header Error. Keep header validation to the common BGP header floor;
@@ -194,10 +168,10 @@ func (h Header) ValidateLengthWithMax(extendedMessage bool) error {
 	// messages except for OPEN and KEEPALIVE messages."
 	maxLen := uint16(MaxMsgLen)
 	switch h.Type {
-	case TypeOPEN, TypeKEEPALIVE:
+	case msgtype.TypeOPEN, msgtype.TypeKEEPALIVE:
 		// Always 4096 max for OPEN and KEEPALIVE (RFC 8654 Section 4)
 		maxLen = MaxMsgLen
-	case TypeUPDATE, TypeNOTIFICATION, TypeROUTEREFRESH:
+	case msgtype.TypeUPDATE, msgtype.TypeNOTIFICATION, msgtype.TypeROUTEREFRESH:
 		// UPDATE, NOTIFICATION, ROUTE-REFRESH: extended if negotiated
 		if extendedMessage {
 			maxLen = ExtMsgLen
@@ -229,11 +203,11 @@ func (h Header) WriteTo(buf []byte, off int) int {
 // RFC 4271: Default max is 4096.
 // RFC 8654: Extended Message capability raises limit to 65535 for UPDATE, NOTIFICATION, ROUTE-REFRESH.
 // OPEN and KEEPALIVE are always limited to 4096 (RFC 8654 Section 4).
-func MaxMessageLength(msgType MessageType, extendedMessage bool) uint16 {
+func MaxMessageLength(msgType msgtype.MessageType, extendedMessage bool) uint16 {
 	switch msgType {
-	case TypeOPEN, TypeKEEPALIVE:
+	case msgtype.TypeOPEN, msgtype.TypeKEEPALIVE:
 		return MaxMsgLen
-	case TypeUPDATE, TypeNOTIFICATION, TypeROUTEREFRESH:
+	case msgtype.TypeUPDATE, msgtype.TypeNOTIFICATION, msgtype.TypeROUTEREFRESH:
 		if extendedMessage {
 			return ExtMsgLen
 		}

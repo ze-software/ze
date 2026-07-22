@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,6 +30,15 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // validPathAttrs is a well-formed eBGP attribute set: ORIGIN, AS_PATH and NEXT_HOP all
 // present, correctly flagged, correctly sized. Nothing in it may trip any RFC 7606 rule.
@@ -192,7 +203,7 @@ func TestSessionRFC7606SectionLengthConflictNotification(t *testing.T) {
 	require.GreaterOrEqual(t, len(received), message.HeaderLen+2, "NOTIFICATION too short")
 	hdr, hdrErr := message.ParseHeader(received[:message.HeaderLen])
 	require.NoError(t, hdrErr)
-	require.Equal(t, message.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
+	require.Equal(t, msgtype.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
 	notifBody := received[message.HeaderLen:]
 	require.Equal(t, byte(message.NotifyUpdateMessage), notifBody[0],
 		"NOTIFICATION error code must be 3 (UPDATE Message Error)")
@@ -283,7 +294,7 @@ func TestSessionRFC7606ValidUpdateDispatchesAnnouncement(t *testing.T) {
 
 	var dispatched []byte
 	var dispatchCount int
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string,
 	) bool {

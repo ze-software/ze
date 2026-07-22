@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
@@ -96,7 +97,7 @@ func (c *Component) Start(bus ze.EventBus) {
 
 // OnBGPMessage implements reactor.MessageObserver.
 // Called synchronously on the session goroutine with raw wire bytes.
-func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageType, sent bool, rawBytes []byte) {
+func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageType, sent bool, rawBytes []byte) {
 	if c.updates == nil && c.allMsgs == nil {
 		return
 	}
@@ -104,7 +105,7 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageT
 		return
 	}
 
-	isUpdate := msgType == message.TypeUPDATE
+	isUpdate := msgType == msgtype.TypeUPDATE
 
 	pb := getBuf()
 	defer bufPool.Put(pb)
@@ -148,7 +149,7 @@ func (c *Component) onBGPMessageAny(peer any, msgType uint8, sent bool, rawBytes
 	if !ok || pi == nil {
 		return
 	}
-	c.OnBGPMessage(pi, message.MessageType(msgType), sent, rawBytes)
+	c.OnBGPMessage(pi, msgtype.MessageType(msgType), sent, rawBytes)
 }
 
 // onPeerEstablished records a BGP4MP_STATE_CHANGE_AS4 (Idle -> Established).

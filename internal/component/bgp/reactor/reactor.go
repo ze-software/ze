@@ -35,6 +35,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
@@ -218,7 +220,7 @@ type PeerLifecycleObserver interface {
 // Implementations MUST NOT block; buffer internally if I/O is needed.
 // Direction: false = received, true = sent.
 type MessageObserver interface {
-	OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageType, sent bool, rawBytes []byte)
+	OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageType, sent bool, rawBytes []byte)
 }
 
 // Reactor is the main BGP orchestrator.

@@ -32,16 +32,16 @@ ze-spec-citation-check:
 	@python3 scripts/dev/spec-citation-check.py
 
 ze-inventory:
-	@go run scripts/inventory/inventory.go
+	@$(GO_RUN) scripts/inventory/inventory.go
 
 ze-inventory-json:
-	@go run scripts/inventory/inventory.go --json
+	@$(GO_RUN) scripts/inventory/inventory.go --json
 
 ze-command-list:
-	@go run scripts/inventory/commands.go
+	@$(GO_RUN) scripts/inventory/commands.go
 
 ze-command-list-json:
-	@go run scripts/inventory/commands.go --json
+	@$(GO_RUN) scripts/inventory/commands.go --json
 
 ze-wiki-update: ze-wiki-commands
 	@echo "Wiki updated"
@@ -51,27 +51,27 @@ ze-wiki-commands:
 	@echo "  -> ../wiki/command-catalog.md"
 
 ze-doc-drift:
-	@go run scripts/docvalid/doc_drift.go
+	@$(GO_RUN) scripts/docvalid/doc_drift.go
 
 ze-validate-commands:
-	@go run scripts/docvalid/commands.go
+	@$(GO_RUN) scripts/docvalid/commands.go
 
 ze-validate-commands-json:
-	@go run scripts/docvalid/commands.go --json
+	@$(GO_RUN) scripts/docvalid/commands.go --json
 
 ze-command-ownership-check:
-	@go run scripts/checks/command_ownership.go
+	@$(GO_RUN) scripts/checks/command_ownership.go
 
 ze-command-ownership-check-json:
-	@go run scripts/checks/command_ownership.go --json
+	@$(GO_RUN) scripts/checks/command_ownership.go --json
 
 # CLI grammar gate: every built-in command obeys the verb-first grammar rules
 # (ai/rules/cli-grammar.md, R1-R8) and no .yang carries a --flag.
 ze-cli-grammar-check:
-	@go run scripts/checks/cli_grammar.go
+	@$(GO_RUN) scripts/checks/cli_grammar.go
 
 ze-cli-grammar-check-json:
-	@go run scripts/checks/cli_grammar.go --json
+	@$(GO_RUN) scripts/checks/cli_grammar.go --json
 
 
 ze-verify-wiring-docs:
@@ -82,10 +82,10 @@ ze-doc-test:
 	@FAIL=0; \
 	echo ""; \
 	echo "  -> Documentation drift (docs claims vs registry, Makefile, filesystem)..."; \
-	go run scripts/docvalid/doc_drift.go || FAIL=1; \
+	$(GO_RUN) scripts/docvalid/doc_drift.go || FAIL=1; \
 	echo ""; \
 	echo "  -> YANG/handler contract (validate-commands)..."; \
-	go run scripts/docvalid/commands.go || FAIL=1; \
+	$(GO_RUN) scripts/docvalid/commands.go || FAIL=1; \
 	echo ""; \
 	echo "  -> Source anchors (docs source references exist)..."; \
 	python3 scripts/dev/code_to_docs.py --check || FAIL=1; \

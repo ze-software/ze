@@ -18,7 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -233,7 +234,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			continue
 		}
 		switch c.Action.Verb() {
-		case bgptypes.RouteVerbInstall:
+		case routeaction.VerbInstall:
 			if err := f.addVPPRoute(c); err != nil {
 				logger().Error("fib-vpp: add route failed", "prefix", c.Prefix, "error", err)
 				continue
@@ -243,7 +244,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
-		case bgptypes.RouteVerbReplace:
+		case routeaction.VerbReplace:
 			if err := f.replaceVPPRoute(c); err != nil {
 				logger().Error("fib-vpp: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
@@ -252,7 +253,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
-		case bgptypes.RouteVerbRemove:
+		case routeaction.VerbRemove:
 			if err := f.delVPPRoute(c); err != nil {
 				logger().Error("fib-vpp: del route failed", "prefix", c.Prefix, "error", err)
 				continue
@@ -262,7 +263,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
-		case bgptypes.RouteVerbSkip:
+		case routeaction.VerbSkip:
 			logger().Warn("fib-vpp: skipping change with unspecified action", "prefix", c.Prefix)
 		}
 	}
@@ -277,7 +278,7 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 	}
 	pfxStr := c.Prefix.String()
 	switch c.Action.Verb() { //nolint:exhaustive // Unspecified is a no-op for MPLS
-	case bgptypes.RouteVerbInstall, bgptypes.RouteVerbReplace:
+	case routeaction.VerbInstall, routeaction.VerbReplace:
 		if err := f.mplsBackend.addMPLSRoute(c.Prefix, c.NextHop, c.Labels); err != nil {
 			logger().Error("fib-vpp: MPLS add failed", "prefix", c.Prefix, "error", err)
 			return
@@ -286,7 +287,7 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeInstalls.Inc()
 		}
-	case bgptypes.RouteVerbRemove:
+	case routeaction.VerbRemove:
 		if err := f.mplsBackend.delMPLSRoute(c.Prefix, c.Labels); err != nil {
 			logger().Error("fib-vpp: MPLS del failed", "prefix", c.Prefix, "error", err)
 			return

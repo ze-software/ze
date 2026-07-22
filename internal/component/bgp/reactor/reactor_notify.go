@@ -10,6 +10,8 @@ import (
 	"maps"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -70,7 +72,7 @@ type messageCallbackAdapter struct {
 	cb registry.MessageCallback
 }
 
-func (a *messageCallbackAdapter) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageType, sent bool, rawBytes []byte) {
+func (a *messageCallbackAdapter) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageType, sent bool, rawBytes []byte) {
 	a.cb.OnBGPMessage(peer, uint8(msgType), sent, rawBytes)
 }
 
@@ -217,7 +219,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // direction is rpc.DirectionSent or rpc.DirectionReceived.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -247,7 +249,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// (announce vs withdraw per prefix) belong in the RIB plugin.
 		if direction == rpc.DirectionReceived {
 			switch msgType { //nolint:exhaustive // only counting updates and keepalives
-			case message.TypeUPDATE:
+			case msgtype.TypeUPDATE:
 				peer.IncrUpdatesReceived()
 				// Additionally count EOR as a subset of updates.
 				if wireUpdate != nil {
@@ -265,16 +267,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 						}
 					}
 				}
-			case message.TypeKEEPALIVE:
+			case msgtype.TypeKEEPALIVE:
 				peer.IncrKeepalivesReceived()
 			}
 		} else {
 			switch msgType { //nolint:exhaustive // only counting updates and keepalives
-			case message.TypeUPDATE:
+			case msgtype.TypeUPDATE:
 				peer.IncrUpdatesSent()
 				// EOR sent is counted at BuildEOR call sites via IncrEORSent()
 				// because wireUpdate is nil for sent messages.
-			case message.TypeKEEPALIVE:
+			case msgtype.TypeKEEPALIVE:
 				peer.IncrKeepalivesSent()
 			}
 		}
@@ -284,7 +286,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	if r.capture != nil {
 		var errCode, errSub uint8
-		if msgType == message.TypeNOTIFICATION && len(rawBytes) >= 2 {
+		if msgType == msgtype.TypeNOTIFICATION && len(rawBytes) >= 2 {
 			errCode = rawBytes[0]
 			errSub = rawBytes[1]
 		}
@@ -384,7 +386,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// WireUpdate is needed by structured handlers (e.g., RIB plugin's
 		// handleSentStructured) to extract NLRIs via wu.NLRI()/MPReach().
 		// AttrsWire is needed to extract path attributes for ribOut storage.
-		if msgType == message.TypeUPDATE && len(bytes) >= 4 {
+		if msgType == msgtype.TypeUPDATE && len(bytes) >= 4 {
 			wu := wireu.NewWireUpdate(bytes, ctxID)
 			wu.SetMessageID(messageID)
 			msg.WireUpdate = wu
@@ -565,7 +567,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// RSFastPath/RSClient readers (session_negotiate PATHS-LIMIT suppression,
 	// peer_forward_facts AS-path-skip) stay schema-gated only, which suffices
 	// because they are unreachable without the plugin-owned config.
-	if kept && hasPeer && r.rsForwardingEnabled && peer.settings.RSFastPath && msgType == message.TypeUPDATE {
+	if kept && hasPeer && r.rsForwardingEnabled && peer.settings.RSFastPath && msgType == msgtype.TypeUPDATE {
 		update, ok := r.recentUpdates.Get(messageID)
 		if ok {
 			skipped := reactorForwardRS(r, update, messageID, peerAddr, peer)
@@ -582,7 +584,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// goroutine from plugin processing.
 	// Non-UPDATE messages (OPEN, KEEPALIVE, NOTIFICATION) stay synchronous
 	// because they are infrequent and FSM-critical.
-	if hasPeer && peer.deliverChan != nil && msgType == message.TypeUPDATE {
+	if hasPeer && peer.deliverChan != nil && msgType == msgtype.TypeUPDATE {
 		peer.deliverChan <- deliveryItem{peerInfo: peerInfo, msg: msg}
 		return kept
 	}

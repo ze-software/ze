@@ -66,6 +66,12 @@ GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null
 # (//go:build !ze_lg / !ze_ssh / !ze_web) MUST live under cmd/ze/hub. A negated
 # feature-gate test placed elsewhere would be silently skipped by both passes.
 GO_TEST_TAGS = ze_core $(ZE_FEATURES) $(ZE_TAGS)
+# Build tools that ENUMERATE a runtime registry (families, commands, YANG
+# modules) link internal/component/plugin/all and must see the same feature
+# set the shipped binary has, or a gated plugin's registrations are simply
+# absent and the tool reports drift against docs that are correct. GO_RUN is
+# for those tools; a tool that only reads source text does not need it.
+GO_RUN = go run -tags '$(GO_TEST_TAGS)'
 GO_TEST_CORE_TAGS = ze_core $(ZE_TAGS)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_TAGS)'
 GO_TEST_CORE = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_CORE_TAGS)'
@@ -150,13 +156,16 @@ ze-stripped:
 	@mkdir -p bin
 	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 
+# ze-chaos and ze-perf drive an in-process BGP reactor, so they force ze_bgp on:
+# their own tags (ze_chaos / ze_perf) do not include ZE_FEATURES, and without it
+# the BGP plugins would silently register nothing rather than fail to build.
 chaos:
 	@mkdir -p bin
-	$(GO) build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
+	$(GO) build -tags 'ze_chaos ze_bgp' -o bin/ze-chaos ./cmd/ze
 
 test:
 	@mkdir -p bin
-	$(GO) build -tags ze_test -o bin/ze-test ./cmd/ze
+	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o bin/ze-test ./cmd/ze
 
 analyze:
 	@mkdir -p bin
@@ -164,7 +173,7 @@ analyze:
 
 perf:
 	@mkdir -p bin
-	$(GO) build -tags ze_perf -o bin/ze-perf ./cmd/ze
+	$(GO) build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze
 
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
@@ -188,12 +197,12 @@ bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 bin/ze-test: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin
-	$(GO) build -tags ze_test -o bin/ze-test ./cmd/ze
+	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o bin/ze-test ./cmd/ze
 
 bin/ze-chaos: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
 	@mkdir -p bin
-	$(GO) build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
+	$(GO) build -tags 'ze_chaos ze_bgp' -o bin/ze-chaos ./cmd/ze
 
 bin/ze-analyze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-analyze..."
@@ -203,7 +212,7 @@ bin/ze-analyze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 bin/ze-perf: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-perf..."
 	@mkdir -p bin
-	$(GO) build -tags ze_perf -o bin/ze-perf ./cmd/ze
+	$(GO) build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze
 
 # ─── Docker ────────────────────────────────────────────────────────────────
 

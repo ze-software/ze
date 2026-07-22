@@ -16,3 +16,13 @@ _ZE_SID_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _session_id() {
     python3 "$_ZE_SID_DIR/session_id.py"
 }
+
+# _sid_safe prints its argument when it is usable as a filename component, and
+# nothing otherwise. Callers that receive an id rather than resolve one (the
+# SessionEnd hooks read it from their JSON payload) need the safety rule without
+# the resolution walk. It delegates to the same _sid_safe in session_id.py, so
+# there is still exactly one implementation of the rule -- restoring the shell
+# copy that the shim replaced would re-create the drift the shim exists to stop.
+_sid_safe() {
+    python3 "$_ZE_SID_DIR/session_id.py" --safe "$1"
+}

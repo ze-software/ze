@@ -18,7 +18,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	bgpcli "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -28,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
@@ -190,15 +190,20 @@ var errWebOnlyUnavailable = errors.New("operational commands require a running d
 // plugin-server dispatcher nor the web-only stub knows about it. This wrapper
 // intercepts the command and calls the decoder directly so the web tool page
 // works in both full-daemon and web-only modes (F5/AC-8).
+//
+// The decoder is reached through the leaf registry seam, which the gated BGP
+// CLI package fills from its init(). With ze_bgp compiled out the seam is nil
+// and the command falls through to the dispatcher, which reports it as unknown
+// -- the honest answer for a binary that has no BGP.
 func withBGPDecode(inner zeweb.CommandDispatcher) zeweb.CommandDispatcher {
 	const prefix = "show bgp decode "
 	return func(ctx context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
-		if strings.HasPrefix(command, prefix) {
+		if decode := pluginreg.GetPacketDecoder(); decode != nil && strings.HasPrefix(command, prefix) {
 			hex := strings.TrimSpace(command[len(prefix):])
-			// DecodeHexPacket returns human-readable text (outputJSON=false);
+			// The decoder returns human-readable text (outputJSON=false);
 			// carry it as pre-rendered Text so the web tool renders it verbatim
 			// rather than re-quoting/escaping it through JSON marshaling.
-			decoded, err := bgpcli.DecodeHexPacket(hex, "", "", false)
+			decoded, err := decode(hex, "", "", false)
 			if err != nil {
 				return nil, err
 			}

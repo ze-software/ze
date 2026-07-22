@@ -12,7 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -121,7 +122,7 @@ func runEmit(args []string) (json.RawMessage, error) {
 
 	if action == "withdraw" {
 		change := sysribevents.BestChangeEntry{
-			Action: bgptypes.RouteActionWithdraw,
+			Action: routeaction.Withdraw,
 			Prefix: prefix,
 		}
 		delivered, err := emitSysribChange(fam, change)
@@ -137,7 +138,7 @@ func runEmit(args []string) (json.RawMessage, error) {
 	}
 
 	change := sysribevents.BestChangeEntry{
-		Action:   bgptypes.RouteActionAdd,
+		Action:   routeaction.Add,
 		Prefix:   prefix,
 		Protocol: "fakefib",
 	}

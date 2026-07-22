@@ -52,3 +52,73 @@ ze_ospf    internal/plugins/ospf/v3/transport
 ze_rsvpte  internal/plugins/rsvpte
 ze_vrrp    internal/plugins/vrrp
 ze_vrrp    internal/plugins/vrrp/transport
+
+# ze_bgp -- the BGP engine, codec and every BGP plugin. The largest gate: the
+# whole internal/component/bgp subtree plus flowspec-firewall, which translates
+# BGP-delivered flowspec routes into firewall rules and is meaningless without
+# it. Nothing under internal/component/bgp carries a source build tag: the
+# packages are dropped transitively once the generated all_ze_bgp.go owns their
+# blank imports and every always-on importer is cleared (spec-feature-gate-10-bgp).
+# Lines below are the base packages all.go blank-imports (each auto-gates its
+# /yang sibling), plus bgp/{config,reactor,types,message,grmarker} -- packages
+# always-on code used to import, listed so dep_audit --check actively asserts
+# no always-on importer creeps back rather than relying on the nm proof alone.
+ze_bgp   internal/component/bgp
+ze_bgp   internal/component/bgp/cli
+ze_bgp   internal/component/bgp/config
+ze_bgp   internal/component/bgp/grmarker
+ze_bgp   internal/component/bgp/message
+ze_bgp   internal/component/bgp/plugin
+ze_bgp   internal/component/bgp/plugins/adj_rib_in
+ze_bgp   internal/component/bgp/plugins/aigp
+ze_bgp   internal/component/bgp/plugins/bmp
+ze_bgp   internal/component/bgp/plugins/capa
+ze_bgp   internal/component/bgp/plugins/cmd/announce
+ze_bgp   internal/component/bgp/plugins/cmd/cache
+ze_bgp   internal/component/bgp/plugins/cmd/commit
+ze_bgp   internal/component/bgp/plugins/cmd/monitor
+ze_bgp   internal/component/bgp/plugins/cmd/peer
+ze_bgp   internal/component/bgp/plugins/cmd/policy
+ze_bgp   internal/component/bgp/plugins/cmd/raw
+ze_bgp   internal/component/bgp/plugins/cmd/rib
+ze_bgp   internal/component/bgp/plugins/cmd/update
+ze_bgp   internal/component/bgp/plugins/filter_aspath
+ze_bgp   internal/component/bgp/plugins/filter_aspath_length
+ze_bgp   internal/component/bgp/plugins/filter_community
+ze_bgp   internal/component/bgp/plugins/filter_community_match
+ze_bgp   internal/component/bgp/plugins/filter_family
+ze_bgp   internal/component/bgp/plugins/filter_irr
+ze_bgp   internal/component/bgp/plugins/filter_modify
+ze_bgp   internal/component/bgp/plugins/filter_prefix
+ze_bgp   internal/component/bgp/plugins/filter_remove_private_as
+ze_bgp   internal/component/bgp/plugins/gr
+ze_bgp   internal/component/bgp/plugins/healthcheck
+ze_bgp   internal/component/bgp/plugins/hostname
+ze_bgp   internal/component/bgp/plugins/llnh
+ze_bgp   internal/component/bgp/plugins/nlri/evpn
+ze_bgp   internal/component/bgp/plugins/nlri/flowspec
+ze_bgp   internal/component/bgp/plugins/nlri/labeled
+ze_bgp   internal/component/bgp/plugins/nlri/ls
+ze_bgp   internal/component/bgp/plugins/nlri/mup
+ze_bgp   internal/component/bgp/plugins/nlri/mvpn
+ze_bgp   internal/component/bgp/plugins/nlri/rtc
+ze_bgp   internal/component/bgp/plugins/nlri/srpolicy
+ze_bgp   internal/component/bgp/plugins/nlri/vpls
+ze_bgp   internal/component/bgp/plugins/nlri/vpn
+ze_bgp   internal/component/bgp/plugins/persist
+ze_bgp   internal/component/bgp/plugins/redistribute_egress
+ze_bgp   internal/component/bgp/plugins/redistribute_ingress
+ze_bgp   internal/component/bgp/plugins/rib
+ze_bgp   internal/component/bgp/plugins/role
+ze_bgp   internal/component/bgp/plugins/route_refresh
+ze_bgp   internal/component/bgp/plugins/route_refresh/handler
+ze_bgp   internal/component/bgp/plugins/rpki
+ze_bgp   internal/component/bgp/plugins/rpki_decorator
+ze_bgp   internal/component/bgp/plugins/rr
+ze_bgp   internal/component/bgp/plugins/rs
+ze_bgp   internal/component/bgp/plugins/softver
+ze_bgp   internal/component/bgp/plugins/watchdog
+ze_bgp   internal/component/bgp/reactor
+ze_bgp   internal/component/bgp/reactor/filter
+ze_bgp   internal/component/bgp/types
+ze_bgp   internal/plugins/flowspec-firewall

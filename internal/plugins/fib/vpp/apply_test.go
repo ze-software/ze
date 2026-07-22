@@ -13,10 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -568,7 +569,7 @@ func TestVPPMultiPath(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionAdd,
+				Action:   routeaction.Add,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop:  netip.MustParseAddr("192.168.1.1"),
 				Protocol: "bgp",
@@ -605,7 +606,7 @@ func TestVPPTable(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionAdd,
+				Action:   routeaction.Add,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop:  netip.MustParseAddr("192.168.1.1"),
 				Protocol: "bgp",
@@ -645,7 +646,7 @@ func TestVPPRouteType(t *testing.T) {
 				Family: family.IPv4Unicast,
 				Changes: []incomingChange{
 					{
-						Action:    bgptypes.RouteActionAdd,
+						Action:    routeaction.Add,
 						Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
 						Protocol:  "bgp",
 						RouteType: tt.routeType,
@@ -673,7 +674,7 @@ func TestVPPMetric(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionAdd,
+				Action:   routeaction.Add,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop:  netip.MustParseAddr("192.168.1.1"),
 				Protocol: "bgp",
@@ -700,7 +701,7 @@ func TestVPPTableSinglePath(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionAdd,
+				Action:   routeaction.Add,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop:  netip.MustParseAddr("192.168.1.1"),
 				Protocol: "bgp",
@@ -731,7 +732,7 @@ func TestVPPTableDelete(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionWithdraw,
+				Action:   routeaction.Withdraw,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				Protocol: "bgp",
 				TableID:  99,
@@ -761,7 +762,7 @@ func TestVPPTableDeleteStoredTableID(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionWithdraw,
+				Action:   routeaction.Withdraw,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				Protocol: "bgp",
 			},
@@ -790,7 +791,7 @@ func TestVPPRouteTypeUpdate(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:    bgptypes.RouteActionUpdate,
+				Action:    routeaction.Update,
 				Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
 				Protocol:  "bgp",
 				RouteType: sysribevents.RouteTypeBlackhole,
@@ -816,7 +817,7 @@ func TestVPPSinglePathLegacy(t *testing.T) {
 		Family: family.IPv4Unicast,
 		Changes: []incomingChange{
 			{
-				Action:   bgptypes.RouteActionAdd,
+				Action:   routeaction.Add,
 				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop:  netip.MustParseAddr("192.168.1.1"),
 				Protocol: "bgp",
@@ -845,7 +846,7 @@ func TestSRv6SteerAdd(t *testing.T) {
 
 	f.processEvent(&sysribevents.BestChangeBatch{
 		Changes: []sysribevents.BestChangeEntry{{
-			Action:  bgptypes.RouteActionAdd,
+			Action:  routeaction.Add,
 			Prefix:  prefix,
 			NextHop: netip.MustParseAddr("192.0.2.1"),
 			SRv6SID: sid,
@@ -876,7 +877,7 @@ func TestSRv6SteerWithdraw(t *testing.T) {
 
 	f.processEvent(&sysribevents.BestChangeBatch{
 		Changes: []sysribevents.BestChangeEntry{{
-			Action: bgptypes.RouteActionWithdraw,
+			Action: routeaction.Withdraw,
 			Prefix: prefix,
 		}},
 	})
@@ -903,7 +904,7 @@ func TestSRv6ZeroSIDSkipped(t *testing.T) {
 
 	f.processEvent(&sysribevents.BestChangeBatch{
 		Changes: []sysribevents.BestChangeEntry{{
-			Action:  bgptypes.RouteActionAdd,
+			Action:  routeaction.Add,
 			Prefix:  prefix,
 			NextHop: nh,
 		}},
@@ -991,7 +992,7 @@ func TestProcessEventWithLabels(t *testing.T) {
 	batch := &incomingBatch{
 		Changes: []incomingChange{
 			{
-				Action:  bgptypes.RouteActionAdd,
+				Action:  routeaction.Add,
 				Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop: netip.MustParseAddr("192.168.1.1"),
 				Labels:  []uint32{100},
@@ -1013,7 +1014,7 @@ func TestProcessEventWithoutLabels(t *testing.T) {
 	batch := &incomingBatch{
 		Changes: []incomingChange{
 			{
-				Action:  bgptypes.RouteActionAdd,
+				Action:  routeaction.Add,
 				Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 				NextHop: netip.MustParseAddr("192.168.1.1"),
 			},
@@ -1035,14 +1036,14 @@ func TestProcessEventWithdrawLabeled(t *testing.T) {
 
 	f.processEvent(&incomingBatch{
 		Changes: []incomingChange{
-			{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: nh, Labels: []uint32{100}},
+			{Action: routeaction.Add, Prefix: pfx, NextHop: nh, Labels: []uint32{100}},
 		},
 	})
 	require.Len(t, mplsBack.pushes, 1)
 
 	f.processEvent(&incomingBatch{
 		Changes: []incomingChange{
-			{Action: bgptypes.RouteActionWithdraw, Prefix: pfx},
+			{Action: routeaction.Withdraw, Prefix: pfx},
 		},
 	})
 	require.Len(t, mplsBack.delPushes, 1)
@@ -1063,8 +1064,8 @@ func TestFibRouteCount(t *testing.T) {
 
 	// Add two routes.
 	fib.processEvent(makeBatch(
-		incomingChange{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1")},
-		incomingChange{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("192.168.1.1")},
+		incomingChange{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1")},
+		incomingChange{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("192.168.1.1")},
 	))
 
 	installed := reg.gauges["ze_fibvpp_routes_installed"]
@@ -1085,7 +1086,7 @@ func TestFibRouteCount(t *testing.T) {
 
 	// Update one route.
 	fib.processEvent(makeBatch(
-		incomingChange{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2")},
+		incomingChange{Action: routeaction.Update, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2")},
 	))
 
 	updates := reg.counters["ze_fibvpp_route_updates_total"]
@@ -1102,7 +1103,7 @@ func TestFibRouteCount(t *testing.T) {
 
 	// Withdraw one route.
 	fib.processEvent(makeBatch(
-		incomingChange{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("10.0.1.0/24")},
+		incomingChange{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("10.0.1.0/24")},
 	))
 
 	removals := reg.counters["ze_fibvpp_route_removals_total"]

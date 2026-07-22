@@ -13,8 +13,9 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -59,7 +60,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 		direction = dirOverride
 	}
 
-	if content.Format == plugin.FormatSummary && msg.Type == message.TypeUPDATE {
+	if content.Format == plugin.FormatSummary && msg.Type == msgtype.TypeUPDATE {
 		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction, messageType)
 	}
 
@@ -67,7 +68,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	// filter machinery (map alloc, []Attribute slice, NLRI parsing) and writes
 	// directly from AttrsWire + body NLRI bytes. Falls through to the generic
 	// path for selective filters, text encoding, or non-UPDATE messages.
-	if msg.Type == message.TypeUPDATE &&
+	if msg.Type == msgtype.TypeUPDATE &&
 		content.Encoding == plugin.EncodingJSON &&
 		content.Format == plugin.FormatParsed &&
 		content.Attributes == nil && content.NLRI == nil &&
@@ -94,7 +95,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	}
 
 	// For UPDATE messages, build FilterResult and use unified formatter
-	if msg.Type == message.TypeUPDATE {
+	if msg.Type == msgtype.TypeUPDATE {
 		// AttrsWire required for attribute parsing (needs valid context ID)
 		// If nil, we can only extract NLRI from body structure
 		result, err := filter.ApplyToUpdate(msg.AttrsWire, msg.RawBytes, *nlriFilter)
@@ -144,13 +145,13 @@ func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage,
 	// For parsed format, use dedicated text formatters.
 	if content.Format != plugin.FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
-		case message.TypeOPEN:
+		case msgtype.TypeOPEN:
 			decoded := DecodeOpen(msg.RawBytes)
 			return AppendOpen(buf, peer, decoded, direction, msg.MessageID)
-		case message.TypeNOTIFICATION:
+		case msgtype.TypeNOTIFICATION:
 			decoded := DecodeNotification(msg.RawBytes)
 			return AppendNotification(buf, peer, decoded, direction, msg.MessageID)
-		case message.TypeKEEPALIVE:
+		case msgtype.TypeKEEPALIVE:
 			return AppendKeepalive(buf, peer, direction, msg.MessageID)
 		}
 	}

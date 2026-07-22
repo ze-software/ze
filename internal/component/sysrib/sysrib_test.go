@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -91,13 +92,13 @@ func TestSysRIBSelectByPriority(t *testing.T) {
 
 	// eBGP route arrives with priority 20.
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	})
 	fam, changes := s.processEvent(payload)
 	assert.Equal(t, family.IPv4Unicast, fam)
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, bgptypes.RouteActionAdd, changes[0].Action)
+	assert.Equal(t, routeaction.Add, changes[0].Action)
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), changes[0].Prefix)
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), changes[0].NextHop)
 	assert.Equal(t, "bgp", changes[0].Protocol)
@@ -114,16 +115,16 @@ func TestSysRIBStaticWinsOverBGP(t *testing.T) {
 
 	// BGP route first.
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	}))
 
 	// Static route arrives with lower priority (wins).
 	_, changes := s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10},
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, bgptypes.RouteActionUpdate, changes[0].Action)
+	assert.Equal(t, routeaction.Update, changes[0].Action)
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), changes[0].NextHop, "static next-hop should win")
 	assert.Equal(t, "static", changes[0].Protocol)
 }
@@ -139,19 +140,19 @@ func TestSysRIBFallback(t *testing.T) {
 
 	// Install both routes.
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	}))
 	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10},
 	}))
 
 	// Withdraw static.
 	_, changes := s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
+		{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, bgptypes.RouteActionUpdate, changes[0].Action)
+	assert.Equal(t, routeaction.Update, changes[0].Action)
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), changes[0].NextHop, "BGP should become system best")
 	assert.Equal(t, "bgp", changes[0].Protocol)
 }
@@ -167,15 +168,15 @@ func TestSysRIBWithdrawAll(t *testing.T) {
 
 	// Install and then withdraw using IPv6 family.
 	s.processEvent(makePayload("bgp", family.IPv6Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: netip.MustParseAddr("fe80::1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: netip.MustParseAddr("fe80::1"), Priority: 20},
 	}))
 
 	_, changes := s.processEvent(makePayload("bgp", family.IPv6Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("2001:db8::/32")},
+		{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("2001:db8::/32")},
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, bgptypes.RouteActionWithdraw, changes[0].Action)
+	assert.Equal(t, routeaction.Withdraw, changes[0].Action)
 	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), changes[0].Prefix)
 }
 
@@ -188,15 +189,15 @@ func TestSysRIBWithdrawAllWithoutProtocol(t *testing.T) {
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 20},
 	}))
 
 	_, changes := s.processEvent(makePayload("", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionWithdraw, Prefix: pfx},
+		{Action: routeaction.Withdraw, Prefix: pfx},
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, bgptypes.RouteActionWithdraw, changes[0].Action)
+	assert.Equal(t, routeaction.Withdraw, changes[0].Action)
 	assert.Equal(t, pfx, changes[0].Prefix)
 }
 
@@ -209,7 +210,7 @@ func TestSysRIBPublishChange(t *testing.T) {
 	s := newSysRIB()
 
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	})
 	_, changes := s.processEvent(payload)
 	require.Len(t, changes, 1)
@@ -226,7 +227,7 @@ func TestSysRIBPublishChange(t *testing.T) {
 	batch := *batchPtr
 	assert.Equal(t, family.IPv4Unicast, batch.Family)
 	require.Len(t, batch.Changes, 1)
-	assert.Equal(t, bgptypes.RouteActionAdd, batch.Changes[0].Action)
+	assert.Equal(t, routeaction.Add, batch.Changes[0].Action)
 	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
 }
 
@@ -240,7 +241,7 @@ func TestBroadcastReplayCharacterization(t *testing.T) {
 	t.Cleanup(clearEventBus)
 
 	entry := []incomingChange{{
-		Action:   bgptypes.RouteActionAdd,
+		Action:   routeaction.Add,
 		Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:  netip.MustParseAddr("192.168.1.1"),
 		Priority: 20,
@@ -268,14 +269,14 @@ func TestSysRIBNoChangeOnSameRoute(t *testing.T) {
 	s := newSysRIB()
 
 	payload := makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	})
 	_, changes1 := s.processEvent(payload)
 	require.Len(t, changes1, 1)
 
 	// Same route again (update with identical data).
 	_, changes2 := s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
+		{Action: routeaction.Update, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20},
 	}))
 	assert.Empty(t, changes2, "no change when same route is re-announced")
 }
@@ -288,7 +289,7 @@ func TestSysRIBAdminDistanceOverride(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 200}
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -310,7 +311,7 @@ func TestSysRIBDefaultAdminDistance(t *testing.T) {
 	s.adminDist = map[string]int{"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200}
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -330,7 +331,7 @@ func TestSysRIBAdminDistanceOverrideIBGP(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 20, "ibgp": 150}
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 200, ProtocolType: bgptypes.BGPProtocolIBGP},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 200, ProtocolType: routeaction.ProtocolIBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -351,12 +352,12 @@ func TestSysRIBCrossProtocolSelection(t *testing.T) {
 
 	// eBGP route with configured distance 30.
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
 	// Static route with configured distance 10.
 	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10, ProtocolType: bgptypes.BGPProtocolUnspecified},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10, ProtocolType: routeaction.ProtocolUnspecified},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -377,7 +378,7 @@ func TestSysRIBUnknownProtocolNoOverride(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 150}
 
 	s.processEvent(makePayload("ospf", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 110, ProtocolType: bgptypes.BGPProtocolUnspecified},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 110, ProtocolType: routeaction.ProtocolUnspecified},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -397,7 +398,7 @@ func TestSysRIBNoConfigPassthrough(t *testing.T) {
 	// No adminDist set -- simulates no sysrib {} config block.
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
@@ -421,10 +422,10 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 
 	// Install eBGP route (distance 20) and static route (distance 10).
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Priority: 20, ProtocolType: routeaction.ProtocolEBGP},
 	}))
 	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10, ProtocolType: bgptypes.BGPProtocolUnspecified},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 10, ProtocolType: routeaction.ProtocolUnspecified},
 	}))
 
 	// Static wins (10 < 20).
@@ -453,7 +454,7 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 	// Should have produced an update change.
 	require.Contains(t, changes, family.IPv4Unicast)
 	require.Len(t, changes[family.IPv4Unicast], 1)
-	assert.Equal(t, bgptypes.RouteActionUpdate, changes[family.IPv4Unicast][0].Action)
+	assert.Equal(t, routeaction.Update, changes[family.IPv4Unicast][0].Action)
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), changes[family.IPv4Unicast][0].NextHop)
 }
 
@@ -653,7 +654,7 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 	batch, ok := events[0].Payload.(*sysribevents.BestChangeBatch)
 	require.True(t, ok, "payload must be *sysribevents.BestChangeBatch, got %T", events[0].Payload)
 	require.Len(t, batch.Changes, 1)
-	assert.Equal(t, bgptypes.RouteActionAdd, batch.Changes[0].Action)
+	assert.Equal(t, routeaction.Add, batch.Changes[0].Action)
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), batch.Changes[0].Prefix)
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), batch.Changes[0].NextHop)
 	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
@@ -665,7 +666,7 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 			if b, ok := e.Payload.(*sysribevents.BestChangeBatch); ok {
 				for i := range b.Changes {
 					c := &b.Changes[i]
-					if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == netip.MustParsePrefix("10.0.0.0/24") {
+					if c.Action == routeaction.Withdraw && c.Prefix == netip.MustParsePrefix("10.0.0.0/24") {
 						return true
 					}
 				}
@@ -720,7 +721,7 @@ func TestSysRIBConsumesLocRIBECMPMembership(t *testing.T) {
 				continue
 			}
 			for _, c := range batch.Changes {
-				if c.Action == bgptypes.RouteActionAdd && c.Prefix == pfx && c.NextHop == nh1 && c.Protocol == "ospf" {
+				if c.Action == routeaction.Add && c.Prefix == pfx && c.NextHop == nh1 && c.Protocol == "ospf" {
 					return true
 				}
 			}
@@ -738,7 +739,7 @@ func TestSysRIBConsumesLocRIBECMPMembership(t *testing.T) {
 				continue
 			}
 			for _, c := range batch.Changes {
-				if c.Action == bgptypes.RouteActionUpdate && c.Prefix == pfx && c.NextHop == nh1 &&
+				if c.Action == routeaction.Update && c.Prefix == pfx && c.NextHop == nh1 &&
 					len(c.ECMPPaths) == 1 && c.ECMPPaths[0].NextHop == nh2 {
 					return true
 				}
@@ -757,7 +758,7 @@ func TestSysRIBConsumesLocRIBECMPMembership(t *testing.T) {
 				continue
 			}
 			for _, c := range batch.Changes {
-				if c.Action == bgptypes.RouteActionUpdate && c.Prefix == pfx && c.NextHop == nh1 && len(c.ECMPPaths) == 0 {
+				if c.Action == routeaction.Update && c.Prefix == pfx && c.NextHop == nh1 && len(c.ECMPPaths) == 0 {
 					return true
 				}
 			}
@@ -800,7 +801,7 @@ func TestSysRIBReplaysLocRIBECMPMembership(t *testing.T) {
 	done := make(chan struct{})
 	go func() { s.run(ctx); close(done) }()
 
-	waitForSysribBest(t, bus, 0, pfx, bgptypes.RouteActionAdd, "ospf", nh1, []netip.Addr{nh2})
+	waitForSysribBest(t, bus, 0, pfx, routeaction.Add, "ospf", nh1, []netip.Addr{nh2})
 
 	cancel()
 	<-done
@@ -846,7 +847,7 @@ func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
 		AdminDistance: 110,
 		Metric:        10,
 	})
-	waitForSysribBest(t, bus, 0, pfx, bgptypes.RouteActionAdd, "ospf", ospfNH, nil)
+	waitForSysribBest(t, bus, 0, pfx, routeaction.Add, "ospf", ospfNH, nil)
 
 	seen := len(captureSysribEvents(bus))
 	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
@@ -856,7 +857,7 @@ func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
 		AdminDistance: 1,
 		Metric:        1,
 	})
-	waitForSysribBest(t, bus, seen, pfx, bgptypes.RouteActionUpdate, "static", staticNH, nil)
+	waitForSysribBest(t, bus, seen, pfx, routeaction.Update, "static", staticNH, nil)
 
 	seen = len(captureSysribEvents(bus))
 	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
@@ -866,13 +867,13 @@ func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
 		AdminDistance: 200,
 		Metric:        1,
 	})
-	waitForSysribBest(t, bus, seen, pfx, bgptypes.RouteActionUpdate, "ospf", ospfNH, nil)
+	waitForSysribBest(t, bus, seen, pfx, routeaction.Update, "ospf", ospfNH, nil)
 
 	cancel()
 	<-done
 }
 
-func waitForSysribBest(t *testing.T, bus *testEventBus, start int, pfx netip.Prefix, action bgptypes.RouteAction, protocol string, nextHop netip.Addr, ecmp []netip.Addr) {
+func waitForSysribBest(t *testing.T, bus *testEventBus, start int, pfx netip.Prefix, action routeaction.Action, protocol string, nextHop netip.Addr, ecmp []netip.Addr) {
 	t.Helper()
 	waitFor(t, 500*time.Millisecond, func() bool {
 		events := captureSysribEvents(bus)
@@ -1055,11 +1056,11 @@ func TestECMPMemberFail(t *testing.T) {
 
 	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
 	s.processEvent(makePayload("bgp-peer1", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: bgpPfx,
+		{Action: routeaction.Add, Prefix: bgpPfx,
 			NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 20, Metric: 100},
 	}))
 	s.processEvent(makePayload("bgp-peer2", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: bgpPfx,
+		{Action: routeaction.Add, Prefix: bgpPfx,
 			NextHop: netip.MustParseAddr("10.1.0.1"), Priority: 20, Metric: 100},
 	}))
 
@@ -1073,7 +1074,7 @@ func TestECMPMemberFail(t *testing.T) {
 			}
 			for i := range b.Changes {
 				c := &b.Changes[i]
-				if c.Prefix == bgpPfx && c.Action == bgptypes.RouteActionUpdate {
+				if c.Prefix == bgpPfx && c.Action == routeaction.Update {
 					return true
 				}
 			}
@@ -1088,7 +1089,7 @@ func TestECMPMemberFail(t *testing.T) {
 		}
 		for i := range b.Changes {
 			c := &b.Changes[i]
-			if c.Prefix == bgpPfx && c.Action == bgptypes.RouteActionWithdraw {
+			if c.Prefix == bgpPfx && c.Action == routeaction.Withdraw {
 				t.Fatal("ECMP prefix should not be fully withdrawn when one member fails")
 			}
 		}
@@ -1153,7 +1154,7 @@ func TestNHCascadeRestore(t *testing.T) {
 			}
 			for i := range b.Changes {
 				c := &b.Changes[i]
-				if c.Prefix == bgpPfx && c.Action == bgptypes.RouteActionAdd {
+				if c.Prefix == bgpPfx && c.Action == routeaction.Add {
 					if hasWithdrawBefore(bus, bgpPfx, e) {
 						return true
 					}
@@ -1175,7 +1176,7 @@ func countAdds(bus *testEventBus) int {
 			continue
 		}
 		for i := range b.Changes {
-			if b.Changes[i].Action == bgptypes.RouteActionAdd {
+			if b.Changes[i].Action == routeaction.Add {
 				count++
 			}
 		}
@@ -1195,7 +1196,7 @@ func hasWithdraw(bus *testEventBus, pfx netip.Prefix) bool {
 		}
 		for i := range b.Changes {
 			c := &b.Changes[i]
-			if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == pfx {
+			if c.Action == routeaction.Withdraw && c.Prefix == pfx {
 				return true
 			}
 		}
@@ -1215,7 +1216,7 @@ func hasWithdrawBefore(bus *testEventBus, pfx netip.Prefix, after testEvent) boo
 			}
 			for i := range b.Changes {
 				c := &b.Changes[i]
-				if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == pfx {
+				if c.Action == routeaction.Withdraw && c.Prefix == pfx {
 					withdrawSeen = true
 				}
 			}

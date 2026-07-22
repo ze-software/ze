@@ -22,7 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -262,7 +263,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 		}
 		pfx := c.Prefix.String()
 		switch c.Action.Verb() {
-		case bgptypes.RouteVerbInstall:
+		case routeaction.VerbInstall:
 			if err := f.addChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -286,7 +287,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 				}
 			}
-		case bgptypes.RouteVerbReplace:
+		case routeaction.VerbReplace:
 			if err := f.replaceChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -314,7 +315,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				}
 				m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 			}
-		case bgptypes.RouteVerbRemove:
+		case routeaction.VerbRemove:
 			if err := f.delChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -335,7 +336,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 				}
 			}
-		case bgptypes.RouteVerbSkip:
+		case routeaction.VerbSkip:
 			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
 		}
 	}

@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -304,7 +306,7 @@ func TestSplitUpdate_AllChunksValid(t *testing.T) {
 		// Parse header
 		h, err := ParseHeader(packed)
 		require.NoError(t, err, "chunk %d header invalid", i)
-		assert.Equal(t, TypeUPDATE, h.Type)
+		assert.Equal(t, msgtype.TypeUPDATE, h.Type)
 
 		// Unpack body
 		_, err = UnpackUpdate(packed[HeaderLen:])
@@ -853,7 +855,7 @@ func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 		require.GreaterOrEqual(t, len(packed), HeaderLen, "chunk %d too short", i)
 		h, err := ParseHeader(packed)
 		require.NoError(t, err, "chunk %d header parse failed", i)
-		assert.Equal(t, TypeUPDATE, h.Type, "chunk %d wrong type", i)
+		assert.Equal(t, msgtype.TypeUPDATE, h.Type, "chunk %d wrong type", i)
 
 		// Unpack body
 		unpacked, err := UnpackUpdate(packed[HeaderLen:])

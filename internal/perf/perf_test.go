@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
@@ -124,7 +126,7 @@ func TestRunSmallBenchmark(t *testing.T) {
 				return
 			}
 
-			if msgType != message.TypeUPDATE {
+			if msgType != msgtype.TypeUPDATE {
 				continue
 			}
 

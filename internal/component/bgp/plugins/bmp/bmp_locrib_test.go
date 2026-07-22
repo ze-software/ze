@@ -8,12 +8,23 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // findAttr walks an RFC 4271 path-attribute block and returns the value of the
 // first attribute with the given type code, or nil if absent. Attribute wire:
@@ -284,8 +295,8 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 	if len(mon.BGPUpdate) < message.HeaderLen {
 		t.Fatalf("BGPUpdate too short: %d bytes", len(mon.BGPUpdate))
 	}
-	if mon.BGPUpdate[message.MarkerLen+2] != byte(message.TypeUPDATE) {
-		t.Errorf("embedded PDU type = %d, want %d (UPDATE)", mon.BGPUpdate[message.MarkerLen+2], message.TypeUPDATE)
+	if mon.BGPUpdate[message.MarkerLen+2] != byte(msgtype.TypeUPDATE) {
+		t.Errorf("embedded PDU type = %d, want %d (UPDATE)", mon.BGPUpdate[message.MarkerLen+2], msgtype.TypeUPDATE)
 	}
 }
 

@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
 )
 
 func TestBestChangeEntryJSON_BackwardsCompatible(t *testing.T) {
 	entry := BestChangeEntry{
-		Action:   bgptypes.RouteActionAdd,
+		Action:   routeaction.Add,
 		Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:  netip.MustParseAddr("192.168.1.1"),
 		Protocol: "bgp",
@@ -40,7 +40,7 @@ func TestBestChangeEntryJSON_BackwardsCompatible(t *testing.T) {
 
 func TestBestChangeEntryJSON_RichFields(t *testing.T) {
 	entry := BestChangeEntry{
-		Action:    bgptypes.RouteActionAdd,
+		Action:    routeaction.Add,
 		Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:   netip.MustParseAddr("192.168.1.1"),
 		Protocol:  "bgp",
@@ -93,7 +93,7 @@ func TestBestChangeEntryJSON_RichFields(t *testing.T) {
 
 func TestBestChangeEntryJSON_Blackhole(t *testing.T) {
 	entry := BestChangeEntry{
-		Action:    bgptypes.RouteActionAdd,
+		Action:    routeaction.Add,
 		Prefix:    netip.MustParsePrefix("192.0.2.0/24"),
 		Protocol:  "static",
 		RouteType: RouteTypeBlackhole,
@@ -116,7 +116,7 @@ func TestBestChangeEntryJSON_Blackhole(t *testing.T) {
 
 func TestBestChangeEntryJSON_ECMPWithLabels(t *testing.T) {
 	entry := BestChangeEntry{
-		Action:   bgptypes.RouteActionAdd,
+		Action:   routeaction.Add,
 		Prefix:   netip.MustParsePrefix("10.1.0.0/16"),
 		Protocol: "bgp",
 		ECMPPaths: []ECMPPath{

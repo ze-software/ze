@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -13,13 +15,21 @@ import (
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.
 // The SDK plugin is initialized but connections are closed, so RPC calls (updateRoute)
@@ -53,7 +63,7 @@ func TestParseEvent_SentFormat(t *testing.T) {
 	assert.NotNil(t, event.FamilyOps)
 	assert.Contains(t, event.FamilyOps, family.IPv4Unicast)
 	require.Len(t, event.FamilyOps[family.IPv4Unicast], 1)
-	assert.Equal(t, bgptypes.RouteActionAdd, event.FamilyOps[family.IPv4Unicast][0].Action)
+	assert.Equal(t, routeaction.Add, event.FamilyOps[family.IPv4Unicast][0].Action)
 	assert.Equal(t, "1.1.1.1", event.FamilyOps[family.IPv4Unicast][0].NextHop)
 }
 
@@ -121,7 +131,7 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -151,7 +161,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -164,7 +174,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		Peer: mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
+				{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -189,7 +199,7 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -228,7 +238,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -242,7 +252,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
+				{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -294,7 +304,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -341,7 +351,7 @@ func TestStatusJSON(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"}, // 2 NLRIs
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -378,7 +388,7 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 				Type: "sent",
 				Peer: mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 				FamilyOps: map[family.Family][]FamilyOperation{
-					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 				},
 			},
 			wantRibIn:  0,
@@ -392,7 +402,7 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 				RawAttributes: "40010100",
 				RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 				FamilyOps: map[family.Family][]FamilyOperation{
-					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 				},
 			},
 			wantRibIn:  1,
@@ -444,7 +454,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0001"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.1.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -611,7 +621,7 @@ func TestHandleCommand_RIBStatus(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -647,7 +657,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event1)
@@ -660,7 +670,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0001"}, // 10.0.1.0/24
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "2.2.2.2", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.1.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "2.2.2.2", Action: routeaction.Add, NLRIs: []any{"10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event2)
@@ -731,7 +741,7 @@ func TestHandleCommand_RIBInboundClear(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event1)
@@ -744,7 +754,7 @@ func TestHandleCommand_RIBInboundClear(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0001"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "2.2.2.2", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.1.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "2.2.2.2", Action: routeaction.Add, NLRIs: []any{"10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event2)
@@ -865,7 +875,7 @@ func TestRIBPluginHandleCommandCanonicalNames(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -1063,7 +1073,7 @@ func TestHandleReceived_PoolStorage(t *testing.T) {
 		RawAttributes: "40010100",                                               // ORIGIN IGP
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 
@@ -1088,7 +1098,7 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 		},
 	}
 
@@ -1112,7 +1122,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -1124,7 +1134,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 		Peer:         peerJSON,
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(withdraw)
@@ -1147,7 +1157,7 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -1184,7 +1194,7 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 		RawAttributes: "40010100", // ORIGIN IGP
 		RawNLRI:       map[family.Family]string{family.IPv6Unicast: "2020010db8"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv6Unicast: {{NextHop: "::1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"2001:db8::/32"}}},
+			family.IPv6Unicast: {{NextHop: "::1", Action: routeaction.Add, NLRIs: []any{"2001:db8::/32"}}},
 		},
 	}
 
@@ -1210,7 +1220,7 @@ func TestHandleReceived_PoolStorage_StoresEVPN(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}): "0203deadbe"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}): {{Action: bgptypes.RouteActionAdd, NLRIs: []any{"type2:00:11:22:33:44:55"}}},
+			(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}): {{Action: routeaction.Add, NLRIs: []any{"type2:00:11:22:33:44:55"}}},
 		},
 	}
 
@@ -1236,7 +1246,7 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"}, // 2 NLRIs
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1261,7 +1271,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1293,7 +1303,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1516,7 +1526,7 @@ func TestParseEvent_NewBGPFormat(t *testing.T) {
 	// Verify NLRI operations
 	require.Contains(t, event.FamilyOps, family.IPv4Unicast)
 	require.Len(t, event.FamilyOps[family.IPv4Unicast], 1)
-	assert.Equal(t, bgptypes.RouteActionAdd, event.FamilyOps[family.IPv4Unicast][0].Action)
+	assert.Equal(t, routeaction.Add, event.FamilyOps[family.IPv4Unicast][0].Action)
 }
 
 // TestParseEvent_NewBGPFormatState verifies state events in new format.
@@ -1639,7 +1649,7 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 		AddPath:       map[family.Family]bool{family.IPv4Unicast: true},
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -1676,7 +1686,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 		AddPath:       map[family.Family]bool{family.IPv4Unicast: true},
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -1695,7 +1705,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 		AddPath:      map[family.Family]bool{family.IPv4Unicast: true},
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
+				{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -1728,7 +1738,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 		RawAttributes: rawAttrs,
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1781,7 +1791,7 @@ func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 			RawAttributes: "40010100",
 			RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 			FamilyOps: map[family.Family][]FamilyOperation{
-				family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+				family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 			},
 		}
 		r.handleReceived(event)
@@ -1807,7 +1817,7 @@ func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 			RawAttributes: "40010100",
 			RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 			FamilyOps: map[family.Family][]FamilyOperation{
-				family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+				family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 			},
 		}
 		r.handleReceived(event)
@@ -1837,8 +1847,8 @@ func TestHandleSentPerFamily(t *testing.T) {
 		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
 		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
-			family.IPv6Unicast: {{NextHop: "::1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"2001:db8::/32"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv6Unicast: {{NextHop: "::1", Action: routeaction.Add, NLRIs: []any{"2001:db8::/32"}}},
 		},
 	}
 	r.handleSent(event)
@@ -1868,8 +1878,8 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
 		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
-			family.IPv6Unicast: {{NextHop: "::1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"2001:db8::/32"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+			family.IPv6Unicast: {{NextHop: "::1", Action: routeaction.Add, NLRIs: []any{"2001:db8::/32"}}},
 		},
 	}
 	r.handleSent(add)
@@ -1879,7 +1889,7 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 2},
 		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(del)
@@ -1901,7 +1911,7 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
 		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(add)
@@ -1912,7 +1922,7 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 2},
 		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv4Unicast: {{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(del)
@@ -2692,7 +2702,7 @@ func TestBGPRouteStoredInProtocolSlot(t *testing.T) {
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{ipv4Uni: "180a0000"},
 		FamilyOps: map[family.Family][]FamilyOperation{
-			ipv4Uni: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
+			ipv4Uni: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)

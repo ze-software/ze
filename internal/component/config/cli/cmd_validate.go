@@ -12,7 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
@@ -360,7 +361,10 @@ func runValidation(input, path string) *validationResult {
 
 	// BGP-specific validation only when bgp {} is present.
 	if tree.GetContainer("bgp") != nil {
-		bgpTree, resolveErr := bgpconfig.ResolveBGPTree(tree)
+		// ResolveBGPTree fails closed when a bgp{} block is present but no
+		// engine is compiled in, so that case surfaces here as a resolve error
+		// rather than as a config validated against nothing.
+		bgpTree, resolveErr := infra.ResolveBGPTree(tree)
 		if resolveErr != nil {
 			result.addError("config-bgp-resolve", resolveErr.Error())
 			return result
@@ -369,13 +373,13 @@ func runValidation(input, path string) *validationResult {
 		result.Config = buildValidationSummary(bgpTree, tree)
 		addSemanticWarnings(result, bgpTree)
 
-		if authzErr := bgpconfig.ValidateAuthzConfig(tree); authzErr != nil {
+		if authzErr := infra.ValidateAuthzConfig(tree); authzErr != nil {
 			result.addErrorWithRepair("config-bgp-authz", authzErr.Error(),
 				&diagnostic.Repair{ID: "fix-peer-reference", Summary: "Correct the authz profile reference"}, diagnostic.SafetyRequiresHumanReview)
 			return result
 		}
 
-		if _, peersErr := bgpconfig.PeersFromConfigTree(tree); peersErr != nil {
+		if peersErr := infra.ValidateBGPPeers(tree); peersErr != nil {
 			result.addErrorWithRepair("config-bgp-peer", peersErr.Error(),
 				&diagnostic.Repair{ID: "fix-peer-reference", Summary: "Correct peer settings or cross-reference"}, diagnostic.SafetyRequiresHumanReview)
 			return result

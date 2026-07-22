@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
@@ -226,7 +228,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	}
 
 	// Must be OPEN message
-	if hdr.Type != message.TypeOPEN {
+	if hdr.Type != msgtype.TypeOPEN {
 		peer.ClearPendingConnection()
 		r.rejectConnectionCollision(conn)
 		return

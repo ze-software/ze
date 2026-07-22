@@ -4,14 +4,25 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
+
 // TestNotificationType verifies NOTIFICATION message type.
 func TestNotificationType(t *testing.T) {
 	n := &Notification{ErrorCode: NotifyMessageHeader, ErrorSubcode: 1}
-	assert.Equal(t, TypeNOTIFICATION, n.Type())
+	assert.Equal(t, msgtype.TypeNOTIFICATION, n.Type())
 }
 
 // TestNotificationPack verifies NOTIFICATION packing.
@@ -34,7 +45,7 @@ func TestNotificationPack(t *testing.T) {
 	// Verify header
 	h, err := ParseHeader(data)
 	require.NoError(t, err)
-	assert.Equal(t, TypeNOTIFICATION, h.Type)
+	assert.Equal(t, msgtype.TypeNOTIFICATION, h.Type)
 	assert.Equal(t, uint16(HeaderLen+5), h.Length)
 
 	// Verify body

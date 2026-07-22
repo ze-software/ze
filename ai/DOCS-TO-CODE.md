@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 297 design docs, 3033 files
+Total: 297 design docs, 3046 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -78,9 +78,15 @@ Total: 297 design docs, 3033 files
 
 | File | Topic |
 |------|-------|
+| `cmd/ze/dispatch_bgp.go` | ze_bgp dispatch-root CLI gating |
 | `cmd/ze/dispatch_isis.go` | ze_isis dispatch-root CLI gating |
 | `cmd/ze/dispatch_ospf.go` | ze_ospf dispatch-root CLI gating |
 | `cmd/ze/hub/api_infra.go` | compile-out-able services (feature-gate) |
+| `cmd/ze/hub/bgp_decode_link_test.go` | ze_bgp decoder seam link for hub tests |
+| `cmd/ze/hub/bgp_decode_nolink_test.go` | ze_bgp-absent decoder seam state for hub tests |
+| `cmd/ze/hub/build_tag_bgp_absent_test.go` | ze_bgp absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_bgp_present_test.go` | ze_bgp present build validation |
+| `cmd/ze/hub/build_tag_bgp_probe_test.go` | shared ze_bgp present/absent probe config |
 | `cmd/ze/hub/build_tag_gnmi_absent_test.go` | ze_gnmi absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_gnmi_present_test.go` | ze_gnmi present build validation |
 | `cmd/ze/hub/build_tag_grpc_absent_test.go` | ze_grpc absent (compile-out) validation |
@@ -129,6 +135,8 @@ Total: 297 design docs, 3033 files
 | `cmd/ze/hub/service_rest_test.go` | ze_rest-gated REST seam test |
 | `cmd/ze/hub/service_web.go` | compile-out-able web service |
 | `cmd/ze/hub/web_infra.go` | ze_web compile-out seam |
+| `internal/component/config/infra/bgp.go` | inversion-of-control seams for the gated BGP engine |
+| `internal/component/config/yang/cli/tree_bgp.go` | ze_bgp partition of the analysis-tree blank imports |
 | `scripts/codegen/feature_tags.go` | the three static consumers are GENERATED, not hand-maintained |
 
 ## `ai/rules/no-sprintf-alloc.md`
@@ -344,8 +352,8 @@ Total: 297 design docs, 3033 files
 | `internal/component/bgp/format/text_json.go` | JSON output rendering |
 | `internal/component/bgp/format/text_update.go` | UPDATE message formatting |
 | `internal/component/bgp/plugins/filter_community/json.go` | community attribute JSON rendering |
-| `internal/component/bgp/types/action.go` | typed route action enum |
 | `internal/core/bgp/attribute/json.go` | attribute JSON rendering registry |
+| `internal/core/bgp/routeaction/routeaction.go` | typed route action enum |
 
 ## `docs/architecture/api/process-protocol.md`
 
@@ -353,7 +361,6 @@ Total: 297 design docs, 3033 files
 |------|-------|
 | `examples/plugin/go/main.go` | example plugin |
 | `internal/component/bgp/cli/cmd_plugin.go` | plugin debug shell |
-| `internal/component/bgp/plugins/rib/events/events.go` | BGP-RIB event types |
 | `internal/component/cli/completer_plugin.go` | plugin SDK methods |
 | `internal/component/plugin/cli/main.go` | plugin CLI dispatch |
 | `internal/component/plugin/cli/test_cmd.go` | plugin CLI dispatch |
@@ -404,6 +411,7 @@ Total: 297 design docs, 3033 files
 | `internal/component/sysctl/events/events.go` | sysctl event types |
 | `internal/component/sysrib/events/events.go` | system-RIB event types |
 | `internal/core/bgp/events/events.go` | BGP event types |
+| `internal/core/bgp/ribevents/ribevents.go` | BGP-RIB event types |
 | `internal/core/events/events.go` | event bus namespace and type registry |
 | `internal/core/events/ids.go` | typed event IDs for hot-path matching |
 | `internal/core/events/typed.go` | typed event handles |
@@ -658,6 +666,8 @@ Total: 297 design docs, 3033 files
 | `internal/component/config/environment.go` | config parsing and loading |
 | `internal/component/config/environment_extract.go` | environment extraction from config tree |
 | `internal/component/config/graph.go` | config dependency graph for agent impact analysis |
+| `internal/component/config/infra/authz.go` | daemon-startup authorization extraction |
+| `internal/component/config/infra/ssh.go` | daemon-startup SSH config extraction |
 | `internal/component/config/listener.go` | listener conflict detection at config parse time |
 | `internal/component/config/loader.go` | config file loading and plugin extraction |
 | `internal/component/config/loader_extract.go` | environment service config extraction |
@@ -1060,6 +1070,7 @@ Total: 297 design docs, 3033 files
 | `internal/core/replay/replay.go` | shared late-join replay vocabulary (Redistribute Late-Join Replay) |
 | `internal/core/report/health_probe.go` | report-bus health probes |
 | `internal/core/report/register.go` | report-bus health registration |
+| `internal/core/rib/igpcost/igpcost.go` | IGP next-hop cost seam |
 | `internal/core/routewatch/integration_linux_test.go` | routewatch integration tests |
 | `internal/core/routewatch/routewatch.go` | shared netlink route subscription |
 | `internal/core/routewatch/routewatch_linux.go` | netlink route subscription (Linux) |
@@ -1198,6 +1209,7 @@ Total: 297 design docs, 3033 files
 | `cmd/ze/hub/service_ssh.go` | infrastructure server setup |
 | `cmd/ze/hub/session_factory.go` | SSH session model factory |
 | `cmd/ze/hub/ssh_infra.go` | infrastructure server setup |
+| `internal/component/config/infra/hook.go` | infrastructure setup hook |
 | `internal/component/hub/config.go` | hub coordination |
 | `internal/component/hub/hub.go` | hub coordination |
 | `internal/component/hub/reload.go` | hub coordination |
@@ -1692,6 +1704,7 @@ Total: 297 design docs, 3033 files
 | `internal/component/bgp/wireu/prefix.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/split.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/wire_update.go` | wire UPDATE lazy parsing |
+| `internal/core/bgp/msgtype/msgtype.go` | BGP message types |
 
 ## `docs/architecture/wire/nlri-bgpls.md`
 

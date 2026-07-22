@@ -20,6 +20,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -27,6 +29,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // newRefreshPeer builds a single Established peer wired to a Session backed by a
 // recordingConn (defined in reactor_api_forward_test.go), so a test can observe
@@ -81,7 +92,7 @@ func assertRouteRefreshOnWire(t *testing.T, written []byte, afi family.AFI, safi
 	require.Len(t, written, message.HeaderLen+4, "a ROUTE-REFRESH must reach the wire")
 	h, err := message.ParseHeader(written)
 	require.NoError(t, err)
-	require.Equal(t, message.TypeROUTEREFRESH, h.Type)
+	require.Equal(t, msgtype.TypeROUTEREFRESH, h.Type)
 	rr, err := message.UnpackRouteRefresh(written[message.HeaderLen:])
 	require.NoError(t, err)
 	require.Equal(t, afi, rr.AFI)

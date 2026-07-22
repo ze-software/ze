@@ -10,7 +10,8 @@ dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
 for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
 `ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, REST API `ze_rest`, gRPC
 API `ze_grpc`, Prometheus exporter `ze_telemetry`, routing protocols `ze_isis` /
-`ze_ldp` / `ze_ospf` / `ze_rsvpte`, first-hop redundancy `ze_vrrp`, ...).
+`ze_ldp` / `ze_ospf` / `ze_rsvpte`, first-hop redundancy `ze_vrrp`, BGP `ze_bgp`,
+...).
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the
@@ -173,6 +174,50 @@ sub-packages import each other, so `dep_audit.py` (a) counts the generated
 "feature depends on it" tier violation) and (b) skips same-tag importers in the
 disableable check (the engine importing its own `transport` sub-package is
 intra-feature -- dropped together, not an always-on pin).
+
+**Extract-then-gate at subsystem scale (`ze_bgp`).** Gating the BGP subsystem
+(~59 manifest lines: the whole `internal/component/bgp` tree plus
+`internal/plugins/flowspec-firewall`) is the same blank-import partitioning, but
+the one invariant does NOT hold going in -- 27 always-on files imported a bgp
+package. Three techniques clear them, in this order of preference. The goal is
+the FEWEST source-tagged files, not the fewest edits:
+
+1. **Transitive package drop** (no tag). A manifest line moves the package's
+   blank imports into `all_<tag>.go`; dead-code elimination does the rest. Whole
+   plugins qualify: `flowspec-firewall` needed one line and no source change.
+2. **Core-leaf move** (no tag). A contract always-on consumers share with the
+   feature moves to an always-on `internal/core/*` leaf; consumers change an
+   import path only. `ze_bgp` needed three: `internal/core/bgp/routeaction` (the
+   route-action/verb vocabulary sysrib and every FIB backend use),
+   `internal/core/bgp/msgtype` (the message-type codes MRT classifies by), and
+   `internal/core/bgp/ribevents` (the best-change contract sysrib and flow-export
+   subscribe to). Move the LEAF, not the package: `bgp/message` imports
+   `plugin/registry`, so relocating it wholesale would be a core-tier violation.
+3. **Inversion-of-control seam** (no tag on the always-on side). Where always-on
+   code reaches INTO the feature, invert it: the always-on side exposes a
+   nil-able hook and the gated code self-registers from its own `init()`. A nil
+   seam needs a CORRECT no-feature behavior, not just a nil check. `ze_bgp`
+   inverted five: `ze config dump|diff|validate` tree resolution and peer
+   validation plus the graceful-restart marker writer
+   (`internal/component/config/infra`), the MRT RIB-dump provider and the web
+   hex-packet decoder (`internal/component/plugin/registry`), and the IGP
+   next-hop cost sysrib used to push into BGP best-path
+   (`internal/core/rib/igpcost`).
+
+Two traps that only appear at this scale:
+
+- **A feature-gated file is still an always-on pin for a DIFFERENT gate.**
+  `cmd/ze/hub/service_ssh.go` (`//go:build ze_ssh`) imported `bgp/config`.
+  `dep_audit.file_requires_tag` is per-tag, so it flags that file -- correctly: a
+  `ze_ssh`-on / `ze_bgp`-off build genuinely fails to compile. Clear gated files
+  too, not just untagged ones.
+- **Removing an always-on import can unlink an `init()` nobody else pulls in.**
+  `bgp/config` registers the reactor factory, and it was linked ONLY because the
+  hub imported it. Blank-importing it from `bgp/plugin` is the natural fix but
+  cycles in test (`bgp/config`'s own tests import `plugin/all`, which imports
+  `bgp/plugin`). It is linked from `cmd/ze/dispatch_bgp.go` instead: a `package
+  main` root can never be imported back, so the edge is always safe there. After
+  deleting an always-on import, ask what that package's `init()` was providing.
 
 ## Banned
 

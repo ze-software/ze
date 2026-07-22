@@ -8,9 +8,10 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 
 	"go.fd.io/govpp/binapi/fib_types"
@@ -145,14 +146,14 @@ func TestToVPPPrefixIPv6(t *testing.T) {
 // verify the sysrib event type includes Labels field.
 func TestSysribEventLabelsField(t *testing.T) {
 	entry := sysribevents.BestChangeEntry{
-		Action: bgptypes.RouteActionAdd,
+		Action: routeaction.Add,
 		Prefix: netip.MustParsePrefix("10.0.0.0/24"),
 		Labels: []uint32{100, 200},
 	}
 	assert.Equal(t, []uint32{100, 200}, entry.Labels)
 
 	entryNoLabels := sysribevents.BestChangeEntry{
-		Action: bgptypes.RouteActionAdd,
+		Action: routeaction.Add,
 		Prefix: netip.MustParsePrefix("10.0.0.0/24"),
 	}
 	assert.Nil(t, entryNoLabels.Labels)

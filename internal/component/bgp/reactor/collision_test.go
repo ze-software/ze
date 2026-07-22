@@ -6,12 +6,23 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // collisionAcceptWithReader handles net.Pipe's synchronous behavior by reading
 // from client while Accept writes.
@@ -344,7 +355,7 @@ func TestCollisionNotificationSent(t *testing.T) {
 	// Parse header
 	hdr, err := message.ParseHeader(notifData[:message.HeaderLen])
 	require.NoError(t, err)
-	assert.Equal(t, message.TypeNOTIFICATION, hdr.Type)
+	assert.Equal(t, msgtype.TypeNOTIFICATION, hdr.Type)
 
 	// Parse NOTIFICATION body
 	body := notifData[message.HeaderLen:hdr.Length]

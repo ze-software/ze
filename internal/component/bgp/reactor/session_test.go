@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -23,6 +25,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // acceptWithReader handles net.Pipe's synchronous behavior by reading
 // from client while Accept writes.
@@ -132,7 +143,7 @@ func TestSessionSendOpen(t *testing.T) {
 	// Parse header
 	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
 	require.NoError(t, err)
-	require.Equal(t, message.TypeOPEN, hdr.Type)
+	require.Equal(t, msgtype.TypeOPEN, hdr.Type)
 
 	// Parse OPEN
 	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
@@ -196,7 +207,7 @@ func TestSessionSendOpenWithPluginFamilies(t *testing.T) {
 	// Parse header
 	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
 	require.NoError(t, err)
-	require.Equal(t, message.TypeOPEN, hdr.Type)
+	require.Equal(t, msgtype.TypeOPEN, hdr.Type)
 
 	// Parse OPEN
 	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
@@ -658,7 +669,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 
 	updateMsg := hdr
 	updateMsg = append(updateMsg, update...)
@@ -752,7 +763,7 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 	// Length = 4100 (> 4096 max without extended message)
 	hdr[16] = 0x10 // 4100 >> 8 = 16
 	hdr[17] = 0x04 // 4100 & 0xFF = 4
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 
 	go func() {
 		_, _ = client.Write(hdr)
@@ -858,7 +869,7 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 	// Length = 5000 (> 4096, allowed with extended message)
 	updateMsg[16] = 0x13 // 5000 >> 8 = 19
 	updateMsg[17] = 0x88 // 5000 & 0xFF = 136
-	updateMsg[18] = byte(message.TypeUPDATE)
+	updateMsg[18] = byte(msgtype.TypeUPDATE)
 	// Body starts at offset 19
 	updateMsg[19] = 0x00 // Withdrawn routes length high
 	updateMsg[20] = 0x00 // Withdrawn routes length low
@@ -915,7 +926,7 @@ func TestSessionOpenAlwaysBounded(t *testing.T) {
 	// Length = 4100 (> 4096 - invalid for OPEN regardless of extended message)
 	hdr[16] = 0x10 // 4100 >> 8 = 16
 	hdr[17] = 0x04 // 4100 & 0xFF = 4
-	hdr[18] = byte(message.TypeOPEN)
+	hdr[18] = byte(msgtype.TypeOPEN)
 
 	go func() {
 		_, _ = client.Write(hdr)
@@ -1017,7 +1028,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 
 	updateMsg := hdr
 	updateMsg = append(updateMsg, update...)
@@ -1421,7 +1432,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 
 	hdr = append(hdr, update...) //nolint:gocritic // test code
 
@@ -1525,7 +1536,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 
 	hdr = append(hdr, update...) //nolint:gocritic // test code
 
@@ -1623,7 +1634,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 
 	hdr = append(hdr, update...) //nolint:gocritic // test code
 
@@ -1658,7 +1669,7 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 
 	// Track callback invocations
 	callbackCount := new(int)
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
 		if direction == rpc.DirectionReceived {
 			*callbackCount++
 		}
@@ -1749,7 +1760,7 @@ func buildUpdateMsg(update []byte) []byte {
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
-	hdr[18] = byte(message.TypeUPDATE)
+	hdr[18] = byte(msgtype.TypeUPDATE)
 	return append(hdr, update...)
 }
 
@@ -1834,7 +1845,7 @@ func TestSessionRFC7606SessionResetNotification(t *testing.T) {
 	require.GreaterOrEqual(t, len(received), message.HeaderLen+2, "NOTIFICATION too short")
 	hdr, hdrErr := message.ParseHeader(received[:message.HeaderLen])
 	require.NoError(t, hdrErr)
-	require.Equal(t, message.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
+	require.Equal(t, msgtype.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
 	notifBody := received[message.HeaderLen:]
 	// RFC 4271 Section 6.3: UPDATE Message Error = code 3
 	require.Equal(t, byte(message.NotifyUpdateMessage), notifBody[0],
@@ -1906,7 +1917,7 @@ func TestSessionNonNegotiatedMPFamilyNotification(t *testing.T) {
 	require.GreaterOrEqual(t, len(received), message.HeaderLen+2, "NOTIFICATION too short")
 	hdr, hdrErr := message.ParseHeader(received[:message.HeaderLen])
 	require.NoError(t, hdrErr)
-	require.Equal(t, message.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
+	require.Equal(t, msgtype.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
 	notifBody := received[message.HeaderLen:]
 	require.Equal(t, byte(message.NotifyUpdateMessage), notifBody[0],
 		"NOTIFICATION error code must be 3 (UPDATE Message Error)")
@@ -1947,7 +1958,7 @@ func TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal(t *testing.T) {
 	// point is WHICH message is dispatched.
 	var dispatched []byte
 	var dispatchCount int
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte,
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string,
 	) bool {
@@ -2174,7 +2185,7 @@ func TestSendRawUpdateBody(t *testing.T) {
 	require.Equal(t, expectedLen, actualLen, "length field mismatch")
 
 	// Check type (UPDATE = 2)
-	require.Equal(t, byte(message.TypeUPDATE), received[18], "type should be UPDATE")
+	require.Equal(t, byte(msgtype.TypeUPDATE), received[18], "type should be UPDATE")
 
 	// Check body
 	require.Equal(t, rawBody, received[message.HeaderLen:], "body mismatch")
@@ -2225,7 +2236,7 @@ func buildRouteRefreshMsg(body []byte) []byte {
 	msg[16] = byte(msgLen >> 8)
 	msg[17] = byte(msgLen)
 	// Type
-	msg[18] = byte(message.TypeROUTEREFRESH)
+	msg[18] = byte(msgtype.TypeROUTEREFRESH)
 	// Body
 	copy(msg[19:], body)
 	return msg
@@ -2327,8 +2338,8 @@ func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 
 			var messageCallbacks int
 			var refreshCallbacks int
-			session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
-				if msgType == message.TypeROUTEREFRESH {
+			session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+				if msgType == msgtype.TypeROUTEREFRESH {
 					messageCallbacks++
 				}
 				return false
@@ -2359,7 +2370,7 @@ func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 				t.Fatal("timed out waiting for ROUTE-REFRESH NOTIFICATION")
 			}
 			require.GreaterOrEqual(t, len(notif), message.HeaderLen+2)
-			assert.Equal(t, byte(message.TypeNOTIFICATION), notif[18])
+			assert.Equal(t, byte(msgtype.TypeNOTIFICATION), notif[18])
 			assert.Equal(t, byte(message.NotifyRouteRefresh), notif[message.HeaderLen])
 			assert.Equal(t, message.NotifyRouteRefreshInvalidLength, notif[message.HeaderLen+1])
 			assert.Equal(t, rrMsg, notif[message.HeaderLen+2:], "RFC 7313 notification data must contain the complete ROUTE-REFRESH message")
@@ -2388,8 +2399,8 @@ func TestRouteRefreshValidLengthDelivered(t *testing.T) {
 
 	var messageCallbacks int
 	var refreshCallbacks int
-	session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
-		if msgType == message.TypeROUTEREFRESH {
+	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+		if msgType == msgtype.TypeROUTEREFRESH {
 			messageCallbacks++
 			assert.Equal(t, []byte{0x00, 0x01, 0x00, 0x01}, raw)
 		}
@@ -3228,7 +3239,7 @@ func TestSendUpdateUsesBufWriter(t *testing.T) {
 	for i := range 16 {
 		require.Equal(t, byte(0xff), buf[i], "marker byte %d", i)
 	}
-	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type should be UPDATE")
+	require.Equal(t, byte(msgtype.TypeUPDATE), buf[18], "type should be UPDATE")
 
 	require.NoError(t, <-errCh)
 }
@@ -3288,7 +3299,7 @@ func TestSendMessageAutoFlush(t *testing.T) {
 	n, err := client.Read(buf)
 	require.NoError(t, err)
 	require.Equal(t, message.HeaderLen, n, "KEEPALIVE is exactly 19 bytes")
-	require.Equal(t, byte(message.TypeKEEPALIVE), buf[18])
+	require.Equal(t, byte(msgtype.TypeKEEPALIVE), buf[18])
 
 	require.NoError(t, <-errCh)
 }

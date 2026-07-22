@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
@@ -118,7 +120,7 @@ func (p *Peer) refreshForwardFacts() {
 		sendCtxID:   sendCtxID,
 		sendASN4:    sendASN4,
 		extendedMsg: extendedMsg,
-		maxMsgSize:  int(message.MaxMessageLength(message.TypeUPDATE, extendedMsg)),
+		maxMsgSize:  int(message.MaxMessageLength(msgtype.TypeUPDATE, extendedMsg)),
 
 		filterInfo: filterapi.PeerFilterInfo{
 			Address: s.Address,

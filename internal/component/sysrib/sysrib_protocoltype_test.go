@@ -4,10 +4,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
@@ -30,14 +31,14 @@ func TestBGPProtocolTypeFromPath(t *testing.T) {
 	tests := []struct {
 		name string
 		path locrib.Path
-		want bgptypes.BGPProtocolType
+		want routeaction.ProtocolType
 	}{
-		{"ebgp default distance", locrib.Path{Source: bgpID, IsEBGP: true, AdminDistance: 20}, bgptypes.BGPProtocolEBGP},
-		{"ibgp default distance", locrib.Path{Source: bgpID, IsEBGP: false, AdminDistance: 200}, bgptypes.BGPProtocolIBGP},
+		{"ebgp default distance", locrib.Path{Source: bgpID, IsEBGP: true, AdminDistance: 20}, routeaction.ProtocolEBGP},
+		{"ibgp default distance", locrib.Path{Source: bgpID, IsEBGP: false, AdminDistance: 200}, routeaction.ProtocolIBGP},
 		// The bug: operator-overridden distances must still classify correctly.
-		{"ebgp overridden distance", locrib.Path{Source: bgpID, IsEBGP: true, AdminDistance: 40}, bgptypes.BGPProtocolEBGP},
-		{"ibgp overridden distance", locrib.Path{Source: bgpID, IsEBGP: false, AdminDistance: 150}, bgptypes.BGPProtocolIBGP},
-		{"non-bgp source", locrib.Path{Source: connID, AdminDistance: 0}, bgptypes.BGPProtocolUnspecified},
+		{"ebgp overridden distance", locrib.Path{Source: bgpID, IsEBGP: true, AdminDistance: 40}, routeaction.ProtocolEBGP},
+		{"ibgp overridden distance", locrib.Path{Source: bgpID, IsEBGP: false, AdminDistance: 150}, routeaction.ProtocolIBGP},
+		{"non-bgp source", locrib.Path{Source: connID, AdminDistance: 0}, routeaction.ProtocolUnspecified},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

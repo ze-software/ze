@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
@@ -23,7 +24,7 @@ type bgpCaptureRecord struct {
 	timestamp time.Time
 	direction uint8 // 0=in, 1=out
 	peerAddr  netip.Addr
-	msgType   message.MessageType
+	msgType   msgtype.MessageType
 	byteCount uint16
 	errorCode uint8
 	errorSub  uint8
@@ -75,7 +76,7 @@ func NewBGPCaptureRing(c clock.Clock) *BGPCaptureRing {
 }
 
 // Append records a BGP message. dirOut true = sent, false = received.
-func (r *BGPCaptureRing) Append(dirOut bool, peer netip.Addr, msgType message.MessageType, byteCount int, errorCode, errorSub uint8) {
+func (r *BGPCaptureRing) Append(dirOut bool, peer netip.Addr, msgType msgtype.MessageType, byteCount int, errorCode, errorSub uint8) {
 	var d uint8
 	if dirOut {
 		d = 1

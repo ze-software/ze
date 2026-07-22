@@ -10,7 +10,8 @@ import (
 	"log/slog"
 	"os"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
@@ -77,7 +78,12 @@ func cmdDump(args []string) int {
 		fmt.Fprintln(os.Stderr)
 	}
 
-	bgpTree, err := bgpconfig.ResolveBGPTree(tree)
+	// Resolve the bgp{} section through the always-on seam. On a binary built
+	// without the BGP engine (//go:build ze_bgp) a config with no bgp{} block
+	// resolves to an empty tree and the dump proceeds from the parsed tree
+	// alone; one WITH a bgp{} block is an error rather than a silently
+	// BGP-less dump (the seam fails closed).
+	bgpTree, err := infra.ResolveBGPTree(tree)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error resolving config: %v\n", err)
 		return 1

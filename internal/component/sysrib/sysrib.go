@@ -17,10 +17,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/igpcost"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -32,13 +34,13 @@ import (
 
 // sysribMetrics holds Prometheus metrics for the system RIB plugin.
 //
-// routeChanges pre-binds one Counter per bgptypes.RouteAction at init time;
+// routeChanges pre-binds one Counter per routeaction.Action at init time;
 // the hot path does `m.routeChanges[c.Action].Inc()`, a zero-allocation
 // array index. The underlying CounterVec still emits one time series per
 // action label to Prometheus exposition.
 type sysribMetrics struct {
 	routesBest     metrics.Gauge
-	routeChanges   [bgptypes.RouteActionCount]metrics.Counter
+	routeChanges   [routeaction.Count]metrics.Counter
 	eventsReceived metrics.Counter
 }
 
@@ -57,10 +59,10 @@ func SetMetricsRegistry(reg metrics.Registry) {
 	// never published from a system-RIB best-change, so their slots stay
 	// nil; a publish of one would fall into the nil-guard in the hot-path
 	// increment below.
-	for _, a := range [...]bgptypes.RouteAction{
-		bgptypes.RouteActionAdd,
-		bgptypes.RouteActionUpdate,
-		bgptypes.RouteActionWithdraw,
+	for _, a := range [...]routeaction.Action{
+		routeaction.Add,
+		routeaction.Update,
+		routeaction.Withdraw,
 	} {
 		m.routeChanges[a] = routeChangeVec.With(a.String())
 	}
@@ -95,7 +97,7 @@ func SetLocRIB(r *locrib.RIB) {
 	if r != nil {
 		resolver := newNHResolver(r)
 		nhResolverPtr.Store(resolver)
-		rib.SetIGPCostFunc(resolver.IGPMetric)
+		igpcost.Set(resolver.IGPMetric)
 	}
 }
 
@@ -285,14 +287,14 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			logger().Warn("sysrib: skipping change with empty prefix")
 			continue
 		}
-		if c.Action != bgptypes.RouteActionAdd && c.Action != bgptypes.RouteActionUpdate && c.Action != bgptypes.RouteActionWithdraw {
+		if c.Action != routeaction.Add && c.Action != routeaction.Update && c.Action != routeaction.Withdraw {
 			logger().Warn("sysrib: unrecognized action", "action", c.Action, "prefix", c.Prefix)
 			continue
 		}
 
 		key := prefixKey{family: fam, prefix: c.Prefix}
 
-		if c.Action == bgptypes.RouteActionAdd || c.Action == bgptypes.RouteActionUpdate {
+		if c.Action == routeaction.Add || c.Action == routeaction.Update {
 			if proto == "" {
 				logger().Warn("sysrib: event missing protocol", "prefix", c.Prefix)
 				continue
@@ -300,7 +302,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			// Use per-change protocol type for admin distance override.
 			// Falls back to batch-level protocol if per-change type is absent.
 			protoType := c.ProtocolType.String()
-			if c.ProtocolType == bgptypes.BGPProtocolUnspecified {
+			if c.ProtocolType == routeaction.ProtocolUnspecified {
 				protoType = proto
 			}
 			priority := s.effectivePriority(protoType, c.Priority)
@@ -345,7 +347,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				}
 				s.routes[key][proto] = pr
 			}
-		} else if c.Action == bgptypes.RouteActionWithdraw {
+		} else if c.Action == routeaction.Withdraw {
 			if proto == "" {
 				delete(s.routes, key)
 			} else if s.routes[key] != nil {
@@ -430,7 +432,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 				}
 			}
 			return &outgoingChange{
-				Action: bgptypes.RouteActionWithdraw,
+				Action: routeaction.Withdraw,
 				Prefix: key.prefix,
 			}
 		}
@@ -464,7 +466,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		}
 		s.resolvedNH[key] = resolved
 		return &outgoingChange{
-			Action:    bgptypes.RouteActionAdd,
+			Action:    routeaction.Add,
 			Prefix:    key.prefix,
 			NextHop:   resolved,
 			Protocol:  winner.protocol,
@@ -503,7 +505,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			s.lastECMP[key] = ecmpPaths
 			delete(s.resolvedNH, key)
 			return &outgoingChange{
-				Action: bgptypes.RouteActionWithdraw,
+				Action: routeaction.Withdraw,
 				Prefix: key.prefix,
 			}
 		}
@@ -514,7 +516,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	s.lastECMP[key] = ecmpPaths
 	s.resolvedNH[key] = resolved
 	return &outgoingChange{
-		Action:    bgptypes.RouteActionUpdate,
+		Action:    routeaction.Update,
 		Prefix:    key.prefix,
 		NextHop:   resolved,
 		Protocol:  winner.protocol,
@@ -595,9 +597,9 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 			}
 			s.resolvedNH[key] = promoted
 			s.lastECMP[key] = remaining
-			action := bgptypes.RouteActionUpdate
+			action := routeaction.Update
 			if !prevResolved.IsValid() {
-				action = bgptypes.RouteActionAdd
+				action = routeaction.Add
 			}
 			return &outgoingChange{
 				Action:    action,
@@ -615,7 +617,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 			delete(s.resolvedNH, key)
 			delete(s.lastECMP, key)
 			return &outgoingChange{
-				Action: bgptypes.RouteActionWithdraw,
+				Action: routeaction.Withdraw,
 				Prefix: key.prefix,
 			}
 		}
@@ -628,7 +630,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 			delete(s.resolvedNH, key)
 			delete(s.lastECMP, key)
 			return &outgoingChange{
-				Action: bgptypes.RouteActionWithdraw,
+				Action: routeaction.Withdraw,
 				Prefix: key.prefix,
 			}
 		}
@@ -643,9 +645,9 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 
 	s.resolvedNH[key] = newResolved
 	s.lastECMP[key] = ecmpPaths
-	action := bgptypes.RouteActionUpdate
+	action := routeaction.Update
 	if !prevResolved.IsValid() {
-		action = bgptypes.RouteActionAdd
+		action = routeaction.Add
 	}
 	return &outgoingChange{
 		Action:    action,
@@ -797,7 +799,7 @@ func (s *sysRIB) replayBest(req *replay.Request) {
 			continue
 		}
 		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
-			Action:    bgptypes.RouteActionAdd,
+			Action:    routeaction.Add,
 			Prefix:    key.prefix,
 			NextHop:   resolveNextHop(route.nextHop),
 			Protocol:  route.protocol,
@@ -1027,7 +1029,7 @@ func (s *sysRIB) showRIB() (any, error) {
 // sysrib's processEvent consumes. One Change -> one single-entry batch.
 // Returns nil for unspecified / unrecognized ChangeKind.
 func changeToBatch(c locrib.Change) *incomingBatch {
-	var action bgptypes.RouteAction
+	var action routeaction.Action
 	switch c.Kind {
 	case locrib.ChangeAdd:
 		action = ribevents.BestChangeAdd
@@ -1124,10 +1126,10 @@ func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path, 
 // Only BGP paths produce a meaningful result; non-BGP sources return
 // BGPProtocolUnspecified (the caller uses the batch-level protocol name
 // for admin-distance lookup in that case).
-func bgpProtocolTypeFromPath(p locrib.Path) bgptypes.BGPProtocolType {
+func bgpProtocolTypeFromPath(p locrib.Path) routeaction.ProtocolType {
 	name := redistevents.ProtocolName(p.Source)
 	if name != "bgp" {
-		return bgptypes.BGPProtocolUnspecified
+		return routeaction.ProtocolUnspecified
 	}
 	// Read the producer's eBGP/iBGP classification directly. Deriving it from
 	// AdminDistance (20/200) silently lost the class whenever the operator
@@ -1135,7 +1137,7 @@ func bgpProtocolTypeFromPath(p locrib.Path) bgptypes.BGPProtocolType {
 	// live event-bus ProtocolType. The BGP RIB sets Path.IsEBGP from the peer
 	// ASN relationship; mirror its 2-state resolve() (iBGP unless eBGP).
 	if p.IsEBGP {
-		return bgptypes.BGPProtocolEBGP
+		return routeaction.ProtocolEBGP
 	}
-	return bgptypes.BGPProtocolIBGP
+	return routeaction.ProtocolIBGP
 }

@@ -1,17 +1,22 @@
 // Design: ai/rules/feature-gate-registration.md -- protocols absent symbol-drop proof
 //
-//go:build !ze_isis && !ze_ldp && !ze_ospf && !ze_rsvpte && !ze_vrrp
+//go:build !ze_isis && !ze_ldp && !ze_ospf && !ze_rsvpte && !ze_vrrp && !ze_bgp
 
 package hub
 
 // VALIDATES: a bare ze_core build (all gated plugins off) contains zero symbols
-// for any of isis/ldp/ospf/rsvpte (routing protocols) or vrrp (first-hop
-// redundancy) -- the binary-level compile-out proof across BOTH composition
+// for any of isis/ldp/ospf/rsvpte (routing protocols), vrrp (first-hop
+// redundancy), or the whole internal/component/bgp subtree (engine + codec +
+// every BGP plugin) -- the binary-level compile-out proof across BOTH composition
 // roots (generated all.go and the dispatch_*.go companions; vrrp has no dispatch
 // companion, it registers CLI via the plugin registry). One build covers all
-// five gated plugins (cheaper than one build per plugin).
+// six gated features (cheaper than one build per feature).
 // PREVENTS: a regression where a gated plugin leaks into a hardened build via an
 // always-on import or a missed composition root (R-2).
+//
+// The BGP needles are deliberately the whole subtree prefix rather than a
+// per-package list: ze_bgp gates ~58 packages, and an enumeration would silently
+// stop covering a package added later.
 
 import (
 	"os/exec"
@@ -45,6 +50,8 @@ func TestBuildTag_Protocols_AbsentBinaryDropsSymbols(t *testing.T) {
 		"internal/plugins/ospf.", "internal/plugins/ospf/",
 		"internal/plugins/rsvpte.", "internal/plugins/rsvpte/",
 		"internal/plugins/vrrp.", "internal/plugins/vrrp/",
+		"internal/component/bgp.", "internal/component/bgp/",
+		"internal/plugins/flowspec-firewall.", "internal/plugins/flowspec-firewall/",
 	}
 	for line := range strings.SplitSeq(string(out), "\n") {
 		for _, needle := range needles {

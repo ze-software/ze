@@ -90,7 +90,11 @@ func TestReadConfigWithStorage_ReadsPromotedVersion(t *testing.T) {
 	require.NoError(t, store.WriteVersion(configPath, validConfig, oldParsed))
 	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, oldStamp))
 
-	newContent := []byte("system {\n}\nbgp {\n}\n")
+	// An always-on config root, not bgp: this test also runs in the bare ze_core
+	// pass, where BGP is compiled out (//go:build ze_bgp) and a bgp{} block is
+	// correctly rejected as an unknown keyword. What matters here is only that
+	// the content differs from validConfig and parses.
+	newContent := []byte("system {\n}\ninterface {\n}\n")
 	newStamp := "20260617-110000.000"
 	newParsed, err := storage.ParseVersionStamp(newStamp)
 	require.NoError(t, err)

@@ -1,19 +1,28 @@
 // Design: docs/architecture/api/process-protocol.md -- BGP-RIB event types
-// Related: ../rib_bestchange.go -- publishes BestChange; format must stay in sync
+// Related: ../../../component/bgp/plugins/rib/rib_bestchange.go -- publishes BestChange; format must stay in sync
 
-// Package events defines event constants and typed event handles for the
-// BGP RIB plugin.
+// Package ribevents defines the (bgp-rib, ...) event constants and typed event
+// handles: the best-path change contract between the BGP RIB and everything
+// downstream of it.
 //
 // Engine-side producers and consumers use the typed handles (BestChange,
 // ReplayRequest). External plugin processes receive JSON marshaling of the
 // same types; json tags on the payload struct are the contract with them.
-package events
+//
+// It lives in internal/core because the CONSUMER side is always-on: sysrib
+// arbitrates the Loc-RIB and flow-export enriches flows from best-change
+// batches, and both must keep compiling when the BGP engine is compiled out
+// (//go:build ze_bgp). Only the producer (internal/component/bgp/plugins/rib)
+// is gated; with the engine absent nothing emits on the handle and the
+// subscribers simply never fire.
+package ribevents
 
 import (
 	"encoding/json"
 	"net/netip"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
@@ -32,13 +41,13 @@ const (
 )
 
 // BestChangeAction values for BestChangeEntry.Action. Aliases on the typed
-// bgptypes.RouteAction so consumers that already imported these names keep
+// routeaction.Action so consumers that already imported these names keep
 // compiling. Wire form ("add"/"update"/"withdraw") is preserved via
 // RouteAction.MarshalText.
 const (
-	BestChangeAdd      = bgptypes.RouteActionAdd
-	BestChangeUpdate   = bgptypes.RouteActionUpdate
-	BestChangeWithdraw = bgptypes.RouteActionWithdraw
+	BestChangeAdd      = routeaction.Add
+	BestChangeUpdate   = routeaction.Update
+	BestChangeWithdraw = routeaction.Withdraw
 )
 
 // BestChangeEntry is one per-prefix entry in a BestChangeBatch. Json tags
@@ -52,14 +61,14 @@ const (
 // for ADD-PATH entries (including pathID=0) and omitted for everything
 // else.
 type BestChangeEntry struct {
-	Action       bgptypes.RouteAction     `json:"action"`
+	Action       routeaction.Action       `json:"action"`
 	Prefix       netip.Prefix             `json:"prefix"`
 	AddPath      bool                     `json:"add-path,omitempty"`
 	PathID       uint32                   `json:"path-id,omitempty"`
 	NextHop      netip.Addr               `json:"next-hop,omitzero"`
 	Priority     int                      `json:"priority"`
 	Metric       uint32                   `json:"metric"`
-	ProtocolType bgptypes.BGPProtocolType `json:"protocol-type,omitempty"`
+	ProtocolType routeaction.ProtocolType `json:"protocol-type,omitempty"`
 	Labels       []uint32                 `json:"labels,omitempty"`
 	SRv6SID      netip.Addr               `json:"srv6-sid,omitzero"`
 	// OriginAS is the last ASN in the best path's AS_PATH (the route's origin);

@@ -24,6 +24,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -195,7 +197,7 @@ const sendHoldTimerMin = 8 * time.Minute
 // argument rather than being re-read from peer.session in the receiver, which would race
 // the peer run goroutine that nils/replaces peer.session under peer.mu.
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) (kept bool)
 
 // Lock hierarchy (acquire in this order; never reverse):
 //

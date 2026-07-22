@@ -3,10 +3,11 @@ package bgp
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -40,7 +41,7 @@ func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 	require.Contains(t, event.FamilyOps, family.IPv4Unicast)
 	ops := event.FamilyOps[family.IPv4Unicast]
 	require.Len(t, ops, 1)
-	assert.Equal(t, bgptypes.RouteActionAdd, ops[0].Action)
+	assert.Equal(t, routeaction.Add, ops[0].Action)
 	assert.Equal(t, "10.0.0.1", ops[0].NextHop)
 	require.Len(t, ops[0].NLRIs, 1)
 	assert.Equal(t, "10.0.0.0/24", ops[0].NLRIs[0])

@@ -11,10 +11,20 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 func peerAt(addr string) *plugin.PeerInfo {
 	return &plugin.PeerInfo{Address: netip.MustParseAddr(addr)}
@@ -103,7 +113,7 @@ func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0x00, 0x13, 0x04,
 	}
-	c.OnBGPMessage(peer, message.TypeUPDATE, false, bgpMsg)
+	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, bgpMsg)
 	if err := c.allMsgs.Close(); err != nil {
 		t.Fatalf("close all writer: %v", err)
 	}

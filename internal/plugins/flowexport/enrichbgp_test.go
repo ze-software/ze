@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
 )
 

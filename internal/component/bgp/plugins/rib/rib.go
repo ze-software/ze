@@ -31,14 +31,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/yang"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri/nlrisplit"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -809,7 +810,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
 			switch op.Action { //nolint:exhaustive // only Add/Del relevant for rib-out
-			case bgptypes.RouteActionAdd:
+			case routeaction.Add:
 				if r.ribOut[peerAddr][fam] == nil {
 					r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 				}
@@ -838,7 +839,7 @@ func (r *RIBManager) handleSent(event *Event) {
 					}
 					r.setRibOutSource(fam, key, sourcePeer, !existed)
 				}
-			case bgptypes.RouteActionDel:
+			case routeaction.Del:
 				familyRoutes := r.ribOut[peerAddr][fam]
 				if familyRoutes == nil {
 					continue

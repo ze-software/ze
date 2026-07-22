@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
@@ -239,5 +241,5 @@ func buildBucketBody(ref *bucketBodyParts, nlri []byte) []byte {
 
 // fwdBucketMaxBodySize returns the max UPDATE body size for a peer.
 func fwdBucketMaxBodySize(extendedMessage bool) int {
-	return int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage)) - message.HeaderLen
+	return int(message.MaxMessageLength(msgtype.TypeUPDATE, extendedMessage)) - message.HeaderLen
 }

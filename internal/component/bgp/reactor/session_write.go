@@ -11,6 +11,8 @@ import (
 	"slices"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -302,7 +304,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
 		// sentMeta and sentSourcePeerStr are the forward-pool per-write fields, both set
 		// under writeMu by fwdBatchHandler and read here in the same writeMu section.
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
 	}
 
 	if s.onWrite != nil {
@@ -322,7 +324,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	copy(buf[:message.MarkerLen], message.Marker[:])
 	buf[16] = byte(totalLen >> 8)
 	buf[17] = byte(totalLen)
-	buf[18] = byte(message.TypeUPDATE)
+	buf[18] = byte(msgtype.TypeUPDATE)
 	copy(buf[message.HeaderLen:], body)
 
 	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
@@ -340,7 +342,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
 		// Forward-pool raw-body write: sentMeta and sentSourcePeerStr are set under
 		// writeMu by fwdBatchHandler and read here in the same writeMu section.
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
 	}
 
 	if s.onWrite != nil {
@@ -537,7 +539,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
 	}
 
 	return nil
@@ -584,7 +586,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
 	}
 
 	return nil

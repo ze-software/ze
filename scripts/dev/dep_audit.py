@@ -213,6 +213,14 @@ GOLANGCI_BASE_TAGS = {"ze_core"}
 DISABLEABLE_NONPROD_PREFIXES = (
     "internal/chaos/",
     "internal/test/",
+    # internal/perf is the ze-perf binary's benchmark harness, reached from
+    # cmd/ze only under //go:build ze_perf; ze-perf is built with the feature it
+    # measures forced on. scripts/ holds build-time tooling (codegen, doc and
+    # grammar checkers) run with `go run`, never linked into ze -- several are
+    # //go:build ignore. Neither tree can pin a disableable feature into the
+    # daemon, so an untagged import from them is not a compile-out violation.
+    "internal/perf/",
+    "scripts/",
 )
 
 

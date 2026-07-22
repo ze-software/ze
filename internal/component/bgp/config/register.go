@@ -6,6 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -18,6 +23,39 @@ var errBgpCoordinatorMissingBgpStore = errors.New("bgp: coordinator missing bgp.
 func init() {
 	zeconfig.RegisterPluginExtractor(extractBGPInlinePlugins)
 	registry.RegisterReactorFactory(createReactorFromCoordinator)
+
+	// Fill the always-on infra seams (internal/component/config/infra) so
+	// `ze config dump|diff|validate` and the daemon reboot path reach BGP
+	// behavior without importing this package. With ze_bgp off these stay
+	// nil and every caller takes its no-BGP branch.
+	infra.SetBGPTreeResolver(ResolveBGPTree)
+	infra.SetBGPPeerValidator(validatePeersFromTree)
+	infra.SetGRMarkerWriter(writeGRMarker)
+}
+
+// validatePeersFromTree adapts PeersFromConfigTree to the infra.BGPPeerValidator
+// seam: callers use it purely as a gate, and the built []*reactor.PeerSettings
+// is a BGP type the always-on side must not name.
+func validatePeersFromTree(tree *zeconfig.Tree) error {
+	_, err := PeersFromConfigTree(tree)
+	return err
+}
+
+// writeGRMarker persists the RFC 4724 Restarting-Speaker marker so the next
+// reactor start sets the R bit in its OPEN capabilities. Called through the
+// infra.GRMarkerWriter seam on an operator-initiated restart or reboot.
+func writeGRMarker(caps []plugin.InjectedCapability, store storage.Storage) {
+	maxRestart := grmarker.MaxRestartTime(caps)
+	if maxRestart <= 0 {
+		return
+	}
+	expiresAt := time.Now().Add(time.Duration(maxRestart) * time.Second)
+	log := slogutil.Logger("bgp.gr")
+	if err := grmarker.Write(store, expiresAt); err != nil {
+		log.Error("failed to write GR marker", "error", err)
+		return
+	}
+	log.Info("GR marker written", "expires", expiresAt)
 }
 
 // createReactorFromCoordinator builds a BGP reactor using config state stored

@@ -25,6 +25,8 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
@@ -659,7 +661,7 @@ func drainMessages(ctx context.Context, r io.Reader, conn net.Conn) int {
 		if _, err := io.ReadFull(r, hdr); err != nil {
 			return updates
 		}
-		msgType := message.MessageType(hdr[18])
+		msgType := msgtype.MessageType(hdr[18])
 		msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
 		if msgLen < message.HeaderLen {
 			return updates
@@ -670,7 +672,7 @@ func drainMessages(ctx context.Context, r io.Reader, conn net.Conn) int {
 				return updates
 			}
 		}
-		if msgType == message.TypeUPDATE {
+		if msgType == msgtype.TypeUPDATE {
 			updates++
 		}
 	}
@@ -838,7 +840,7 @@ func receiveRaw(
 
 		_ = conn.SetReadDeadline(time.Now().Add(timeout))
 
-		var msgType message.MessageType
+		var msgType msgtype.MessageType
 		var msg []byte
 		var err error
 
@@ -855,7 +857,7 @@ func receiveRaw(
 			return msgs, fmt.Errorf("receive: %w", err)
 		}
 
-		if msgType != message.TypeUPDATE {
+		if msgType != msgtype.TypeUPDATE {
 			continue
 		}
 
@@ -869,7 +871,7 @@ func receiveRaw(
 // Returns the message type, message bytes, new slab offset, and any error.
 func readMessageSlab(
 	r io.Reader, hdr []byte, slab []byte, slabOff int,
-) (message.MessageType, []byte, int, error) {
+) (msgtype.MessageType, []byte, int, error) {
 	if _, err := io.ReadFull(r, hdr); err != nil {
 		return 0, nil, slabOff, fmt.Errorf("reading header: %w", err)
 	}
@@ -900,7 +902,7 @@ func readMessageSlab(
 		}
 	}
 
-	return message.MessageType(hdr[18]), msg, slabOff, nil
+	return msgtype.MessageType(hdr[18]), msg, slabOff, nil
 }
 
 // isNetTimeout reports whether err is a network timeout error.

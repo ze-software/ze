@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

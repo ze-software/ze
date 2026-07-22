@@ -12,6 +12,8 @@ import (
 	"encoding/binary"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -63,8 +65,8 @@ type Open struct {
 }
 
 // Type returns the message type (OPEN).
-func (o *Open) Type() MessageType {
-	return TypeOPEN
+func (o *Open) Type() msgtype.MessageType {
+	return msgtype.TypeOPEN
 }
 
 // Len returns the total message length in bytes.
@@ -106,7 +108,7 @@ func (o *Open) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	}
 
 	totalLen := HeaderLen + 10 + optLen
-	writeHeader(buf, off, TypeOPEN, totalLen)
+	writeHeader(buf, off, msgtype.TypeOPEN, totalLen)
 
 	bodyOff := off + HeaderLen
 	o.writeFixedFields(buf, bodyOff)
@@ -122,7 +124,7 @@ func (o *Open) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 func (o *Open) writeToExtended(buf []byte, off int) int {
 	optLen := len(o.OptionalParams)
 	totalLen := HeaderLen + 10 + 4 + optLen
-	writeHeader(buf, off, TypeOPEN, totalLen)
+	writeHeader(buf, off, msgtype.TypeOPEN, totalLen)
 
 	bodyOff := off + HeaderLen
 	o.writeFixedFields(buf, bodyOff)

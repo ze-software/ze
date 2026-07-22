@@ -12,6 +12,8 @@ import (
 	"time"
 	"unsafe"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
@@ -72,7 +74,7 @@ func (p *Peer) sendInitialRoutes() {
 	p.sendingConfigStatic.Store(true)
 
 	// Calculate max message size for this peer
-	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 
 	// Send routes - either grouped or individually based on config.
 	if p.settings.GroupUpdates {
@@ -191,7 +193,7 @@ func (p *Peer) sendInitialRoutes() {
 	hasTeardown := false
 
 	// Pre-compute max message size for size checking in PeerOpAnnounce
-	opMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+	opMaxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 
 	p.mu.Lock()
 	queueLen := len(p.opQueue)
@@ -492,7 +494,7 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 
 	addr := p.settings.Address.String()
 	// RFC 8654: respect the negotiated max message size (4096 or 65535).
-	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 
 	// Pass 1: grouped routes packed by shared attributes, sent in deterministic
 	// key order (family first, so IPv4 families precede IPv6, then by attributes).

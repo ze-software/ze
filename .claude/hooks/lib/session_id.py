@@ -287,4 +287,14 @@ def session_id() -> str:
 
 
 if __name__ == "__main__":
-    print(session_id())
+    import sys
+
+    # `--safe <value>` sanitises a caller-supplied id instead of resolving one.
+    # SessionEnd hooks receive the id in their JSON payload rather than through
+    # the environment, so they need the SAME filename-safety rule without the
+    # resolution walk -- and they must not carry their own copy of it (the copy
+    # that used to live in session-id.sh is what this module replaced).
+    if len(sys.argv) == 3 and sys.argv[1] == "--safe":
+        print(_sid_safe(sys.argv[2]))
+    else:
+        print(session_id())

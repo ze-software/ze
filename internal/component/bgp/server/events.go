@@ -12,8 +12,9 @@ import (
 	"sort"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -236,7 +237,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 
 	// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 	// EOR is delivered as a separate event so plugins can subscribe to "eor" independently.
-	isUpdate := msg.Type == message.TypeUPDATE
+	isUpdate := msg.Type == msgtype.TypeUPDATE
 	if isUpdate && msg.Direction == rpc.DirectionReceived && msg.WireUpdate != nil {
 		if fam, ok := msg.WireUpdate.IsEOR(); ok {
 			onEORReceived(s, peer, fam.String())
@@ -290,7 +291,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	// serialization where the delivery goroutine blocks on the slowest
 	// subscriber (e.g., adj-rib-in's per-NLRI storage) before delivering the
 	// next UPDATE to fast subscribers (e.g., bgp-rs's sub-microsecond dispatch).
-	isUpdate := msgs[0].Type == message.TypeUPDATE
+	isUpdate := msgs[0].Type == msgtype.TypeUPDATE
 	var fmtCache formatCache
 
 	hasStructured := false
@@ -370,17 +371,17 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 // messageTypeToEventKind converts BGP message type to typed EventKind.
 // Returns EventKindUnspecified for unsupported types (caller checks for zero).
-func messageTypeToEventKind(msgType message.MessageType) rpc.EventKind {
+func messageTypeToEventKind(msgType msgtype.MessageType) rpc.EventKind {
 	switch msgType { //nolint:exhaustive // Only supported types; caller checks zero return
-	case message.TypeUPDATE:
+	case msgtype.TypeUPDATE:
 		return rpc.EventKindUpdate
-	case message.TypeOPEN:
+	case msgtype.TypeOPEN:
 		return rpc.EventKindOpen
-	case message.TypeNOTIFICATION:
+	case msgtype.TypeNOTIFICATION:
 		return rpc.EventKindNotification
-	case message.TypeKEEPALIVE:
+	case msgtype.TypeKEEPALIVE:
 		return rpc.EventKindKeepalive
-	case message.TypeROUTEREFRESH:
+	case msgtype.TypeROUTEREFRESH:
 		return rpc.EventKindRefresh
 	default:
 		return rpc.EventKindUnspecified
@@ -399,7 +400,7 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	// See plan/learned/614-fmt-0-append.md invariant 4.
 	var scratchArr [512]byte
 	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
-	case message.TypeUPDATE:
+	case msgtype.TypeUPDATE:
 		content := bgptypes.ContentConfig{
 			Encoding: encoding,
 			Format:   fmtMode,
@@ -407,27 +408,27 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 		var updateScratch [4096]byte
 		return string(format.AppendMessage(updateScratch[:0], peer, msg, content))
 
-	case message.TypeOPEN:
+	case msgtype.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
 		if encoding == plugin.EncodingText {
 			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
 		return encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
 
-	case message.TypeNOTIFICATION:
+	case msgtype.TypeNOTIFICATION:
 		decoded := format.DecodeNotification(msg.RawBytes)
 		if encoding == plugin.EncodingText {
 			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
 		return encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
 
-	case message.TypeKEEPALIVE:
+	case msgtype.TypeKEEPALIVE:
 		if encoding == plugin.EncodingText {
 			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction, msg.MessageID))
 		}
 		return encoder.Keepalive(peer, msg.Direction, msg.MessageID)
 
-	case message.TypeROUTEREFRESH:
+	case msgtype.TypeROUTEREFRESH:
 		decoded := format.DecodeRouteRefresh(msg.RawBytes)
 		if encoding == plugin.EncodingText {
 			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
@@ -732,7 +733,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	}
 	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventTypeStr, "count", len(procs))
 
-	isUpdate := msg.Type == message.TypeUPDATE
+	isUpdate := msg.Type == msgtype.TypeUPDATE
 
 	// Pre-format: encode once per distinct format+encoding combination.
 	// DirectBridge structured consumers skip text formatting entirely.

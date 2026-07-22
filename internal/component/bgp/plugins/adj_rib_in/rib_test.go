@@ -8,6 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,6 +25,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // ipv4VPN is the ipv4/mpls-vpn family for tests (registered via TestMain).
 var ipv4VPN = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
@@ -93,7 +106,7 @@ func TestStoreReceivedRoute(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -143,7 +156,7 @@ func TestHandleReceivedStructuredIPv4NextHop(t *testing.T) {
 		EventType:   rpc.EventKindUpdate,
 		PeerAddress: "172.30.0.3",
 		RawMessage: &bgptypes.RawMessage{
-			Type:       message.TypeUPDATE,
+			Type:       msgtype.TypeUPDATE,
 			WireUpdate: wu,
 			AttrsWire:  attrs,
 		},
@@ -178,7 +191,7 @@ func TestStoreAllFamilies(t *testing.T) {
 		RawNLRI:       map[family.Family]string{ipv4VPN: "deadbeef"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			ipv4VPN: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -216,7 +229,7 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -231,7 +244,7 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
+				{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -265,7 +278,7 @@ func TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute(t *testing.T) {
 			EventType:   rpc.EventKindUpdate,
 			PeerAddress: peer.String(),
 			RawMessage: &bgptypes.RawMessage{
-				Type:       message.TypeUPDATE,
+				Type:       msgtype.TypeUPDATE,
 				WireUpdate: wu,
 				AttrsWire:  attrs,
 			},
@@ -411,7 +424,7 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 			RawNLRI:       map[family.Family]string{family.IPv4Unicast: nlriHex[i]},
 			FamilyOps: map[family.Family][]bgp.FamilyOperation{
 				family.IPv4Unicast: {
-					{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{prefix}},
+					{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{prefix}},
 				},
 			},
 		}
@@ -602,7 +615,7 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -795,7 +808,7 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 		RawNLRI:       map[family.Family]string{ipv4VPN: "aabbccdd11223344"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			ipv4VPN: {
-				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}

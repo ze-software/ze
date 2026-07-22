@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"unicode/utf8"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -180,8 +182,8 @@ type Notification struct {
 }
 
 // Type returns the message type (NOTIFICATION).
-func (n *Notification) Type() MessageType {
-	return TypeNOTIFICATION
+func (n *Notification) Type() msgtype.MessageType {
+	return msgtype.TypeNOTIFICATION
 }
 
 // Len returns the total message length in bytes.
@@ -196,7 +198,7 @@ func (n *Notification) Len(_ *EncodingContext) int {
 // RFC 4271 Section 4.5 - NOTIFICATION format.
 func (n *Notification) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	totalLen := HeaderLen + 2 + len(n.Data)
-	writeHeader(buf, off, TypeNOTIFICATION, totalLen)
+	writeHeader(buf, off, msgtype.TypeNOTIFICATION, totalLen)
 
 	// Body
 	buf[off+HeaderLen] = byte(n.ErrorCode)

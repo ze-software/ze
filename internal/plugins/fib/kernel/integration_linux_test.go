@@ -9,12 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
 )
 
@@ -117,7 +118,7 @@ func routesByProtocol(t *testing.T, h *netlink.Handle, proto int) []netlink.Rout
 
 func addChange(prefix, nextHop string) incomingChange { //nolint:unparam // nextHop kept explicit to mirror updateChange/withdrawChange
 	return incomingChange{
-		Action:   bgptypes.RouteActionAdd,
+		Action:   routeaction.Add,
 		Prefix:   netip.MustParsePrefix(prefix),
 		NextHop:  netip.MustParseAddr(nextHop),
 		Protocol: "bgp",
@@ -126,7 +127,7 @@ func addChange(prefix, nextHop string) incomingChange { //nolint:unparam // next
 
 func updateChange(prefix, nextHop, protocol string) incomingChange {
 	return incomingChange{
-		Action:   bgptypes.RouteActionUpdate,
+		Action:   routeaction.Update,
 		Prefix:   netip.MustParsePrefix(prefix),
 		NextHop:  netip.MustParseAddr(nextHop),
 		Protocol: protocol,
@@ -135,7 +136,7 @@ func updateChange(prefix, nextHop, protocol string) incomingChange {
 
 func withdrawChange(prefix string) incomingChange {
 	return incomingChange{
-		Action: bgptypes.RouteActionWithdraw,
+		Action: routeaction.Withdraw,
 		Prefix: netip.MustParsePrefix(prefix),
 	}
 }

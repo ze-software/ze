@@ -6,10 +6,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -85,7 +86,7 @@ func summaryMsg(body []byte, msgID uint64) bgptypes.RawMessage {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 	return bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -265,7 +266,7 @@ func TestFormatSummaryNonUpdate(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeOPEN,
+		Type:      msgtype.TypeOPEN,
 		RawBytes:  openBody,
 		Direction: rpc.DirectionReceived,
 		MessageID: 6,
@@ -366,7 +367,7 @@ func TestFormatSummaryMalformed(t *testing.T) {
 	// Truncated: only 2 bytes (need minimum 4)
 	body := []byte{0, 0}
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeUPDATE,
+		Type:      msgtype.TypeUPDATE,
 		RawBytes:  body,
 		Direction: rpc.DirectionReceived,
 		MessageID: 10,

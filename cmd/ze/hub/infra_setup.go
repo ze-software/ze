@@ -1,17 +1,16 @@
 // Design: docs/architecture/hub-architecture.md -- infrastructure server setup
-// Related: main.go -- hub entry point calls SetInfraHook before engine start
+// Related: main.go -- hub entry point calls infra.SetHook before engine start
 
 package hub
 
 import (
 	"context"
 	"log/slog"
-	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -65,7 +64,7 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 // session editor (commit = apply + propagate); the hub passes a late-bound
 // wrapper because the hook is registered before reloadAfterCommit exists.
 func setupInfraHook(recorder audit.Recorder, reloadFn func() error) {
-	bgpconfig.SetInfraHook(func(params bgpconfig.InfraHookParams) {
+	infra.SetHook(func(params infra.HookParams) {
 		_ = infraSetup(params, recorder, reloadFn)
 	})
 }
@@ -74,7 +73,7 @@ func setupInfraHook(recorder audit.Recorder, reloadFn func() error) {
 // reboot/GR marker) and, when ssh is compiled in, builds + wires the ssh server
 // through the seam (ssh_infra.go). Returns the ssh server handle (nil if ssh is
 // not configured, failed to start, or compiled out).
-func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloadFn func() error) sshServer {
+func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func() error) sshServer {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
 
@@ -86,7 +85,7 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloa
 	// Ephemeral mode: config edit starts daemon with ze.ssh.ephemeral.
 	ephemeralFile := coreenv.Get("ze.ssh.ephemeral")
 	if !hasSSHConfig && ephemeralFile != "" {
-		sshCfg = bgpconfig.SSHExtractedConfig{
+		sshCfg = infra.SSHExtractedConfig{
 			Listen:    "127.0.0.1:0",
 			HasConfig: true,
 		}
@@ -110,7 +109,7 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloa
 	// Note: zeconfig.YANGSchema() re-parses the YANG modules on every call
 	// (no cache as of 2026-04-15). Cost is sub-millisecond and reload is
 	// rare, so the duplicate work is acceptable. If reload latency ever
-	// matters, thread a *config.Schema through InfraHookParams so the
+	// matters, thread a *config.Schema through infra.HookParams so the
 	// loader's already-parsed schema is reused here.
 	if params.ConfigTree != nil {
 		if schema, schemaErr := zeconfig.YANGSchema(); schemaErr == nil {
@@ -157,21 +156,16 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloa
 				return
 			}
 
+			// Persist the graceful-restart marker through the always-on seam.
+			// The writer is registered by the gated BGP config package; with
+			// ze_bgp off it stays nil and this is a no-op -- correct, since a
+			// BGP-less daemon has no session for a peer to treat as restarting.
 			writeGRMarker := func() {
 				apiSrv := params.APIServer()
 				if apiSrv == nil {
 					return
 				}
-				allCaps := apiSrv.AllPluginCapabilities()
-				maxRT := grmarker.MaxRestartTime(allCaps)
-				if maxRT > 0 {
-					expiresAt := time.Now().Add(time.Duration(maxRT) * time.Second)
-					if writeErr := grmarker.Write(params.Store, expiresAt); writeErr != nil {
-						log.Error("failed to write GR marker", "error", writeErr)
-					} else {
-						log.Info("GR marker written", "expires", expiresAt)
-					}
-				}
+				infra.WriteGRMarker(apiSrv.AllPluginCapabilities(), params.Store)
 			}
 
 			if apiSrv := params.APIServer(); apiSrv != nil {

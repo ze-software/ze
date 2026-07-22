@@ -10,7 +10,11 @@
 
 package message
 
-import bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+import (
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+)
 
 // EncodingContext is an alias for bgpctx.EncodingContext.
 // Use this for WireWriter method signatures.
@@ -22,13 +26,13 @@ type Message interface {
 	bgpctx.WireWriter
 
 	// Type returns the BGP message type.
-	Type() MessageType
+	Type() msgtype.MessageType
 }
 
 // writeHeader writes a BGP message header into buf at offset.
 // RFC 4271 Section 4.1 - Message Header format.
 // totalLen is the complete message length (including header).
-func writeHeader(buf []byte, off int, msgType MessageType, totalLen int) {
+func writeHeader(buf []byte, off int, msgType msgtype.MessageType, totalLen int) {
 	// 16-byte marker (all 0xFF)
 	for i := range MarkerLen {
 		buf[off+i] = 0xFF

@@ -8,10 +8,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -22,7 +23,7 @@ func TestBackupNotFoldedIntoECMP(t *testing.T) {
 	s := newSysRIB()
 
 	payload := makePayload("ospf", family.IPv4Unicast, []incomingChange{{
-		Action:             bgptypes.RouteActionAdd,
+		Action:             routeaction.Add,
 		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:            netip.MustParseAddr("192.168.1.1"),
 		Priority:           110,

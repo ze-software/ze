@@ -19,10 +19,10 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
-
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // labeledChange builds a (system-rib, best-change) entry for a BGP labeled-unicast
@@ -30,7 +30,7 @@ import (
 // (reachable via the ze-mpls0 /24 that setupDummyLink installs). A BGP-LU
 // best-change always carries a next-hop, so it is fixed here rather than a param
 // (the no-next-hop egress-pop case is the LDP/RSVP-TE mplsfibevents path).
-func labeledChange(action bgptypes.RouteAction, prefix string, labels []uint32) incomingChange {
+func labeledChange(action routeaction.Action, prefix string, labels []uint32) incomingChange {
 	return incomingChange{
 		Action:   action,
 		Prefix:   netip.MustParsePrefix(prefix),
@@ -62,7 +62,7 @@ func TestMPLSIntegration_BGPLabeledUnicastPush(t *testing.T) {
 		// AC-1: BGP labeled-unicast route -- FEC 10.9.0.0/24, next-hop on the
 		// connected /24, imposed label 300 -- installs a kernel encap (push).
 		f.processEvent(makeSysribPayload([]incomingChange{
-			labeledChange(bgptypes.RouteActionAdd, "10.9.0.0/24", []uint32{300}),
+			labeledChange(routeaction.Add, "10.9.0.0/24", []uint32{300}),
 		}))
 		require.Equal(t, []int{300}, pushEncapLabels(t, h, "10.9.0.0/24"),
 			"BGP labeled-unicast route must install an MPLS label encap (push), not a plain IP route")
@@ -70,7 +70,7 @@ func TestMPLSIntegration_BGPLabeledUnicastPush(t *testing.T) {
 		// AC-3: re-advertise the same FEC with a new label -- the kernel route is
 		// replaced, not left with the stale label.
 		f.processEvent(makeSysribPayload([]incomingChange{
-			labeledChange(bgptypes.RouteActionUpdate, "10.9.0.0/24", []uint32{400}),
+			labeledChange(routeaction.Update, "10.9.0.0/24", []uint32{400}),
 		}))
 		require.Equal(t, []int{400}, pushEncapLabels(t, h, "10.9.0.0/24"),
 			"relabel must update the kernel encap")
@@ -109,7 +109,7 @@ func TestMPLSIntegration_BGPLabeledUnicastNoClobberForeign(t *testing.T) {
 
 		f := newFIBKernel(newTestBackend(h))
 		f.processEvent(makeSysribPayload([]incomingChange{
-			labeledChange(bgptypes.RouteActionAdd, "10.9.0.0/24", []uint32{300}),
+			labeledChange(routeaction.Add, "10.9.0.0/24", []uint32{300}),
 		}))
 
 		routes, err := h.RouteList(nil, netlink.FAMILY_V4)

@@ -13,7 +13,8 @@ import (
 	"slices"
 	"testing"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -36,10 +37,10 @@ func TestSysribECMPRelabelEmitsBestChange(t *testing.T) {
 	memberNH := netip.MustParseAddr("10.0.0.2")
 
 	s.processEvent(makePayload("bgp-a", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: winnerNH, Priority: 20, Metric: 100},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: winnerNH, Priority: 20, Metric: 100},
 	}))
 	_, changes := s.processEvent(makePayload("bgp-b", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: memberNH, Priority: 20, Metric: 100, Labels: []uint32{100}},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: memberNH, Priority: 20, Metric: 100, Labels: []uint32{100}},
 	}))
 	// Sanity: the second insert formed the ECMP group (member in ECMPPaths).
 	if len(changes) != 1 {
@@ -54,13 +55,13 @@ func TestSysribECMPRelabelEmitsBestChange(t *testing.T) {
 
 	// Relabel ONLY the ECMP member: same next-hop, new label stack.
 	_, relabel := s.processEvent(makePayload("bgp-b", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionUpdate, Prefix: pfx, NextHop: memberNH, Priority: 20, Metric: 100, Labels: []uint32{200}},
+		{Action: routeaction.Update, Prefix: pfx, NextHop: memberNH, Priority: 20, Metric: 100, Labels: []uint32{200}},
 	}))
 
 	if len(relabel) != 1 {
 		t.Fatalf("relabel of an ECMP member must emit a BestChange, got %d changes", len(relabel))
 	}
-	if relabel[0].Action != bgptypes.RouteActionUpdate {
+	if relabel[0].Action != routeaction.Update {
 		t.Errorf("relabel action = %v, want update", relabel[0].Action)
 	}
 	if relabel[0].NextHop != winnerNH {

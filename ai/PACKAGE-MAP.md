@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 610 packages, 607 described, 3 TODO
+Total: 614 packages, 611 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -193,7 +193,6 @@ Total: 610 packages, 607 described, 3 TODO
 | `internal/component/bgp/plugins/redistribute_egress` | implements the redistribute-orchestrator plugin: the single EventBus subscriber that turns non-consumer protocol route-change events into dispatches to registered RedistConsumer implementations |  |
 | `internal/component/bgp/plugins/redistribute_ingress` | Route redistribution ingress filter with loop prevention and family filtering | bgp-redistribute |
 | `internal/component/bgp/plugins/rib` | implements a RIB (Routing Information Base) plugin for ze | bgp-rib |
-| `internal/component/bgp/plugins/rib/events` | defines event constants and typed event handles for the BGP RIB plugin |  |
 | `internal/component/bgp/plugins/rib/pool` | holds the per-attribute-type BGP path-attribute pools used for fine-grained RIB deduplication |  |
 | `internal/component/bgp/plugins/rib/storage` | implements the per-peer, per-family RIB storage with per-attribute-type deduplication |  |
 | `internal/component/bgp/plugins/rib/yang` | embeds and registers the BGP RIB YANG schema modules |  |
@@ -269,6 +268,7 @@ Total: 610 packages, 607 described, 3 TODO
 | `internal/component/config/archive/yang` | embeds and registers the config archive API YANG module |  |
 | `internal/component/config/cli` | provides the ze config subcommand |  |
 | `internal/component/config/env` | provides Ze BGP environment variable handling with dot/underscore support |  |
+| `internal/component/config/infra` | holds the always-on daemon-startup contract between the hub and whichever routing engine constructs a reactor |  |
 | `internal/component/config/migration` | rewrites deprecated configuration syntax into its current equivalent |  |
 | `internal/component/config/redistribute` | moves routes between routing protocols with origin-based loop prevention |  |
 | `internal/component/config/redistribute/yang` | embeds and registers the redistribute configuration YANG module |  |
@@ -413,8 +413,11 @@ Total: 610 packages, 607 described, 3 TODO
 | `internal/core/bgp/capability` | implements BGP capability negotiation per RFC 5492, including multiprotocol extensions, 4-byte ASN, ADD-PATH, extended messages, and graceful restart capabilities |  |
 | `internal/core/bgp/context` | provides capability-dependent encoding parameters for BGP wire format |  |
 | `internal/core/bgp/events` | defines event constants for the BGP component |  |
+| `internal/core/bgp/msgtype` | owns the BGP message-type code (the 1-octet Type field of the RFC 4271 header) and its RFC-defined values |  |
 | `internal/core/bgp/nlri` | implements BGP Network Layer Reachability Information types and iterators |  |
 | `internal/core/bgp/nlri/nlrisplit` | holds a registry of family-specific NLRI splitters |  |
+| `internal/core/bgp/ribevents` | defines the (bgp-rib, ...) event constants and typed event handles: the best-path change contract between the BGP RIB and everything downstream of it |  |
+| `internal/core/bgp/routeaction` | owns the typed route-action vocabulary shared by the BGP engine and the always-on route consumers (sysrib, the FIB backends, the best-change event contract) |  |
 | `internal/core/bgp/wire` | provides zero-allocation buffer writing for BGP message encoding |  |
 | `internal/core/bufpool` | provides a sync.Pool-seeded-for-peak byte-slice pool for protocol subsystems that share a buffer path across multiple goroutines (TACACS+ AAA, plugin-rpc framing, BGP BMP sender, etc.) |  |
 | `internal/core/callsink` | is the neutral registration seam between the PPPoE access concentrator and the L2TP tunnel engine, letting a PADS-completed PPPoE subscriber be relayed into an L2TP incoming call (the LAC role, RFC... |  |
@@ -456,6 +459,7 @@ Total: 610 packages, 607 described, 3 TODO
 | `internal/core/replay` | holds the ONE vocabulary every late-join replay hop shares: a value-typed request payload carrying an opaque correlation token, a reserved broadcast sentinel, and the token-derived "is this a... |  |
 | `internal/core/report` | is the single place where Ze subsystems push operator-visible warnings and errors |  |
 | `internal/core/resolve` | selects the storage backend and default config filename for ze |  |
+| `internal/core/rib/igpcost` | carries the IGP metric of a resolved next-hop from whoever computes it to whoever ranks paths by it |  |
 | `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |
 | `internal/core/rib/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |
 | `internal/core/rib/store` | provides a generic prefix-keyed route store backed by a BART trie |  |

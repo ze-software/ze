@@ -8,8 +8,9 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -64,9 +65,9 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 	}
 	var action redistevents.RouteAction
 	switch in.Action {
-	case bgptypes.RouteActionAdd, bgptypes.RouteActionUpdate:
+	case routeaction.Add, routeaction.Update:
 		action = redistevents.ActionAdd
-	case bgptypes.RouteActionWithdraw:
+	case routeaction.Withdraw:
 		action = redistevents.ActionRemove
 	default:
 		// Not add/update/withdraw: the bridge cannot map it to a redistribution

@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
@@ -212,31 +213,29 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	}
 
 	// Validate authorization config (AC-8: reject undefined profile references).
-	if err := ValidateAuthzConfig(tree); err != nil {
+	if err := infra.ValidateAuthzConfig(tree); err != nil {
 		return nil, fmt.Errorf("authorization config: %w", err)
 	}
 
 	// Extract authz profiles from config (independent of SSH).
-	authzStore := extractAuthzConfig(tree)
+	authzStore := infra.ExtractAuthzStore(tree)
 
 	// Infrastructure setup: SSH server, authz, CLI wiring.
 	// Delegated to the hub-provided hook to avoid bgpconfig importing
-	// ssh, cli, and web packages.
-	sshCfg := ExtractSSHConfig(tree)
-	if infraHook != nil {
-		infraHook(InfraHookParams{
-			Reactor:              r,
-			SSHConfig:            sshCfg,
-			ConfigTree:           tree,
-			AuthzStore:           authzStore,
-			ConfigDir:            configDir,
-			ConfigPath:           configPath,
-			Store:                store,
-			CollectLoginWarnings: collectPrefixWarnings,
-			FormatResponseData:   formatResponseData,
-			APIServer:            r.APIServer,
-		})
-	}
+	// ssh, cli, and web packages. infra.Run is a no-op when no hub registered
+	// a hook (offline CLI loads).
+	infra.Run(infra.HookParams{
+		Reactor:              r,
+		SSHConfig:            infra.ExtractSSHConfig(tree),
+		ConfigTree:           tree,
+		AuthzStore:           authzStore,
+		ConfigDir:            configDir,
+		ConfigPath:           configPath,
+		Store:                store,
+		CollectLoginWarnings: collectPrefixWarnings,
+		FormatResponseData:   formatResponseData,
+		APIServer:            r.APIServer,
+	})
 
 	// Inject chaos wrappers from config environment block.
 	// CLI flags (--chaos-seed) override this via SetClock/SetDialer/SetListenerFactory after load.

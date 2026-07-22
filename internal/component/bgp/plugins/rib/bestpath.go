@@ -12,34 +12,23 @@ package rib
 import (
 	"fmt"
 	"net/netip"
-	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/igpcost"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-// IGPCostFunc is the type for the IGP cost lookup callback.
-type IGPCostFunc func(netip.Addr) uint32
-
-// igpCostFnPtr stores the IGP cost lookup function, set by sysrib.
-var igpCostFnPtr atomic.Pointer[IGPCostFunc]
-
-// SetIGPCostFunc registers the function used to look up IGP cost for a next-hop.
-// Called by sysrib after NH resolver initialization.
-func SetIGPCostFunc(fn IGPCostFunc) {
-	igpCostFnPtr.Store(&fn)
-}
-
 // lookupIGPCost returns the IGP metric for addr, or 0 if no resolver is set.
+// The seam lives in internal/core/rib/igpcost: sysrib registers its next-hop
+// resolver there instead of pushing into this package, so sysrib no longer
+// imports the BGP RIB and the engine can be compiled out (//go:build ze_bgp).
 func lookupIGPCost(addr netip.Addr) uint32 {
-	p := igpCostFnPtr.Load()
-	if p == nil {
-		return 0
-	}
-	return (*p)(addr)
+	return igpcost.Lookup(addr)
 }
 
 // BestStep identifies which stage of the RFC 4271 §9.1.2 decision process
@@ -506,11 +495,11 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 // truth for consumers that match JSON field values.
 // ebgpLabel returns the BGP protocol type for the boolean. Kept small so
 // the comparePairWithReason hot path stays inlineable.
-func ebgpLabel(isEBGP bool) bgptypes.BGPProtocolType {
+func ebgpLabel(isEBGP bool) routeaction.ProtocolType {
 	if isEBGP {
-		return bgptypes.BGPProtocolEBGP
+		return routeaction.ProtocolEBGP
 	}
-	return bgptypes.BGPProtocolIBGP
+	return routeaction.ProtocolIBGP
 }
 
 // asPathLength counts the number of ASes in an AS_PATH attribute value.

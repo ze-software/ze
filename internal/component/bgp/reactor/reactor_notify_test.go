@@ -6,9 +6,10 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -65,7 +66,7 @@ func TestPeerSessionSentPathRace(t *testing.T) {
 	// peer.session unlocked at the sent-path branch of notifyMessageReceiver.
 	body := []byte{} // KEEPALIVE has no body
 	for range 4000 {
-		r.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, body, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "")
+		r.notifyMessageReceiver(peerAddr, msgtype.TypeKEEPALIVE, body, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "")
 	}
 
 	close(stop)

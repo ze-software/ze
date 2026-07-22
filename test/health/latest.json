@@ -81,7 +81,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 19980,
+        "denominator": 19975,
         "numerator": 136,
         "percent": 0.7
       },
@@ -89,7 +89,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 19980 (floor 136)",
+      "value": "136 / 19975 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -197,18 +197,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 122,
-        "ci_files": 1450,
+        "ci_files": 1456,
         "et_files": 164,
         "fuzz_funcs": 72,
-        "test_files": 2594,
-        "test_funcs": 20009
+        "test_files": 2598,
+        "test_funcs": 20004
       },
-      "detail": "2594 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2598 Go test files, 72 fuzz targets, 122 benchmarks, 1456 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20009 test functions"
+      "value": "20004 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -286,13 +286,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2594,
-        "numerator": 831,
-        "percent": 32.0
+        "denominator": 2598,
+        "numerator": 830,
+        "percent": 31.9
       },
       "question": "Q2",
       "status": "warn",
-      "value": "831 / 2594",
+      "value": "830 / 2598",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -349,10 +349,10 @@
           "percent": 10.0
         },
         {
-          "area": "internal/component/cmd",
-          "files": 19,
+          "area": "cmd/ze",
+          "files": 20,
           "negative": 2,
-          "percent": 10.5
+          "percent": 10.0
         }
       ]
     },
@@ -366,7 +366,7 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 481,
+          "packages": 480,
           "with_ci": 30,
           "with_fuzz": 29,
           "with_rfc_tag": 88
@@ -385,11 +385,11 @@
       "detail": "Reds logged rather than fixed, one shard file per live failure (26 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
       "key": "known-failures",
       "label": "Logged known-failing tests",
-      "live": 8,
+      "live": 11,
       "question": "Q3",
       "resolved": 26,
       "status": "warn",
-      "value": "8"
+      "value": "11"
     }
   ]
 }

@@ -14,7 +14,8 @@ import (
 	"net/netip"
 	"testing"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -31,7 +32,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 
 	// Loc-RIB installs protocol A (ospf) as best with the worse admin distance.
 	aBatch := makePayload("ospf", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: nhA, Priority: 110, Metric: 10},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: nhA, Priority: 110, Metric: 10},
 	})
 	aBatch.FromLocRIB = true
 	s.processEvent(aBatch)
@@ -42,7 +43,7 @@ func TestSysribLocRIBBestSwitchDropsGhost(t *testing.T) {
 	// Loc-RIB best switches to protocol B (static, better admin distance). It
 	// arrives as a single ChangeUpdate carrying ONLY B.
 	bBatch := makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionUpdate, Prefix: pfx, NextHop: nhB, Priority: 20, Metric: 10},
+		{Action: routeaction.Update, Prefix: pfx, NextHop: nhB, Priority: 20, Metric: 10},
 	})
 	bBatch.FromLocRIB = true
 	_, changes := s.processEvent(bBatch)
@@ -83,10 +84,10 @@ func TestSysribEventBusKeepsPerProtocol(t *testing.T) {
 	// Event-bus batches (FromLocRIB defaults false): each protocol emits
 	// independently and both must coexist for inter-protocol arbitration.
 	s.processEvent(makePayload("ospf", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 110, Metric: 10},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 110, Metric: 10},
 	}))
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: netip.MustParseAddr("10.0.0.2"), Priority: 20, Metric: 10},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("10.0.0.2"), Priority: 20, Metric: 10},
 	}))
 	if got := len(s.routes[key]); got != 2 {
 		t.Fatalf("event-bus path: s.routes[key] has %d entries, want 2 (both protocols retained)", got)

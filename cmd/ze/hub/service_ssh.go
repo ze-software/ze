@@ -18,7 +18,8 @@ import (
 	"os"
 	"time"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -51,7 +52,7 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 	if cfg.ConfigDir == "" {
 		cfg.ConfigDir = coreenv.Get("ze.config.dir")
 	}
-	cfg.Storage = bgpconfig.ResolveSSHStorage(params.Store, params.ConfigDir)
+	cfg.Storage = infra.ResolveSSHStorage(params.Store, params.ConfigDir)
 	cfg.ConfigPath = params.ConfigPath
 
 	srv, sshErr := zessh.NewServer(cfg)
@@ -227,7 +228,7 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 
 	// Wire session model factory so interactive SSH sessions work, and the
 	// dispatch executor for non-interactive exec commands.
-	srv.SetSessionModelFactory(buildSessionModelFactory(srv, bgpconfig.InfraHookParams{
+	srv.SetSessionModelFactory(buildSessionModelFactory(srv, infra.HookParams{
 		ConfigPath: in.ConfigPath,
 		Store:      in.Storage,
 	}, in.Recorder, in.ReloadFn))

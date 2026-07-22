@@ -11,6 +11,8 @@ import (
 	"net/netip"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -139,7 +141,7 @@ func SerializeMsg(msg message.Message) []byte {
 // Returns the message type and the full message bytes (including header).
 // The caller MUST set appropriate read deadlines on the underlying connection
 // before calling (when using a buffered reader over a net.Conn).
-func ReadMessage(r io.Reader) (message.MessageType, []byte, error) {
+func ReadMessage(r io.Reader) (msgtype.MessageType, []byte, error) {
 	hdr := make([]byte, message.HeaderLen)
 	return readMessageWithHdr(r, hdr)
 }
@@ -147,11 +149,11 @@ func ReadMessage(r io.Reader) (message.MessageType, []byte, error) {
 // ReadMessageBuf reads one complete BGP message using a caller-provided header
 // buffer. The hdr buffer MUST be at least message.HeaderLen (19) bytes.
 // This avoids per-call header allocation in hot loops.
-func ReadMessageBuf(r io.Reader, hdr []byte) (message.MessageType, []byte, error) {
+func ReadMessageBuf(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, error) {
 	return readMessageWithHdr(r, hdr)
 }
 
-func readMessageWithHdr(r io.Reader, hdr []byte) (message.MessageType, []byte, error) {
+func readMessageWithHdr(r io.Reader, hdr []byte) (msgtype.MessageType, []byte, error) {
 	if len(hdr) < message.HeaderLen {
 		return 0, nil, fmt.Errorf("header buffer too small: %d < %d", len(hdr), message.HeaderLen)
 	}
@@ -178,7 +180,7 @@ func readMessageWithHdr(r io.Reader, hdr []byte) (message.MessageType, []byte, e
 		}
 	}
 
-	return message.MessageType(hdr[18]), msg, nil
+	return msgtype.MessageType(hdr[18]), msg, nil
 }
 
 // WriteMessage writes a complete BGP message to a connection.
@@ -211,9 +213,9 @@ func DoHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
 		return 0, fmt.Errorf("reading peer OPEN: %w", err)
 	}
 
-	if msgType != message.TypeOPEN {
+	if msgType != msgtype.TypeOPEN {
 		detail := ""
-		if msgType == message.TypeNOTIFICATION && len(rawMsg) >= message.HeaderLen+2 {
+		if msgType == msgtype.TypeNOTIFICATION && len(rawMsg) >= message.HeaderLen+2 {
 			detail = fmt.Sprintf(" (error=%d subcode=%d)", rawMsg[message.HeaderLen], rawMsg[message.HeaderLen+1])
 		}
 
@@ -229,7 +231,7 @@ func DoHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
 		return 0, fmt.Errorf("reading peer KEEPALIVE: %w", err)
 	}
 
-	if msgType != message.TypeKEEPALIVE {
+	if msgType != msgtype.TypeKEEPALIVE {
 		return 0, fmt.Errorf("expected KEEPALIVE, got type %d", msgType)
 	}
 

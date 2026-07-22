@@ -11,7 +11,8 @@ import (
 	"sort"
 	"strconv"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -143,7 +144,11 @@ func loadAndResolve(store storage.Storage, path string) (map[string]any, error) 
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 
-	bgpTree, err := bgpconfig.ResolveBGPTree(tree)
+	// Resolve the bgp{} section through the always-on seam; on a binary built
+	// without the BGP engine (//go:build ze_bgp) a bgp-free config resolves to
+	// an empty tree and the diff runs on the plain tree, while a config that
+	// does carry bgp{} is an error rather than a diff missing its BGP half.
+	bgpTree, err := infra.ResolveBGPTree(tree)
 	if err != nil {
 		return nil, fmt.Errorf("resolve: %w", err)
 	}

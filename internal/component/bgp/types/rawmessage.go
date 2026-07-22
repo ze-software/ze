@@ -6,7 +6,8 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -15,7 +16,7 @@ import (
 // RawMessage represents a BGP message sent or received.
 // Contains raw wire bytes for on-demand parsing based on format config.
 type RawMessage struct {
-	Type          message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
+	Type          msgtype.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
 	RawBytes      []byte              // Original wire bytes (without marker/header)
 	Timestamp     time.Time
 	MessageID     uint64                    // Unique ID for all message types

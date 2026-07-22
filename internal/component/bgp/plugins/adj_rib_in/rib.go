@@ -22,6 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	adjyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/yang"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -613,7 +615,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 
 		for _, op := range ops {
 			switch op.Action { //nolint:exhaustive // only Add/Del relevant for adj-rib-in
-			case bgptypes.RouteActionAdd:
+			case routeaction.Add:
 				// Skip adds without essential fields -- routes missing attributes
 				// or next-hop cannot be replayed correctly via "update hex" commands.
 				if event.GetRawAttributesHex() == "" {
@@ -674,7 +676,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					}
 				}
 
-			case bgptypes.RouteActionDel:
+			case routeaction.Del:
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
 					if prefix == "" {

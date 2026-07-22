@@ -29,8 +29,8 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
    `internal/plugins/imageserver/handler.go` (see `plan/learned/831-appliance-auth-hardening.md`).
 2. **Config load reaches the infra hook.** Parsing a config with a `bgp {}` block
    extracts the authz store and SSH config, then calls the hub-registered hook
-   (`internal/component/bgp/config/loader_create.go:220-233`,
-   `internal/component/bgp/config/infra_hook.go:57-69`). Without `bgp {}`
+   (`internal/component/bgp/config/loader_create.go:216-237`,
+   `internal/component/config/infra/hook.go:69-107`). Without `bgp {}`
    (ssh-only appliance), `cmd/ze/hub/main.go:639-691` builds the same pieces inline.
 3. **Hub composes the bundle.** `infraSetup` (`cmd/ze/hub/infra_setup.go:77`) loads
    the zefs user (`loadZefsUsers`/`usersFromZefsDB`, `cmd/ze/hub/main_servers.go:88`,

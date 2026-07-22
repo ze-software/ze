@@ -19,7 +19,7 @@ build tags `make build` uses:
 <!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
 
 ```bash
-go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
+go install -tags 'ze_core ze_distro ze_bgp ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
 ```
 
 This tracks the module's default branch (development version), not a

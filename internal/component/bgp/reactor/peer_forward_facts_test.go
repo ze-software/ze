@@ -4,6 +4,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
@@ -11,6 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 func TestForwardFactsNilBeforeEstablished(t *testing.T) {
 	peer := NewPeer(&PeerSettings{
@@ -38,7 +49,7 @@ func TestForwardFactsSetAfterRefresh(t *testing.T) {
 	assert.Equal(t, uint32(65001), facts.peerAS)
 	assert.True(t, facts.isEBGP)
 	assert.True(t, facts.extendedMsg)
-	assert.Equal(t, int(message.MaxMessageLength(message.TypeUPDATE, true)), facts.maxMsgSize)
+	assert.Equal(t, int(message.MaxMessageLength(msgtype.TypeUPDATE, true)), facts.maxMsgSize)
 }
 
 func TestForwardFactsClearedOnTeardown(t *testing.T) {

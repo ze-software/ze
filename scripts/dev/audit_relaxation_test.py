@@ -35,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "audit-test-relaxation.py"
 REPO_ROOT = HERE.parent.parent
 HOOK = REPO_ROOT / ".claude" / "hooks" / "pretool-writeedit.py"
+HOOK_LIB = REPO_ROOT / ".claude" / "hooks" / "lib"
 
 
 def _load_audit_module():
@@ -80,6 +81,12 @@ class AuditFixture:
         (p / ".claude" / "hooks").mkdir(parents=True)
         # Symlink, not copy: the hook is 67K and the audit only imports it.
         os.symlink(HOOK, p / ".claude" / "hooks" / "pretool-writeedit.py")
+        # The hook resolves its sibling lib/ relative to its OWN file, and
+        # imports lib/session_id.py at module scope, so the fixture must give it
+        # that neighbour or `exec_module` raises FileNotFoundError, load_detector
+        # returns None, and every test here fails with "could not load detection
+        # logic" instead of exercising the audit.
+        os.symlink(HOOK_LIB, p / ".claude" / "hooks" / "lib")
 
         _git(tmp, "init", "-q", "-b", "main", env=self.env)
         _git(tmp, "config", "user.email", "t@example.com", env=self.env)

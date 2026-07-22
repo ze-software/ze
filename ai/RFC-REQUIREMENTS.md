@@ -1100,14 +1100,14 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC2918-2-1` | MUST | 2 | `internal/core/bgp/capability/capability_test.go:650` | `internal/component/bgp/reactor/session_handlers_test.go:85` |  |
-| `RFC2918-3-1` | MUST | 3 | `internal/component/bgp/message/routerefresh_test.go:14` | `internal/component/bgp/message/header_test.go:37` |  |
-| `RFC2918-3-2` | MUST | 3 | `internal/component/bgp/message/routerefresh_test.go:29` | `internal/component/bgp/message/routerefresh_test.go:73`, `internal/component/bgp/reactor/session_handlers_test.go:379` |  |
+| `RFC2918-2-1` | MUST | 2 | `internal/core/bgp/capability/capability_test.go:650` | `internal/component/bgp/reactor/session_handlers_test.go:87` |  |
+| `RFC2918-3-1` | MUST | 3 | `internal/component/bgp/message/routerefresh_test.go:16` | `internal/component/bgp/message/header_test.go:39` |  |
+| `RFC2918-3-2` | MUST | 3 | `internal/component/bgp/message/routerefresh_test.go:31` | `internal/component/bgp/message/routerefresh_test.go:75`, `internal/component/bgp/reactor/session_handlers_test.go:381` |  |
 | `RFC2918-3-3` | SHOULD | 3 | -- | -- |  |
 | `RFC2918-3-4` | MAY | 3 | -- | -- |  |
-| `RFC2918-4-1` | MUST | 4 | `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:91`, `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:152` | `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:111`, `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:167` |  |
-| `RFC2918-4-2` | MUST | 4 | `internal/component/bgp/reactor/session_handlers_test.go:464` | `internal/component/bgp/reactor/session_test.go:2377` |  |
-| `RFC2918-4-3` | MUST | 4 | `internal/component/bgp/plugins/rib/rib_test.go:942` | `internal/component/bgp/plugins/rib/rib_test.go:985` |  |
+| `RFC2918-4-1` | MUST | 4 | `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:93`, `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:154` | `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:113`, `internal/component/bgp/reactor/reactor_route_refresh_rfc2918_test.go:169` |  |
+| `RFC2918-4-2` | MUST | 4 | `internal/component/bgp/reactor/session_handlers_test.go:466` | `internal/component/bgp/reactor/session_test.go:2379` |  |
+| `RFC2918-4-3` | MUST | 4 | `internal/component/bgp/plugins/rib/rib_test.go:943` | `internal/component/bgp/plugins/rib/rib_test.go:986` |  |
 | `RFC2918-4-4` | SHOULD | 4 | -- | -- |  |
 | `RFC2918-4-5` | SHOULD | 4 | -- | -- |  |
 | `RFC2918-4-6` | MAY | 4 | -- | -- |  |
@@ -1654,47 +1654,47 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC4271-10-1` | MUST | 10 | `internal/component/bgp/reactor/rfc4271_test.go:258` | `internal/component/bgp/reactor/rfc4271_test.go:282` |  |
+| `RFC4271-10-1` | MUST | 10 | `internal/component/bgp/reactor/rfc4271_test.go:260` | `internal/component/bgp/reactor/rfc4271_test.go:284` |  |
 | `RFC4271-10-2` | SHOULD | 10 | -- | -- |  |
 | `RFC4271-10-3` | MAY | 10 | -- | -- |  |
 | `RFC4271-3-1` | SHOULD | 3 | -- | -- |  |
 | `RFC4271-3.1-1` | MAY | 3.1 | -- | -- |  |
 | `RFC4271-3.1-2` | MUST | 3.1 | -- | -- | {gap} the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB |
-| `RFC4271-4.1-1` | MUST | 4.1 | `internal/component/bgp/message/rfc4271_test.go:17` | `internal/component/bgp/message/rfc4271_test.go:40` |  |
-| `RFC4271-4.1-2` | MUST | 4.1 | `internal/component/bgp/message/rfc4271_test.go:60` | `internal/component/bgp/message/rfc4271_test.go:93` |  |
-| `RFC4271-4.1-3` | MUST | 4.1 | `internal/component/bgp/message/rfc4271_test.go:122` | `internal/component/bgp/message/rfc4271_test.go:148` |  |
-| `RFC4271-4.2-1` | MUST | 4.2 | `internal/component/bgp/message/open_test.go:337` | `internal/component/bgp/message/open_test.go:339` |  |
+| `RFC4271-4.1-1` | MUST | 4.1 | `internal/component/bgp/message/rfc4271_test.go:19` | `internal/component/bgp/message/rfc4271_test.go:42` |  |
+| `RFC4271-4.1-2` | MUST | 4.1 | `internal/component/bgp/message/rfc4271_test.go:62` | `internal/component/bgp/message/rfc4271_test.go:95` |  |
+| `RFC4271-4.1-3` | MUST | 4.1 | `internal/component/bgp/message/rfc4271_test.go:124` | `internal/component/bgp/message/rfc4271_test.go:150` |  |
+| `RFC4271-4.2-1` | MUST | 4.2 | `internal/component/bgp/message/open_test.go:339` | `internal/component/bgp/message/open_test.go:341` |  |
 | `RFC4271-4.2-2` | MUST | 4.2 | `internal/component/bgp/reactor/session_negotiate_test.go:40` | `internal/component/bgp/reactor/session_negotiate_test.go:69` |  |
 | `RFC4271-4.2-3` | MAY | 4.2 | -- | -- |  |
-| `RFC4271-4.3-1` | MUST | 4.3 | `internal/core/bgp/attribute/rfc4271_test.go:31` | `internal/component/bgp/message/rfc4271_test.go:498` |  |
+| `RFC4271-4.3-1` | MUST | 4.3 | `internal/core/bgp/attribute/rfc4271_test.go:31` | `internal/component/bgp/message/rfc4271_test.go:500` |  |
 | `RFC4271-4.3-2` | MUST | 4.3 | `internal/core/bgp/attribute/rfc4271_test.go:55` | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:47` |  |
 | `RFC4271-4.3-3` | MUST | 4.3 | `internal/core/bgp/attribute/rfc4271_test.go:80` | -- | {single-polarity} the obligation is on the sender -- the flags octet ze writes must have its low-order four bits zero -- so there is no non-conformant input to reject. The receive-side mirror of the same rule ("MUST be ignored when received") is RFC4271-4.3-4 and is proven both ways there |
-| `RFC4271-4.3-4` | MUST | 4.3 | `internal/component/bgp/message/rfc4271_test.go:230` | `internal/component/bgp/message/rfc4271_test.go:257` |  |
+| `RFC4271-4.3-4` | MUST | 4.3 | `internal/component/bgp/message/rfc4271_test.go:232` | `internal/component/bgp/message/rfc4271_test.go:259` |  |
 | `RFC4271-4.3-5` | MUST | 4.3 | -- | -- | {gap} ze processes such an UPDATE without erroring, but it applies the announce first and the withdrawal second, so the prefix ends up removed instead of installed: handleReceivedStructured inserts every NLRI (internal/component/bgp/plugins/rib/rib_structured.go:180-200) before it removes every withdrawn prefix (:203-213), and both are appended to the same `affected` list that Phase 3 re-evaluates (:271-286). RFC 4271 Section 4.3 requires the prefix to be treated as if it were not in the WITHDRAWN field |
 | `RFC4271-4.3-6` | SHOULD | 4.3 | -- | -- |  |
 | `RFC4271-4.3-7` | SHOULD | 4.3 | -- | -- |  |
 | `RFC4271-4.4-1` | MUST NOT | 4.4 | `internal/component/bgp/fsm/rfc4271_test.go:18` | `internal/component/bgp/fsm/rfc4271_test.go:50` |  |
 | `RFC4271-4.4-2` | MUST NOT | 4.4 | `internal/component/bgp/fsm/timer_test.go:142` | `internal/component/bgp/fsm/timer_test.go:409` |  |
-| `RFC4271-5-1` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:461` | `internal/component/bgp/message/rfc4271_test.go:490` |  |
-| `RFC4271-5-2` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:464` | `internal/component/bgp/message/rfc4271_test.go:495` |  |
+| `RFC4271-5-1` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:463` | `internal/component/bgp/message/rfc4271_test.go:492` |  |
+| `RFC4271-5-2` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:466` | `internal/component/bgp/message/rfc4271_test.go:497` |  |
 | `RFC4271-5-3` | MUST | 5 | -- | -- | {gap} no producer sets the Partial bit when passing an unrecognized transitive optional attribute along. ParseAttributes routes every unrecognized attribute to appendOtherAttr, which stores the received flags octet verbatim (internal/component/bgp/plugins/rib/storage/attrparse.go:138-139 and :254-260), and parseOtherAttrs rebuilds the wire header from that same stored octet, touching only the Extended-Length bit (internal/component/bgp/plugins/rib/storage/familyrib.go:845-869). An attribute received with Partial=0 is therefore re-advertised with Partial still 0 |
 | `RFC4271-5-4` | MUST NOT | 5 | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:82` | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:115` |  |
 | `RFC4271-5-5` | MUST | 5 | -- | -- | {gap} unrecognized optional attributes are not distinguished by their Transitive bit on ingest, so a non-transitive one is retained and re-advertised rather than quietly ignored. The default branch of ParseAttributes stores every unrecognized attribute in OtherAttrs regardless of flags (internal/component/bgp/plugins/rib/storage/attrparse.go:138-139), and ToWireBytes replays every stored OtherAttrs entry into the readvertised attribute section (internal/component/bgp/plugins/rib/storage/familyrib.go:830-837) |
-| `RFC4271-5-6` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:291` | `internal/component/bgp/message/rfc4271_test.go:321` |  |
+| `RFC4271-5-6` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:293` | `internal/component/bgp/message/rfc4271_test.go:323` |  |
 | `RFC4271-5-7` | SHOULD | 5 | -- | -- |  |
 | `RFC4271-5.1.1-1` | SHOULD | 5.1.1 | -- | -- |  |
 | `RFC4271-5.1.2-1` | MAY | 5.1.2 | -- | -- |  |
-| `RFC4271-5.1.2-2` | SHALL NOT | 5.1.2 | `internal/component/bgp/reactor/rfc4271_test.go:128` | `internal/component/bgp/reactor/rfc4271_test.go:145` |  |
+| `RFC4271-5.1.2-2` | SHALL NOT | 5.1.2 | `internal/component/bgp/reactor/rfc4271_test.go:130` | `internal/component/bgp/reactor/rfc4271_test.go:147` |  |
 | `RFC4271-5.1.3-1` | SHALL NOT | 5.1.3 | -- | -- | {gap} no producer compares the NEXT_HOP ze is about to advertise against the destination peer's own address. The egress next-hop decision is precomputeNextHop, which chooses between no rewrite, the local address and a configured explicit address without ever consulting the peer address (internal/component/bgp/reactor/peer_forward_facts.go:153-193), and resolveNextHop likewise returns the configured or local address unchecked (internal/component/bgp/reactor/peer.go:663-687) |
 | `RFC4271-5.1.3-2` | SHALL NOT | 5.1.3 | -- | -- | {gap} the BGP install path has no self-next-hop check. gatherCandidatesLocked filters candidates only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057) and mirrorToLocRIB installs whatever bestCandidateNextHopAddr returned (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830, :1060-1090), so a route whose NEXT_HOP is the local speaker's own address is installed in the Loc-RIB. The FIB-side resolver does reject a self-referencing next hop, but that is downstream of the Loc-RIB and does not remove the route from it |
-| `RFC4271-5.1.3-3` | MUST | 5.1.3 | `internal/component/bgp/reactor/rfc4271_test.go:338` | `internal/component/bgp/reactor/rfc4271_test.go:370` |  |
+| `RFC4271-5.1.3-3` | MUST | 5.1.3 | `internal/component/bgp/reactor/rfc4271_test.go:340` | `internal/component/bgp/reactor/rfc4271_test.go:372` |  |
 | `RFC4271-5.1.4-1` | MUST NOT | 5.1.4 | -- | -- | {gap} no producer removes MULTI_EXIT_DISC before advertising to another AS. Both readvertisement encoders write a stored MED unconditionally, with no eBGP/other-AS gate (internal/component/bgp/reactor/peer_rib_routes.go:71-77 and :108-114, internal/component/bgp/reactor/reactor_wire.go:342-345), and the forwarding rails perform only community strips, never an attribute-4 removal (internal/component/bgp/reactor/forward_rs.go:316-318) |
 | `RFC4271-5.1.4-2` | MUST | 5.1.4 | -- | -- | {not-applicable} this requirement is conditional on the speaker being CONFIGURED to remove MULTI_EXIT_DISC ("If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to ... Decision Process phases 1 and 2", RFC 4271 §5.1.4). ze offers no such configuration and implements no removal, which is the gap recorded on RFC4271-5.1.4-4, so the condition never holds and there is no removal whose ordering against Phase 2 could be constrained. The MED handling that does exist is write-only on readvertisement (internal/component/bgp/reactor/peer_rib_routes.go:71-77,108-114, internal/component/bgp/reactor/reactor_wire.go:342-345), a pool read for display (internal/component/bgp/plugins/rib/rib_commands.go:1100-1104) and the RFC 7606 length validator (validateMEDAttr, internal/component/bgp/message/rfc7606.go:481-490) |
-| `RFC4271-5.1.4-3` | MUST | 5.1.4 | `internal/component/bgp/reactor/rfc4271_test.go:449` | -- | {single-polarity} the requirement constrains only the ORDER of an alteration that a speaker chooses to make, so there is no non-conformant input a receiver could reject. ze's only place to alter a received MULTI_EXIT_DISC is the ingress filter chain, whose rewritten payload replaces the WireUpdate before the UPDATE is dispatched to the RIB plugin that runs phases 1 and 2 (internal/component/bgp/reactor/reactor_notify.go:427-466) |
+| `RFC4271-5.1.4-3` | MUST | 5.1.4 | `internal/component/bgp/reactor/rfc4271_test.go:451` | -- | {single-polarity} the requirement constrains only the ORDER of an alteration that a speaker chooses to make, so there is no non-conformant input a receiver could reject. ze's only place to alter a received MULTI_EXIT_DISC is the ingress filter chain, whose rewritten payload replaces the WireUpdate before the UPDATE is dispatched to the RIB plugin that runs phases 1 and 2 (internal/component/bgp/reactor/reactor_notify.go:427-466) |
 | `RFC4271-5.1.4-4` | MUST | 5.1.4 | -- | -- | {gap} ze has no MED-removal mechanism, configurable or otherwise. Attribute suppression on the egress path is expressed as a `filterapi.AttrModSuppress` op, and `grep -rn AttrModSuppress --include=*.go internal/ | grep -v _test` finds exactly five producers, none of them attribute 4: AS4_PATH (internal/component/bgp/reactor/filter_delta.go:589) and the four route-reflection/confederation codes 40, 8, 16 and 32 (internal/component/bgp/reactor/peer_forward_facts.go:241,249,252,255). The configurable filter language offers a removal verb only for communities (`community-remove`, `large-community-remove`, `extended-community-remove`, internal/component/bgp/reactor/filter_chain.go:308-314); `med` appears there and in internal/component/bgp/reactor/filter_delta.go:287-288 only as a SET target. The one `AttributeFilter` that can select attribute 4 by name is API output shaping, not route advertisement (internal/component/bgp/filter/filter.go:39-43 and the type's own doc comment at :139, consumed by internal/component/bgp/types/contentconfig.go:14), and no YANG leaf anywhere asks for MED removal. Disclosed in docs/features/rfc-status.md RFC 4271 row |
-| `RFC4271-5.1.5-1` | SHALL | 5.1.5 | `internal/component/bgp/reactor/rfc4271_test.go:78` | `internal/component/bgp/reactor/rfc4271_test.go:104` |  |
-| `RFC4271-5.1.5-2` | MUST NOT | 5.1.5 | `internal/component/bgp/reactor/rfc4271_test.go:101` | `internal/component/bgp/reactor/rfc4271_test.go:80` |  |
-| `RFC4271-5.1.5-3` | MUST | 5.1.5 | `internal/component/bgp/message/rfc4271_test.go:564` | `internal/component/bgp/message/rfc4271_test.go:587` |  |
+| `RFC4271-5.1.5-1` | SHALL | 5.1.5 | `internal/component/bgp/reactor/rfc4271_test.go:80` | `internal/component/bgp/reactor/rfc4271_test.go:106` |  |
+| `RFC4271-5.1.5-2` | MUST NOT | 5.1.5 | `internal/component/bgp/reactor/rfc4271_test.go:103` | `internal/component/bgp/reactor/rfc4271_test.go:82` |  |
+| `RFC4271-5.1.5-3` | MUST | 5.1.5 | `internal/component/bgp/message/rfc4271_test.go:566` | `internal/component/bgp/message/rfc4271_test.go:589` |  |
 | `RFC4271-5.1.5-4` | MUST | 5.1.5 | `internal/component/bgp/plugins/rib/bestpath_test.go:195` | `internal/component/bgp/plugins/rib/bestpath_test.go:197` |  |
 | `RFC4271-5.1.5-5` | SHALL | 5.1.5 | `internal/component/bgp/plugins/rib/rfc4271_test.go:141` | `internal/component/bgp/plugins/rib/rfc4271_test.go:168` |  |
 | `RFC4271-5.1.6-1` | MUST NOT | 5.1.6 | -- | -- | {not-applicable} the obligation binds the RECEIVER/re-advertiser, and ze is one -- it stores a received ATOMIC_AGGREGATE and copies it through on readvertisement (internal/component/bgp/reactor/peer_rib_routes.go:141) -- but the prohibited act has no producer. `grep -rniE "more specific|deaggregat|de-aggregat|disaggregat" --include=*.go internal/component/bgp/ | grep -v _test` returns only substring hits inside `encodeAggregatorValue` and `attrCodeAggregator` (internal/component/bgp/reactor/filter_delta.go:294,396, internal/component/bgp/message/rfc7606.go:64,421); no code path splits a prefix. Both readvertisement encoders write the stored route's own prefix verbatim through nlri.WriteNLRI (internal/component/bgp/reactor/peer_rib_routes.go:103-104), so the advertised NLRI is byte-identical to what was received and can be neither more nor less specific. With no length-altering producer there is no behavior to exercise in either polarity |
@@ -1702,38 +1702,38 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC4271-5.1.6-3` | SHOULD NOT | 5.1.6 | -- | -- |  |
 | `RFC4271-5.1.7-1` | SHALL | 5.1.7 | -- | -- | {not-applicable} ze never performs aggregation, so it never adds an AGGREGATOR of its own. The same grep as RFC4271-5.1.6-1 finds no aggregation producer; AGGREGATOR is only interned from the wire (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102), replayed on readvertise (internal/component/bgp/plugins/rib/storage/familyrib.go:817-819) or emitted from operator configuration (internal/component/bgp/message/update_build_grouped.go:141-148) |
 | `RFC4271-5.1.7-2` | SHOULD | 5.1.7 | -- | -- |  |
-| `RFC4271-6-1` | MUST | 6 | `internal/component/bgp/message/rfc4271_test.go:351` | `internal/component/bgp/message/rfc4271_test.go:374` |  |
+| `RFC4271-6-1` | MUST | 6 | `internal/component/bgp/message/rfc4271_test.go:353` | `internal/component/bgp/message/rfc4271_test.go:376` |  |
 | `RFC4271-6.1-1` | MUST | 6.1 | -- | -- | {gap} one class of header error is detected but never reported. A bad marker or a Length below 19 makes ParseHeader return a bare sentinel (internal/component/bgp/message/header.go:96-108), and the read loop turns that into an FSM event and a returned error with no NOTIFICATION sent (internal/component/bgp/reactor/session_read.go:98-102). The per-type and over-maximum length errors on the following lines do send Message Header Error (session_read.go:105-117) |
 | `RFC4271-6.1-2` | MUST | 6.1 | -- | -- | {gap} NotifyHeaderConnectionNotSync is declared (internal/component/bgp/message/notification.go:52) but no producer ever sends it. ParseHeader returns ErrInvalidMarker, a plain sentinel carrying no NOTIFICATION (internal/component/bgp/message/header.go:96-99), and the read loop's marker-error branch sends nothing before returning (internal/component/bgp/reactor/session_read.go:98-102) |
 | `RFC4271-6.1-3` | MUST | 6.1 | -- | -- | {gap} RFC 4271 §6.1 lists five length conditions and ze reports only four of them. The per-type minima and the 4096/65535 ceiling do produce a conformant Notification -- ValidateLength and ValidateLengthWithMax return a *Notification carrying NotifyHeaderBadLength and the two big-endian octets of the offending Length (internal/component/bgp/message/header.go:155-171 and :207-213), which the read loop sends before closing (internal/component/bgp/reactor/session_read.go:105-117). The first listed condition, "Length field of the message header is less than 19", does not: ParseHeader returns the bare sentinel ErrInvalidLength with no Notification and no Data (internal/component/bgp/message/header.go:106-108), and the read loop logs an FSM event and returns without writing anything (internal/component/bgp/reactor/session_read.go:98-102). The same code fact is recorded as the NOTIFICATION-absence gap on RFC4271-6.1-1. Disclosed in docs/features/rfc-status.md RFC 4271 row |
 | `RFC4271-6.1-4` | MUST | 6.1 | -- | -- | {gap} an unknown message type is reported with the wrong subcode and the wrong Data. handleUnknownType sends Message Header Error with subcode 0 and a human-readable text string rather than subcode 3 (Bad Message Type) with the erroneous Type octet (internal/component/bgp/reactor/session_handlers.go:20-36); NotifyHeaderBadType is declared at internal/component/bgp/message/notification.go:54 and has no producer |
-| `RFC4271-6.2-1` | MUST | 6.2 | `internal/component/bgp/message/open_test.go:341` | `internal/component/bgp/message/open_test.go:343` |  |
-| `RFC4271-6.2-2` | MUST | 6.2 | `internal/component/bgp/reactor/rfc4271_test.go:168` | `internal/component/bgp/reactor/rfc4271_test.go:189` |  |
+| `RFC4271-6.2-1` | MUST | 6.2 | `internal/component/bgp/message/open_test.go:343` | `internal/component/bgp/message/open_test.go:345` |  |
+| `RFC4271-6.2-2` | MUST | 6.2 | `internal/component/bgp/reactor/rfc4271_test.go:170` | `internal/component/bgp/reactor/rfc4271_test.go:191` |  |
 | `RFC4271-6.2-3` | MUST | 6.2 | -- | -- | {gap} one class of OPEN error is detected and never reported. UnpackOpen returns the bare sentinel ErrShortRead when the body is under 10 octets or when the Optional Parameters Length (standard or RFC 9072 extended) overruns the body (internal/component/bgp/message/open.go:167-168, :193-194, :199-200, :209-210), and handleOpen turns that into an FSM event and a returned error, writing no NOTIFICATION and not even closing the connection (internal/component/bgp/reactor/session_handlers.go:43-47); session_read.go:264 only propagates it. Every other OPEN error path does send Error Code 2 -- unsupported version (session_handlers.go:54-60), unacceptable Hold Time (:70-77) and a malformed capability (rejectOpenCapabilityError, :185-199) -- so the obligation holds everywhere except the decode failure. Disclosed in docs/features/rfc-status.md RFC 4271 row |
 | `RFC4271-6.2-4` | MAY | 6.2 | -- | -- |  |
-| `RFC4271-6.3-1` | MUST | 6.3 | `internal/component/bgp/reactor/rfc4271_test.go:630` | `internal/component/bgp/reactor/rfc4271_test.go:693` |  |
+| `RFC4271-6.3-1` | MUST | 6.3 | `internal/component/bgp/reactor/rfc4271_test.go:632` | `internal/component/bgp/reactor/rfc4271_test.go:695` |  |
 | `RFC4271-6.3-2` | SHOULD | 6.3 | -- | -- |  |
 | `RFC4271-6.3-3` | SHOULD NOT | 6.3 | -- | -- |  |
-| `RFC4271-6.7-1` | MUST NOT | 6.7 | `internal/component/bgp/reactor/session_prefix_test.go:104` | `internal/component/bgp/reactor/rfc4271_test.go:633` |  |
+| `RFC4271-6.7-1` | MUST NOT | 6.7 | `internal/component/bgp/reactor/session_prefix_test.go:104` | `internal/component/bgp/reactor/rfc4271_test.go:635` |  |
 | `RFC4271-6.7-2` | MAY | 6.7 | -- | -- |  |
 | `RFC4271-6.7-3` | MAY | 6.7 | -- | -- |  |
 | `RFC4271-6.7-4` | MUST | 6.7 | `internal/component/bgp/reactor/session_prefix_test.go:101` | `internal/component/bgp/reactor/session_prefix_test.go:132` |  |
-| `RFC4271-6.8-1` | MUST | 6.8 | `internal/component/bgp/reactor/collision_test.go:125` | `internal/component/bgp/reactor/collision_test.go:175` |  |
-| `RFC4271-6.8-2` | MUST | 6.8 | `internal/component/bgp/reactor/collision_test.go:128` | `internal/component/bgp/reactor/collision_test.go:528` |  |
-| `RFC4271-8.2.1-1` | MUST | 8.2.1 | `internal/component/bgp/reactor/rfc4271_test.go:210` | `internal/component/bgp/reactor/rfc4271_test.go:234` |  |
-| `RFC4271-8.2.1-2` | MUST | 8.2.1 | `internal/component/bgp/reactor/rfc4271_test.go:303` | `internal/component/bgp/reactor/rfc4271_test.go:319` |  |
+| `RFC4271-6.8-1` | MUST | 6.8 | `internal/component/bgp/reactor/collision_test.go:127` | `internal/component/bgp/reactor/collision_test.go:177` |  |
+| `RFC4271-6.8-2` | MUST | 6.8 | `internal/component/bgp/reactor/collision_test.go:130` | `internal/component/bgp/reactor/collision_test.go:530` |  |
+| `RFC4271-8.2.1-1` | MUST | 8.2.1 | `internal/component/bgp/reactor/rfc4271_test.go:212` | `internal/component/bgp/reactor/rfc4271_test.go:236` |  |
+| `RFC4271-8.2.1-2` | MUST | 8.2.1 | `internal/component/bgp/reactor/rfc4271_test.go:305` | `internal/component/bgp/reactor/rfc4271_test.go:321` |  |
 | `RFC4271-8.2.1-3` | MUST | 8.2.1 | -- | -- | {gap} an incoming connection does not get its own state machine. acceptOrReject hands the accepted connection to the peer's existing session (internal/component/bgp/reactor/reactor_connection.go:117-163), and a connection queued for collision resolution is read raw by handlePendingCollision with no FSM behind it (internal/component/bgp/reactor/reactor_connection.go:196-249). An FSM is created per session, i.e. per connection attempt of a configured peer (internal/component/bgp/reactor/session.go:396), not per inbound connection |
 | `RFC4271-8.2.1.4-1` | SHOULD | 8.2.1.4 | -- | -- |  |
 | `RFC4271-9-1` | SHALL | 9 | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:215` | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:220` |  |
 | `RFC4271-9-2` | SHALL | 9 | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:189` | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:217` |  |
-| `RFC4271-9-3` | SHALL | 9 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:684` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:648` |  |
+| `RFC4271-9-3` | SHALL | 9 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:685` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:649` |  |
 | `RFC4271-9.1.1-1` | SHALL NOT | 9.1.1 | `internal/component/bgp/plugins/rib/rfc4271_test.go:33` | `internal/component/bgp/plugins/rib/rfc4271_test.go:68` |  |
-| `RFC4271-9.1.1-2` | MUST | 9.1.1 | `internal/component/bgp/reactor/rfc4271_test.go:83` | `internal/component/bgp/reactor/rfc4271_test.go:107` |  |
+| `RFC4271-9.1.1-2` | MUST | 9.1.1 | `internal/component/bgp/reactor/rfc4271_test.go:85` | `internal/component/bgp/reactor/rfc4271_test.go:109` |  |
 | `RFC4271-9.1.2-1` | MUST | 9.1.2 | -- | -- | {gap} an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally |
-| `RFC4271-9.1.2-2` | SHALL | 9.1.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1511` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:689` |  |
-| `RFC4271-9.1.2-3` | MUST | 9.1.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1513` | `internal/component/bgp/plugins/rib/rfc4271_test.go:94` |  |
+| `RFC4271-9.1.2-2` | SHALL | 9.1.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1512` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:690` |  |
+| `RFC4271-9.1.2-3` | MUST | 9.1.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1514` | `internal/component/bgp/plugins/rib/rfc4271_test.go:94` |  |
 | `RFC4271-9.1.2-4` | MUST | 9.1.2 | -- | -- | {gap} nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43) |
-| `RFC4271-9.1.2.1-1` | MUST | 9.1.2.1 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1516` | `internal/component/bgp/plugins/rib/rfc4271_test.go:98` |  |
+| `RFC4271-9.1.2.1-1` | MUST | 9.1.2.1 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1517` | `internal/component/bgp/plugins/rib/rfc4271_test.go:98` |  |
 | `RFC4271-9.1.2.1-2` | SHALL | 9.1.2.1 | -- | -- | {gap} an unresolvable route is not removed from the Loc-RIB. The only Loc-RIB removal in the BGP plugin is the no-candidate-remains branch of checkBestPathChange (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782), which is driven by the Adj-RIB-In losing its last path and never by next-hop resolvability; nothing in the plugin consults a resolver |
 | `RFC4271-9.1.2.1-3` | SHOULD | 9.1.2.1 | -- | -- |  |
 | `RFC4271-9.1.2.1-4` | SHOULD | 9.1.2.1 | -- | -- |  |
@@ -1742,17 +1742,17 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC4271-9.1.2.2-2` | MUST | 9.1.2.2 | -- | -- | {not-applicable} the condition never holds. ze implements no MULTI_EXIT_DISC removal at all -- the missing configurable mechanism is the gap recorded on RFC4271-5.1.4-4 -- so it cannot remove MED before internal readvertisement and there is no restricted MED comparison to scope to eBGP-learned routes. The readvertisement encoders write a stored MED unconditionally (internal/component/bgp/reactor/peer_rib_routes.go:71-77,108-114, internal/component/bgp/reactor/reactor_wire.go:342-345) and no producer emits an AttrModSuppress op for attribute 4 (the five producers are internal/component/bgp/reactor/filter_delta.go:589 and internal/component/bgp/reactor/peer_forward_facts.go:241,249,252,255, for codes 17, 40, 8, 16 and 32) |
 | `RFC4271-9.1.2.2-3` | MUST | 9.1.2.2 | `internal/component/bgp/plugins/rib/bestpath_test.go:317` | `internal/component/bgp/plugins/rib/bestpath_test.go:320` |  |
 | `RFC4271-9.2-1` | SHOULD NOT | 9.2 | -- | -- |  |
-| `RFC4271-9.2-10` | MUST | 9.2 | `internal/component/bgp/message/rfc4271_test.go:400` | `internal/component/bgp/message/rfc4271_test.go:429` |  |
+| `RFC4271-9.2-10` | MUST | 9.2 | `internal/component/bgp/message/rfc4271_test.go:402` | `internal/component/bgp/message/rfc4271_test.go:431` |  |
 | `RFC4271-9.2-11` | SHOULD | 9.2 | -- | -- |  |
 | `RFC4271-9.2-12` | SHOULD NOT | 9.2 | -- | -- |  |
 | `RFC4271-9.2-2` | SHALL NOT | 9.2 | -- | -- | {gap} nothing gates Adj-RIB-Out installation on the destination and NEXT_HOP being forwardable. QueueAnnounce records the route unconditionally (internal/component/bgp/rib/outgoing.go:65-101), and the forwarding rails decide only on filters, family negotiation and the route-reflection rules (internal/component/bgp/reactor/forward_rs.go:295-333) |
 | `RFC4271-9.2-3` | MUST | 9.2 | -- | -- | {gap} a route excluded from a peer's Adj-RIB-Out by an egress filter is skipped silently, leaving the peer's previous advertisement in place instead of withdrawing it. Both forwarding rails `continue` on suppression with no withdrawal built (internal/component/bgp/reactor/forward_rs.go:320-333 and internal/component/bgp/reactor/reactor_api_forward.go:496-506); the one announce-to-withdraw conversion is LLGR-specific and filter-requested, not exclusion-driven (internal/component/bgp/reactor/reactor_api_forward.go:588-601) |
 | `RFC4271-9.2-4` | MUST | 9.2 | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:148` | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:182` |  |
 | `RFC4271-9.2-5` | MUST | 9.2 | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:151` | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:186` |  |
-| `RFC4271-9.2-6` | SHALL NOT | 9.2 | `internal/component/bgp/reactor/rfc4271_test.go:505` | `internal/component/bgp/reactor/rfc4271_test.go:564` |  |
-| `RFC4271-9.2-7` | SHALL | 9.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:687` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:651` |  |
-| `RFC4271-9.2-8` | SHALL | 9.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1519` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:653` |  |
-| `RFC4271-9.2-9` | SHALL | 9.2 | `internal/component/bgp/reactor/rfc4271_test.go:395` | `internal/component/bgp/reactor/rfc4271_test.go:423` |  |
+| `RFC4271-9.2-6` | SHALL NOT | 9.2 | `internal/component/bgp/reactor/rfc4271_test.go:507` | `internal/component/bgp/reactor/rfc4271_test.go:566` |  |
+| `RFC4271-9.2-7` | SHALL | 9.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:688` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:652` |  |
+| `RFC4271-9.2-8` | SHALL | 9.2 | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:1520` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go:654` |  |
+| `RFC4271-9.2-9` | SHALL | 9.2 | `internal/component/bgp/reactor/rfc4271_test.go:397` | `internal/component/bgp/reactor/rfc4271_test.go:425` |  |
 | `RFC4271-9.2.1.1-1` | SHOULD NOT | 9.2.1.1 | -- | -- |  |
 | `RFC4271-9.2.1.1-2` | MUST | 9.2.1.1 | -- | -- | {gap} ze has no MinRouteAdvertisementIntervalTimer, so successive UPDATEs to a common set of destinations are not spaced. The timer set implements only ConnectRetry, Hold and Keepalive and records the omission in its own doc comment (internal/component/bgp/fsm/timer.go:34-42, "MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here"); `grep -rniE 'minroute|mrai' --include=*.go internal/` finds no producer |
 | `RFC4271-9.2.1.1-3` | SHALL | 9.2.1.1 | -- | -- | {gap} with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880) |
@@ -1767,7 +1767,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC4271-9.4-1` | SHOULD | 9.4 | -- | -- |  |
 | `RFC4271-Appendix-1` | SHOULD | Appendix | -- | -- |  |
 | `RFC4271-Appendix-2` | SHOULD | Appendix | -- | -- |  |
-| `RFC4271-Security-1` | MUST | Security | `internal/component/bgp/reactor/reactor_test.go:2338` | `internal/component/bgp/reactor/reactor_test.go:2341` |  |
+| `RFC4271-Security-1` | MUST | Security | `internal/component/bgp/reactor/reactor_test.go:2340` | `internal/component/bgp/reactor/reactor_test.go:2343` |  |
 
 ## RFC4301 -- enrolled (gated)
 
@@ -2537,10 +2537,10 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC5492-3-1` | MUST | 3 | `internal/component/bgp/reactor/session_handlers_test.go:91`, `internal/component/bgp/reactor/session_validate_test.go:345` | `internal/component/bgp/reactor/session_test.go:1276` |  |
+| `RFC5492-3-1` | MUST | 3 | `internal/component/bgp/reactor/session_handlers_test.go:93`, `internal/component/bgp/reactor/session_validate_test.go:345` | `internal/component/bgp/reactor/session_test.go:1278` |  |
 | `RFC5492-3-2` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:138` | `internal/core/bgp/capability/capability_test.go:167` |  |
-| `RFC5492-3-3` | MUST NOT | 3 | `internal/core/bgp/capability/capability_test.go:222` | `internal/component/bgp/reactor/session_handlers_test.go:96` |  |
-| `RFC5492-3-4` | MUST NOT | 3 | `internal/core/bgp/capability/capability_test.go:227` | `internal/component/bgp/reactor/session_handlers_test.go:99` |  |
+| `RFC5492-3-3` | MUST NOT | 3 | `internal/core/bgp/capability/capability_test.go:222` | `internal/component/bgp/reactor/session_handlers_test.go:98` |  |
+| `RFC5492-3-4` | MUST NOT | 3 | `internal/core/bgp/capability/capability_test.go:227` | `internal/component/bgp/reactor/session_handlers_test.go:101` |  |
 | `RFC5492-3-5` | SHOULD | 3 | -- | -- |  |
 | `RFC5492-3-6` | SHOULD NOT | 3 | -- | -- |  |
 | `RFC5492-3-7` | MAY | 3 | -- | -- |  |
@@ -2551,8 +2551,8 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC5492-4-5` | SHOULD | 4 | -- | -- |  |
 | `RFC5492-4-6` | SHOULD | 4 | -- | -- |  |
 | `RFC5492-4-7` | MAY | 4 | -- | -- |  |
-| `RFC5492-5-1` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:1124`, `internal/component/bgp/reactor/session_validate_test.go:375` | `internal/component/bgp/reactor/session_validate_test.go:397` |  |
-| `RFC5492-5-2` | MUST NOT | 5 | `internal/core/bgp/capability/capability_test.go:229` | `internal/component/bgp/reactor/session_handlers_test.go:102` |  |
+| `RFC5492-5-1` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:1126`, `internal/component/bgp/reactor/session_validate_test.go:375` | `internal/component/bgp/reactor/session_validate_test.go:397` |  |
+| `RFC5492-5-2` | MUST NOT | 5 | `internal/core/bgp/capability/capability_test.go:229` | `internal/component/bgp/reactor/session_handlers_test.go:104` |  |
 
 ## RFC5549 -- enrolled (gated)
 
@@ -2928,7 +2928,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC6396-4.4.1-1` | MAY | 4.4.1 | -- | -- |  |
 | `RFC6396-4.4.1-2` | MAY | 4.4.1 | -- | -- |  |
 | `RFC6396-4.4.2-1` | MUST | 4.4.2 | -- | -- | {not-applicable} ze's live capture unconditionally emits the AS4 BGP4MP message subtype and never writes the 2-byte BGP4MP_MESSAGE (subtype 1), so the 2-byte-AS_PATH obligation binds a writer variant ze does not produce (internal/plugins/mrt/dump.go:240-250) |
-| `RFC6396-4.4.2-2` | MUST | 4.4.2 | `internal/plugins/mrt/component_test.go:83` | -- | {single-polarity} OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142) |
+| `RFC6396-4.4.2-2` | MUST | 4.4.2 | `internal/plugins/mrt/component_test.go:84` | -- | {single-polarity} OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142) |
 | `RFC6396-4.4.3-1` | MUST | 4.4.3 | -- | -- | {gap} the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24) |
 | `RFC6396-5.1-1` | MUST | 5.1 | -- | -- | {not-applicable} this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes |
 | `RFC6396-B.1-1` | MUST | B.1 | -- | -- | {not-applicable} ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16) |
@@ -3249,21 +3249,21 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC7313-4-1` | MUST | 4 | `internal/component/bgp/message/routerefresh_test.go:137`, `internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go:25` | -- | {single-polarity} ze dispatches the BoRR before sendRoutes in one straight-line path (internal/component/bgp/plugins/rib/rib.go:1013-1014); there is no re-advertise-without-BoRR code path to drive a negative |
+| `RFC7313-4-1` | MUST | 4 | `internal/component/bgp/message/routerefresh_test.go:139`, `internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go:25` | -- | {single-polarity} ze dispatches the BoRR before sendRoutes in one straight-line path (internal/component/bgp/plugins/rib/rib.go:1013-1014); there is no re-advertise-without-BoRR code path to drive a negative |
 | `RFC7313-4-10` | MAY | 4 | -- | -- |  |
 | `RFC7313-4-11` | MAY | 4 | -- | -- |  |
 | `RFC7313-4-12` | MAY | 4 | -- | -- |  |
-| `RFC7313-4-2` | MUST | 4 | `internal/component/bgp/message/routerefresh_test.go:140`, `internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go:43` | -- | {single-polarity} ze dispatches the EoRR after sendRoutes in one straight-line path (internal/component/bgp/plugins/rib/rib.go:1014-1015); there is no re-advertise-without-EoRR code path to drive a negative |
-| `RFC7313-4-3` | MUST | 4 | `internal/component/bgp/reactor/session_test.go:2453`, `internal/component/bgp/reactor/session_test.go:2486` | `internal/component/bgp/reactor/session_handlers_test.go:408`, `internal/component/bgp/reactor/session_test.go:2521` |  |
+| `RFC7313-4-2` | MUST | 4 | `internal/component/bgp/message/routerefresh_test.go:142`, `internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go:43` | -- | {single-polarity} ze dispatches the EoRR after sendRoutes in one straight-line path (internal/component/bgp/plugins/rib/rib.go:1014-1015); there is no re-advertise-without-EoRR code path to drive a negative |
+| `RFC7313-4-3` | MUST | 4 | `internal/component/bgp/reactor/session_test.go:2455`, `internal/component/bgp/reactor/session_test.go:2488` | `internal/component/bgp/reactor/session_handlers_test.go:410`, `internal/component/bgp/reactor/session_test.go:2523` |  |
 | `RFC7313-4-4` | MUST | 4 | -- | -- | {gap} ze logs a received BoRR but does not mark the peer's Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs |
 | `RFC7313-4-5` | MUST | 4 | -- | -- | {gap} ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge |
 | `RFC7313-4-6` | MUST NOT | 4 | -- | -- | {gap} ze's sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced |
 | `RFC7313-4-7` | MUST | 4 | -- | -- | {gap} the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4 |
 | `RFC7313-4-8` | SHOULD | 4 | -- | -- |  |
 | `RFC7313-4-9` | SHOULD | 4 | -- | -- |  |
-| `RFC7313-5-1` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:2309` | `internal/component/bgp/reactor/session_test.go:2382` |  |
-| `RFC7313-5-2` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:2312` | -- | {single-polarity} routeRefreshNotificationData (internal/component/bgp/reactor/session_handlers.go:307-313) always copies the entire received body after the header, so every ROUTE-REFRESH NOTIFICATION carries the complete message; there is no truncating code path to drive a negative |
-| `RFC7313-5-3` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:2519`, `internal/component/bgp/reactor/session_test.go:2552` | `internal/component/bgp/reactor/session_test.go:2456` |  |
+| `RFC7313-5-1` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:2311` | `internal/component/bgp/reactor/session_test.go:2384` |  |
+| `RFC7313-5-2` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:2314` | -- | {single-polarity} routeRefreshNotificationData (internal/component/bgp/reactor/session_handlers.go:307-313) always copies the entire received body after the header, so every ROUTE-REFRESH NOTIFICATION carries the complete message; there is no truncating code path to drive a negative |
+| `RFC7313-5-3` | MUST | 5 | `internal/component/bgp/reactor/session_test.go:2521`, `internal/component/bgp/reactor/session_test.go:2554` | `internal/component/bgp/reactor/session_test.go:2458` |  |
 | `RFC7313-5-4` | SHOULD | 5 | -- | -- |  |
 
 ## RFC7427 -- enrolled (gated)
@@ -3456,23 +3456,23 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC7606-2-1` | MUST | 2 | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:275` | `internal/component/bgp/message/rfc7606_withdraw_test.go:21`, `internal/component/bgp/message/rfc7606_withdraw_test.go:57`, `internal/component/bgp/plugins/rib/rib_structured_test.go:79`, `internal/component/bgp/plugins/rib/rib_structured_test.go:153`, `internal/component/bgp/reactor/session_test.go:1928` |  |
-| `RFC7606-2-2` | MUST | 2 | `internal/component/bgp/message/attr_discard_test.go:336` | `internal/component/bgp/message/attr_discard_test.go:255`, `internal/component/bgp/reactor/session_test.go:2009` |  |
+| `RFC7606-2-1` | MUST | 2 | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:277` | `internal/component/bgp/message/rfc7606_withdraw_test.go:21`, `internal/component/bgp/message/rfc7606_withdraw_test.go:57`, `internal/component/bgp/plugins/rib/rib_structured_test.go:83`, `internal/component/bgp/plugins/rib/rib_structured_test.go:157`, `internal/component/bgp/reactor/session_test.go:1930` |  |
+| `RFC7606-2-2` | MUST | 2 | `internal/component/bgp/message/attr_discard_test.go:336` | `internal/component/bgp/message/attr_discard_test.go:255`, `internal/component/bgp/reactor/session_test.go:2011` |  |
 | `RFC7606-2-3` | MUST NOT | 2 | `internal/component/bgp/message/rfc7606_structural_test.go:489` | `internal/component/bgp/message/rfc7606_structural_test.go:418` |  |
 | `RFC7606-2-4` | MAY | 2 | -- | -- |  |
-| `RFC7606-2-5` | MUST | 2 | `internal/component/bgp/plugins/adj_rib_in/rib_test.go:254` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go:255` |  |
+| `RFC7606-2-5` | MUST | 2 | `internal/component/bgp/plugins/adj_rib_in/rib_test.go:258` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go:259` |  |
 | `RFC7606-2-6` | MUST | 2 | `internal/component/bgp/message/rfc7606_structural_test.go:370` | `internal/component/bgp/message/rfc7606_structural_test.go:316` |  |
-| `RFC7606-3.a-1` | MUST | 3.a | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:217` | `internal/component/bgp/reactor/session_validate_test.go:148`, `test/plugin/rfc7606-reset.ci:7` |  |
-| `RFC7606-3.b-1` | MUST | 3.b | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:113` | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:152` |  |
+| `RFC7606-3.a-1` | MUST | 3.a | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:219` | `internal/component/bgp/reactor/session_validate_test.go:148`, `test/plugin/rfc7606-reset.ci:7` |  |
+| `RFC7606-3.b-1` | MUST | 3.b | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:115` | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:154` |  |
 | `RFC7606-3.c-1` | MUST | 3.c | `internal/component/bgp/message/rfc7606_test.go:1229` | `internal/component/bgp/message/rfc7606_test.go:1188`, `internal/component/bgp/message/rfc7606_test.go:1209` |  |
 | `RFC7606-3.d-1` | MUST | 3.d | `internal/component/bgp/message/rfc7606_test.go:187` | `internal/component/bgp/message/rfc7606_test.go:132`, `internal/component/bgp/message/rfc7606_test.go:150`, `internal/component/bgp/message/rfc7606_test.go:2317`, `internal/component/bgp/message/rfc7606_test.go:2327` |  |
 | `RFC7606-3.e-1` | MUST | 3.e | `internal/component/bgp/message/rfc7606_test.go:1627` | `internal/component/bgp/message/rfc7606_test.go:12`, `internal/component/bgp/message/rfc7606_test.go:453`, `internal/component/bgp/message/rfc7606_test.go:1025` |  |
 | `RFC7606-3.f-1` | MUST | 3.f | `internal/component/bgp/message/rfc7606_test.go:1628` | `internal/component/bgp/message/attr_discard_test.go:421`, `internal/component/bgp/message/attr_discard_test.go:435`, `internal/component/bgp/message/rfc7606_test.go:169`, `internal/component/bgp/message/rfc7606_test.go:1345` |  |
-| `RFC7606-3.g-1` | MUST | 3.g | `internal/component/bgp/message/rfc7606_test.go:702` | `internal/component/bgp/message/rfc7606_test.go:214`, `internal/component/bgp/message/rfc7606_test.go:2256`, `internal/component/bgp/reactor/session_test.go:1776` |  |
+| `RFC7606-3.g-1` | MUST | 3.g | `internal/component/bgp/message/rfc7606_test.go:702` | `internal/component/bgp/message/rfc7606_test.go:214`, `internal/component/bgp/message/rfc7606_test.go:2256`, `internal/component/bgp/reactor/session_test.go:1778` |  |
 | `RFC7606-3.g-2` | MUST | 3.g | `internal/component/bgp/message/rfc7606_structural_test.go:542` | `internal/component/bgp/message/rfc7606_structural_test.go:563` |  |
 | `RFC7606-3.h-1` | MUST | 3.h | -- | `internal/component/bgp/message/rfc7606_test.go:1529` | {single-polarity} "multiple attribute errors exist" has no conforming instance -- an UPDATE with zero errors is not a case of this rule, it is the absence of the rule |
 | `RFC7606-3.h-2` | MUST | 3.h | -- | `internal/component/bgp/message/rfc7606_test.go:1505` | {single-polarity} as 3.h-1: the premise of the rule is that errors exist, so no positive case can be constructed |
-| `RFC7606-3.i-1` | MUST | 3.i | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:71` | `internal/component/bgp/reactor/session_validate_test.go:172` |  |
+| `RFC7606-3.i-1` | MUST | 3.i | `internal/component/bgp/reactor/session_rfc7606_structural_test.go:73` | `internal/component/bgp/reactor/session_validate_test.go:172` |  |
 | `RFC7606-3.j-1` | MUST | 3.j | `internal/component/bgp/message/rfc7606_test.go:830`, `internal/component/bgp/message/rfc7606_test.go:874` | `internal/component/bgp/message/rfc7606_test.go:804`, `internal/component/bgp/message/rfc7606_test.go:850`, `internal/component/bgp/message/rfc7606_test.go:903`, `internal/component/bgp/message/rfc7606_test.go:937`, `internal/component/bgp/message/rfc7606_test.go:1420`, `internal/component/bgp/reactor/session_validate_test.go:201`, `test/plugin/rfc7606-reset.ci:9` |  |
 | `RFC7606-4-1` | MUST | 4 | `internal/component/bgp/message/rfc7606_test.go:1629` | `internal/component/bgp/message/rfc7606_structural_test.go:237` |  |
 | `RFC7606-4-2` | MUST | 4 | `internal/component/bgp/message/rfc7606_test.go:189`, `internal/component/bgp/message/rfc7606_test.go:1630` | `internal/component/bgp/message/rfc7606_structural_test.go:273` |  |
@@ -3503,7 +3503,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC7606-7.2-3` | MAY | 7.2 | -- | -- |  |
 | `RFC7606-7.3-1` | MUST | 7.3 | `internal/component/bgp/message/rfc7606_test.go:188` | `internal/component/bgp/message/rfc7606_test.go:1778` |  |
 | `RFC7606-7.4-1` | MUST | 7.4 | `internal/component/bgp/message/rfc7606_test.go:1230` | `internal/component/bgp/message/rfc7606_test.go:1792` |  |
-| `RFC7606-7.5-1` | MUST | 7.5 | `internal/component/bgp/message/rfc7606_test.go:1004` | `internal/component/bgp/message/attr_discard_test.go:407`, `internal/component/bgp/message/rfc7606_test.go:983`, `internal/component/bgp/reactor/session_test.go:2010` |  |
+| `RFC7606-7.5-1` | MUST | 7.5 | `internal/component/bgp/message/rfc7606_test.go:1004` | `internal/component/bgp/message/attr_discard_test.go:407`, `internal/component/bgp/message/rfc7606_test.go:983`, `internal/component/bgp/reactor/session_test.go:2012` |  |
 | `RFC7606-7.5-2` | MUST | 7.5 | `internal/component/bgp/message/rfc7606_test.go:1005` | `internal/component/bgp/message/rfc7606_test.go:1024` |  |
 | `RFC7606-7.6-1` | MUST | 7.6 | `internal/component/bgp/message/rfc7606_test.go:1631` | `internal/component/bgp/message/attr_discard_test.go:420`, `internal/component/bgp/message/rfc7606_test.go:168` |  |
 | `RFC7606-7.7-1` | MUST | 7.7 | `internal/component/bgp/message/rfc7606_test.go:1300`, `internal/component/bgp/message/rfc7606_test.go:1322` | `internal/component/bgp/message/attr_discard_test.go:434`, `internal/component/bgp/message/rfc7606_test.go:1344`, `internal/component/bgp/message/rfc7606_test.go:1369` |  |
@@ -3638,8 +3638,8 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
 | `RFC7854-x-1` | MUST | x | `internal/component/bgp/plugins/bmp/header_test.go:18` | `internal/component/bgp/plugins/bmp/header_test.go:37`, `internal/component/bgp/plugins/bmp/session_test.go:73` |  |
-| `RFC7854-x-10` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:279`, `internal/component/bgp/plugins/bmp/sender_test.go:241` | -- | {single-polarity} Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
-| `RFC7854-x-11` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:356` | -- | {single-polarity} Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
+| `RFC7854-x-10` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:281`, `internal/component/bgp/plugins/bmp/sender_test.go:243` | -- | {single-polarity} Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
+| `RFC7854-x-11` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:358` | -- | {single-polarity} Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
 | `RFC7854-x-12` | MUST | x | `internal/component/bgp/plugins/bmp/session_test.go:130` | -- | {single-polarity} the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct |
 | `RFC7854-x-13` | SHOULD | x | -- | -- |  |
 | `RFC7854-x-14` | SHOULD | x | -- | -- |  |
@@ -3652,11 +3652,11 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC7854-x-20` | MAY | x | -- | -- |  |
 | `RFC7854-x-3` | MUST | x | `internal/component/bgp/plugins/bmp/header_test.go:312` | `internal/component/bgp/plugins/bmp/header_test.go:314` |  |
 | `RFC7854-x-4` | MUST | x | `internal/component/bgp/plugins/bmp/header_test.go:116`, `internal/component/bgp/plugins/bmp/header_test.go:173` | -- | {single-polarity} the Peer AS is unconditionally a 4-octet field on every encode and decode, so there is no shorter-AS variant to reject and no negative case to construct |
-| `RFC7854-x-5` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:342` | `internal/component/bgp/plugins/bmp/event_test.go:357` |  |
-| `RFC7854-x-6` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:16` | -- | {single-polarity} the sender always emits Initiation as the first message on a fresh connection, so there is no valid session in which another message precedes it to reject |
-| `RFC7854-x-7` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:81` | -- | {single-polarity} the Initiation the sender builds always includes the sysName TLV, so there is no valid Initiation omitting it to assert against |
-| `RFC7854-x-8` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:117`, `internal/component/bgp/plugins/bmp/sender_test.go:204` | `internal/component/bgp/plugins/bmp/event_test.go:250` |  |
-| `RFC7854-x-9` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:272` | -- | {single-polarity} Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject |
+| `RFC7854-x-5` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:344` | `internal/component/bgp/plugins/bmp/event_test.go:359` |  |
+| `RFC7854-x-6` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:18` | -- | {single-polarity} the sender always emits Initiation as the first message on a fresh connection, so there is no valid session in which another message precedes it to reject |
+| `RFC7854-x-7` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:83` | -- | {single-polarity} the Initiation the sender builds always includes the sysName TLV, so there is no valid Initiation omitting it to assert against |
+| `RFC7854-x-8` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:119`, `internal/component/bgp/plugins/bmp/sender_test.go:206` | `internal/component/bgp/plugins/bmp/event_test.go:252` |  |
+| `RFC7854-x-9` | MUST | x | `internal/component/bgp/plugins/bmp/sender_test.go:274` | -- | {single-polarity} Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject |
 
 ## RFC7858 -- enrolled (gated)
 
@@ -3808,7 +3808,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC7911-5-1` | MUST | 5 | `internal/core/bgp/capability/negotiated_test.go:81`, `internal/core/bgp/context/negotiated_test.go:167` | `internal/core/bgp/context/negotiated_test.go:168` |  |
 | `RFC7911-5-2` | MUST | 5 | `internal/core/bgp/capability/negotiated_test.go:82`, `internal/core/bgp/context/negotiated_test.go:169` | `internal/core/bgp/context/negotiated_test.go:170` |  |
 | `RFC7911-5-3` | MUST | 5 | `internal/component/bgp/reactor/forward_body_test.go:114` | `internal/component/bgp/reactor/forward_body_test.go:22` |  |
-| `RFC7911-5-4` | MUST | 5 | `internal/component/bgp/reactor/forward_split_test.go:301`, `internal/component/bgp/reactor/reactor_test.go:511` | `internal/component/bgp/reactor/forward_split_test.go:251`, `internal/component/bgp/reactor/reactor_test.go:512` |  |
+| `RFC7911-5-4` | MUST | 5 | `internal/component/bgp/reactor/forward_split_test.go:303`, `internal/component/bgp/reactor/reactor_test.go:513` | `internal/component/bgp/reactor/forward_split_test.go:253`, `internal/component/bgp/reactor/reactor_test.go:514` |  |
 | `RFC7911-5-5` | SHALL | 5 | `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:75`, `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:125` | `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:76`, `internal/component/bgp/reactor/session_rfc7606_addpath_test.go:126` |  |
 | `RFC7911-5-6` | SHOULD | 5 | -- | -- |  |
 | `RFC7911-5-7` | SHOULD | 5 | -- | -- |  |
@@ -3833,10 +3833,10 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC7947-x-1` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:395` | `internal/component/bgp/reactor/forward_rs_test.go:287` |  |
-| `RFC7947-x-2` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:397` | -- | {single-polarity} NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
-| `RFC7947-x-3` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:399` | -- | {single-polarity} MULTI_EXIT_DISC (attribute type 4) is never modified on any RS forwarding path -- no mods.Op(4, ...) exists in the reactor -- so MED rides through in the verbatim wire and there is no MED-rewrite behavior to assert as a negative. The positive is proven byte-identical in TestReactorForwardRSTransparent |
-| `RFC7947-x-4` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:215` | `internal/component/bgp/reactor/forward_rs_test.go:134` |  |
+| `RFC7947-x-1` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:397` | `internal/component/bgp/reactor/forward_rs_test.go:289` |  |
+| `RFC7947-x-2` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:399` | -- | {single-polarity} NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
+| `RFC7947-x-3` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:401` | -- | {single-polarity} MULTI_EXIT_DISC (attribute type 4) is never modified on any RS forwarding path -- no mods.Op(4, ...) exists in the reactor -- so MED rides through in the verbatim wire and there is no MED-rewrite behavior to assert as a negative. The positive is proven byte-identical in TestReactorForwardRSTransparent |
+| `RFC7947-x-4` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:217` | `internal/component/bgp/reactor/forward_rs_test.go:136` |  |
 | `RFC7947-x-5` | SHOULD | x | -- | -- |  |
 | `RFC7947-x-6` | MAY | x | -- | -- |  |
 
@@ -3921,15 +3921,15 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC8203-2-1` | MUST | 2 | `internal/component/bgp/message/notification_test.go:366` | `internal/component/bgp/message/notification_test.go:368` |  |
-| `RFC8203-2-2` | MUST | 2 | `internal/component/bgp/message/notification_test.go:391` | -- | {single-polarity} the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
-| `RFC8203-2-3` | MUST | 2 | `internal/component/bgp/message/notification_test.go:403` | `internal/component/bgp/message/notification_test.go:421` |  |
-| `RFC8203-2-4` | MUST NOT | 2 | `internal/component/bgp/message/notification_test.go:423` | `internal/component/bgp/message/notification_test.go:405` |  |
+| `RFC8203-2-1` | MUST | 2 | `internal/component/bgp/message/notification_test.go:368` | `internal/component/bgp/message/notification_test.go:370` |  |
+| `RFC8203-2-2` | MUST | 2 | `internal/component/bgp/message/notification_test.go:393` | -- | {single-polarity} the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
+| `RFC8203-2-3` | MUST | 2 | `internal/component/bgp/message/notification_test.go:405` | `internal/component/bgp/message/notification_test.go:423` |  |
+| `RFC8203-2-4` | MUST NOT | 2 | `internal/component/bgp/message/notification_test.go:425` | `internal/component/bgp/message/notification_test.go:407` |  |
 | `RFC8203-2-5` | SHOULD | 2 | -- | -- |  |
 | `RFC8203-2-6` | MAY | 2 | -- | -- |  |
 | `RFC8203-4-1` | SHOULD | 4 | -- | -- |  |
 | `RFC8203-4-2` | MAY | 4 | -- | -- |  |
-| `RFC8203-6-1` | MUST | 6 | `internal/component/bgp/message/notification_test.go:439` | `internal/component/bgp/message/notification_test.go:441` |  |
+| `RFC8203-6-1` | MUST | 6 | `internal/component/bgp/message/notification_test.go:441` | `internal/component/bgp/message/notification_test.go:443` |  |
 
 ## RFC8210 -- enrolled (gated)
 
@@ -4132,19 +4132,19 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC8654-3-1` | MUST | 3 | `internal/component/bgp/message/rfc7606_structural_test.go:124` | `internal/component/bgp/message/rfc7606_structural_test.go:238` |  |
 | `RFC8654-3-2` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:29` | -- | {single-polarity} the capability-code assignment is a single fixed value, so the only falsifiable check is that CodeExtendedMessage encodes as 6; there is no distinct rejection behavior for a negative case to exercise |
 | `RFC8654-3-3` | MUST | 3 | `internal/core/bgp/capability/capability_test.go:467` | -- | {single-polarity} the capability's value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive |
-| `RFC8654-4-1` | MUST | 4 | `internal/component/bgp/message/header_test.go:263` | `internal/component/bgp/message/header_test.go:254` |  |
+| `RFC8654-4-1` | MUST | 4 | `internal/component/bgp/message/header_test.go:265` | `internal/component/bgp/message/header_test.go:256` |  |
 | `RFC8654-4-2` | MUST | 4 | `internal/component/bgp/message/update_build_test.go:1616` | `internal/component/bgp/message/update_build_test.go:1588` |  |
-| `RFC8654-4-3` | MUST | 4 | `internal/component/bgp/message/header_test.go:319` | `internal/component/bgp/message/header_test.go:239` |  |
+| `RFC8654-4-3` | MUST | 4 | `internal/component/bgp/message/header_test.go:321` | `internal/component/bgp/message/header_test.go:241` |  |
 | `RFC8654-4-4` | SHOULD | 4 | -- | -- |  |
 | `RFC8654-4-5` | SHOULD | 4 | -- | -- |  |
 | `RFC8654-4-6` | MAY | 4 | -- | -- |  |
-| `RFC8654-5-1` | MUST NOT | 5 | `internal/component/bgp/message/header_test.go:265` | `internal/component/bgp/message/header_test.go:257` |  |
-| `RFC8654-5-2` | MUST NOT | 5 | `internal/component/bgp/message/header_test.go:267` | `internal/component/bgp/message/header_test.go:259` |  |
+| `RFC8654-5-1` | MUST NOT | 5 | `internal/component/bgp/message/header_test.go:267` | `internal/component/bgp/message/header_test.go:259` |  |
+| `RFC8654-5-2` | MUST NOT | 5 | `internal/component/bgp/message/header_test.go:269` | `internal/component/bgp/message/header_test.go:261` |  |
 | `RFC8654-5-3` | MUST NOT | 5 | -- | -- | {not-applicable} ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap |
-| `RFC8654-5-4` | MUST | 5 | `internal/component/bgp/message/header_test.go:296` | `internal/component/bgp/message/header_test.go:288` |  |
+| `RFC8654-5-4` | MUST | 5 | `internal/component/bgp/message/header_test.go:298` | `internal/component/bgp/message/header_test.go:290` |  |
 | `RFC8654-5-5` | MUST | 5 | -- | -- | {not-applicable} this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements |
 | `RFC8654-5-6` | RECOMMENDED | 5 | -- | -- |  |
-| `RFC8654-6-1` | MUST | 6 | `internal/component/bgp/message/header_test.go:251` | `internal/component/bgp/message/header_test.go:246` |  |
+| `RFC8654-6-1` | MUST | 6 | `internal/component/bgp/message/header_test.go:253` | `internal/component/bgp/message/header_test.go:248` |  |
 
 ## RFC8665 -- enrolled (gated)
 
@@ -4349,7 +4349,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
 | `RFC8671-x-1` | MUST | x | `internal/component/bgp/plugins/bmp/header_test.go:219` | `internal/component/bgp/plugins/bmp/header_test.go:222` |  |
-| `RFC8671-x-2` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:55` | `internal/component/bgp/plugins/bmp/event_test.go:74` |  |
+| `RFC8671-x-2` | MUST | x | `internal/component/bgp/plugins/bmp/event_test.go:57` | `internal/component/bgp/plugins/bmp/event_test.go:76` |  |
 | `RFC8671-x-3` | MUST | x | `internal/component/bgp/plugins/bmp/msg_test.go:103` | -- | {single-polarity} ze builds every Peer Up from the peer's cached sent and received OPEN messages (internal/component/bgp/plugins/bmp/bmp.go:757-772, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no "different OPENs for Adj-RIB-Out" case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip |
 | `RFC8671-x-4` | MAY | x | -- | -- |  |
 | `RFC8671-x-5` | MAY | x | -- | -- |  |
@@ -4463,10 +4463,10 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC9003-2-1` | MUST | 2 | `internal/component/bgp/message/notification_test.go:407` | `internal/component/bgp/message/notification_test.go:425` |  |
-| `RFC9003-2-2` | MUST | 2 | `internal/component/bgp/message/notification_test.go:444` | `internal/component/bgp/message/notification_test.go:446` |  |
-| `RFC9003-2-3` | MUST | 2 | `internal/component/bgp/message/notification_test.go:370` | `internal/component/bgp/message/notification_test.go:373` |  |
-| `RFC9003-2-4` | MUST NOT | 2 | `internal/component/bgp/message/notification_test.go:427` | `internal/component/bgp/message/notification_test.go:409` |  |
+| `RFC9003-2-1` | MUST | 2 | `internal/component/bgp/message/notification_test.go:409` | `internal/component/bgp/message/notification_test.go:427` |  |
+| `RFC9003-2-2` | MUST | 2 | `internal/component/bgp/message/notification_test.go:446` | `internal/component/bgp/message/notification_test.go:448` |  |
+| `RFC9003-2-3` | MUST | 2 | `internal/component/bgp/message/notification_test.go:372` | `internal/component/bgp/message/notification_test.go:375` |  |
+| `RFC9003-2-4` | MUST NOT | 2 | `internal/component/bgp/message/notification_test.go:429` | `internal/component/bgp/message/notification_test.go:411` |  |
 | `RFC9003-2-5` | SHOULD | 2 | -- | -- |  |
 | `RFC9003-2-6` | MAY | 2 | -- | -- |  |
 | `RFC9003-3-1` | SHOULD NOT | 3 | -- | -- |  |
@@ -4596,29 +4596,29 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC9069-x-1` | MUST NOT | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:65` | -- | {single-polarity} the Loc-RIB PeerType=3 per-peer header is constructed with Flags 0 (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64) and no code path ever sets the V/L/A/O bits for a Loc-RIB header, so there is no non-conformant flag-setting case to assert as a negative; the positive (Flags==0) is proven in TestLocRIBPeerHeader |
-| `RFC9069-x-2` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:292` | -- | {single-polarity} the Loc-RIB Peer Up is emitted once per RIB instance behind the one-shot BMPPlugin.locRIBUp guard (internal/component/bgp/plugins/bmp/bmp_locrib.go:279-286), and best changes from any number of BGP peers pass through that same guard, so "one Peer Up per instance" is a single count-equals-one assertion with no separate per-peer path to reject; TestLocRIBSinglePeerUpPerInstance drives two peers' best changes and asserts exactly one Peer Up |
-| `RFC9069-x-3` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:265` | -- | {single-polarity} the Loc-RIB Peer Up is sent with nil sent/received OPENs (internal/component/bgp/plugins/bmp/bmp_locrib.go:288-294 -> sender.go writePeerUp) and no Loc-RIB path ever attaches a non-empty OPEN, so there is no non-conformant OPEN-carrying case to assert as a negative; the positive (zero-length OPENs) is proven in TestHandleBestChangeEmitsPeerUpThenRM |
-| `RFC9069-x-4` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:378` | -- | {single-polarity} startLocRIB broadcasts exactly one replay-request with ReplayID replay.Broadcast (internal/component/bgp/plugins/bmp/bmp_locrib.go:228) to trigger the initial full-table dump, so the trigger either fires or the subscription is absent and there is no non-conformant "dump without trigger" input to reject; TestStartLocRIBTriggersInitialDump asserts the broadcast replay-request is emitted |
-| `RFC9069-x-5` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:80` | -- | {single-polarity} the Loc-RIB per-peer header leaves Peer Address all-zero by construction (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64, no Address assignment) and no path sets it, so there is no non-zero-address case to assert as a negative; the positive (Address==0) is proven in TestLocRIBPeerHeader |
-| `RFC9069-x-6` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:71` | -- | {single-polarity} the Loc-RIB per-peer header leaves Peer AS 0 by construction (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64, no PeerAS assignment) and no path sets it, so there is no non-zero-AS case to assert as a negative; the positive (PeerAS==0) is proven in TestLocRIBPeerHeader |
-| `RFC9069-x-7` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:75` | -- | {single-polarity} the Loc-RIB per-peer header sets Peer BGP ID to the local router-id (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64,190-202) and ze has exactly one local router-id, so there is no non-conformant BGP-ID value to reject as a negative; the positive (Peer BGP ID == router-id) is proven in TestLocRIBPeerHeader and TestHandleBestChangeEmitsPeerUpThenRM |
+| `RFC9069-x-1` | MUST NOT | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:67` | -- | {single-polarity} the Loc-RIB PeerType=3 per-peer header is constructed with Flags 0 (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64) and no code path ever sets the V/L/A/O bits for a Loc-RIB header, so there is no non-conformant flag-setting case to assert as a negative; the positive (Flags==0) is proven in TestLocRIBPeerHeader |
+| `RFC9069-x-2` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:294` | -- | {single-polarity} the Loc-RIB Peer Up is emitted once per RIB instance behind the one-shot BMPPlugin.locRIBUp guard (internal/component/bgp/plugins/bmp/bmp_locrib.go:279-286), and best changes from any number of BGP peers pass through that same guard, so "one Peer Up per instance" is a single count-equals-one assertion with no separate per-peer path to reject; TestLocRIBSinglePeerUpPerInstance drives two peers' best changes and asserts exactly one Peer Up |
+| `RFC9069-x-3` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:267` | -- | {single-polarity} the Loc-RIB Peer Up is sent with nil sent/received OPENs (internal/component/bgp/plugins/bmp/bmp_locrib.go:288-294 -> sender.go writePeerUp) and no Loc-RIB path ever attaches a non-empty OPEN, so there is no non-conformant OPEN-carrying case to assert as a negative; the positive (zero-length OPENs) is proven in TestHandleBestChangeEmitsPeerUpThenRM |
+| `RFC9069-x-4` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:380` | -- | {single-polarity} startLocRIB broadcasts exactly one replay-request with ReplayID replay.Broadcast (internal/component/bgp/plugins/bmp/bmp_locrib.go:228) to trigger the initial full-table dump, so the trigger either fires or the subscription is absent and there is no non-conformant "dump without trigger" input to reject; TestStartLocRIBTriggersInitialDump asserts the broadcast replay-request is emitted |
+| `RFC9069-x-5` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:82` | -- | {single-polarity} the Loc-RIB per-peer header leaves Peer Address all-zero by construction (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64, no Address assignment) and no path sets it, so there is no non-zero-address case to assert as a negative; the positive (Address==0) is proven in TestLocRIBPeerHeader |
+| `RFC9069-x-6` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:73` | -- | {single-polarity} the Loc-RIB per-peer header leaves Peer AS 0 by construction (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64, no PeerAS assignment) and no path sets it, so there is no non-zero-AS case to assert as a negative; the positive (PeerAS==0) is proven in TestLocRIBPeerHeader |
+| `RFC9069-x-7` | MUST | x | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go:77` | -- | {single-polarity} the Loc-RIB per-peer header sets Peer BGP ID to the local router-id (internal/component/bgp/plugins/bmp/bmp_locrib.go:57-64,190-202) and ze has exactly one local router-id, so there is no non-conformant BGP-ID value to reject as a negative; the positive (Peer BGP ID == router-id) is proven in TestLocRIBPeerHeader and TestHandleBestChangeEmitsPeerUpThenRM |
 
 ## RFC9072 -- enrolled (gated)
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC9072-2-1` | MUST | 2 | `internal/component/bgp/message/open_test.go:417` | -- | {single-polarity} the encoder uses the extended procedure only for Optional Parameters exceeding 255 octets (open.go:104) and TestOpenPackExtendedParams pins that positive; no packing test asserts the complementary classic single-octet length form for 255 or fewer octets, so only the positive polarity is bound |
-| `RFC9072-2-2` | MUST | 2 | `internal/component/bgp/message/open_test.go:206`, `internal/component/bgp/message/open_test.go:221` | `internal/component/bgp/message/open_test.go:193` |  |
-| `RFC9072-2-3` | MUST NOT | 2 | `internal/component/bgp/message/open_test.go:418` | -- | {single-polarity} writeToExtended sets the Non-Ext OP Len to the constant 0xFF marker (open.go:130), so it is structurally never 0 and no code path can produce the negative case |
-| `RFC9072-2-4` | MUST | 2 | `internal/component/bgp/message/open_test.go:420` | -- | {single-polarity} writeToExtended sets the Non-Ext OP Type to the constant 0xFF (open.go:131), so no code path emits any other value and there is no negative case |
+| `RFC9072-2-1` | MUST | 2 | `internal/component/bgp/message/open_test.go:419` | -- | {single-polarity} the encoder uses the extended procedure only for Optional Parameters exceeding 255 octets (open.go:104) and TestOpenPackExtendedParams pins that positive; no packing test asserts the complementary classic single-octet length form for 255 or fewer octets, so only the positive polarity is bound |
+| `RFC9072-2-2` | MUST | 2 | `internal/component/bgp/message/open_test.go:208`, `internal/component/bgp/message/open_test.go:223` | `internal/component/bgp/message/open_test.go:195` |  |
+| `RFC9072-2-3` | MUST NOT | 2 | `internal/component/bgp/message/open_test.go:420` | -- | {single-polarity} writeToExtended sets the Non-Ext OP Len to the constant 0xFF marker (open.go:130), so it is structurally never 0 and no code path can produce the negative case |
+| `RFC9072-2-4` | MUST | 2 | `internal/component/bgp/message/open_test.go:422` | -- | {single-polarity} writeToExtended sets the Non-Ext OP Type to the constant 0xFF (open.go:131), so no code path emits any other value and there is no negative case |
 | `RFC9072-2-5` | MUST | 2 | -- | -- | {gap} ze's OPEN decoder (internal/component/bgp/message/open.go:190) requires the Non-Ext OP Len octet to equal 255 to select the extended form, so it does not ignore that octet once the extended format would be determined; the octet stays load-bearing and a conformant sender using a non-255 Non-Ext OP Len is mis-parsed as a classic OPEN |
 | `RFC9072-2-6` | MUST | 2 | -- | -- | {gap} ze's OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form |
 | `RFC9072-2-7` | SHOULD | 2 | -- | -- |  |
 | `RFC9072-2-8` | SHOULD | 2 | -- | -- |  |
 | `RFC9072-2-9` | MAY | 2 | -- | -- |  |
 | `RFC9072-3-1` | MUST | 3 | -- | -- | {gap} ze's OPEN decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, not whenever the first type code is 255; the open.go:186-189 comment and the TestOpenUnpackExtendedParams standard-format-first-param-byte-0xFF case cement this, so a first type code of 255 with Non-Ext OP Len != 255 is decoded as a classic OPEN instead of extended |
-| `RFC9072-3-2` | MUST NOT | 3 | `internal/component/bgp/message/open_test.go:421` | -- | {single-polarity} ze's OPEN encoder emits only optional-parameter type 2 (Capabilities) via buildOptionalParams (internal/component/bgp/reactor/session_negotiate.go:193) and uses 255 solely as the extended-length indicator; no code path emits any other classic opt-param type, so there is no negative case |
+| `RFC9072-3-2` | MUST NOT | 3 | `internal/component/bgp/message/open_test.go:423` | -- | {single-polarity} ze's OPEN encoder emits only optional-parameter type 2 (Capabilities) via buildOptionalParams (internal/component/bgp/reactor/session_negotiate.go:193) and uses 255 solely as the extended-length indicator; no code path emits any other classic opt-param type, so there is no negative case |
 | `RFC9072-3-3` | MUST | 3 | -- | -- | {gap} ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION |
 
 ## RFC9085 -- enrolled (gated)
@@ -4750,8 +4750,8 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC9252-3.2.1-1` | MUST | 3.2.1 | -- | -- | {gap} parseSIDStructure returns no-transposition when Transposition Length is 0 and never marks the SID invalid for a non-zero Transposition Offset, and ParsePrefixSIDSRv6 passes the configured structure through without enforcing offset 0 (internal/component/bgp/plugins/rib/pool/srv6sid.go:132) |
 | `RFC9252-3.2.1-2` | MUST | 3.2.1 | -- | -- | {gap} parseSIDStructure has no family or label-field context, so it never enforces zero Transposition Offset and Length for SIDs advertised with routes where transposition does not apply (internal/component/bgp/plugins/rib/pool/srv6sid.go:106) |
 | `RFC9252-3.2.1-3` | MUST | 3.2.1 | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go:139` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go:217`, `internal/component/bgp/plugins/rib/pool/srv6sid_test.go:235` |  |
-| `RFC9252-3.3-1` | MUST | 3.3 | `internal/component/bgp/reactor/peer_forward_facts_test.go:281` | `internal/component/bgp/reactor/peer_forward_facts_test.go:284` |  |
-| `RFC9252-3.3-2` | MUST | 3.3 | `internal/component/bgp/reactor/peer_forward_facts_test.go:283` | `internal/component/bgp/reactor/peer_forward_facts_test.go:282` |  |
+| `RFC9252-3.3-1` | MUST | 3.3 | `internal/component/bgp/reactor/peer_forward_facts_test.go:283` | `internal/component/bgp/reactor/peer_forward_facts_test.go:286` |  |
+| `RFC9252-3.3-2` | MUST | 3.3 | `internal/component/bgp/reactor/peer_forward_facts_test.go:285` | `internal/component/bgp/reactor/peer_forward_facts_test.go:284` |  |
 | `RFC9252-3.3-3` | SHOULD | 3.3 | -- | -- |  |
 | `RFC9252-3.3-4` | SHOULD | 3.3 | -- | -- |  |
 | `RFC9252-3.4-1` | MUST | 3.4 | `internal/component/bgp/message/rfc7606_test.go:2406` | `internal/component/bgp/message/rfc7606_test.go:2435`, `internal/component/bgp/message/rfc7606_test.go:2475` |  |

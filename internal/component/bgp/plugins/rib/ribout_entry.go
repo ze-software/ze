@@ -13,9 +13,10 @@ import (
 	"net"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -351,7 +352,7 @@ func appendASPathAttr(buf []byte, asns []uint32) []byte {
 func firstAddNextHop(event *Event) string {
 	for _, ops := range event.FamilyOps {
 		for _, op := range ops {
-			if op.Action == bgptypes.RouteActionAdd && op.NextHop != "" {
+			if op.Action == routeaction.Add && op.NextHop != "" {
 				return op.NextHop
 			}
 		}

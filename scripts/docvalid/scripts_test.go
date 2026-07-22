@@ -31,6 +31,42 @@ import (
 // virtualised CI will complete.
 const scriptTimeout = 60 * time.Second
 
+// shippedTags returns the build tags a shipped `ze` carries: ze_core plus every
+// gate declared in feature-gates.txt. The scripts here ENUMERATE runtime
+// registries (address families, commands, YANG modules) through
+// internal/component/plugin/all, so an untagged `go run` sees only the
+// always-on subset -- since spec-feature-gate-10-bgp that excludes the whole BGP
+// subtree -- and reports drift against documentation that is in fact correct.
+// Derived from the manifest, never hardcoded (ai/rules/feature-gate-registration.md).
+func shippedTags(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repoRoot(t), "feature-gates.txt"))
+	if err != nil {
+		t.Fatalf("read feature-gates.txt: %v", err)
+	}
+	seen := map[string]bool{}
+	tags := []string{"ze_core"}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		tag := strings.Fields(line)[0]
+		if !seen[tag] {
+			seen[tag] = true
+			tags = append(tags, tag)
+		}
+	}
+	return strings.Join(tags, " ")
+}
+
+// goRunScript builds the argv for running one of this directory's
+// //go:build ignore scripts with the shipped feature tags.
+func goRunScript(t *testing.T, script string, extra ...string) []string {
+	t.Helper()
+	return append([]string{"run", "-tags", shippedTags(t), script}, extra...)
+}
+
 // VALIDATES: scripts/docvalid/commands.go compiles and runs end-to-end.
 // PREVENTS: a //go:build ignore script silently breaking when its handler
 // or schema imports are renamed or refactored. The script may exit non-zero
@@ -38,7 +74,7 @@ const scriptTimeout = 60 * time.Second
 func TestValidateCommandsScriptRuns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/commands.go")
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/commands.go")...)
 	cmd.Dir = repoRoot(t)
 	out, _ := cmd.CombinedOutput() //nolint:errcheck // exit code is informational; we assert on stdout
 	if !strings.Contains(string(out), "Command Validation") {
@@ -53,7 +89,7 @@ func TestValidateCommandsScriptRuns(t *testing.T) {
 func TestDocDriftScriptRuns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go")
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go")...)
 	cmd.Dir = repoRoot(t)
 	out, _ := cmd.CombinedOutput() //nolint:errcheck // exit code is informational; we assert on stdout/stderr
 	s := string(out)
@@ -70,7 +106,7 @@ func TestDocDriftScriptRuns(t *testing.T) {
 func TestDocDriftDerivesFunctionalSuites(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go")
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go")...)
 	cmd.Dir = repoRoot(t)
 	out, _ := cmd.CombinedOutput() //nolint:errcheck // drift exit code is informational here
 	s := string(out)
@@ -88,7 +124,7 @@ func TestDocDriftRejectsStaleTextParserFieldsClaim(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go", "--root", root)
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go", "--root", root)...)
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -107,7 +143,7 @@ func TestDocDriftAllowsScannerTextParserDoc(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go", "--root", root)
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go", "--root", root)...)
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -153,7 +189,7 @@ func TestCheckReadmeMDFlagsBareAndUndercount(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go", "--root", root)
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go", "--root", root)...)
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -271,7 +307,7 @@ func writeTempDoc(t *testing.T, root, rel, content string) {
 func TestAllYangCommandsHaveRegisteredRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/commands.go")
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/commands.go")...)
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput() //nolint:errcheck // asserted on stdout below
 	s := string(out)

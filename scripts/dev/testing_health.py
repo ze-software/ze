@@ -212,7 +212,15 @@ def tracked_files(root: Path) -> set[str]:
 
 
 def tracked_matching(root: Path, tree: str, suffix: str) -> list[Path]:
-    """Tracked files under `tree` ending in `suffix`, in a stable order."""
+    """Tracked files under `tree` ending in `suffix`, in a stable order.
+
+    Reads git's INDEX, so a file deleted or moved in the working tree is still
+    listed until that deletion is staged. Those entries are skipped: there is no
+    content left to count, and on the clean checkout these counts are meant to
+    describe, the deletion is committed and the entry is gone. Without the skip
+    every developer mid-refactor gets a bare FileNotFoundError from the caller
+    that reads the file, before they are able to commit.
+    """
     out = []
     for name in tracked_files(root):
         if not name.startswith(tree + "/") or not name.endswith(suffix):
@@ -220,7 +228,10 @@ def tracked_matching(root: Path, tree: str, suffix: str) -> list[Path]:
         parts = name.split("/")
         if any(p in ("vendor", "testdata", "node_modules") for p in parts):
             continue
-        out.append(root / name)
+        path = root / name
+        if not path.exists():
+            continue
+        out.append(path)
     return sorted(out)
 
 

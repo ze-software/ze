@@ -14,6 +14,8 @@ package message
 import (
 	"encoding/binary"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 )
 
@@ -73,8 +75,8 @@ type Update struct {
 }
 
 // Type returns the message type (UPDATE).
-func (u *Update) Type() MessageType {
-	return TypeUPDATE
+func (u *Update) Type() msgtype.MessageType {
+	return msgtype.TypeUPDATE
 }
 
 // UnpackUpdate parses an UPDATE message body.
@@ -141,7 +143,7 @@ func (u *Update) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	off += 2
 
 	// Type
-	buf[off] = byte(TypeUPDATE)
+	buf[off] = byte(msgtype.TypeUPDATE)
 	off++
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes Length (2 octets)

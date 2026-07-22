@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -279,7 +280,7 @@ func TestFormatMessageText(t *testing.T) {
 		t.Fatalf("Attrs() error = %v", err)
 	}
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -340,7 +341,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		t.Fatalf("Attrs() error = %v", err)
 	}
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -475,7 +476,7 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeOPEN,
+		Type:      msgtype.TypeOPEN,
 		RawBytes:  openBody,
 		Direction: rpc.DirectionReceived,
 	}
@@ -510,7 +511,7 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:      message.TypeKEEPALIVE,
+		Type:      msgtype.TypeKEEPALIVE,
 		RawBytes:  []byte{}, // KEEPALIVE has no body
 		Direction: rpc.DirectionReceived,
 	}
@@ -1049,7 +1050,7 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
@@ -1133,7 +1134,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 	}
 
 	msg := bgptypes.RawMessage{
-		Type:       message.TypeUPDATE,
+		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,

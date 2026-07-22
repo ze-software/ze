@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,6 +20,15 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // rfc4271Announce encodes an announce UPDATE for 10.0.0.0/24 toward an internal or
 // external peer and returns the path-attribute section.
@@ -404,7 +415,7 @@ func TestRFC4271OwnASReachabilityChangeAdvertised(t *testing.T) {
 	n := WriteAnnounceUpdate(buf, 0, route, 65001, true, true, false)
 	require.Greater(t, n, message.HeaderLen)
 
-	assert.Equal(t, byte(message.TypeUPDATE), buf[message.MarkerLen+2])
+	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])
 	withdrawnLen := int(buf[message.HeaderLen])<<8 | int(buf[message.HeaderLen+1])
 	assert.Equal(t, 0, withdrawnLen, "an announce carries no withdrawals")
 	attrLen := int(buf[message.HeaderLen+2])<<8 | int(buf[message.HeaderLen+3])
@@ -429,7 +440,7 @@ func TestRFC4271OwnASUnreachabilityChangeAdvertised(t *testing.T) {
 	n := WriteWithdrawUpdate(buf, 0, netip.MustParsePrefix("10.0.0.0/24"), false)
 	require.Greater(t, n, message.HeaderLen)
 
-	assert.Equal(t, byte(message.TypeUPDATE), buf[message.MarkerLen+2])
+	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])
 	withdrawnLen := int(buf[message.HeaderLen])<<8 | int(buf[message.HeaderLen+1])
 	require.Equal(t, 4, withdrawnLen, "withdrawn routes field carries the prefix")
 	assert.Equal(t, []byte{24, 10, 0, 0}, buf[message.HeaderLen+2:message.HeaderLen+2+withdrawnLen])
@@ -675,7 +686,7 @@ func TestRFC4271UpdateErrorReportedAsUpdateMessageError(t *testing.T) {
 	require.GreaterOrEqual(t, len(received), message.HeaderLen+2)
 	hdr, hdrErr := message.ParseHeader(received[:message.HeaderLen])
 	require.NoError(t, hdrErr)
-	require.Equal(t, message.TypeNOTIFICATION, hdr.Type)
+	require.Equal(t, msgtype.TypeNOTIFICATION, hdr.Type)
 	body := received[message.HeaderLen:]
 	assert.Equal(t, byte(message.NotifyUpdateMessage), body[0], "Error Code 3, UPDATE Message Error")
 	assert.NotEqual(t, byte(message.NotifyCease), body[0], "a fatal error must not be reported as Cease")
@@ -768,7 +779,7 @@ func TestRFC4271ConformantOpenSendsNoOpenError(t *testing.T) {
 	for off := 0; off+message.HeaderLen <= len(seen); {
 		hdr, err := message.ParseHeader(seen[off : off+message.HeaderLen])
 		require.NoError(t, err)
-		assert.NotEqual(t, message.TypeNOTIFICATION, hdr.Type,
+		assert.NotEqual(t, msgtype.TypeNOTIFICATION, hdr.Type,
 			"a conformant OPEN must not draw a NOTIFICATION")
 		off += int(hdr.Length)
 	}

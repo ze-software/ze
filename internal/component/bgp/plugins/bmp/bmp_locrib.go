@@ -21,10 +21,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -141,7 +144,7 @@ func buildLocRIBUpdateBody(fam family.Family, e ribevents.BestChangeEntry) []byt
 	}
 	isV4 := e.Prefix.Addr().Is4()
 
-	if e.Action == bgptypes.RouteActionWithdraw {
+	if e.Action == routeaction.Withdraw {
 		if isV4 {
 			// RFC 4271 Section 4.3: IPv4 withdrawn routes in the Withdrawn field.
 			return assembleUpdateBody(nlri, nil, nil)
@@ -266,7 +269,7 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 			continue
 		}
 		for _, ss := range senders {
-			if err := ss.writeRouteMonitoring(peer, message.TypeUPDATE, body); err != nil {
+			if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); err != nil {
 				logger().Debug("bmp: loc-rib route monitoring failed", "collector", ss.name, "error", err)
 			}
 		}

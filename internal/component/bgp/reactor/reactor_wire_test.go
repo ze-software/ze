@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -237,7 +239,7 @@ func TestWriteAnnounceUpdate_IPv4_iBGP(t *testing.T) {
 	}
 
 	// Verify message type = UPDATE (2)
-	assert.Equal(t, byte(message.TypeUPDATE), buf[message.MarkerLen+2])
+	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])
 
 	// Verify withdrawn routes length = 0
 	assert.Equal(t, byte(0), buf[message.MarkerLen+3])
@@ -326,7 +328,7 @@ func TestWriteWithdrawUpdate_IPv4(t *testing.T) {
 	}
 
 	// Verify type = UPDATE
-	assert.Equal(t, byte(message.TypeUPDATE), buf[message.MarkerLen+2])
+	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])
 
 	// Verify withdrawn routes length > 0
 	withdrawnLen := int(buf[message.MarkerLen+3])<<8 | int(buf[message.MarkerLen+4])

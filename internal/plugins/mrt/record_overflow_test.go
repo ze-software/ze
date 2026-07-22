@@ -10,7 +10,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
 )
@@ -41,5 +42,5 @@ func TestOnBGPMessageMaxSizeExtendedMessageNoOverflow(t *testing.T) {
 	}
 	raw := make([]byte, 65535) // maximum BGP message length (16-bit length field)
 
-	c.OnBGPMessage(peer, message.TypeUPDATE, false, raw)
+	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, raw)
 }

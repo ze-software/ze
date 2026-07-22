@@ -1,7 +1,9 @@
-package bgpconfig
+package infra_test
 
 import (
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +16,7 @@ import (
 // TestExtractAuthzConfig verifies that authorization profiles are correctly
 // parsed from the config tree into an authz.Store.
 //
-// VALIDATES: extractAuthzConfig creates Store with profiles, sections, entries.
+// VALIDATES: ExtractAuthzStore creates Store with profiles, sections, entries.
 // PREVENTS: Config authz block silently ignored — profiles never loaded.
 func TestExtractAuthzConfig(t *testing.T) {
 	input := `
@@ -69,14 +71,14 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	require.NotNil(t, store, "store should not be nil when profiles exist")
 	assert.True(t, store.HasProfiles(), "store should have profiles")
 }
 
 // TestExtractAuthzConfig_NoSystem verifies nil return when no system block.
 //
-// VALIDATES: extractAuthzConfig returns nil when no system container.
+// VALIDATES: ExtractAuthzStore returns nil when no system container.
 // PREVENTS: Panic on missing system container.
 func TestExtractAuthzConfig_NoSystem(t *testing.T) {
 	input := `
@@ -102,13 +104,13 @@ bgp {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	assert.Nil(t, store, "no system block means no authz store")
 }
 
 // TestExtractAuthzConfig_NoAuthorization verifies nil when system exists but no authorization.
 //
-// VALIDATES: extractAuthzConfig returns nil when system has no authorization container.
+// VALIDATES: ExtractAuthzStore returns nil when system has no authorization container.
 // PREVENTS: Empty store created from SSH-only system config.
 func TestExtractAuthzConfig_NoAuthorization(t *testing.T) {
 	input := `
@@ -142,13 +144,13 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	assert.Nil(t, store, "no authorization block means no authz store")
 }
 
 // TestExtractAuthzConfig_UserAssignments verifies user→profile assignments are extracted.
 //
-// VALIDATES: extractAuthzConfig reads profile leaf-list from authentication.user entries.
+// VALIDATES: ExtractAuthzStore reads profile leaf-list from authentication.user entries.
 // PREVENTS: Users authenticated but never assigned profiles — all get admin by default.
 func TestExtractAuthzConfig_UserAssignments(t *testing.T) {
 	input := `
@@ -209,7 +211,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	require.NotNil(t, store)
 	assert.True(t, store.HasProfiles())
 	assert.True(t, store.HasUserAssignments(), "user assignments should be extracted")
@@ -267,7 +269,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	require.NotNil(t, store)
 
 	// Operator can run "peer show" (allowed by entry 10)
@@ -334,7 +336,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	require.NotNil(t, store)
 
 	assert.Equal(t, authz.Allow, store.Authorize("boss", "restart", true))
@@ -397,7 +399,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := extractAuthzConfig(tree)
+	store := infra.ExtractAuthzStore(tree)
 	require.NotNil(t, store)
 
 	// Entry 10 (allow "peer show") comes before entry 30 (deny "peer").
@@ -458,7 +460,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	err = ValidateAuthzConfig(tree)
+	err = infra.ValidateAuthzConfig(tree)
 	require.Error(t, err, "referencing undefined profile should produce error")
 	assert.Contains(t, err.Error(), "nonexistent")
 	assert.Contains(t, err.Error(), "operator")
@@ -511,7 +513,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	err = ValidateAuthzConfig(tree)
+	err = infra.ValidateAuthzConfig(tree)
 	assert.NoError(t, err, "valid profile reference should not produce error")
 }
 
@@ -562,7 +564,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	err = ValidateAuthzConfig(tree)
+	err = infra.ValidateAuthzConfig(tree)
 	require.Error(t, err, "invalid regex should produce config error")
 	assert.Contains(t, err.Error(), "invalid regex")
 }
@@ -594,7 +596,7 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	err = ValidateAuthzConfig(tree)
+	err = infra.ValidateAuthzConfig(tree)
 	require.Error(t, err, "a tacacs-profile naming an undefined profile must not load")
 	assert.Contains(t, err.Error(), "raed-only")
 }
@@ -626,5 +628,5 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	require.NoError(t, ValidateAuthzConfig(tree))
+	require.NoError(t, infra.ValidateAuthzConfig(tree))
 }

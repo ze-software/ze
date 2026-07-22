@@ -10,8 +10,19 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // RFC requirement: RFC7854-x-6 positive -- the first message the sender writes
 // immediately after connecting is the Initiation message.
@@ -285,7 +296,7 @@ func TestBMPSenderRouteMonitoring(t *testing.T) {
 
 	result := asyncRead(server)
 
-	if err := ss.writeRouteMonitoring(peer, message.TypeUPDATE, body); err != nil {
+	if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); err != nil {
 		t.Fatalf("writeRouteMonitoring: %v", err)
 	}
 
@@ -309,8 +320,8 @@ func TestBMPSenderRouteMonitoring(t *testing.T) {
 	if int(gotLen) != wantLen {
 		t.Errorf("length field = %d, want %d", gotLen, wantLen)
 	}
-	if rm.BGPUpdate[message.MarkerLen+2] != byte(message.TypeUPDATE) {
-		t.Errorf("type = %d, want %d (UPDATE)", rm.BGPUpdate[message.MarkerLen+2], message.TypeUPDATE)
+	if rm.BGPUpdate[message.MarkerLen+2] != byte(msgtype.TypeUPDATE) {
+		t.Errorf("type = %d, want %d (UPDATE)", rm.BGPUpdate[message.MarkerLen+2], msgtype.TypeUPDATE)
 	}
 	if !bytes.Equal(rm.BGPUpdate[message.HeaderLen:], body) {
 		t.Errorf("body mismatch: got %x, want %x", rm.BGPUpdate[message.HeaderLen:], body)

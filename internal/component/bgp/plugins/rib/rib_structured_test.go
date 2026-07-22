@@ -4,17 +4,30 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // RFC 7606 Section 2 treat-as-withdraw at the RIB boundary.
 //
@@ -31,7 +44,7 @@ import (
 
 // bestChangePrefixes returns every prefix published on the test EventBus whose
 // best-change action matches action (in wire order across all batches).
-func bestChangePrefixes(bus *testEventBus, action bgptypes.RouteAction) []netip.Prefix {
+func bestChangePrefixes(bus *testEventBus, action routeaction.Action) []netip.Prefix {
 	bus.mu.Lock()
 	defer bus.mu.Unlock()
 	var out []netip.Prefix
@@ -61,7 +74,7 @@ func feedReceived(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID, body [
 		PeerAS:      65001,
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
-			Type:       message.TypeUPDATE,
+			Type:       msgtype.TypeUPDATE,
 			RawBytes:   body,
 			WireUpdate: wu,
 			AttrsWire:  attrs,

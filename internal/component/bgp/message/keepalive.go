@@ -8,6 +8,8 @@
 
 package message
 
+import "codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 // RFC 4271 Section 4.4 - KEEPALIVE Message Format
 //
 // "A KEEPALIVE message consists of only the message header and has a
@@ -30,8 +32,8 @@ func NewKeepalive() *Keepalive {
 }
 
 // Type returns the message type (KEEPALIVE).
-func (k *Keepalive) Type() MessageType {
-	return TypeKEEPALIVE
+func (k *Keepalive) Type() msgtype.MessageType {
+	return msgtype.TypeKEEPALIVE
 }
 
 // Len returns the total message length in bytes.
@@ -45,7 +47,7 @@ func (k *Keepalive) Len(_ *EncodingContext) int {
 // Returns number of bytes written (always HeaderLen).
 // RFC 4271 Section 4.4 - KEEPALIVE has no body.
 func (k *Keepalive) WriteTo(buf []byte, off int, _ *EncodingContext) int {
-	writeHeader(buf, off, TypeKEEPALIVE, HeaderLen)
+	writeHeader(buf, off, msgtype.TypeKEEPALIVE, HeaderLen)
 	return HeaderLen
 }
 

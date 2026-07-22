@@ -9,7 +9,8 @@ import (
 	"encoding/json"
 	"net/netip"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/replay"
@@ -50,16 +51,16 @@ const MaxECMPPaths = 128
 // RouteAction.MarshalText, so FIB consumers that already parse the JSON form
 // keep working unchanged.
 type BestChangeEntry struct {
-	Action    bgptypes.RouteAction `json:"action"`
-	Prefix    netip.Prefix         `json:"prefix"`
-	NextHop   netip.Addr           `json:"next-hop,omitzero"`
-	Protocol  string               `json:"protocol"`
-	Labels    []uint32             `json:"labels,omitempty"`
-	RouteType RouteType            `json:"route-type,omitempty"`
-	Metric    uint32               `json:"metric,omitempty"`
-	TableID   uint32               `json:"table-id,omitempty"`
-	SRv6SID   netip.Addr           `json:"srv6-sid,omitzero"`
-	ECMPPaths []ECMPPath           `json:"ecmp-paths,omitempty"`
+	Action    routeaction.Action `json:"action"`
+	Prefix    netip.Prefix       `json:"prefix"`
+	NextHop   netip.Addr         `json:"next-hop,omitzero"`
+	Protocol  string             `json:"protocol"`
+	Labels    []uint32           `json:"labels,omitempty"`
+	RouteType RouteType          `json:"route-type,omitempty"`
+	Metric    uint32             `json:"metric,omitempty"`
+	TableID   uint32             `json:"table-id,omitempty"`
+	SRv6SID   netip.Addr         `json:"srv6-sid,omitzero"`
+	ECMPPaths []ECMPPath         `json:"ecmp-paths,omitempty"`
 	// Backup carries pre-computed fast-reroute backup next-hop(s) (an IP FRR
 	// alternate + optional MPLS repair label stack). Each is programmed by the FIB
 	// as a link-down/backup next-hop, DISTINCT from ECMPPaths (which load-share):

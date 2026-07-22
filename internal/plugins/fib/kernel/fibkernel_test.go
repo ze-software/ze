@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
@@ -79,7 +80,7 @@ func TestFIBKernelInstall(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	payload := makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	})
 	f.processEvent(payload)
 
@@ -96,12 +97,12 @@ func TestFIBKernelRemove(t *testing.T) {
 
 	// Install first.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	// Withdraw.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
+		{Action: routeaction.Withdraw, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
 	}))
 
 	assert.Contains(t, backend.deleted, "10.0.0.0/24")
@@ -117,12 +118,12 @@ func TestFIBKernelReplace(t *testing.T) {
 
 	// Install.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	// Update with new next-hop.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.2.1"), Protocol: "static"},
+		{Action: routeaction.Update, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.2.1"), Protocol: "static"},
 	}))
 
 	assert.Equal(t, "192.168.2.1", backend.replaced["10.0.0.0/24"])
@@ -162,7 +163,7 @@ func TestFIBKernelSweepStale(t *testing.T) {
 
 	// Simulate sysrib refreshing one route.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	// Sweep: 10.0.0.0/24 was refreshed (should survive), 172.16.0.0/16 was not (should be deleted).
@@ -183,8 +184,8 @@ func TestFIBKernelFlushOnStop(t *testing.T) {
 
 	// Install routes.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("172.16.0.0/16"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "static"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("172.16.0.0/16"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "static"},
 	}))
 
 	f.flushRoutes()
@@ -200,7 +201,7 @@ func TestFIBKernelShowInstalled(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	raw, err := json.Marshal(f.showInstalled())
@@ -219,7 +220,7 @@ func TestFIBKernelMonitorReassert(t *testing.T) {
 
 	// Install a route first.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	// Simulate external change on managed prefix.
@@ -253,7 +254,7 @@ func TestFIBKernelMonitorReassertOnDelete(t *testing.T) {
 
 	// Install a route.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	// Simulate external delete (shown as overwrite with empty next-hop).
@@ -352,7 +353,7 @@ func TestFIBSyncFailure(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	errs := report.Errors(0)
@@ -381,12 +382,12 @@ func TestFIBSyncFailureOnReplace(t *testing.T) {
 
 	// Install successfully first.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	// Replace fails.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.2.1"), Protocol: "bgp"},
+		{Action: routeaction.Update, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.2.1"), Protocol: "bgp"},
 	}))
 
 	errs := report.Errors(0)
@@ -419,7 +420,7 @@ func TestFIBOrphanWarning(t *testing.T) {
 
 	// Refresh only one route.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	f.sweepStale(stale)
@@ -453,7 +454,7 @@ func TestFIBOrphanClearedWhenNoOrphans(t *testing.T) {
 
 	// Refresh the only route.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	f.sweepStale(stale)
@@ -477,7 +478,7 @@ func TestFIBProgrammingLag(t *testing.T) {
 
 	// First failure: sets pending timestamp to now. No lag yet.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	warnings := report.Warnings()
@@ -494,7 +495,7 @@ func TestFIBProgrammingLag(t *testing.T) {
 
 	// Trigger another event to re-check lag.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
 	}))
 
 	warnings = report.Warnings()
@@ -521,7 +522,7 @@ func TestFIBProgrammingLagCleared(t *testing.T) {
 
 	// Fail and backdate.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 	f.mu.Lock()
 	f.pending["10.0.0.0/24"] = time.Now().Add(-31 * time.Second)
@@ -529,14 +530,14 @@ func TestFIBProgrammingLagCleared(t *testing.T) {
 
 	// Trigger lag warning.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
 	}))
 
 	// Now fix the backend and successfully install the lagging route.
 	backend.failAdd = false
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
 	}))
 
 	warnings := report.Warnings()
@@ -592,7 +593,7 @@ func TestKernelRouteType(t *testing.T) {
 
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:    bgptypes.RouteActionAdd,
+			Action:    routeaction.Add,
 			Prefix:    netip.MustParsePrefix("192.0.2.0/24"),
 			Protocol:  "static",
 			RouteType: sysribevents.RouteTypeBlackhole,
@@ -611,7 +612,7 @@ func TestKernelMetric(t *testing.T) {
 
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop:  netip.MustParseAddr("192.168.1.1"),
 			Protocol: "bgp",
@@ -630,7 +631,7 @@ func TestKernelVRFTable(t *testing.T) {
 
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop:  netip.MustParseAddr("192.168.1.1"),
 			Protocol: "bgp",
@@ -649,7 +650,7 @@ func TestKernelECMPGroup(t *testing.T) {
 
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop:  netip.MustParseAddr("192.168.1.1"),
 			Protocol: "bgp",
@@ -671,7 +672,7 @@ func TestKernelMPLSPush(t *testing.T) {
 
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop:  netip.MustParseAddr("192.168.1.1"),
 			Protocol: "bgp",
@@ -691,14 +692,14 @@ func TestKernelMPLSInstalledTracking(t *testing.T) {
 
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp", Labels: []uint32{100}},
-		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: routeaction.Add, Prefix: pfx, NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp", Labels: []uint32{100}},
+		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 	assert.True(t, f.mplsInstalled[pfx.String()], "labeled prefix tracked")
 	assert.Len(t, f.mplsInstalled, 1, "only the labeled prefix is tracked")
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionWithdraw, Prefix: pfx, Protocol: "bgp"},
+		{Action: routeaction.Withdraw, Prefix: pfx, Protocol: "bgp"},
 	}))
 	assert.Empty(t, f.mplsInstalled, "withdraw removes labeled prefix from tracking")
 }
@@ -711,7 +712,7 @@ func TestKernelSRv6Encap(t *testing.T) {
 	sid := netip.MustParseAddr("2001:db8::1")
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop:  netip.MustParseAddr("192.168.1.1"),
 			Protocol: "bgp",
@@ -730,7 +731,7 @@ func TestKernelPlainRouteLegacyPath(t *testing.T) {
 
 	f.processEvent(makeSysribPayload([]incomingChange{
 		{
-			Action:   bgptypes.RouteActionAdd,
+			Action:   routeaction.Add,
 			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop:  netip.MustParseAddr("192.168.1.1"),
 			Protocol: "bgp",

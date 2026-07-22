@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ip_types"
@@ -31,7 +31,7 @@ func (f *fibVPP) processSRv6Change(c *incomingChange) {
 	}
 	pfxStr := c.Prefix.String()
 	switch c.Action.Verb() { //nolint:exhaustive // Unspecified is a no-op for SRv6
-	case bgptypes.RouteVerbInstall, bgptypes.RouteVerbReplace:
+	case routeaction.VerbInstall, routeaction.VerbReplace:
 		if err := f.srv6Backend.addSRv6Steer(c.Prefix, c.SRv6SID, c.TableID); err != nil {
 			logger().Error("fib-vpp: SRv6 steer failed", "prefix", c.Prefix, "sid", c.SRv6SID, "error", err)
 			return
@@ -40,7 +40,7 @@ func (f *fibVPP) processSRv6Change(c *incomingChange) {
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeInstalls.Inc()
 		}
-	case bgptypes.RouteVerbRemove:
+	case routeaction.VerbRemove:
 		if err := f.srv6Backend.delSRv6Steer(c.Prefix, c.TableID); err != nil {
 			logger().Error("fib-vpp: SRv6 steer del failed", "prefix", c.Prefix, "error", err)
 			return

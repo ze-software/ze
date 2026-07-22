@@ -13,9 +13,10 @@ import (
 	"fmt"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	tea "charm.land/bubbletea/v2"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -53,7 +54,7 @@ func newSessionEditor(store storage.Storage, configPath, username string, reload
 // createSessionModel, moved here to decouple ssh from cli.
 // reloadFn is wired into every session editor as the reload notifier
 // (see newSessionEditor); nil leaves commits non-transactional.
-func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParams, recorder audit.Recorder, reloadFn func() error) contract.SessionModelFactory {
+func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, recorder audit.Recorder, reloadFn func() error) contract.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
 	return func(username, remoteAddr string) tea.Model {
@@ -151,7 +152,7 @@ func buildCommandTree() *command.Node {
 // factory is built before the dispatcher is wired: the per-session closure runs
 // after post-start, when the registry is populated. A nil dispatcher (no plugin
 // engine, e.g. early startup) is a no-op, leaving the YANG-only tree intact.
-func mergePluginCommands(tree *command.Node, params bgpconfig.InfraHookParams) {
+func mergePluginCommands(tree *command.Node, params infra.HookParams) {
 	if params.APIServer == nil {
 		return
 	}

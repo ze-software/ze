@@ -46,7 +46,7 @@ type PeerLifecycleCallback interface {
 }
 
 // MessageCallback receives raw BGP messages without importing bgp/reactor.
-// peer is *plugin.PeerInfo, msgType is message.MessageType.
+// peer is *plugin.PeerInfo, msgType is msgtype.MessageType.
 // sent: false = received, true = sent.
 type MessageCallback interface {
 	OnBGPMessage(peer any, msgType uint8, sent bool, rawBytes []byte)
@@ -64,6 +64,64 @@ type RIBDumpVisitor struct {
 // RIBDumpCallback iterates all peers and routes for MRT TABLE_DUMP_V2 snapshots.
 type RIBDumpCallback interface {
 	DumpRIB(visitor RIBDumpVisitor)
+}
+
+var (
+	ribDumpMu sync.RWMutex
+	ribDumpCB RIBDumpCallback
+)
+
+// SetRIBDumpCallback registers the RIB snapshot provider. The BGP RIB plugin
+// calls this from its own init(), so MRT picks the provider up without either
+// side importing the other and without the always-on hub naming a BGP package
+// (that import used to pin internal/component/bgp into every binary and defeat
+// //go:build ze_bgp). Nil is ignored so a caller cannot clear a live provider.
+func SetRIBDumpCallback(cb RIBDumpCallback) {
+	if cb == nil {
+		return
+	}
+	ribDumpMu.Lock()
+	defer ribDumpMu.Unlock()
+	ribDumpCB = cb
+}
+
+// GetRIBDumpCallback returns the registered RIB snapshot provider, or nil when
+// no RIB is compiled in. MRT reports "no RIB dump provider" in that case rather
+// than writing an empty TABLE_DUMP_V2.
+func GetRIBDumpCallback() RIBDumpCallback {
+	ribDumpMu.RLock()
+	defer ribDumpMu.RUnlock()
+	return ribDumpCB
+}
+
+// PacketDecoderFunc renders a hex-encoded BGP message as human-readable text
+// (or JSON when outputJSON is set). msgType and family disambiguate messages
+// whose parse depends on negotiated state; both may be empty for autodetect.
+type PacketDecoderFunc func(hexStr, msgType, family string, outputJSON bool) (string, error)
+
+var (
+	packetDecoderMu sync.RWMutex
+	packetDecoder   PacketDecoderFunc
+)
+
+// SetPacketDecoder registers the BGP hex-packet decoder. Called from the gated
+// BGP CLI package's init(); the web tool page reaches the decoder through this
+// seam so cmd/ze/hub never imports internal/component/bgp/cli.
+func SetPacketDecoder(fn PacketDecoderFunc) {
+	if fn == nil {
+		return
+	}
+	packetDecoderMu.Lock()
+	defer packetDecoderMu.Unlock()
+	packetDecoder = fn
+}
+
+// GetPacketDecoder returns the registered hex-packet decoder, or nil when BGP
+// is compiled out.
+func GetPacketDecoder() PacketDecoderFunc {
+	packetDecoderMu.RLock()
+	defer packetDecoderMu.RUnlock()
+	return packetDecoder
 }
 
 // BGPReactorHandle extends ProtocolReactorHandle with BGP-specific methods.

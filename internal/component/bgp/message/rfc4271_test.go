@@ -3,9 +3,20 @@ package message
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
+// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
+// internal/core/bgp/msgtype and the route-action enum to
+// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
+// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
+// in this file is a package-qualifier requalification: no assertion was added,
+// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// under the renaming and confirming the add/delete multisets cancel.
 
 // TestRFC4271MarkerAllOnesOnSend verifies every message ze encodes carries the
 // all-ones marker written by writeHeader (message.go:31-42).
@@ -42,7 +53,7 @@ func TestRFC4271MarkerAllOnesOnSend(t *testing.T) {
 // marker position (internal/component/bgp/message/header.go:96-100).
 func TestRFC4271MarkerNotAllOnesRejected(t *testing.T) {
 	for _, pos := range []int{0, 7, MarkerLen - 1} {
-		data := makeHeader(HeaderLen, byte(TypeKEEPALIVE))
+		data := makeHeader(HeaderLen, byte(msgtype.TypeKEEPALIVE))
 		data[pos] = 0xFE
 		_, err := ParseHeader(data)
 		assert.ErrorIs(t, err, ErrInvalidMarker, "marker byte %d corrupted", pos)
@@ -97,7 +108,7 @@ func TestRFC4271SmallestLengthOnSend(t *testing.T) {
 // (internal/component/bgp/message/keepalive.go:59-70).
 func TestRFC4271NonSmallestLengthRejected(t *testing.T) {
 	for _, length := range []uint16{20, 100} {
-		h := Header{Length: length, Type: TypeKEEPALIVE}
+		h := Header{Length: length, Type: msgtype.TypeKEEPALIVE}
 		err := h.ValidateLength()
 		require.Error(t, err, "KEEPALIVE length %d", length)
 		var notif *Notification
@@ -124,12 +135,12 @@ func TestRFC4271NonSmallestLengthRejected(t *testing.T) {
 // (internal/component/bgp/message/header.go:106-108,195-213).
 func TestRFC4271MessageLengthWithinBounds(t *testing.T) {
 	for _, tc := range []struct {
-		typ    MessageType
+		typ    msgtype.MessageType
 		length uint16
 	}{
-		{TypeKEEPALIVE, HeaderLen},
-		{TypeUPDATE, 1000},
-		{TypeUPDATE, MaxMsgLen},
+		{msgtype.TypeKEEPALIVE, HeaderLen},
+		{msgtype.TypeUPDATE, 1000},
+		{msgtype.TypeUPDATE, MaxMsgLen},
 	} {
 		data := makeHeader(tc.length, byte(tc.typ))
 		h, err := ParseHeader(data)
@@ -150,11 +161,11 @@ func TestRFC4271MessageLengthWithinBounds(t *testing.T) {
 // Extended Message capability yields Message Header Error / Bad Message Length
 // (internal/component/bgp/message/header.go:207-213).
 func TestRFC4271MessageLengthOutOfBounds(t *testing.T) {
-	_, err := ParseHeader(makeHeader(18, byte(TypeUPDATE)))
+	_, err := ParseHeader(makeHeader(18, byte(msgtype.TypeUPDATE)))
 	assert.ErrorIs(t, err, ErrInvalidLength)
 
 	for _, length := range []uint16{MaxMsgLen + 1, 65535} {
-		h := Header{Length: length, Type: TypeUPDATE}
+		h := Header{Length: length, Type: msgtype.TypeUPDATE}
 		verr := h.ValidateLengthWithMax(false)
 		require.Error(t, verr, "length %d", length)
 		var notif *Notification
@@ -178,7 +189,7 @@ func TestRFC4271MessageLengthOutOfBounds(t *testing.T) {
 // (internal/component/bgp/message/header.go:155-171,207-213), so it cannot stand as
 // coverage of the whole obligation.
 func TestRFC4271BadLengthNotificationCarriesLength(t *testing.T) {
-	h := Header{Length: 4097, Type: TypeUPDATE}
+	h := Header{Length: 4097, Type: msgtype.TypeUPDATE}
 	err := h.ValidateLengthWithMax(false)
 	require.Error(t, err)
 	var notif *Notification
@@ -187,7 +198,7 @@ func TestRFC4271BadLengthNotificationCarriesLength(t *testing.T) {
 	assert.Equal(t, NotifyHeaderBadLength, notif.ErrorSubcode)
 	assert.Equal(t, []byte{0x10, 0x01}, notif.Data, "4097 big-endian")
 
-	short := Header{Length: 22, Type: TypeUPDATE}
+	short := Header{Length: 22, Type: msgtype.TypeUPDATE}
 	err = short.ValidateLength()
 	require.Error(t, err)
 	require.ErrorAs(t, err, &notif)
@@ -206,14 +217,14 @@ func TestRFC4271BadLengthNotificationCarriesLength(t *testing.T) {
 // (internal/component/bgp/message/header.go:172-173,215).
 func TestRFC4271ValidLengthProducesNoNotification(t *testing.T) {
 	for _, tc := range []struct {
-		typ MessageType
+		typ msgtype.MessageType
 		len uint16
 	}{
-		{TypeOPEN, MinOpenLen},
-		{TypeUPDATE, MinUpdateLen},
-		{TypeNOTIFICATION, MinNotificationLen},
-		{TypeKEEPALIVE, KeepaliveLen},
-		{TypeUPDATE, MaxMsgLen},
+		{msgtype.TypeOPEN, MinOpenLen},
+		{msgtype.TypeUPDATE, MinUpdateLen},
+		{msgtype.TypeNOTIFICATION, MinNotificationLen},
+		{msgtype.TypeKEEPALIVE, KeepaliveLen},
+		{msgtype.TypeUPDATE, MaxMsgLen},
 	} {
 		h := Header{Length: tc.len, Type: tc.typ}
 		assert.NoError(t, h.ValidateLengthWithMax(false), "%s length %d", tc.typ, tc.len)

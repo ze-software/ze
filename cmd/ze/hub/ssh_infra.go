@@ -4,7 +4,7 @@
 // no-bgp{} path in main.go) builds AAA/authorization/accounting and then, if an
 // ssh implementation is registered, builds and wires the ssh server THROUGH
 // this seam -- never importing internal/component/ssh directly. The seam
-// carries only generic infra types (InfraHookParams, AAA, audit); the opaque
+// carries only generic infra types (infra.HookParams, AAA, audit); the opaque
 // sshServer handle hides *zessh.Server. When ze_ssh is compiled out, the seam
 // vars stay nil, ssh is never built, and the ssh package is dropped.
 //
@@ -15,9 +15,9 @@ package hub
 import (
 	"log/slog"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
@@ -33,12 +33,12 @@ type sshServer interface {
 // sshBuildInputs carries everything the gated ssh builder needs to construct
 // and start the server. Generic types only -- no zessh.
 type sshBuildInputs struct {
-	Config        bgpconfig.SSHExtractedConfig
+	Config        infra.SSHExtractedConfig
 	Users         []aaa.UserCredential
 	Authenticator aaa.Authenticator
 	Recorder      audit.Recorder
 	EphemeralFile string
-	Params        bgpconfig.InfraHookParams
+	Params        infra.HookParams
 	ReloadFn      func() error
 	Log           *slog.Logger
 }
@@ -46,9 +46,13 @@ type sshBuildInputs struct {
 // sshWireInputs carries the inputs for the post-start setter wiring (command
 // executors, monitor, shutdown/restart/reboot, login warnings). The gated wire
 // step re-derives the dispatcher and api server from the reactor/params.
+//
+// Reactor is the reactor-free infra.ReactorHandle, not *reactor.Reactor: this
+// file is always-on, so naming the BGP type here would pin internal/component/bgp
+// into every binary and defeat //go:build ze_bgp.
 type sshWireInputs struct {
-	Reactor       *reactor.Reactor
-	Params        bgpconfig.InfraHookParams
+	Reactor       infra.ReactorHandle
+	Params        infra.HookParams
 	WriteGRMarker func()
 }
 
@@ -58,7 +62,7 @@ type sshWireInputs struct {
 // and starts the server. The AAA bundle is built always-on by the caller (it
 // may also serve MCP/API); only the resolved authenticator crosses the seam.
 type sshStandaloneInputs struct {
-	Config        bgpconfig.SSHExtractedConfig
+	Config        infra.SSHExtractedConfig
 	Users         []aaa.UserCredential
 	Authenticator aaa.Authenticator
 	Recorder      audit.Recorder
@@ -74,7 +78,7 @@ type sshStandaloneInputs struct {
 // sshBuild builds and starts the ssh server, returning a handle (or nil if ssh
 // is not configured / failed to start). Set by register_ssh.go under
 // //go:build ze_ssh; nil when ssh is compiled out. Inputs are passed by pointer
-// (the struct embeds the heavy InfraHookParams).
+// (the struct embeds the heavy infra.HookParams).
 var sshBuild func(in *sshBuildInputs) sshServer
 
 // sshWirePostStart wires the ssh command executors and lifecycle callbacks onto

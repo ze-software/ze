@@ -5,12 +5,13 @@ package hub
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/authz"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -31,9 +32,9 @@ func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
 
 	r := reactor.New(&reactor.Config{})
 
-	params := bgpconfig.InfraHookParams{
+	params := infra.HookParams{
 		Reactor: r,
-		SSHConfig: bgpconfig.SSHExtractedConfig{
+		SSHConfig: infra.SSHExtractedConfig{
 			Listen:      "127.0.0.1:0",
 			HostKeyPath: t.TempDir() + "/test_host_key",
 			HasConfig:   true,
