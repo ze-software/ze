@@ -94,6 +94,54 @@ func GetRIBDumpCallback() RIBDumpCallback {
 	return ribDumpCB
 }
 
+var (
+	mrtCBMu      sync.RWMutex
+	mrtMessageCB MessageCallback
+	mrtPeerCB    PeerLifecycleCallback
+)
+
+// SetMRTMessageCallback registers the MRT raw-message bridge. The MRT plugin
+// calls this from its own init(), so the BGP reactor factory
+// (bgp/config createReactorFromCoordinator) picks the bridge up via
+// GetMRTMessageCallback without the always-on hub importing internal/plugins/mrt
+// -- that import used to pin MRT into every binary and defeat //go:build ze_mrt.
+// Nil is ignored so a caller cannot clear a live bridge.
+func SetMRTMessageCallback(cb MessageCallback) {
+	if cb == nil {
+		return
+	}
+	mrtCBMu.Lock()
+	defer mrtCBMu.Unlock()
+	mrtMessageCB = cb
+}
+
+// GetMRTMessageCallback returns the registered MRT message bridge, or nil when
+// MRT is compiled out. The reader guards nil (no bridge => no MRT recording).
+func GetMRTMessageCallback() MessageCallback {
+	mrtCBMu.RLock()
+	defer mrtCBMu.RUnlock()
+	return mrtMessageCB
+}
+
+// SetMRTPeerCallback registers the MRT peer-lifecycle bridge (FSM state-change
+// records). Same init()-registration contract as SetMRTMessageCallback.
+func SetMRTPeerCallback(cb PeerLifecycleCallback) {
+	if cb == nil {
+		return
+	}
+	mrtCBMu.Lock()
+	defer mrtCBMu.Unlock()
+	mrtPeerCB = cb
+}
+
+// GetMRTPeerCallback returns the registered MRT peer bridge, or nil when MRT is
+// compiled out. The reader guards nil.
+func GetMRTPeerCallback() PeerLifecycleCallback {
+	mrtCBMu.RLock()
+	defer mrtCBMu.RUnlock()
+	return mrtPeerCB
+}
+
 // PacketDecoderFunc renders a hex-encoded BGP message as human-readable text
 // (or JSON when outputJSON is set). msgType and family disambiguate messages
 // whose parse depends on negotiated state; both may be empty for autodetect.
@@ -154,8 +202,11 @@ type BGPBootstrap struct {
 	ChaosRate  float64         // ze-chaos fault rate
 
 	HealthPeerCallback PeerLifecycleCallback // health-revert peer observer
-	MRTMessageCallback MessageCallback       // MRT message bridge
-	MRTPeerCallback    PeerLifecycleCallback // MRT peer bridge
+	// MRT message/peer bridges are NOT fields here: MRT self-registers them via
+	// registry.SetMRTMessageCallback / SetMRTPeerCallback from its own init(), and
+	// bgp/config reads them via the getters. Keeping them off BGPBootstrap is what
+	// lets cmd/ze/hub stop importing internal/plugins/mrt (so //go:build ze_mrt can
+	// drop MRT). Mirrors the RIB-dump provider seam above.
 }
 
 // CoordinatorAccessor provides the methods that plugins need from the Coordinator

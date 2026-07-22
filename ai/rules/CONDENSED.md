@@ -1432,6 +1432,7 @@ construction registry (`cmd/ze/hub/service_registry.go`).
 3. **Inversion-of-control seam** (no tag on the always-on side). Where always-on
 - **A feature-gated file is still an always-on pin for a DIFFERENT gate.**
 - **Removing an always-on import can unlink an `init()` nobody else pulls in.**
+**Dependent gate (a feature that requires another gate -- `ze_bmp`).** A gated
 ## Banned
 - A hand-maintained second list of gate tags or gated packages anywhere. Declare
 the gate ONCE in `feature-gates.txt`; derive the rest.

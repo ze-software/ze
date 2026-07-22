@@ -108,6 +108,13 @@ func init() {
 		fmt.Fprintf(os.Stderr, "mrt: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Self-register the reactor bridges into the leaf registry seam. The BGP
+	// reactor factory (bgp/config) reads them via registry.GetMRTMessageCallback /
+	// GetMRTPeerCallback, so cmd/ze/hub no longer imports this package directly --
+	// which is what lets //go:build ze_mrt drop MRT from the binary.
+	registry.SetMRTMessageCallback(MessageBridge)
+	registry.SetMRTPeerCallback(PeerBridge)
 }
 
 func runEngine(conn net.Conn) int {

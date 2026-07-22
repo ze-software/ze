@@ -19,10 +19,6 @@ type fakePeerCB struct{}
 func (fakePeerCB) OnPeerEstablished(any)    {}
 func (fakePeerCB) OnPeerClosed(any, string) {}
 
-type fakeMsgCB struct{}
-
-func (fakeMsgCB) OnBGPMessage(any, uint8, bool, []byte) {}
-
 // TestBootstrapRoundTrip proves the coordinator stores and returns the typed
 // BGPBootstrap struct that replaced the string-keyed extra bag, preserving all
 // nine fields, and that *Coordinator still satisfies CoordinatorAccessor.
@@ -42,8 +38,9 @@ func TestBootstrapRoundTrip(t *testing.T) {
 		ChaosSeed:          42,
 		ChaosRate:          0.25,
 		HealthPeerCallback: peerCB,
-		MRTMessageCallback: fakeMsgCB{},
-		MRTPeerCallback:    peerCB,
+		// MRTMessageCallback / MRTPeerCallback were removed from BGPBootstrap:
+		// MRT now self-registers those bridges into the registry seam, verified by
+		// registry.TestMRTCallbackSeam. This struct no longer carries them.
 	}
 	c := NewCoordinator(map[string]any{})
 	c.SetBootstrap(want)

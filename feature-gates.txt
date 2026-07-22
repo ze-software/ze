@@ -53,6 +53,15 @@ ze_rsvpte  internal/plugins/rsvpte
 ze_vrrp    internal/plugins/vrrp
 ze_vrrp    internal/plugins/vrrp/transport
 
+# ze_mrt -- MRT routing-information export (RFC 6396). A standalone top-level
+# plugin; nothing always-on imports it since its reactor bridges are
+# self-registered into the plugin-registry seam (registry.SetMRTMessageCallback /
+# SetMRTPeerCallback) and read by bgp/config. Independent of ze_bgp: MRT loads
+# inert without a BGP source. Its msgtype / internal/mrt dependencies are pure
+# libraries dropped by dead-code elimination once neither MRT nor the BGP engine
+# references them (feature-gate-11).
+ze_mrt     internal/plugins/mrt
+
 # ze_bgp -- the BGP engine, codec and every BGP plugin. The largest gate: the
 # whole internal/component/bgp subtree plus flowspec-firewall, which translates
 # BGP-delivered flowspec routes into firewall rules and is meaningless without
@@ -71,7 +80,12 @@ ze_bgp   internal/component/bgp/message
 ze_bgp   internal/component/bgp/plugin
 ze_bgp   internal/component/bgp/plugins/adj_rib_in
 ze_bgp   internal/component/bgp/plugins/aigp
-ze_bgp   internal/component/bgp/plugins/bmp
+# ze_bmp -- BMP receiver/sender (RFC 7854, 8671, 9069). A DEPENDENT gate: BMP
+# imports the BGP engine (bgp/message, bgp/types) and monitors the BGP RIB, so it
+# only exists in a ze_bgp build. Its package nests under internal/component/bgp,
+# so the generator emits all_ze_bmp.go guarded //go:build ze_bgp && ze_bmp
+# (path-nesting dependency; feature-gate-11). Default-on via ZE_FEATURES.
+ze_bmp   internal/component/bgp/plugins/bmp
 ze_bgp   internal/component/bgp/plugins/capa
 ze_bgp   internal/component/bgp/plugins/cmd/announce
 ze_bgp   internal/component/bgp/plugins/cmd/cache

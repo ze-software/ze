@@ -22,7 +22,7 @@
             "CommandLineFlags": [
                 "start"
             ],
-            "GoBuildTags": ["ze_core", "ze_appliance", "ze_bgp", "ze_gnmi", "ze_grpc", "ze_isis", "ze_ldp", "ze_lg", "ze_mcp", "ze_ospf", "ze_rest", "ze_rsvpte", "ze_ssh", "ze_telemetry", "ze_vrrp", "ze_web"],
+            "GoBuildTags": ["ze_core", "ze_appliance", "ze_bgp", "ze_bmp", "ze_gnmi", "ze_grpc", "ze_isis", "ze_ldp", "ze_lg", "ze_mcp", "ze_mrt", "ze_ospf", "ze_rest", "ze_rsvpte", "ze_ssh", "ze_telemetry", "ze_vrrp", "ze_web"],
             "Environment": [
                 "ze.config.dir=/perm/ze",
                 "ze.bgp.api.socketpath=/tmp/ze.socket",

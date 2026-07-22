@@ -120,10 +120,14 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 		r.AddPeerLifecycleCallback(cb)
 	}
 
-	if mcb := bs.MRTMessageCallback; mcb != nil {
+	// MRT bridges come from the registry seam (MRT self-registers them from its
+	// init()), not from BGPBootstrap -- that is what keeps cmd/ze/hub free of an
+	// internal/plugins/mrt import so //go:build ze_mrt can drop MRT. nil when MRT
+	// is compiled out.
+	if mcb := registry.GetMRTMessageCallback(); mcb != nil {
 		r.AddMessageCallback(mcb)
 	}
-	if pcb := bs.MRTPeerCallback; pcb != nil {
+	if pcb := registry.GetMRTPeerCallback(); pcb != nil {
 		r.AddPeerLifecycleCallback(pcb)
 	}
 

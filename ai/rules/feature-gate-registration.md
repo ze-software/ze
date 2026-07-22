@@ -219,6 +219,25 @@ Two traps that only appear at this scale:
   main` root can never be imported back, so the edge is always safe there. After
   deleting an always-on import, ask what that package's `init()` was providing.
 
+**Dependent gate (a feature that requires another gate -- `ze_bmp`).** A gated
+package that lives INSIDE another gate's package tree AND imports it is a
+DEPENDENT feature: it can only be built when the parent gate is on. `ze_bmp`
+(BMP; `internal/component/bgp/plugins/bmp`) imports `bgp/message` / `bgp/types`
+and monitors the BGP RIB, so it exists only in a `ze_bgp` build. The generator
+detects the nesting (`plugin_imports.go parentTagOf`: the longest OTHER gated
+package that is a path-prefix of the child's) and emits the child's group file
+with a COMPOUND constraint -- `all_ze_bmp.go` carries `//go:build ze_bgp &&
+ze_bmp`. That is what makes `-tags ze_bmp` WITHOUT `ze_bgp` drop BMP entirely
+instead of dragging the whole engine back in through BMP's blank import (prove it
+with an `nm` build of `ze_core,ze_bmp` that links zero `internal/component/bgp`
+symbols). The dependency is DERIVED from the package path, so the manifest line is
+the ordinary `ze_bmp <pkg>` (no new column) and every other manifest consumer is
+unaffected; `dep_audit`'s existing subtree-prefix same-feature skip already treats
+a bmp->bgp import as intra-`ze_bgp`-family (bmp lives under `internal/component/bgp`).
+Tag the present build-tag test `//go:build ze_bgp && ze_bmp` to match the group
+file, so it never runs in a nonsensical `ze_bmp`-without-`ze_bgp` build
+(feature-gate-11).
+
 ## Banned
 
 - A hand-maintained second list of gate tags or gated packages anywhere. Declare

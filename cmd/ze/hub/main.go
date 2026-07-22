@@ -53,7 +53,6 @@ import (
 	internalresolve "codeberg.org/thomas-mangin/ze/internal/core/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
-	mrtcomp "codeberg.org/thomas-mangin/ze/internal/plugins/mrt"
 )
 
 var (
@@ -427,8 +426,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ChaosSeed:          chaosSeed,
 		ChaosRate:          chaosRate,
 		HealthPeerCallback: PeerLifecycleCallback,
-		MRTMessageCallback: mrtcomp.MessageBridge,
-		MRTPeerCallback:    mrtcomp.PeerBridge,
+		// MRT bridges are self-registered by the MRT plugin's init() into the
+		// registry seam (registry.SetMRTMessageCallback / SetMRTPeerCallback) and
+		// read by bgp/config; the hub no longer imports internal/plugins/mrt, so
+		// //go:build ze_mrt can drop MRT from the binary.
 	})
 
 	pm := pluginmgr.NewManager()
