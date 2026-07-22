@@ -64,7 +64,11 @@ chmod +x "$work/fakebin/docker"
 
 PATH="$work/fakebin:$PATH" make ze-kernel KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
 
-grep -q 'Building runtime kernel' "$work/stdout"
+# make ze-kernel routes the runtime kernel through the durable cache: it prints
+# "Runtime kernel cache HIT: materializing" (warm cache) or "cache MISS: building"
+# (cold cache -> run.py via the faked docker above). Either proves the routing ran;
+# asserting the literal build message would break on any warm-cache host.
+grep -qE 'Runtime kernel cache (HIT|MISS)' "$work/stdout"
 grep -q 'out-of-tree' "$work/stdout"
 
 # Out-of-tree package assembled from the pinned module + our artifacts.
