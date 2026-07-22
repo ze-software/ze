@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1221 summaries
+Total: 1222 summaries
 
 ## 000-099
 
@@ -1295,3 +1295,4 @@ Total: 1221 summaries
 | 1247 | fixit-static-per-route-isolation | `plan/learned/1247-fixit-static-per-route-isolation.md` |
 | 1248 | fixit-config-file-positional-grammar | `plan/learned/1248-fixit-config-file-positional-grammar.md` |
 | 1249 | feature-gate child 10: BGP compile-out (ze_bgp) | `plan/learned/1249-feature-gate-10-bgp.md` |
+| 1250 | A shared buffer outlives the comment that says only one goroutine touches it | `plan/learned/1250-shared-buffer-second-producer.md` |

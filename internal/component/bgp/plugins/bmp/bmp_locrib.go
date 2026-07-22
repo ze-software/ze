@@ -248,6 +248,21 @@ func (bp *BMPPlugin) stopLocRIB() {
 // handleBestChange turns a RIB best-change batch into Loc-RIB Route Monitoring
 // messages. The Loc-RIB Peer Up is sent lazily before the first Route
 // Monitoring (RFC 9069 requires Peer Up to precede Route Monitoring).
+//
+// KNOWN DEFECT (pre-existing, not introduced by the writeMu fix): this runs on
+// the RIB's publisher goroutine -- engine EventBus subscribers fire
+// synchronously from deliverEvent (internal/component/plugin/server/engine_event.go
+// SubscribeEngineEvent) -- and the bus contract is explicit that a handler
+// "MUST NOT block on I/O" (pkg/ze/eventbus.go EventBus.Subscribe). The writes
+// below are blocking socket writes bounded only by writeTimeout, so a wedged
+// collector stalls RIB best-change publication for up to that long per message.
+// This is not a regression from writeMu: concurrent conn.Write calls already
+// serialize on the socket's own write lock (internal/poll.FD.Write holds it for
+// the whole call), so a producer already waited out any in-flight write. The
+// real fix is a bounded per-session send queue so no socket write happens on a
+// subscriber goroutine; dropping instead (TryLock) would silently lose Route
+// Monitoring messages, which is worse for a monitoring protocol.
+// Tracked in plan/deferrals/.
 func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	if batch == nil || len(batch.Changes) == 0 {
 		return

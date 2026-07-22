@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc7854.md
 // Design: docs/architecture/core-design.md -- BMP sender (outbound to collectors)
 //
 // Related: bmp.go -- plugin lifecycle, config parsing
@@ -35,13 +36,24 @@ const (
 // Caller MUST call stop() to shut down the session goroutine, then
 // wait on the WaitGroup that tracks it.
 //
-// Scratch usage: writePeerUp/Down/RouteMonitoring/StatisticsReport all
-// encode into `scratch` before writeMsg flushes to the TCP connection.
-// The plugin's event loop (p.OnStructuredEvent) dispatches one event
-// at a time, and each handler iterates senders serially, so only one
-// write* call is ever in flight on a given senderSession. A single
-// scratch slice (sized to maxBMPMsgSize) therefore covers every path
-// without a lock or pool.
+// Scratch usage: writePeerUp/Down/RouteMonitoring/Mirroring/StatisticsReport all
+// encode into `scratch` and then flush it to the TCP connection. More than one
+// goroutine reaches those methods:
+//
+//   - the bmp plugin's own delivery loop (RunBMPPlugin's OnStructuredEvent ->
+//     handleStructuredEvent -> handleSenderState / route monitoring), and
+//   - for RFC 9069 Loc-RIB monitoring, whichever goroutine publishes a RIB
+//     best-change. Engine EventBus subscribers fire synchronously on the
+//     PUBLISHER's goroutine (see SubscribeEngineEvent in
+//     internal/component/plugin/server/engine_event.go), so bmp_locrib.go's
+//     handleBestChange runs on the RIB plugin's delivery goroutine.
+//
+// writeMu therefore covers the whole encode-then-flush, not just the flush:
+// without it two producers interleave in the one scratch array and a message
+// goes out whose Common Header length does not describe its content, which
+// desynchronises the collector's framing for every message after it. Holding it
+// across the write also keeps each BMP message contiguous on the wire without
+// depending on any net.Conn write-atomicity that net.Conn does not promise.
 type senderSession struct {
 	name          string
 	address       string
@@ -55,6 +67,9 @@ type senderSession struct {
 	stopCtx context.Context
 	cancel  context.CancelFunc
 
+	// writeMu guards scratch AND the ordering of writes to conn. Every method
+	// that encodes into scratch or writes to the collector MUST hold it.
+	writeMu sync.Mutex
 	scratch []byte
 }
 
@@ -109,24 +124,47 @@ func (ss *senderSession) run() {
 			continue
 		}
 
+		reconnectWait = reconnectMin
+		logger().Info("bmp: sender connected", "collector", ss.name, "address", addr)
+
+		// RFC 7854 Section 4.3: Initiation MUST be the first message on a new BMP
+		// session. Publishing ss.conn is what makes this session reachable by the
+		// concurrent producers in sendLocked, so it happens only AFTER Initiation
+		// is on the wire -- otherwise a Peer Up or a Loc-RIB Route Monitoring
+		// racing in from another goroutine reaches the collector first.
+		//
+		// A producer that arrives while Initiation is in flight BLOCKS on writeMu
+		// (sendInitiation holds it) rather than seeing the nil conn: the nil-conn
+		// drop window is only the few instructions between sendInitiation's
+		// deferred unlock and the publish below. It is bounded by writeTimeout,
+		// and it is the same wait such a producer already had before ss.conn was
+		// moved -- concurrent conn.Write calls serialize on the socket's own write
+		// lock (internal/poll.FD.Write holds it across the whole call).
+		//
+		// Also note stop() cannot abort an in-flight Initiation: it closes
+		// ss.conn, which is still nil for this window.
+		if err := ss.sendInitiation(conn); err != nil {
+			logger().Warn("bmp: sender initiation failed", "collector", ss.name, "error", err)
+			closeLog(conn, "sender-init-fail")
+			// Back off before redialling. Without this a collector that accepts the
+			// TCP connection and then rejects the Initiation produces a tight
+			// dial -> write -> close spin: reconnectWait was reset to reconnectMin
+			// above and this branch never waits.
+			if ss.waitOrStop(reconnectWait) {
+				return
+			}
+			reconnectWait = min(reconnectWait*2, reconnectMax)
+			continue
+		}
+
 		ss.connMu.Lock()
 		ss.conn = conn
 		ss.connMu.Unlock()
 
-		reconnectWait = reconnectMin
-		logger().Info("bmp: sender connected", "collector", ss.name, "address", addr)
-
-		if err := ss.sendInitiation(conn); err != nil {
-			logger().Warn("bmp: sender initiation failed", "collector", ss.name, "error", err)
-			ss.clearConn()
-			closeLog(conn, "sender-init-fail")
-			continue
-		}
-
 		// Hold connection open until stopped or error.
 		ss.holdConnection(conn)
 
-		// Clear conn so concurrent writeMsg callers see nil (not a closed conn).
+		// Clear conn so concurrent sendLocked callers see nil (not a closed conn).
 		ss.clearConn()
 	}
 }
@@ -138,8 +176,13 @@ func (ss *senderSession) clearConn() {
 	ss.connMu.Unlock()
 }
 
-// sendInitiation sends a BMP Initiation message to the collector.
+// sendInitiation sends a BMP Initiation message to the collector. It takes
+// writeMu so the Initiation stays contiguous on the wire; run() publishes
+// ss.conn only after this returns, so no other producer can precede it.
 func (ss *senderSession) sendInitiation(conn net.Conn) error {
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	init := &Initiation{
 		TLVs: []TLV{
 			MakeStringTLV(InitTLVSysName, "ze"),
@@ -158,9 +201,14 @@ func (ss *senderSession) sendInitiation(conn net.Conn) error {
 	return ss.writeRaw(conn, buf[:n])
 }
 
-// sendTermination sends a BMP Termination message before closing.
-// Called only from the session's own goroutine (holdConnection), never concurrently.
+// sendTermination sends a BMP Termination message before closing. Called from
+// the session's own goroutine (holdConnection), but ss.conn is still published
+// at that point, so it takes writeMu to stay contiguous against a producer that
+// is mid-message.
 func (ss *senderSession) sendTermination(conn net.Conn) {
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	term := &Termination{
 		TLVs: []TLV{
 			MakeStringTLV(TermTLVString, "shutting down"),
@@ -188,9 +236,13 @@ func (ss *senderSession) writeRaw(conn net.Conn, data []byte) error {
 	return err
 }
 
-// writeMsg writes a pre-encoded BMP message to the collector connection.
+// sendLocked writes a pre-encoded BMP message to the collector connection.
 // Returns error if the connection is not available or the write fails.
-func (ss *senderSession) writeMsg(data []byte) error {
+//
+// Caller MUST hold writeMu: data is almost always a slice of the shared scratch
+// buffer, and the lock is what keeps this message's bytes contiguous against the
+// other producer goroutines described on senderSession.
+func (ss *senderSession) sendLocked(data []byte) error {
 	ss.connMu.Lock()
 	c := ss.conn
 	ss.connMu.Unlock()
@@ -280,6 +332,10 @@ func (ss *senderSession) waitOrStop(d time.Duration) bool {
 // senderSession via struct literal (no newSenderSession) work without
 // extra setup. Returns an error if need exceeds maxBMPMsgSize so the
 // caller skips the write rather than truncating.
+//
+// Caller MUST hold writeMu: the returned slice aliases the one buffer every
+// producer encodes into, and MUST stay owned until the matching sendLocked
+// has flushed it.
 func (ss *senderSession) scratchFor(need int) ([]byte, error) {
 	if ss.scratch == nil {
 		ss.scratch = make([]byte, maxBMPMsgSize)
@@ -300,12 +356,16 @@ func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localP
 		SentOpenMsg:     sentOpen,
 		ReceivedOpenMsg: recvOpen,
 	}
+
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + peerUpFixedSize + len(sentOpen) + len(recvOpen))
 	if err != nil {
 		return err
 	}
 	n := WritePeerUp(buf, 0, pu)
-	return ss.writeMsg(buf[:n])
+	return ss.sendLocked(buf[:n])
 }
 
 // writePeerDown encodes and sends a BMP Peer Down message.
@@ -315,12 +375,16 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 		Reason: reason,
 		Data:   data,
 	}
+
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + 1 + len(data))
 	if err != nil {
 		return err
 	}
 	n := WritePeerDown(buf, 0, pd)
-	return ss.writeMsg(buf[:n])
+	return ss.sendLocked(buf[:n])
 }
 
 // writeRouteMonitoring encodes and sends a BMP Route Monitoring message.
@@ -334,6 +398,10 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.MessageType, bgpBody []byte) error {
 	bgpPDULen := message.HeaderLen + len(bgpBody)
 	total := CommonHeaderSize + PeerHeaderSize + bgpPDULen
+
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	buf, err := ss.scratchFor(total)
 	if err != nil {
 		return err
@@ -347,7 +415,7 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 	off += message.HeaderLen
 	copy(buf[off:], bgpBody)
 	WriteCommonHeader(buf, 0, CommonHeader{Version: Version, Length: uint32(total), Type: MsgRouteMonitoring}) //nolint:gosec // total bounded by scratch size
-	return ss.writeMsg(buf[:total])
+	return ss.sendLocked(buf[:total])
 }
 
 // writeStatisticsReport encodes and sends a BMP Statistics Report.
@@ -361,12 +429,16 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 	for _, s := range stats {
 		need += TLVHeaderSize + len(s.Value)
 	}
+
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	buf, err := ss.scratchFor(need)
 	if err != nil {
 		return err
 	}
 	n := WriteStatisticsReport(buf, 0, sr)
-	return ss.writeMsg(buf[:n])
+	return ss.sendLocked(buf[:n])
 }
 
 // writeRouteMirroring encodes and sends a BMP Route Mirroring message.
@@ -377,6 +449,10 @@ func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType msgtype.Me
 	bgpPDULen := message.HeaderLen + len(bgpBody)
 	tlvLen := TLVHeaderSize + bgpPDULen
 	total := CommonHeaderSize + PeerHeaderSize + tlvLen
+
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+
 	buf, err := ss.scratchFor(total)
 	if err != nil {
 		return err
@@ -398,7 +474,7 @@ func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType msgtype.Me
 	copy(buf[off:], bgpBody)
 
 	WriteCommonHeader(buf, 0, CommonHeader{Version: Version, Length: uint32(total), Type: MsgRouteMirroring}) //nolint:gosec // bounded
-	return ss.writeMsg(buf[:total])
+	return ss.sendLocked(buf[:total])
 }
 
 // makeStatGauge creates a StatEntry with a uint64 gauge value.
