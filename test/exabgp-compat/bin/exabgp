@@ -359,6 +359,25 @@ def main():
 
         # Start ze (in background if we have processes to bridge)
         if external_processes:
+            # Bridging external processes (e.g. watchdog) to ze runs over SSH via
+            # the paramiko module. Probe it up front so a missing dependency fails
+            # with an actionable message on the main thread, instead of every
+            # bridge thread dying on a bare ImportError while the test hangs
+            # waiting for a bridge that never connects.
+            try:
+                import paramiko  # noqa: F401  -- availability probe; used by run_process_bridge
+            except ImportError:
+                print(
+                    "error: the exabgp compatibility harness needs the 'paramiko' "
+                    "Python module to bridge processes to ze over SSH, but it is "
+                    "not available in this Python environment.\n"
+                    "  paramiko is provided by uv; run the exabgp tests via their\n"
+                    "  make target:      make ze-exabgp-test\n"
+                    "  or a single test: uv run --with paramiko bin/ze-test exabgp <N>",
+                    file=sys.stderr,
+                )
+                return 1
+
             ze_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
 
             # Discover the actual SSH port from ze's stderr.
