@@ -241,7 +241,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze cli-commit-reject.conf:timeout=30s
+cmd=foreground:seq=2:exec=ze start cli-commit-reject.conf:timeout=30s
 cmd=foreground:seq=3:exec=./drive-cli-reject.py:timeout=30s
 expect=exit:code=0
 expect=file:path=meta/config/active:exists=true

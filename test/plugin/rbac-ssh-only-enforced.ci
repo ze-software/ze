@@ -60,7 +60,7 @@ system {
 }
 ZECONF
 
-ze rbac-ssh-only.conf 2>daemon.log &
+ze start rbac-ssh-only.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
 

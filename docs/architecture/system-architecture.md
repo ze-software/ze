@@ -727,7 +727,7 @@ Each external plugin runs in its own process group (`Setpgid`) for clean signal 
 
 ```bash
 # Start Ze
-$ ze /etc/ze/config.conf
+$ ze start /etc/ze/config.conf
 [hub] Starting with config /etc/ze/config.conf
 [hub] Forking ze bgp (pid 1235)
 [hub] Forking ze rib (pid 1236)

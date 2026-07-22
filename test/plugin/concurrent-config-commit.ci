@@ -224,7 +224,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze concurrent-config-commit.conf:timeout=45s
+cmd=foreground:seq=2:exec=ze start concurrent-config-commit.conf:timeout=45s
 expect=exit:code=0
 expect=file:path=concurrent.ok:contains=OK: concurrent commit rejected second candidate
 expect=file:path=meta/config/active:exists=true

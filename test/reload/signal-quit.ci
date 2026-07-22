@@ -96,5 +96,5 @@ EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze ze-bgp.conf:timeout=15s
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=15s
 expect=exit:code=0

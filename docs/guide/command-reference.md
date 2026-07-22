@@ -59,9 +59,17 @@ When piped or scripted (stdin is not a TTY), prints static help and exits 1.
 
 ```
 ze                               # Interactive command menu (TTY only)
-ze <config-file>                 # Start daemon with config
+ze start <config-file>           # Start daemon from a config file (keyword-first)
 ze start                         # Start daemon from database
+ze -                             # Start daemon reading config from stdin
 ```
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, startConfigPath (ze start <config-file>) -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch (- stdin sentinel; no free-form config-path sink) -->
+
+The bare `ze <config-file>` form was **removed**: a free-form path in the first
+position can collide with a command name (a config file named `bgp` or `signal`
+would dispatch as that command). Use `ze start <config-file>`. Reading config
+from stdin (`ze -`) is unaffected.
 
 <!-- terminal-demo: launcher -->
 

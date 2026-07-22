@@ -183,7 +183,7 @@ bgp {
 ZECONF
 
 export ze_test_bgp_port=$((12000 + ($$ % 40000)))
-ZE_CONFIG_DIR="$ZE_DIR" ze web-rbac-deny.conf 2>daemon.log &
+ZE_CONFIG_DIR="$ZE_DIR" ze start web-rbac-deny.conf 2>daemon.log &
 DAEMON_PID=$!
 
 ./web-rbac-check.py

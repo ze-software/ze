@@ -106,7 +106,7 @@ ZECONF
 export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
 # Start daemon, capture stderr to parse SSH port
-ze ssh-cli-status-error.conf 2>daemon.log &
+ze start ssh-cli-status-error.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 

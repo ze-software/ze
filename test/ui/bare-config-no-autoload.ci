@@ -1,0 +1,13 @@
+# AC-6 (spec-fixit-config-file-positional-grammar): a bare positional config
+# path is NOT auto-loaded. The free-form config-path sink was REMOVED from
+# zeDispatch, so position 1 of `ze` is now a closed set only (YANG verbs,
+# registered roots, and the `-` stdin sentinel). A bare `ze <file>.conf` falls
+# through to "unknown command" instead of launching a daemon.
+#
+# The `.conf` name never reaches a file load, so it need not exist: the grammar
+# rejects the token before any file access, which is exactly what "unknown
+# command" (not "file not found") demonstrates. This is the regression guard
+# proving there is no free-form value fallback at position 1.
+cmd=foreground:seq=1:exec=ze positional-config-not-loaded.conf
+expect=exit:code=1
+expect=stderr:contains=unknown command

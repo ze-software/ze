@@ -395,31 +395,20 @@ func zeDispatch(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port> or --web-only\n")
 		return 1
 	}
-	if zeFlags.webOnly && looksLikeConfig(arg) {
+	if zeFlags.webOnly && arg == "-" {
 		fmt.Fprintf(os.Stderr, "error: --web-only cannot be used with a config file (use 'ze start --web-only' instead)\n")
 		return 1
 	}
 
-	if looksLikeConfig(arg) {
-		if arg == "-" {
-			return withPanicCapture(func() int {
-				return hub.Run(resolveStorage(), arg, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, webEnabled, webListenAddr, zeFlags.insecureWeb, zeFlags.mcpAddr, zeFlags.mcpToken)
-			})
-		}
-		store := resolveStorage()
-		arg = config.ResolveConfigPath(arg)
-		if storage.IsBlobStorage(store) && !store.Exists(arg) {
-			if _, statErr := os.Stat(arg); statErr != nil {
-				store.Close() //nolint:errcheck // closing blob before filesystem fallback
-				store = storage.NewFilesystem()
-			}
-		}
-		switch detectConfigType(store, arg) {
-		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			return withPanicCapture(func() int {
-				return hub.Run(store, arg, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, webEnabled, webListenAddr, zeFlags.insecureWeb, zeFlags.mcpAddr, zeFlags.mcpToken)
-			})
-		}
+	// `-` is a closed position-1 sentinel: read the config from stdin (the
+	// universal Unix convention). It cannot collide with any command name, so it
+	// satisfies R1's keywords-before-values invariant (ai/rules/cli-grammar.md).
+	// A free-form config PATH at position 1 was REMOVED by
+	// spec-fixit-config-file-positional-grammar: use `ze start <config-file>`.
+	if arg == "-" {
+		return withPanicCapture(func() int {
+			return hub.Run(resolveStorage(), arg, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, webEnabled, webListenAddr, zeFlags.insecureWeb, zeFlags.mcpAddr, zeFlags.mcpToken)
+		})
 	}
 
 	if handler, remaining := registry.LookupLocal(args); handler != nil {
@@ -573,25 +562,6 @@ func extractHelpPath(args []string) []string {
 		return args[:len(args)-1]
 	}
 	return nil
-}
-
-func looksLikeConfig(arg string) bool {
-	if arg == "-" {
-		return true
-	}
-	if strings.HasSuffix(arg, ".conf") ||
-		strings.HasSuffix(arg, ".cfg") ||
-		strings.HasSuffix(arg, ".yaml") ||
-		strings.HasSuffix(arg, ".yml") ||
-		strings.HasSuffix(arg, ".json") {
-		return true
-	}
-	if strings.Contains(arg, "/") || strings.HasPrefix(arg, ".") {
-		if _, err := os.Stat(arg); err == nil {
-			return true
-		}
-	}
-	return false
 }
 
 func detectConfigType(store storage.Storage, path string) config.ConfigType {

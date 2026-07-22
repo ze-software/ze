@@ -50,8 +50,8 @@ func validPort(s string) bool {
 func startUsage() {
 	p := helpfmt.Page{
 		Command: "ze start",
-		Summary: "Start the Ze daemon from blob storage",
-		Usage:   []string{"ze start [options]"},
+		Summary: "Start the Ze daemon from blob storage, or from an optional config file",
+		Usage:   []string{"ze start [<config-file>] [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--cli", Desc: "Attach interactive CLI after startup"},
@@ -62,12 +62,13 @@ func startUsage() {
 				{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
 			}},
 			{Title: "Prerequisites", Entries: []helpfmt.HelpEntry{
-				{Name: "ze init", Desc: "Bootstrap database (required before first start)"},
+				{Name: "ze init", Desc: "Bootstrap database (required before first start without a config file)"},
 				{Name: "ze config edit", Desc: "Create or edit configuration"},
 			}},
 		},
 		Examples: []string{
 			"ze start                           Start daemon with default config",
+			"ze start /etc/ze/router.conf       Start daemon from a specific config file",
 			"ze start --cli                     Start daemon and attach interactive CLI",
 			"ze start --web 3443                Start with web UI on port 3443",
 			"ze start --web 3443 --insecure-web Start with web UI, no auth (localhost)",
@@ -75,6 +76,43 @@ func startUsage() {
 		},
 	}
 	p.WriteErr()
+}
+
+// Flag names shared between cmdStart's argument loop and startConfigPath. They
+// are named constants so the path-extraction helper cannot drift from the flags
+// the loop actually consumes.
+const (
+	flagStartCLI         = "--cli"
+	flagStartWeb         = "--web"
+	flagStartWebOnly     = "--web-only"
+	flagStartInsecureWeb = "--insecure-web"
+	flagStartMCP         = "--mcp"
+	flagStartMCPToken    = "--mcp-token" //nolint:gosec // G101 false positive: this is a CLI flag name, not a credential
+)
+
+// startConfigPath returns the first positional (non-flag) token in a `ze start`
+// argument list, or "" when there is none. It skips the flags that consume a
+// following value (--web, --mcp, --mcp-token) so a port or token is never
+// mistaken for the config path, and it ignores value-less flags. Keyword-first
+// grammar (ai/rules/cli-grammar.md R1): the config path is the sole free-form
+// value cmdStart accepts, and it follows the `start` keyword.
+//
+// This helper mirrors the value-consuming flag set of cmdStart's arg loop; keep
+// the two in sync when adding a flag that takes a value.
+func startConfigPath(args []string) string {
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case flagStartWeb, flagStartMCP, flagStartMCPToken:
+			i++ // the following token is this flag's value, not the config path
+		case flagStartCLI, flagStartWebOnly, flagStartInsecureWeb:
+			// value-less flags: no path here
+		default:
+			if !strings.HasPrefix(args[i], "-") {
+				return args[i]
+			}
+		}
+	}
+	return ""
 }
 
 func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalMCPToken, globalWebPort string, globalInsecureWeb, globalWebOnly bool) int {
@@ -148,6 +186,41 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		if insecureWeb {
 			webListenAddr = "127.0.0.1:3443"
 		}
+	}
+
+	// An explicit config path (ze start <config-file>) launches the daemon from
+	// that file. Keyword-first grammar (ai/rules/cli-grammar.md R1) places the
+	// path behind the `start` keyword; this is the SUPPORTED (and only) form. The
+	// free-form positional path in zeDispatch (`ze <config-file>`) was REMOVED by
+	// spec-fixit-config-file-positional-grammar; only the `-` stdin sentinel
+	// remains there. This branch is the simple file-launch flow (blob-then-
+	// filesystem fallback), NOT the managed/bootstrap blob-default path below,
+	// which applies only when no explicit path is given.
+	if configPath := startConfigPath(args); configPath != "" {
+		if webOnly {
+			fmt.Fprintf(os.Stderr, "error: --web-only cannot be combined with a config-file path\n")
+			return 1
+		}
+		store := resolveStorage()
+		configPath = config.ResolveConfigPath(configPath)
+		if storage.IsBlobStorage(store) && !store.Exists(configPath) {
+			if _, statErr := os.Stat(configPath); statErr != nil {
+				store.Close() //nolint:errcheck // closing blob before filesystem fallback
+				store = storage.NewFilesystem()
+			}
+		}
+		switch detectConfigType(store, configPath) {
+		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
+			return withPanicCapture(func() int {
+				return hub.Run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+			})
+		}
+		// ProbeConfigType only yields BGP/Hub/Unknown, so the switch above always
+		// returns; this guards against a future ConfigType silently falling into
+		// the blob-default path and ignoring the operator's file.
+		store.Close() //nolint:errcheck // defensive close on an unreachable path
+		fmt.Fprintf(os.Stderr, "error: could not determine config type for %q\n", configPath)
+		return 1
 	}
 
 	store := resolveStorage()

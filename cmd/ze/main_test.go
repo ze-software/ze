@@ -27,35 +27,7 @@ func TestAvailablePlugins(t *testing.T) {
 	assert.Equal(t, registry.Names(), got)
 }
 
-// TestLooksLikeConfig verifies config file detection.
-//
-// VALIDATES: Config file patterns are correctly identified.
-// PREVENTS: False positives/negatives in config detection.
-func TestLooksLikeConfig(t *testing.T) {
-	tests := []struct {
-		name string
-		arg  string
-		want bool
-	}{
-		{"stdin", "-", true},
-		{"conf_extension", "config.conf", true},
-		{"cfg_extension", "config.cfg", true},
-		{"yaml_extension", "config.yaml", true},
-		{"yml_extension", "config.yml", true},
-		{"json_extension", "config.json", true},
-		{"no_extension", "config", false},
-		{"command", "bgp", false},
-		{"relative_path_nonexistent", "./nonexistent-test-file-xyz", false},
-		{"absolute_path_nonexistent", "/nonexistent-path-xyz/config", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := looksLikeConfig(tt.arg)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
+// test-relax: TestLooksLikeConfig removed with the looksLikeConfig helper it tested (spec-fixit-config-file-positional-grammar AC-2, Thomas-confirmed remove-the-sink). The free-form position-1 config-path sink was deleted from zeDispatch; config launch now goes through `ze start <config-file>`. AC-2/AC-6 are proven by test/ui/bare-config-no-autoload.ci.
 
 // TestDetectConfigType verifies config type detection from file content.
 //

@@ -79,7 +79,7 @@ ZECONF
 
 export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
-ze ssh-pubkey.conf 2>daemon.log &
+ze start ssh-pubkey.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'rm -rf "$KEYDIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 

@@ -208,7 +208,15 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		)
 	}
 
-	clientCmd := exec.CommandContext(testCtx, r.zePath, configPath) //nolint:gosec // test runner, paths from temp dir
+	// Config-file daemon launch: keyword-first grammar places the config path
+	// behind the `start` verb (spec-fixit-config-file-positional-grammar).
+	// configPath here is always a real file (option=file:), never the stdin
+	// sentinel, so it is safe to route through `ze start <config>`.
+	clientArgs := []string{configPath}
+	if configPath != "" {
+		clientArgs = []string{"start", configPath}
+	}
+	clientCmd := exec.CommandContext(testCtx, r.zePath, clientArgs...) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
 
 	clientStdout := &strings.Builder{}
@@ -606,6 +614,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// If args contain "-", replace with temp file.
 		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
 		if binName == "ze" && stdinContent != nil {
+			// A bare `ze -` daemon launch (the `-` IS the daemon config arg) now runs
+			// as `ze start <file>` after spec-fixit-config-file-positional-grammar:
+			// keyword-first grammar places the config path behind the `start` verb.
+			// A `-` that is a subcommand value (e.g. `ze config validate -`, where
+			// zeDaemonConfigArgIndex returns a different index or -1) keeps its
+			// in-place file substitution and is NOT prefixed with `start`.
+			daemonCfgIdx := zeDaemonConfigArgIndex(args)
 			for i, arg := range args {
 				if arg != "-" {
 					continue
@@ -669,7 +684,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 						return false
 					}
 				}
-				args[i] = tmpFile.Name()
+				if i == daemonCfgIdx {
+					// Bare daemon config launch: insert the `start` verb before the
+					// config path so `ze -` runs as `ze start <file>`.
+					newArgs := make([]string, 0, len(args)+1)
+					newArgs = append(newArgs, args[:i]...)
+					newArgs = append(newArgs, "start", tmpFile.Name())
+					newArgs = append(newArgs, args[i+1:]...)
+					args = newArgs
+				} else {
+					args[i] = tmpFile.Name()
+				}
 				stdinContent = nil // Don't pipe to stdin
 				break
 			}

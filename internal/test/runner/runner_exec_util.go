@@ -248,7 +248,8 @@ func zeDaemonConfigArgIndex(args []string) int {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
-		case "-d", "--debug", "--insecure-web", "--color", "--no-color":
+		// "start" verb precedes a config path after spec-fixit-config-file-positional-grammar
+		case "start", "-d", "--debug", "--insecure-web", "--color", "--no-color":
 			continue
 		case "-f", "--server", "--name", "--token", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
 			i++

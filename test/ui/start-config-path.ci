@@ -1,0 +1,56 @@
+# AC-1 (spec-fixit-config-file-positional-grammar): `ze start <config-file>`
+# loads and runs the daemon. Keyword-first grammar places the config path behind
+# the `start` verb. The KEEPALIVE exchange with ze-peer proves the daemon loaded
+# the config and established a session; a daemon that never loaded the config
+# would not connect and the peer would report no exchange.
+#
+# The config is a tmpfs FILE launched as an explicit positional (ze start
+# start-router.conf), exercising the literal `ze start <file>` form rather than
+# the stdin (`ze -`) rewrite the runner applies elsewhere.
+#
+# ze.storage.blob=false is set explicitly so the daemon reads the config file
+# directly from its working directory, independent of the runner's storage
+# heuristic (which also forces file storage for a `ze start <file>.conf` launch).
+option=env:var=ze.storage.blob:value=false
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+EOF_PEER
+
+# ze bgp configuration written as a tmpfs file
+tmpfs=start-router.conf:terminator=EOF_CONF
+bgp {
+	group default {
+		peer peer1 {
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					local 65533
+					remote 65000
+				}
+				router-id 10.0.0.2
+				family {
+					ipv4/unicast { prefix { maximum 10000; } }
+				}
+			}
+			timer {
+				receive-hold-time 180
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start start-router.conf:timeout=10s

@@ -45,7 +45,7 @@ printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DI
 
 start_daemon() {
 	LOG=$1
-	ze audit-persistence.conf 2>"$LOG" &
+	ze start audit-persistence.conf 2>"$LOG" &
 	DAEMON_PID=$!
 	for i in $(seq 1 50); do
 		if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show version" >/dev/null 2>&1; then

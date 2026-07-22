@@ -173,7 +173,7 @@ export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 # above the heredoc and ZE_CONFIG_DIR/ZE_SSH_PASSWORD are no longer exported
 # into the daemon's own env -- no check removed, only where these lines live.
 # Daemon starts with a completely unmodified environment.
-ze as112-probe-anycast.conf 2>daemon.log &
+ze start as112-probe-anycast.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 

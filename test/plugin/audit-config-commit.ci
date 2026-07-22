@@ -206,7 +206,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze audit-config-commit.conf:timeout=30s
+cmd=foreground:seq=2:exec=ze start audit-config-commit.conf:timeout=30s
 expect=exit:code=0
 expect=file:path=meta/config/active:exists=true
 expect=file:path=meta/config/candidate:absent=true

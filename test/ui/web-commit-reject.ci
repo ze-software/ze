@@ -92,7 +92,7 @@ Y29tbWFuZD1zaG93K2JncA==
 EOF_SHOW
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --web $PORT2 --insecure-web web-commit-reject.conf:timeout=20s
+cmd=foreground:seq=2:exec=ze start --web $PORT2 --insecure-web web-commit-reject.conf:timeout=20s
 
 http=wait:seq=1:url=https://127.0.0.1:$PORT2/config/edit/:status=200:contains=bgp:insecure-tls=true:timeout=15s
 http=post:seq=2:url=https://127.0.0.1:$PORT2/config/set/bgp/:status=200:sendfile=set-router-id.form:content-type=application/x-www-form-urlencoded:insecure-tls=true

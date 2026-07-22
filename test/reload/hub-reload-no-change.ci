@@ -37,7 +37,7 @@ EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=./signal.sh
-cmd=foreground:seq=2:exec=ze hub.conf:timeout=10s
+cmd=foreground:seq=2:exec=ze start hub.conf:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=reloading config
 reject=stderr:pattern=reload error

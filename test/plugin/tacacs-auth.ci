@@ -82,7 +82,7 @@ export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
 # Start daemon, capturing stderr to a file so we can replay it to the script's
 # stderr after the auth attempt (so .ci runner's stderr patterns match).
-ze tacacs-auth.conf 2>daemon.log &
+ze start tacacs-auth.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
 

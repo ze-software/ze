@@ -69,7 +69,7 @@ ZECONF
 
 export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
-ze ssh-user-login.conf 2>daemon.log &
+ze start ssh-user-login.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 

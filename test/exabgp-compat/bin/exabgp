@@ -343,7 +343,10 @@ def main():
         # - ze.bgp-hostname: FQDN capability (code 73)
         # - ze.bgp-llnh: Link-local next-hop capability (code 77)
         # - ze.bgp-softver: Software version capability (code 75)
-        cmd = [ze_binary, '--plugin', 'ze.bgp-hostname', '--plugin', 'ze.bgp-llnh', '--plugin', 'ze.bgp-softver', '--plugin', 'ze.bgp-watchdog', temp_config]
+        # Keyword-first grammar (spec-fixit-config-file-positional-grammar): the
+        # config path is launched behind the `start` verb, not as a bare
+        # positional. Global --plugin flags precede the verb.
+        cmd = [ze_binary, '--plugin', 'ze.bgp-hostname', '--plugin', 'ze.bgp-llnh', '--plugin', 'ze.bgp-softver', '--plugin', 'ze.bgp-watchdog', 'start', temp_config]
 
         # Add environment-based options
         env_vars = get_exabgp_env_vars()

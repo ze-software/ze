@@ -80,7 +80,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze ze-bgp.conf
+cmd=background:seq=1:exec=ze start ze-bgp.conf
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=background ze readiness files present

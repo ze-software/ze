@@ -152,7 +152,7 @@ if __name__ == '__main__':
     main()
 EOF_PY
 
-cmd=foreground:seq=1:exec=ze cli-commit.conf:timeout=30s
+cmd=foreground:seq=1:exec=ze start cli-commit.conf:timeout=30s
 cmd=foreground:seq=2:exec=./drive-cli-commit.py:timeout=30s
 expect=exit:code=0
 expect=file:path=meta/config/active:exists=true

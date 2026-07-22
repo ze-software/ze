@@ -118,7 +118,7 @@ rm -f ready
 ZE_READY_FILE="$PWD/ready"
 export ZE_READY_FILE
 
-ze unreachable.conf >daemon.log 2>&1 &
+ze start unreachable.conf >daemon.log 2>&1 &
 DAEMON_PID=$!
 trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
 

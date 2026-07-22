@@ -75,7 +75,7 @@ ZECONF
 
 # Daemon shares ZE_CONFIG_DIR with the init above, so it loads the bootstrap
 # admin (with the reserved recovery profile) at startup.
-ZE_CONFIG_DIR="$SHARED" ze authz-recovery-admin.conf 2>daemon.log &
+ZE_CONFIG_DIR="$SHARED" ze start authz-recovery-admin.conf 2>daemon.log &
 DAEMON_PID=$!
 trap 'rm -rf "$SHARED"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
 

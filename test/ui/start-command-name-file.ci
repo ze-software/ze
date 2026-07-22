@@ -1,0 +1,57 @@
+# AC-3 (spec-fixit-config-file-positional-grammar): a config file whose basename
+# equals a registered command (here `signal`) is LOADED as config via `ze start
+# signal`, never silently dispatched as the same-named command. Before the fix,
+# bare `ze signal` dispatched the `signal` root command (send-signal-over-SSH)
+# and never loaded the file; with the keyword-first form the path sits behind
+# `start`, so the file is always the config.
+#
+# The KEEPALIVE exchange proves the daemon loaded "signal" as config and
+# established a session. Had `ze start signal` instead run the signal command,
+# no daemon would start and the peer would report no exchange.
+#
+# "signal" has no config suffix, so the runner's blob-storage-force heuristic
+# does not fire for it; ze.storage.blob=false is set explicitly so the daemon
+# reads the file directly from its working directory.
+option=env:var=ze.storage.blob:value=false
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+EOF_PEER
+
+# config file literally named "signal" (a registered root command name)
+tmpfs=signal:terminator=EOF_CONF
+bgp {
+	group default {
+		peer peer1 {
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					local 65533
+					remote 65000
+				}
+				router-id 10.0.0.2
+				family {
+					ipv4/unicast { prefix { maximum 10000; } }
+				}
+			}
+			timer {
+				receive-hold-time 180
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start signal:timeout=10s

@@ -1,0 +1,51 @@
+# Filename is historical (from the design pivot): the bare `ze <config-file>`
+# form was ultimately REMOVED, not deprecated
+# (spec-fixit-config-file-positional-grammar, Thomas-confirmed remove-the-sink).
+# This test guards that the removal is CLEAN: `ze start <config-file>` loads and
+# runs the daemon (the KEEPALIVE exchange), and NO deprecation-warning code path
+# survives on stderr. The canonical AC-1 load test is start-config-path.ci; this
+# adds the reject=deprecated regression guard against re-introducing a warning.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+EOF_PEER
+
+# ze bgp configuration written as a tmpfs file (a .conf name, so the runner
+# forces file storage for the `ze start <config>` launch)
+tmpfs=start-router.conf:terminator=EOF_CONF
+bgp {
+	group default {
+		peer peer1 {
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					local 65533
+					remote 65000
+				}
+				router-id 10.0.0.2
+				family {
+					ipv4/unicast { prefix { maximum 10000; } }
+				}
+			}
+			timer {
+				receive-hold-time 180
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration: the supported keyword-first launch
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start start-router.conf:timeout=10s
+reject=stderr:pattern=deprecated
