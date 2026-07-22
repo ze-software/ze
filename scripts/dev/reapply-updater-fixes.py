@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Re-apply local fixes to the vendored gokrazy updater after `go mod vendor`.
 
-Run from the repo root after updating the gokrazy/updater dependency:
+Run from the repo root after EVERY `go mod vendor`, not only after bumping
+gokrazy/updater. `go mod vendor` rewrites the whole vendor tree from the module
+cache, so bumping any unrelated dependency (a Dependabot fix on grpc, for
+example) silently reverts these fixes too:
 
-    go get github.com/gokrazy/updater@latest
+    go get <any-module>@<version>
     go mod vendor
     python3 scripts/dev/reapply-updater-fixes.py
     go test ./internal/appliance/...
+
+TestUpdaterHardeningMarkersPresent (internal/appliance) is the backstop that
+catches a forgotten run.
 
 The upstream PR (scripts/dev/gokrazy-updater-upstream.patch) tracks the same
 fixes. Once merged upstream, bump the dependency and delete both this script
