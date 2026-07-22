@@ -76,6 +76,40 @@ unable to delete or overwrite modcache files on later checkouts and rebases (a
 hand. A cache written before the flag existed needs a one-time
 `chmod -R u+w gokrazy/modcache`.
 
+## Module cache hygiene: what may accumulate, and what must never
+
+`gokrazy/modcache/` is a real Go module cache and Go never garbage-collects it.
+Two kinds of growth are expected, one is a defect.
+
+**Expected.** Superseded versions after a pin bump (runbook step 5 tells you to
+`rm -rf` the old dir; do it, or every bump leaves 15-50 MB behind), and the breadth
+of `go mod download all` (`mk/gokrazy.mk`), which is the whole module graph
+including test-only deps and their fixtures: `pierrec/lz4` is 75 MB of `testdata/`,
+`klauspost/compress` 46 MB. A second Go toolchain also lands here
+(`golang.org/toolchain@...`, ~310 MB with its zip) whenever a builddir `go`
+directive is newer than the host toolchain and `GOTOOLCHAIN=auto`.
+
+**A defect.** Either of these means a build resolved over the network instead of
+through the pins, and the version it built is not the version this repo chose:
+
+| What you find | What it means |
+|---------------|---------------|
+| `codeberg.org/thomas-mangin/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
+| A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's **kernel** |
+
+Both were live between 2026-07-18 and 2026-07-22: the derived (hugepage) parent
+handed `gok` an instance with no `builddir`, so every pin was discarded
+(`internal/appliance/kernelargs.go` `materializeDerivedParent`, against
+`vendor/github.com/gokrazy/tools/packer/gotool.go` `getPkg`/`getIncomplete`). That
+route is closed, and `TestMaterializeDerivedParent` gates it. A reappearance is a
+regression in whatever new path prepares an instance: find that path, do not just
+delete the directory.
+
+**Never `rm -rf gokrazy/modcache`.** 60 tracked files live inside it (the gokrazy
+init source, whitelisted by `gokrazy/modcache/.gitignore`). Delete named `@version`
+directories plus their `cache/download/<module>/@v/<version>.*` files, and confirm
+with `git status --porcelain gokrazy/` that nothing tracked moved.
+
 ## Do not just dismiss
 
 Dismissing the alert leaves the stale manifest; a future advisory below the pin will

@@ -293,7 +293,7 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 
 	if err := gokBuildFn([]string{
 		"--parent_dir", parentDir,
-		"-i", "ze",
+		"-i", gokrazyInstance,
 		"overwrite",
 		"--full", absImg,
 		"--target_storage_bytes", gokSizeArg(cfg.Image.SizeBytes),
