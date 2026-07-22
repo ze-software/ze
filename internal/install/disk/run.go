@@ -82,9 +82,9 @@ func validateConfig(cfg InstallConfig) error {
 		}
 	}
 
-	if cfg.ShellAuth != "" {
-		if err := validateShellAuth(cfg.ShellAuth); err != nil {
-			return fmt.Errorf("ze.shell-auth: %w", err)
+	if cfg.RescueAuth != "" {
+		if err := validateRescueAuth(cfg.RescueAuth); err != nil {
+			return fmt.Errorf("ze.rescue-auth: %w", err)
 		}
 	}
 

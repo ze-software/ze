@@ -53,9 +53,11 @@ module ze-image-server-conf {
                 description "Bcrypt hash of admin password (written to served zefs)";
             }
 
-            leaf shell-auth-sha256 {
-                type string;
-                description "Lowercase hex sha256 of the admin password. Emitted on the installer kernel cmdline (ze.shell-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal).";
+            leaf rescue-auth {
+                type string {
+                    pattern '[0-9a-f]{32}:[0-9a-f]{64}';
+                }
+                description "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'. Emitted on the installer kernel cmdline (ze.rescue-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal). This value is published unauthenticated on the PXE network, so it commits only to a dedicated rescue token, never to the admin password.";
             }
         }
     }

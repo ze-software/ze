@@ -9,16 +9,94 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+	"golang.org/x/crypto/ssh/knownhosts"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errSshAuthSockNotSetStart = errors.New("SSH_AUTH_SOCK not set (start ssh-agent or use eval $(ssh-agent))")
 
-const sshDialTimeout = 10 * time.Second
+var errNoKnownHostsPath = errors.New("cannot locate known_hosts: $HOME is unset, so the appliance host key cannot be verified")
+
+const (
+	sshDialTimeout  = 10 * time.Second
+	defaultSSHPort  = "22"
+	knownHostsDir   = ".ssh"
+	knownHostsFile  = "known_hosts"
+	keyscanHintHead = "ssh-keyscan -H "
+)
+
+// userKnownHostsPath returns the operator's OpenSSH known_hosts file. Appliance
+// host keys are verified against the same file the operator's own ssh(1) uses,
+// so there is no second trust store to keep in sync.
+func userKnownHostsPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, knownHostsDir, knownHostsFile)
+}
+
+// applianceHostKeyCallback verifies appliance host keys against the known_hosts
+// file at path.
+//
+// It fails closed: an unreadable known_hosts file, a host that is not listed, a
+// revoked key, and a key that does not match the pinned one all refuse the
+// connection. An appliance presents a self-signed host key, which is the reason
+// it must be pinned rather than trusted: there is no CA to fall back on, so an
+// unverified key is an unauthenticated peer, and the config being pushed is
+// readable by whoever answers.
+func applianceHostKeyCallback(path string) (ssh.HostKeyCallback, error) {
+	if path == "" {
+		return nil, errNoKnownHostsPath
+	}
+	verify, err := knownhosts.New(path)
+	if err != nil {
+		return nil, fmt.Errorf("read known_hosts %s: %w", path, err)
+	}
+
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		err := verify(hostname, remote, key)
+
+		var keyErr *knownhosts.KeyError
+		if !errors.As(err, &keyErr) {
+			return err
+		}
+		// Want non-empty means the host IS pinned but presented a different key.
+		// Never suggest re-scanning here: that would talk the operator through
+		// overwriting the pin, which is the one thing an attacker needs.
+		if len(keyErr.Want) > 0 {
+			return fmt.Errorf("host key mismatch for %s: presented %s, which is not the key pinned in %s",
+				hostname, ssh.FingerprintSHA256(key), path)
+		}
+		return fmt.Errorf("host key for %s not in %s: verify %s out of band, then pin it with %s",
+			hostname, path, ssh.FingerprintSHA256(key), keyscanHint(hostname, path))
+	}, nil
+}
+
+// keyscanHint builds the ssh-keyscan command that pins hostname into path.
+func keyscanHint(hostname, path string) string {
+	var tb textbuf.Buffer
+	tb.Str(keyscanHintHead)
+
+	host, port, err := net.SplitHostPort(hostname)
+	switch {
+	case err != nil:
+		tb.Str(hostname)
+	case port == defaultSSHPort:
+		tb.Str(host)
+	default:
+		tb.Str("-p ").Str(port).Byte(' ').Str(host)
+	}
+
+	return tb.Str(" >> ").Str(path).String()
+}
 
 func init() {
 	cmdConfigPush = runConfigPush
@@ -161,12 +239,17 @@ func sshExecReal(addr, user, command, stdin string) sshResult {
 
 	agentClient := agent.NewClient(agentConn)
 
+	hostKeys, err := applianceHostKeyCallback(userKnownHostsPath())
+	if err != nil {
+		return sshResult{Err: err}
+	}
+
 	config := &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeysCallback(agentClient.Signers),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // appliance uses self-signed host keys
+		HostKeyCallback: hostKeys,
 		Timeout:         sshDialTimeout,
 	}
 

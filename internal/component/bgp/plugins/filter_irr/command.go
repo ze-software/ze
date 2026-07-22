@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"slices"
 	"time"
@@ -212,11 +213,13 @@ func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
 	if len(args) == 0 || args[0] == "" {
 		return statusError, nil, errors.New("usage: update bgp irr asn <asn>")
 	}
+	// readUint parses the full 64-bit range, so bound it here: narrowing an
+	// out-of-range value would look up a different ASN than the operator typed.
 	v, ok := readUint(args[0])
-	if !ok {
-		return statusError, nil, errors.New("invalid ASN")
+	if !ok || v > math.MaxUint32 {
+		return statusError, nil, errors.New("invalid ASN (expected 0..4294967295)")
 	}
-	asn := uint32(v) //nolint:gosec // user input, range acceptable
+	asn := uint32(v)
 	plug.mu.RLock()
 	_, known := plug.byASN[asn]
 	plug.mu.RUnlock()

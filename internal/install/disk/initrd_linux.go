@@ -40,7 +40,7 @@ func RunInitrd() {
 		"target", cfg.Target,
 		"wait", cfg.Wait,
 		"mac", cfg.Mac,
-		"shell-auth-set", cfg.ShellAuth != "",
+		"rescue-auth-set", cfg.RescueAuth != "",
 	)
 
 	slog.Info("validating configuration")

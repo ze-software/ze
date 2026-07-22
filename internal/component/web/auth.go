@@ -328,10 +328,27 @@ func recordWebAuthFailure(recorder audit.Recorder, username, remoteAddr string) 
 // Only same-origin paths starting with "/" are accepted; everything else
 // falls back to "/".
 func sanitizeReturnTo(raw string) string {
-	if raw == "" || raw[0] != '/' || strings.HasPrefix(raw, "//") || (len(raw) > 1 && raw[1] == '\\') {
+	if !isSameOriginPath(raw) {
 		return "/"
 	}
 	return raw
+}
+
+// isSameOriginPath reports whether raw is a redirect target a browser resolves
+// against the current origin. It must be a rooted path ("/..."), and must be
+// neither scheme-relative ("//host", which a browser treats as an absolute URL
+// to another site) nor backslash-escaped ("/\host", which several browsers
+// normalize to "//host").
+//
+// Every redirect target derived from a request (query parameter, Referer,
+// HX-Current-URL) MUST pass this before it reaches http.Redirect or an
+// HX-Redirect header. A target that fails is not repairable: fall back to a
+// known-safe path.
+func isSameOriginPath(raw string) bool {
+	if raw == "" || raw[0] != '/' || strings.HasPrefix(raw, "//") {
+		return false
+	}
+	return len(raw) < 2 || raw[1] != '\\'
 }
 
 // addSecurityHeaders sets standard security headers on authenticated responses.

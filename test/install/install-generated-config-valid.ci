@@ -36,7 +36,7 @@ service {
         boot-directory build/pxe/boot;
         ssh-username admin;
         ssh-password-hash "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234";
-        shell-auth-sha256 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        rescue-auth "aabbccddeeff00112233445566778899:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     }
 }
 EOF_CONF

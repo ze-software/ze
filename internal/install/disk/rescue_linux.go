@@ -6,8 +6,6 @@ package disk
 
 import (
 	"bufio"
-	"crypto/sha256"
-	"crypto/subtle"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,6 +16,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -46,8 +45,8 @@ func branchName(b fatalBranch) string {
 	}
 }
 
-func selectFatalBranch(shellAuth, source string) fatalBranch {
-	if shellAuth != "" {
+func selectFatalBranch(rescueAuth, source string) fatalBranch {
+	if rescueAuth != "" {
 		return branchGated
 	}
 	if source == sourceISO {
@@ -56,22 +55,16 @@ func selectFatalBranch(shellAuth, source string) fatalBranch {
 	return branchReboot
 }
 
-func checkPassword(typed, shellAuth string) bool {
-	h := sha256.Sum256([]byte(typed))
-	actual := textbuf.StringHex(h[:])
-	return subtle.ConstantTimeCompare([]byte(actual), []byte(shellAuth)) == 1
-}
-
 // fatalInitrd implements the three-branch rescue policy from
 // tools/installer-initrd/init:217-227 and never returns.
 func fatalInitrd(cfg InstallConfig, msg string) {
 	slog.Error("FATAL", "error", msg)
 
-	branch := selectFatalBranch(cfg.ShellAuth, cfg.Source)
-	slog.Info("fatal policy", "branch", branchName(branch), "source", cfg.Source, "auth-set", cfg.ShellAuth != "")
+	branch := selectFatalBranch(cfg.RescueAuth, cfg.Source)
+	slog.Info("fatal policy", "branch", branchName(branch), "source", cfg.Source, "auth-set", cfg.RescueAuth != "")
 	switch branch {
 	case branchGated:
-		slog.Info("enter the admin password on any console for a rescue shell")
+		slog.Info("enter the rescue token on any console for a rescue shell")
 		rescueOnConsoles(cfg, true)
 	case branchUngated:
 		slog.Info("dropping to rescue console for debugging")
@@ -134,14 +127,14 @@ func rescueOnConsoles(cfg InstallConfig, gated bool) {
 
 func rescueSession(r io.Reader, w io.Writer, cfg InstallConfig, gated bool) {
 	if gated {
-		if !gateWithPassword(r, w, cfg.ShellAuth) {
+		if !gateWithRescueToken(r, w, cfg.RescueAuth) {
 			return
 		}
 	}
 	rescueMenu(r, w, cfg)
 }
 
-func gateWithPassword(r io.Reader, w io.Writer, shellAuth string) bool {
+func gateWithRescueToken(r io.Reader, w io.Writer, rescueAuth string) bool {
 	if f, ok := r.(*os.File); ok {
 		echoOff(f)
 		defer echoOn(f)
@@ -149,12 +142,12 @@ func gateWithPassword(r io.Reader, w io.Writer, shellAuth string) bool {
 
 	scanner := bufio.NewScanner(r)
 	for attempt := range rescueMaxAttempts {
-		fmt.Fprint(w, "[ze-install] admin password: ") //nolint:errcheck // console output to recovery terminal
+		fmt.Fprint(w, "[ze-install] rescue token: ") //nolint:errcheck // console output to recovery terminal
 		if !scanner.Scan() {
 			return false
 		}
 		pw := scanner.Text()
-		if checkPassword(pw, shellAuth) {
+		if rescueauth.Check(pw, rescueAuth) {
 			fmt.Fprintln(w, "\n[ze-install] authenticated") //nolint:errcheck // console output to recovery terminal
 			return true
 		}

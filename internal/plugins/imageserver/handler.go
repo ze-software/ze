@@ -27,7 +27,7 @@ type imageHandler struct {
 	zefsPath   string
 	serverAddr string
 	serverPort int
-	shellAuth  string // hex sha256 of admin password; gates the installer rescue shell
+	rescueAuth string // salted argon2id of the rescue token; gates the installer rescue shell
 }
 
 func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
@@ -37,7 +37,7 @@ func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
 		zefsPath:   zefsPath,
 		serverAddr: serverAddr,
 		serverPort: cfg.ListenPort,
-		shellAuth:  cfg.ShellAuthSHA256,
+		rescueAuth: cfg.RescueAuth,
 	}
 
 	mux := http.NewServeMux()
@@ -189,12 +189,14 @@ func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
 		portArg = tb.Reset().Str(" ze.port=").Int(int64(h.serverPort)).String()
 	}
 
-	// Pass the sha256 of the admin password so the installer can gate its rescue
-	// shell (ze.shell-auth). Omitted when unset -> the installer fails closed
-	// (prints the error and reboots instead of opening a shell).
+	// Pass the salted argon2id of the rescue token so the installer can gate its
+	// rescue shell (ze.rescue-auth). This script is served unauthenticated over
+	// plain HTTP, so the value is public by construction: it commits only to a
+	// dedicated rescue token, never to the admin password. Omitted when unset ->
+	// the installer fails closed (prints the error and reboots, no shell).
 	var authArg string
-	if h.shellAuth != "" {
-		authArg = tb.Reset().Str(" ze.shell-auth=").Str(h.shellAuth).String()
+	if h.rescueAuth != "" {
+		authArg = tb.Reset().Str(" ze.rescue-auth=").Str(h.rescueAuth).String()
 	}
 
 	// Select the console set on the client via iPXE's ${buildarch}: one server

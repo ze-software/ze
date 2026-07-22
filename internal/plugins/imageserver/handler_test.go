@@ -455,14 +455,14 @@ func TestServeDynamicBootIPXE(t *testing.T) {
 	if !strings.Contains(script, "ze.mac=${mac}") {
 		t.Errorf("missing ze.mac=${mac} in script:\n%s", script)
 	}
-	// No shell-auth hash configured -> the gate arg must be absent (installer
+	// No rescue-auth configured -> the gate arg must be absent (installer
 	// then fails closed).
-	if strings.Contains(script, "ze.shell-auth=") {
-		t.Errorf("no shell-auth configured: ze.shell-auth must be absent:\n%s", script)
+	if strings.Contains(script, "ze.rescue-auth=") {
+		t.Errorf("no rescue-auth configured: ze.rescue-auth must be absent:\n%s", script)
 	}
 }
 
-func TestServeDynamicBootIPXEShellAuth(t *testing.T) {
+func TestServeDynamicBootIPXERescueAuth(t *testing.T) {
 	t.Parallel()
 
 	imageDir := t.TempDir()
@@ -471,13 +471,13 @@ func TestServeDynamicBootIPXEShellAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hash := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	hash := "aabbccddeeff00112233445566778899:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	cfg := imageConfig{
-		Enabled:         true,
-		ImageDirectory:  imageDir,
-		BootDirectory:   bootDir,
-		ListenPort:      80,
-		ShellAuthSHA256: hash,
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+		ListenPort:     80,
+		RescueAuth:     hash,
 	}
 	mux := newMux(cfg, "", "198.19.255.1")
 	ts := httptest.NewServer(mux)
@@ -490,8 +490,8 @@ func TestServeDynamicBootIPXEShellAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	script := string(body)
-	if !strings.Contains(script, "ze.shell-auth="+hash) {
-		t.Errorf("missing ze.shell-auth=<hash> in script:\n%s", script)
+	if !strings.Contains(script, "ze.rescue-auth="+hash) {
+		t.Errorf("missing ze.rescue-auth=<value> in script:\n%s", script)
 	}
 	if !strings.Contains(script, "ze.mac=${mac}") {
 		t.Errorf("missing ze.mac in script:\n%s", script)

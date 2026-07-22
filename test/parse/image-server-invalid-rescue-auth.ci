@@ -1,0 +1,20 @@
+# Test: image-server rejects a malformed rescue-auth.
+# VALIDATES: image-server config validation requires rescue-auth to be a
+# "<32 hex>:<64 hex>" salted argon2id value (the installer derives a typed
+# token under the salt and compares; a malformed value would silently lock out
+# the rescue shell rather than gate it).
+# PREVENTS: emitting ze.rescue-auth=<garbage> on the installer kernel cmdline.
+
+stdin=config:terminator=EOF_CONF
+service {
+    image-server {
+        enabled true
+        image-directory /var/lib/images
+        rescue-auth "tooshort"
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=rescue-auth

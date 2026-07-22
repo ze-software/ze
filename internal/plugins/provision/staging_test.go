@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 )
 
 func TestProvisionStaging(t *testing.T) {
@@ -190,40 +192,60 @@ func TestProvisionConfigBootScriptURL(t *testing.T) {
 	}
 }
 
-func TestProvisionConfigShellAuth(t *testing.T) {
+// test-relax: shellAuthHash was deleted, not weakened. It hashed the ADMIN
+// PASSWORD with an unsalted sha256 and published the digest on an unauthenticated
+// PXE cmdline. Its replacement is a dedicated random rescue token behind salted
+// argon2id, covered by internal/core/rescueauth tests; the config-emission half
+// is retested below against the new leaf.
+func TestProvisionConfigRescueAuth(t *testing.T) {
 	t.Parallel()
 
-	want := shellAuthHash("hunter2")
+	token, want, err := rescueauth.NewValue()
+	if err != nil {
+		t.Fatalf("NewValue: %v", err)
+	}
 	cfg := generateConfig(configParams{
-		iface:           "eth0",
-		network:         "198.19.255.0/24",
-		image:           "/images/ze.img",
-		serverIP:        "198.19.255.1",
-		sshUsername:     "admin",
-		sshPassHash:     "$2a$10$hash",
-		shellAuthSHA256: want,
-		bootScriptURL:   "http://198.19.255.1/install/boot/boot.ipxe",
+		iface:         "eth0",
+		network:       "198.19.255.0/24",
+		image:         "/images/ze.img",
+		serverIP:      "198.19.255.1",
+		sshUsername:   "admin",
+		sshPassHash:   "$2a$10$hash",
+		rescueAuth:    want,
+		bootScriptURL: "http://198.19.255.1/install/boot/boot.ipxe",
 	})
 
-	if !strings.Contains(cfg, "shell-auth-sha256 \""+want+"\"") {
-		t.Errorf("generated config missing shell-auth-sha256:\n%s", cfg)
+	if !strings.Contains(cfg, "rescue-auth \""+want+"\"") {
+		t.Errorf("generated config missing rescue-auth:\n%s", cfg)
+	}
+	// The generated config must never carry the token itself, only the digest.
+	if strings.Contains(cfg, token) {
+		t.Errorf("generated config leaks the rescue token:\n%s", cfg)
+	}
+	if strings.Contains(cfg, "shell-auth") {
+		t.Errorf("generated config still emits the removed shell-auth leaf:\n%s", cfg)
 	}
 }
 
-func TestShellAuthHash(t *testing.T) {
+// VALIDATES: AC-1 -- the provisioner shows the operator the token exactly once,
+// and the printed text says it cannot be recovered.
+// PREVENTS: Minting a credential the operator never sees, which turns every
+// failed PXE install into an unrecoverable machine.
+func TestPrintRescueToken(t *testing.T) {
 	t.Parallel()
 
-	// sha256 of the empty string -- a well-known vector -- validates the helper
-	// produces a lowercase hex sha256 digest.
-	if got := shellAuthHash(""); got != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
-		t.Errorf("shellAuthHash(%q) = %q", "", got)
+	var out strings.Builder
+	printRescueToken(&out, "dead-beef-cafe-1234-5678")
+
+	got := out.String()
+	if !strings.Contains(got, "dead-beef-cafe-1234-5678") {
+		t.Errorf("token not shown to the operator: %q", got)
 	}
-	h := shellAuthHash("hunter2")
-	if len(h) != 64 {
-		t.Fatalf("shellAuthHash length = %d, want 64", len(h))
+	if !strings.Contains(got, "rescue") {
+		t.Errorf("output does not say what the token is for: %q", got)
 	}
-	if again := shellAuthHash("hunter2"); again != h {
-		t.Errorf("shellAuthHash not deterministic: %q vs %q", again, h)
+	if !strings.Contains(got, "not recoverable") {
+		t.Errorf("output does not warn the token cannot be recovered: %q", got)
 	}
 }
 

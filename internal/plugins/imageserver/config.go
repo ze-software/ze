@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 )
 
 const defaultListenPort = 80
@@ -21,7 +23,7 @@ type imageConfig struct {
 	BootDirectory    string
 	SSHUsername      string
 	SSHPasswordHash  string
-	ShellAuthSHA256  string
+	RescueAuth       string
 }
 
 func parseConfig(data string) (imageConfig, error) {
@@ -82,8 +84,8 @@ func parseConfig(data string) (imageConfig, error) {
 	if v, ok := imgMap["ssh-password-hash"].(string); ok {
 		cfg.SSHPasswordHash = v
 	}
-	if v, ok := imgMap["shell-auth-sha256"].(string); ok {
-		cfg.ShellAuthSHA256 = v
+	if v, ok := imgMap["rescue-auth"].(string); ok {
+		cfg.RescueAuth = v
 	}
 
 	return cfg, nil
@@ -107,26 +109,10 @@ func verifyConfig(cfg imageConfig) error {
 			return fmt.Errorf("image-server: ssh-password-hash is not a valid bcrypt hash: %w", err)
 		}
 	}
-	if cfg.ShellAuthSHA256 != "" && !isHexSHA256(cfg.ShellAuthSHA256) {
-		return errors.New("image-server: shell-auth-sha256 must be 64 lowercase hex characters")
-	}
-	return nil
-}
-
-// isHexSHA256 reports whether s is exactly 64 lowercase hex digits (a sha256
-// digest in hex). The installer compares a typed password's sha256sum against
-// this value, so a malformed hash would silently lock out the rescue shell.
-func isHexSHA256(s string) bool {
-	if len(s) != 64 {
-		return false
-	}
-	for i := range len(s) {
-		switch c := s[i]; {
-		case c >= '0' && c <= '9', c >= 'a' && c <= 'f':
-			// valid lowercase hex digit
-		default:
-			return false
+	if cfg.RescueAuth != "" {
+		if err := rescueauth.Validate(cfg.RescueAuth); err != nil {
+			return fmt.Errorf("image-server: rescue-auth: %w", err)
 		}
 	}
-	return true
+	return nil
 }

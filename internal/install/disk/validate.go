@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 )
 
 func validateIPv4(s string) error {
@@ -105,14 +107,13 @@ func validateSHA256(s string) error {
 	return nil
 }
 
-func validateShellAuth(s string) error {
-	if len(s) != 64 {
-		return fmt.Errorf("must be 64 lowercase hex chars, got %d", len(s))
-	}
-	for _, c := range s {
-		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
-			return fmt.Errorf("invalid character %q (lowercase hex only)", string(c))
-		}
+// validateRescueAuth checks the shape of the ze.rescue-auth cmdline value. The
+// value arrives from a PXE network the installer does not authenticate, so a
+// malformed one is rejected here rather than reaching the rescue gate, where a
+// decode failure would have to be distinguished from a wrong token.
+func validateRescueAuth(s string) error {
+	if err := rescueauth.Validate(s); err != nil {
+		return fmt.Errorf("%w (got %d chars)", err, len(s))
 	}
 	return nil
 }

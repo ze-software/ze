@@ -794,13 +794,23 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 		KeyPEM:  keyPEM,
 	}
 
+	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
+	// EAP carries no server hostname, so the configured CA is the peer's ONLY way
+	// to validate the authenticator. Without it the TLS client would accept any
+	// certificate (peer.go startTLSClient attaches VerifyPeerCertificate only when
+	// a trust anchor is present), so a missing or unresolvable CA fails the session
+	// here rather than silently downgrading to no verification.
 	caName := sa.PeerCfg.Auth.CACertificate
-	if caName != "" {
-		ca := pki.GetCA(caName)
-		if ca != nil {
-			cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
-		}
+	if caName == "" {
+		log.Warn("ike: EAP-TLS requires a ca-certificate to validate the authenticator", "peer", sa.PeerName)
+		return nil
 	}
+	ca := pki.GetCA(caName)
+	if ca == nil {
+		log.Warn("ike: EAP-TLS ca-certificate not found in PKI store", "peer", sa.PeerName, "ca", caName)
+		return nil
+	}
+	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
 
 	return cfg
 }

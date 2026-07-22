@@ -251,17 +251,24 @@ func TestSHA256Boundary(t *testing.T) {
 	}
 }
 
-func TestShellAuthRejectsUppercase(t *testing.T) {
-	lower := strings.Repeat("ab", 32)
-	if err := validateShellAuth(lower); err != nil {
-		t.Errorf("validateShellAuth(%q) = %v, want nil", lower, err)
+// test-relax: validateShellAuth was deleted, not weakened. It checked a 64-char
+// lowercase-hex sha256; the credential is now "<saltHex>:<digestHex>" behind
+// argon2id. Shape coverage (including the uppercase rejection this test carried,
+// and the legacy bare-sha256 form) lives in internal/core/rescueauth tests; this
+// keeps the installer-side wrapper covered.
+func TestValidateRescueAuthWrapsShapeErrors(t *testing.T) {
+	valid := "aabbccddeeff00112233445566778899:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	if err := validateRescueAuth(valid); err != nil {
+		t.Errorf("validateRescueAuth(%q) = %v, want nil", valid, err)
 	}
-	upper := strings.Repeat("AB", 32)
-	if err := validateShellAuth(upper); err == nil {
-		t.Error("validateShellAuth should reject uppercase hex")
-	}
-	mixed := "ABCDEFabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123"
-	if err := validateShellAuth(mixed); err == nil {
-		t.Error("validateShellAuth should reject mixed-case hex")
+	for _, bad := range []string{
+		"",
+		strings.ToUpper(valid),
+		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"aabbccddeeff00112233445566778899:short",
+	} {
+		if err := validateRescueAuth(bad); err == nil {
+			t.Errorf("validateRescueAuth(%q) = nil, want an error", bad)
+		}
 	}
 }

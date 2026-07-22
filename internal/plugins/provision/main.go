@@ -4,11 +4,10 @@ package provision
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -91,35 +91,47 @@ func Run(args []string) int {
 		return 1
 	}
 
+	// The rescue credential is a dedicated random token, never the admin
+	// password: it is published on the installer kernel cmdline over an
+	// unauthenticated PXE network, so whatever it commits to is effectively
+	// public. Losing it costs a rescue shell on a machine that already failed to
+	// install; it must never cost the admin password.
+	rescueToken, rescueAuthValue, rescueErr := rescueauth.NewValue()
+	if rescueErr != nil {
+		fmt.Fprintf(os.Stderr, "error: generating rescue token: %v\n", rescueErr)
+		return 1
+	}
+	printRescueToken(os.Stderr, rescueToken)
+
 	bootScriptURL := "http://" + serverIP + "/install/boot/boot.ipxe"
 
 	cfg := generateConfig(configParams{
-		iface:           *iface,
-		network:         *network,
-		image:           *image,
-		serverIP:        serverIP,
-		sshUsername:     *sshUser,
-		sshPassHash:     hash,
-		shellAuthSHA256: shellAuthHash(*sshPass),
-		bootScriptURL:   bootScriptURL,
-		bootDir:         bootDir,
-		tftpDir:         tftpDir,
+		iface:         *iface,
+		network:       *network,
+		image:         *image,
+		serverIP:      serverIP,
+		sshUsername:   *sshUser,
+		sshPassHash:   hash,
+		rescueAuth:    rescueAuthValue,
+		bootScriptURL: bootScriptURL,
+		bootDir:       bootDir,
+		tftpDir:       tftpDir,
 	})
 
 	return forkAndServe(cfg)
 }
 
 type configParams struct {
-	iface           string
-	network         string
-	image           string
-	serverIP        string
-	sshUsername     string
-	sshPassHash     string
-	shellAuthSHA256 string
-	bootScriptURL   string
-	bootDir         string
-	tftpDir         string
+	iface         string
+	network       string
+	image         string
+	serverIP      string
+	sshUsername   string
+	sshPassHash   string
+	rescueAuth    string
+	bootScriptURL string
+	bootDir       string
+	tftpDir       string
 }
 
 func generateConfig(p configParams) string {
@@ -203,8 +215,8 @@ func generateConfig(p configParams) string {
 	b.WriteString("        ssh-password-hash \"")
 	b.WriteString(p.sshPassHash)
 	b.WriteString("\";\n")
-	b.WriteString("        shell-auth-sha256 \"")
-	b.WriteString(p.shellAuthSHA256)
+	b.WriteString("        rescue-auth \"")
+	b.WriteString(p.rescueAuth)
 	b.WriteString("\";\n")
 	b.WriteString("    }\n")
 
@@ -337,22 +349,20 @@ func resolveServerIP(iface, override string) (string, error) {
 	return "", fmt.Errorf("interface %s has no IPv4 address", iface)
 }
 
+// printRescueToken shows the operator the one-time rescue token. It is written
+// to w (stderr) and never stored: only the salted argon2id of it reaches config
+// or the kernel cmdline, so this is the only chance to record it.
+func printRescueToken(w io.Writer, token string) {
+	fmt.Fprintf(w, "\nrescue token: %s\n", token)                                                    //nolint:errcheck // console notice; a failed write must not abort provisioning
+	fmt.Fprintf(w, "  needed to open a rescue shell if an install fails; not recoverable later\n\n") //nolint:errcheck // console notice
+}
+
 func hashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
 	}
 	return string(hash), nil
-}
-
-// shellAuthHash returns the lowercase hex sha256 of the admin password. It is
-// passed to the installer on the kernel cmdline (ze.shell-auth) so the busybox
-// rescue shell can be password-gated: the installer compares a typed password's
-// sha256sum against this value. sha256 (not the bcrypt hash above) because the
-// busybox initrd has sha256sum but no bcrypt.
-func shellAuthHash(password string) string {
-	sum := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(sum[:])
 }
 
 func dhcpRange(prefix netip.Prefix, serverIP netip.Addr) (start, stop netip.Addr) {

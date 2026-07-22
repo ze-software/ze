@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 297 design docs, 3046 files
+Total: 297 design docs, 3052 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -87,6 +87,9 @@ Total: 297 design docs, 3046 files
 | `cmd/ze/hub/build_tag_bgp_absent_test.go` | ze_bgp absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_bgp_present_test.go` | ze_bgp present build validation |
 | `cmd/ze/hub/build_tag_bgp_probe_test.go` | shared ze_bgp present/absent probe config |
+| `cmd/ze/hub/build_tag_bmp_absent_test.go` | ze_bmp absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_bmp_present_test.go` | ze_bmp present (compile-out) validation |
+| `cmd/ze/hub/build_tag_gate11_absent_test.go` | ze_bmp/ze_mrt symbol-drop + dependent-gate proof |
 | `cmd/ze/hub/build_tag_gnmi_absent_test.go` | ze_gnmi absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_gnmi_present_test.go` | ze_gnmi present build validation |
 | `cmd/ze/hub/build_tag_grpc_absent_test.go` | ze_grpc absent (compile-out) validation |
@@ -99,6 +102,8 @@ Total: 297 design docs, 3046 files
 | `cmd/ze/hub/build_tag_lg_present_test.go` | ze_lg present build validation |
 | `cmd/ze/hub/build_tag_mcp_absent_test.go` | ze_mcp absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_mcp_present_test.go` | ze_mcp present build validation |
+| `cmd/ze/hub/build_tag_mrt_absent_test.go` | ze_mrt absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_mrt_present_test.go` | ze_mrt present (compile-out) validation |
 | `cmd/ze/hub/build_tag_ospf_absent_test.go` | ze_ospf absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_ospf_present_test.go` | ze_ospf present build validation |
 | `cmd/ze/hub/build_tag_protocols_absent_test.go` | protocols absent symbol-drop proof |
@@ -2231,6 +2236,7 @@ Total: 297 design docs, 3046 files
 |------|-------|
 | `cmd/ze-installer/main.go` | PID-1 installer initrd binary |
 | `internal/appliance/initrd_pack_test.go` | AC-11 pure-Go initrd packer round-trip |
+| `internal/core/rescueauth/rescueauth.go` | rescue-shell credential encoding |
 | `internal/install/disk/blockdev_linux.go` | block device ioctls + syscall wiring |
 | `internal/install/disk/blockdev_linux_test.go` | block device ioctl tests |
 | `internal/install/disk/bootstrap_linux.go` | PID-1 bootstrap: mount, console |

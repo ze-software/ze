@@ -381,6 +381,7 @@ golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/agent
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
+golang.org/x/crypto/ssh/knownhosts
 # golang.org/x/crypto/x509roots/fallback v0.0.0-20260630172432-7626c5025624
 ## explicit; go 1.25.0
 golang.org/x/crypto/x509roots/fallback/bundle

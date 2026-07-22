@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -151,6 +152,10 @@ func parseTrailingOpts(args []string) (announceOpts, error) {
 	return opts, nil
 }
 
+// maxDurationSeconds is the largest whole-second count representable as a
+// time.Duration (an int64 nanosecond count).
+const maxDurationSeconds = uint64(math.MaxInt64 / int64(time.Second))
+
 func parseDuration(s string) (time.Duration, error) {
 	if d, err := time.ParseDuration(s); err == nil {
 		return d, nil
@@ -159,7 +164,12 @@ func parseDuration(s string) (time.Duration, error) {
 	if err != nil {
 		return 0, fmt.Errorf("expected duration (e.g. 300s) or seconds: %s", s)
 	}
-	return time.Duration(secs) * time.Second, nil //nolint:gosec // G115: bounded by uint64 range
+	// time.Duration is an int64 nanosecond count, so a seconds value beyond
+	// maxDurationSeconds wraps: reject it instead of returning a negative delay.
+	if secs > maxDurationSeconds {
+		return 0, fmt.Errorf("duration %s seconds out of range 0..%d", s, maxDurationSeconds)
+	}
+	return time.Duration(secs) * time.Second, nil //nolint:gosec // G115: bounded above
 }
 
 func prefixToFamily(prefix netip.Prefix) family.Family {

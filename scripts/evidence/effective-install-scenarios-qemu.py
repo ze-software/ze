@@ -37,7 +37,6 @@ vmlinuz with IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in (=y).
 
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import os
 import select
@@ -384,14 +383,17 @@ def scenario_pin_ac5(
 
 # ── scenarios: rescue console (AC-7 / AC-7b / AC-7c) ──────────────────────
 
-# A fixed password and its sha256 hex digest. ze.shell-auth IS the digest
-# (rescue_linux.go:60 hashes the typed password and compares), so the harness
-# passes RESCUE_SHELL_AUTH on the cmdline and types RESCUE_PASSWORD.
-RESCUE_PASSWORD = "ze-rescue-evidence"
-RESCUE_SHELL_AUTH = hashlib.sha256(RESCUE_PASSWORD.encode()).hexdigest()
+# A fixed rescue token and its encoded credential. ze.rescue-auth is
+# "<saltHex>:<argon2idHex>" (internal/core/rescueauth), so the harness passes
+# RESCUE_AUTH on the cmdline and types RESCUE_TOKEN. The value is pinned rather
+# than computed here: reproducing argon2id in Python would need a dependency,
+# and TestValuePinnedVector (internal/core/rescueauth) fails if the parameters
+# drift away from this exact pair.
+RESCUE_TOKEN = "ze-rescue-evidence"
+RESCUE_AUTH = "5a65726573637565536f6c74303031ff:fed7b65bb317bc34097440c9bbd0a2ab3749edb8d88d3d37c94abe6cf62e399b"
 
 # Markers emitted by internal/install/disk/rescue_linux.go.
-PASSWORD_PROMPT = "admin password:"
+TOKEN_PROMPT = "rescue token:"
 AUTH_OK = "authenticated"
 AUTH_BAD = "incorrect"
 MENU_MARK = "Recovery Console"
@@ -454,14 +456,14 @@ def rescue_cmd(
     initrd: Path,
     *,
     source: str,
-    shell_auth: str | None,
+    rescue_auth: str | None,
 ) -> list[str]:
     """Build a QEMU cmdline that forces a FATAL, then enters the rescue policy.
 
     HTTP source: ze.server is an address with no slirp service, so ensureNetwork
     fails fast (ze.wait=3) and runHTTP returns 1. ISO source: no media is
     attached, so runISO fails at "media not found". Either way RunInitrd reaches
-    fatalInitrd, whose branch is chosen by (shell_auth, source).
+    fatalInitrd, whose branch is chosen by (rescue_auth, source).
     """
     console = "ttyAMA0" if base.ARCH == "arm64" else "ttyS0"
     nic = os.environ.get("ZE_INSTALL_NIC", "virtio-net-pci")
@@ -475,8 +477,8 @@ def rescue_cmd(
         parts += ["ze.server=10.0.2.99", "ze.wait=3", "ip=dhcp"]
     else:
         parts.append(f"ze.media-id={DUMMY_MEDIA_ID}")
-    if shell_auth:
-        parts.append(f"ze.shell-auth={shell_auth}")
+    if rescue_auth:
+        parts.append(f"ze.rescue-auth={rescue_auth}")
     return base.qemu_base(needs_bios=False) + [
         "-no-reboot",
         "-kernel",
@@ -497,11 +499,11 @@ def scenario_rescue_ac7(
 ) -> bool:
     """AC-7: gated console. Wrong password rejected, correct opens the menu."""
     initrd = build_normal_initrd(root, work)
-    cmd = rescue_cmd(kernel, initrd, source="http", shell_auth=RESCUE_SHELL_AUTH)
+    cmd = rescue_cmd(kernel, initrd, source="http", rescue_auth=RESCUE_AUTH)
     con = SerialConsole(cmd)
     step = float(os.environ.get("ZE_INSTALL_RESCUE_STEP_TIMEOUT", "120"))
     try:
-        if not con.expect(PASSWORD_PROMPT, step):
+        if not con.expect(TOKEN_PROMPT, step):
             log("FAIL rescue-ac7: gated password prompt never appeared")
             sys.stdout.write(con.buf)
             return False
@@ -510,7 +512,7 @@ def scenario_rescue_ac7(
             log("FAIL rescue-ac7: wrong password was not rejected")
             sys.stdout.write(con.buf)
             return False
-        con.send_line(RESCUE_PASSWORD)
+        con.send_line(RESCUE_TOKEN)
         if not con.expect(AUTH_OK, 30) or not con.expect(MENU_MARK, 30):
             log("FAIL rescue-ac7: correct password did not open the recovery menu")
             sys.stdout.write(con.buf)
@@ -527,7 +529,7 @@ def scenario_rescue_ac7b(
 ) -> bool:
     """AC-7b: no credential + ISO source -> menu opens UNGATED (no password)."""
     initrd = build_normal_initrd(root, work)
-    cmd = rescue_cmd(kernel, initrd, source="iso", shell_auth=None)
+    cmd = rescue_cmd(kernel, initrd, source="iso", rescue_auth=None)
     con = SerialConsole(cmd)
     step = float(os.environ.get("ZE_INSTALL_RESCUE_STEP_TIMEOUT", "120"))
     try:
@@ -535,7 +537,7 @@ def scenario_rescue_ac7b(
             log("FAIL rescue-ac7b: ungated recovery menu never appeared")
             sys.stdout.write(con.buf)
             return False
-        if PASSWORD_PROMPT in con.buf:
+        if TOKEN_PROMPT in con.buf:
             log("FAIL rescue-ac7b: a password was demanded on an ungated ISO console")
             sys.stdout.write(con.buf)
             return False
@@ -551,13 +553,13 @@ def scenario_rescue_ac7c(
 ) -> bool:
     """AC-7c: no credential + network -> no console, ~30s wait, reboot (no hang)."""
     initrd = build_normal_initrd(root, work)
-    cmd = rescue_cmd(kernel, initrd, source="http", shell_auth=None)
+    cmd = rescue_cmd(kernel, initrd, source="http", rescue_auth=None)
     # Non-interactive: -no-reboot makes QEMU exit when the 30s timer reboots, so
     # reaching the reboot proves it did not hang waiting for a password.
     serial = base._run_capture(
         cmd, float(os.environ.get("ZE_INSTALL_RESCUE_TIMEOUT", "120"))
     )
-    if MENU_MARK in serial or PASSWORD_PROMPT in serial:
+    if MENU_MARK in serial or TOKEN_PROMPT in serial:
         sys.stdout.write(serial)
         log(
             "FAIL rescue-ac7c: a rescue console was offered on an unattended network install"

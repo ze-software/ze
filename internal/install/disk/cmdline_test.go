@@ -1,5 +1,5 @@
-// VALIDATES: AC-4 (ze.mac parsed), AC-7 (ze.shell-auth parsed)
-// PREVENTS: ze.mac and ze.shell-auth silently ignored on the kernel cmdline
+// VALIDATES: AC-4 (ze.mac parsed), AC-7 (ze.rescue-auth parsed)
+// PREVENTS: ze.mac and ze.rescue-auth silently ignored on the kernel cmdline
 
 package disk
 
@@ -9,15 +9,15 @@ import (
 )
 
 func TestParseCmdlineMacAuth(t *testing.T) {
-	line := "ze.source=http ze.server=10.0.0.1 ze.mac=aa:bb:cc:dd:ee:ff ze.shell-auth=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+	line := "ze.source=http ze.server=10.0.0.1 ze.mac=aa:bb:cc:dd:ee:ff ze.rescue-auth=aabbccddeeff00112233445566778899:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	cfg := parseCmdlineString(line)
 
 	if cfg.Mac != "aa:bb:cc:dd:ee:ff" {
 		t.Fatalf("Mac = %q, want %q", cfg.Mac, "aa:bb:cc:dd:ee:ff")
 	}
-	wantAuth := "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-	if cfg.ShellAuth != wantAuth {
-		t.Fatalf("ShellAuth = %q, want %q", cfg.ShellAuth, wantAuth)
+	wantAuth := "aabbccddeeff00112233445566778899:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	if cfg.RescueAuth != wantAuth {
+		t.Fatalf("RescueAuth = %q, want %q", cfg.RescueAuth, wantAuth)
 	}
 }
 
@@ -28,8 +28,8 @@ func TestParseCmdlineMacAuthEmpty(t *testing.T) {
 	if cfg.Mac != "" {
 		t.Fatalf("Mac = %q, want empty", cfg.Mac)
 	}
-	if cfg.ShellAuth != "" {
-		t.Fatalf("ShellAuth = %q, want empty", cfg.ShellAuth)
+	if cfg.RescueAuth != "" {
+		t.Fatalf("RescueAuth = %q, want empty", cfg.RescueAuth)
 	}
 }
 

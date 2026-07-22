@@ -103,6 +103,36 @@ func TestParseDuration(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-12 -- a bare seconds count that cannot be represented as a
+// time.Duration is rejected, never wrapped into a negative duration.
+// PREVENTS: `time.Duration(secs) * time.Second` overflowing int64, which turns a
+// huge withdraw delay into an immediate (or negative) one.
+func TestParseDurationRejectsOverflow(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{"last valid seconds", "9223372036", 9223372036 * time.Second, false},
+		{"first invalid above", "9223372037", 0, true},
+		{"max uint64", "18446744073709551615", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseDuration(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Zero(t, got, "a rejected duration must not leak a value")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+			assert.Positive(t, got, "a valid duration must never come back negative")
+		})
+	}
+}
+
 func TestSplitFlowspecArgs(t *testing.T) {
 	// VALIDATES: component/action/opts split; boundary -- rate-limit requires a
 	// value; an action is mandatory (no fabricated default).

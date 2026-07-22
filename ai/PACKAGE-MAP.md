@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 614 packages, 611 described, 3 TODO
+Total: 615 packages, 612 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -458,6 +458,7 @@ Total: 614 packages, 611 described, 3 TODO
 | `internal/core/redistevents` | owns the shared, value-typed payload that protocol route producers (L2TP, connected, future static/OSPF/ISIS) publish on the EventBus and the bgp-redistribute consumer subscribes to |  |
 | `internal/core/replay` | holds the ONE vocabulary every late-join replay hop shares: a value-typed request payload carrying an opaque correlation token, a reserved broadcast sentinel, and the token-derived "is this a... |  |
 | `internal/core/report` | is the single place where Ze subsystems push operator-visible warnings and errors |  |
+| `internal/core/rescueauth` | encodes and verifies the installer's rescue-shell credential |  |
 | `internal/core/resolve` | selects the storage backend and default config filename for ze |  |
 | `internal/core/rib/igpcost` | carries the IGP metric of a resolved next-hop from whoever computes it to whoever ranks paths by it |  |
 | `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |

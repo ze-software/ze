@@ -1,64 +1,60 @@
-// VALIDATES: AC-7 (sha256 auth), AC-7b (ungated ISO), AC-7c (30s reboot for network)
-// PREVENTS: double-hashing ze.shell-auth; wrong fatal branch selection
+// VALIDATES: AC-7 (rescue-token auth), AC-7b (ungated ISO), AC-7c (30s reboot for network)
+// PREVENTS: wrong fatal branch selection; a rescue gate that accepts the wrong token
+
+// test-relax: the four TestRecoveryAuth* cases exercised checkPassword, which was
+// DELETED along with the unsalted-sha256 credential it verified. Their successor
+// coverage (correct/wrong/empty token, malformed values, no double-derivation) is
+// internal/core/rescueauth's test suite, which is strictly broader. The gate is
+// re-covered end to end below against rescueauth.Check.
 
 //go:build linux && ze_installer
 
 package disk
 
 import (
-	"crypto/sha256"
+	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 )
 
-func TestRecoveryAuthCorrectPassword(t *testing.T) {
-	password := "admin-password"
-	h := sha256.Sum256([]byte(password))
-	shellAuth := textbuf.StringHex(h[:])
+// VALIDATES: AC-2/AC-3 -- the installer's rescue gate accepts the provisioned
+// token and refuses anything else, through the same call the console makes.
+// PREVENTS: The gate being wired to a stale or absent verifier after the
+// credential changed shape.
+func TestRescueGateAcceptsProvisionedToken(t *testing.T) {
+	token, authValue, err := rescueauth.NewValue()
+	if err != nil {
+		t.Fatalf("NewValue: %v", err)
+	}
 
-	if !checkPassword(password, shellAuth) {
-		t.Fatal("correct password rejected")
+	if !rescueauth.Check(token, authValue) {
+		t.Fatal("the provisioned token was refused by the rescue gate")
+	}
+	for _, wrong := range []string{"", "wrong", token + "x", strings.ToUpper(token)} {
+		if rescueauth.Check(wrong, authValue) {
+			t.Errorf("rescue gate accepted %q", wrong)
+		}
 	}
 }
 
-func TestRecoveryAuthWrongPassword(t *testing.T) {
-	h := sha256.Sum256([]byte("correct"))
-	shellAuth := textbuf.StringHex(h[:])
-
-	if checkPassword("wrong", shellAuth) {
-		t.Fatal("wrong password accepted")
-	}
-}
-
-func TestRecoveryAuthEmptyPassword(t *testing.T) {
-	h := sha256.Sum256([]byte("admin"))
-	shellAuth := textbuf.StringHex(h[:])
-
-	if checkPassword("", shellAuth) {
-		t.Fatal("empty password accepted")
-	}
-}
-
-func TestRecoveryAuthNoDoubleHash(t *testing.T) {
-	// ze.shell-auth IS the sha256 hex digest. checkPassword must NOT
-	// hash it again before comparing.
-	password := "test"
-	h := sha256.Sum256([]byte(password))
-	shellAuth := textbuf.StringHex(h[:])
-
-	// If checkPassword double-hashed, sha256(sha256("test")) != sha256("test")
-	if !checkPassword(password, shellAuth) {
-		t.Fatal("checkPassword appears to double-hash ze.shell-auth")
+// VALIDATES: AC-3 -- a malformed ze.rescue-auth never opens the shell.
+// PREVENTS: A cmdline value an attacker can supply on the PXE network being
+// treated as "nothing to verify" (ai/rules/fail-closed-guards.md).
+func TestRescueGateFailsClosedOnMalformedCmdlineValue(t *testing.T) {
+	for _, bad := range []string{"", "garbage", strings.Repeat("a", 64), "aabb:ccdd"} {
+		if rescueauth.Check("anything", bad) {
+			t.Errorf("malformed ze.rescue-auth %q opened the gate", bad)
+		}
 	}
 }
 
 func TestFatalPolicyBranch(t *testing.T) {
 	tests := []struct {
-		name      string
-		shellAuth string
-		source    string
-		want      fatalBranch
+		name       string
+		rescueAuth string
+		source     string
+		want       fatalBranch
 	}{
 		{"credential present HTTP", "abcd1234", sourceHTTP, branchGated},
 		{"credential present ISO", "abcd1234", sourceISO, branchGated},
@@ -67,7 +63,7 @@ func TestFatalPolicyBranch(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := selectFatalBranch(tt.shellAuth, tt.source)
+		got := selectFatalBranch(tt.rescueAuth, tt.source)
 		if got != tt.want {
 			t.Errorf("%s: got %v, want %v", tt.name, got, tt.want)
 		}

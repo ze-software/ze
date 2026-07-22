@@ -9,15 +9,15 @@ import (
 
 // InstallConfig holds parsed kernel cmdline parameters for the installer.
 type InstallConfig struct {
-	Source    string // http or iso
-	Server    string // ze-install server IP (http mode)
-	Image     string // image filename
-	Port      string // install HTTP port
-	Target    string // explicit target disk path
-	Wait      string // max server probe attempts
-	MediaID   string // ISO media identifier (32 hex chars)
-	Mac       string // boot NIC MAC for pinning (ze.mac)
-	ShellAuth string // sha256 hex of admin password (ze.shell-auth)
+	Source     string // http or iso
+	Server     string // ze-install server IP (http mode)
+	Image      string // image filename
+	Port       string // install HTTP port
+	Target     string // explicit target disk path
+	Wait       string // max server probe attempts
+	MediaID    string // ISO media identifier (32 hex chars)
+	Mac        string // boot NIC MAC for pinning (ze.mac)
+	RescueAuth string // salted argon2id of the rescue token (ze.rescue-auth)
 }
 
 func defaultConfig() InstallConfig {
@@ -54,8 +54,8 @@ func parseCmdlineString(line string) InstallConfig {
 			cfg.MediaID = v
 		case "ze.mac":
 			cfg.Mac = v
-		case "ze.shell-auth":
-			cfg.ShellAuth = v
+		case "ze.rescue-auth":
+			cfg.RescueAuth = v
 		}
 	}
 	return cfg

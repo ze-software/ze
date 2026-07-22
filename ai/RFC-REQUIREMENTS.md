@@ -3833,10 +3833,10 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC7947-x-1` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:406` | `internal/component/bgp/reactor/forward_rs_test.go:298` |  |
-| `RFC7947-x-2` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:408` | -- | {single-polarity} NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
-| `RFC7947-x-3` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:410` | -- | {single-polarity} MULTI_EXIT_DISC (attribute type 4) is never modified on any RS forwarding path -- no mods.Op(4, ...) exists in the reactor -- so MED rides through in the verbatim wire and there is no MED-rewrite behavior to assert as a negative. The positive is proven byte-identical in TestReactorForwardRSTransparent |
-| `RFC7947-x-4` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:226` | `internal/component/bgp/reactor/forward_rs_test.go:145` |  |
+| `RFC7947-x-1` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:414` | `internal/component/bgp/reactor/forward_rs_test.go:306` |  |
+| `RFC7947-x-2` | MUST NOT | x | `internal/component/bgp/reactor/forward_rs_test.go:416` | -- | {single-polarity} NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
+| `RFC7947-x-3` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:418` | -- | {single-polarity} MULTI_EXIT_DISC (attribute type 4) is never modified on any RS forwarding path -- no mods.Op(4, ...) exists in the reactor -- so MED rides through in the verbatim wire and there is no MED-rewrite behavior to assert as a negative. The positive is proven byte-identical in TestReactorForwardRSTransparent |
+| `RFC7947-x-4` | MUST | x | `internal/component/bgp/reactor/forward_rs_test.go:231` | `internal/component/bgp/reactor/forward_rs_test.go:145` |  |
 | `RFC7947-x-5` | SHOULD | x | -- | -- |  |
 | `RFC7947-x-6` | MAY | x | -- | -- |  |
 

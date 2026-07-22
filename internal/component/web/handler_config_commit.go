@@ -254,6 +254,12 @@ func recordWebAudit(recorder audit.Recorder, r *http.Request, username, action, 
 // header (or Referer). Used by handlers like discard that have no path in their
 // own URL but need to navigate back one level from where the user was.
 // Falls back to /config/edit/ if no usable URL is available.
+//
+// Both headers are supplied by the client, so the result is a redirect target
+// only when it stays on this origin. A scheme-relative value ("//host/a/b")
+// survives every step below unchanged, and a full URL with no path ("https://host")
+// survives the scheme strip; both are rejected by isSameOriginPath rather than
+// returned. Anything rejected falls back to configEditPath.
 func parentFromCurrentURL(r *http.Request) string {
 	current := r.Header.Get("HX-Current-URL")
 	if current == "" {
@@ -273,7 +279,9 @@ func parentFromCurrentURL(r *http.Request) string {
 	// Strip trailing slash, then remove the last segment.
 	current = strings.TrimSuffix(current, "/")
 	if last := strings.LastIndex(current, "/"); last > 0 {
-		return current[:last+1]
+		if parent := current[:last+1]; isSameOriginPath(parent) {
+			return parent
+		}
 	}
 
 	return configEditPath
