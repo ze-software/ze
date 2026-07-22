@@ -484,7 +484,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | argon2id with hex `salt:digest` on the cmdline | bcrypt `$2a$...`; scrypt | The `$` in a bcrypt/PHC string risks iPXE variable interpolation in the generated script; hex plus `:` is safe in both iPXE and `/proc/cmdline`. argon2 is already vendored |
 | `~/.ssh/known_hosts` over TOFU-in-basedir | pin on first push under `getBaseDir()`; gate behind `ze.ssh.insecure` | Operators already have these hosts in known_hosts from ordinary SSH use, so it needs no new state and no unauthenticated first contact. User decision, 2026-07-22 |
 | Reject EAP-TLS with no CA at config verify | verify the chain some other way; leave as documented | EAP carries no server hostname, so with no trust anchor there is nothing to check against; the config is the only place the problem can be reported (`exact-or-reject.md`) |
-| Bound OSPF/IS-IS locally rather than suppress the query | add a CodeQL query filter; dismiss 49 alerts as-is | A query filter would hide future real cases. The local bound is a genuine fail-closed improvement and silences the family as a side effect |
+| Bound OSPF/IS-IS locally rather than suppress the query | add a CodeQL query filter; dismiss 49 alerts as-is | A query filter would hide future real cases. CORRECTED 2026-07-22: the local bound does NOT silence the alerts. `vrrp/groups.go` already bounds via `asUint(v, max)` (`groups.go:672-674`) and CodeQL still flags all four of its conversions (#163-#166), because the query cannot follow a `max` parameter. Phase 3 is therefore defense-in-depth only (`ai/rules/fail-closed-guards.md`: make the guard local to the narrowing); the 49 alerts need dismissing either way |
 | Dismiss per alert number with individual comments | one query-level suppression | R-5: a query filter blinds the repo to the next real instance |
 
 ## Known Limitations
@@ -579,4 +579,108 @@ are; they already cite the mandating section.
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
-|--------------------------|---------------|-------
+|--------------------------|---------------|-------------------|
+| No operator secret digest on the install network | grep + unit | `git grep 'shell-auth\|shellAuthHash\|ShellAuth'` returns only two `test-relax:` provenance comments and one assertion that the leaf is gone. The cmdline value now commits to a random token, not the admin password (`internal/core/rescueauth`), proven by `TestValueIsCmdlineSafe` (no plaintext leak) and `TestValueIsSalted` |
+| Appliance push authenticates its peer | unit, from the command entry point | `TestSSHExecRefusesUnknownHost`, `TestSSHExecRejectsChangedHostKey`, `TestSSHExecRefusesMissingKnownHosts`, `TestSSHExecAcceptsPinnedHostKey` |
+| EAP-TLS never accepts an unverified chain | unit + mutation | `TestEAPTLSPeerWithoutCARefusesToStart` (tagged `RFC5216-5.3-1 negative`). Mutation-verified: disabling the guard yields `startTLSClient() = eap-tls: failed to parse peer CA certificate, want errNoPeerTrustAnchor`. `make ze-rfc-check` green: 2716 gated requirements, 2544 tags resolved |
+| Web redirect cannot leave the origin | unit over a hostile-header table | `TestParentFromCurrentURLRejectsProtocolRelative`, `TestParentFromCurrentURLSanitizesReferer`, `TestConfigDiscardRedirectIsSameOrigin`, `TestConfigDiscardHXRedirectIsSameOrigin`, 9 hostile forms each. The red run proved the hole: `//evil.example/a/b` returned `//evil.example/a/` |
+| Operator input is rejected, not truncated | functional + boundary | `TestUpdateASNRejectsOutOfRange` (red run proved `4294967296` became ASN 0), `TestParseDurationRejectsOverflow`, `test/parse/image-server-invalid-rescue-auth.ci` PASS |
+| Scanning page fully triaged | `gh api` listing | DONE 2026-07-22: 169 alerts, **0 open**. 39 fixed (four by commit 7457a0fcf, auto-closed by the next scan), 130 dismissed: 93 false positive, 26 won't fix, 11 used in tests. Every dismissal carries an individual comment naming the producing guard `file:line` or the RFC section; no query-level suppression was added (R-5) |
+
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md Review Gate). NOT YET RUN: the spec is still
+     open (Phase 3 outstanding), so the independent review pass belongs with the
+     closure commit, over the complete diff. -->
+
+### Run 1 (initial)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| | | not yet run -- see the note above | | |
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
+
+## Pre-Commit Verification
+
+<!-- Filled at closure. The two commits so far were made under an explicit Thomas
+     owner override of the verify requirement (ai/rules/git-safety.md), recorded
+     in each commit message. -->
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/rescueauth/rescueauth.go` | yes | committed in 7457a0fcf (`create mode 100644`) |
+| `internal/core/rescueauth/rescueauth_test.go` | yes | committed in 7457a0fcf |
+| `internal/appliance/cmd_config_push_hostkey_test.go` | yes | committed in 7457a0fcf |
+| `internal/component/web/handler_config_commit_test.go` | yes | committed in 7457a0fcf |
+| `internal/component/bgp/plugins/filter_irr/command_test.go` | yes | committed in 7457a0fcf |
+| `test/parse/image-server-invalid-rescue-auth.ci` | yes | committed in 7457a0fcf; `ze-test` parse suite entry 150 PASS |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | rescue token minted, printed, verified; wrong token refused | `internal/core/rescueauth` suite green; `TestPrintRescueToken` |
+| AC-4 | old sha256 path deleted, not aliased | full-tree grep: only `test-relax:` provenance comments remain |
+| AC-5..AC-7 | appliance push fails closed / accepts pinned / rejects changed | four `TestSSHExec*` tests green |
+| AC-8 | reject EAP-TLS with no CA at `ze config verify` | **NOT DELIVERED** -- the three ipsec validators are dead code (see Deviations). The runtime path is closed instead (AC-9 evidence) |
+| AC-9 | EAP-TLS with a CA behaves as before | full `ike/...` suite green after the change |
+| AC-10 | redirect stays same-origin | four web tests, 9 hostile header forms each |
+| AC-11, AC-12 | irr ASN and announce duration rejected, not truncated | `TestUpdateASNRejectsOutOfRange`, `TestParseDurationRejectsOverflow` |
+| AC-13, AC-14 | OSPF/IS-IS local bound; valid config unchanged | **NOT DELIVERED** -- Phase 3 outstanding |
+| AC-15 | scanning page fully triaged | 0 open alerts, verified by `gh api` listing |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `GOOS=linux go vet -tags 'linux ze_installer' ./internal/install/disk/` exit 0; suite green |
+| A-2 | unvalidated | the QEMU rescue scenario has NOT been run |
+| A-3 | confirmed | `go.mod` byte-identical after `go mod vendor`; one subpackage line added to `vendor/modules.txt` |
+| A-4 | confirmed | full-tree grep after the rename |
+| A-5 | partially validated | the config-file path is proven empirically; the hub-push and web-commit paths were NOT traced |
+| A-6 | confirmed | dismissed alert #168, PATCHed it back to `state=open`, re-read it as `open` |
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-15 all demonstrated (AC-8 and AC-13/14 outstanding, see above)
+- [ ] End-to-End User Stories: story 3 (EAP-TLS config verify) has no passing test
+- [ ] Wiring Test table complete
+- [ ] `/ze-review` gate clean
+- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] Feature code integrated
+- [ ] Integration completeness proven end-to-end
+- [ ] Documentation Update Checklist answered Yes/No with source evidence
+- [ ] Critical Review passes
+- [ ] Risks & Assumptions: every A-N confirmed or broken (A-2 and A-5 outstanding)
+
+### Quality Gates
+- [ ] RFC constraint comments added
+- [ ] Implementation Audit complete
+- [ ] Mistake Log escalation reviewed
+
+### Design
+- [ ] Abstract when you can (2+ use cases?)
+- [ ] No speculative features
+- [ ] Single responsibility per component
+- [ ] Explicit > implicit behavior
+- [ ] Minimal coupling
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional tests for end-to-end behavior
+- [ ] Interop tests N/A (justified in TDD Test Plan)
+- [ ] Goal Validation table filled
+
+### Completion (BLOCKING - before ANY commit)
+- [ ] Critical Review passes
+- [ ] Partial/Skipped items have user approval
+- [ ] Implementation Summary filled
+- [ ] Implementation Audit filled
+- [ ] Write learned summary to `plan/learned/NNN-fixit-codeql-security-triage.md`
+- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] **Commit B:** `git rm plan/spec-fixit-codeql-security-triage.md` only
