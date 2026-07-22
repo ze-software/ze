@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Karl Gaissmaier
+// Copyright (c) 2026 Karl Gaissmaier
 // SPDX-License-Identifier: MIT
 
 package bart
@@ -16,12 +16,13 @@ import (
 //
 // The zero value is ready to use.
 //
+// A Table must not be copied by value; always pass by pointer.
+// Nil pointers as receivers or arguments are forbidden and will panic.
+//
 // The Table is safe for concurrent reads, but concurrent reads and writes
 // must be externally synchronized. Mutation via Insert/Delete requires locks,
 // or alternatively, use ...Persist methods which return a modified copy
 // without altering the original table (copy-on-write).
-//
-// A Table must not be copied by value; always pass by pointer.
 //
 // Performance note: Do not pass IPv4-in-IPv6 addresses (e.g., ::ffff:192.0.2.1)
 // as input. The methods do not perform automatic unmapping to avoid unnecessary
@@ -191,7 +192,7 @@ func (t *Table[V]) Lookup(ip netip.Addr) (val V, ok bool) {
 LOOP:
 	// find leaf node
 	for depth, octet = range octets {
-		depth = depth & nodes.DepthMask // BCE, Lookup must be fast
+		depth &= nodes.DepthMask // BCE, Lookup must be fast
 
 		// push current node on stack for fast backtracking
 		stack[depth] = n
@@ -224,7 +225,7 @@ LOOP:
 
 	// start backtracking, unwind the stack, bounds check eliminated
 	for ; depth >= 0; depth-- {
-		depth = depth & nodes.DepthMask // BCE
+		depth &= nodes.DepthMask // BCE
 
 		n = stack[depth]
 
@@ -260,7 +261,7 @@ func (t *Table[V]) LookupPrefix(pfx netip.Prefix) (val V, ok bool) {
 // match any address in the provided prefix range.
 //
 // This is functionally identical to LookupPrefix but additionally returns the
-// matching prefix (lpmPfx) itself along with the value.
+// matching LPM prefix itself along with the value.
 //
 // This method is slower than LookupPrefix and should only be used if the
 // matching lpm entry is also required for other reasons.
@@ -280,10 +281,10 @@ func (t *Table[V]) lookupPrefixLPM(pfx netip.Prefix, withLPM bool) (lpmPfx netip
 	pfx = pfx.Masked()
 
 	ip := pfx.Addr()
-	bits := pfx.Bits()
+	pfxLen := pfx.Bits()
 	is4 := ip.Is4()
 	octets := ip.AsSlice()
-	lastOctetPlusOne, lastBits := nodes.LastOctetPlusOneAndLastBits(pfx)
+	strideCount, modBits := nodes.DivMod8(pfxLen)
 
 	n := t.rootNodeByVersion(is4)
 
@@ -296,10 +297,10 @@ func (t *Table[V]) lookupPrefixLPM(pfx netip.Prefix, withLPM bool) (lpmPfx netip
 LOOP:
 	// find the last node on the octets path in the trie,
 	for depth, octet = range octets {
-		depth = depth & nodes.DepthMask // BCE
+		depth &= nodes.DepthMask // BCE
 
 		// stepped one past the last stride of interest; back up to last and break
-		if depth > lastOctetPlusOne {
+		if depth > strideCount {
 			depth--
 			break
 		}
@@ -320,7 +321,7 @@ LOOP:
 
 		case *nodes.LeafNode[V]:
 			// reached a path compressed prefix, stop traversing
-			if kid.Prefix.Bits() > bits || !kid.Prefix.Contains(ip) {
+			if kid.Prefix.Bits() > pfxLen || !kid.Prefix.Contains(ip) {
 				break LOOP
 			}
 			return kid.Prefix, kid.Value, true
@@ -329,7 +330,7 @@ LOOP:
 			// the bits of the fringe are defined by the depth
 			// maybe the LPM isn't needed, saves some cycles
 			fringeBits := (depth + 1) << 3
-			if fringeBits > bits {
+			if fringeBits > pfxLen {
 				break LOOP
 			}
 
@@ -347,7 +348,7 @@ LOOP:
 
 	// start backtracking, unwind the stack
 	for ; depth >= 0; depth-- {
-		depth = depth & nodes.DepthMask // BCE
+		depth &= nodes.DepthMask // BCE
 
 		n = stack[depth]
 
@@ -356,15 +357,13 @@ LOOP:
 			continue
 		}
 
-		// only the lastOctet may have a different prefix len
-		// all others are just host routes
 		var idx uint8
 		octet = octets[depth]
-		// Last “octet” from prefix, update/insert prefix into node.
-		// Note: For /32 and /128, depth never reaches lastOctetPlusOne (4 or 16),
-		// so those are handled below via the fringe/leaf path.
-		if depth == lastOctetPlusOne {
-			idx = art.PfxToIdx(octet, lastBits)
+
+		// only the final stride may have a different prefix len
+		// all others are just host routes
+		if depth == strideCount {
+			idx = art.PfxToIdx(octet, modBits)
 		} else {
 			idx = art.OctetToIdx(octet)
 		}
