@@ -19,16 +19,32 @@ is usually lost.
 suite loop, and it captures the FIRST failure's complete, untruncated output.
 
 ```
-python3 scripts/dev/stress-repro.py rsvpte --iterations 80        # hunt + capture the stack
-python3 scripts/dev/stress-repro.py rsvpte --race                 # data race self-reports its two accesses
-python3 scripts/dev/stress-repro.py bgp --burners 32 --parallel 8 # more pressure
+python3 scripts/dev/stress-repro.py rsvpte --iterations 80         # hunt + capture the stack
+python3 scripts/dev/stress-repro.py rsvpte --race                  # data race self-reports its two accesses
+python3 scripts/dev/stress-repro.py bgp --burners 32 --parallel 8  # more pressure
+python3 scripts/dev/stress-repro.py "bgp plugin" --test 97 --any-failure  # sub-suite, one test, assertion flake
 ```
+
+`<suite>` and `--test` are both split on whitespace, so a sub-suite and a
+multi-token selector reach `ze-test` exactly as you would type them by hand.
+
+**A crash is not the only reproduction.** By default only a CRASH signature
+(panic / `DATA RACE` / runtime error) counts, and everything else is discarded
+down to the last 500 bytes. An assertion flake -- a test whose `expect=` pattern
+is merely missed under load -- exits non-zero with no crash signature, so pass
+`--any-failure` or the run reports "not reproduced" while quietly throwing the
+evidence away.
 
 It sets `GOTRACEBACK=all` so a panic dumps every goroutine (the one racing on
 the corrupt buffer shows up next to the crasher), reuses the prebuilt
 `bin/ze`/`bin/ze-test` via `ze.bin` + `ZE_TEST_NO_BUILD` (no rebuilds under
-load), and writes the full capture to `tmp/stress-repro/<suite>-<ts>.log`. Exit
+load), and writes the full capture to `tmp/stress-repro/<slug>-<ts>.log`. Exit
 0 = reproduced, 1 = not reproduced, 2 = setup error.
+
+**`ZE_TEST_NO_BUILD=1` means the run tests whatever `bin/ze` already is.** After
+changing daemon source, rebuild before you trust a verdict -- otherwise a fixed
+bug still "reproduces" against the stale binary. `bin/ze-test <suite> <test>`
+once (no `ZE_TEST_NO_BUILD`) rebuilds both binaries.
 
 ## Rules
 

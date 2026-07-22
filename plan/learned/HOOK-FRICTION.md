@@ -42,6 +42,8 @@ they account for over 50 appearances in the corpus.
 | `validate-spec.sh` argv false-green | 3 (2026-07-16) | Fixed 2026-07-16 at the source | [F1](#f1-validate-specsh-false-greened-when-invoked-via-argv) |
 | `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
+| `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Active | [F9](#f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
+| `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
 
 Non-hook tooling friction filed the same day (the LSP gate, the commit gate's
 advice, `commit_helper.py --body`, and rule/gate vocabulary drift) is in the same
@@ -481,6 +483,102 @@ shows hook rejections or gate refusals with no diff to this file would collect
 what memory does not. Filed as the next step rather than claimed as solved. If a
 future session finds this file still gathering seven-at-a-time batches, that is
 the evidence the mechanical version is owed.
+
+---
+
+## Filed 2026-07-22: two frictions, one session
+
+### F9: `session-end-summary.sh` destroys the digests `post-compaction.md` asks for
+
+**Friction:** `.claude/rules/post-compaction.md` tells every agent to write file
+digests and `-> Decision:` annotations into the per-session state file
+(`tmp/session/session-state-<spec-stem>-<SID>.md`) and names it as the Tier-1
+recovery source after compaction. The Stop hook `session-end-summary.sh` writes
+that same path with a generated snapshot (branch, last commit, an uncommitted
+file list). It **overwrites**, so a session that follows post-compaction.md and
+writes a careful diagnosis into that file loses all of it the first time the
+Stop hook runs, with no warning and no backup.
+
+**Pattern:** Two documented mechanisms own one path, and the one that clobbers
+runs last. It is silent: the agent that wrote the digest is usually not the one
+that discovers it is gone, and the generated snapshot looks plausible, so the
+loss reads as "the previous session did not write digests" rather than "the
+hook deleted them". That misattribution is the expensive part -- the next
+session concludes digests are not worth writing.
+
+**Impact:** In this session it destroyed a fully cited root-cause diagnosis for
+`bgp-rs-reactor-fastpath` (which producer bypasses which gate, with `file:line`
+for each). It was recoverable only because the authoring agent still had it in
+context. After a compaction it would simply have been gone -- which is exactly
+the case post-compaction.md exists to cover.
+
+**Exact mechanism** (`.claude/hooks/session-end-summary.sh:74-79`): the write is
+`{ echo "# Session State"; echo "$NEW_SNAPSHOT"; ...previous... } > "$STATE_FILE"`
+-- a truncating redirect. What it carries forward is only what its awk at
+`:60-66` extracts from the old file: printing starts at the FIRST line matching
+`/^## Session:/` and stops after the second such block. Therefore:
+
+- hand-written text ABOVE the first `## Session:` heading is dropped outright
+  (this is what happened here: the digest file had no `## Session:` heading at
+  all, so the extraction matched nothing and the whole file was replaced);
+- hand-written text BELOW it survives only until two more snapshots push it out
+  of the two-block window.
+
+**Workaround (session-verified):** keep hand-written detail in a sibling file
+the hook does not own, e.g. `tmp/session/notes-<SID>.md`, and leave a pointer to
+it *below* the hook's first `## Session:` heading. The notes file is the durable
+store; the pointer is a convenience that itself expires after two more
+snapshots.
+
+**Rule decision:** a rule change is NOT the fix here; this is mechanical. Either
+`session-end-summary.sh` should append under its own heading (and never rewrite
+content it did not write), or post-compaction.md should name a different,
+hook-free path for hand-written digests. Prefer the former: the state file's
+value is that one path is canonical. Not fixed in this session -- the hook is
+shared and changing it mid-session would race other live sessions.
+
+### F10: `stress-repro.py` was broken for every sub-suite, and said so as "reproduced"
+
+**Friction:** `ai/rules/flaky-under-load.md` sends you to
+`scripts/dev/stress-repro.py` for exactly the failure class this session was
+working. Three defects, in descending cost:
+
+1. It appended `-v` AFTER the test selector. The suite runners parse
+   `<suite> [options] [tests...]`, so `-v` was consumed as a test name and every
+   invocation died with `Error: test "-v" not found`. Worse, with
+   `--any-failure` that non-zero exit is itself scored as a reproduction, so the
+   tool reports `*** REPRODUCED on invocation 1 ***` for its own broken argv.
+2. `suite` and `--test` were single tokens, so a sub-suite (`bgp plugin`) could
+   not be expressed at all -- only whole-command suites.
+3. Only CRASH signatures (panic / `DATA RACE` / runtime error) counted as a
+   reproduction; everything else was truncated to the last 500 bytes and
+   discarded. An assertion flake -- a missed `expect=` -- never carries a crash
+   signature, so the tool reported "not reproduced" while throwing away the one
+   capture that showed the failure.
+
+**Pattern:** a diagnostic tool whose own failure mode is indistinguishable from
+the failure it is diagnosing. Defect 1 produces the same "REPRODUCED, exit 1"
+banner as a genuine hit, so the operator's next move is to open the log and read
+a runner usage error as evidence about the daemon.
+
+**Impact:** ~20 minutes, and it would have been much worse without the verbose
+log: the first "reproduction" of the bmp-locrib flake was the tool's own argv
+error. A related trap cost another cycle: `ZE_TEST_NO_BUILD=1` means the run
+tests whatever `bin/ze` already is, so a landed fix still "reproduces" against a
+stale binary until you rebuild.
+
+**Rule decision:** rule updated, not just the tool.
+`ai/rules/flaky-under-load.md` gains the sub-suite form, an explicit
+"a crash is not the only reproduction -- pass `--any-failure` for assertion
+flakes" paragraph, and the stale-`bin/ze` warning; `ai/INDEX.md`'s tool row
+gains the same three facts, since that is where an agent looks first.
+
+**Proposed fix:** DONE for all three defects in `scripts/dev/stress-repro.py`
+(`-v` before the selector, `shlex.split` on both suite and selector,
+`--any-failure`). The tool still cannot tell a runner usage error from a product
+failure; a cheap improvement would be to treat a first-invocation non-zero exit
+whose output contains no test result line as a setup error (exit 2) rather than
+a reproduction.
 
 ---
 

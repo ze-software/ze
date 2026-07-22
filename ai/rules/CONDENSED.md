@@ -1483,6 +1483,8 @@ Learned: `plan/learned/363-file-modularity.md`.
 Some failures only surface under the scheduling and GC pressure of the full ~22-suite run (many concurrent `ze` daemons on all cores).
 ## Use the stress reproducer, not the full suite
 `scripts/dev/stress-repro.py <suite>` recreates that pressure cheaply: CPU + GC "burner" processes oversubscribe every core while many concurrent copies of one suite loop, and it captures the FIRST failure's complete,...
+**A crash is not the only reproduction.** By default only a CRASH signature
+**`ZE_TEST_NO_BUILD=1` means the run tests whatever `bin/ze` already is.** After
 ## Rules
 - **Never loop `make ze-functional-test` / `make ze-verify` to hunt a flake.**
 Use the stress reproducer against the suspected suite.

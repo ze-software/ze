@@ -33,6 +33,15 @@ Examples:
   # A specific test only, lighter load:
   python3 scripts/dev/stress-repro.py rsvpte --test 4 --burners 8 --parallel 2
 
+  # A sub-suite: <suite> and --test are both split on whitespace, so the tokens
+  # reach ze-test exactly as you would type them by hand:
+  python3 scripts/dev/stress-repro.py "bgp plugin" --test 97 --any-failure
+
+By default only a CRASH (panic / data race / runtime error) counts as a
+reproduction. Assertion-failure flakes -- a test whose `expect=` pattern is
+merely missed under load -- exit non-zero without any crash signature, so pass
+--any-failure to capture those too.
+
 Exit status: 0 = reproduced (details in the saved log), 1 = not reproduced,
 2 = setup error (missing binaries, build failure).
 
@@ -41,6 +50,7 @@ See ai/tools/stress-repro.md for the full guide and when to reach for this.
 
 import argparse
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -138,12 +148,15 @@ def run_once(suite, sel, ze_bin, test_bin, timeout, extra_tags):
     env["GOTRACEBACK"] = "all"  # every goroutine on panic -> the racer shows up
     if extra_tags:
         env["ze.tags"] = extra_tags
-    args = [test_bin, suite]
+    # suite and sel are whitespace-split so a sub-suite ("bgp plugin") and a
+    # multi-token selector reach ze-test as separate argv entries.
+    # -v goes BEFORE the selector: the runners parse `<suite> [options] [tests...]`
+    # and treat anything after the first positional as another test id.
+    args = [test_bin, *shlex.split(suite), "-v"]
     if sel:
-        args.append(sel)
+        args.extend(shlex.split(sel))
     else:
         args.append("--all")
-    args.append("-v")
     try:
         r = subprocess.run(
             args, cwd=REPO, env=env, capture_output=True, text=True, timeout=timeout
@@ -189,6 +202,12 @@ def main():
     ap.add_argument(
         "--race", action="store_true", help="build+use a race-instrumented ze"
     )
+    ap.add_argument(
+        "--any-failure",
+        action="store_true",
+        help="treat ANY non-zero exit as a reproduction, not just a crash "
+        "signature (needed for assertion-failure flakes, which never panic)",
+    )
     ap.add_argument("--tags", default="", help="extra ze.tags for the runner build")
     args = ap.parse_args()
 
@@ -219,7 +238,8 @@ def main():
     ts = time.strftime("%Y%m%d-%H%M%S")
     outdir = os.path.join(REPO, "tmp", "stress-repro")
     os.makedirs(outdir, exist_ok=True)
-    logpath = os.path.join(outdir, f"{args.suite}-{ts}.log")
+    slug = "-".join(shlex.split(args.suite) + shlex.split(args.sel))
+    logpath = os.path.join(outdir, f"{slug}-{ts}.log")
 
     deadline = time.time() + args.minutes * 60
     print(
@@ -266,20 +286,24 @@ def main():
                         done += 1
                         rc, out = fut.result()
                         crash = next((s for s in CRASH_SIGNATURES if s in out), None)
+                        hit = crash or (args.any_failure and rc != 0)
                         log.write(
                             f"\n===== invocation {done} exit={rc} "
-                            f"{'CRASH:' + crash if crash else 'ok'} =====\n"
+                            f"{'CRASH:' + crash if crash else ('FAIL' if rc else 'ok')}"
+                            f" =====\n"
                         )
-                        if crash:
+                        if hit:
                             log.write(out)
                             log.flush()
                             reproduced = True
+                            what = repr(crash) if crash else f"non-zero exit {rc}"
                             print(
                                 f"\n*** REPRODUCED on invocation {done} "
-                                f"(exit {rc}, signature: {crash!r}) ***",
+                                f"(exit {rc}, signature: {what}) ***",
                                 flush=True,
                             )
-                            _print_crash_excerpt(out)
+                            if crash:
+                                _print_crash_excerpt(out)
                             break
                         else:
                             log.write(out[-500:] + "\n")
