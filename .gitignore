@@ -90,3 +90,15 @@ etc/ze/debug.zefs
 # ddos-detect (and other plugins) persist rolling runtime state here; never commit it.
 etc/ze/state/
 internal/appliance/build/
+
+# Appliance builddir lock for the ze module itself. Derived and duplicated: that
+# module is only `replace ze => <repo root>`, so every line of its go.sum is
+# already in the root go.sum. The module bytes it would pin are not in the repo
+# either (gokrazy/modcache/.gitignore keeps only the gokrazy init source), so
+# `make ze-gokrazy-deps` is already a required post-clone step and regenerates
+# this file. Tracking it only created a second place to update on every
+# dependency bump, and it silently drifted (it still pinned grpc v1.80.0 after
+# the root module moved). The other gokrazy/ze/builddir go.sum files stay
+# tracked: they pin upstream gokrazy, serial-busybox and rtr7/kernel
+# dependencies that appear nowhere else.
+gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/go.sum

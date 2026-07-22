@@ -41,6 +41,11 @@ modcache go.sum hashes.
    (filesystem `rm`, never `git rm`), then `make ze-gokrazy-deps` (runs
    `go mod download all` per builddir; the deleted sums regenerate from the new build
    list, pruning the old version string). Do NOT hand-edit hashes.
+   One of the eight is **untracked**: `gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/go.sum`
+   is gitignored (see `.gitignore`), because that module is only
+   `replace ze => <repo root>` and every line of its sum is already in the root
+   `go.sum`. Regenerate it like the rest; expect no diff. The other seven are
+   tracked locks and DO show a diff.
 5. **Re-vendor + prune.** `ze-gokrazy-deps` extracts the new version's source under
    `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/` (auto-whitelisted by the `@*`
    glob). `rm -rf` the old `@<old>` directory. Confirm the working tree: old tracked
