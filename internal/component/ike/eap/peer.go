@@ -22,6 +22,12 @@ const maxEAPRounds = 20
 var (
 	ErrTooManyRounds = errors.New("eap: exceeded maximum exchange rounds")
 	ErrEAPFailure    = errors.New("eap: authenticator sent Failure")
+
+	// errNoPeerTrustAnchor refuses an EAP-TLS peer session that could not
+	// path-validate the authenticator. RFC 5216 Section 5.3 makes that validation
+	// a MUST, and the configured CA is the peer's only trust anchor: EAP carries
+	// no server hostname, so there is nothing else to check the chain against.
+	errNoPeerTrustAnchor = errors.New("eap-tls: no CA certificate configured: RFC 5216 Section 5.3 requires the peer to path-validate the authenticator chain, which needs a trust anchor")
 )
 
 // PeerResult is the outcome of processing one EAP-Request from the authenticator.
@@ -356,31 +362,32 @@ func (ps *PeerSession) startTLSClient() error {
 		return fmt.Errorf("eap-tls: load client cert: %w", err)
 	}
 
-	var rootCAs *x509.CertPool
-	if len(ps.tlsCfg.CACertPEM) > 0 {
-		rootCAs = x509.NewCertPool()
-		if !rootCAs.AppendCertsFromPEM(ps.tlsCfg.CACertPEM) {
-			return fmt.Errorf("eap-tls: failed to parse peer CA certificate")
-		}
+	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
+	// The configured trust anchor is the peer's only means of doing so, so a
+	// session with none is refused rather than started: there is no weaker but
+	// still conformant mode to fall back to, and a peer that skips validation
+	// authenticates nothing.
+	if len(ps.tlsCfg.CACertPEM) == 0 {
+		return errNoPeerTrustAnchor
+	}
+	rootCAs := x509.NewCertPool()
+	if !rootCAs.AppendCertsFromPEM(ps.tlsCfg.CACertPEM) {
+		return fmt.Errorf("eap-tls: failed to parse peer CA certificate")
 	}
 
-	// RFC 5216 Section 5.3: the EAP peer validates the authenticator's
-	// certificate chain against its configured trust anchor. EAP-TLS carries no
-	// server hostname, so Go's default (SNI/hostname-based) verification cannot
-	// be used -- with a CA set but no ServerName, tls.Client rejects the config
-	// outright ("either ServerName or InsecureSkipVerify must be specified") and
-	// never sends a ClientHello. InsecureSkipVerify disables only that default
-	// hostname check; when a trust anchor is configured the chain is instead
-	// verified explicitly against it in VerifyPeerCertificate below. With no
-	// trust anchor the peer performs no server-certificate validation.
+	// EAP-TLS carries no server hostname, so Go's default (SNI/hostname-based)
+	// verification cannot be used: with a CA set but no ServerName, tls.Client
+	// rejects the config outright ("either ServerName or InsecureSkipVerify must
+	// be specified") and never sends a ClientHello. InsecureSkipVerify disables
+	// only that default hostname check; the chain itself is always verified
+	// against the trust anchor in VerifyPeerCertificate, which the guard above
+	// guarantees is present.
 	tlsCfg := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; chain verified in VerifyPeerCertificate when a CA is configured
-		MinVersion:         tls.VersionTLS12,
-	}
-	if rootCAs != nil {
-		tlsCfg.RootCAs = rootCAs
-		tlsCfg.VerifyPeerCertificate = verifyServerChain(rootCAs)
+		Certificates:          []tls.Certificate{cert},
+		InsecureSkipVerify:    true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
+		MinVersion:            tls.VersionTLS12,
+		RootCAs:               rootCAs,
+		VerifyPeerCertificate: verifyServerChain(rootCAs),
 	}
 
 	ps.tlsTransport = newEAPTLSTransport()

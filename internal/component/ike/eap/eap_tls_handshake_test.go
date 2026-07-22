@@ -25,6 +25,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+
+	// rfc-test-change-approved: 2026-07-22 Thomas asked that the code and the
+	// tests do what the RFC requires; "errors" is needed by the replacement
+	// TestEAPTLSPeerWithoutCARefusesToStart, which asserts the RFC5216-5.3-1
+	// refusal instead of the fail-open the old test pinned. No assertion in any
+	// other tagged test in this file is changed.
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -343,13 +350,24 @@ func TestEAPTLSAuthenticatorRequiresClientCert(t *testing.T) {
 // the peer's certificate chain and rejects a client certificate signed by an
 // untrusted CA: the handshake never reaches EAP-Success and the authenticator's
 // TLS handshake does not complete.
+// rfc-test-change-approved: 2026-07-22 Thomas asked that the code and the tests
+// do what the RFC requires. SETUP-ONLY change, no assertion touched: this test
+// used to give the peer no CA "so it does not reject the server first". Since
+// RFC 5216 Section 5.3 now makes the peer refuse to start without a trust anchor
+// (peer.go startTLSClient), that setup meant no ClientHello was ever sent, the
+// authenticator's handshake goroutine blocked forever, and the package hit its
+// timeout. The peer is now given the authenticator's own CA, which keeps the
+// peer from rejecting the server first exactly as intended while leaving the
+// CLIENT certificate untrusted -- which is what this test is about.
 func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
 		CertPEM: pki.untrustedClientCertPEM,
 		KeyPEM:  pki.untrustedClientKeyPEM,
-		// No CA on the peer so it does not reject the server first; the point of
-		// this test is the authenticator rejecting the untrusted client chain.
+		// The peer trusts the authenticator's CA, so it does not reject the server
+		// first; the point of this test is the authenticator rejecting the
+		// untrusted CLIENT chain.
+		CACertPEM: pki.trustedCAPEM,
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)
@@ -393,37 +411,55 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 	}
 }
 
-// TestEAPTLSPeerWithoutCASkipsServerValidation complements the peer verification
-// gate: with no trust anchor configured the peer performs no server-certificate
-// validation, so a handshake against an untrusted authenticator certificate
-// still completes. Together with TestEAPTLSPeerRejectsUntrustedServerChain this
-// shows server-certificate validation is gated on the presence of a configured
-// CA (the intent of the peer.go InsecureSkipVerify/VerifyPeerCertificate logic).
+// rfc-test-change-approved: 2026-07-22 Thomas asked that the code and the tests
+// do what the RFC requires. This function replaces
+// TestEAPTLSPeerWithoutCASkipsServerValidation, which asserted the OPPOSITE of
+// the requirement it was tagged with: it pinned the peer completing a handshake
+// against an untrusted authenticator certificate when no trust anchor was
+// configured, locking in a violation of the RFC5216-5.3-1 MUST. Its `positive`
+// polarity was redundant -- TestEAPTLSMutualAuthHandshakeSucceeds already
+// carries RFC5216-5.3-1 positive with a peer that has a CA -- so the swap costs
+// no coverage and removes a test that guarded the wrong behavior.
 //
-// RFC requirement: RFC5216-5.3-1 positive -- server-side certificate path
-// validation still accepts the peer's valid chain here (authenticator reaches
-// EAP-Success), independent of the peer's own server-validation policy.
-func TestEAPTLSPeerWithoutCASkipsServerValidation(t *testing.T) {
+// TestEAPTLSPeerWithoutCARefusesToStart asserts the RFC-required outcome: with
+// no trust anchor the peer cannot path-validate the authenticator, so it refuses
+// to start EAP-TLS rather than proceeding unauthenticated.
+//
+// RFC requirement: RFC5216-5.3-1 negative -- a peer that cannot perform
+// certificate path validation (no trust anchor to validate against) does not
+// authenticate the authenticator: startTLSClient returns an error, no
+// ClientHello is sent, and the session never reaches EAP-Success.
+func TestEAPTLSPeerWithoutCARefusesToStart(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	serverCfg := MethodConfig{
 		ServerCertPEM: pki.untrustedServerCertPEM,
 		ServerKeyPEM:  pki.untrustedServerKeyPEM,
 		CACertPEM:     pki.trustedCAPEM,
 	}
-	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM: pki.clientCertPEM,
-		KeyPEM:  pki.clientKeyPEM,
-		// No CACertPEM: peer does not validate the server chain.
-	})
+	noAnchor := func() *PeerSession {
+		return NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
+			CertPEM: pki.clientCertPEM,
+			KeyPEM:  pki.clientKeyPEM,
+			// No CACertPEM: the peer has nothing to path-validate against.
+		})
+	}
 
-	res := runEAPTLSHandshake(t, serverCfg, peer)
-	if res.peerErr != nil {
-		t.Fatalf("handshake failed: %v", res.peerErr)
+	// Assert the guard directly and through the full exchange: a refactor that
+	// moved the check elsewhere would still have to keep the session from
+	// completing.
+	peer := noAnchor()
+	if err := peer.startTLSClient(); !errors.Is(err, errNoPeerTrustAnchor) {
+		t.Fatalf("startTLSClient() = %v, want errNoPeerTrustAnchor", err)
 	}
-	if !res.serverEAPSuccess {
-		t.Fatalf("authenticator did not accept the valid client chain (rounds=%d)", res.rounds)
+	if peer.tlsConn != nil {
+		t.Fatal("a refused session must not have built a TLS client")
 	}
-	if !res.peerDone {
-		t.Fatalf("peer did not complete without a configured CA (rounds=%d)", res.rounds)
+
+	res := runEAPTLSHandshake(t, serverCfg, noAnchor())
+	if res.peerDone {
+		t.Fatalf("peer completed EAP-TLS with no trust anchor (rounds=%d)", res.rounds)
+	}
+	if res.serverEAPSuccess {
+		t.Fatalf("session reached EAP-Success with no trust anchor (rounds=%d)", res.rounds)
 	}
 }
