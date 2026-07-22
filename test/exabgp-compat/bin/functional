@@ -42,7 +42,8 @@ except ImportError:
     HAVE_PSUTIL = False
     psutil = None  # type: ignore[assignment]
     sys.stderr.write('Warning: psutil not installed, process cleanup may be unreliable\n')
-    sys.stderr.write('Install with: pip install psutil\n')
+    sys.stderr.write('Run this harness via uv so its deps (psutil, paramiko) are provided:\n')
+    sys.stderr.write('  uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional <type>\n')
 
 INTERPRETER: str = os.environ.get('INTERPRETER') or os.environ.get('__PYVENV_LAUNCHER__', sys.executable)
 VERIFY_MODE = os.environ.get('ZE_VERIFY_MODE') == '1'
