@@ -3,6 +3,7 @@ package appliance
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -126,5 +127,71 @@ func TestSSHExecRefusesMissingKnownHosts(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), path) {
 		t.Errorf("error %q does not name the missing file", err)
+	}
+}
+
+// VALIDATES: AC-5 -- sshExecReal wires the verifying callback, not
+// ssh.InsecureIgnoreHostKey.
+// PREVENTS: The finding this change exists to close silently returning. The four
+// tests above exercise applianceHostKeyCallback in isolation, so reverting the
+// two lines in sshExecReal that consume it would leave every one of them green
+// while the push went back to trusting any key. Production never runs
+// sshExecReal in tests (the sshExecFunc seam replaces it wholesale), so the call
+// site itself has to be asserted.
+func TestSSHExecRealUsesVerifyingHostKeyCallback(t *testing.T) {
+	src, err := os.ReadFile("cmd_config_push.go")
+	if err != nil {
+		t.Fatalf("read source: %v", err)
+	}
+	body := string(src)
+
+	if strings.Contains(body, "InsecureIgnoreHostKey") {
+		t.Error("cmd_config_push.go references ssh.InsecureIgnoreHostKey: " +
+			"the appliance push must verify the host key it talks to")
+	}
+	if !strings.Contains(body, "HostKeyCallback: hostKeys") {
+		t.Error("sshExecReal does not set HostKeyCallback from applianceHostKeyCallback")
+	}
+	if !strings.Contains(body, "applianceHostKeyCallback(userKnownHostsPath())") {
+		t.Error("sshExecReal does not resolve the callback from the operator's known_hosts")
+	}
+}
+
+// VALIDATES: AC-5 -- with no resolvable home directory the push refuses rather
+// than falling back to an unverified connection.
+// PREVENTS: A guard that fails open when it cannot find its own trust store.
+func TestApplianceHostKeyCallbackRefusesEmptyPath(t *testing.T) {
+	cb, err := applianceHostKeyCallback("")
+
+	if err == nil {
+		t.Fatal("an empty known_hosts path produced a usable callback")
+	}
+	if cb != nil {
+		t.Error("a failed lookup must not return a callback")
+	}
+	if !errors.Is(err, errNoKnownHostsPath) {
+		t.Errorf("error = %v, want errNoKnownHostsPath", err)
+	}
+}
+
+// VALIDATES: the ssh-keyscan remediation is correct for a non-default port.
+// PREVENTS: Handing the operator a command that silently pins the wrong thing:
+// `ssh-keyscan -H host:2222` treats the whole string as a hostname.
+func TestKeyscanHintPortHandling(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+		want string
+	}{
+		{"default port", "10.0.0.5:22", "ssh-keyscan -H 10.0.0.5 >> /kh"},
+		{"custom port", "10.0.0.5:2222", "ssh-keyscan -H -p 2222 10.0.0.5 >> /kh"},
+		{"no port", "10.0.0.5", "ssh-keyscan -H 10.0.0.5 >> /kh"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := keyscanHint(tc.host, "/kh"); got != tc.want {
+				t.Errorf("keyscanHint(%q) = %q, want %q", tc.host, got, tc.want)
+			}
+		})
 	}
 }
