@@ -33,7 +33,7 @@ func TestShowIPsecSA_RegisteredWireMethods(t *testing.T) {
 }
 
 func TestShowIPsecSA_NoEngine(t *testing.T) {
-	engine.SetActiveTable(nil)
+	engine.SetActiveTableForTest(nil)
 	resp, err := handleShowVPNIPsecSA(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -61,11 +61,11 @@ func TestShowIPsecSA_WithSAs(t *testing.T) {
 	sa.InitiatorSPI = [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	sa.ResponderSPI = [8]byte{8, 7, 6, 5, 4, 3, 2, 1}
 	table.Insert(sa)
-	engine.SetActiveTable(table)
-	engine.SetActivePeers(map[string]*engine.PeerSession{})
+	engine.SetActiveTableForTest(table)
+	engine.SetActivePeersForTest(map[string]*engine.PeerSession{})
 	defer func() {
-		engine.SetActiveTable(nil)
-		engine.SetActivePeers(nil)
+		engine.SetActiveTableForTest(nil)
+		engine.SetActivePeersForTest(nil)
 	}()
 
 	resp, err := handleShowVPNIPsecSA(nil, nil)
@@ -99,11 +99,11 @@ func TestShowIPsecStatus_WithSAs(t *testing.T) {
 	sa := &engine.SA{PeerName: "peer-a", State: engine.StateEstablished}
 	sa.InitiatorSPI = [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	table.Insert(sa)
-	engine.SetActiveTable(table)
-	engine.SetActivePeers(map[string]*engine.PeerSession{})
+	engine.SetActiveTableForTest(table)
+	engine.SetActivePeersForTest(map[string]*engine.PeerSession{})
 	defer func() {
-		engine.SetActiveTable(nil)
-		engine.SetActivePeers(nil)
+		engine.SetActiveTableForTest(nil)
+		engine.SetActivePeersForTest(nil)
 	}()
 
 	resp, err := handleShowVPNIPsecStatus(nil, nil)
@@ -116,8 +116,8 @@ func TestShowIPsecStatus_WithSAs(t *testing.T) {
 }
 
 func TestShowIPsecStatus_NoEngine(t *testing.T) {
-	engine.SetActiveTable(nil)
-	engine.SetActivePeers(nil)
+	engine.SetActiveTableForTest(nil)
+	engine.SetActivePeersForTest(nil)
 	resp, err := handleShowVPNIPsecStatus(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -132,11 +132,11 @@ func TestShowIPsecPeer_Found(t *testing.T) {
 	sa := &engine.SA{PeerName: "mgmt-peer", State: engine.StateEstablished}
 	sa.InitiatorSPI = [8]byte{0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 1}
 	table.Insert(sa)
-	engine.SetActiveTable(table)
-	engine.SetActivePeers(map[string]*engine.PeerSession{})
+	engine.SetActiveTableForTest(table)
+	engine.SetActivePeersForTest(map[string]*engine.PeerSession{})
 	defer func() {
-		engine.SetActiveTable(nil)
-		engine.SetActivePeers(nil)
+		engine.SetActiveTableForTest(nil)
+		engine.SetActivePeersForTest(nil)
 	}()
 
 	resp, err := handleShowVPNIPsecPeer(nil, []string{"mgmt-peer"})
@@ -160,7 +160,7 @@ func TestShowIPsecPeer_MissingArg(t *testing.T) {
 }
 
 func TestShowIPsecPeer_NoEngine(t *testing.T) {
-	engine.SetActiveTable(nil)
+	engine.SetActiveTableForTest(nil)
 	resp, err := handleShowVPNIPsecPeer(nil, []string{"test-peer"})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -176,8 +176,8 @@ func TestShowIPsecPeer_InvalidName(t *testing.T) {
 
 func TestShowIPsecPeer_NotFound(t *testing.T) {
 	table := engine.NewSATable()
-	engine.SetActiveTable(table)
-	defer engine.SetActiveTable(nil)
+	engine.SetActiveTableForTest(table)
+	defer engine.SetActiveTableForTest(nil)
 
 	resp, err := handleShowVPNIPsecPeer(nil, []string{"nonexistent"})
 	require.NoError(t, err)

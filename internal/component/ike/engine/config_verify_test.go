@@ -21,7 +21,7 @@ func vpnSection(body string) []sdk.ConfigSection {
 	return []sdk.ConfigSection{{Root: "vpn", Data: body}}
 }
 
-// VALIDATES: AC-8 -- ValidateIPsecSections, the plugin's OnConfigVerify body,
+// VALIDATES: AC-8 -- validateIPsecSections, the plugin's OnConfigVerify body,
 // rejects an EAP-TLS peer that names no ca-certificate.
 // PREVENTS: The check existing in ipsec.ValidatePKIRefs but never running. Before
 // this wiring, ValidatePKIRefs, ValidateGroupRefs and ValidateRemoteAccess had no
@@ -42,7 +42,7 @@ func TestValidateIPsecSectionsRejectsEAPTLSWithoutCA(t *testing.T) {
 	  }
 	}`)
 
-	err := ValidateIPsecSections(sections)
+	err := validateIPsecSections(sections)
 
 	if err == nil {
 		t.Fatal("an eap-tls peer with no ca-certificate passed config verification")
@@ -70,7 +70,7 @@ func TestValidateIPsecSectionsRejectsUnknownGroupRef(t *testing.T) {
 	  }
 	}`)
 
-	err := ValidateIPsecSections(sections)
+	err := validateIPsecSections(sections)
 
 	if err == nil {
 		t.Fatal("a peer naming an undefined ike-group passed config verification")
@@ -98,7 +98,7 @@ func TestValidateIPsecSectionsAcceptsConsistentConfig(t *testing.T) {
 	  }
 	}`)
 
-	if err := ValidateIPsecSections(sections); err != nil {
+	if err := validateIPsecSections(sections); err != nil {
 		t.Fatalf("a consistent config was rejected: %v", err)
 	}
 }
@@ -107,7 +107,7 @@ func TestValidateIPsecSectionsAcceptsConsistentConfig(t *testing.T) {
 // PREVENTS: The gate failing when the vpn section is absent, which would break
 // every config that does not use IPsec at all.
 func TestValidateIPsecSectionsAcceptsNoVPNSection(t *testing.T) {
-	if err := ValidateIPsecSections(nil); err != nil {
+	if err := validateIPsecSections(nil); err != nil {
 		t.Fatalf("an empty config delivery was rejected: %v", err)
 	}
 }
@@ -173,7 +173,7 @@ func TestValidateIPsecSectionsDoesNotMutatePKIStore(t *testing.T) {
 
 	// The vpn half is invalid (eap-tls with no ca-certificate), so this rejects.
 	// The pki half is fully valid, so a side-effecting verify WOULD install it.
-	if err := ValidateIPsecSections(sections); err == nil {
+	if err := validateIPsecSections(sections); err == nil {
 		t.Fatal("test premise broken: the candidate config was expected to be rejected")
 	}
 
@@ -206,7 +206,7 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 		  }
 		}`)[0],
 	}
-	if err := ValidateIPsecSections(good); err != nil {
+	if err := validateIPsecSections(good); err != nil {
 		t.Fatalf("a peer whose CA is defined in the same delivery was rejected: %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 		  }
 		}`)[0],
 	}
-	err := ValidateIPsecSections(bad)
+	err := validateIPsecSections(bad)
 	if err == nil {
 		t.Fatal("a ca-certificate absent from the candidate pki section was accepted")
 	}

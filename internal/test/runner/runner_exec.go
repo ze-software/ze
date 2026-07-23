@@ -141,7 +141,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Wait for peer to be ready (listening) instead of fixed sleep
 	// Use a short timeout context to avoid hanging forever if peer fails to start
 	waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
-	if !peerStdout.WaitFor(waitCtx) {
+	if !peerStdout.waitFor(waitCtx) {
 		waitCancel()
 		_ = peerCmd.Process.Kill()
 		rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", peerStderr.String(), peerStdout.String())
@@ -796,7 +796,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// so WaitFor works independently per process.
 		switch {
 		case strings.Contains(execStr, "ze-peer"):
-			po := peerOutput{stdout: newSyncWriter(), stderr: &lockedBuilder{}}
+			po := peerOutput{
+				stdout: newSyncWriter(),
+				stderr: &lockedBuilder{},
+				// Recorded at launch, not recovered at verdict time: only a
+				// check-mode peer reports peerSuccessToken, and the verdict must
+				// require every one of them individually (failedCheckPeers).
+				checkMode: isCheckPeerExec(execStr),
+				label:     peerLabel(cmd),
+			}
 			peerOutputs = append(peerOutputs, po)
 			proc.Stdout = po.stdout
 			proc.Stderr = po.stderr
@@ -855,7 +863,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					po := &peerOutputs[len(peerOutputs)-1]
 					po.proc = proc
 					waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
-					if !po.stdout.WaitFor(waitCtx) {
+					if !po.stdout.waitFor(waitCtx) {
 						waitCancel()
 						rec.Error = peerBindFailure(po.stderr.String(), po.stdout.String())
 						rec.FailureType = FailTypePeerNeverBound
@@ -1206,9 +1214,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// peer_contract.go for why an exit-code assertion must not disable the peer
 	// path, and hasCheckPeer for why a sink/echo peer cannot govern.
 	if !isSelfValidated(rec, hasCheckPeer(cmds)) {
-		// BGP peer path: the peer process validates its own messages and prints
-		// "successful" on a clean exchange.
-		if err != nil || !strings.Contains(rec.PeerOutput, "successful") {
+		// BGP peer path: each check-mode peer validates its own messages and
+		// prints peerSuccessToken on a clean exchange. EVERY one of them must,
+		// which is why this asks failedCheckPeers rather than searching the
+		// joined rec.PeerOutput -- see that function for the masking defect.
+		failedPeers := failedCheckPeers(countCheckPeers(cmds), peerOutputs)
+		if err != nil || len(failedPeers) > 0 {
+			rec.FailedPeers = failedPeers
 			switch {
 			case strings.Contains(rec.PeerOutput, FailTypeMismatch):
 				rec.FailureType = FailTypeMismatch

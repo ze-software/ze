@@ -33,7 +33,7 @@ func TestPeerSessionSentPathRace(t *testing.T) {
 
 	peerAddr := mustParseAddr("10.0.0.1")
 	require.NoError(t, r.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
-	r.SetMessageReceiver(&testDeliveryReceiver{})
+	r.setMessageReceiver(&testDeliveryReceiver{})
 
 	r.mu.RLock()
 	peer, ok := r.findPeerByAddr(peerAddr)

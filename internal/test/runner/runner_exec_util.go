@@ -282,9 +282,9 @@ func (sw *syncWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-// WaitFor waits until the pattern is found or context is canceled.
+// waitFor waits until the pattern is found or context is canceled.
 // Returns true if pattern was found, false on timeout/cancel.
-func (sw *syncWriter) WaitFor(ctx context.Context) bool {
+func (sw *syncWriter) waitFor(ctx context.Context) bool {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -323,6 +323,23 @@ type peerOutput struct {
 	// only the readiness WaitFor timed out, nothing has Wait()ed the process.
 	stderr *lockedBuilder
 	proc   *exec.Cmd
+	// checkMode records whether this peer validates what it receives. Only a
+	// check-mode peer reports "successful", so only a check-mode peer may be
+	// required to (peer_contract.go failedCheckPeers).
+	checkMode bool
+	// label identifies this peer in a failure message. Per-peer attribution is
+	// the point of evaluating peers individually, so it has to survive to the
+	// verdict rather than be reconstructed from the joined output.
+	label string
+}
+
+// combined returns this ONE peer's stdout followed by its stderr.
+//
+// Deliberately per-peer. rec.PeerOutput joins every peer's output, which is fine
+// for diagnostics but must never be what a pass/fail decision reads: see
+// peer_contract.go failedCheckPeers.
+func (p *peerOutput) combined() string {
+	return p.stdout.String() + p.stderr.String()
 }
 
 // waitReady polls for a readiness file, returning when found or timeout expires.

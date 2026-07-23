@@ -107,7 +107,7 @@ func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) boo
 	return hasCA, hasCert, certCN, nil
 }
 
-// ValidateIPsecSections parses the delivered config sections and runs the
+// validateIPsecSections parses the delivered config sections and runs the
 // site-to-site cross-reference checks: group references, peer PKI references
 // (including the RFC 5216 Section 5.3 trust-anchor requirement for EAP-TLS
 // peers), and the remote-access pool and user credentials. It does NOT check
@@ -131,7 +131,7 @@ func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) boo
 // section, parsed into a throwaway lookup set, never by installing it. Verifying
 // against the live store would both judge the new config by the old PKI and, via
 // pki.Load, leave a rejected config's certificates installed in a running daemon.
-func ValidateIPsecSections(sections []sdk.ConfigSection) error {
+func validateIPsecSections(sections []sdk.ConfigSection) error {
 	cfg, err := parseVPNSections(sections)
 	if err != nil {
 		return err

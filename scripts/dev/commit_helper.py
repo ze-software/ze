@@ -1060,17 +1060,53 @@ def wiring_warnings(add_paths: tuple[str, ...]) -> list[str]:
     ]
 
 
+def feature_gate_tags(repo: Path) -> list[str]:
+    """Sorted ze_<feature> build tags from feature-gates.txt, the single source of
+    truth (ai/rules/feature-gate-registration.md). Derived, not hardcoded, so a new
+    gate is picked up automatically -- mirrors ZE_FEATURES in the Makefile,
+    featureGateTags() in internal/test/runner, and _feature_gate_tags() in
+    stress-repro.py."""
+    manifest = repo / "feature-gates.txt"
+    if not manifest.exists():
+        # Degrading to a bare `ze_core` build silently reproduces the exact bug
+        # this function exists to fix (11 fabricated drift warnings on a green
+        # tree), so say so rather than guess.
+        print(
+            "warning: feature-gates.txt not found; doc-drift ran without feature tags "
+            "and its output is not trustworthy",
+            file=sys.stderr,
+        )
+        return []
+    tags = set()
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        tags.add(line.split()[0])
+    return sorted(tags)
+
+
 def doc_drift_warnings(repo: Path) -> list[str]:
-    """Advisory warning when docs drift from the live registry."""
+    """Advisory warning when docs drift from the live registry.
+
+    Runs under the SAME build tags as `make ze-doc-drift` (Makefile GO_RUN =
+    `go run -tags '$(GO_TEST_TAGS)'`, GO_TEST_TAGS = `ze_core $(ZE_FEATURES)`).
+    A bare `go run` here compiles out every feature-gated package, so the family
+    registry holds only the four always-on families and EVERY address-family
+    claim in docs/comparison.md and docs/DESIGN.md is reported as drift -- 11
+    fabricated warnings on a tree whose `make ze-doc-test` is green. That is the
+    trap ai/rules/bash-output.md names: dropping the feature tags fakes reds.
+    """
     if not (repo / "scripts" / "docvalid" / "doc_drift.go").exists():
         return []
+    tags = " ".join(["ze_core", *feature_gate_tags(repo)])
     try:
         res = subprocess.run(
-            ("go", "run", "scripts/docvalid/doc_drift.go"),
+            ("go", "run", "-tags", tags, "scripts/docvalid/doc_drift.go"),
             cwd=str(repo),
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=120,
         )
     except Exception:
         return []  # compile error / timeout / no toolchain -- never block

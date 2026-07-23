@@ -82,7 +82,7 @@ func awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWriter, bgProcs
 	timeout := rec.awaitStderrTimeout()
 	awaitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	if sw.WaitFor(awaitCtx) {
+	if sw.waitFor(awaitCtx) {
 		return true
 	}
 	rec.Error = fmt.Errorf("await=stderr: daemon stderr never contained %q within %s", rec.AwaitStderr, timeout)

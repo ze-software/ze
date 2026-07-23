@@ -19,4 +19,12 @@ const capsNetAdmin = "net-admin"
 // for real (the QEMU VM, where the capability is present and the "skips without
 // it" branch is never taken). Same seam as interfaceByName in
 // internal/component/ike/engine/doctor.go.
+//
+// This is a deliberate, precedented exception to the "no global mutable state"
+// rule in ai/rules/go-standards.md: it is a test seam, never written in
+// production (only probeNetAdmin's result is read), and it mirrors
+// interfaceByName in internal/component/ike/engine/doctor.go and in
+// internal/component/doctor/checks_listener.go. Without it the capability
+// test is vacuous on any host that HAS the capability -- which is the QEMU
+// runner, the one environment where the gated tests actually execute.
 var hasNetAdmin = probeNetAdmin

@@ -35,9 +35,9 @@ var (
 	reEstablishFn atomic.Pointer[func()]
 )
 
-func ActiveTable() *SATable                    { return activeTablePtr.Load() }
-func SetActiveTable(t *SATable)                { activeTablePtr.Store(t) }
-func SetActivePeers(m map[string]*PeerSession) { setActivePeers(m) }
+func ActiveTable() *SATable                           { return activeTablePtr.Load() }
+func SetActiveTableForTest(t *SATable)                { activeTablePtr.Store(t) }
+func SetActivePeersForTest(m map[string]*PeerSession) { setActivePeers(m) }
 
 func ActivePeers() map[string]*PeerSession {
 	peersMu.RLock()
@@ -251,7 +251,7 @@ func runEngine(conn net.Conn) int {
 	// reference the PKI store cannot resolve, an EAP-TLS peer with no trust
 	// anchor, or a malformed remote-access pool.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		if err := ValidateIPsecSections(sections); err != nil {
+		if err := validateIPsecSections(sections); err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
 		return nil

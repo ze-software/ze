@@ -116,7 +116,7 @@ func (r *Reactor) handleDirectConnection(conn net.Conn, peerKey netip.AddrPort) 
 
 // acceptOrReject performs collision detection and accepts or rejects an incoming connection.
 // Shared by handleConnection, handleConnectionWithContext, and handleDirectConnection.
-func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallback) {
+func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallback) {
 	settings := peer.Settings()
 
 	if cb != nil {
@@ -318,8 +318,8 @@ func (r *Reactor) ResumePeer(addr netip.Addr) error {
 	return nil
 }
 
-// PauseAllReads pauses reading from all peers' sessions.
-func (r *Reactor) PauseAllReads() {
+// pauseAllReads pauses reading from all peers' sessions.
+func (r *Reactor) pauseAllReads() {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -328,8 +328,8 @@ func (r *Reactor) PauseAllReads() {
 	}
 }
 
-// ResumeAllReads resumes reading from all peers' sessions.
-func (r *Reactor) ResumeAllReads() {
+// resumeAllReads resumes reading from all peers' sessions.
+func (r *Reactor) resumeAllReads() {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

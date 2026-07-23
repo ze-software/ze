@@ -101,7 +101,7 @@ func TestTeeDaemonStderr(t *testing.T) {
 		assert.Equal(t, "noise refusing to start here", acc.String())
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		assert.True(t, sw.WaitFor(ctx), "the fence must fire once the needle appears, even split across writes")
+		assert.True(t, sw.waitFor(ctx), "the fence must fire once the needle appears, even split across writes")
 	})
 }
 

@@ -307,7 +307,7 @@ func TestSessionRFC7606TreatAsWithdrawTwoFamiliesEntersForwardCache(t *testing.T
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65001, 65002, 0x01020301)))
 	received := 0
-	reactor.SetMessageReceiver(&testDeliveryReceiver{
+	reactor.setMessageReceiver(&testDeliveryReceiver{
 		consumerCount: 1,
 		onReceived: func(_ plugin.PeerInfo, _ bgptypes.RawMessage) {
 			received++

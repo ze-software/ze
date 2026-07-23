@@ -269,7 +269,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 	require.NoError(t, err)
 
 	var accepted atomic.Bool
-	reactor.SetConnectionCallback(func(conn net.Conn, n *PeerSettings) {
+	reactor.setConnectionCallback(func(conn net.Conn, n *PeerSettings) {
 		accepted.Store(true)
 		_ = conn.Close()
 	})
@@ -1004,7 +1004,7 @@ func TestMultiListenerConnectionToCorrectListener(t *testing.T) {
 	require.NoError(t, err)
 
 	var accepted atomic.Bool
-	reactor.SetConnectionCallback(func(conn net.Conn, n *PeerSettings) {
+	reactor.setConnectionCallback(func(conn net.Conn, n *PeerSettings) {
 		accepted.Store(true)
 		_ = conn.Close()
 	})
@@ -1444,7 +1444,7 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 			receivedMsg = msg
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	// Build UPDATE payload: withdrawn(0) + attrs(ORIGIN) + nlri(/24)
 	// Format: wdLen(2) + attrLen(2) + attrs + nlri
@@ -1511,7 +1511,7 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 			sentMsg = msg
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	// Build UPDATE payload: withdrawn(0) + attrs(ORIGIN) + nlri(/24)
 	// Format: wdLen(2) + attrLen(2) + attrs + nlri
@@ -1563,7 +1563,7 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 			sentMsg = msg
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	// Build minimal UPDATE payload
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
@@ -1744,7 +1744,7 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 			close(delivered)
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
 
@@ -1807,7 +1807,7 @@ func TestCacheInsertionBeforeDelivery(t *testing.T) {
 			close(cacheCheckDone)
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
 	defer stop()
@@ -1846,7 +1846,7 @@ func TestActivateAfterAllDeliveries(t *testing.T) {
 			deliveryDone <- msg.MessageID
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
 
@@ -1898,7 +1898,7 @@ func TestDeliveryBackpressure(t *testing.T) {
 
 	// Fast receiver (no blocking) — backpressure comes from channel, not receiver
 	receiver := &testDeliveryReceiver{consumerCount: 0}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	// Set up channel directly with capacity 2, NO delivery goroutine.
 	// Nothing drains the channel — it fills up and blocks the sender.
@@ -1958,7 +1958,7 @@ func TestNonUpdateSynchronous(t *testing.T) {
 			received = true
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
 	defer stop()
@@ -2000,7 +2000,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 			}
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stopA := startTestDelivery(t, reactor, peerAddrA, 1) // Tiny channel for A
 	stopB := startTestDelivery(t, reactor, peerAddrB, deliveryChannelCapacity)
@@ -2070,7 +2070,7 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 			deliveryCount.Add(1)
 		},
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
 
@@ -2112,7 +2112,7 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 		},
 		consumerCount: 1,
 	}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	// Pre-fill channel with multiple items BEFORE starting delivery goroutine,
 	// so the drain will collect them all in one batch.
@@ -2189,7 +2189,7 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 	// If Activate is called per message, all 3 entries are evicted (Len->0).
 	// If Activate is called only once (aggregated), 2 entries remain pending.
 	receiver := &testDeliveryReceiver{consumerCount: 0}
-	reactor.SetMessageReceiver(receiver)
+	reactor.setMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
 
@@ -2261,10 +2261,10 @@ func TestReactorPausePeer(t *testing.T) {
 	require.Error(t, r.ResumePeer(unknown))
 }
 
-// VALIDATES: AC-8, AC-9 — PauseAllReads/ResumeAllReads affects all peers
+// VALIDATES: AC-8, AC-9 — pauseAllReads/resumeAllReads affects all peers
 // PREVENTS: Some peers escaping a global pause
 
-func TestReactorPauseAllReads(t *testing.T) {
+func TestReactorpauseAllReads(t *testing.T) {
 	cfg := &Config{ListenAddr: "127.0.0.1:0"}
 	r := New(cfg)
 
@@ -2286,7 +2286,7 @@ func TestReactorPauseAllReads(t *testing.T) {
 	}
 
 	// Pause all reads.
-	r.PauseAllReads()
+	r.pauseAllReads()
 
 	// All peers should be paused.
 	for _, p := range r.Peers() {
@@ -2294,7 +2294,7 @@ func TestReactorPauseAllReads(t *testing.T) {
 	}
 
 	// Resume all reads.
-	r.ResumeAllReads()
+	r.resumeAllReads()
 
 	// All peers should be resumed.
 	for _, p := range r.Peers() {

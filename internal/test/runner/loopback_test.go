@@ -39,12 +39,12 @@ func TestPerProcessSyncWriter(t *testing.T) {
 	// First peer's WaitFor should succeed immediately.
 	ctx1, cancel1 := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel1()
-	assert.True(t, po1.stdout.WaitFor(ctx1), "first peer should find 'listening on'")
+	assert.True(t, po1.stdout.waitFor(ctx1), "first peer should find 'listening on'")
 
 	// Second peer's WaitFor should NOT succeed (no output written to it).
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel2()
-	assert.False(t, po2.stdout.WaitFor(ctx2), "second peer should not find 'listening on' from first peer")
+	assert.False(t, po2.stdout.waitFor(ctx2), "second peer should not find 'listening on' from first peer")
 
 	// Now write to second peer.
 	_, err = po2.stdout.Write([]byte("listening on 127.0.0.2:1790\n"))
@@ -52,7 +52,7 @@ func TestPerProcessSyncWriter(t *testing.T) {
 
 	ctx3, cancel3 := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel3()
-	assert.True(t, po2.stdout.WaitFor(ctx3), "second peer should find 'listening on' after its own write")
+	assert.True(t, po2.stdout.waitFor(ctx3), "second peer should find 'listening on' after its own write")
 
 	// Verify output isolation: each peer's output is independent.
 	assert.Contains(t, po1.stdout.String(), "127.0.0.1")
@@ -89,7 +89,7 @@ func TestPerProcessSyncWriterConcurrent(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
 		close(started)
-		po2Found = po2.stdout.WaitFor(ctx)
+		po2Found = po2.stdout.waitFor(ctx)
 	}()
 
 	// Write "listening on" to peer1 concurrently, once peer2's WaitFor has begun.
@@ -124,7 +124,7 @@ func TestSinglePeerUnchanged(t *testing.T) {
 	// WaitFor works.
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	assert.True(t, outputs[0].stdout.WaitFor(ctx))
+	assert.True(t, outputs[0].stdout.waitFor(ctx))
 
 	// Combined output works the same as before.
 	var allStdout, allStderr strings.Builder

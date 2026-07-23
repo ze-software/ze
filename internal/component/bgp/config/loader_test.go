@@ -1190,7 +1190,7 @@ bgp {
 	require.NotNil(t, r)
 
 	// Check that the reactor's plugin list contains both bgp-rs and bgp-adj-rib-in
-	pluginNames := r.PluginNames()
+	pluginNames := r.PluginNamesForTest()
 	assert.Contains(t, pluginNames, "bgp-rs", "bgp-rs should be in plugin list")
 	assert.Contains(t, pluginNames, "bgp-adj-rib-in", "bgp-adj-rib-in should be auto-added")
 }

@@ -189,8 +189,8 @@ type Stats struct {
 	LocalAS   uint32
 }
 
-// ConnectionCallback is called when a connection is matched to a peer.
-type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
+// connectionCallback is called when a connection is matched to a peer.
+type connectionCallback func(conn net.Conn, settings *PeerSettings)
 
 // MessageReceiver receives raw BGP messages from peers.
 type MessageReceiver interface {
@@ -207,10 +207,10 @@ type MessageReceiver interface {
 	OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage)
 }
 
-// PeerLifecycleObserver receives peer state change notifications.
+// peerLifecycleObserver receives peer state change notifications.
 // Observers are called synchronously in registration order.
 // Implementations MUST NOT block; use goroutine for slow processing.
-type PeerLifecycleObserver interface {
+type peerLifecycleObserver interface {
 	OnPeerEstablished(peer *Peer)
 	OnPeerClosed(peer *Peer, reason string)
 }
@@ -274,7 +274,7 @@ type Reactor struct {
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
-	connCallback    ConnectionCallback
+	connCallback    connectionCallback
 	messageReceiver MessageReceiver       // Receives raw BGP messages
 	eventBus        ze.EventBus           // Namespaced pub/sub for cross-component notifications (nil until SetEventBus)
 	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by SubscribeInterfaceEvents)
@@ -314,7 +314,7 @@ type Reactor struct {
 	dynamicGroups []*DynamicGroupConfig
 
 	// Peer lifecycle observers (called on state transitions)
-	peerObservers []PeerLifecycleObserver
+	peerObservers []peerLifecycleObserver
 	msgObservers  []MessageObserver
 	observersMu   sync.RWMutex
 
@@ -892,7 +892,7 @@ func (r *Reactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
 }
 
 // PluginNames returns the names of all configured plugins.
-func (r *Reactor) PluginNames() []string {
+func (r *Reactor) PluginNamesForTest() []string {
 	names := make([]string, len(r.config.Plugins))
 	for i, p := range r.config.Plugins {
 		names[i] = p.Name
@@ -960,17 +960,17 @@ func (r *Reactor) Stats() *Stats {
 	return stats
 }
 
-// SetConnectionCallback sets the callback for matched incoming connections.
-func (r *Reactor) SetConnectionCallback(cb ConnectionCallback) {
+// setConnectionCallback sets the callback for matched incoming connections.
+func (r *Reactor) setConnectionCallback(cb connectionCallback) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.connCallback = cb
 }
 
-// SetMessageReceiver sets the receiver for raw BGP messages.
+// setMessageReceiver sets the receiver for raw BGP messages.
 // When set, OnMessageReceived is called with raw wire bytes for all message types.
 // This allows the receiver to control parsing based on format configuration.
-func (r *Reactor) SetMessageReceiver(receiver MessageReceiver) {
+func (r *Reactor) setMessageReceiver(receiver MessageReceiver) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.messageReceiver = receiver
@@ -1233,7 +1233,7 @@ func (r *Reactor) startAPIServer() error {
 	r.orderedIngressSteps = buildOrderedIngressSteps()
 	r.orderedEgressSteps = buildOrderedEgressSteps()
 	r.readvertiseEgressFilters = filterapi.ReadvertiseEgressFuncs()
-	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
+	r.addPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))
 
 	if !r.externalServer {

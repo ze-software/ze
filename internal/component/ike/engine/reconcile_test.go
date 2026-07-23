@@ -131,8 +131,8 @@ func TestTerminateAllSAsReinitiates(t *testing.T) {
 	setActivePeers(active)
 	t.Cleanup(func() { setActivePeers(nil) })
 	table := NewSATable()
-	SetActiveTable(table)
-	t.Cleanup(func() { SetActiveTable(nil) })
+	SetActiveTableForTest(table)
+	t.Cleanup(func() { SetActiveTableForTest(nil) })
 
 	peer := testPeer() // connection-type initiate, so it re-initiates on reconcile
 	cfg := testIPsecConfig(peer)

@@ -106,13 +106,21 @@ class TestWiring(unittest.TestCase):
 
     def test_no_unguarded_usage_signature_scan_remains(self):
         """The original expression must be gone, not merely bypassed."""
+        # Count occurrences rather than string-surgery on one exact source line:
+        # the earlier form stripped a literal line and would false-positive on a
+        # reformat. USAGE_SIGNATURES may be iterated exactly once, inside the
+        # helper.
         body = SCRIPT.read_text(encoding="utf-8")
-        self.assertNotIn(
-            "(s for s in USAGE_SIGNATURES if s in out)",
-            body.replace(
-                "    return next((s for s in USAGE_SIGNATURES if s in out), None)", ""
-            ),
-            "an unguarded USAGE_SIGNATURES scan is still present outside the helper",
+        scans = [
+            line
+            for line in body.splitlines()
+            if "for s in USAGE_SIGNATURES" in line
+            and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(
+            len(scans),
+            1,
+            f"USAGE_SIGNATURES must be scanned only inside the helper, found: {scans}",
         )
 
 

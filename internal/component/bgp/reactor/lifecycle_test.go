@@ -60,9 +60,9 @@ func (m *mockLifecycleObserver) lastClosedReason() string {
 	return m.closed[len(m.closed)-1].reason
 }
 
-// TestPeerLifecycleObserverRegistration verifies observers can be registered.
+// TestpeerLifecycleObserverRegistration verifies observers can be registered.
 //
-// VALIDATES: AddPeerObserver adds observer to reactor.
+// VALIDATES: addPeerObserver adds observer to reactor.
 // PREVENTS: Observer registration failures.
 func TestPeerLifecycleObserverRegistration(t *testing.T) {
 	cfg := &Config{
@@ -73,7 +73,7 @@ func TestPeerLifecycleObserverRegistration(t *testing.T) {
 	obs := &mockLifecycleObserver{}
 
 	// Should not panic
-	reactor.AddPeerObserver(obs)
+	reactor.addPeerObserver(obs)
 }
 
 // TestPeerLifecycleCallbacks verifies OnPeerEstablished/OnPeerClosed are called.
@@ -87,7 +87,7 @@ func TestPeerLifecycleCallbacks(t *testing.T) {
 
 	reactor := New(cfg)
 	obs := &mockLifecycleObserver{}
-	reactor.AddPeerObserver(obs)
+	reactor.addPeerObserver(obs)
 
 	// Create a peer
 	settings := NewPeerSettings(
@@ -143,9 +143,9 @@ func TestPeerLifecycleCallbackOrder(t *testing.T) {
 	}
 
 	// Register in order
-	reactor.AddPeerObserver(obs1)
-	reactor.AddPeerObserver(obs2)
-	reactor.AddPeerObserver(obs3)
+	reactor.addPeerObserver(obs1)
+	reactor.addPeerObserver(obs2)
+	reactor.addPeerObserver(obs3)
 
 	// Create a peer and trigger callback
 	settings := NewPeerSettings(
@@ -172,7 +172,7 @@ func TestPeerClosedReason(t *testing.T) {
 
 	reactor := New(cfg)
 	obs := &mockLifecycleObserver{}
-	reactor.AddPeerObserver(obs)
+	reactor.addPeerObserver(obs)
 
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
@@ -234,9 +234,9 @@ func TestMultipleObserversAllCalled(t *testing.T) {
 	obs2 := &mockLifecycleObserver{}
 	obs3 := &mockLifecycleObserver{}
 
-	reactor.AddPeerObserver(obs1)
-	reactor.AddPeerObserver(obs2)
-	reactor.AddPeerObserver(obs3)
+	reactor.addPeerObserver(obs1)
+	reactor.addPeerObserver(obs2)
+	reactor.addPeerObserver(obs3)
 
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),

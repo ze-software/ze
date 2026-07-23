@@ -49,19 +49,19 @@ func safeEgressFilter(filter filterapi.EgressFilterFunc, src, dest filterapi.Pee
 	return filter(src, dest, payload, meta, mods)
 }
 
-// AddPeerObserver registers an observer for peer lifecycle events.
+// addPeerObserver registers an observer for peer lifecycle events.
 // Observers are called synchronously in registration order.
 // MUST NOT block; use goroutine for slow processing.
-func (r *Reactor) AddPeerObserver(obs PeerLifecycleObserver) {
+func (r *Reactor) addPeerObserver(obs peerLifecycleObserver) {
 	r.observersMu.Lock()
 	defer r.observersMu.Unlock()
 	r.peerObservers = append(r.peerObservers, obs)
 }
 
-// AddMessageObserver registers an observer for raw BGP messages.
+// addMessageObserver registers an observer for raw BGP messages.
 // Observers are called synchronously on the session goroutine.
 // MUST NOT block; buffer internally if I/O is needed.
-func (r *Reactor) AddMessageObserver(obs MessageObserver) {
+func (r *Reactor) addMessageObserver(obs MessageObserver) {
 	r.observersMu.Lock()
 	defer r.observersMu.Unlock()
 	r.msgObservers = append(r.msgObservers, obs)
@@ -78,10 +78,10 @@ func (a *messageCallbackAdapter) OnBGPMessage(peer *plugin.PeerInfo, msgType msg
 
 // AddMessageCallback registers an external callback via the any-typed interface.
 func (r *Reactor) AddMessageCallback(cb registry.MessageCallback) {
-	r.AddMessageObserver(&messageCallbackAdapter{cb: cb})
+	r.addMessageObserver(&messageCallbackAdapter{cb: cb})
 }
 
-// callbackAdapter wraps a registry.PeerLifecycleCallback as a PeerLifecycleObserver.
+// callbackAdapter wraps a registry.PeerLifecycleCallback as a peerLifecycleObserver.
 type callbackAdapter struct {
 	cb registry.PeerLifecycleCallback
 }
@@ -93,7 +93,7 @@ func (a *callbackAdapter) OnPeerClosed(peer *Peer, reason string) {
 
 // AddPeerLifecycleCallback registers an external callback via the any-typed interface.
 func (r *Reactor) AddPeerLifecycleCallback(cb registry.PeerLifecycleCallback) {
-	r.AddPeerObserver(&callbackAdapter{cb: cb})
+	r.addPeerObserver(&callbackAdapter{cb: cb})
 }
 
 // notifyPeerEstablished calls all observers when peer reaches Established.
@@ -568,9 +568,34 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	// peer_forward_facts AS-path-skip) stay schema-gated only, which suffices
 	// because they are unreachable without the plugin-owned config.
 	if kept && hasPeer && r.rsForwardingEnabled && peer.settings.RSFastPath && msgType == msgtype.TypeUPDATE {
+		// ReactorForwarded is a claim of delivery, and bgp-rs believes it: with
+		// the flag set and no FastPathSkipped it takes `default: releaseCache`
+		// (rs/server_withdrawal.go) and forwards to nobody. So set it ONLY when
+		// this rail actually dispatched to someone, and say something on every
+		// path that declines -- a guard that neither denies nor speaks does not
+		// exist (ai/rules/fail-closed-guards.md). Both branches below used to be
+		// silent, which is why a rail switch was invisible in the logs.
 		update, ok := r.recentUpdates.Get(messageID)
-		if ok {
-			skipped := reactorForwardRS(r, update, messageID, peerAddr, peer)
+		switch {
+		case !ok:
+			// The entry was Add()ed a few lines above, so a miss means it was
+			// evicted under concurrent load. bgp-rs still delivers via
+			// ForwardCached -> forwardUpdateCore, which applies the same egress
+			// policy, so this is a performance fallback and not a delivery gap.
+			fwdLogger().Warn("rs fast path declined: update evicted from cache before forwarding",
+				"id", messageID, "peer", peer.addrString)
+		default:
+			skipped, dispatched := reactorForwardRS(r, update, messageID, peerAddr, peer)
+			if dispatched == 0 && len(skipped) == 0 {
+				// Matched no destination at all. Leaving the flag clear hands the
+				// UPDATE to bgp-rs's own target selection, which releases the
+				// cache itself when it likewise finds no target. Claiming
+				// "forwarded" here is what turned "no eligible peer yet" into a
+				// silently dropped UPDATE.
+				fwdLogger().Debug("rs fast path matched no destination; deferring to the rs plugin",
+					"id", messageID, "peer", peer.addrString)
+				break
+			}
 			msg.ReactorForwarded = true
 			if len(skipped) > 0 {
 				msg.FastPathSkipped = skipped

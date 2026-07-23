@@ -66,9 +66,12 @@ func TestEverySIGHUPLoopAnnouncesCompletion(t *testing.T) {
 		t.Fatal("found no SIGHUP reload loop: this test can no longer detect the regression it guards")
 	}
 	if len(announces) < len(loops) {
-		t.Errorf("%d SIGHUP reload loop(s) %v but only %d reloadComplete() call(s) %v:\n"+
+		t.Errorf("%d SIGHUP reload loop(s) in package hub %v but only %d reloadComplete() call(s) %v:\n"+
 			"a reload path that does not announce completion is invisible to operators "+
-			"and cannot be fenced on by a .ci test",
+			"and cannot be fenced on by a .ci test.\n"+
+			"NOTE: this test is package-scoped (it reads only cmd/ze/hub). The reactor's own "+
+			"reload loop is a separate process and deliberately needs its own distinct marker "+
+			"-- see the reloadCompleteLine doc comment",
 			len(loops), loops, len(announces), announces)
 	}
 }
