@@ -138,6 +138,62 @@ def ensure_binaries(ze_bin, test_bin):
     return False
 
 
+def _as_text(stream):
+    """Return a subprocess stream as str, whatever subprocess handed us.
+
+    capture_output+text=True yields str on the success path but bytes inside a
+    TimeoutExpired, and None when a stream was never produced.
+    """
+    if stream is None:
+        return ""
+    if isinstance(stream, (bytes, bytearray)):
+        return bytes(stream).decode("utf-8", "replace")
+    return stream
+
+
+# A ze-test invocation that never reached a test at all. Counting one of these as
+# a reproduction is worse than useless: it burns the whole run and records a
+# usage mistake as a product failure. Seen with `stress-repro.py reload`, where
+# the reload tests actually live under the bgp suite (`bgp reload`).
+#
+# These strings are NOT unique to a usage error: several .ci tests assert them as
+# expected output (test/ui/root-namespace.ci and test/ui/pipe-operators.ci both
+# do `expect=stderr:contains=unknown command: ...`), and the runner echoes both
+# the needle and the daemon's stderr into a failure report. So the check is
+# deliberately narrow -- see usage_error_signature.
+USAGE_SIGNATURES = (
+    "unknown command:",
+    "unknown suite:",
+    "flag provided but not defined",
+)
+
+# ze-test prints its command list ONLY when it never dispatched a suite. Pairing
+# this with a USAGE_SIGNATURES match is what distinguishes "bad arguments" from
+# "a real failure whose output happens to contain the phrase".
+USAGE_BANNER = "\nCommands:\n"
+
+
+def usage_error_signature(out):
+    """Return the usage signature in `out` when the run never reached a test.
+
+    A usage signature ALONE is not enough, and keying on the invocation ordinal
+    is not either. Several .ci tests legitimately produce these phrases:
+    test/ui/root-namespace.ci asserts `expect=stderr:contains=unknown command:
+    traffic-control`, and on failure the runner echoes both the unmet needle and
+    ze's stderr into the report. Discarding that as "you mistyped the suite
+    name" would throw away the very reproduction the tool exists to capture.
+
+    So require the ze-test USAGE BANNER as well. ze-test prints the signature
+    followed by "Commands:" and the full command list only when it never
+    dispatched a suite; a run that reached a test never prints it. That is a
+    property of "no test ran", not of ordering, so it also holds when a later
+    parallel future completes first.
+    """
+    if USAGE_BANNER not in out:
+        return None
+    return next((s for s in USAGE_SIGNATURES if s in out), None)
+
+
 def run_once(suite, sel, ze_bin, test_bin, timeout, extra_tags):
     """One `ze-test <suite> <sel> -v` invocation with prebuilt binaries and
     full-goroutine tracebacks. Returns (returncode, combined_output)."""
@@ -161,10 +217,16 @@ def run_once(suite, sel, ze_bin, test_bin, timeout, extra_tags):
         r = subprocess.run(
             args, cwd=REPO, env=env, capture_output=True, text=True, timeout=timeout
         )
-        return r.returncode, (r.stdout or "") + (r.stderr or "")
+        return r.returncode, _as_text(r.stdout) + _as_text(r.stderr)
     except subprocess.TimeoutExpired as e:
-        out = (e.stdout or "") + (e.stderr or "") if e.stdout or e.stderr else ""
-        return 124, out + "\n[stress-repro: invocation timed out]\n"
+        # TimeoutExpired carries the raw, UNDECODED streams even though the call
+        # above passes text=True: subprocess only decodes on the success path.
+        # Concatenating those bytes with a str raised TypeError and killed the
+        # whole run, so the reproducer crashed on precisely the failure it exists
+        # to catch -- a suite that hangs under load.
+        return 124, _as_text(e.stdout) + _as_text(e.stderr) + (
+            f"\n[stress-repro: invocation timed out after {timeout}s]\n"
+        )
 
 
 def main():
@@ -285,6 +347,18 @@ def main():
                     for fut in as_completed(futs):
                         done += 1
                         rc, out = fut.result()
+                        if usage := usage_error_signature(out):
+                            log.write(f"\n===== invocation {done} USAGE ERROR =====\n")
+                            log.write(out)
+                            log.flush()
+                            print(
+                                f"\nstress-repro: '{args.suite}' never reached a test "
+                                f"({usage.strip()}). Not a reproduction.\n"
+                                f"Check the suite name -- a sub-suite is passed as one "
+                                f'argument, e.g. "bgp reload".',
+                                flush=True,
+                            )
+                            return 2
                         crash = next((s for s in CRASH_SIGNATURES if s in out), None)
                         hit = crash or (args.any_failure and rc != 0)
                         log.write(
