@@ -21,32 +21,40 @@ import (
 // Does NOT flush or set write deadlines. The caller batches flushes via
 // Session.flushFwdDirty when the source bufReader has no more data.
 //
-// Returns (handled, dstSession):
-//   - (true, session): wrote to bufWriter; session needs deferred flush
-//   - (true, nil): peer not ready; skip (caller must call done)
-//   - (false, nil): TryLock failed or no session; fall back to pool
-func tryDirectWriteNoFlush(item *fwdItem) (bool, *Session) {
+// Returns (handled, delivered, dstSession):
+//   - (true, true, session): bytes reached the peer's bufWriter; needs deferred flush
+//   - (true, false, session): a write FAILED partway; the item is consumed, nothing
+//     reliable reached the peer
+//   - (true, false, nil): peer not Established; skip (caller must call done)
+//   - (false, false, nil): TryLock failed or no session; fall back to pool
+//
+// handled and delivered are separate on purpose. handled answers "is this item
+// finished with, do not re-dispatch it"; delivered answers "did the UPDATE reach
+// the peer". Collapsing them is what let reactor_notify.go claim delivery -- and
+// so let bgp-rs drop the UPDATE on its `default` arm -- for a peer that was not
+// Established or whose write errored.
+func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session) {
 	peer := item.peer
 	if peer == nil {
-		return false, nil
+		return false, false, nil
 	}
 
 	peer.mu.RLock()
 	session := peer.session
 	peer.mu.RUnlock()
 	if session == nil {
-		return false, nil
+		return false, false, nil
 	}
 
 	session.mu.RLock()
 	state := session.fsm.State()
 	session.mu.RUnlock()
 	if state != fsm.StateEstablished {
-		return true, nil
+		return true, false, nil
 	}
 
 	if !session.writeMu.TryLock() {
-		return false, nil
+		return false, false, nil
 	}
 
 	session.sentMeta = item.meta
@@ -54,7 +62,7 @@ func tryDirectWriteNoFlush(item *fwdItem) (bool, *Session) {
 		if err := session.writeRawUpdateBody(body); err != nil {
 			session.sentMeta = nil
 			session.writeMu.Unlock()
-			return true, session
+			return true, false, session
 		}
 	}
 	for _, update := range item.updates {
@@ -63,24 +71,30 @@ func tryDirectWriteNoFlush(item *fwdItem) (bool, *Session) {
 		if err := session.writeUpdatePreFiltered(update); err != nil {
 			session.sentMeta = nil
 			session.writeMu.Unlock()
-			return true, session
+			return true, false, session
 		}
 	}
 	session.sentMeta = nil
 	session.writeMu.Unlock()
-	return true, session
+	return true, true, session
 }
 
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
 // from notifyMessageReceiver, bypassing the plugin dispatch chain.
 //
-// Returns the list of destination peers that were skipped (have ExportFilters).
-// The caller stores these on RawMessage.FastPathSkipped so bgp-rs can forward
-// to them via ForwardCached.
+// Returns the list of destination peers that were skipped (have ExportFilters)
+// and the number of peers this call actually dispatched to. The caller stores
+// the skipped list on RawMessage.FastPathSkipped so bgp-rs can forward to them
+// via ForwardCached.
+//
+// dispatched exists so the caller can tell "the fast path delivered this UPDATE"
+// from "the fast path matched nobody". Both used to look identical to bgp-rs,
+// which then took its `default: releaseCache` arm and forwarded to nobody
+// either -- a silent drop. See the caller in reactor_notify.go.
 //
 // Buffer lifetime: callers must ensure the cache entry for updateID exists.
 // This function calls RetainN before dispatch; each fwdItem.done() calls Release.
-func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) []netip.AddrPort {
+func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int) {
 	// Get source session for deferred flush tracking.
 	// Stable because we're on this session's read goroutine; RLock for formal correctness.
 	var srcSession *Session
@@ -119,7 +133,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	r.mu.RUnlock()
 
 	if len(matchingPeers) == 0 {
-		return skipped
+		return skipped, 0
 	}
 
 	// EBGP wire cache: lazily generate AS-PATH-prepended wires per (localAS, secondaryAS, asn4).
@@ -252,6 +266,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	}
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
+	// delivered counts peers the UPDATE actually REACHED, which is what the caller
+	// turns into a delivery claim. len(pending) counts items built, and the two
+	// differ whenever a peer leaves Established, a write fails, or no rail accepts.
+	delivered := 0
 
 	// Group-aware body cache: stack-allocated slots avoid per-UPDATE map allocation.
 	// Typical RS deployments have 1-2 unique body cache keys (shared encoding context).
@@ -478,24 +496,41 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { r.recentUpdates.Release(updateID) }
-			handled, dstSession := tryDirectWriteNoFlush(&pending[i].item)
+			handled, written, dstSession := tryDirectWriteNoFlush(&pending[i].item)
 			switch {
 			case handled:
 				pending[i].item.done()
 				if pending[i].item.peerBufIdx > 0 && pending[i].item.peerPoolRef != nil {
 					pending[i].item.peerPoolRef.Return(pending[i].item.peerBufIdx)
 				}
-				r.fwdPool.RecordForwarded(sourcePeerAddr)
+				if written {
+					delivered++
+					r.fwdPool.RecordForwarded(sourcePeerAddr)
+				} else {
+					// Consumed but NOT delivered: the peer left Established, or a
+					// write failed partway. Name it -- this is the peer's route
+					// silently going missing, and the caller must not report the
+					// UPDATE as forwarded on the strength of it.
+					fwdLogger().Warn("rs fast path: item consumed without reaching the peer",
+						"id", updateID, "peer", pending[i].key.peerAddr, "src", sourcePeerAddr)
+				}
 				if dstSession != nil && srcSession != nil {
 					srcSession.appendFwdDirty(dstSession)
 				}
 			case r.fwdPool.TryDispatch(pending[i].key, pending[i].item):
+				delivered++
 				r.fwdPool.RecordForwarded(sourcePeerAddr)
 			case r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item):
+				delivered++
 				r.fwdPool.RecordOverflowed(sourcePeerAddr)
+			default:
+				// Neither rail took it. Without this arm the item vanished with no
+				// trace and no accounting.
+				fwdLogger().Warn("rs fast path: no rail accepted the item",
+					"id", updateID, "peer", pending[i].key.peerAddr, "src", sourcePeerAddr)
 			}
 		}
 	}
 
-	return skipped
+	return skipped, delivered
 }

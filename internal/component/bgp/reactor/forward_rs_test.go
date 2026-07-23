@@ -109,9 +109,26 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 			ps.RSFastPath = true
 			require.NoError(t, reactor.AddPeer(ps))
 
+			// A DESTINATION peer is required, not just the source. ReactorForwarded
+			// now means "the fast path delivered this UPDATE to someone", not merely
+			// "the gate let the fast path run" -- reactor_notify.go sets it only when
+			// the rail dispatched, because bgp-rs reads the flag as a delivery claim
+			// and drops the UPDATE (rs/server_withdrawal.go default arm) when it is
+			// set with an empty FastPathSkipped. With only the source peer present
+			// reactorForwardRS matches nobody (it skips the source), so the flag would
+			// be false whatever the capability said and this test could not tell the
+			// two cases apart.
+			dstCtx := bgpctx.EncodingContextForASN4(true)
+			dstCtxID, err := bgpctx.Registry.Register(dstCtx)
+			require.NoError(t, err)
+			dst := makeRSPeer(t, "10.0.0.2", 65002, dstCtx, dstCtxID)
+			reactor.mu.Lock()
+			reactor.peers[dst.Settings().PeerKey()] = dst
+			reactor.mu.Unlock()
+
 			var forwarded atomic.Bool
 			gotMsg := make(chan struct{}, 1)
-			reactor.SetMessageReceiver(&testDeliveryReceiver{
+			reactor.setMessageReceiver(&testDeliveryReceiver{
 				onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
 					if msg.ReactorForwarded {
 						forwarded.Store(true)
@@ -191,7 +208,12 @@ func TestReactorForwardRSBasic(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	skipped := reactorForwardRS(r, update, 42, netip.MustParseAddr("10.0.0.1"), src)
+	skipped, nDispatched := reactorForwardRS(r, update, 42, netip.MustParseAddr("10.0.0.1"), src)
+	// The returned count is what reactor_notify.go uses to tell "delivered" from
+	// "matched nobody"; assert it agrees with the pool observations below.
+	if nDispatched != 2 {
+		t.Fatalf("nDispatched = %d, want 2 (both eligible peers)", nDispatched)
+	}
 
 	// Wait for both dispatches.
 	for range 2 {
@@ -275,7 +297,10 @@ func TestReactorForwardRSFallback(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	skipped := reactorForwardRS(r, update, 50, netip.MustParseAddr("10.0.0.1"), src)
+	skipped, nDispatched := reactorForwardRS(r, update, 50, netip.MustParseAddr("10.0.0.1"), src)
+	if nDispatched != 1 {
+		t.Fatalf("nDispatched = %d, want 1 (the other peer was export-filtered)", nDispatched)
+	}
 
 	select {
 	case <-done:
@@ -752,8 +777,12 @@ func TestReactorForwardRSDirectWrite(t *testing.T) {
 		rawBodies: [][]byte{body},
 	}
 
-	handled, sess := tryDirectWriteNoFlush(&item)
+	handled, written, sess := tryDirectWriteNoFlush(&item)
 	require.True(t, handled, "direct write should succeed")
+	// delivered must be true here, distinct from handled: a not-Established peer or
+	// a failed write is also "handled" but reaches nobody, and the caller turns
+	// delivered into ReactorForwarded.
+	require.True(t, written, "direct write should report the bytes as delivered")
 	require.Equal(t, dstSession, sess, "should return destination session for deferred flush")
 
 	// Data is in bufWriter but NOT flushed to TCP yet.
@@ -807,8 +836,9 @@ func TestReactorForwardRSDirectWriteTryLockFails(t *testing.T) {
 		rawBodies: [][]byte{{0, 0, 0, 0}},
 	}
 
-	handled, sess := tryDirectWriteNoFlush(&item)
+	handled, written, sess := tryDirectWriteNoFlush(&item)
 	require.False(t, handled, "should fail when TryLock cannot acquire")
+	require.False(t, written, "a contended TryLock delivers nothing")
 	require.Nil(t, sess)
 
 	dstSession.writeMu.Unlock()
@@ -957,4 +987,31 @@ func TestAppendFwdDirtyDeduplicates(t *testing.T) {
 	s.appendFwdDirty(dst)
 	s.appendFwdDirty(dst)
 	require.Len(t, s.fwdDirty, 1)
+}
+
+// TestTryDirectWriteNotEstablishedIsNotDelivered pins the distinction that
+// reactor_notify.go turns into a delivery claim.
+//
+// VALIDATES: a peer that is not Established yields handled=true (the item is
+// finished with, do not re-dispatch) but delivered=false (nothing reached it).
+// PREVENTS: collapsing the two again. While they were one bool, reactorForwardRS
+// counted such a peer as dispatched, reactor_notify.go set ReactorForwarded, and
+// bgp-rs took its `default: releaseCache` arm -- so the UPDATE reached NOBODY
+// while the code reported it forwarded.
+func TestTryDirectWriteNotEstablishedIsNotDelivered(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	peer, dstSession, conn := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
+	defer conn.Close()
+
+	// Drive the session out of Established; the peer object stays wired up.
+	require.NoError(t, dstSession.fsm.Event(fsm.EventTCPConnectionFails))
+
+	item := fwdItem{peer: peer, rawBodies: [][]byte{{0, 0, 0, 0}}}
+	handled, written, sess := tryDirectWriteNoFlush(&item)
+
+	require.True(t, handled, "a non-Established peer is handled: the item must not be re-dispatched")
+	require.False(t, written, "a non-Established peer received nothing, so it must not count as delivered")
+	require.Nil(t, sess, "no session is returned for deferred flush when nothing was written")
 }

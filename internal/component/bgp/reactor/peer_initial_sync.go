@@ -314,10 +314,23 @@ func (p *Peer) sendInitialRoutes() {
 	// Hold the session write lock across family-specific routes AND EOR.
 	// The route-server plugin, when present, sends EOR via AnnounceEOR ->
 	// peer.SendUpdate in a separate goroutine. Without holding writeMu, the
-	// RS EOR can interleave between config routes and EOR markers. HoldWrites
-	// blocks the RS (writeMu.Lock blocks) and the forward pool (TryLock fails)
-	// until the full sequence completes. Route methods use sendHeld (passed as
-	// a callback) to write without re-acquiring writeMu.
+	// RS EOR can interleave between config routes and EOR markers.
+	//
+	// HoldWrites is s.writeMu.Lock (session_write.go). While it is held both
+	// egress rails are shut out, but by opposite mechanisms, and this comment
+	// had them backwards: the RS FAST PATH is the TryLock and gives up
+	// (forward_rs.go tryDirectWriteNoFlush, falling back to the pool), while the
+	// per-peer FORWARD POOL worker takes a plain blocking Lock (forward_pool.go
+	// fwdBatchHandler) and waits. The asymmetry is deliberate -- the fast path
+	// runs on the SOURCE peer's read goroutine, where blocking would stall
+	// forwarding to every other destination, so it must never wait.
+	//
+	// Keep the held window short for the same reason writeMu also gates
+	// KEEPALIVE (session_write.go writeMessage): a long hold delays this peer's
+	// keepalives and risks its hold timer.
+	//
+	// Route methods use sendHeld (passed as a callback) to write without
+	// re-acquiring writeMu.
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
