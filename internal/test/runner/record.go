@@ -127,6 +127,11 @@ type Record struct {
 	LastReceivedIdx int
 	PeerOutput      string
 	ClientOutput    string
+	// FailedPeers names the check-mode peers that did not report a clean
+	// exchange. PeerOutput joins every peer's output and so cannot say WHICH
+	// peer failed; in a multi-peer test that distinction is the whole diagnosis
+	// (peer_contract.go failedCheckPeers).
+	FailedPeers []string
 
 	// Logging test options
 	EnvVars      []string // option:env:var=KEY:value=VALUE

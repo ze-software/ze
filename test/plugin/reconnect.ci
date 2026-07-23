@@ -12,7 +12,7 @@ action=notification:conn=1:seq=2:text=Peer Reset
 
 # Connection B: Peer sends "done" route to ZeBGP (verifies ZeBGP reconnected)
 # Test completes when this send action is executed
-action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000017400101004002004003047F0000010405040000006410640A
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003047F0000014005040000006410640A
 EOF_PEER
 
 # Python plugin script

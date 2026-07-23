@@ -795,7 +795,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Capture output: each ze-peer gets its own syncWriter/stderr
 		// so WaitFor works independently per process.
 		switch {
-		case strings.Contains(execStr, "ze-peer"):
+		case isZePeerExec(execStr):
 			po := peerOutput{
 				stdout: newSyncWriter(),
 				stderr: &lockedBuilder{},
@@ -844,7 +844,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				namedBg[cmd.Name] = proc
 			}
 			switch {
-			case strings.Contains(execStr, "ze-peer"):
+			case isZePeerExec(execStr):
 				// Wait for ze-peer to be ready (listening) instead of a fixed
 				// sleep. A peer that never binds is a FAILURE, never a skip: ze
 				// would dial a dead port, get connection refused, and back off,
@@ -1051,6 +1051,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				if waitErr := peerOutputs[i].proc.Wait(); waitErr != nil {
 					peerErrs = append(peerErrs, waitErr)
 				}
+				peerOutputs[i].waited = true
 			}
 		}
 		err = errors.Join(peerErrs...)
@@ -1062,6 +1063,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			terminateGracefully(p)
 		}
 	}
+
+	// Barrier: every peer's output must be complete before anything reads it. Only
+	// the default arm above waits peers; the await=stderr and exit-code arms wait
+	// the daemon alone, and ~290 .ci files pair a check peer with expect=exit.
+	drainPeers(peerOutputs, peerDrainGrace)
 
 	// Combine per-peer outputs (concatenated in process start order).
 	var allPeerStdout, allPeerStderr strings.Builder

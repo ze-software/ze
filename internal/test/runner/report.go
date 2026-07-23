@@ -100,6 +100,8 @@ func (r *Report) printFailure(rec *Record) {
 func (r *Report) printTimeoutReport(rec *Record) {
 	c := r.colors
 
+	r.printFailedPeers(rec)
+
 	r.writeln(c.LineSeparator())
 	r.writeln(c.Yellow("PROGRESS:"))
 	r.writeln(c.LineSeparator())
@@ -180,8 +182,26 @@ func (r *Report) printTimeoutReport(rec *Record) {
 	}
 }
 
+// printFailedPeers names the check-mode peers that did not report a clean
+// exchange, before any joined output is dumped.
+//
+// Called from EVERY failure report, not only the mismatch one: in a multi-peer
+// test the joined dump interleaves all peers, and the peer that SUCCEEDED is
+// usually the loudest thing in it.
+func (r *Report) printFailedPeers(rec *Record) {
+	if len(rec.FailedPeers) == 0 {
+		return
+	}
+	c := r.colors
+	r.writeln(c.LineSeparator())
+	var tb textbuf.Buffer
+	r.writeln(c.Yellow(tb.Str("FAILED CHECK PEERS: ").Join(rec.FailedPeers, ", ").String()))
+}
+
 func (r *Report) printMismatchReport(rec *Record) {
 	c := r.colors
+
+	r.printFailedPeers(rec)
 
 	// Debug: show raw peer output to diagnose mismatch
 	if rec.PeerOutput != "" {
@@ -272,6 +292,8 @@ func (r *Report) printMismatchReport(rec *Record) {
 
 func (r *Report) printGenericReport(rec *Record) {
 	c := r.colors
+
+	r.printFailedPeers(rec)
 
 	// Show error if any
 	if rec.Error != nil {

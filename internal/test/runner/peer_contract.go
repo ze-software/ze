@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
 
@@ -41,11 +42,91 @@ const zePeerBin = "ze-peer"
 // mere presence would fail every scaffolding test while asserting nothing.
 func hasCheckPeer(cmds []RunCommand) bool {
 	for _, cmd := range cmds {
-		if isZePeerExec(cmd.Exec) && zePeerExecMode(cmd.Exec) == peer.ModeCheck {
+		if isCheckPeerExec(cmd.Exec) {
 			return true
 		}
 	}
 	return false
+}
+
+// isCheckPeerExec reports whether an exec value launches a check-mode ze-peer --
+// the only peer kind that validates what it receives and reports peerSuccessToken.
+func isCheckPeerExec(exec string) bool {
+	return isZePeerExec(exec) && zePeerExecMode(exec) == peer.ModeCheck
+}
+
+// countCheckPeers is how many check-mode peers the .ci declares, which
+// failedCheckPeers compares against how many actually produced a capture.
+func countCheckPeers(cmds []RunCommand) int {
+	n := 0
+	for _, cmd := range cmds {
+		if isCheckPeerExec(cmd.Exec) {
+			n++
+		}
+	}
+	return n
+}
+
+// peerSuccessToken is what a check-mode ze-peer prints on a clean exchange
+// (internal/test/cli/cmd_bgp.go).
+const peerSuccessToken = "successful"
+
+// peerLabel names a peer in a failure message, preferring whatever the .ci author
+// actually wrote: an explicit cmd name, else the stdin block the peer's
+// expectations came from, else the command's sequence number.
+func peerLabel(cmd RunCommand) string {
+	if cmd.Name != "" {
+		return cmd.Name
+	}
+	var tb textbuf.Buffer
+	if cmd.Stdin != "" {
+		return tb.Str("stdin=").Str(cmd.Stdin).String()
+	}
+	return tb.Str("cmd seq=").Int(int64(cmd.Seq)).String()
+}
+
+// failedCheckPeers names every check-mode peer that did not report a clean
+// exchange, plus any check-mode peer that produced no capture at all.
+//
+// EVERY check-mode peer must succeed. The verdict used to be one
+// strings.Contains over all peers' output concatenated into rec.PeerOutput
+// (runner_exec.go), so in a multi-peer test the first peer's success masked every
+// other peer's failure: a run where the destination peer logged "connection
+// closed before completion" was still reported PASS because the source peer had
+// printed peerSuccessToken. Two suite tests (forward-overflow-two-tier,
+// role-otc-unicast-scope) read as "flaky, passes 1 in 10" for exactly this reason
+// while failing deterministically. That is the vacuous-pass shape this file
+// exists to close (see the header), one layer further out, so the fix belongs
+// here and not at the call site.
+//
+// declared is the number of check-mode peers the .ci asked for. A shortfall is
+// itself a failure: a check peer that never produced a peerOutput cannot have
+// validated anything, and reporting "no failures" for it would fail open exactly
+// where ai/rules/fail-closed-guards.md requires a guard to deny or speak.
+func failedCheckPeers(declared int, peers []peerOutput) []string {
+	var failed []string
+	var tb textbuf.Buffer
+	captured := 0
+	for i := range peers {
+		if !peers[i].checkMode {
+			continue
+		}
+		captured++
+		if strings.Contains(peers[i].combined(), peerSuccessToken) {
+			continue
+		}
+		label := peers[i].label
+		if label == "" {
+			label = tb.Reset().Str("check peer #").Int(int64(captured)).String()
+		}
+		failed = append(failed, label)
+	}
+	if captured < declared {
+		failed = append(failed, tb.Reset().
+			Int(int64(declared-captured)).Str(" of ").Int(int64(declared)).
+			Str(" check-mode peers never started").String())
+	}
+	return failed
 }
 
 // isSelfValidated reports whether a test's result is governed entirely by the

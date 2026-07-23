@@ -288,3 +288,129 @@ func TestIsSelfValidated(t *testing.T) {
 		})
 	}
 }
+
+// mkPeerOutput builds a peerOutput carrying the given captured text, as os/exec
+// would have filled it. Only stdout is populated; combined() reads both.
+func mkPeerOutput(t *testing.T, checkMode bool, label, captured string) peerOutput {
+	t.Helper()
+	po := peerOutput{stdout: newSyncWriter(), stderr: &lockedBuilder{}, checkMode: checkMode, label: label}
+	if _, err := po.stdout.Write([]byte(captured)); err != nil {
+		t.Fatalf("seed peer stdout: %v", err)
+	}
+	return po
+}
+
+// TestPeerVerdictRequiresAllCheckPeers is the regression guard for the
+// multi-peer masking defect.
+//
+// VALIDATES: AC-1 -- every check-mode peer must report peerSuccessToken; one
+// peer's success does not stand in for another's failure.
+// PREVENTS: the verdict reverting to a single strings.Contains over the joined
+// rec.PeerOutput (runner_exec.go), under which a run whose destination peer
+// logged "connection closed before completion" was reported PASS because the
+// source peer had printed "successful". Tests 224 and 398 read as "flaky, passes
+// 1 in 10" for years on that basis while failing deterministically.
+func TestPeerVerdictRequiresAllCheckPeers(t *testing.T) {
+	cases := []struct {
+		name     string
+		declared int
+		peers    []peerOutput
+		want     []string
+	}{
+		{
+			name:     "all check peers succeed",
+			declared: 2,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "stdin=peer1", "exchange successful\n"),
+				mkPeerOutput(t, true, "stdin=peer2", "exchange successful\n"),
+			},
+			want: nil,
+		},
+		{
+			name:     "second peer fails while first succeeds",
+			declared: 2,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "stdin=peer1", "exchange successful\n"),
+				mkPeerOutput(t, true, "stdin=peer2", "failed: connection closed before completion\n"),
+			},
+			want: []string{"stdin=peer2"},
+		},
+		{
+			name:     "first peer fails while second succeeds",
+			declared: 2,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "stdin=peer1", "failed: message mismatch\n"),
+				mkPeerOutput(t, true, "stdin=peer2", "exchange successful\n"),
+			},
+			want: []string{"stdin=peer1"},
+		},
+		{
+			name:     "both fail",
+			declared: 2,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "stdin=peer1", "failed: message mismatch\n"),
+				mkPeerOutput(t, true, "stdin=peer2", "failed: message mismatch\n"),
+			},
+			want: []string{"stdin=peer1", "stdin=peer2"},
+		},
+		{
+			name:     "scaffolding peers are never required to report success",
+			declared: 1,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "stdin=peer1", "exchange successful\n"),
+				mkPeerOutput(t, false, "sink", "listening on 0.0.0.0:1179\n"),
+			},
+			want: nil,
+		},
+		{
+			name:     "unlabelled peer still named",
+			declared: 1,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "", "failed: message mismatch\n"),
+			},
+			want: []string{"check peer #1"},
+		},
+		{
+			name:     "declared check peer that never started is a failure",
+			declared: 2,
+			peers: []peerOutput{
+				mkPeerOutput(t, true, "stdin=peer1", "exchange successful\n"),
+			},
+			want: []string{"1 of 2 check-mode peers never started"},
+		},
+		{
+			name:     "no peers captured at all",
+			declared: 1,
+			peers:    nil,
+			want:     []string{"1 of 1 check-mode peers never started"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := failedCheckPeers(c.declared, c.peers)
+			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
+// TestCountCheckPeers verifies the declared-count side of the shortfall check:
+// only check-mode ze-peers count, so a sink peer cannot inflate the expectation
+// and turn a healthy test red.
+func TestCountCheckPeers(t *testing.T) {
+	cmds := []RunCommand{
+		{Exec: "ze-peer --port $PORT"},
+		{Exec: "ze-peer --mode sink --port $PORT"},
+		{Exec: "ze-peer --mode=check --port $PORT"},
+		{Exec: "ze --web 8080 x.conf"},
+	}
+	assert.Equal(t, 2, countCheckPeers(cmds))
+}
+
+// TestPeerLabelPrefersAuthoredNames checks the failure message names the peer
+// the way the .ci author wrote it, falling back only when nothing was declared.
+func TestPeerLabelPrefersAuthoredNames(t *testing.T) {
+	assert.Equal(t, "collector", peerLabel(RunCommand{Name: "collector", Stdin: "peer1", Seq: 3}))
+	assert.Equal(t, "stdin=peer1", peerLabel(RunCommand{Stdin: "peer1", Seq: 3}))
+	assert.Equal(t, "cmd seq=3", peerLabel(RunCommand{Seq: 3}))
+}

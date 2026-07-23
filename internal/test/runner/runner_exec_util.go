@@ -109,6 +109,12 @@ func (r *Runner) engineStepsForRun(steps []EngineStep) []EngineStep {
 	return out
 }
 
+// peerDrainGrace bounds the post-run wait for peer processes to exit so their
+// captured output is complete. Generous: a check peer that has satisfied its
+// expectations exits immediately, so this is only ever paid by a peer that is
+// already failing or hung, where the test is red regardless.
+const peerDrainGrace = 10 * time.Second
+
 const (
 	modeForeground  = "foreground"
 	modeBackground  = "background"
@@ -331,6 +337,50 @@ type peerOutput struct {
 	// the point of evaluating peers individually, so it has to survive to the
 	// verdict rather than be reconstructed from the joined output.
 	label string
+	// waited records that proc.Wait() has already run, so the drain barrier below
+	// does not Wait twice (the second call returns an error and tells us nothing).
+	waited bool
+}
+
+// drainPeers waits every launched peer process that has not been waited yet, so
+// os/exec's per-stream copy goroutines have finished and combined() returns the
+// peer's COMPLETE output.
+//
+// The verdict reads each check peer's capture, and a peer that is still running
+// may not have had its final "successful" line copied out of the pipe. That was
+// harmless while any one peer's success carried the whole test; once every check
+// peer must report for itself, an undrained capture is a spurious red -- exactly
+// the flakiness the per-peer verdict exists to remove.
+//
+// Bounded: a peer that never exits must not hang the run. On expiry the capture
+// is read as-is, which is the pre-existing behaviour, and the peer's own failure
+// (or the test timeout) reports it.
+func drainPeers(peers []peerOutput, grace time.Duration) {
+	done := make(chan int, len(peers))
+	pending := 0
+	for i := range peers {
+		if peers[i].proc == nil || peers[i].waited {
+			continue
+		}
+		pending++
+		go func(idx int) {
+			_ = peers[idx].proc.Wait() //nolint:errcheck // the verdict reads output, not this status
+			done <- idx
+		}(i)
+	}
+	if pending == 0 {
+		return
+	}
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	for range pending {
+		select {
+		case idx := <-done:
+			peers[idx].waited = true
+		case <-timer.C:
+			return
+		}
+	}
 }
 
 // combined returns this ONE peer's stdout followed by its stderr.

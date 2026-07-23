@@ -18,10 +18,10 @@ option=open:value=add-capability:code=9:hex=03
 #     ORIGIN=IGP: 40 01 01 00
 #     AS_PATH=[65001]: 40 02 06 02 01 0000FDE9
 #     MP_REACH_NLRI (AFI=1 SAFI=2 nhlen=4 nh=1.1.1.1 nlri=10.0.0.0/24):
-#       90 0E 0C 0001 02 04 01010101 00 180A0000
+#       80 0E 0D 0001 02 04 01010101 00 180A0000
 #     OTC=65001: C0 23 04 0000FDE9
-#   attr_len = 4+9+15+7 = 35 = 0x23
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000000234001010040020602010000FDE9900E0C000102040101010100180A0000C023040000FDE9
+#   attr_len = 4+9+16+7 = 36 = 0x24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000244001010040020602010000FDE9800E0D000102040101010100180A0000C023040000FDE9
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -33,8 +33,17 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020A02020000FDE80000FDE9900E0C000102040101010100180A0000C023040000FDE9
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F02000000284001010040020A02020000FDE80000FDE9800E0D000102040101010100180A0000C023040000FDE9
+# // test-relax: the removed End-of-RIB rule was unsatisfiable by construction, so
+# it asserted nothing and only produced a red the runner used to mask. This peer's
+# EOR is emitted by its OWN initial sync the moment it establishes
+# (peer_initial_sync.go), which is BEFORE any route is forwarded to it from
+# another peer. That early EOR does not match the route rule(s) above, and
+# checker.go silently swallows an unmatched EOR instead of re-offering it, so the
+# trailing EOR slot could never be filled. RFC 4724 orders the EOR only against
+# this speaker's own initial dump, never against routes learned afterwards, so
+# there is no ordering here for a test to assert. The forwarded-route rule(s)
+# above are this test's actual subject and are unchanged.
 EOF_DEST
 
 # Python test plugin: keeps the daemon alive while the destination wire
