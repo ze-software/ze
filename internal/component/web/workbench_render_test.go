@@ -122,7 +122,7 @@ func TestRenderWorkbenchTopbarShowsConfiguredIdentity(t *testing.T) {
 // would defeat the table-first design and confuse the rollback-mode test.
 //
 // VALIDATES: AC-1a (workbench markers are absent from Finder, and vice versa).
-// PREVENTS: Accidental Finder column reuse leaking into the V2 chrome.
+// PREVENTS: Accidental Finder column reuse leaking into the workbench chrome.
 func TestRenderWorkbench_NoFinderMarkers(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
@@ -154,7 +154,7 @@ func TestRenderWorkbench_NoFinderMarkers(t *testing.T) {
 // TestRenderLayout_NoWorkbenchMarkers verifies the inverse: the existing
 // Finder layout does not pick up workbench markers. This is the rollback
 // contract -- starting the hub with `ze.web.ui=finder` (or the Phases 1-3
-// default) must produce a page free of V2 markers.
+// default) must produce a page free of workbench markers.
 //
 // VALIDATES: AC-1a (Finder pages carry no workbench markers).
 // PREVENTS: A future shared template change accidentally bleeding workbench

@@ -115,7 +115,7 @@ type ListTableRow struct {
 	Cells             []ListTableCell     // Editable cells (same order as non-key columns)
 	URL               string              // Navigation URL for this entry
 	HxPath            string              // YANG path for hx-get
-	RowTools          []RelatedToolButton // ze:related row-placement tools (workbench V2 only)
+	RowTools          []RelatedToolButton // ze:related row-placement tools (workbench only)
 	HasPendingChanges bool                // Editor session has uncommitted changes touching this row
 }
 
@@ -127,7 +127,7 @@ type ListTableView struct {
 	AddURL     string              // Base URL for adding entries (/config/add/bgp/peer/)
 	FormURL    string              // URL for the HTMX add-form overlay (/config/add-form/bgp/peer/)
 	SetURL     string              // Base URL for config/set (inline edits)
-	TableTools []RelatedToolButton // ze:related table-placement tools (workbench V2 only)
+	TableTools []RelatedToolButton // ze:related table-placement tools (workbench only)
 }
 
 // RelatedToolButton is the per-row or per-table render data for one

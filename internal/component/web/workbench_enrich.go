@@ -1,11 +1,11 @@
-// Design: docs/architecture/web-interface.md -- V2 workbench data enrichment
+// Design: docs/architecture/web-interface.md -- workbench data enrichment
 // Related: handler_workbench.go -- caller that runs enrichment per request
 // Related: fragment.go -- shared data model the workbench extends
 // Related: ../config/related.go -- ze:related descriptor source
 //
 // Spec: plan/spec-web-2-operator-workbench.md (Phase 4 -- BGP change-and-verify).
 //
-// The enrichment layer attaches V2-specific data to a FragmentData built
+// The enrichment layer attaches workbench-specific data to a FragmentData built
 // by the shared fragment pipeline: per-row related-tool buttons and
 // pending-change markers. Finder leaves these fields zero-valued so the
 // shared list_table template renders unchanged when V2 is disabled.

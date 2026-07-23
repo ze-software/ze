@@ -22,8 +22,8 @@ All source files in `internal/component/web/` reference this document via `// De
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
 | `render.go` | Template loading (embedded), `RenderFragment`, `fieldFor` dispatch |
 | `sse.go` | `EventBroker`, SSE client management, config change broadcast |
-| `ui_mode.go` | `UIMode` selector for the V2 workbench experiment (Phase 4 default flip pending) |
-| `handler_workbench.go` | V2 workbench shell handler; reuses fragment data path with workbench chrome |
+| `ui_mode.go` | `UIMode` selector for the workbench experiment (Phase 4 default flip pending) |
+| `handler_workbench.go` | workbench shell handler; reuses fragment data path with workbench chrome |
 | `workbench_sections.go` | Left-nav section taxonomy (Dashboard/Routing/Logs/...) |
 | `workbench_enrich.go` | Promotes any named list to a workbench table; attaches per-row tools and pending markers |
 | `handler_tools.go` | `POST /tools/related/run`: resolves `ze:related` descriptors, dispatches via `CommandDispatcher`, renders the overlay |
@@ -65,7 +65,7 @@ Each input type is one file. The `fieldFor()` template function dispatches to `i
 /cli/terminal               Terminal mode command (POST, returns plain text)
 /cli/mode                   Toggle CLI/GUI mode (POST)
 /admin/<yang-path>          Admin commands (GET browse, POST execute)
-/tools/related/run          V2 workbench: execute a related operator tool (POST)
+/tools/related/run          workbench: execute a related operator tool (POST)
 /login                      Authentication (POST)
 /assets/                    Static files (CSS, JS)
 /                           Redirects to /show/

@@ -1,4 +1,4 @@
-// Design: docs/architecture/web-interface.md -- V2 workbench shell handler
+// Design: docs/architecture/web-interface.md -- workbench shell handler
 // Related: fragment.go -- shared fragment data builder reused by the workbench
 // Related: render.go -- WorkbenchData and RenderWorkbench
 // Related: workbench_sections.go -- left navigation taxonomy
@@ -167,7 +167,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		data.ActiveUI = uiModeTokenWorkbench
 		data.ReadOnly = readOnly
 
-		// V2-only enrichment: surface row tool buttons and pending-change
+		// Workbench-only enrichment: surface row tool buttons and pending-change
 		// markers. The Finder fragment handler skips this so its output is
 		// unchanged.
 		var pendingPaths []string

@@ -1,4 +1,4 @@
-// Design: docs/architecture/web-interface.md -- V2 workbench related-tool execution
+// Design: docs/architecture/web-interface.md -- workbench related-tool execution
 // Related: related_resolver.go -- placeholder substitution against the working tree
 // Related: handler_admin.go -- CommandDispatcher type and existing operational dispatch
 // Related: ../config/related.go -- RelatedTool descriptor and parser

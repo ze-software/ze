@@ -17,7 +17,7 @@ module ze-bgp-conf {
         description "Border Gateway Protocol routing configuration.
                      Peers inherit from group defaults; groups inherit from this global level.";
 
-        // Global BGP related tools (workbench V2). Spec D7/D12.
+        // Global BGP related tools (workbench). Spec D7/D12.
         // Command paths target the registered command tree: `show bgp health`
         // is a bgp namespace under show; `show warnings` and `show errors` are
         // cross-subsystem report bus snapshots.

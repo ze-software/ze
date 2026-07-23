@@ -17,7 +17,7 @@ type UIMode int
 const (
 	// UIModeFinder serves the established Finder columns UI.
 	UIModeFinder UIMode = iota
-	// UIModeWorkbench serves the V2 RouterOS-style operator workbench.
+	// UIModeWorkbench serves the experimental RouterOS-style operator workbench.
 	UIModeWorkbench
 )
 

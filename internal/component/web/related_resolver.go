@@ -1,4 +1,4 @@
-// Design: docs/architecture/web-interface.md -- V2 workbench related-tool resolver
+// Design: docs/architecture/web-interface.md -- workbench related-tool resolver
 // Related: handler_workbench.go -- workbench handler that emits resolved tool data
 // Related: ../config/related.go -- RelatedTool struct and parser
 //

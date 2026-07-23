@@ -52,7 +52,7 @@ module ze-web-conf {
             leaf ui-mode {
                 type enumeration {
                     enum finder { description "Default file-browser style UI"; }
-                    enum workbench { description "V2 workbench experiment"; }
+                    enum workbench { description "Experimental workbench UI"; }
                 }
                 default "finder";
                 description "Web UI mode";

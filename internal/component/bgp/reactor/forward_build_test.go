@@ -675,11 +675,11 @@ func TestProgressiveBuildMatchesInsertOTC(t *testing.T) {
 
 	localASN := uint32(65000)
 
-	// V1 path: insertOTCInPayload (direct payload modification).
+	// Direct path: insertOTCInPayload (direct payload modification).
 	v1Result := insertOTCInPayloadForTest(payload, localASN)
 	require.NotNil(t, v1Result, "v1 should produce result")
 
-	// V2 path: buildModifiedPayload with otcAttrModHandler.
+	// Mod-handler path: buildModifiedPayload with otcAttrModHandler.
 	otcHandler := filterapi.AttrModHandler(func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		if len(src) > 0 {
 			if off+len(src) > len(buf) {

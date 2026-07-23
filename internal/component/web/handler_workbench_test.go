@@ -12,7 +12,7 @@ import (
 )
 
 // TestHandleWorkbench_RootRendersShell verifies that a full-page GET against
-// the workbench handler at the root path renders the V2 shell with all four
+// the workbench handler at the root path renders the workbench shell with all four
 // regions (top bar, left nav, workspace, commit bar). This is the
 // integration test that proves the whole render chain wires up: route ->
 // data builder -> detail fragment -> RenderWorkbench.
@@ -50,7 +50,7 @@ func TestHandleWorkbench_RootRendersShell(t *testing.T) {
 //
 // VALIDATES: HTMX swap behavior is preserved across the UI mode boundary.
 // PREVENTS: A workbench-specific OOB protocol diverging from Finder's, which
-// would break HTMX-driven navigation under V2.
+// would break HTMX-driven navigation under the workbench.
 func TestHandleWorkbench_HTMXPartialReusesOOBResponse(t *testing.T) {
 	renderer, err := NewRenderer()
 	assert.NoError(t, err)

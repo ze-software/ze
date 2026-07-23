@@ -583,7 +583,7 @@
     } catch(_) {}
   }
 
-  // Delegated handler for V2 workbench tool-overlay close/cancel buttons.
+  // Delegated handler for workbench tool-overlay close/cancel buttons.
   // CSP forbids inline event handlers and `unsafe-eval`, so HTMX `hx-on:click`
   // attributes do not work; this listener performs the same `node.remove()`
   // action via standard DOM events.

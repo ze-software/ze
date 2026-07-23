@@ -145,8 +145,8 @@ func sections() []sectionDef {
 	}
 }
 
-// WorkbenchSections returns the ordered list of left-nav sections that the V2
-// shell renders. Selection is driven by URL path matching so the active section
+// WorkbenchSections returns the ordered list of left-nav sections that the
+// workbench shell renders. Selection is driven by URL path matching so the active section
 // follows /show navigation without per-page configuration.
 //
 // The order is intentional: Dashboard first, then operator-facing object

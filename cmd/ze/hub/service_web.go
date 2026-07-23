@@ -553,7 +553,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("POST /config/upload", editMutationWrap(uploadHandler))
 	srv.Handle("POST /config/discard", mutationWrap(discardHandler))
 	srv.Handle("POST /config/discard/", mutationWrap(discardHandler))
-	// V2 workbench related-tool execution. Browser submits only tool id +
+	// Workbench related-tool execution. Browser submits only tool id +
 	// context path; the handler resolves the descriptor server-side and
 	// dispatches via the standard CommandDispatcher (same authz pipeline
 	// as /cli and /admin).

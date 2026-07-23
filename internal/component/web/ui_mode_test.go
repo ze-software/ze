@@ -26,9 +26,9 @@ func TestUIMode_DefaultsToWorkbench(t *testing.T) {
 	assert.Equal(t, UIModeWorkbench, GetUIMode())
 }
 
-// TestUIMode_OptInWorkbench verifies that ze.web.ui-mode=workbench selects V2.
+// TestUIMode_OptInWorkbench verifies that ze.web.ui-mode=workbench selects the workbench.
 //
-// VALIDATES: AC-1 (workbench opt-in renders the V2 shell).
+// VALIDATES: AC-1 (workbench opt-in renders the workbench shell).
 // PREVENTS: The opt-in switch silently being ignored.
 func TestUIMode_OptInWorkbench(t *testing.T) {
 	t.Setenv("ze.web.ui-mode", "workbench")
