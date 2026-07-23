@@ -233,7 +233,7 @@ This audit spec has no runtime code. Its wiring test is that each protocol surfa
 | AC-6 | Review interop evidence | Audit compares scenario tree with docs and records positive coverage plus negative coverage gaps |
 | AC-7 | Keep audit-only scope | No production source, tests, schemas, docs, generated files, or Makefiles are modified by this spec |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 This protocol audit records evidence expected from future fix work. It does not add or change tests itself.
 
@@ -264,6 +264,8 @@ This protocol audit records evidence expected from future fix work. It does not 
 | MP_REACH next-hop bounds | `len(data) >= 5 + nhLen` | exact fit | missing reserved byte | declared next-hop longer than body |
 
 ### Functional Tests
+
+This audit adds no tests itself (audit-only scope): the rows below are evidence suggested for future fix specs, and existing test suites plus the interop scenarios remain the current evidence.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
@@ -530,3 +532,26 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above
+
+## Checklist
+
+### Goal Gates (MUST pass)
+
+- [ ] AC-1..AC-7 demonstrated (protocol surfaces mapped, findings evidence-backed, audit-only scope held)
+- [ ] Every finding RA-BGP-001..RA-BGP-008 cites source/RFC/test evidence, owner, and requested verification
+- [ ] `make ze-spec-status` shows `release-audit-2-bgp-protocol`
+- [ ] `make ze-test` unaffected (audit-only: this spec changes no product code or tests)
+
+### TDD
+
+<!-- Audit-only spec: no tests are added or changed here. These items are satisfied
+     by the future fix specs that the Initial Findings request; each fix spec pastes
+     its own failing/passing output. -->
+- [ ] Tests written (N/A here -- owned by the future fix specs named in Initial Findings)
+- [ ] Tests FAIL (N/A here -- paste output in each future fix spec)
+- [ ] Tests PASS (N/A here -- paste output in each future fix spec)
+
+### Completion
+
+- [ ] Findings routed to their future owner areas (see Failure Routing)
+- [ ] No production source, tests, schemas, docs, generated files, or Makefiles modified by this spec

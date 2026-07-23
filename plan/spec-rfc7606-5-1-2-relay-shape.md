@@ -447,7 +447,7 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
 - **Total items:** 6 ACs, 4 task requirements, 4 test categories
 - **Done:** 6 ACs, 4 requirements, 3 test categories
 - **Partial:** none
-- **Skipped:** the interop scenario -- **NOT owner-approved, so the spec stays open**
+- ~~**Skipped:** the interop scenario -- **NOT owner-approved, so the spec stays open**~~ (stale, corrected 2026-07-22 during plan review: the interop scenario was subsequently owner-endorsed and DELIVERED -- `test/interop/scenarios/47-rfc7606-relay-shape-frr` exists and ran 4/4 stable; see the Interop Tests table above, the Findings/Resolution section, and `plan/learned/1225-rfc7606-relay-shape.md`. Nothing in this spec remains open; awaiting two-commit closure)
 - **Changed:** two files added that the plan did not list, both to avoid a second definition
   of "mixed"; documented above
 

@@ -3,9 +3,14 @@
 | Field | Value |
 |-------|-------|
 | Status | in-progress |
-| Depends | payload-predicate-waits (Layer 2 primitives; landing via another session) |
-| Phase | 1/8 |
-| Updated | 2026-07-14 |
+| Depends | payload-predicate-waits (Layer 2 primitives; committed, learned 1120) |
+| Phase | 8/8 |
+| Updated | 2026-07-22 |
+
+Phase corrected 2026-07-22: the 214-sleep migration is committed (`edfe4c0e1`,
+test/plugin 305 -> 91 per the Implementation Summary) and the residue is
+explicitly handed to `spec-fixit-migrate-sleeps-infra`. Awaiting closure per
+`ai/rules/planning.md` Spec Closure (learned summary + two-commit sequence).
 
 ## Post-Compaction Recovery
 

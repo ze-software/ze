@@ -125,6 +125,60 @@ implementation.
 | 1 | Enables PQ key exchange in IKE config | YANG -> engine -> ML-KEM exchange -> SA established | (fill during design) |
 | 2 | Enables ESN for IPsec SA | YANG -> engine -> ESN negotiated -> extended counters used | (fill during design) |
 
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestDHRegistryMLKEM` | `internal/component/ike/crypto/dh_test.go` | ML-KEM group registered; `NewDHExchange()` returns a working exchange for it | |
+| `TestHybridKeyExchange` | `internal/component/ike/crypto/dh_test.go` | RFC 9370 hybrid exchange combines classical and PQ shared secrets | |
+| `TestClassicalGroupsUnchanged` | `internal/component/ike/crypto/dh_test.go` | Groups 14, 19, 20 continue to work when PQ is not configured (AC-4) | |
+| `TestProposalIncludesESN` | `internal/component/ike/engine/initiator_test.go` | ESN transform included in the SA proposal when enabled in config | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `ike-pq-mlkem` | `test/ipsec/ike-pq-mlkem.ci` | ML-KEM group configured; IKE SA established using PQ key exchange (AC-1, AC-2) | |
+| `ike-esn` | `test/ipsec/ike-esn.ci` | ESN enabled; SA negotiates ESN with a capable peer (AC-3) | |
+
+### Interop Tests (MANDATORY for protocol features)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `ike-pq-strongswan` | `test/ipsec-interop/scenarios/` | strongSwan | Hybrid/PQ key exchange interoperates with another IKEv2 implementation | |
+
+## Files to Modify
+- `internal/component/ike/crypto/transform.go` - add ML-KEM / hybrid entries to the DH group registry
+- `internal/component/ike/crypto/dh.go` - ML-KEM and hybrid key exchange implementations behind `NewDHExchange()`
+- `internal/component/ike/engine/initiator.go` - include configured PQ groups and ESN transform in SA proposals
+- `internal/component/ike/yang/` - expose PQ algorithm and ESN selection in config
+
+## Files to Create
+- `test/ipsec/ike-pq-mlkem.ci` - functional test for PQ key exchange
+- `test/ipsec/ike-esn.ci` - functional test for ESN negotiation
+
+## Implementation Steps
+
+### Implementation Phases
+
+1. **Phase: Wiring (MANDATORY FIRST)** - register ML-KEM in the DH group registry and the YANG config leaf; failing wiring test
+   - Tests: `TestDHRegistryMLKEM` (initially failing)
+   - Files: `transform.go`, `dh.go`, YANG schema
+   - Verify: configured group reaches `NewDHExchange()`; exchange is a stub that fails
+2. **Phase: ML-KEM key exchange** - implement the PQ exchange
+   - Tests: `TestDHRegistryMLKEM`, `TestClassicalGroupsUnchanged`
+   - Files: `dh.go`
+   - Verify: tests fail, implement, tests pass
+3. **Phase: Hybrid key exchange (RFC 9370)** - multiple key exchanges in one negotiation
+   - Tests: `TestHybridKeyExchange`
+   - Files: `dh.go`, `initiator.go`
+   - Verify: hybrid SA established in unit tests
+4. **Phase: ESN negotiation** - enable the existing ESN transform in proposals when configured
+   - Tests: `TestProposalIncludesESN`, `ike-esn.ci`
+   - Files: `initiator.go`, YANG schema
+   - Verify: ESN negotiated with capable peers
+5. **Functional + interop tests** - `ike-pq-mlkem.ci`, `ike-esn.ci`, strongSwan interop scenario
+6. **Full verification** - `make ze-verify`
+
 ## Known Limitations
 - Large scope: requires cryptographic implementation work
 - PQ algorithm landscape still evolving (NIST ML-KEM finalized, but IKEv2 integration drafts in progress)
@@ -154,3 +208,23 @@ implementation.
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-4 all demonstrated
+- [ ] Wiring Test table complete -- every row has a concrete test name
+- [ ] `make ze-test` passes
+- [ ] Feature code integrated (`internal/*`)
+- [ ] Interop test with strongSwan passes
+- [ ] Risks & Assumptions: every A-N confirmed or broken
+
+### Design
+- [ ] No premature abstraction
+- [ ] No speculative features
+- [ ] Single responsibility per component
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

@@ -7,6 +7,16 @@
 | Phase | - |
 | Updated | 2026-07-16 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged; all citations below
+updated in-body to the verified current lines): reject gate
+`reactor_notify.go:468`, `recentUpdates.Add` `:528`, RS fast path `:553`,
+`deliverChan` `:613`, ownership doc comment `:221`, per-peer counters `:247`,
+rebind block `:471+`, ingress pass `:405-468`. The LG anchors
+(`handler_api.go:238,254,521,540,555`) verified exact. (Re-verified
+2026-07-23 after the origin/main fast-forward to 822029463: `deliverChan`
+moved `:588` -> `:613`, whole-body `Payload()` take `:415` -> `:432`; the
+rest held.)
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -14,7 +24,7 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/research/bird-bgp-reference.md` lines 1276-1281 (`rte_update` / `REF_FILTERED`) - the design this spec copies
 4. `docs/architecture/core-design.md` lines 629-665 ("Ingress Filter Pipeline")
-5. `internal/component/bgp/reactor/reactor_notify.go` (the reject gate, line 448), `internal/component/bgp/plugins/rib/rib_structured.go`
+5. `internal/component/bgp/reactor/reactor_notify.go` (the reject gate, line 468), `internal/component/bgp/plugins/rib/rib_structured.go`
 6. `plan/spec-bgp-peer-settings-reload-ignored.md` - the sibling this depends on for AC-3
 
 ## Task
@@ -104,7 +114,7 @@ are not verifiable locally.** Cite this section, not that doc.
 - [ ] `docs/architecture/core-design.md` lines 629-665 - "Ingress Filter Pipeline" (the doc the original skeleton should have cited)
   → Constraint: "inbound filtering runs in the reactor on every received UPDATE, **before** the bytes are cached and **before** the StructuredEvent is dispatched"; "`accept=false` drops the route (no caching, no dispatch)". Retention therefore cannot be added in the RIB plugin alone - the RIB never sees a rejected route.
   → Constraint: "After the pass, the cached `WireUpdate` is the **canonical post-filter representation** that every downstream consumer sees." Stored routes are POST-modification.
-  → Constraint: filter order is `Protocol < Policy (in-process) < Annotation/OTC < external per-peer chain` over `r.orderedIngressSteps`. A route may be rejected at ANY step, not only the external policy chain (`reactor_notify.go:448` is shared by both kinds). "Filtered" must mean "rejected by the ingress pass", and the spec should record WHICH step rejected it if that is cheap.
+  → Constraint: filter order is `Protocol < Policy (in-process) < Annotation/OTC < external per-peer chain` over `r.orderedIngressSteps`. A route may be rejected at ANY step, not only the external policy chain (`reactor_notify.go:468` is shared by both kinds). "Filtered" must mean "rejected by the ingress pass", and the spec should record WHICH step rejected it if that is cheap.
 - [ ] `docs/guide/looking-glass.md` lines 73-78 - the user-facing promise this spec changes
   → Constraint: it currently states `routes_filtered` is always 0 and `/routes/filtered/{name}` returns an empty list, with a source anchor to `summary.go`. Both claims become conditional; the doc MUST be updated (checklist #16).
 - [ ] `ai/rules/project-knowledge.md` line 15 - "No filtered/noexport route tracking"
@@ -127,12 +137,12 @@ are not verifiable locally.** Cite this section, not that doc.
 
 **Source files read (each verified at the producer, 2026-07-16):**
 <!-- NEVER tick [ ] to [x]. -->
-- [ ] `internal/component/bgp/reactor/reactor_notify.go` - the reject gate. At line 448 `if !res.accept { return false // Route rejected by filter; don't cache or dispatch. }`. Returns BEFORE `recentUpdates.Add` (:508), before the RS fast path (:550), and before `peer.deliverChan <-` (:568), so no plugin and no RIB ever sees the route.
-  → Constraint: the `bool` returned by `notifyMessageReceiver` is **buffer ownership** (`kept`), NOT accept/reject - see its doc comment at :217 ("Returns true if buf ownership was taken"). `return false` at :448 means "pool buffer not retained"; the route is dropped as a side effect of skipping dispatch. Do not read this return value as a policy verdict.
-  → Constraint: the gate is per-UPDATE-MESSAGE. The filter takes `payload := wireUpdate.Payload()` (:415), the whole UPDATE body, and accepts/rejects it wholesale. NLRI splitting happens later, inside the RIB plugin (`rib_structured.go:184-256` via `nlrisplit.Split`). One rejected UPDATE can carry many prefixes.
-- [ ] `internal/component/bgp/reactor/reactor_notify.go` - modification. At :451-466 a non-nil `modifiedPayload` rebinds `payload`, `wireUpdate`, `msg.RawBytes`, `msg.WireUpdate`, `msg.AttrsWire`.
+- [ ] `internal/component/bgp/reactor/reactor_notify.go` - the reject gate. At line 468 `if !res.accept { return false // Route rejected by filter; don't cache or dispatch. }`. Returns BEFORE `recentUpdates.Add` (:528), before the RS fast path (:553), and before `peer.deliverChan <-` (:613), so no plugin and no RIB ever sees the route.
+  → Constraint: the `bool` returned by `notifyMessageReceiver` is **buffer ownership** (`kept`), NOT accept/reject - see its doc comment at :221 ("Returns true if buf ownership was taken"). `return false` at :468 means "pool buffer not retained"; the route is dropped as a side effect of skipping dispatch. Do not read this return value as a policy verdict.
+  → Constraint: the gate is per-UPDATE-MESSAGE. The filter takes `payload := wireUpdate.Payload()` (:432), the whole UPDATE body, and accepts/rejects it wholesale. NLRI splitting happens later, inside the RIB plugin (`rib_structured.go:184-256` via `nlrisplit.Split`). One rejected UPDATE can carry many prefixes.
+- [ ] `internal/component/bgp/reactor/reactor_notify.go` - modification. At :471-475+ a non-nil `modifiedPayload` rebinds `payload`, `wireUpdate`, `msg.RawBytes`, `msg.WireUpdate`, `msg.AttrsWire`.
   → Constraint: **the ORIGINAL pre-filter payload is overwritten and retained nowhere.** No live reference survives past :455. Modifying filters exist and compose (`bgp-filter-community` `filter_community.go:142-150`; `bgp-role`/OTC `otc.go:344-356`; the external chain's raw override / text delta `filter_ordered.go:161-180`). The egress twin deliberately does the opposite (`filter_ordered.go:190-194`: "Unlike ingress, this reads the original payload ... the payload is never rewritten in the egress pass").
-- [ ] `internal/component/bgp/reactor/reactor_notify.go` - existing per-peer counters at :239-264 ("Increment per-peer counters (lock-free atomics)"): `peer.IncrUpdatesReceived()`, `IncrEORReceived()`, `IncrKeepalivesReceived()`.
+- [ ] `internal/component/bgp/reactor/reactor_notify.go` - existing per-peer counters at :247+ ("Increment per-peer counters (lock-free atomics)"): `peer.IncrUpdatesReceived()`, `IncrEORReceived()`, `IncrKeepalivesReceived()`.
   → Decision: Option B extends this established pattern at this exact site rather than inventing one.
   → Constraint: the comment at :240-241 says "NLRI-level counters (announce vs withdraw per prefix) belong in the RIB plugin". Option B's counter IS NLRI-level, so this comment argues against the engine. Resolve placement explicitly (see D-7); do not silently contradict a stated architectural boundary.
 - [ ] `internal/component/lg/handler_api.go` - `transformProtocols` (starts :521) ALREADY maps the field end-to-end: `filtered := getNum(peer, "routes-filtered")` (:540) feeds the flat `"routes_filtered"` (:553) and the nested `"routes"."filtered"` (:560).
@@ -170,11 +180,11 @@ are not verifiable locally.** Cite this section, not that doc.
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- A peer sends an UPDATE whose route the ingress pass rejects (`reactor_notify.go:448`).
+- A peer sends an UPDATE whose route the ingress pass rejects (`reactor_notify.go:468`).
 - Format at entry: the UPDATE body (`payload []byte`, aliasing a pooled read buffer) plus the pass's verdict.
 
 ### Transformation Path
-1. The stage-ordered ingress pass runs over `r.orderedIngressSteps` (`reactor_notify.go:395-448`).
+1. The stage-ordered ingress pass runs over `r.orderedIngressSteps` (`reactor_notify.go:405-468`).
 2. A step rejects (`res.accept == false`).
 3. **Option B**: count the NLRI carried by the rejected UPDATE and add to a per-peer cumulative counter. Always cheap; no retention.
 4. **Retention OFF (default)**: `return false` - unchanged fast drop. Buffer returns to the pool via `session_read.go:66-71`.
@@ -185,7 +195,7 @@ are not verifiable locally.** Cite this section, not that doc.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Reject gate <-> RIB plugin | rejected routes must be DISPATCHED (marked) instead of dropped; today they are never dispatched | [x] verified: `reactor_notify.go:448` precedes `:568` dispatch |
+| Reject gate <-> RIB plugin | rejected routes must be DISPATCHED (marked) instead of dropped; today they are never dispatched | [x] verified: `reactor_notify.go:468` precedes `:613` dispatch (re-anchored 2026-07-23) |
 | Pooled buffer <-> retained route | retention needs an ownership contract | [x] verified: `WireUpdate.Snapshot()` (`wire_update.go:170-185`) or `ribForwardHandle` copy-on-AddRef (`rib/forward_handle.go:31-61`) |
 | RIB plugin <-> peer summary | `route-counts.filtered` merged into the row | [ ] |
 | Summary JSON <-> Looking Glass | kebab-case `routes-filtered` read by `transformProtocols:540` | [x] verified: mapping already exists |
@@ -445,8 +455,8 @@ are not verifiable locally.** Cite this section, not that doc.
 <!-- LIVE — write IMMEDIATELY when you learn something -->
 - **The Looking Glass is already finished.** `transformProtocols` maps `routes-filtered` -> `routes_filtered` (flat and nested) at `handler_api.go:540/553/560`. Every previous framing treated the LG as work; it is not. The whole feature is upstream of it.
 - **BIRD and Ze filter at different layers, and that is the entire difficulty.** BIRD filters inside the table write path (`rte_update`), so "keep the rejected copy" is a local decision at the point of insert. Ze filters in the reactor, before dispatch, so a rejected route must be deliberately CARRIED ACROSS a process/plugin boundary it currently never crosses. The semantics are copyable; the placement is not.
-- **The reject gate is per-message; storage is per-prefix.** The filter takes the whole UPDATE body (`reactor_notify.go:415`) and NLRI splitting happens later inside the RIB plugin (`rib_structured.go:184-256`). Every count in this spec must therefore enumerate NLRI. Counting reject EVENTS would silently under-report by the average NLRI-per-UPDATE factor.
-- **Ingress and egress have opposite payload discipline.** Ingress overwrites the payload on modify and keeps no original (`reactor_notify.go:451-466`); egress deliberately preserves it (`filter_ordered.go:190-194`). Any design that wants pre-modification bytes on ingress is fighting the existing architecture, which is a strong argument for keep-filtered (the rejected copy needs no un-modification) over a pre-policy store.
+- **The reject gate is per-message; storage is per-prefix.** The filter takes the whole UPDATE body (`reactor_notify.go:432`) and NLRI splitting happens later inside the RIB plugin (`rib_structured.go:184-256`). Every count in this spec must therefore enumerate NLRI. Counting reject EVENTS would silently under-report by the average NLRI-per-UPDATE factor.
+- **Ingress and egress have opposite payload discipline.** Ingress overwrites the payload on modify and keeps no original (`reactor_notify.go:471-486`); egress deliberately preserves it (`filter_ordered.go:190-194`). Any design that wants pre-modification bytes on ingress is fighting the existing architecture, which is a strong argument for keep-filtered (the rejected copy needs no un-modification) over a pre-policy store.
 
 ## Core Insight
 
@@ -468,8 +478,8 @@ the table, gets this feature almost for free.
 | D-4 | `transformProtocols` is NOT modified | rewrite the LG mapping | It already maps the field (`handler_api.go:540/553/560`). Verified in code |
 | D-5 | The "routes-filtered never emitted" invariant becomes CONDITIONAL, not deleted: key ABSENT when retention off, PRESENT when on | emit 0 when off; delete the invariant | **BIRD parity confirmed from primary source** — this is exactly what BIRD does: `nest/proto.c:2070-2076` prints "%u imported, %u exported, %u preferred" when the knob is off and "%u imported, **%u filtered**, %u exported, %u preferred" only when on. **BIRD omits the field rather than printing 0.** So "absent when off" is parity, not a Ze invention, and emitting 0 would be the deviation. **No existing assertion weakens**: `summary_test.go:605-606` and `bgp-summary-route-counts.ci:88-90` both exercise the retention-OFF default, where "absent" stays correct. Only the stale rationale comments (`summary.go:137`, `.ci:87`) change, plus a NEW retention-ON case. Expect `scripts/dev/audit-test-relaxation.py` to inspect these edits |
 | D-6 | BMP-monitored peers keep their hardcoded 0 (`transformBMPProtocols`) | make it real too | Their routes never traverse the reactor import gate, so 0 is permanently honest, not a stub |
-| D-7 | **OPEN**: Option B's counter placement - engine vs RIB plugin | - | `reactor_notify.go:239-264` already does lock-free per-peer atomics HERE, but its comment at `:240-241` says "NLRI-level counters ... belong in the RIB plugin", and this counter IS NLRI-level. Rejected routes never reach the RIB plugin today, so the RIB placement would force mark-and-dispatch even when retention is off - defeating AC-2. Resolve at the Phase 1 design gate; if the engine wins, UPDATE the comment rather than silently contradict it |
-| D-8 | Both counts MUST enumerate NLRI, not reject events | count reject events | The gate is per-UPDATE-message (`reactor_notify.go:415`, `:448`); no split happens upstream (`notifyMessageReceiver` is wired straight to `peer.messageCallback`, `reactor_peers.go:121`, `reactor_dynamic.go:81`). Use `wireUpdate.NLRIIterator(addPath)` (`wireu/wire_update.go:223`) + `MPReach()` (`:125`). Withdrawals (`WithdrawnIterator` `:238`, `MPUnreach()` `:149`) must NOT inflate the count |
+| D-7 | **OPEN**: Option B's counter placement - engine vs RIB plugin | - | `reactor_notify.go:247+` already does lock-free per-peer atomics HERE, but its comment at `:248-249` says "NLRI-level counters ... belong in the RIB plugin", and this counter IS NLRI-level. Rejected routes never reach the RIB plugin today, so the RIB placement would force mark-and-dispatch even when retention is off - defeating AC-2. Resolve at the Phase 1 design gate; if the engine wins, UPDATE the comment rather than silently contradict it |
+| D-8 | Both counts MUST enumerate NLRI, not reject events | count reject events | The gate is per-UPDATE-message (`reactor_notify.go:432`, `:468`); no split happens upstream (`notifyMessageReceiver` is wired straight to `peer.messageCallback`, `reactor_peers.go:121`, `reactor_dynamic.go:81`). Use `wireUpdate.NLRIIterator(addPath)` (`wireu/wire_update.go:223`) + `MPReach()` (`:125`). Withdrawals (`WithdrawnIterator` `:238`, `MPUnreach()` `:149`) must NOT inflate the count |
 | D-9 | **OPEN**: isolation model - per-route flag vs separate map | - | Flag (closest to BIRD's `REF_FILTERED`; precedent `isSRv6Ineligible`, `rib_bestchange.go:963-990`, the only per-route skip in the gather loop) costs a check per candidate on the hot path. Separate map (precedent `ribInPool`, `rib.go:221-227`, purpose stated `rib_inject.go:28-30`) gives structural isolation at ZERO hot-path cost but duplicates per-peer/per-family bookkeeping. Decide at the Phase 1 gate |
 | D-10 | Retention MUST take an existing buffer-ownership contract | invent new copy semantics | `WireUpdate.Snapshot()` (`wire_update.go:170-185`, eager copy) or `ribForwardHandle` copy-on-AddRef (`forward_handle.go:31-61`). The pool recycle is refcount-driven (`recent_cache.go:460`, `:526`); a retained alias is silently overwritten (R-4) |
 | D-11 | The config leaf is owned by the RIB plugin via `augment` | put it in core `ze-bgp-conf.yang` | `ai/rules/plugin-self-containment.md`; precedent `plugins/rs/yang/ze-rs-conf.yang:9-14` ("removing this plugin removes the leaves from the schema"). Plugin owns the schema; the reactor owns the parse and the `PeerSettings` field (`ze-rs-conf.yang:36-38`) |

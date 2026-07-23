@@ -7,6 +7,13 @@
 | Phase | - |
 | Updated | 2026-07-10 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
+citations below updated in-body): `startWebServer` now `service_web.go:237`,
+`LoadOrGenerateCert` `:282` (persist block `:278-286`, `NewWebServer`
+`:307-311`). `NewTLSConfig` (`selfcert.go:175`), `Intermediate`
+(`pki/types.go:28`), `LoadTLSMaterial` (`:26`), `CheckCertMaterial` (`:34`)
+verified exact.
+
 Design filled 2026-07-10; user instruction 2026-07-10 authorized conversion to ready.
 
 ## Post-Compaction Recovery
@@ -24,7 +31,7 @@ Design filled 2026-07-10; user instruction 2026-07-10 authorized conversion to r
 ## Task
 
 Ze's web/API server always uses self-signed certificates via `selfcert.LoadOrGenerateCert`
-~~(`service_web.go:268`)~~ (stale citation; verified producer: `cmd/ze/hub/service_web.go:274`).
+~~(`service_web.go:268`)~~ (stale citation; verified producer: `cmd/ze/hub/service_web.go:282`).
 There is no path for operators to use PKI-stored certificates
 with their intermediate chain for the web/API HTTPS endpoint. The PKI component correctly
 stores intermediates (`CertificateEntry.Intermediate`, `types.go:28`) and includes them
@@ -71,7 +78,7 @@ N/A - standard TLS behavior, not protocol extension. (DoT/DoH transports were pr
 only changes where their certificate material comes from.)
 
 **Key insights:**
-- ~~`service_web.go:268`: `selfcert.LoadOrGenerateCert` is the only TLS path~~ (stale path) `cmd/ze/hub/service_web.go:274`: `selfcert.LoadOrGenerateCert` is the only web TLS path; `cmd/ze/hub/service_lg.go:78` is the same pattern for the looking glass
+- ~~`service_web.go:268`: `selfcert.LoadOrGenerateCert` is the only TLS path~~ (stale path) `cmd/ze/hub/service_web.go:282`: `selfcert.LoadOrGenerateCert` is the only web TLS path; `cmd/ze/hub/service_lg.go:78` is the same pattern for the looking glass
 - ~~`selfcert.go:176`~~ `internal/core/selfcert/selfcert.go:176`: `NewTLSConfig` builds `tls.Config` via `tls.X509KeyPair` -- NOTE: `tls.X509KeyPair` parses EVERY CERTIFICATE block in the cert PEM into `tls.Certificate.Certificate`, so a leaf+intermediate PEM concatenation already serves the full chain; no selfcert change is needed, only chain-shaped input (validated by A-3 / `TestNewTLSConfigServesChain`)
 - `pki/types.go:28`: `CertificateEntry` has `Intermediate` field (chain is stored); `PrivateKey` is OPTIONAL (`pki/config.go:160-173`) -- a TLS server reference needs a key, so "no private key" is a validation error
 - `pki/show.go:171-172,197-198`: PEM output includes intermediates
@@ -84,7 +91,7 @@ only changes where their certificate material comes from.)
 
 **Source files read:**
 - [ ] ~~`internal/component/web/service_web.go` - web server TLS setup~~ (file does not exist; superseded by the two rows below)
-- [ ] `cmd/ze/hub/service_web.go` - hub web bootstrap: `startWebServer` (:229) loads/creates self-signed PEM from blob storage (:273-278) and passes `CertPEM`/`KeyPEM` into `zeweb.NewWebServer` (:299-303)
+- [ ] `cmd/ze/hub/service_web.go` - hub web bootstrap: `startWebServer` (:237) loads/creates self-signed PEM from blob storage (:278-286, `LoadOrGenerateCert` :282) and passes `CertPEM`/`KeyPEM` into `zeweb.NewWebServer` (:307-311)
 - [ ] `internal/component/web/server.go` - `NewWebServer` (:94) requires PEM material (:107-109), builds one `tls.Config` via `selfcert.NewTLSConfig` (:111), wraps every bound listener (:198, :337); no TLS reload path
 - [ ] ~~`internal/component/web/selfcert.go` - self-signed cert generation~~ (stale path; the package is `internal/core/selfcert`)
 - [ ] `internal/core/selfcert/selfcert.go` - `NewTLSConfig` (:176-184, `tls.X509KeyPair` + TLS 1.2 floor), `LoadOrGenerateCert` (:190-222, blob-store persistence of the self-signed pair)
@@ -110,7 +117,7 @@ only changes where their certificate material comes from.)
 
 **Behavior to preserve:**
 - Self-signed cert generation as fallback when no PKI cert configured
-  (web: `LoadOrGenerateCert` persisted in blob storage, `cmd/ze/hub/service_web.go:270-278`;
+  (web: `LoadOrGenerateCert` persisted in blob storage, `cmd/ze/hub/service_web.go:278-286`;
   DoT/DoH: ephemeral self-signed with SAN fan-out, `tlsmaterial.go:46-58`, cached per manager `secure.go:236-244`)
 - DoT/DoH operator `cert-file`/`key-file` path keeps working exactly as today (file re-read per apply, half-pair error, `tlsmaterial.go:27-44`)
 - TLS material failure on DoT/DoH disables only the secure listeners, cleartext DNS stays up (`secure.go:213-215`, `:89-97`)
@@ -165,7 +172,7 @@ Design elaboration (both consumers):
 
 ### Integration Points
 - PKI component certificate lookup (`pki.GetCertificate`, `store.go:114`; new `pki.ServerTLSMaterial` wraps it)
-- Web server TLS configuration (`web/server.go:111,131,198`; hub glue `cmd/ze/hub/service_web.go:270-303`)
+- Web server TLS configuration (`web/server.go:111,131,198`; hub glue `cmd/ze/hub/service_web.go:278-311`)
 - YANG config for certificate reference (`ze-web-conf.yang`, `ze-as112-conf.yang` tls container :147, `ze-geodns-conf.yang` tls container; `ExtractWebConfig` `loader_extract.go:93`)
 - dnsserver secure listener path (`secure.go:204-245`)
 - Reload pipeline (`main_reload.go:131-203`) and expiry health/reporting (`pki/health.go`) which already covers any store entry, so served certs inherit expiry metrics for free
@@ -458,7 +465,7 @@ None deferred.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| Spec skeleton cited `internal/component/web/service_web.go:268` and `web/selfcert.go:176` | Producers are `cmd/ze/hub/service_web.go:274` and `internal/core/selfcert/selfcert.go:176` | 2026-07-10 design research read the tree | Citations corrected; design unchanged |
+| Spec skeleton cited `internal/component/web/service_web.go:268` and `web/selfcert.go:176` | Producers are `cmd/ze/hub/service_web.go:282` and `internal/core/selfcert/selfcert.go:176` | 2026-07-10 design research read the tree | Citations corrected; design unchanged |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |

@@ -7,6 +7,15 @@
 | Phase | - |
 | Updated | 2026-06-20 |
 
+Depends note (2026-07-22 plan review): `spec-ipsec-0-umbrella` is marked
+skeleton, but the substance this spec actually depends on -- the native IKEv2
+engine and XFRM/VPP dataplane -- IS on disk
+(`internal/component/ike/{engine,dataplane,crypto,wire}`; ipsec children
+landed as learned 734/735/739/742/1069/1072/1141/1215). The real dependency
+is satisfied; this spec is implementable now. Anchors verified exact
+(`crypto/transform.go:15`, `wire/payload_sa.go:20`,
+`engine/initiator.go:299`); no `USE_ESN` yet.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

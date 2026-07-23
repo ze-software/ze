@@ -3,9 +3,16 @@
 | Field | Value |
 |-------|-------|
 | Status | ready |
-| Depends | spec-ospf-0-umbrella.md, spec-ospfv3-0-umbrella.md |
+| Depends | spec-ospf-0-umbrella.md (closed, learned 1114), spec-ospfv3-0-umbrella.md (retired, unified into the ospf namespace, commit ee1f6ddbe, no own learned summary) |
 | Phase | - |
 | Updated | 2026-06-24 |
+
+Roadmap status (2026-07-22 plan review): this authoring umbrella is 15/16
+delivered -- children ext-1..ext-16 all have learned summaries EXCEPT ext-13
+(`spec-ospf-ext-13-l3vpn-dn-bit.md`, the only child spec still on disk,
+correctly recorded as VRF-blocked for its AC-7..AC-12 half). Candidate for
+closure once ext-13's ownership is settled (close the umbrella and let ext-13
+stand alone, or keep the umbrella open for it).
 
 > Umbrellas are living tracking documents, not implementable specs. This file
 > coordinates the OSPF extension follow-ups for the SINGLE unified `ospf` engine

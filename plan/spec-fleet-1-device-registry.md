@@ -268,3 +268,8 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 - [ ] No premature abstraction
 - [ ] No speculative features
 - [ ] Single responsibility per component
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

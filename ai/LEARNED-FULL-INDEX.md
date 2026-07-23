@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1229 summaries
+Total: 1233 summaries
 
 ## 000-099
 
@@ -1298,8 +1298,12 @@ Total: 1229 summaries
 | 1250 | A shared buffer outlives the comment that says only one goroutine touches it | `plan/learned/1250-shared-buffer-second-producer.md` |
 | 1251 | feature-gate-11-bmp-mrt | `plan/learned/1251-feature-gate-11-bmp-mrt.md` |
 | 1252 | A verdict that passes on any one peer, and an RFC exemption granted to everyone | `plan/learned/1252-masked-verdict-and-rfc-exemption.md` |
+| 1253 | fixit-ci-schedule-evidence | `plan/learned/1253-fixit-ci-schedule-evidence.md` |
 | 1254 | gokrazy derived parent discards every builddir pin | `plan/learned/1254-gokrazy-derived-parent-discards-pins.md` |
 | 1255 | fixit-codeql-security-triage | `plan/learned/1255-fixit-codeql-security-triage.md` |
 | 1256 | fixit-ipsec-verify-siblings | `plan/learned/1256-fixit-ipsec-verify-siblings.md` |
 | 1257 | A declared `.ci` timeout that did nothing | `plan/learned/1257-ci-timeout-option-ignored.md` |
 | 1258 | The QEMU gate ran a feature-stripped daemon, and every run hijacked cache/ | `plan/learned/1258-qemu-gate-ran-a-stripped-daemon.md` |
+| 1259 | bgp-plugin-speaker | `plan/learned/1259-bgp-plugin-speaker.md` |
+| 1260 | website-wiki-content-migration | `plan/learned/1260-website-wiki-content-migration.md` |
+| 1261 | migrate-plugin-sleeps | `plan/learned/1261-migrate-plugin-sleeps.md` |

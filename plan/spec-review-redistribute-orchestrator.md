@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-unify-replay (ReplayID leaf concern, adjacent) |
+| Depends | spec-unify-replay (ReplayID leaf concern, adjacent; closed, learned 1081) |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `DESIGN-REVIEW.md` finding 5 ("Protocol-agnostic core carrying protocol-specific shape")
+3. ~~`DESIGN-REVIEW.md` finding 5 ("Protocol-agnostic core carrying protocol-specific shape")~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec)
 4. `internal/component/bgp/plugins/redistribute_egress/redistribute.go`,
    `internal/core/redistevents/events.go`
 

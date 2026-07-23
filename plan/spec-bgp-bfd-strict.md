@@ -7,6 +7,11 @@
 | Phase | - |
 | Updated | 2026-07-03 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged, feature not
+landed; citations below updated in-body): `BFDSettings` struct now
+`peersettings.go:192-212` (`MultiHop` at `:199`). `peer_bfd.go` is still a
+pure failure detector with no `Strict`/`HoldTime`.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -52,7 +57,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 
 **Source files read:**
 - [ ] `internal/component/bgp/reactor/peer_bfd.go` - `startBFDClient` is "Called from the FSM callback on StateEstablished" (peer_bfd.go:50-61); `runBFDSubscriber` acts only on Down/AdminDown and explicitly ignores Up/Init: "BFD is a failure detector, not a session driver" (peer_bfd.go:104-106). Down triggers `Teardown` with `NotifyCeaseBFDDown` (peer_bfd.go:123-134).
-- [ ] `internal/component/bgp/reactor/peersettings.go` - `BFDSettings` has only `Enabled`, `MultiHop`, `Profile`, `MinTTL`, `Interface` (peersettings.go:191-211); no `Strict`/`HoldTime`.
+- [ ] `internal/component/bgp/reactor/peersettings.go` - `BFDSettings` has only `Enabled`, `MultiHop`, `Profile`, `MinTTL`, `Interface` (peersettings.go:192-212, `MultiHop` at :199); no `Strict`/`HoldTime`.
 - [ ] `internal/component/bfd/` - session API surfaced via `api.GetService()`, `EnsureSession`, `Subscribe` (used at peer_bfd.go:66-79).
 
 **Behavior to preserve:**
@@ -86,7 +91,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 ### Integration Points
 - `startBFDClient` (`peer_bfd.go:61`) - split so the session can be opened pre-Established in strict mode.
 - `runBFDSubscriber` (`peer_bfd.go:107`) - handle Up/Init in strict mode.
-- `BFDSettings` (`peersettings.go:191`) - add `Strict`, `HoldTime`.
+- `BFDSettings` (`peersettings.go:192`) - add `Strict`, `HoldTime`.
 - FSM Established gate - consult BFD-up state for strict peers.
 
 ### Architectural Verification

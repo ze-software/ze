@@ -4,8 +4,16 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | migrate-plugin-sleeps (committed edfe4c0e1), payload-predicate-waits (committed) |
-| Phase | 0 -- P0 establishment investigation (Revised Approach signed off 2026-07-16) |
-| Updated | 2026-07-16 |
+| Phase | 2/9 |
+| Updated | 2026-07-22 |
+
+Phase note (was in the Phase cell; moved 2026-07-22): the P0 establishment
+investigation is RESOLVED -- it was carved out to
+`spec-fixit-redistribute-establishment-stall`, which root-caused it (no engine
+stall; two test-harness defects) and has landed F1-F4. This spec's
+host-verifiable buckets are converted (baseline 246 -> 223 per the
+Implementation Summary); the remaining work is QEMU-gated (P2/P3/P4/P8) plus
+the infra-gated cases. Revised Approach signed off 2026-07-16.
 
 ## Post-Compaction Recovery
 

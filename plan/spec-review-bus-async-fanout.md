@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-unify-buffer-lifetime (HARD ordering: async fan-out must not land first) |
+| Depends | spec-unify-buffer-lifetime (HARD ordering: async fan-out must not land first) (closed, learned 1077 -- ordering constraint satisfied) |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `DESIGN-REVIEW.md` finding 4 ("The bus") and its verification notes
+3. ~~`DESIGN-REVIEW.md` finding 4 ("The bus") and its verification notes~~ (2026-07-22: that file was an ephemeral session artifact, never committed -- it exists nowhere in the repo or git history. The finding is restated in full in this spec's Task section; nothing is lost)
 4. `internal/component/plugin/process/delivery.go`, `pkg/plugin/rpc/mux.go`,
    `internal/component/plugin/server/engine_event.go`,
    `internal/component/plugin/server/dispatch.go`,

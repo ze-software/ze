@@ -92,6 +92,18 @@ code for any of these four families.
 - Config file parsed into `*config.Tree`
 - `extractRoutesFromUpdateBlock` encounters an NLRI family name
 
+### Transformation Path
+1. Config tree -> `registry.ConfigRouteParserByFamily(famName)` returns the registered parser
+2. Parser returns `registry.PluginRoute`; stored as `UpdateBlockRoutes.PluginRoutes` (`[]PluginRouteConfig`)
+3. `convertPluginRoute` produces `reactor.PluginRoute`; stored in `PeerSettings.PluginRoutes`
+4. `sendPluginRoutesVia` builds `message.PluginParams`; `BuildPlugin` produces the UPDATE wire bytes
+
+### Integration Points
+- `registry.ConfigRouteParserByFamily` / `InProcessConfigRouteParser` (`plugin/registry/registry.go`) - plugins register in init(); central dispatch discovers
+- `convertPluginRoute` (`bgp/config/loader_routes.go`) - already exists; converts `PluginRouteConfig` to `reactor.PluginRoute`
+- `sendPluginRoutesVia` (`bgp/reactor/peer_initial_sync.go`) - already exists; handles any family generically
+- `BuildPlugin` (`bgp/message/update_build_plugin.go`) - already exists; the generic UPDATE builder (SR-Policy is the proof)
+
 ### Current (Hardcoded) Transformation Path
 1. `bgp_routes.go:162` - `switch famName` dispatches to hardcoded parser (e.g. `parseFlowSpecNLRILine`)
 2. Parser returns family-specific config type (e.g. `FlowSpecRouteConfig`)
@@ -262,7 +274,7 @@ code for any of these four families.
 | 4 | Configures MUP route in update{} block | config tree -> registry.ConfigRouteParserByFamily("ipv4/mup") -> PluginRouteConfig -> PluginRoute -> sendPluginRoutesVia -> BuildPlugin -> wire | existing encode .ci tests |
 | 5 | Removes FlowSpec plugin from build | No FlowSpec config parsing, no build break, no stale references | AC-1 removal test |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |

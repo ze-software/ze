@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready (dep 5,6) |
-| Depends | 5 (entity-matrix), 6 (as-enrichment) |
+| Status | ready |
+| Depends | spec-anomaly-5-entity-matrix (child 5), spec-anomaly-6-as-enrichment (child 6) |
 | Phase | B |
 | Updated | 2026-07-02 |
 

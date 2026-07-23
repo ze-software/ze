@@ -201,7 +201,7 @@ deterministic simulation.
 - `internal/test/cli/register.go` - `registerRoot("replay", cmdReplay, ...)` (ze-test subtree)
 
 ## Files to Create
-- `internal/component/bgp/reactor/capture.go` - capture writer (reactor-owned)
+- `internal/component/bgp/reactor/capture_replay.go` - capture writer (reactor-owned). ~~`capture.go`~~ (renamed in plan 2026-07-22: `reactor/capture.go` now already exists as an unrelated diagnostic message-capture ring, Design: learned/673, landed for diag-4 -- the planned JSONL writer must not clobber it)
 - capture format package under `internal/core/` (leaf tier: imported by both reactor
   and ze-test replay; exact name at implementation per `ai/rules/module-tiers.md`) - JSONL schema + version header
 - `internal/test/cli/cmd_replay.go` + harness (Session + FakeClock + stub conn, feeds `ReadAndProcess` `session_read.go:28`)

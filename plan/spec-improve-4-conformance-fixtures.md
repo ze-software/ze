@@ -7,6 +7,12 @@
 | Phase | - |
 | Updated | 2026-07-10 |
 
+Update (2026-07-22 plan review): still hard-blocked -- the Depends
+(`spec-improve-3-event-replay`) is `ready`, not started (no capture writer or
+replay harness in the reactor), and this spec consumes its JSONL schema and
+stub-`net.Conn` harness. Anchor drift fixed in-body: `stagesForMode`
+`verify_run.go:214`, `LoadExpectFile` `expect.go:64`.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -63,7 +69,7 @@ explicitly follow-up work, not this spec.
 **Design-phase research completed (2026-07-10; producers read by research agent; digest in tmp/session/session-state-improve-4-conformance-fixtures-56997.md):**
 - Survey result: NO fixture format exists. Only ONE golden-file regenerator in the whole tree: `-update` flag in `internal/component/plugin/all/all_test.go:47` (`snapshot()` :54, write :57-66) with make target `ze-plugin-snapshot` (`Makefile:111-113`). This is the regen-UX precedent to mirror.
 - State probes are ad-hoc `map[string]any`, no schema: peer state producer `internal/component/bgp/plugins/cmd/peer/peer.go:156-238`; adj-rib-in `rib_commands.go:239` show() / `:220` status(); reached via `opDispatchCommand` (`internal/component/plugin/server/dispatch_registry.go:258`). Canonicalization is therefore MANDATORY for stable diffs (A-1).
-- Outbound-wire assertion machinery already exists in ze-test peer check mode: `LoadExpectFile` (`internal/test/peer/expect.go:21`, expect=bgp:conn=N:seq=N:hex= at :60-70), matcher `Checker.ExpectedOrKeepalive` (`checker.go:386`; marker strip :402-404; `matchRule` :612 prefix:/contains:/exact) -- A-2's expected-wire surface (research agent).
+- Outbound-wire assertion machinery already exists in ze-test peer check mode: `LoadExpectFile` (`internal/test/peer/expect.go:64`), matcher `Checker.ExpectedOrKeepalive` (`checker.go:386`; marker strip :402-404; `matchRule` :612 prefix:/contains:/exact) -- A-2's expected-wire surface (research agent).
 - Topology constraints: everything is TCP over loopback (no netns); single shared bgp port (`ze.test.bgp.port`, `cmd_peer.go:22-28`); single-peer-multi-IP scenarios are known-flaky (`docs/functional-tests.md:447-456`) -- v1 single-session scope avoids this.
 - Test-harness env conventions: typed `env.MustRegister` registry; existing vars ZE_TEST_NO_BUILD/ZE_BIN (`runner.go:212,:265`), ZE_VERIFY_MODE (`parallel.go:38`), ZE_SKIP_SUITES (`cmd_web.go:58`).
 
@@ -173,7 +179,7 @@ explicitly follow-up work, not this spec.
 
 ## Files to Modify
 - `mk/` test makefiles - `ze-conformance-test` target
-- `scripts/status/verify_run.go` - add stage (design decision: default vs opt-in) (:112-146 stage lists)
+- `scripts/status/verify_run.go` - add stage (design decision: default vs opt-in) (`stagesForMode` :214-280 stage lists)
 - `docs/functional-tests.md` - document the fixture format
 
 ## Files to Create
@@ -347,6 +353,6 @@ state before diffing:
 
 Re-verified against the followup implementation wave (unpushed origin/main..HEAD commits):
 
-- The live producer of the `make ze-verify` stage list is `stagesForMode` (`scripts/status/verify_run.go:112`, consumed at `:104`). The wave inserted `ze-port-defaults-check` and `ze-platform-vet` into BOTH branches (`ze-verify-changed` branch at `:127-128`, default branch at `:140-141`), so the `:112-146` range cited in Files to Modify has shifted (the function now spans `:112-150`).
+- The live producer of the `make ze-verify` stage list is `stagesForMode` (`scripts/status/verify_run.go:214`, consumed at `:137` and `:192`). The wave inserted `ze-port-defaults-check` and `ze-platform-vet` into BOTH branches (`ze-verify-changed` branch at `:233`/`:235`, default branch at `:255`/`:257`); the function now spans `:214-280` (Files to Modify updated to match).
 - The planned conformance stage must be added to BOTH branches of `stagesForMode`, and NOT to the Makefile `_ze-verify-impl` / `_ze-verify-changed-impl` targets: those have zero callers and are documented as dead (`Makefile:280-287` comment); a stage added only there never runs under `make ze-verify` or CI.
 - `docs/functional-tests.md` (Required Reading item 1) has grown since this spec was written, e.g. the MCP GET-SSE section (`docs/functional-tests.md:427-433`), and new `.ci` suites exist under `test/plugin/` (`as112-dot.ci`, `as112-doh.ci`, `exabgp-bridge-internal.ci`, `exabgp-bridge-sdk.ci`). The Current Behavior test-layout survey must be redone against the current tree at design time.

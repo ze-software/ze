@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-flow-export-2-flow-records |
+| Depends | spec-flow-export-2-flow-records (closed, learned 819) |
 | Phase | - |
 | Updated | 2026-05-29 |
 

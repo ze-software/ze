@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-rib-arch-0-umbrella.md |
+| Depends | spec-rib-arch-0-umbrella.md (closed, learned 1128) |
 | Phase | - |
 | Updated | 2026-07-08 |
 

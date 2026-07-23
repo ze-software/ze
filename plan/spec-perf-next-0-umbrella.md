@@ -4,8 +4,19 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/5 |
-| Updated | 2026-06-14 |
+| Phase | 5/5 |
+| Updated | 2026-07-22 |
+
+Awaiting closure (recorded 2026-07-22 during plan review): all three children
+shipped and the roll-up learned summary ALREADY EXISTS as
+`plan/learned/900-perf-next-round-3.md` (child 1 `ebgpWireSlot` lock-free slots
+in `received_update.go:24,89`; child 2 `filterAttrs`/`filterAttrID` in
+`filter_chain.go:28,79`, Phase B scratch-pool deliberately deferred there;
+child 3 `Community.AppendText` in
+`internal/core/bgp/attribute/text_append.go`). Remaining work is the
+two-commit closure of the umbrella and its three children. Note:
+`plan/learned/875-filter-delta-parse-once.md` is a PRIOR pol-4 follow-up, not
+child 2's completion signal.
 
 ## Post-Compaction Recovery
 

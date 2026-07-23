@@ -7,7 +7,55 @@
 | Phase | - |
 | Updated | 2026-05-21 |
 
+STALE BASELINE -- corrected in-body (2026-07-22 plan review; Migration
+table corrected 2026-07-22): all three originally cited ad-hoc deprecation
+sites are GONE (`show.go` and `clear.go` carry no deprecation pattern;
+`cache.go`'s `dispatchCacheByID` no longer takes a `deprecated` bool -- now
+`dispatchCacheByID(ctx, action, idStr, extraArgs)`, `cache.go:84`). The only
+surviving ad-hoc site is the local `withDeprecation` closure at
+`internal/component/bgp/plugins/cmd/commit/commit.go:149`. The Migration
+table below is now corrected: the vanished show/clear/cache rows are struck
+through and a row for the `commit.go:149` closure is added. Other sections
+(Current Behavior, Files to Modify, AC-9, TDD plan, Deliverables) still name
+the vanished sites; retarget them to `commit.go` during implementation.
+The framework itself (`internal/component/command/deprecation.go`,
+`Response.Deprecated`, `LookupLocalMeta`) has not landed, so the spec's goal
+stands.
+
 **Scope:** Command deprecation only. Config migration integration is a future child spec (`spec-deprecation-config-migration`). The shared `Deprecation` type is designed here to be reusable, but config-specific concerns (schema stamp format, migration rejection semantics, config-specific replacement shape) are out of scope.
+
+## DECISION (Thomas, 2026-07-22): migrations are permanent; old forms migrate transparently
+
+Two rulings that supersede parts of the design below:
+
+1. **An up-version migration is never removed.** Once a deprecation entry
+   (the structured old-form -> new-form Replacement mapping) is added, it is
+   permanent. No phase of the lifecycle ever deletes the mapping, the
+   registration, or the old-grammar detection code. The "can be deleted
+   entirely after RemoveAt + one release cycle" clauses in the Removal
+   Semantics section are struck below.
+2. **Post-release, migration from the initial version to the latest is
+   transparent.** A config or command form valid in the first release must
+   keep working on every later binary: the old form is accepted and
+   transparently rewritten to the current form via the Replacement mapping
+   (with a deprecation warning), not rejected. The structured Replacement
+   format is therefore load-bearing: it exists to power automatic rewriting,
+   not just a helpful error message.
+
+Design consequences to rework before this spec leaves `design`:
+- `RemoveAt` as "the command is treated as removed" contradicts ruling 2.
+  Either drop `RemoveAt`, or redefine it as the date the warning escalates
+  in visibility -- never as execution ceasing while the mapping could
+  rewrite it. The state table's `Removed` row, AC-2, AC-6, AC-12, and the
+  removed-command tests must be redesigned around transparent rewrite.
+- The already-shipped `withDeprecation` closure
+  (`internal/component/bgp/plugins/cmd/commit/commit.go:144-158`) is the
+  model: the legacy `commit <name> <action>` grammar still executes,
+  re-routed to the current dispatch with a warning attached.
+- This ruling equally constrains the future config child spec
+  (`spec-deprecation-config-migration`) and matches
+  `ai/rules/config-design.md`: "No version numbers in config. Design for
+  machine-transformable migration."
 
 ## Post-Compaction Recovery
 
@@ -24,13 +72,13 @@ Introduce a systematic command deprecation lifecycle across all dispatch paths (
 
 The new system provides:
 - A single deprecation type shared across both dispatch paths
-- Date-driven lifecycle (warning phase, then removal) with no manual state management
+- Date-driven lifecycle (warning phase, ~~then removal~~ never removal -- see the 2026-07-22 DECISION: old forms keep executing via transparent rewrite) with no manual state management
 - Structured replacement format (command keywords + argument mapping) parseable by automation
 - Shell stderr output for one-shot invocations
 - Interactive CLI feedback line for deprecation warnings
 - Automatic state derivation from dates (no enum to maintain)
 
-Design constraint: ze uses date-based versioning, so `Since` is simply the date the deprecation code is added (the previous release does not have it; the next one does). `RemoveAt` is a date; any binary built after that date treats the command as removed.
+Design constraint: ze uses date-based versioning, so `Since` is simply the date the deprecation code is added (the previous release does not have it; the next one does). ~~`RemoveAt` is a date; any binary built after that date treats the command as removed.~~ (Superseded by the 2026-07-22 DECISION: no binary ever treats a mapped command as removed; the mapping rewrites it transparently. `RemoveAt`'s fate -- dropped, or redefined as a warning-escalation date -- is a design question to settle before `ready`.)
 
 ## Required Reading
 
@@ -259,12 +307,17 @@ All existing deprecation sites are handler-level: the same RPC handler receives 
 
 | Current site | File | Current mechanism | Migration |
 |--------------|------|-------------------|-----------|
-| show interface detail | `internal/component/cmd/show/show.go` | `withDeprecation(resp, "show interface detail "+args[0])` | Handler sets `resp.Deprecated` with Replacement: command=`show interface detail`, arg 0=name |
-| show interface counters | `internal/component/cmd/show/show.go` | `withDeprecation(resp, "show interface counters "+args[0])` | Handler sets `resp.Deprecated` with Replacement: command=`show interface counters`, arg 0=name |
-| clear interface counters | `internal/component/iface/cmd/clear.go` | `deprecated` bool + manual injection | Handler sets `resp.Deprecated` with Replacement: command=`clear interface counters`, arg 0=name |
-| cache actions | `internal/component/bgp/plugins/cmd/cache/cache.go` | `dispatchCacheByID(ctx, action, id, args, true)` | Handler sets `resp.Deprecated` with Replacement: command=`cache <action>`, arg 0=id |
+| ~~show interface detail~~ | ~~`internal/component/cmd/show/show.go`~~ | ~~`withDeprecation(resp, "show interface detail "+args[0])`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- site removed; `show.go` carries no deprecation pattern) |
+| ~~show interface counters~~ | ~~`internal/component/cmd/show/show.go`~~ | ~~`withDeprecation(resp, "show interface counters "+args[0])`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- site removed; `show.go` carries no deprecation pattern) |
+| ~~clear interface counters~~ | ~~`internal/component/iface/cmd/clear.go`~~ | ~~`deprecated` bool + manual injection~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- site removed; `clear.go` carries no deprecation pattern) |
+| ~~cache actions~~ | ~~`internal/component/bgp/plugins/cmd/cache/cache.go`~~ | ~~`dispatchCacheByID(ctx, action, id, args, true)`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- `dispatchCacheByID(ctx, action, idStr, extraArgs)` at `cache.go:84` no longer takes a deprecated flag) |
+| commit actions (legacy `commit <name> <action>` grammar) | `internal/component/bgp/plugins/cmd/commit/commit.go` | local `withDeprecation` closure at `commit.go:149` inside `dispatchCommitAction(ctx, action, name, extraArgs, deprecated bool)` (`:148`); injects `data["deprecated"] = "use: commit <action> <name>"` (`:156`) when the legacy grammar was used (`:130`, `:144`) | Handler sets `resp.Deprecated` with Replacement: command=`commit <action>`, arg 0=name; the closure and the `deprecated` bool parameter are deleted |
 
-After migration: `withDeprecation()` in show.go is deleted. The `deprecated` bool parameter in `dispatchCacheByID` is deleted. No transition period needed (pre-release).
+After migration: the local `withDeprecation` closure and the `deprecated` bool
+parameter of `dispatchCommitAction` in `commit.go` are deleted. No transition
+period needed (pre-release). ~~`withDeprecation()` in show.go is deleted. The
+`deprecated` bool parameter in `dispatchCacheByID` is deleted.~~ (superseded
+2026-07-22: those sites no longer exist.)
 
 ## Relationship to Config Migration (OUT OF SCOPE)
 
@@ -279,9 +332,14 @@ These concerns belong in a child spec: `spec-deprecation-config-migration`. This
 
 ### Handler Cleanup Lifecycle
 
-Registration-level: after RemoveAt + one release cycle, the registration and handler code can be deleted entirely. The command path disappears from dispatch and help.
+~~Registration-level: after RemoveAt + one release cycle, the registration and handler code can be deleted entirely. The command path disappears from dispatch and help.~~
 
-Handler-level: after RemoveAt for a grammar variant, the handler stops accepting the old grammar and returns an error. After one more release cycle, the old-grammar detection code can be deleted.
+~~Handler-level: after RemoveAt for a grammar variant, the handler stops accepting the old grammar and returns an error. After one more release cycle, the old-grammar detection code can be deleted.~~
+
+(Struck 2026-07-22 per the DECISION block at the top: an up-version migration
+is never removed. The registration, the Replacement mapping, and the
+old-grammar acceptance code are permanent; the old form keeps executing via
+transparent rewrite with a warning. There is no cleanup phase.)
 
 ## Package Placement
 
@@ -289,7 +347,7 @@ The Deprecation type lives in `internal/component/command/` alongside Node. This
 
 The stderr formatter lives in `internal/component/command/` as well (it formats a Deprecation struct to a writer).
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |

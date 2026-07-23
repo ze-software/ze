@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-unify-config-diff (map-diff dedup, adjacent) |
+| Depends | spec-unify-config-diff (map-diff dedup, adjacent; closed, learned 1079) |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `DESIGN-REVIEW.md` finding 3 ("The stringly-typed middle") and its verification notes
+3. ~~`DESIGN-REVIEW.md` finding 3 ("The stringly-typed middle") and its verification notes~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec)
 4. `internal/component/bgp/reactor/reactor_api.go`, `internal/component/bgp/reactor/config.go`, `internal/component/config/yang_schema.go`, `internal/component/config/tree.go`
 
 ## Task

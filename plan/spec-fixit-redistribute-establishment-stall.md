@@ -3,9 +3,16 @@
 | Field | Value |
 |-------|-------|
 | Status | in-progress |
-| Depends | spec-fixit-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay |
-| Phase | 1/1 (root cause found 2026-07-16; fix proposed, not implemented) |
-| Updated | 2026-07-16 |
+| Depends | spec-fixit-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay (closed, learned 1062) |
+| Phase | 4/6 |
+| Updated | 2026-07-22 |
+
+Phase note (cell corrected 2026-07-22; the old "fix proposed, not implemented"
+was stale): F1-F3 are implemented (`internal/test/runner/peer_contract.go` with
+`isSelfValidated`/`validatePeerBlocks`, shared `peer.ConsumesLine` in
+`expect.go:49`) and F4 is complete (converted `eor-sent`/`local-preference`
+expectations in `bgp-redistribute-announce.ci` and
+`forward-mpreach-nexthop-self-two-peer.ci`). F5 and F6 remain open.
 
 ## ROOT CAUSE (2026-07-16) -- there is no engine stall; two test-harness defects
 

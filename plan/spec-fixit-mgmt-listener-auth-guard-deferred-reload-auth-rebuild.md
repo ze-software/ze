@@ -7,6 +7,15 @@
 | Phase | - |
 | Updated | 2026-07-17 |
 
+Update (2026-07-22 plan review): the parent's blocking deliverable has LANDED
+on disk -- `cmd/ze/hub/mgmt_guard.go` + `checkMgmtListeners` exist (learned
+1200); the stale 2026-07-17 "ABSENT" note below is struck through in-body; the
+Phase-0 gate is now satisfiable (the parent spec stays in-progress only for
+its own deferred AC-5/AC-6). `listener_migrate.go` anchors (~+30 lines, file
+grew 250->281 and gained `MarkUnauthenticated` at `:54`) are updated in-body:
+`ReloadListeners` `:94+`, `buildChange` `:205`, `rollbackAppliedListeners`
+`:193`, `listenerDiff` `:221`.
+
 → READINESS (2026-07-17): design filled from source (all sections grounded in
 `file:line` below), every open decision resolved with FAIL-CLOSED defaults. ~~Status
 stays `skeleton` because a genuine hard dependency remains~~ (superseded 2026-07-17,
@@ -37,9 +46,9 @@ defaults confirmed intact: reload re-runs the parent classifier over the rebuilt
 (address, auth) set, and a listener whose auth cannot be rebuilt REFUSES its reload
 and keeps its prior (address, auth) — never the new address with stale auth (AC-3,
 AC-4, and the A-1 drain-and-replace/refuse default; `ai/rules/fail-closed-guards.md`).
-Dependency verified real on disk 2026-07-17: `cmd/ze/hub/mgmt_guard.go` and
-`checkMgmtListeners` are ABSENT, so the `Depends` is not stale. Thomas: override if
-wrong. [STAKES: security]
+~~Dependency verified real on disk 2026-07-17: `cmd/ze/hub/mgmt_guard.go` and
+`checkMgmtListeners` are ABSENT, so the `Depends` is not stale.~~ (landed
+2026-07-19, learned 1200) Thomas: override if wrong. [STAKES: security]
 
 **Sequencing (BLOCKING for the implementer):** implement the parent
 `spec-fixit-mgmt-listener-auth-guard` FIRST. Its `cmd/ze/hub/mgmt_guard.go`
@@ -68,7 +77,7 @@ Limitations, recorded 2026-07-17. The source spec confirmed AC-7's boot-plus-mig
 address guard as its shipped scope and left the auth rebuild here.
 
 **The limitation is verified, not inherited.** `ReloadListeners`
-(`cmd/ze/hub/listener_migrate.go:77-117`) builds its change set exclusively from
+(`cmd/ze/hub/listener_migrate.go:94+`) builds its change set exclusively from
 addresses:
 
 | Service | What reload reads | Producer |
@@ -79,8 +88,8 @@ addresses:
 | rest / grpc | `apiListenToAddrs(apiCfg.REST / .GRPC)` | `listener_migrate.go:104-117` |
 
 Every path funnels into `buildChange(name, srv, newAddrs)`
-(`listener_migrate.go:174-189`), whose only per-service input is `newAddrs`, and the
-diff it drives (`listenerDiff`, `:190-213`) compares address lists. No auth field is
+(`listener_migrate.go:205`), whose only per-service input is `newAddrs`, and the
+diff it drives (`listenerDiff`, `:221`) compares address lists. No auth field is
 read, compared, or applied, so a reload cannot rebuild a server's auth mode.
 
 **Why it was not simply widened:** the source spec's AC-7 stops a running
@@ -122,18 +131,18 @@ Thomas: override if wrong.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (all read/verified 2026-07-17 against the working tree)
-- [ ] `cmd/ze/hub/listener_migrate.go` (250L) - `ReloadListeners` (`:77-117`) migrates listen addresses only; `buildChange` (`:174-189`) takes `newAddrs` and nothing else; `listenerDiff` (`:190-213`) compares address lists; `rollbackAppliedListeners` (`:162-172`) reverts applied changes in reverse order by re-`Reconfigure`-ing to `oldAddr`. The `Reconfigurable` interface (`:17-20`) is `Addresses()` + `Reconfigure(ctx, newAddrs)` only — no auth field crosses it.
+- [ ] `cmd/ze/hub/listener_migrate.go` (250L) - `ReloadListeners` (`:94+`) migrates listen addresses only; `buildChange` (`:205`) takes `newAddrs` and nothing else; `listenerDiff` (`:221`) compares address lists; `rollbackAppliedListeners` (`:193`) reverts applied changes in reverse order by re-`Reconfigure`-ing to `oldAddr`. The `Reconfigurable` interface (`:17-20`) is `Addresses()` + `Reconfigure(ctx, newAddrs)` only — no auth field crosses it.
   → Constraint: the `Reconfigurable` interface is the seam every service is driven through; an auth rebuild either extends it or replaces the server instance.
-  → AUTONOMOUS DEFAULT (2026-07-17): WIDEN the seam so the change set carries the resolved (address, authenticated) intent per service, and rebuild by DRAIN-AND-REPLACE where a server cannot swap its handler chain live (web bakes auth into one `*http.Server`, see below). Rationale: fail-closed + smaller blast radius — mutating a live handler chain in place is unproven (A-1) and races in-flight requests; a widened seam keeps ONE collection point and lets the existing rollback (`:162-172`) revert to the prior instance/auth. A service whose auth genuinely cannot be rebuilt must refuse the reload for that service (fail closed), never apply the address change while silently keeping stale auth. Thomas: override if wrong.
+  → AUTONOMOUS DEFAULT (2026-07-17): WIDEN the seam so the change set carries the resolved (address, authenticated) intent per service, and rebuild by DRAIN-AND-REPLACE where a server cannot swap its handler chain live (web bakes auth into one `*http.Server`, see below). Rationale: fail-closed + smaller blast radius — mutating a live handler chain in place is unproven (A-1) and races in-flight requests; a widened seam keeps ONE collection point and lets the existing rollback (`:193`) revert to the prior instance/auth. A service whose auth genuinely cannot be rebuilt must refuse the reload for that service (fail closed), never apply the address change while silently keeping stale auth. Thomas: override if wrong.
 - [ ] `internal/component/web/server.go` (Reconfigure `:262-333`, struct `:70`, one `*http.Server{Handler: mux}` `:86,130`, `serveOne` `:336`) - reconfigure adds/removes listeners on the shared `*http.Server`; the handler/auth chain is never rebuilt.
 - [ ] `cmd/ze/hub/service_web.go` (`:466-474`) - `authWrap` (insecure → `InsecureMiddleware`; else `AuthMiddlewareWithAudit`) is selected ONCE and wrapped around the route handlers registered on the mux. This is the auth state a reload would have to rebuild.
 - [ ] `internal/component/api/rest/server.go` (`Reconfigure` `:242-253`) - address-only, and already fail-closed: rejects any non-loopback new address before binding. gRPC mirrors it (`internal/component/api/grpc/server.go:247`).
 - [ ] `internal/component/lg/server.go` (`Reconfigure` `:384-415`) and `cmd/ze/hub/service_mcp.go` (`Reconfigure` `:355-389`) - both address-only; no auth read.
-- [ ] `cmd/ze/hub/main_reload.go` (`runReload` `:121-213`) - the reload driver: loads the tree, reloads plugin server + engine, then calls `lm.ReloadListeners(reloadCtx, parsedTree)` (`:201`) inside a 30s timeout (`:122`); on migration error it invokes `rollbackReload` (`:202-212`). This is where an auth-rebuild failure must surface and roll back.
+- [ ] `cmd/ze/hub/main_reload.go` (`runReload` `:164-286`) - the reload driver: loads the tree, reloads plugin server + engine, then calls `lm.ReloadListeners(reloadCtx, parsedTree)` (`:244`) inside a 30s timeout (`:165`); on migration error it invokes `rollbackReload` (`:245`, func at `:352-371`). This is where an auth-rebuild failure must surface and roll back. (Anchors re-verified 2026-07-23 after the origin/main fast-forward to 822029463, which grew this file.)
 
 **Behavior to preserve:**
 - AC-7's address guard from the source spec: a running unauthenticated listener must not migrate to a non-loopback address.
-- Rollback on partial failure (`rollbackAppliedListeners`, `listener_migrate.go:162-173`).
+- Rollback on partial failure (`rollbackAppliedListeners`, `listener_migrate.go:193`).
 
 **Behavior to change:**
 - An auth-mode change in the reloaded config must take effect, rather than being silently ignored until restart.
@@ -141,13 +150,13 @@ Thomas: override if wrong.
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- SIGHUP → config reload → `ReloadListeners(ctx, tree)` (`cmd/ze/hub/listener_migrate.go:77`)
+- SIGHUP → config reload → `ReloadListeners(ctx, tree)` (`cmd/ze/hub/listener_migrate.go:94`)
 
 ### Transformation Path
 1. Extract per-service config from the tree (`ExtractWebConfig` / `ExtractLGConfig` / `ExtractMCPConfig` / `ExtractAPIConfig`)
-2. Build the change set — today addresses only (`buildChange`, `:174-189`)
-3. Diff against running listeners (`listenerDiff`, `:190-213`)
-4. Apply, with rollback on failure (`rollbackAppliedListeners`, `:162-173`)
+2. Build the change set — today addresses only (`buildChange`, `:205`)
+3. Diff against running listeners (`listenerDiff`, `:221`)
+4. Apply, with rollback on failure (`rollbackAppliedListeners`, `:193`)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -158,7 +167,7 @@ Thomas: override if wrong.
 ### Integration Points
 - `Reconfigurable` implementations for web, lg, mcp, rest, grpc (`internal/component/web/server.go:262`, `internal/component/lg/server.go:384`, `cmd/ze/hub/service_mcp.go:355`, `internal/component/api/rest/server.go:242`, `internal/component/api/grpc/server.go:247`) - each would need to accept an auth-mode change (widened seam) or be drain-and-replaced by the migrator.
 - `cmd/ze/hub/mgmt_guard.go` (parent-created) - the shared fail-closed classifier + `checkMgmtListeners`; the reload re-runs it over the rebuilt (address, auth) set so a rebuild cannot leave any listener non-loopback + unauthenticated. THIS IS THE HARD DEPENDENCY — the parent must land first.
-- `cmd/ze/hub/listener_migrate.go:162-172` (`rollbackAppliedListeners`) and `cmd/ze/hub/main_reload.go:202-212` (`rollbackReload`) - rollback must be extended to cover the auth dimension, not just addresses, so a half-applied auth rebuild reverts fully (R-1).
+- `cmd/ze/hub/listener_migrate.go:193` (`rollbackAppliedListeners`) and `cmd/ze/hub/main_reload.go:352-371` (`rollbackReload`) - rollback must be extended to cover the auth dimension, not just addresses, so a half-applied auth rebuild reverts fully (R-1).
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -173,7 +182,7 @@ Thomas: override if wrong.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Rebuilding a server in place can preserve in-flight connections acceptably | not yet investigated | design changes to drain-and-replace | prototype + functional test | unvalidated |
 | A-2 | The parent's shared classifier + `ReloadListeners` gate exist by the time this is implemented | `plan/spec-fixit-mgmt-listener-auth-guard.md` (Status ready; creates `cmd/ze/hub/mgmt_guard.go`, gates `ReloadListeners` AC-7) | this child cannot re-run the guard; would have to duplicate the classifier (rejected) | parent spec on disk before implementation | pending parent |
-| A-3 | A failed auth rebuild can be fully rolled back via the existing reverse-order reconfigure | `cmd/ze/hub/listener_migrate.go:162-172`, `main_reload.go:202-212` | a half-rebuilt server is left in an unknown auth state | AC-2 rollback test | unvalidated |
+| A-3 | A failed auth rebuild can be fully rolled back via the existing reverse-order reconfigure | `cmd/ze/hub/listener_migrate.go:193`, `main_reload.go:352-371` | a half-rebuilt server is left in an unknown auth state | AC-2 rollback test | unvalidated |
 
 → AUTONOMOUS DEFAULT (2026-07-17) on A-1: do NOT assume in-place rebuild is safe.
 Default to DRAIN-AND-REPLACE (or refuse the per-service reload when replace is not
@@ -229,7 +238,7 @@ auth state that cannot be rebuilt must never silently leave a listener unauthent
 - None yet; this is a skeleton.
 
 ## Files to Modify
-- `cmd/ze/hub/listener_migrate.go` - widen the `Reconfigurable` seam / `serviceChange` to carry the resolved (address, authenticated) intent; re-run the parent classifier over the rebuilt set in `ReloadListeners` (`:77-117`); extend `rollbackAppliedListeners` (`:162-172`) to revert auth as well as addresses
+- `cmd/ze/hub/listener_migrate.go` - widen the `Reconfigurable` seam / `serviceChange` to carry the resolved (address, authenticated) intent; re-run the parent classifier over the rebuilt set in `ReloadListeners` (`:94+`); extend `rollbackAppliedListeners` (`:193`) to revert auth as well as addresses
 - `cmd/ze/hub/main_reload.go` - surface auth-rebuild failures through `runReload` (`:201-212`) and its `rollbackReload`
 - `internal/component/web/server.go` - support an auth rebuild (drain-and-replace the handler chain, or a new auth-swap method) since auth is baked into one `*http.Server` today (`:86,130`)
 - `cmd/ze/hub/service_web.go` - make the `authWrap` decision (`:466-474`) reproducible on reload from the reloaded config, not fixed at first construction

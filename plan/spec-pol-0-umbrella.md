@@ -7,6 +7,15 @@
 | Phase | - |
 | Updated | 2026-05-24 |
 
+Reconciliation needed (2026-07-22 plan review): all five child spec files
+(pol-1..pol-5) are gone from `plan/`; pol-2 (actions), pol-3 (validation) and
+pol-4 (explain) closed with learned 782/809/814, but pol-1 (named-sets) and
+pol-5 (rs-defaults) have NO learned summary and no obvious landing (no
+`bgp/sets` package under `internal/`). Before treating this umbrella as an
+open `ready` roadmap: mark pol-2/3/4 done and resolve whether pol-1/pol-5
+landed elsewhere or were dropped -- if dropped, that is an unrecorded scope
+reduction to surface to Thomas.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -602,6 +611,7 @@ Tests are defined in each child spec. Summary:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | Defined in each child spec | child specs | Per-child-spec scenarios | |
+| policy child suites | `test/plugin/policy-*.ci` (one per child spec; see Files to Create) | Named sets, action macros, commit validation, explain, and rs-defaults exercised from the user entry point | |
 
 ### Interop Tests (MANDATORY for protocol features)
 AS_PATH modification (remove-private-as) and community actions affect wire-format

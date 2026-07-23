@@ -7,6 +7,16 @@
 | Phase | - |
 | Updated | 2026-07-16 |
 
+Anchor refresh (2026-07-22 plan review, design HOLDS against the landed bcrypt
+work, learned 1181): the R-4 risk materialized benignly -- 1181 touched the
+same three commit sites and wired `RejectMaskedBcryptLeaves` there, shifting
+anchors ~6-9 lines (citations below updated in-body): `editor_commit.go`
+152 -> 158 and 312 -> 321; `MigrationWarning` build 190 -> 196 and
+330 -> 339. `ApplyPasswordHashing` is
+still error-only (`password_hash.go:87`) and `hashPlaintextSibling`'s empty
+no-op is preserved (`:154-157`), so AC-5 holds. Rebase the helper wiring onto
+the current commit-site lines per R-4's stated mitigation.
+
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
 ## Post-Compaction Recovery
@@ -100,7 +110,7 @@ the new test is `test/parse/password-weakness-warning.ci`.
 ### Transformation Path
 1. Before bcrypt hashing, the plaintext is passed to a shared strength-check helper.
 2. The helper returns a weakness reason if the plaintext is shorter than the minimum length or matches the embedded common-password denylist (case-insensitive, exact match).
-3. If weak, a warning is surfaced through the caller's existing warning surface. Concretely (see Key Design Decisions): the config path threads the reason out of `ApplyPasswordHashing`/`hashPlaintextSibling` into the commit result's warning field (`CommitResult.MigrationWarning`, `internal/component/cli/contract/contract.go:63`) at the two `internal/component/cli/editor_commit.go` sites (:152/:190, :312/:330) and the `commitContent()` site (`internal/component/cli/editor_commands.go:985`); the `ze passwd` helper writes the reason to `errOut`.
+3. If weak, a warning is surfaced through the caller's existing warning surface. Concretely (see Key Design Decisions): the config path threads the reason out of `ApplyPasswordHashing`/`hashPlaintextSibling` into the commit result's warning field (`CommitResult.MigrationWarning`, `internal/component/cli/contract/contract.go:63`) at the two `internal/component/cli/editor_commit.go` sites (:158/:196, :321/:339) and the `commitContent()` site (`internal/component/cli/editor_commands.go:985`); the `ze passwd` helper writes the reason to `errOut`.
 4. Hashing proceeds unchanged; the password is set regardless of the warning.
 
 ### Boundaries Crossed
@@ -113,7 +123,7 @@ the new test is `test/parse/password-weakness-warning.ci`.
 ### Integration Points
 - New shared helper (e.g. under the config or a small auth util package) taking plaintext, returning an optional weakness reason.
 - `internal/component/config/password_hash.go` - call the helper in `hashPlaintextSibling` (`:153`) before hashing. Today `ApplyPasswordHashing` (`:88`) and `hashPlaintextSibling` return error-only, and there is no warning-carrying return: the reason must be threaded out of `ApplyPasswordHashing` (new out-param or a `([]string, error)` / result-struct return) so the three commit call sites can surface it. `CheckBcryptLeaves` (`:30`) is NOT the route -- its only non-test caller besides `ze config validate` (`internal/component/cli/validator.go:159`) never sets a password.
-- `internal/component/cli/editor_commit.go:152,312` - map the returned reason into `CommitResult.MigrationWarning` (built at `:190`, `:330`).
+- `internal/component/cli/editor_commit.go:158,321` - map the returned reason into `CommitResult.MigrationWarning` (built at `:196`, `:339`).
 - `internal/component/cli/editor_commands.go:985` - `commitContent()` returns only `(string, error)` today, so this site must also gain a warning surface (extend its signature or route to the editor's status/warning path) for AC-1/AC-2 to hold here.
 - `internal/plugins/passwd/main.go` - call the helper in `runImpl` (`:65`) before hashing; write the reason to `errOut`.
 
@@ -129,7 +139,7 @@ the new test is `test/parse/password-weakness-warning.ci`.
 AND sets the password: `ApplyPasswordHashing` (`internal/component/config/password_hash.go:88`)
 and `hashPlaintextSibling` (`:153`) return error-only, and `CommitResult` carries a
 single-purpose `MigrationWarning` string (`internal/component/cli/contract/contract.go:60,63`)
-built only at `internal/component/cli/editor_commit.go:190,330`. The
+built only at `internal/component/cli/editor_commit.go:196,339`. The
 `CheckBcryptLeaves` -> `validator.go:159` warning walk is the `ze config validate`
 path and never sets a password, so it cannot carry this warning.
 
@@ -137,7 +147,7 @@ Decision: thread the weakness reason out of the commit hashing path itself --
 `ApplyPasswordHashing`/`hashPlaintextSibling` gain a warning-carrying return
 (out-param, `([]string, error)`, or a small result struct) -- and surface it at
 the three commit call sites:
-- `internal/component/cli/editor_commit.go:152` and `:312` map the reason into `CommitResult.MigrationWarning`.
+- `internal/component/cli/editor_commit.go:158` and `:321` map the reason into `CommitResult.MigrationWarning`.
 - `internal/component/cli/editor_commands.go:985` (`commitContent()`, currently `(string, error)`) gains a warning surface too.
 - `internal/plugins/passwd/main.go:65` (`runImpl`) writes the reason to `errOut`.
 
@@ -163,7 +173,7 @@ re-approving the design.
 | R-1 | Warning treated as an error and blocks commit | commit fails on a weak password | keep the helper's return advisory; never convert to error |
 | R-2 | Denylist bloat / maintenance | list grows unbounded | keep a small fixed embedded list (top common passwords) + length rule; not a dictionary |
 | R-3 | Plaintext leaking into logs | plaintext in a warning string | warn with a generic reason, never echo the password |
-| R-4 | Textual merge friction with `plan/spec-fixit-bcrypt-hash-credential.md` (semantically independent, but edits the same `internal/component/config/password_hash.go` and the same three commit call sites `editor_commit.go:152,312`, `editor_commands.go:985`) | both specs touch the same lines | SEQUENCE the two specs; land whichever the owner picks first. If the bcrypt spec changes `ApplyPasswordHashing`'s signature, adopt the chosen-first signature and rebase this spec's helper wiring onto it |
+| R-4 | Textual merge friction with `plan/spec-fixit-bcrypt-hash-credential.md` (semantically independent, but edits the same `internal/component/config/password_hash.go` and the same three commit call sites `editor_commit.go:158,321`, `editor_commands.go:985`) | both specs touch the same lines | SEQUENCE the two specs; land whichever the owner picks first. If the bcrypt spec changes `ApplyPasswordHashing`'s signature, adopt the chosen-first signature and rebase this spec's helper wiring onto it |
 
 ## Wiring Test (MANDATORY)
 

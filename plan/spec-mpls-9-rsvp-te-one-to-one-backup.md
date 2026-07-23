@@ -7,13 +7,21 @@
 | Phase | - |
 | Updated | 2026-06-19 |
 
+PATH RELOCATION (2026-07-22 plan review; citations corrected in-body
+2026-07-22): the package moved from `internal/component/rsvpte/` to
+`internal/plugins/rsvpte/` (the tiers reorg). Every source citation in this
+spec now uses the new path. Line cites re-verified at the new path and still
+hold -- `wire.go` `ClassDetour = 63` `:61`, `CTypeDetourIPv4 = 7` `:78`,
+`FRRFlagOneToOneBackup = 0x01` `:87`; `frr.go` handles the one-to-one flag
+(`:179`, `:201`) with no DETOUR codec, exactly the gap this spec fills.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file
 2. `rfc/short/rfc4090.md` - Fast Reroute extensions (DETOUR object, Section 3.1 one-to-one)
-3. `internal/component/rsvpte/frr.go` - the facility-backup FRR engine this extends (protectionRequest, selectBypass, tryLocalRepair, FAST_REROUTE/SESSION_ATTRIBUTE codecs)
-4. `internal/component/rsvpte/engine.go` - `handlePathTransit` (PLR arming), `handleLinkDown` (local repair), `handleResvTransit` (RRO/label recording)
+3. `internal/plugins/rsvpte/frr.go` - the facility-backup FRR engine this extends (protectionRequest, selectBypass, tryLocalRepair, FAST_REROUTE/SESSION_ATTRIBUTE codecs)
+4. `internal/plugins/rsvpte/engine.go` - `handlePathTransit` (PLR arming), `handleLinkDown` (local repair), `handleResvTransit` (RRO/label recording)
 5. `plan/learned/NNN-mpls-rsvp-te-fast-reroute.md` - what the facility-backup mode does and why one-to-one was split out
 
 ## Task
@@ -41,18 +49,18 @@ per-protected-LSP detour LSP signaling, and detour **merging** (RFC 4090 Section
   → Constraint: the FAST_REROUTE "one-to-one backup desired" flag (0x01) selects this mode; "facility backup desired" (0x02) selects mpls-4's mode
 
 ### Source files (read BEFORE implementing)
-- [ ] `internal/component/rsvpte/frr.go` - facility-backup engine to extend; `protectionRequest.Facility` already distinguishes the modes
-- [ ] `internal/component/rsvpte/wire.go` - object codecs; `ClassDetour`/`CTypeDetourIPv4` constants already declared (mpls-4)
-- [ ] `internal/component/rsvpte/engine.go` - `handlePathTransit` arming, `handleLinkDown` repair, `reroute.go` make-before-break
-- [ ] `internal/component/rsvpte/register.go` - `reconcileTunnels`/`setupBypass`; detour LSPs are signaled similarly but per protected LSP
+- [ ] `internal/plugins/rsvpte/frr.go` - facility-backup engine to extend; `protectionRequest.Facility` already distinguishes the modes
+- [ ] `internal/plugins/rsvpte/wire.go` - object codecs; `ClassDetour`/`CTypeDetourIPv4` constants already declared (mpls-4)
+- [ ] `internal/plugins/rsvpte/engine.go` - `handlePathTransit` arming, `handleLinkDown` repair, `reroute.go` make-before-break
+- [ ] `internal/plugins/rsvpte/register.go` - `reconcileTunnels`/`setupBypass`; detour LSPs are signaled similarly but per protected LSP
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE implementing this spec)
-- [ ] `internal/component/rsvpte/frr.go` - facility-backup engine: `protectionRequest` (`.Facility` distinguishes the modes), `selectBypass`, `tryLocalRepair`, FAST_REROUTE/SESSION_ATTRIBUTE codecs. One-to-one extends this.
-- [ ] `internal/component/rsvpte/wire.go` - `ClassDetour`/`CTypeDetourIPv4` constants are declared but have no codec or caller yet.
-- [ ] `internal/component/rsvpte/engine.go` - `handlePathTransit` (arming), `handleLinkDown` (local repair), `handleResvTransit` (RRO/label recording).
-- [ ] `internal/component/rsvpte/register.go` - `setupBypass`/`reconcileTunnels`; detour LSPs signal similarly but per protected LSP.
+- [ ] `internal/plugins/rsvpte/frr.go` - facility-backup engine: `protectionRequest` (`.Facility` distinguishes the modes), `selectBypass`, `tryLocalRepair`, FAST_REROUTE/SESSION_ATTRIBUTE codecs. One-to-one extends this.
+- [ ] `internal/plugins/rsvpte/wire.go` - `ClassDetour`/`CTypeDetourIPv4` constants are declared but have no codec or caller yet.
+- [ ] `internal/plugins/rsvpte/engine.go` - `handlePathTransit` (arming), `handleLinkDown` (local repair), `handleResvTransit` (RRO/label recording).
+- [ ] `internal/plugins/rsvpte/register.go` - `setupBypass`/`reconcileTunnels`; detour LSPs signal similarly but per protected LSP.
 
 **Behavior to preserve:**
 - Facility backup (mpls-4) stays unchanged: a PATH with the facility flag arms a
@@ -138,13 +146,13 @@ per-protected-LSP detour LSP signaling, and detour **merging** (RFC 4090 Section
 ### Interop Tests
 | Scenario | Directory | Peer | What It Proves | Status |
 |----------|-----------|------|----------------|--------|
-| ze-to-ze one-to-one | `internal/component/rsvpte/interop_test.go` | ze (fabric) | PLR signals a detour, local repair switches to it, head-end re-optimizes | |
+| ze-to-ze one-to-one | `internal/plugins/rsvpte/interop_test.go` | ze (fabric) | PLR signals a detour, local repair switches to it, head-end re-optimizes | |
 
 ## Files to Modify
-- `internal/component/rsvpte/frr.go` - DETOUR codec; detour selection/signaling; merge logic
-- `internal/component/rsvpte/engine.go` - one-to-one arming in `handlePathTransit`; detour switch in `handleLinkDown`
-- `internal/component/rsvpte/register.go` - detour path config (reuse bypass-style ERO or a `detour` list)
-- `internal/component/rsvpte/yang/ze-rsvp-te-conf.yang` - detour path config if not reusing bypass
+- `internal/plugins/rsvpte/frr.go` - DETOUR codec; detour selection/signaling; merge logic
+- `internal/plugins/rsvpte/engine.go` - one-to-one arming in `handlePathTransit`; detour switch in `handleLinkDown`
+- `internal/plugins/rsvpte/register.go` - detour path config (reuse bypass-style ERO or a `detour` list)
+- `internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang` - detour path config if not reusing bypass
 
 ## Files to Create
 - (none expected; extends the mpls-4 `frr.go`)

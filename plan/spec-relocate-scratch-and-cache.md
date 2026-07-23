@@ -8,6 +8,8 @@
 | Phase | 1/6 (implementation) |
 | Updated | 2026-07-18 |
 
+Awaiting closure per ai/rules/planning.md Spec Closure (learned 1173 committed).
+
 > **DESIGN, 2026-07-18.** This spec absorbs the durable-cache work of
 > `spec-fixit-qemu-artifact-cache` (fully researched, status `ready`) and adds a second,
 > parallel relocation of the disposable scratch tree. Both follow one shape: **the real
@@ -152,6 +154,14 @@ kernel materialised view, etc.) resolves through the symlink.
 
 ## Current Behavior (MANDATORY)
 
+**Source files read** (detailed line cites in Required Reading above):
+- [x] `internal/appliance/cache.go`
+- [x] `internal/appliance/cmd_kernel.go`
+- [x] `scripts/evidence/qemu-run.py`
+- [x] `tools/kernel-builder/qemu-build.py`
+- [x] `mk/gokrazy.mk`
+- [x] `Makefile`
+
 **Durable cache already exists and is bypassed by the make path.** `resolveCacheDir()`
 returns `$XDG_CACHE_HOME/ze` or `~/.cache/ze` (`cache.go:47-57`). `ze appliance kernel
 --target runtime` routes the runtime kernel tree through it (`resolveRuntimeKernel`,
@@ -181,11 +191,11 @@ isolation all assume `tmp/` is a real, per-checkout directory. Details in Requir
 
 ## Data Flow
 
-### Entry points
+### Entry Points
 - Any QEMU/Docker target invoking `qemu-run.py`/`docker-run.py`; `make ze-kernel`; any
   `make`/hook/script that first touches `tmp/` or `cache/`.
 
-### Transformation path (target)
+### Transformation Path (target)
 - **Bootstrap chokepoint:** a single "ensure links" step (a make prerequisite + a helper
   invoked by hooks/scripts) resolves `<checkout-id>`, creates `$TMPDIR/ze/<id>` and
   `~/.cache/ze` if absent, and creates the repo `tmp`/`cache` symlinks if absent. It runs
@@ -196,7 +206,7 @@ isolation all assume `tmp/` is a real, per-checkout directory. Details in Requir
 - **ISO:** one keyed, verified helper shared by both producers; one `ALPINE_VERSION`.
 - **Eviction:** on a resolved key change, keep-N=2 keyed entries, timer-free.
 
-### Boundaries crossed
+### Boundaries Crossed
 | Boundary | Crossing | Divergence consequence |
 |----------|----------|------------------------|
 | Scratch symlink -> `$TMPDIR` | repo `tmp` resolves outside the checkout | container mounts dangle unless guest-local scratch is used (D-5) |
@@ -204,6 +214,13 @@ isolation all assume `tmp/` is a real, per-checkout directory. Details in Requir
 | Durable cache -> concurrent worktrees | one shared `~/.cache/ze` across N trees | eviction must never race a live boot (AC-8) |
 | Kernel build -> ~20 consumers | spellings preserved (D-9) | moving any breaks labs/`.ci`/docs |
 | Tracked sentinel vs symlink | git cannot hold both | must untrack + regenerate (AC-11) |
+
+### Integration Points
+(as landed; see `plan/learned/1173-relocate-scratch-and-cache.md`)
+- `scripts/dev/ensure-links.py` - the bootstrap chokepoint: creates the repo `cache` symlink, maintains the `tmp/go.mod` sentinel (`ensure_sentinel`), performs the opt-in `make ze-migrate-scratch` cutover, skips (never clobbers) an existing real dir
+- `mk/gokrazy.mk` `ze-kernel` - asks a HOST `ze-host` binary for the arch+config-keyed cache dir via `ze appliance kernel --print-cache-dir` (key from `kernelCacheVariantFor`), materializes on HIT, builds + populates on MISS, calls `--evict-cache`
+- `scripts/evidence/alpine_iso.py` - shared `.sha256`-verified ISO module imported by both `qemu-run.py` and `qemu-build.py` (one `ALPINE_VERSION`)
+- `evictKeepN` (`internal/appliance/cache.go`) - keep-N=2, key-change-only eviction with an `evictGrace` window (AC-8/R-1)
 
 ## Wiring Test
 
@@ -220,7 +237,22 @@ is that the QEMU/Docker suites still run and the unit tests below.
 | `make ze-qemu-l2tp-ppp-test` with no kernel | -> | `test -f tmp/kernel/vmlinuz` guard fails loudly | `test_missing_kernel_fails_loudly` |
 | `go list ./...` on the relocated tree | -> | Go skips the caches (sentinel or symlink-skip) | `test_go_list_skips_caches` (AC-11) |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
+
+### Unit Tests
+As landed (fresh evidence in Pre-Commit Verification below):
+| Test | File | Validates |
+|------|------|-----------|
+| `TestEvictKeepN` | `internal/appliance/cache_test.go:71` | keep-N=2 eviction + grace window (Pre-Commit AC-4 row: `go test ./internal/appliance -run Evict` PASS) |
+| `TestEvictKeepNStagingDirs` | `internal/appliance/cache_test.go:174` | eviction handling of staging dirs |
+| `TestEvictKeepNReapsStagingBelowKeepN` | `internal/appliance/cache_test.go:223` | staging entries below keep-N are reaped |
+| `TestQemuRunSelftest` | `scripts/evidence/qemu_run_test.go:27` | `qemu-run.py --selftest` (ISO-keyed extract) stays green (Pre-Commit AC-3 row) |
+
+### Functional Tests
+Not applicable as new `.ci` tests: the change surface is build/test infrastructure. The
+existing QEMU/Docker suites are the functional proof (AC-7); a cached-kernel QEMU boot was
+verified (`Linux localhost 7.1.1 ... aarch64` + `BOOT_OK_MARKER`, exit 0 — Pre-Commit
+Verification AC-7 row).
 
 ### Unit / harness tests
 | Test | File | Validates |
@@ -284,6 +316,16 @@ the relocation (AC-7). Precedent for `XDG_CACHE_HOME` redirection:
       qemu-integration.md`, `.claude/rules/{post-compaction,session-start,planning}.md`,
       and the `ai/` sources that generate `CLAUDE.md`/`AGENTS.md`.
 - [ ] `plan/learned/988-kernel-build-consolidation.md` - additive correction pointer (D-6).
+
+## Implementation Steps
+
+Executed per the Implementation Phases below (bootstrap + scratch symlink; the corrected
+no-`.zcache` decision; Option C cache routing; ISO unification + verification; keep-N
+eviction; docs/988 pointer). Outcomes with fresh evidence are recorded in Pre-Commit
+Verification; decisions, gotchas, and the deferred `vendor/`+`modcache` unification are
+recorded in `plan/learned/1173-relocate-scratch-and-cache.md`. Recorded deviations
+(AC-12 opt-in migration, full-verify and `/ze-review` deferrals) are in the Pre-Commit
+Verification "Deferred" table.
 
 ## Implementation Phases
 
@@ -432,6 +474,21 @@ _To be filled by `/ze-review` at implementation. Loop to 0 BLOCKER / 0 ISSUE._
 | AC-12 auto-symlink on fresh checkout | DEVIATION: opt-in `make ze-migrate-scratch` (D-10 safety); the `cache` symlink IS auto-created |
 | Full `make ze-verify` | exceeds 10-min budget; RED pre-existing 2026-07-17 (committed `--unverified`, user-authorized) |
 | `/ze-review` independent gate | deferred (`--review-override`, user-authorized) |
+
+## Checklist
+
+(as-landed record; see Pre-Commit Verification for the fresh evidence)
+
+### Goal Gates
+- [x] ACs verified per Pre-Commit Verification "AC Verified" (AC-1, AC-3, AC-4, AC-5, AC-7, AC-9, AC-10, AC-11)
+- [ ] AC-12 auto-symlink on fresh checkout: DEVIATION — opt-in `make ze-migrate-scratch` instead (D-10 safety; the `cache` symlink IS auto-created; recorded in "Deferred")
+- [ ] `/ze-review` independent gate: deferred (`--review-override`, user-authorized; recorded in "Deferred")
+
+### TDD
+- [x] Tests written (eviction tests in `internal/appliance/cache_test.go`; `TestQemuRunSelftest` harness test; throwaway-repo tests for `ensure-links.py` create/skip/migrate/per-checkout)
+- [ ] Tests FAIL first: not separately recorded for this build-infra work
+- [x] Tests PASS (`go test ./internal/appliance -run Evict` -> PASS; `qemu-run.py --selftest` -> OK; `make ze-lint-changed` -> 0 issues)
+- [ ] `make ze-test` full run: not run; full `make ze-verify` deferred (exceeds budget; RED pre-existing 2026-07-17, committed `--unverified`, user-authorized; recorded in "Deferred")
 
 ## Supersession
 `spec-fixit-qemu-artifact-cache` is superseded by this spec: its durable-cache research and

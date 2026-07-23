@@ -7,6 +7,16 @@
 | Phase | - |
 | Updated | 2026-07-17 |
 
+Update (2026-07-22 plan review): the Phase 3-4 sequencing gate has mostly
+cleared -- three of the four named in-flight specs LANDED
+(fixit-as4path-missing-on-rewrite learned 1238, fixit-tombstone-ebgp-transitive
+learned 1239, parent fixit-private-asn-leak learned 1231). Only
+`spec-perf-next-1-ebgp-wire-lockfree` remains open, and that one is itself
+complete-in-code awaiting closure (learned 900), so the prepend half is
+effectively unblocked. The Phase 1-2 LOCAL_PREF half is un-landed and
+implementable now (`test/plugin/ebgp-localpref-egress-strip.ci` absent, no
+`auto:ebgp-*` reserved names in `internal/`).
+
 > **Readiness pass 2026-07-17:** design filled from skeleton; every placeholder replaced,
 > and R-2/R-3/R-4 + the FilterRef-marker open question resolved append-only (see
 > "### Resolutions (readiness pass)" under Risks & Assumptions). ~~Status stays `skeleton`

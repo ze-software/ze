@@ -7,6 +7,18 @@
 | Phase | - |
 | Updated | 2026-07-16 |
 
+Correction (2026-07-22 plan review): the BLOCKED note's reason #2 below (the
+Depends spec is "superseded" by a Phase-B pre-policy store that "probably
+dissolves this spec") is STALE -- both cited dependencies withdrew that
+premise on the same day it was written:
+`spec-bgp-peer-settings-reload-ignored.md` D-1b says "No new store anywhere"
+and D-4 is "WITHDRAWN 2026-07-16. It is NOT superseded";
+`spec-bgp-filtered-route-storage` now explicitly rejects any pre-policy
+store. The spec REMAINS legitimately blocked, but on reason #1 alone (A-4:
+the tally drifts under implicit withdraw -- `session_prefix.go:179`
+`prefixCounts` holds no per-prefix identity and `:196` `add()` does an
+unconditional `+= delta`).
+
 ## BLOCKED: do not implement as currently written
 
 An implementation attempt on 2026-07-16 stopped during the pre-code audit. Two

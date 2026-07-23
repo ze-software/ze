@@ -99,6 +99,13 @@ itself be subject to best-path selection.
 | RIB best-path -> Loc-RIB | InsertForward in checkBestPathChange | [ ] |
 | Loc-RIB -> NH resolver | LPM lookup for SID covering route | [ ] |
 
+### Integration Points
+- `gatherCandidatesLocked` (`internal/component/bgp/plugins/rib/bestpath.go`) - candidate filtering; where the resolvability check would be added (already calls `IsSRv6Ineligible`)
+- `IsSRv6Ineligible` (`internal/component/bgp/plugins/rib/rib_bestchange.go`) - existing SRv6 eligibility gate the new check extends
+- `srv6SIDResolvable` / `selectBest` (`internal/plugins/sysrib/sysrib.go`) - current post-best-path enforcement, preserved as defense in depth
+- Loc-RIB LPM lookup (`internal/core/rib/locrib/locrib.go`) - the resolvability query target (source of the circular dependency)
+- NH resolver Track/Resolve - existing re-evaluation trigger candidate for approach 2
+
 ### Architectural Verification
 - [ ] No bypassed layers
 - [ ] No unintended coupling (circular dependency is the core challenge)
@@ -119,12 +126,15 @@ itself be subject to best-path selection.
 | AC-2 | Route with valid SRv6 SID, SID becomes resolvable | Route re-evaluated and selected if best |
 | AC-3 | Route without SRv6 SID | No change in behavior |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
+<!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (fill during design) | | | |
+| `TestBestPathSkipsUnresolvableSRv6SID` | `internal/component/bgp/plugins/rib/bestpath_test.go` | AC-1: route with unresolvable SID excluded from candidates | planned |
+| `TestBestPathReevaluatesOnSIDResolvable` | `internal/component/bgp/plugins/rib/bestpath_test.go` | AC-2: route re-evaluated and selected once SID resolvable | planned |
+| `TestBestPathNonSRv6RouteUnaffected` | `internal/component/bgp/plugins/rib/bestpath_test.go` | AC-3: route without SRv6 SID sees no behavior change | planned |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -132,9 +142,11 @@ itself be subject to best-path selection.
 | N/A | | | | |
 
 ### Functional Tests
+<!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| (fill during design) | | | |
+| `srv6-bestpath-unresolvable` | `test/plugin/srv6-bestpath-unresolvable.ci` | AC-1: route with unresolvable SRv6 SID is not selected best / not advertised | planned |
+| `srv6-bestpath-resolvable` | `test/plugin/srv6-bestpath-resolvable.ci` | AC-2: SID's covering route appears, route re-evaluated and advertised | planned |
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

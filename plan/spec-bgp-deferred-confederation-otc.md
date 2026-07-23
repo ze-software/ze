@@ -44,7 +44,7 @@ RFC 9234 also records that Role negotiation and OTC procedures are NOT RECOMMEND
 between autonomous systems in an AS Confederation, so the design must first settle
 whether ze supports the combination at all, or rejects it at config validation.
 
-**Prerequisite bug found while verifying (2026-07-16).** The OTC egress stamp is
+~~**Prerequisite bug found while verifying (2026-07-16).** The OTC egress stamp is
 inert today, independent of confederations: `extractLocalASN` reads the key
 `local-as` from the BGP config subtree (`internal/component/bgp/plugins/role/config.go:236`),
 but the config tree carries the global local AS at `bgp/session/asn/local`, as the
@@ -52,7 +52,15 @@ reactor's own reader shows (`internal/component/bgp/reactor/config.go:479-486`).
 `getLocalASN` (`internal/component/bgp/plugins/role/role.go:66`) therefore returns
 0 in production, and the stamp is skipped by the `localASN > 0` guard
 (`internal/component/bgp/plugins/role/otc.go:429-436`). Fix that separately, before
-any confederation work: this spec's whole subject is which ASN gets stamped.
+any confederation work: this spec's whole subject is which ASN gets stamped.~~
+
+(Superseded 2026-07-22 plan review: the prerequisite bug is FIXED --
+`spec-fixit-local-asn-config-key` deleted the `extractLocalASN`/`local-as`
+reader; the OTC stamp now reads `dest.LocalAS` (`otc.go:432`) and the
+`localASN > 0` guard is live. The related A-3 assumption row and the
+"Phase: Prerequisite" implementation step below are obsolete with it. The
+spec's main premise -- ze is single-AS, so RFC 9234 Section 5 confederation
+handling is a large open design question -- is unaffected.)
 
 ## Required Reading
 

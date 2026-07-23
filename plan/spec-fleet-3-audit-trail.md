@@ -222,3 +222,8 @@ investigating "who changed edge-42's config at 3am?" has no answer.
 - [ ] No premature abstraction
 - [ ] No speculative features
 - [ ] Single responsibility per component
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

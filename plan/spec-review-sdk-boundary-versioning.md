@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-unify-startup (two Stage-1 handshake sites share the version check) |
+| Depends | spec-unify-startup (two Stage-1 handshake sites share the version check; closed, learned 1083) |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `DESIGN-REVIEW.md` finding 7 ("The public SDK boundary is not real") and its verification notes
+3. ~~`DESIGN-REVIEW.md` finding 7 ("The public SDK boundary is not real") and its verification notes~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec. Both defects re-verified still open 2026-07-22: `*selector.Selector` leaks at `bridge.go:294,303` and `sdk_engine.go:26,31`; no `ProtocolVersion` anywhere in `pkg/plugin/`)
 4. `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk.go`, `pkg/plugin/rpc/bridge.go`,
    `pkg/plugin/sdk/sdk_engine.go`, `internal/component/plugin/server/{startup,subsystem}.go`
 

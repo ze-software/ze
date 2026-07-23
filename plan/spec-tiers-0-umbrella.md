@@ -4,8 +4,16 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4/6 (Phase 1 rule+gate done; Phase 2 edge-out done; Phase 3 platform-in done; Phase 4 ospf-in + ike decision IN PROGRESS; tiers-5 Path B accepted in full) |
-| Updated | 2026-06-24 |
+| Phase | 4/6 |
+| Updated | 2026-07-22 |
+
+Phase note (cell corrected 2026-07-22; the old "Phase 4 IN PROGRESS" contradicted
+the body): Phases 1-4 are COMPLETE -- the body records Phase 4 complete
+2026-06-24 with both items resolved and tiers-5 B-1 DONE; the repo confirms the
+end-state (isis/ldp/rsvpte/flowexport/mrt under `internal/plugins/`,
+sysrib/bfd/sysctl under `internal/component/`, `internal/plugins/ospf/v3/`
+nested, and `scripts/dev/tier_migration_baseline.txt` empty = zero-exception
+enforcement). Remaining: tiers-5 Path B preconditions (B-2/B-3/config split).
 
 ## Post-Compaction Recovery
 
@@ -74,20 +82,39 @@ plugins will depend on, it is a `component`. If it is an engine nothing depends 
 it is an edge `plugin`. If it is a non-engine library, it is `core`. The placement
 audit (below) enforces this on every verification run.
 
+## Required Reading
+
+### Architecture Docs
+- [ ] `.claude/rules/planning.md` - workflow rules for umbrella + child specs
+  -> Constraint: one spec at a time per session; children close via the two-commit rule.
+- [ ] `ai/rules/plugin-self-containment.md` - the "delete the folder" invariant this umbrella generalizes
+  -> Constraint: removing a plugin folder plus its blank import must leave every other plugin and the core working; tier moves must preserve that property.
+- [ ] `ai/rules/plugin-design.md` - registration patterns, Proximity Principle
+  -> Constraint: both tiers register through the same registry; the tier is decided by dependency direction, not by capability difference.
+- [ ] `~/.claude/rules/rule-placement.md` (global) + `ai/rules/canonical-sources.md` - where the new rule doc must live
+  -> Decision: the taxonomy is project-wide agent behavior, so the rule lands in `ai/rules/module-tiers.md` (shared), never in a tool-specific home.
+- [ ] `scripts/dev/dep_audit.py` - the reverse-dependency tool that becomes the placement gate
+  -> Constraint: the gate reuses this tool's import-graph walk; no second graph walker is written.
+- [ ] `scripts/codegen/plugin_imports.go` - hardcoded `pluginDirs`/`rpcRoot` encode the current split
+  -> Constraint: every move must update these lists and re-run the generator; `all.go` is generated, never hand-edited.
+
+**Key insights:**
+- The component/plugin boundary is not a capability difference; the enforceable distinction is dependency direction, read off the import graph (see Design Insights).
+
 ## Current Behavior (MANDATORY)
 
 **Source files read (this session):**
-- `internal/component/isis/register.go` - registers via `registry.Registration` + `sdk.NewWithConn("isis")` + `registry.RunEngine`; `ConfigRoots: ["isis"]`. Config-driven plugin engine.
+- [ ] `internal/component/isis/register.go` - registers via `registry.Registration` + `sdk.NewWithConn("isis")` + `registry.RunEngine`; `ConfigRoots: ["isis"]`. Config-driven plugin engine.
   -> Constraint: IS-IS is mechanically already a plugin; only blank-import references exist.
-- `internal/component/plugin/all/all.go` - generated composition root; blank-imports every plugin (isis x3, ldp, rsvpte, flowexport, mpls).
+- [ ] `internal/component/plugin/all/all.go` - generated composition root; blank-imports every plugin (isis x3, ldp, rsvpte, flowexport, mpls).
   -> Constraint: moves MUST regenerate this file via the generator, not by hand.
-- `scripts/codegen/plugin_imports.go` - hardcoded `pluginDirs` (lines 122-133) lists `internal/component/{flowexport,iface,ldp,rsvpte,traffic,vpp}` + `internal/plugins`; `rpcRoot = "internal/component"`.
+- [ ] `scripts/codegen/plugin_imports.go` - hardcoded `pluginDirs` (lines 122-133) lists `internal/component/{flowexport,iface,ldp,rsvpte,traffic,vpp}` + `internal/plugins`; `rpcRoot = "internal/component"`.
   -> Constraint: the component/plugins split is encoded in the generator. Every move MUST update `pluginDirs`/`rpcRoot` and re-run the generator. IS-IS is discovered via the event-namespace/RPC/yang scanners, NOT `pluginDirs`.
-- `docs/plugin-overview.md` - already states IS-IS, LDP, RSVP-TE, flow-export "register through the same plugin registry."
+- [ ] `docs/plugin-overview.md` - already states IS-IS, LDP, RSVP-TE, flow-export "register through the same plugin registry."
   -> Constraint: docs already half-acknowledge these are plugins; the rule formalizes it.
-- `internal/core/` - leaf library tier; imports nothing from `internal/component/` except a handful of registry shims (diagnostic, ipc/yang, resolve).
+- [ ] `internal/core/` - leaf library tier; imports nothing from `internal/component/` except a handful of registry shims (diagnostic, ipc/yang, resolve).
   -> Constraint: moving infra INTO core requires the moved code to be leaf. config is NOT leaf (below), so config cannot move to core as-is.
-- `internal/component/config` import set - imports bgp, isis, iface, cli, web, mcp, host, hub, telemetry, ... (the components it wires).
+- [ ] `internal/component/config` import set - imports bgp, isis, iface, cli, web, mcp, host, hub, telemetry, ... (the components it wires).
   -> Constraint: config is a top-level orchestrator, not leaf infra. The infra->core phase must first separate config's leaf primitives from its component-wiring orchestration, or it will create import cycles.
 
 **Behavior to preserve:**
@@ -450,7 +477,7 @@ Umbrella-level wiring is the audit gate itself; per-move wiring lives in child s
 | AC-7 | Generator after each move | `scripts/codegen/plugin_imports.go --check` passes; `pluginDirs`/`rpcRoot` reflect new locations |
 | AC-8 | New engine package created in the wrong tier (regression) | The audit gate fails CI, pointing the author to the rule doc |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -616,3 +643,11 @@ on. The audit reads this straight off the import graph.
 - [ ] `make ze-test` passes
 - [ ] Documentation Update Checklist answered with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken
+
+### TDD
+<!-- Umbrella: the executable tests live in the child specs (tiers-1..5); these
+     items are satisfied per child, with output pasted in the child spec. -->
+- [ ] Tests written (per child: `TestEnginePlacement`, `dep_audit.py --selftest`, `plugin_imports_test.go` extensions)
+- [ ] Tests FAIL (per child -- paste output in the child spec before the gate/tool lands)
+- [ ] Tests PASS (per child -- paste output in the child spec)
+- [ ] Functional tests for end-to-end behavior (relocated-plugin-loads `.ci` + `bin/ze --plugins` inventory diff, per child)

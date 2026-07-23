@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-vpp-isolated-cpus, spec-vpp-host-tuning |
+| Depends | spec-vpp-isolated-cpus, spec-vpp-host-tuning (closed, learned 1105) |
 | Phase | - |
 | Updated | 2026-07-10 |
 

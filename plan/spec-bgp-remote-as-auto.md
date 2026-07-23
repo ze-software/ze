@@ -7,6 +7,12 @@
 | Phase | - |
 | Updated | 2026-07-04 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged): resolver anchors
+had drifted; citations below updated in-body -- `resolveDynamicPeerSettings`
+`reactor_dynamic.go:303` with `PeerAS = remoteAS` at `:347`; `PeerAS: 0` at
+`:117`. The config gate (`config.go:64`) and `leaf remote`
+(`ze-bgp-conf.yang:451`, no `auto`) still hold.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -52,7 +58,7 @@ can be brought up without pinning its AS in advance.
 
 **Source files read:**
 - [ ] `internal/component/bgp/reactor/config.go` - static-peer load rejects a missing remote AS: `if peerAS == 0 { return ...missing required session > asn > remote }` (config.go:63-65). This is the exact gate `auto` must relax.
-- [ ] `internal/component/bgp/reactor/reactor_dynamic.go` - dynamic peers set `PeerAS: 0, // Learned from OPEN` (reactor_dynamic.go:116) and `resolveDynamicPeerSettings` sets `p.settings.PeerAS = remoteAS` from `open.ASN4`/`open.MyAS` (reactor_dynamic.go:311-315). This is the reusable resolver.
+- [ ] `internal/component/bgp/reactor/reactor_dynamic.go` - dynamic peers set `PeerAS: 0, // Learned from OPEN` (reactor_dynamic.go:117) and `resolveDynamicPeerSettings` (reactor_dynamic.go:303) sets `p.settings.PeerAS = remoteAS` from `open.ASN4`/`open.MyAS` (reactor_dynamic.go:347). This is the reusable resolver.
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - `leaf remote { type zt:asn; }` under `session > asn` (ze-bgp-conf.yang:450-454); not `mandatory` in YANG, so the requirement lives only in Go.
 
 **Behavior to preserve:**
@@ -99,7 +105,7 @@ can be brought up without pinning its AS in advance.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The dynamic resolver can be reused for statically-addressed peers | reactor_dynamic.go:311-315 | need a separate learn path | trace the resolver's inputs during audit | unvalidated |
+| A-1 | The dynamic resolver can be reused for statically-addressed peers | reactor_dynamic.go:303,347 | need a separate learn path | trace the resolver's inputs during audit | unvalidated |
 | A-2 | The remote-as leaf can carry a mode token without breaking the numeric type | ze-bgp-conf.yang:450-454 | needs a separate mode leaf | prototype the union/enum in YANG | unvalidated |
 | A-3 | Nothing downstream reads PeerAS before the OPEN is processed | config.go static path sets it early today | early readers see 0 | grep PeerAS readers on the connect path | unvalidated |
 

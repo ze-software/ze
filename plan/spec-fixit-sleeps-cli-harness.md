@@ -7,6 +7,17 @@
 | Phase | 0/N (research) |
 | Updated | 2026-07-17 |
 
+Update (2026-07-22 plan review; body corrected in-body 2026-07-22): (a) the
+sibling this spec recorded as "BLOCKED ... design, NOT approved" --
+`spec-fixit-static-interface-nexthops` -- has LANDED (learned 1185, the "make
+interface next-hops work" branch), so `005` is unblocked rather than needing
+a rewrite; every in-body "005 is blocked" claim is now struck through with a
+note (Related Specs, Problem A, AC-3, R-4/R-8, Open Questions, Autonomous
+Resolutions, Future); (b) the sleep ratchet baseline is now **125**
+(`test/.ci-sleep-baseline`, composable-delta format), not the 132/132->129
+originally cited; every in-body occurrence is annotated with the current
+value (forward-looking arithmetic: 3 conversions take 125 -> 122).
+
 ## Task
 
 Two buckets of `.ci` sleeps are blocked on missing test harness or support, not on
@@ -55,12 +66,12 @@ attempting the conversion. Skeleton written 2026-07-15 alongside `spec-fixit-sle
 - [ ] `internal/test/cli/register.go:33` (`registerCIRoot("static", ...)`) and `:47` (`registerRoot("vpp", cmdVpp, ...)`).
   → Constraint: both suites are host-runnable and neither appears in `scripts/evidence/qemu-all-tests.sh`, so QEMU never runs them. This spec's work is verifiable natively, unlike its sibling.
 - [ ] `test/vpp/007-fib-route-lookup.ci:51` - the only blind sleep in the vpp bucket: `time.sleep(2.0)` with "Give the VPP backend a moment to acquire its channel", right after `api.wait_for_post_startup(timeout=10.0)` (:48).
-- [ ] `scripts/dev/verify_wiring_docs.py:196` (`check_ci_sleep_ratchet`), `:258` (`check_ci_sleep_justification`), and `test/.ci-sleep-baseline` (currently `132`).
-  → Constraint: the baseline is tight (the tree contains exactly 132). Converting the 3 blind sleeps here takes it to 129, in the same change.
+- [ ] `scripts/dev/verify_wiring_docs.py:196` (`check_ci_sleep_ratchet`), `:258` (`check_ci_sleep_justification`), and `test/.ci-sleep-baseline` (cited `132`; now `125`, composable-delta sum, 2026-07-22).
+  → Constraint: the baseline is tight (the tree contained exactly 132 when written). Converting the 3 blind sleeps here takes it down by 3, in the same change (132 -> 129 as cited; from the current 125 that is 125 -> 122, 2026-07-22).
 
 ### Related Specs
 - [ ] `plan/spec-fixit-static-interface-nexthops.md` - the sibling skeleton owning `005`'s interface-only next-hop dependency.
-  → Constraint: `005` is blocked on its outcome. Its A-4 asks whether interface-only next-hops should be supported at all or rejected at config-verify; the second answer makes `005`'s config invalid and turns 005 into a rewrite rather than a harness transplant.
+  → Constraint: ~~`005` is blocked on its outcome.~~ (2026-07-22: the sibling LANDED as "make them work" -- learned 1185; `005` is UNBLOCKED and needs only the harness transplant.) Its A-4 asked whether interface-only next-hops should be supported at all or rejected at config-verify; it resolved as "supported", so `005`'s config is valid.
 
 ### Architecture Docs
 - [ ] `docs/architecture/testing/ci-format.md` - the `.ci` directive catalog; where an SSH show-CLI harness pattern would be documented for reuse.
@@ -129,14 +140,17 @@ lowers the baseline by 2.
 **Interface next-hops (CONFIRMED):** `005:70` does use an interface-only next-hop
 (`next { interface tun100 { } }`), so the dependency is real, and it is tracked by the
 sibling skeleton `plan/spec-fixit-static-interface-nexthops.md` (Status: skeleton,
-Depends: -). That spec's Task states the interface-only next-hop fails to program on BOTH
+Depends: - at the time; that spec has since landed and closed, learned 1185, 2026-07-22). That spec's Task states the interface-only next-hop fails to program on BOTH
 data-plane backends, and it reads `test/static/005-table-interface.ci:53-73` (its :78-80) as
 the config that surfaced the problem. Its A-4 even questions whether interface-only next-hops
 should be supported at all rather than rejected at config-verify.
 
-→ Constraint: 005 is blocked on that spec's outcome, and the outcome is not yet decided. If it
+→ Constraint: ~~005 is blocked on that spec's outcome, and the outcome is not yet decided.~~
+(2026-07-22: the sibling LANDED -- learned 1185 -- resolving as "make interface-only
+next-hops work", NOT config-verify rejection. 005's config is VALID and 005 is UNBLOCKED;
+it needs the SSH harness transplant only.) ~~If it
 resolves as "reject at config-verify with a clear message", 005's config is INVALID and the
-test needs rewriting, not just a harness. Do not assume 005 only needs SSH.
+test needs rewriting, not just a harness. Do not assume 005 only needs SSH.~~
 
 (Timing note: that file did not exist when this spec's citations were first checked and was
 created minutes later by a concurrent session. Anything asserted here about sibling specs is
@@ -179,8 +193,9 @@ override if wrong.
 ### Ratchet impact (CONFIRMED)
 
 Total blind sleeps in scope: **3** (`static/004:22`, `static/005:24`, `vpp/007:51`).
-`test/.ci-sleep-baseline` is `132` and the tree contains exactly 132, so full success here
-takes it to **129**. The harness work is large; the ratchet credit is small. That asymmetry
+`test/.ci-sleep-baseline` was `132` when written and the tree contained exactly 132, so full
+success here was cited as taking it to **129** (baseline now **125**, 2026-07-22, so full
+success takes it 125 -> **122**). The harness work is large; the ratchet credit is small. That asymmetry
 is the point of the group rationale, and it should be stated plainly rather than discovered
 mid-implementation.
 
@@ -238,7 +253,7 @@ of the spec.
 | driver waits for the CLI to answer | -> | deterministic wait replacing the blind settle | `test/static/004-show.ci`, `test/static/005-table-interface.ci` |
 | `show route lookup` through the vpp backend | -> | vpp channel-acquired signal replacing the blind 2.0s hold | `test/vpp/007-fib-route-lookup.ci` |
 | SSH show-CLI harness pattern is discoverable | -> | `docs/architecture/testing/ci-format.md` | `test/firewall/004-cli-show.ci` (the reference it documents) |
-| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py:196`) | `test/.ci-sleep-baseline` lowered to 129; `make ze-verify-changed` green |
+| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py:196`) | `test/.ci-sleep-baseline` lowered to 129 (from the current 125: to 122, 2026-07-22); `make ze-verify-changed` green |
 
 ## Acceptance Criteria
 
@@ -246,11 +261,11 @@ of the spec.
 |-------|-------------------|-------------------|
 | AC-1 | `bin/ze-test static` run before any change | The current pass/fail state of `004-show.ci` and `005-table-interface.ci` is recorded. If red, this is a test-repair spec first and a sleep spec second |
 | AC-2 | `test/static/004-show.ci` after the harness lands | Declares an SSH server and a user, provisions client credentials via `ze init` into a sandbox `ze.config.dir`, and `ze cli -c "show static"` returns the JSON its existing `expect=` directives assert (exit 0, `"prefix"`, `"weight"`, `0.0.0.0/0`, `192.0.2.0/24`, `blackhole`) |
-| AC-3 | `test/static/005-table-interface.ci` after the harness lands | Same harness; its existing assertions (`10.0.0.0/8`, `0.0.0.0/0`, `"table"`, the two stderr lines) pass, OR the interface-next-hop dependency is confirmed blocking and 005 is deferred against `plan/spec-fixit-static-interface-nexthops.md` with the blocking relationship recorded in both specs |
+| AC-3 | `test/static/005-table-interface.ci` after the harness lands | Same harness; its existing assertions (`10.0.0.0/8`, `0.0.0.0/0`, `"table"`, the two stderr lines) pass~~, OR the interface-next-hop dependency is confirmed blocking and 005 is deferred against `plan/spec-fixit-static-interface-nexthops.md` with the blocking relationship recorded in both specs~~ (2026-07-22: the sibling LANDED, learned 1185; the deferral branch is retired -- 005 is unblocked) |
 | AC-4 | The blind settle at `004:22` and `005:24` | Replaced by a deterministic wait on a real post-apply signal. The bounded CLI retry loop is not a substitute: research must decide whether it already suffices once the CLI can connect, in which case the settle is simply deleted |
 | AC-5 | `test/vpp/007-fib-route-lookup.ci` | The "lookup-test: no peers match selector" blocker is root-caused and fixed, then the blind `time.sleep(2.0)` (:51) is replaced by a wait on the vpp backend's channel-acquired state |
 | AC-6 | `test/vpp/005-mpls-push.ci`, `test/vpp/006-iface-create.ci` | Their blockers are either fixed or explicitly re-scoped out. Neither contains a blind sleep, so neither changes the ratchet; no bounded poll in them is converted |
-| AC-7 | Any commit that removes sleeps | `test/.ci-sleep-baseline` lowered by exactly the number removed, same change (132 -> 129 if all three land) |
+| AC-7 | Any commit that removes sleeps | `test/.ci-sleep-baseline` lowered by exactly the number removed, same change (132 -> 129 as cited; from the current 125 baseline: 125 -> 122 if all three land, 2026-07-22) |
 | AC-8 | Every sleep left in a touched `.ci` file | Still carries a justifying comment; `check_ci_sleep_justification` green on the changed files |
 | AC-9 | The SSH show-CLI harness | Documented so the next test needing a show-CLI assertion finds the pattern instead of rediscovering it (`ai/rules/discovery-updates.md`) |
 | AC-10 | Full suite after the changes | `bin/ze-test static` and `bin/ze-test vpp` green; `test/firewall/004-cli-show.ci` (the reference) still green |
@@ -270,11 +285,11 @@ of the spec.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Large harness effort for 3 sleeps of ratchet credit | noticing mid-implementation that 132 -> 129 is the entire numeric payoff | stated up front in Problem / Evidence; the real value is the tests actually testing `show static`, not the ratchet. Judge the spec on that |
+| R-1 | Large harness effort for 3 sleeps of ratchet credit | noticing mid-implementation that 132 -> 129 (now 125 -> 122, 2026-07-22) is the entire numeric payoff | stated up front in Problem / Evidence; the real value is the tests actually testing `show static`, not the ratchet. Judge the spec on that |
 | R-2 | The static tests are red today and the "conversion" silently becomes a repair | AC-1 comes back red | AC-1 is the first action; re-scope openly rather than folding a repair into a migration |
 | R-3 | An SSH-enabled static test locks itself out or hangs (the `firewall/004` loopback trap, :102-111) | the CLI times out with no error | copy the `allow-loopback` reasoning; static declares no firewall, so the trap likely does not apply, but confirm rather than assume |
-| R-4 | `005`'s interface-next-hop dependency blocks it regardless of the harness | 005 red while 004 green after the same change | split: land 004 alone, defer 005 against `plan/spec-fixit-static-interface-nexthops.md` |
-| R-8 | `spec-fixit-static-interface-nexthops` resolves as "reject interface-only next-hops at config-verify" (its A-4) | that spec's design decision lands against the feature | 005's config becomes invalid and the test needs rewriting, not a harness; watch that spec before investing in 005 |
+| R-4 | ~~`005`'s interface-next-hop dependency blocks it regardless of the harness~~ (RETIRED 2026-07-22: the sibling landed, learned 1185; the dependency is satisfied) | ~~005 red while 004 green after the same change~~ | ~~split: land 004 alone, defer 005 against `plan/spec-fixit-static-interface-nexthops.md`~~ |
+| R-8 | ~~`spec-fixit-static-interface-nexthops` resolves as "reject interface-only next-hops at config-verify" (its A-4)~~ (RETIRED 2026-07-22: it landed as "make them work", learned 1185; 005's config is valid) | ~~that spec's design decision lands against the feature~~ | ~~005's config becomes invalid and the test needs rewriting, not a harness; watch that spec before investing in 005~~ |
 | R-5 | Fixing the vpp blockers balloons into vpp feature work | 005/006 need a kernel interface or test-data plumbing | AC-6 allows explicit re-scope; neither has a sleep, so neither is load-bearing for this spec |
 | R-6 | Converting a bounded poll for ratchet credit | the diff touches sleeps whose comments say "bounded wait" | AC-6/AC-8; only 3 sleeps in this spec are legitimate targets |
 | R-7 | Touching a `.ci` makes the session own every sleep in it | the justification gate fails on neighbours | expected; justify or convert them in the same change |
@@ -294,7 +309,7 @@ Unit tests apply only where research adds Go-side support.
 | Field | Range | Notes |
 |-------|-------|-------|
 | any new wait timeout | bounded, > 0 | times out naming the awaited signal |
-| `test/.ci-sleep-baseline` | non-negative integer, monotonically decreasing | 132 -> 129 if all three conversions land |
+| `test/.ci-sleep-baseline` | non-negative integer, monotonically decreasing | 132 -> 129 as cited (now 125 -> 122 if all three conversions land, 2026-07-22) |
 | SSH port in the test config | fixed 2222 per the reference, or dynamic | depends on A-3 (netns isolation) |
 
 ### Functional Tests
@@ -312,7 +327,7 @@ Unit tests apply only where research adds Go-side support.
 | N/A | test harness work; no wire-protocol behavior changes |
 
 ### Future (if deferring any tests)
-- `005-table-interface.ci` may defer behind the interface-next-hop work if R-4 materializes; it needs a real spec file to defer against.
+- ~~`005-table-interface.ci` may defer behind the interface-next-hop work if R-4 materializes; it needs a real spec file to defer against.~~ (RETIRED 2026-07-22: the interface-next-hop work landed, learned 1185; no deferral path remains.)
 - The vpp 005/006 blockers may split into a vpp-harness spec, since neither carries a sleep.
 
 ## Files to Modify
@@ -323,7 +338,7 @@ Unit tests apply only where research adds Go-side support.
 - `test/static/005-table-interface.ci` - SSH harness + blind settle at :24 converted (may block on interface next-hops).
 - `test/vpp/007-fib-route-lookup.ci` - blocker fixed + blind sleep at :51 converted; the stale `plan/spec-vpp-fib-query.md` Design ref (:1) corrected while in the file.
 - `test/vpp/005-mpls-push.ci`, `test/vpp/006-iface-create.ci` - blockers only; no sleep change.
-- `test/.ci-sleep-baseline` - lowered by the number of sleeps removed (132 -> 129 if all land).
+- `test/.ci-sleep-baseline` - lowered by the number of sleeps removed (132 -> 129 as cited; now 125 -> 122 if all land, 2026-07-22).
 - Production files: NONE expected. An offline fallback for `show static` (A-6) or a vpp channel-acquired signal (A-5) would each add one, and each needs its own justification before being written.
 
 ### Integration Checklist
@@ -341,7 +356,7 @@ Unit tests apply only where research adds Go-side support.
 | 10 | Test infrastructure changed? | yes | `docs/architecture/testing/ci-format.md` |
 
 ## Files to Create
-- None planned. The interface-next-hop dependency is already tracked by the sibling skeleton `plan/spec-fixit-static-interface-nexthops.md`; this spec cross-references it rather than duplicating it.
+- None planned. ~~The interface-next-hop dependency is already tracked by the sibling skeleton `plan/spec-fixit-static-interface-nexthops.md`; this spec cross-references it rather than duplicating it.~~ (2026-07-22: that sibling landed and its spec file is closed -- learned 1185; the dependency is satisfied, nothing to track.)
 
 ## Implementation Steps
 
@@ -378,7 +393,7 @@ Unit tests apply only where research adds Go-side support.
 |-------------|--------------|
 | static tests actually exercise `show static` | `bin/ze-test static` green; the assertion is on real daemon output |
 | vpp 007 blocker fixed + sleep converted | `bin/ze-test vpp` green |
-| Ratchet lowered | `cat test/.ci-sleep-baseline` shows 129 (or the count actually achieved); `scripts/dev/verify_wiring_docs.py` green |
+| Ratchet lowered | `cat test/.ci-sleep-baseline` shows 129 (baseline now 125, so 122 if all three land, 2026-07-22; or the count actually achieved); `scripts/dev/verify_wiring_docs.py` green |
 | Harness documented | the pattern is findable from `ai/INDEX.md` / `docs/architecture/testing/ci-format.md` |
 | No regressions | `bin/ze-test firewall` green |
 
@@ -396,7 +411,7 @@ Unit tests apply only where research adds Go-side support.
 | AC-1 shows the static tests green | the SSH-only analysis missed a path; STOP and re-derive before changing anything |
 | A-6 flips (offline fallback is intended) | drop the SSH harness for Problem A; rescope to a registered `show static` fallback |
 | A-2 false (recipe does not transplant) | investigate the per-suite difference (netns, caps, ports) before hand-rolling a second recipe |
-| 005 blocked on interface next-hops | find or create the real tracking spec; land 004 alone |
+| ~~005 blocked on interface next-hops~~ (RETIRED 2026-07-22: dependency landed, learned 1185) | ~~find or create the real tracking spec; land 004 alone~~ |
 | A-5 false (no vpp channel signal) | defer 007's sleep with the missing signal named; do not fake the wait |
 | 3 fix attempts fail | mark DEFER in `plan/deferrals.md`, move on, report |
 
@@ -406,7 +421,7 @@ Unit tests apply only where research adds Go-side support.
 - Is the SSH harness the intended fix, or should `show static` register an offline fallback like `show host` and `show crashes` (A-6)? The fallback is far cheaper but asserts the CLI's own view rather than the daemon's applied state, which is probably not what these tests are for. This is a design decision, not a research detail.
 - Does the `firewall/004` fixed-port-2222 approach depend on netns isolation the `static` suite does not have (A-3)? If so, dynamic port or log-scrape.
 - Does adding SSH force an `option=skip-os` on the static tests (A-4)? If it does, note that the `static` suite is absent from `scripts/evidence/qemu-all-tests.sh`, so a gated static test would run in NO environment. That would need fixing too.
-- Will `plan/spec-fixit-static-interface-nexthops.md` resolve as "make interface-only next-hops work" or as "reject them at config-verify" (its A-4)? The second makes `005`'s config invalid and turns 005 into a rewrite, not a harness transplant. Answer this before investing in 005 (R-8).
+- ~~Will `plan/spec-fixit-static-interface-nexthops.md` resolve as "make interface-only next-hops work" or as "reject them at config-verify" (its A-4)? The second makes `005`'s config invalid and turns 005 into a rewrite, not a harness transplant. Answer this before investing in 005 (R-8).~~ (ANSWERED 2026-07-22: it landed as "make them work" -- learned 1185; 005's config is valid and 005 is unblocked.)
 - Are the reported vpp blockers real and current ("no test data", "needs a real kernel interface", "no peers match selector")? None appear in the files; they were not reproduced here.
 - Given that `vpp/005` and `vpp/006` contain no blind sleeps, do they belong in a sleep-migration spec at all, or should they move to a vpp-harness spec (AC-6)?
 - Should `test/vpp/007-fib-route-lookup.ci:1`'s dead Design reference to `plan/spec-vpp-fib-query.md` be fixed here, and does `check_design_refs` (`scripts/dev/verify_wiring_docs.py`) already flag it?
@@ -471,10 +486,13 @@ D-2 (a)+(b)). It did NOT resolve as config-verify rejection — A-4a confirms th
 form is deliberate design intent (`internal/plugins/static/yang/ze-static-conf.yang:121-131`).
 So `005`'s config is VALID; `005` needs a harness transplant plus the sibling's linux fixes
 (C-1 ordering, C-6 `needs-linux` + `interface { backend netlink }` + create `tun100`), NOT a
-rewrite (R-8 retires on the "reject" branch). CAVEAT: the sibling is still `design`, NOT approved
+rewrite (R-8 retires on the "reject" branch). ~~CAVEAT: the sibling is still `design`, NOT approved
 (its line 30 — promotion is Thomas's gate). So `005` stays BLOCKED on the sibling landing. Per
-R-4: land `004` alone; defer `005` behind the sibling with the block recorded in both specs. This
-spec does NOT re-open the next-hop question — the sibling owns it.
+R-4: land `004` alone; defer `005` behind the sibling with the block recorded in both specs.~~
+(SUPERSEDED 2026-07-22: the sibling LANDED -- learned 1185,
+`plan/spec-fixit-static-interface-nexthops.md` closed. `005` is UNBLOCKED; land it with the
+harness transplant, no deferral needed.) This
+spec does NOT re-open the next-hop question — the sibling owned it and settled it.
 
 → **vpp blockers real and current? RESOLVED: UNVERIFIED, reproduce first.** None of "no test
 data" / "needs a real kernel interface" / "no peers match selector" appear in the files; none
@@ -490,7 +508,7 @@ so they add 0 to the ratchet and are NOT sleep-migration work. Smaller/self-cont
 move their blocker fixes to a separate vpp-harness spec (AC-6's re-scope path); THIS spec keeps
 only `vpp/007` from the vpp bucket. No bounded poll is converted for ratchet credit (R-6). Net
 scope: exactly 3 blind sleeps (`static/004:22`, `static/005:24`, `vpp/007:51`); baseline
-132 -> 129.
+132 -> 129 as written (now 125 -> 122, 2026-07-22).
 
 → **vpp/007:1 dead Design ref — fix here? does `check_design_refs` flag it? RESOLVED: NOT
 gate-flagged; fix opportunistically.** `check_doc_links`/`check_design_refs` matches only

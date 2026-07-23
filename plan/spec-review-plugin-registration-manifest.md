@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `DESIGN-REVIEW.md` finding 8 ("Self-containment is aspirational at the registration layer")
+3. ~~`DESIGN-REVIEW.md` finding 8 ("Self-containment is aspirational at the registration layer")~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec)
    and its verification notes (which found the concrete duplications already solved)
 4. `internal/component/plugin/registry/registry.go`, `internal/component/config/yang/register.go`,
    `internal/component/bgp/plugins/hostname/register.go` + `hostname/yang/register.go`

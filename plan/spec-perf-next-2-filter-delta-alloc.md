@@ -4,8 +4,16 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-perf-next-0-umbrella.md |
-| Phase | 1/5 |
-| Updated | 2026-06-14 |
+| Phase | 5/5 |
+| Updated | 2026-07-22 |
+
+Awaiting closure (recorded 2026-07-22 during plan review): Phase A landed --
+`filterAttrID`/`filterAttrs` (fixed struct + bitset replacing
+`map[string]string`) at `internal/component/bgp/reactor/filter_chain.go:28,79`,
+per `plan/learned/900-perf-next-round-3.md`. Phase B (pooled scratch for the 14
+encoder sites) was deliberately deferred in learned 900; at closure, home that
+deferral in a `plan/deferrals/` shard with a destination spec so it is not
+lost. Only the two-commit closure (plus that deferral row) remains.
 
 ## Post-Compaction Recovery
 

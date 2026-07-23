@@ -41,6 +41,8 @@ they account for over 50 appearances in the corpus.
 | `pretool-writeedit.py` `c_design_without_lsp` | 1 (2026-07-16) | Fixed 2026-07-16 at the source | [c_design_without_lsp](#pretool-writeeditpy--c_design_without_lsp) |
 | `validate-spec.sh` argv false-green | 3 (2026-07-16) | Fixed 2026-07-16 at the source | [F1](#f1-validate-specsh-false-greened-when-invoked-via-argv) |
 | `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
+| `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Active | [F11](#f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
+| `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Active | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Active | [F9](#f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
@@ -579,6 +581,53 @@ gains the same three facts, since that is where an agent looks first.
 failure; a cheap improvement would be to treat a first-invocation non-zero exit
 whose output contains no test result line as a setup error (exit 2) rather than
 a reproduction.
+
+---
+
+## Filed 2026-07-22 (plan-review session): two frictions
+
+### F11: `validate-spec.sh` RFC-existence check is dead code (regex typo)
+
+**Friction:** the RFC-summary existence check at `.claude/hooks/validate-spec.sh:199`
+greps with the pattern `'\rfc/short/rfc[0-9]+\.md'`. The leading `\r` is a
+carriage-return escape in grep -E, so the pattern can never match a literal
+`rfc/short/...` path; `RFC_REFS` is always empty and the check silently
+approves every spec. Found during the 2026-07-22 plan-folder review:
+`plan/spec-ike-post-quantum.md` references `rfc/short/rfc9370.md` and
+`rfc/short/rfc4304.md`, neither of which exists, and the hook said nothing.
+
+**Pattern:** a fail-open guard (`ai/rules/fail-closed-guards.md`): the check
+that cannot fire looks identical to the check that found nothing.
+
+**Proposed fix:** change the pattern to `'rfc/short/rfc[0-9]+\.md'` (drop the
+stray backslash). Before enabling, sweep existing specs for references to
+missing summaries (at least ike-post-quantum) so the newly-live check does not
+block unrelated edits; treat missing summaries as a warning or fix them first.
+
+### F12: `spec-closure-check.py` high-confidence signal misfires on slice-scoped learned summaries
+
+**Friction:** the closure advisory (surfaced by `make ze-spec-status`) listed
+four specs as "Completed but not closed -- high confidence" because a committed
+`plan/learned/NNN-<exact-spec-slug>.md` exists while the spec is in-progress.
+For three of the four (`fixit-bgp-session-fsm-lifecycle` learned 1202,
+`fixit-firewall-concurrency-deadlock` learned 1182,
+`fixit-mgmt-listener-auth-guard` learned 1200) the learned summary is
+SLICE-scoped -- each one says so explicitly ("covers only the fsm slice...
+Parked. Not committed.", "registry slice only, D-2/D-3/D-4 deferred to sibling
+agents", "narrowed to AC-1..4 + AC-7") -- and the specs are correctly still
+open. Only `relocate-scratch-and-cache` (learned 1173) was genuinely
+closure-ready. A session trusting the "high confidence" label would have
+closed three specs with live AC work outstanding.
+
+**Pattern:** exact-slug match is treated as proof the summary covers the whole
+spec; parallel-session file-contention workflows now legitimately produce
+partial, slug-named learned summaries.
+
+**Proposed fix:** in `scripts/dev/spec-closure-check.py`, demote an
+exact-slug match to NEEDS VERIFICATION when the learned summary body contains
+partial-scope markers (e.g. "slice", "parked", "not committed", "deferred to",
+"scope was narrowed"), or require the spec's own Pre-Commit Verification
+section to be filled before claiming high confidence.
 
 ---
 

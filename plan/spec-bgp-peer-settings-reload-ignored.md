@@ -4,7 +4,15 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | A1+A2 DONE (bug reproduced, guard fixed, package green). A3/A4 + Phase B NOT started. NOT shippable — see "A2 MUST NOT SHIP ALONE". **The A/B split needs consolidating (see below) before implementation resumes.** |
+| Phase | 2/9 |
+| Updated | 2026-07-22 |
+
+Phase note (was in the Phase cell; moved 2026-07-22): A1+A2 DONE (bug reproduced,
+guard fixed via `reflect.DeepEqual` in `reactor_api.go:809`, landed 38170a13b;
+package green). A3/A4 + Phase B NOT started. NOT shippable — see "A2 MUST NOT
+SHIP ALONE". The A/B split needs consolidating (next section) before
+implementation resumes; the 2/9 count reflects the CURRENT A1-A4+B1-B5
+structure, not the unapproved 7-step consolidation.
 
 ## ⚠ Phase structure needs consolidating (recorded 2026-07-16)
 

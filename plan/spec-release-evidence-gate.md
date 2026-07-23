@@ -4,8 +4,13 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | evidence matrix re-run outstanding (build blockers resolved) |
-| Updated | 2026-07-10 |
+| Phase | 5/6 |
+| Updated | 2026-07-22 |
+
+Phase note (was in the Phase cell; moved 2026-07-22): implementation landed --
+`ze-release-evidence` is defined at `mk/test-release.mk:83` and wired in the
+Makefile (commit `d0e9d388c` "test: add release evidence gate runner"). The
+outstanding step is the full evidence-matrix verification re-run.
 
 ## Post-Compaction Recovery
 

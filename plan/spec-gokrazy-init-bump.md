@@ -4,8 +4,15 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/6 |
-| Updated | 2026-07-10 |
+| Phase | 5/6 |
+| Updated | 2026-07-22 |
+
+Phase corrected 2026-07-22: the bump landed and is committed (`8dc8f389d`
+"feat(appliance): bump gokrazy init 20260703 (clears CVE-2026-25680)" plus
+`eae560cc6` x/net -> v0.56.0); builddir go.mods pin `gokrazy
+v0.0.0-20260703061218-a4a45a20149d`, the new version is vendored under
+`gokrazy/modcache/`, and no CVE workaround comment remains. The plausible
+remaining item is AC-7 (recurrence guardrail) -- verify it before closing.
 
 ## Post-Compaction Recovery
 

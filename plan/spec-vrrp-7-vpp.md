@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-vrrp-5-plugin |
+| Depends | spec-vrrp-5-plugin (closed with vrrp-0..5, commit fbc99f1d4, learned 1124) |
 | Phase | - |
 | Updated | 2026-07-14 |
 

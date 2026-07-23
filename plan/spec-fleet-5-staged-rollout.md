@@ -256,3 +256,8 @@ which devices get notified and when.
 - [ ] No premature abstraction
 - [ ] No speculative features
 - [ ] Single responsibility per component
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

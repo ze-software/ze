@@ -30,6 +30,8 @@ Points to complete:
 | 2 | "strip" — needs a **rebuild**, not an in-place mask (see the constraint below) |
 | 3 | "propagate" — set the Transitive bit if clear, and clear the Partial bit |
 | 4 | "inherit" — already the shipped behavior; it becomes the explicit default of the new leaf |
+| 5 | (re-homed 2026-07-22 from `spec-fixit-tombstone-ebgp-transitive`, closed as learned 1239) **eBGP RS-clients bypass the prepend funnel**, so Section 5.3's Transitive-clear does not reach them: `forward_rs.go:351-360` and `reactor_api_forward.go:526-535` hand out `update.WireUpdate` (the received wire) with no per-destination buffer; clearing the bit there would corrupt the shared wire for every other peer. Honoring 5.3 for RS-clients needs a third pooled slot mirroring `ebgpSlotASN4` plus release plumbing at `recent_cache.go:461,527` — a performance-versus-conformance decision for Thomas |
+| 6 | (re-homed 2026-07-22 from the same source; RULED by Thomas 2026-07-16, edit not yet applied) **Apply the input-side LOCAL_PREF precedent to `test/plugin/remove-private-as-export.ci`**: remove the RFC-invalid LOCAL_PREF from the source frame instead of blessing the tombstone marker in the expectation (`:51` still carries `C0FC0405010000`). Byte-mechanical; the target frame shape is proven at `remove-private-as-replace-peer.ci:39`. The full ruling and before/after hex table are in git history of the closed spec and in `plan/deferrals/fixit-tombstone-ebgp-transitive.md` |
 
 → Constraint: **"strip" needs a rebuild rather than an in-place mask.** The draft
 allows either a real removal or a Transitive-clear, but is explicit that they are not
@@ -152,7 +154,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` (`:50`) masks the Transitive bit in a pooled per-destination buffer; `isTombstoneCode` (`:29-31`) recognises 252 and 253; `WriteTombstone` (`:69-77`). This is the whole of ze's Section 5.3 implementation: mask-only, no rebuild, no policy selection
+- [ ] `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` (`:50`) masks the Transitive bit in a pooled per-destination buffer; ~~`isTombstoneCode` (`:29-31`) recognises 252 and 253~~ (superseded 2026-07-22: learned 1237 deleted `isTombstoneCode` and the dual-recognition shim; the single code point is `attribute.AttrTombstone = 252` and the egress funnel gates on it directly, `aspath_rewrite.go:528`); `WriteTombstone` writes the marker. This is the whole of ze's Section 5.3 implementation: mask-only, no rebuild, no policy selection
 - [ ] `internal/component/bgp/message/attr_discard.go` - `attrDiscardFlags` (`:60-62`) is `0x80 | (originalFlags & 0x50)`, clearing Partial; comment at `:53` states it. Comment at `:55-59` records the architectural reason the egress rule lives in `wireu` and not here: "The marker is stamped at receive time, where the destination is not yet known ... Section 5.3's egress rule ... is enforced per destination on the EBGP wire path, in wireu.rewriteASPathPrepend, not here"
 - [ ] `internal/core/bgp/attribute/attribute.go` - `FlagPartial = 0x20` (`:133`), `IsPartial` (`:147`); `AttrTombstone = 252` (`:66`)
 - [ ] `internal/component/bgp/wireu/aspath_rewrite.go` - `rewriteASPathPrepend`, the single eBGP egress funnel where the mask is applied per destination

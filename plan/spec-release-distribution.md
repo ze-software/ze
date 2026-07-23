@@ -128,6 +128,10 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
+- [ ] `internal/core/version/version.go` - release identity comparison and build metadata (full line ranges in the entries below).
+- [ ] `internal/plugins/init/main.go` - current interactive/piped bootstrap flow (full line ranges below).
+- [ ] `internal/component/doctor/checks_platform.go` - current systemd unit check (full line ranges below).
+- [ ] `internal/component/config/system/selfupdate.go` - current in-place self-update behavior (full line ranges below).
 - [ ] `Makefile:48-56,93-168` - derives feature tags from `feature-gates.txt`, uses wall-clock version/build date, and builds all local binaries.
 - [ ] `mk/test-release.mk:1-190` - composes the release evidence matrix but performs no packaging, signing, or publishing.
 - [ ] `.woodpecker/verify.yml:1-19` - runs `make ze-verify` on pushes and pull requests.
@@ -172,6 +176,39 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - Quickstart and installation documentation lead release users to verified packages/downloads while retaining source-build instructions for developers.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+
+The channel-specific paths below carry the full detail; this overview maps the
+canonical stages first.
+
+### Entry Point
+- Stable: a maintainer-created annotated, signed `YY.MM.DD` tag on canonical Codeberg, verified and propagated by the mirror (see Stable Entry Point below).
+- Nightly: the protected default-branch schedule `17 2 * * *` (see Nightly Entry Point below).
+- Format at entry: a signed git tag object, or a scheduled protected workflow run.
+
+### Transformation Path
+1. The mirror verifies the signed tag (or the schedule fires), records its journal entry, and dispatches the protected build workflow.
+2. The unprivileged build produces deterministic binaries, tarballs, DEB/RPM inputs, SBOMs, and the closed `input-manifest.json` bundle.
+3. The protected attestation workflow binds provenance/SPDX statements to the verified candidate identity.
+4. The evidence workflow runs the channel's mandatory category set; a protected recorder emits the recorder-bound result and commit check.
+5. The isolated VPS publisher verifies the bundle, archives inputs, signs packages and metadata, publishes the immutable GitHub release, then activates APT and RPM in that order.
+
+### Boundaries Crossed
+(Summary; the detailed component/security boundary table is in the second
+Boundaries Crossed section further below.)
+
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Codeberg -> GitHub | fast-forward mirror + exact signed tag propagation | [ ] |
+| Build -> attestation | closed `release-input.tar` artifact fetched by API ID | [ ] |
+| Attestation/evidence -> publisher | recorder-bound commit check + artifact IDs | [ ] |
+| Publisher -> public surfaces | immutable GitHub release; APT/RPM snapshot activation | [ ] |
+
+### Integration Points
+(Summary; the full list is in the second Integration Points section further below.)
+- `mk/test-release.mk` evidence matrix - consumed as the release evidence category source.
+- `internal/plugins/init` (`ze init --automatic`) - the package-safe bootstrap entry point.
+- `internal/plugins/systemd` unit contract - vendor unit parity for the packaged service.
+- `internal/component/config/system` self-update backend - the package-managed mutation guard.
 
 ### Stable Entry Point
 
@@ -1399,6 +1436,8 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] Tests written before implementation.
 - [ ] Tests fail for the intended missing behavior.
 - [ ] Tests pass after implementation.
+- [ ] Tests FAIL first and Tests PASS after, with output pasted per phase (`ai/rules/tdd.md`).
+- [ ] `make ze-test` passes (lint + all ze tests) in addition to the release gates above.
 - [ ] Boundary tests cover syntax/trusted date/clock, entropy, doctor deadline/output, SHA, size, path/envelope, workflow artifact/evidence sets, cache/freshness, retention credentials/batches, key/monitor thresholds, scriptlet count, storage/architecture/generation, and one-per-day limits.
 - [ ] Functional tests cover every user/operator entry point and every AC maps to exact evidence.
 - [ ] Six native package-manager cells and two full booted-systemd lifecycle tests pass.

@@ -7,6 +7,13 @@
 | Phase | 1/1 (doctor check; research done) |
 | Updated | 2026-07-17 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
+the live citation below is updated in-body): `internal/core/diagnostic/codes.go`
+registrations drifted -- `doctor-vpp-wireguard` 289 -> 301,
+`doctor-vpp-lcp-netns` 295 -> 307. Also verified: `spec-bgp-netns`'s
+AC-3 narrowing has NOT landed (`checkVPPLCPNetns` still root-reachable at
+`doctor.go:120,157`), so the shared-file coordination note still holds.
+
 ~~**DESIGN, NOT APPROVED.** Research is done: the Open Questions below are answered and the
 assumption table carries verdicts. Two assumptions came back BROKEN (A-2, A-6) and they
 change the shape of the work, so this spec must NOT move to `ready` until Thomas rules on
@@ -424,7 +431,7 @@ Both from `plan/deferrals.md` rows dated 2026-07-10, source `spec-followup-vpp-i
 against source and CONFIRMED real. Exact today: `registerDoctorChecks` (`doctor.go:27-56`,
 Order 740 `vpp-wireguard-plugin` / 741 `vpp-lcp-netns`, so the new check takes Order 742);
 `checkVPPWireguardPlugin` (`doctor.go:62-85`) / `wireguardPluginEnabled` (`doctor.go:88-95`);
-`codes.go` rows (`doctor-vpp-wireguard` line 289, `doctor-vpp-lcp-netns` line 295);
+`codes.go` rows (`doctor-vpp-wireguard` line 301, `doctor-vpp-lcp-netns` line 307);
 `api.Channel.CheckCompatiblity` (govpp `api/api.go:109`, impl `core/channel.go:184-200`);
 `LcpDefaultNsGet` (`binapi/lcp/lcp.ba.go:63`); `NewConnector`/`Connect`/`NewChannel`/`Close`
 (`conn.go:36/44/93/154`); `GetActiveConnector` (`vpp.go:75`); doctor offline/local

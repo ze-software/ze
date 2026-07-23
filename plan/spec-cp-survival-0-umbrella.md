@@ -5,7 +5,24 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-26 |
+| Updated | 2026-07-22 |
+
+Awaiting closure verification (recorded 2026-07-22 during plan review): no
+child spec remains in `plan/` and every child has a learned summary (1004
+gtsm, 1005 copp-port179, 1007 egress-cs6-sched, 1008 on-demand-origination
+DESIGN, 1011 + 1015 detect); the gating deployment doc exists
+(`docs/guide/ddos-mitigation.md`) and the `docs/features.md` rows are present.
+The D2 caveat is now RESOLVED (verified 2026-07-22): **D2 as specified did NOT
+ship.** The named "firewall->FlowSpec reverse bridge (new plugin)" does not
+exist (`internal/plugins/firewall/` has no flowspec origination;
+`internal/plugins/flowspec-firewall/` is the INBOUND direction), and learned
+1008 itself labels it "future D2 (flowspec-egress bridge)". The functional
+goal (attack -> outbound FlowSpec/RTBH announcement) shipped via a different
+trigger: the ddos responder (`internal/plugins/ddos/flowspec/responder.go:32,
+60,151-188`, children 5, learned 1011/1015) originates from ddos-detect
+characterization events, not firewall config rules. At closure, record D2 as
+a homed deferral row (no spec owns "originate FlowSpec from firewall config")
+or as an explicit user-approved supersession by the ddos responder.
 
 ## Post-Compaction Recovery
 

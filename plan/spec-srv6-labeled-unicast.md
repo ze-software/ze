@@ -18,13 +18,10 @@
 ## Task
 
 Ze skips SRv6 SID lookup for SAFIMPLSLabel (labeled unicast, SAFI 4). The
-current code in `checkBestPathChange` explicitly excludes it:
-
-```go
-if fam.SAFI != family.SAFIMPLSLabel {
-    srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerIP)
-}
-```
+current code in `checkBestPathChange` explicitly excludes it: `srv6SID` is
+assigned from `r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerIP)` only
+when `fam.SAFI != family.SAFIMPLSLabel`; for SAFIMPLSLabel the guard skips
+the lookup entirely and `srv6SID` stays unset.
 
 RFC 9252 scope includes "IPv6 unicast with labels" alongside VPN and EVPN.
 Supporting SRv6 with labeled unicast is uncommon in deployments but is part
@@ -86,6 +83,12 @@ of the RFC scope.
 |----------|-----|----------|
 | RIB best-path -> sysrib | bestChangeEntry.SRv6SID via EventBus | [ ] |
 
+### Integration Points
+- `checkBestPathChange` SAFI gate (`internal/component/bgp/plugins/rib/rib_bestchange.go:716-721`) - the exclusion to lift; where `lookupSRv6SIDForBest` would be called for SAFIMPLSLabel
+- `needsTransposition` (`internal/component/bgp/plugins/rib/rib_bestchange.go:887-889`) - decides whether transposition applies for the family
+- SID extraction and transposition (`internal/component/bgp/plugins/rib/pool/srv6sid.go`) - existing mechanism reused unchanged (design question 3)
+- `bestChangeEntry.SRv6SID` via EventBus - existing hand-off to sysrib for FIB installation
+
 ### Architectural Verification
 - [ ] No bypassed layers
 - [ ] No unintended coupling
@@ -106,12 +109,15 @@ of the RFC scope.
 | AC-2 | Labeled unicast route with SRv6 SID + SID Structure | Transposition applied correctly |
 | AC-3 | Labeled unicast route without Prefix-SID | No change in behavior |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
+<!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (fill during design) | | | |
+| `TestLabeledUnicastSRv6SIDLookup` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-1: SRv6 SID extracted for SAFIMPLSLabel best path and passed to sysrib | planned |
+| `TestLabeledUnicastSRv6Transposition` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-2: transposition applied when SID Structure present | planned |
+| `TestLabeledUnicastWithoutPrefixSIDUnchanged` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-3: labeled unicast route without Prefix-SID behaves as today | planned |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -119,9 +125,11 @@ of the RFC scope.
 | N/A | | | | |
 
 ### Functional Tests
+<!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| (fill during design) | | | |
+| `srv6-labeled-unicast-sid` | `test/plugin/srv6-labeled-unicast-sid.ci` | AC-1/AC-2: labeled unicast route with SRv6 Prefix-SID yields the SID (transposed where applicable) toward FIB installation | planned |
+| `srv6-labeled-unicast-no-sid` | `test/plugin/srv6-labeled-unicast-no-sid.ci` | AC-3: labeled unicast route without Prefix-SID keeps current behavior | planned |
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

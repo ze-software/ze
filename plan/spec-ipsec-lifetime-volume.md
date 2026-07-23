@@ -7,6 +7,13 @@
 | Phase | - |
 | Updated | 2026-07-04 |
 
+Anchor refresh (2026-07-22 plan review, design still valid, feature not
+landed): every `rekey.go` cite was off by ~+200 lines (the file grew at the
+top); the citations below are now updated in-body -- `softBytes`/`byteCount`
+`rekey.go:222-223`, `newLifetimeState` `:226`, `softExpired` byte check
+`:255-262`. `ESPGroup` (`types.go:350`) and `leaf lifetime`
+(`ze-ipsec-conf.yang:53`) still exact.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -49,7 +56,7 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 
 **Source files read:**
 - [ ] `internal/component/ike/ipsec/types.go` - `ESPGroup{ Name; Lifetime uint32; PFS; Proposals }` (types.go:349-355): the only lifetime is time in seconds; no byte/packet field. `IKEGroup` similarly (types.go:365-372).
-- [ ] `internal/component/ike/engine/rekey.go` - `lifetimeState` has `softBytes uint64` / `byteCount uint64` (rekey.go:22-23) and `softExpired` returns true when `softBytes > 0 && byteCount >= softBytes` (rekey.go:62-64), but `newLifetimeState(lifetimeSec uint32)` only ever sets the time fields (rekey.go:26-39) — the byte path is dead.
+- [ ] `internal/component/ike/engine/rekey.go` - `lifetimeState` has `softBytes uint64` / `byteCount uint64` (rekey.go:222-223) and `softExpired` returns true when `softBytes > 0 && byteCount >= softBytes` (rekey.go:255-262), but `newLifetimeState(lifetimeSec uint32)` only ever sets the time fields (rekey.go:226+) — the byte path is dead.
 - [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - esp-group `leaf lifetime { type uint32 { range "0..86400"; } }` (ze-ipsec-conf.yang:53-59); no `life-bytes`/`life-packets` leaves.
 - [ ] `internal/component/ike/ipsec/config.go` - esp-group parser caps lifetime at 86400 (config.go:145,245); no volume parsing.
 
@@ -82,7 +89,7 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 
 ### Integration Points
 - `ESPGroup` (`types.go:349-355`) - add `LifeBytes uint64` / `LifePackets uint64`.
-- `newLifetimeState` (`rekey.go:26-39`) - populate `softBytes`/`softPackets`.
+- `newLifetimeState` (`rekey.go:226+`) - populate `softBytes`/`softPackets`.
 - SA stats source - where processed byte/packet counts are read to feed the counter.
 
 ### Architectural Verification

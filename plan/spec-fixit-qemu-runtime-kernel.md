@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | ready |
-| Depends | spec-fixit-qemu-artifact-cache (land that first: durable kernel cache) |
+| Depends | spec-fixit-qemu-artifact-cache (land that first: durable kernel cache) (superseded, removed without landing; absorbed by spec-relocate-scratch-and-cache, learned 1173 -- durable cache now live at mk/gokrazy.mk:194-232) |
 | Phase | 0/N (research) |
 | Updated | 2026-07-17 |
 

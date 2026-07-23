@@ -457,6 +457,68 @@ No Phase 1 work needs to be redone when VRF is implemented.
 | **Phase 9** | `vrf <name>` sugar in policy routing | Phase 4 | No |
 | **Phase 10** | Conntrack zone isolation (spec-vrf-8) | Phase 4 + cpe-4 | No |
 
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| (none at umbrella level -- tests live in the child specs vrf-1..vrf-8) | per child spec | hub multi-instance, VRF devices, orchestrator lifecycle, YANG/CLI dispatch, socket binding, dynamic create/delete, redistribution, conntrack zones | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| vrf-basic | `test/plugin/vrf-basic.ci` | Config with `vrf red { bgp { ... } }` spawns a per-VRF stack | |
+| vrf-cli | `test/plugin/vrf-cli.ci` | `show vrf red rib status` reaches VRF red's RIB handler | |
+| vrf-update | `test/plugin/vrf-update.ci` | BGP UPDATE on VRF red's peer lands in red's RIB only | |
+| vrf-dynamic | `test/plugin/vrf-dynamic.ci` | `vrf add blue` creates a new stack at runtime | |
+
+### Interop Tests (MANDATORY for protocol features)
+Per-VRF BGP is the existing BGP wire behavior scoped to an instance; the umbrella
+changes no wire format. The child spec that touches session binding (vrf-5) re-runs
+the existing BGP interop scenarios against a VRF-bound listener to prove no change.
+
+## Files to Modify
+
+Umbrella scope; the detailed per-file lists live in the child specs.
+
+- `internal/component/plugin/server/hub.go` - hub instantiable as independent instances (vrf-1)
+- `internal/component/plugin/process/manager.go` - derived plugin names (`bgp:vrf-red`) and multiple instances (vrf-1)
+- `internal/component/hub/hub.go` - orchestrator support for per-VRF hubs (vrf-1, vrf-3)
+- `internal/component/iface/register.go` - VRF device creation and interface master binding entry (vrf-2)
+- `internal/plugins/fib/kernel/backend_linux.go` - `Route.Table = vrf.table` in netlink calls (vrf-2)
+- `internal/component/bgp/reactor/reactor.go` - constructor accepts a hub reference (vrf-3; the global-state analysis above shows no other reactor change is needed)
+
+## Implementation Steps
+
+The umbrella is implemented by executing the child specs in the dependency order of
+the "Implementation Phases (full roadmap)" table below; each child follows the
+standard TDD cycle (write test, fail, implement, pass) inside its own spec.
+
+### /implement Stage Mapping
+| /implement Stage | Spec Section |
+|------------------|--------------|
+| 1. Read spec | This file + the child spec being implemented |
+| 2. Audit | Child Files / TDD sections |
+| 3. Wiring phase | Wiring Test table (this file) + child wiring tables |
+| 4. Implement (TDD) | Child implementation phases |
+| 5-13 | Per child spec |
+| 14. Present summary + close | Roll up child summaries into the umbrella learned summary at final closure |
+
+### Implementation Phases
+1. **vrf-1 hub multi-instance** - hub/ProcessManager multiple instances, colon naming; failing instantiation test first, then implement
+2. **vrf-2 VRF devices** - `ip link add type vrf table N`, master binding, per-VRF sysctl
+3. **vrf-3 orchestrator** - implicit default VRF, per-VRF component spawning, lifecycle
+4. **vrf-4 YANG/CLI** - schema wrapping, `show vrf <name>` dispatch
+5. **vrf-5 services / vrf-7 redistribution** - in parallel after vrf-3
+6. **vrf-6 dynamic lifecycle / vrf-8 conntrack zones** - final hardening
+
+### Failure Routing
+| Failure | Route To |
+|---------|----------|
+| Child gate red | Fix in the owning child spec |
+| Behavior mismatch with this umbrella's decisions | Re-read the Design Decisions table; update the child, not the invariant |
+| 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
+
 ## Design Insights
 
 - All reactor globals are safe to share: pools, budgets, deadlines, message ID counter. Same process, same memory, no isolation needed.
@@ -496,3 +558,25 @@ No Phase 1 work needs to be redone when VRF is implemented.
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-23 all demonstrated (across the child specs vrf-1..vrf-8)
+- [ ] Wiring Test table complete -- every row has a concrete `.ci` test, none deferred
+- [ ] `make ze-test` passes (lint + all ze tests) after each child lands
+- [ ] Feature code integrated (`internal/*`) and reachable from the config/CLI entry points
+- [ ] Backwards compatibility proven: config with no VRF block behaves exactly as today (AC-3)
+
+### TDD
+<!-- Umbrella owns no executable code; these items are satisfied per child spec
+     (vrf-1..vrf-8), each pasting its own failing/passing output. -->
+- [ ] Tests written (per child spec)
+- [ ] Tests FAIL (paste output in each child)
+- [ ] Tests PASS (paste output in each child)
+- [ ] Functional tests for end-to-end behavior (`test/plugin/vrf-*.ci`)
+
+### Completion (BLOCKING -- before final umbrella closure)
+- [ ] All child specs closed
+- [ ] Write learned summary to `plan/learned/NNN-vrf-0-umbrella.md`
+- [ ] Two-commit closure per `ai/rules/planning.md`

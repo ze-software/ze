@@ -2,10 +2,18 @@
 
 | Field | Value |
 |-------|-------|
-| Status | complete |
+| Status | done |
 | Depends | - |
-| Phase | Complete |
-| Updated | 2026-07-21 |
+| Phase | - |
+| Updated | 2026-07-22 |
+
+Awaiting closure per `ai/rules/planning.md` Spec Closure: write the learned
+summary, then `git rm` this spec (two-commit sequence). All ACs delivered;
+evidence below.
+
+## Task
+
+See Goal below (spec written before the current template; Task = Goal here).
 
 ## Goal
 
@@ -130,3 +138,78 @@ The wiki is source material only. `../wiki/Home.md` labels it an unreviewed draf
 - All 55 migrated page routes are present in rendered output, the search index, sitemap, and the complete `llms.txt` documentation index.
 - The configuration blocks for route server, transit RPKI, FlowSpec, AS-path topology, and ExaBGP migration validate with the production `ze` binary.
 - `llms.txt` summary extraction covers YAML front matter, bold-leading paragraphs, and list-only pages without empty or metadata-derived summaries.
+
+## Required Reading
+
+- `../gh-pages/` website tooling (`tools/page_registry.py`, `tools/render-llms-txt.py`, `update-website.sh`)
+- The Codeberg wiki (migration source) and `main/docs/` (canonical documentation)
+
+## Current Behavior
+
+**Source files read:** (work is in the website repo, not this one)
+- [x] `../gh-pages/tools/page_registry.py` — central page/source registry the migration extended
+- [x] `../gh-pages/tools/render-llms-txt.py` — `llms.txt` generation the migration exercised
+- [x] `main/docs/` guides republished as canonical sources
+
+**Behavior preserved:** generated references stay generated (AC-7); build output never hand-edited.
+
+## Data Flow
+
+### Entry Point
+- Website build: `./update-website.sh` in `../gh-pages` reads the page registry and `main/docs/` sources.
+
+### Transformation Path
+1. Sources (canonical `main/docs/` pages + adapted wiki examples) registered in `tools/page_registry.py`.
+2. Renderers produce HTML pages and Markdown mirrors.
+3. Search index, sitemap, SEO metadata, and `llms.txt` regenerate from the registry.
+
+### Boundaries Crossed
+| Boundary | Format |
+|----------|--------|
+| main repo docs -> website registry | Markdown sources referenced by registry entries |
+| registry -> published site | rendered HTML + Markdown mirrors + `llms.txt` |
+
+### Integration Points
+- Navigation/hub pages, search, sitemap, `llms.txt` — all regenerated, none hand-edited.
+
+## Wiring Test
+
+Website content work — no daemon feature; existing test suite and website build checks cover it.
+
+| Entry Point | -> | Feature Code | Test |
+|-------------|----|--------------|------|
+| `./update-website.sh` | -> | page registry + renderers | `tools/test_render_doc.py` (11 pass) + `tools/check-page-links.py --skip-network` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+
+| Test | File | Validates |
+|------|------|-----------|
+| `tools/test_render_doc.py` | `../gh-pages/tools/` | renderer output for migrated pages (11 tests, pass) |
+| `tools/test_render_llms.py` | `../gh-pages/tools/` | `llms.txt` summary extraction (4 tests, pass) |
+
+### Functional Tests
+
+- N/A — no daemon feature and no new feature in this repo; existing test suite unaffected. The configuration blocks published on the site validate with the production `ze` binary (Completion Evidence).
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `../gh-pages/tools/page_registry.py` | 50 additional canonical sources + 5 usage pages registered (done) |
+| `../gh-pages/usage/`, docs hub, navigation | new worked pages and paths (done) |
+
+## Implementation Steps
+
+1. (DONE) Audit wiki content; classify publish/adapt/drop.
+2. (DONE) Register canonical sources; adapt worked examples; rebuild generated surfaces.
+3. (DONE) Verify build, links, search, SEO, `llms.txt`; browser smoke checks.
+4. Remaining: spec closure only (learned summary + `git rm`).
+
+## Checklist
+
+- [x] Tests written (renderer + llms tests listed above)
+- [x] Tests FAIL was N/A for pure content pages; renderer tests guarded regressions
+- [x] Tests PASS (`test_render_doc.py` 11/11, `test_render_llms.py` 4/4, link check clean)
+- [x] `make ze-test` N/A — no change in this repo; website build (`./update-website.sh`) green

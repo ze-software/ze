@@ -329,3 +329,8 @@ Transport (TLS) and authentication (pre-declared per-client shared secret) are *
 - [ ] No speculative features
 - [ ] Single responsibility per component
 - [ ] Explicit > implicit behavior
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

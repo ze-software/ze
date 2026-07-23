@@ -4,8 +4,15 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-perf-next-0-umbrella.md |
-| Phase | 1/5 |
-| Updated | 2026-06-14 |
+| Phase | 5/5 |
+| Updated | 2026-07-22 |
+
+Awaiting closure (recorded 2026-07-22 during plan review): implemented and in
+the tree -- `ebgpWireSlot` + lock-free `atomic.Pointer` slots at
+`internal/component/bgp/reactor/received_update.go:20-24,89,93,203-209`, with
+the concurrent cache-hit test in `received_update_test.go`. The work is
+documented in `plan/learned/900-perf-next-round-3.md`; only the two-commit
+closure remains.
 
 ## Post-Compaction Recovery
 

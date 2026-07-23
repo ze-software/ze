@@ -2,10 +2,16 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
-| Depends | spec-rib-arch-0-umbrella.md |
+| Status | ready |
+| Depends | spec-rib-arch-0-umbrella.md (closed, learned 1128) |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-22 |
+
+Unblocked 2026-07-22: the entire rib-arch set this spec was blocked on has
+closed (learned 1123, 1125-1128, 1150-1152, 1154). The 2026-07-08 scope
+measurements (124 importers, 34 anchors) predate the `ze_bgp` feature-gate
+work (commit c4038def0), so the re-measure step this spec already mandates
+at start-of-work is now doubly important.
 
 Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-1-ike-packet.md`, `spec-rename-3-wireu-fold.md` (which depends on this spec).
 

@@ -90,6 +90,13 @@ transposed value are lost.
 | NLRI parser -> label pool | InternLabels([]uint32) | [ ] |
 | Label pool -> transposition | ResolveLabels -> ApplyTransposition | [ ] |
 
+### Integration Points
+- `ApplyTransposition` (`internal/component/bgp/plugins/rib/pool/srv6sid.go:147`) - consumes the stored label with `labelWidth`; where the 24-bit read happens
+- `labelWidthForSAFI` (`internal/component/bgp/plugins/rib/rib_bestchange.go:897`) - already returns 24 for EVPN; the width the storage must honor
+- `InternLabels` / `ResolveLabels` (`internal/component/bgp/plugins/rib/pool/labels.go`) - label storage that may need to keep the full 24-bit field
+- `MaxMPLSLabel` (`internal/component/bgp/route/route_labeled.go`) - the 20-bit cap in conflict with EVPN transposition
+- EVPN NLRI label parsing (`internal/component/bgp/plugins/nlri/`) - source of the label value; investigation item 1
+
 ### Architectural Verification
 - [ ] No bypassed layers
 - [ ] No unintended coupling
@@ -110,12 +117,15 @@ transposed value are lost.
 | AC-2 | EVPN route with SRv6 transposLen=24 (full 24-bit field) | All 24 bits transposed into SID |
 | AC-3 | VPN route with SRv6 transposition | No regression (20-bit label still works) |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
+<!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (fill during design) | | | |
+| `TestApplyTranspositionEVPNHighBits` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-1: transposLen=16 with value in high bits of the 24-bit field reconstructs the SID correctly | planned |
+| `TestApplyTranspositionEVPNFull24Bits` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-2: transposLen=24 transposes all 24 bits into the SID | planned |
+| `TestApplyTranspositionVPN20BitRegression` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-3: VPN transposition with 20-bit labels unchanged | planned |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -124,9 +134,11 @@ transposed value are lost.
 | transposLen (EVPN) | 0-24 | 24 | N/A | 25 |
 
 ### Functional Tests
+<!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| (fill during design) | | | |
+| `evpn-srv6-transposition-24bit` | `test/decode/evpn-srv6-transposition-24bit.ci` | AC-1/AC-2: EVPN UPDATE with SRv6 SID Structure and transposLen > 20 decodes with correct reconstructed SID | planned |
+| `vpn-srv6-transposition-regression` | `test/decode/vpn-srv6-transposition-regression.ci` | AC-3: VPN route with SRv6 transposition still decodes correctly (20-bit label) | planned |
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

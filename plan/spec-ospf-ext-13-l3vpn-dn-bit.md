@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | ready |
-| Depends | spec-ospf-0-umbrella.md (delivered) |
+| Depends | spec-ospf-0-umbrella.md (delivered; closed, learned 1114) |
 | Phase | - |
 | Updated | 2026-06-24 |
 

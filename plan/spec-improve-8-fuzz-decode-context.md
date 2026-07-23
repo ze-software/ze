@@ -7,6 +7,12 @@
 | Phase | - |
 | Updated | 2026-07-16 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged and implementable):
+`ParseEVPN` drifted 187 -> 191 (`evpn/types.go`); all other cites verified
+exact (`FuzzParseAttributes` asn4 hardcode `attrparse_fuzz_test.go:30`,
+`FuzzParseNLRIs` `mpwire_test.go:612`, `capability.Parse`/
+`ParseFromOptionalParams` `:177`/`:847` still fuzz-free).
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
@@ -144,7 +150,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `FuzzParseAttributes` (or sibling target) | asn4 is a fuzz argument; seeds cover true AND false; `canonicalizeASPath` 2-byte branch (`attrparse.go:198`) reachable |
-| AC-2 | EVPN NLRI target (the only listed family parser taking an add-path arg) | `FuzzParseEVPN` fuzzes `addpath` as an argument (or a sibling `*AddPath` target exists) with both-polarity seeds against `ParseEVPN(data, addpath)` (`internal/component/bgp/plugins/nlri/evpn/types.go:187`). Per-family add-path FRAMING is already covered upstream: `FuzzParseNLRIs` (`mpwire_test.go:612`) fuzzes `hasAddPath` over `ParseNLRIs(data, fam, hasAddPath)` (`mpwire.go:389`), which strips the path-id framing before the per-family parser. mup/rtc/mvpn/vpls/flowspec/ls parsers take no add-path arg, so nothing to widen there |
+| AC-2 | EVPN NLRI target (the only listed family parser taking an add-path arg) | `FuzzParseEVPN` fuzzes `addpath` as an argument (or a sibling `*AddPath` target exists) with both-polarity seeds against `ParseEVPN(data, addpath)` (`internal/component/bgp/plugins/nlri/evpn/types.go:191`). Per-family add-path FRAMING is already covered upstream: `FuzzParseNLRIs` (`mpwire_test.go:612`) fuzzes `hasAddPath` over `ParseNLRIs(data, fam, hasAddPath)` (`mpwire.go:389`), which strips the path-id framing before the per-family parser. mup/rtc/mvpn/vpls/flowspec/ls parsers take no add-path arg, so nothing to widen there |
 | AC-3 | Uncovered context-consuming surfaces | New targets exist: `capability.Parse`, `ParseFromOptionalParams`, `ParseMPReachNLRI`, `ParseMPUnreachNLRI`. NO whole-UPDATE-with-context target: `UnpackUpdate(data)` (`internal/component/bgp/message/update.go:90`) takes no context and `Update.Len(_ *EncodingContext)` (`update.go:120`) ignores its context arg, so no production entry decodes a full UPDATE against a negotiated context (a reconstructed one would be the test-only decode wrapper `buffer-first` forbids). Context-branching decode is covered by the widened `FuzzParseAttributes` (asn4, AC-1) plus the new MP_REACH/MP_UNREACH targets |
 | AC-4 | `mk/test-fuzz.mk` | Enumeration lists every Fuzz* target in the affected packages; a grep check proves no orphan |
 | AC-5 | Each varied dimension | Inline seeds pin both polarities with VALIDATES/PREVENTS comments per repo convention |
@@ -157,7 +163,7 @@ Every target this spec touches, with producer and fuzz-argument signature. "Wide
 | Target | Kind | Producer (file:line) | Fuzz args | Seed requirement |
 |--------|------|----------------------|-----------|------------------|
 | FuzzParseAttributes | widened | `ParseAttributes` (`rib/storage/attrparse.go:24`) | data []byte, asn4 bool | existing seeds x both asn4 polarities |
-| FuzzParseEVPN | widened (only listed family whose parser takes an add-path arg) | `ParseEVPN` (`plugins/nlri/evpn/types.go:187`) | data []byte, addpath bool | existing seeds x both polarities |
+| FuzzParseEVPN | widened (only listed family whose parser takes an add-path arg) | `ParseEVPN` (`plugins/nlri/evpn/types.go:191`) | data []byte, addpath bool | existing seeds x both polarities |
 | mup/rtc/mvpn/vpls/flowspec/ls | not widened | family `Parse*` take no add-path arg; add-path FRAMING already fuzzed upstream by `FuzzParseNLRIs` over `ParseNLRIs(data, fam, hasAddPath)` (`mpwire.go:389`) | - | - |
 | FuzzParseVPN + FuzzParseVPNAddPath | unchanged | `ParseVPN` | (two-target pattern already covers both) | keep |
 | FuzzParseCapabilities | NEW | `capability.Parse` (`capability.go:177`) | data []byte | valid OPEN capability TLVs (multiprotocol, asn4, add-path, route-refresh) + truncations |

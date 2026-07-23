@@ -7,6 +7,12 @@
 | Phase | 0/N (research) |
 | Updated | 2026-07-16 |
 
+Anchor refresh (2026-07-22 plan review, design unchanged): `reactor.go`
+anchors shifted ~+18 lines; citations below updated in-body --
+`newListenerFactory` `:1394-1422`, the MD5/GTSM
+`RealListenerFactory{MD5Peers, ListenTTL}` branch `:1402`. `go.mod:23`
+(`vishvananda/netns v0.0.5`) and `ze-vpp-conf.yang:199/201` verified exact.
+
 **DESIGN, APPROVED IN PRINCIPLE, NOT `ready`.** Created 2026-07-16 by splitting
 `plan/spec-fixit-vpp-lcp-reachability.md` (Thomas approved the split; see that spec's Task ->
 "The 2026-07-16 split"). This spec is the **Problem A** half: netns-aware BGP listening. The
@@ -29,7 +35,7 @@ root-reachable namespace, which Thomas has rejected. See "Why this is the defaul
 1. This spec file
 2. `.claude/rules/planning.md`, `ai/rules/planning.md` (spec metadata, status vocabulary)
 3. `ai/rules/no-fabrication.md`, `ai/rules/module-tiers.md`, `ai/rules/qemu-testing.md`
-4. `internal/component/bgp/reactor/reactor.go` (`newListenerFactory`, lines 1374-1385),
+4. `internal/component/bgp/reactor/reactor.go` (`newListenerFactory`, lines 1394-1422),
    `internal/core/network/network.go` (`RealListenerFactory`, lines 147-194)
 5. `plan/spec-fixit-vpp-lcp-reachability.md` (the doctor half; shares the AC-3 seam)
 
@@ -47,7 +53,7 @@ Scope, as proposed and approved 2026-07-16:
 | In scope | Out of scope |
 |----------|--------------|
 | `RealListenerFactory.Netns` as a FIELD (not a rival factory type) + `netns_linux.go` / `netns_other.go` | Changing the `vpp.lcp.netns` DEFAULT. -> Decision (user, 2026-07-16): the default STAYS `"dataplane"`; it is not a bug and no spec owns changing it |
-| The `newListenerFactory` change threading netns through BOTH branches (`reactor.go:1378-1385`) | The LCP plugin-presence doctor check (owned by the parent spec) |
+| The `newListenerFactory` change threading netns through BOTH branches (`reactor.go:1402`) | The LCP plugin-presence doctor check (owned by the parent spec) |
 | A BGP netns config surface (generic, no VPP spelling) | The outbound dialer (`RealDialer`), web / lg / DNS listeners (Known Limitations; Q4/Q5) |
 | The A-3 kernel-semantics prototype | |
 | The QEMU rail | |
@@ -137,7 +143,7 @@ Unrelated. Those source comments point at a retired spec and per `ai/rules/plann
 <!-- Moved from plan/spec-fixit-vpp-lcp-reachability.md, not duplicated: the parent's copies
      are removed and replaced by a pointer to this file. -->
 
-- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1374-1385: `newListenerFactory` is
+- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1394-1422: `newListenerFactory` is
       the PRODUCER of every production listener factory
   → Decision: THE KEYSTONE FINDING, re-verified at the producer 2026-07-16 by this session,
     not taken on trust from the parent spec. When `md5PeersForListener(port)` is non-empty or
@@ -145,13 +151,13 @@ Unrelated. Those source comments point at a retired spec and per `ai/rules/plann
     `network.RealListenerFactory{MD5Peers: md5Peers, ListenTTL: listenTTL}` and DISCARDS
     `r.listenerFactory` entirely. Only the no-MD5/no-GTSM branch returns the injected factory.
     There is no third branch and no composition. The function's own doc comment (lines
-    1374-1377) says so: "Returns the configured RealListenerFactory, or the reactor's injected
+    1394-1397) says so: "Returns the configured RealListenerFactory, or the reactor's injected
     factory (chaos/test) when neither applies."
   → Constraint: netns must COMPOSE with MD5 and GTSM, not compete with them. The factory is
     chosen either/or, never stacked, so a separate wrapping `ListenerFactory` implementation
     cannot compose here. This drives the "field, not wrapper" decision and mandates a
     netns+MD5 test (AC-9, R-8).
-- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1001-1004 (global listener) and
+- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1019-1024 (global listener) and
       1399-1402 (per-address/port listener)
   → Constraint: verified 2026-07-16. BOTH call `NewListener(...)` then immediately
     `SetListenerFactory(r.newListenerFactory(port))`, overwriting the default set by
@@ -254,7 +260,7 @@ Unrelated. Those source comments point at a retired spec and per `ai/rules/plann
 
 **Key insights:**
 - Netns must be a FIELD on `RealListenerFactory`, composing with `MD5Peers` and `ListenTTL`,
-  not a rival factory type. The reactor's `newListenerFactory` (`reactor.go:1378-1385`)
+  not a rival factory type. The reactor's `newListenerFactory` (`reactor.go:1402`)
   DISCARDS the injected factory whenever MD5 or GTSM applies, so a wrapper factory is silently
   dropped exactly on MD5-authenticated peers, binding in the WRONG namespace with no error.
 - The reactor DOES need a (small) change. The parent spec's original assumption that no
@@ -270,12 +276,12 @@ Unrelated. Those source comments point at a retired spec and per `ai/rules/plann
 
 **Source files read:** (all re-verified at the producer by this session, 2026-07-16)
 
-- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1374-1385: `newListenerFactory(port)`
+- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1394-1422: `newListenerFactory(port)`
       reads `md5PeersForListener(port)` and `listenTTLForListener(port)`; if EITHER is set it
       returns a brand-new `network.RealListenerFactory{MD5Peers: md5Peers, ListenTTL: listenTTL}`,
       ignoring `r.listenerFactory`. Otherwise it returns `r.listenerFactory` (the chaos/test
       injection). No third branch, no composition.
-- [ ] `internal/component/bgp/reactor/reactor.go` - lines 999-1005: the global listener is
+- [ ] `internal/component/bgp/reactor/reactor.go` - lines 1019-1027: the global listener is
       built with `NewListener(r.config.ListenAddr)`, `SetClock`, then
       `SetListenerFactory(r.newListenerFactory(r.config.Port))`, then `SetHandler`. Lines
       1399-1402: `startListenerForAddressPort` does the same per address/port. Both overwrite
@@ -340,7 +346,7 @@ Unrelated. Those source comments point at a retired spec and per `ai/rules/plann
 | # | Change | Producer that must change | Why |
 |---|--------|--------------------------|-----|
 | 1 | `RealListenerFactory` gains a `Netns string` field; when non-empty, `Listen` creates the socket inside that named namespace | `internal/core/network/network.go:147-194` + new `netns_linux.go` / `netns_other.go` | The only shape that composes with `MD5Peers` / `ListenTTL` through `newListenerFactory` |
-| 2 | `newListenerFactory` carries the netns into BOTH branches, and the MD5/GTSM branch stops discarding configured state | `internal/component/bgp/reactor/reactor.go:1378-1385` | Today that branch drops `r.listenerFactory` entirely (A-2 BROKEN). Without this, netns silently does nothing for MD5/GTSM peers (R-8) |
+| 2 | `newListenerFactory` carries the netns into BOTH branches, and the MD5/GTSM branch stops discarding configured state | `internal/component/bgp/reactor/reactor.go:1402` | Today that branch drops `r.listenerFactory` entirely (A-2 BROKEN). Without this, netns silently does nothing for MD5/GTSM peers (R-8) |
 | 3 | BGP gains a listener namespace config surface (a generic netns leaf, no VPP spelling) | `internal/component/bgp/yang/`, `internal/component/bgp/reactor/config.go` | The netns value must reach `newListenerFactory`. Shape pending Thomas (Q3) |
 | 4 | `checkVPPLCPNetns` NARROWS from "netns is not root-reachable" to "vpp.lcp.netns and the BGP listener netns disagree" | `internal/plugins/iface/vpp/doctor.go:100-143` | AC-3. Once BGP can bind in a namespace, the current warning is stale; the real hazard becomes a MISMATCH |
 
@@ -378,9 +384,9 @@ reaches `NewListener` (`listener.go:50`). The BGP netns value enters via a new c
 4. Doctor, post-config phase: `checkVPPLCPNetns` (`doctor.go:100-131`) today warns if the netns
    is not root-reachable; after this spec it warns only on a MISMATCH (AC-3).
 5. BGP: `NewListener(addr)` (`listener.go:50`), then the reactor OVERWRITES the factory with
-   `r.newListenerFactory(port)` (`reactor.go:1004` global, `:1402` per-port), which returns
+   `r.newListenerFactory(port)` (`reactor.go:1024` global, `:1422` per-port), which returns
    either a fresh `RealListenerFactory{MD5Peers, ListenTTL}` or the injected `r.listenerFactory`
-   (`reactor.go:1378-1385`). THIS is where the netns must be threaded, into BOTH branches.
+   (`reactor.go:1402`). THIS is where the netns must be threaded, into BOTH branches.
 6. `StartWithContext` calls `listenerFactory.Listen` (`listener.go:108`) ->
    `RealListenerFactory.Listen` (`network.go:167`) -> `lc.Listen` (`network.go:193`), on the
    reactor goroutine's thread: ze's namespace, not the TAP's. The bind cannot see the TAP.
@@ -395,7 +401,7 @@ reaches `NewListener` (`listener.go:50`). The BGP netns value enters via a new c
 | VPP to Linux | LCP creates a TAP inside the `netns` named per pair (`lcp.go:109-114`) | [ ] read 2026-07-16 |
 | BGP to kernel socket | `net.ListenConfig` via `RealListenerFactory.Listen` (`network.go:167-194`), in ze's namespace | [ ] read 2026-07-16 |
 | Namespace boundary (THE GAP) | none: no code crosses it; BGP binds where its thread runs | [ ] read 2026-07-16 |
-| Reactor to factory (THE TRAP) | `newListenerFactory` (`reactor.go:1378-1385`) selects either/or and discards the injected factory on MD5/GTSM | [ ] read 2026-07-16 |
+| Reactor to factory (THE TRAP) | `newListenerFactory` (`reactor.go:1402`) selects either/or and discards the injected factory on MD5/GTSM | [ ] read 2026-07-16 |
 
 ### Integration Points
 
@@ -404,10 +410,10 @@ reaches `NewListener` (`listener.go:50`). The BGP netns value enters via a new c
 - `network.ListenerFactory` (`internal/core/network/network.go:32-40`) - the interface. Note:
   NOT the extension point. A new implementation of it is discarded by `newListenerFactory` on
   MD5/GTSM ports.
-- `Reactor.newListenerFactory` (`internal/component/bgp/reactor/reactor.go:1374-1385`) - the
+- `Reactor.newListenerFactory` (`internal/component/bgp/reactor/reactor.go:1394-1422`) - the
   real production producer; the netns value must flow through here or it is dropped.
 - `Listener.SetListenerFactory` (`internal/component/bgp/reactor/listener.go:66-68`) - NOT an
-  external seam. The reactor overwrites it at `reactor.go:1004` / `:1402`. `listener.go` needs
+  external seam. The reactor overwrites it at `reactor.go:1024` / `:1422`. `listener.go` needs
   no edit, but not because the seam works: because the netns rides on the factory the reactor
   builds.
 - `enterTestNetns` (`internal/test/runner/netns_linux.go`) - the idiom to copy, not to import
@@ -442,7 +448,7 @@ R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | BGP has zero netns awareness today | Read of `listener.go` (lines 32-46, 108) and `network.go` (147-194) plus a grep across `internal/component/bgp/reactor/` returning only event-namespace hits (`bgpevents.Namespace`) | The work is smaller than believed | Re-grep at design time | **confirmed by read, re-verified 2026-07-16** |
-| A-2 | A netns-aware listener can be a `ListenerFactory` implementation with no reactor surgery | `SetListenerFactory` (`listener.go:66-68`) and the factory call site (`listener.go:108`) | The change reaches into reactor lifecycle and grows | Prototype a factory that binds in a named netns | **BROKEN, 2026-07-16, re-verified at the producer by this session.** `newListenerFactory` (`reactor.go:1378-1385`) returns a FRESH `RealListenerFactory{MD5Peers, ListenTTL}` and discards `r.listenerFactory` when MD5 or GTSM applies; `Listener.SetListenerFactory` is overwritten by the reactor at `reactor.go:1004` / `:1402`, so it is not an external seam at all. Reactor surgery IS required (small: thread netns through `newListenerFactory`). Mistake Log row below |
+| A-2 | A netns-aware listener can be a `ListenerFactory` implementation with no reactor surgery | `SetListenerFactory` (`listener.go:66-68`) and the factory call site (`listener.go:108`) | The change reaches into reactor lifecycle and grows | Prototype a factory that binds in a named netns | **BROKEN, 2026-07-16, re-verified at the producer by this session.** `newListenerFactory` (`reactor.go:1398`, return at `:1402`) returns a FRESH `RealListenerFactory{MD5Peers, ListenTTL}` and discards `r.listenerFactory` when MD5 or GTSM applies; `Listener.SetListenerFactory` is overwritten by the reactor at `reactor.go:1024` / `:1422`, so it is not an external seam at all. Reactor surgery IS required (small: thread netns through `newListenerFactory`). Mistake Log row below |
 | A-3 | Binding in a named netns needs OS-thread locking only around socket create+bind, not for the socket's lifetime | `setns` semantics are per-thread; `runtime.LockOSThread` is used in the tree's netns idiom (`internal/test/runner/netns_linux.go`) | The design needs a dedicated thread or an fd-passing helper process; blast radius grows (R-1) | Prototype plus a QEMU test | **UNVALIDATED. HYPOTHESIS about KERNEL semantics, NOT read from ze source; per `ai/rules/no-fabrication.md` it must not be treated as verified.** Supporting but non-probative in-tree evidence: `netns_linux.go`'s header records fork+exec'd children inheriting the locked thread's netns (`TestNetnsLaunchChildInheritsNamespace`), which shows membership attaches at object-creation time. **Settle by prototype (Phase 1) BEFORE any design commitment.** This is now the single largest technical unknown, and it GATES the design |
 | A-7 | Operators actually want LCP TAPs in a non-root netns, so teaching BGP netns is worth it rather than forcing host netns | The `netns` leaf exists and defaults to "dataplane" (`ze-vpp-conf.yang:199-201`); `lcpPairNetns` (`lcp.go:109-114`) passes a non-root netns through so the operator can isolate "deliberately" | The cheaper answer is to default LCP to the host netns and keep the doctor warning | User / operator input | **ANSWERED by Thomas, 2026-07-16: YES, support a non-root netns, because it IS the default and the documented model.** ~~"Both: fix the default now, keep netns as real work."~~ SUPERSEDED same day: that answer rested on the false premise that the `"dataplane"` default was a mistake. It is not (`plan/deferrals.md:36`; `54bffb83b`; `docs/research/vpp-deployment-reference.md:179-180`). The default STAYS, no default-fix spec exists, and "force LCP to the host netns" is REJECTED: it would delete the isolation model. **No longer blocking.** See "Why this is the default case" in Task |
 | A-13 (NEW) | An empty per-pair netns in `lcp_itf_pair_add_del` makes VPP place the TAP in VPP's OWN (host) namespace, as asserted by the comment at `lcp.go:105-108` | The comment at `internal/plugins/iface/vpp/lcp.go:105-108`, and `lcpNetnsIsRootReachable`'s doc at `doctor.go:133-135` ("VPP's per-pair netns override maps these to the host netns") | The `host`/`root` escape hatch does not exist, and the `doctor-vpp-lcp-netns` remediation text tells operators to apply a config that BREAKS LCP pair creation | Read of VPP's linux-cp C source at the producer | **BROKEN, 2026-07-16, verified at the producer in VPP's C source (not vendored; fetched from FDio/vpp).** VPP resolves an EMPTY per-pair netns to the GLOBAL default netns, not to VPP's own namespace. `lcp_itf_pair_create` (`src/plugins/linux-cp/lcp_interface.c:856-861`, master): `/* Use interface-specific netns if supplied. Otherwise, use netns if defined, otherwise use the OS default. */ if (ns == 0 \|\| ns[0] == 0) ns = lcp_get_default_ns ();`. `lcp_get_default_ns` (`lcp.c:22-30`) returns `lcpm->default_namespace`, NULL only when unset/empty. The API handler copies `mp->netns` verbatim (`lcp_api.c:60-65`), so ze's `""` arrives as `ns[0]==0` and hits the fallback; the post-fallback `ns` is what reaches the TAP (`lcp_interface.c:1061-1062`, `args.host_namespace = ns`). ze SETS that global default from the SAME leaf: `startupconf.go:106` writes `default netns <s.LCP.Netns>` unconditionally when LCP is enabled, parsed by `lcp_itf_pair_config` -> `lcp_set_default_ns` (`lcp_interface.c:576-579`, `:608`). Identical in `stable/2306:818-821` and `stable/2402:827-830`: longstanding, not a master-only change. **`""` means "VPP's own namespace" ONLY when the global default is unset, which ze never leaves unset when LCP is enabled.** See the Design Insight and Mistake Log rows below for the reachable consequence |
@@ -455,7 +461,7 @@ R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
 | R-1 | Netns binding requires thread-pinning that fights the Go runtime and destabilizes the listener | Flaky accept loop or wrong-namespace binds under load | Prototype early (Phase 1); consider a bind-only helper that passes the fd back. Reuse the `enterTestNetns` shape rather than inventing one |
 | R-2 | This spec silently invalidates `doctor-vpp-lcp-netns`, leaving a check that warns about a solved problem | The check still fires after BGP can bind in the netns | Treat the check's fate as an explicit AC (AC-3), not an afterthought. NARROW it to a mismatch check, do not delete it |
 | R-6 | Linux-only work lands without QEMU proof | The netns leg is proven only by unit tests | `ai/rules/qemu-testing.md` is mandatory. Partially mitigated by a NEW finding: the `integration && linux` rail is auto-discovering (`mk/test-integration.mk:319`), so the netns BIND is provable today. The residual is the VPP+LCP end-to-end rail (Q12) |
-| R-8 | **Silent wrong-namespace bind via the MD5/GTSM branch.** `newListenerFactory` (`reactor.go:1378-1385`) rebuilds the factory from scratch when MD5 or GTSM applies. If netns is carried on the factory but that branch is not updated, an MD5 peer's listener binds in the HOST namespace with no error, and BGP peers on the wrong interface | A netns test that passes without MD5 and fails (or worse, silently binds wrong) with MD5 | Netns must be a FIELD threaded through BOTH branches. MANDATORY test: a netns listener test WITH MD5 configured, not only the bare case (AC-9). This is the concrete instance of the Critical Review "a netns bind failure NEVER silently falls back to the host namespace" row |
+| R-8 | **Silent wrong-namespace bind via the MD5/GTSM branch.** `newListenerFactory` (`reactor.go:1402`) rebuilds the factory from scratch when MD5 or GTSM applies. If netns is carried on the factory but that branch is not updated, an MD5 peer's listener binds in the HOST namespace with no error, and BGP peers on the wrong interface | A netns test that passes without MD5 and fails (or worse, silently binds wrong) with MD5 | Netns must be a FIELD threaded through BOTH branches. MANDATORY test: a netns listener test WITH MD5 configured, not only the bare case (AC-9). This is the concrete instance of the Critical Review "a netns bind failure NEVER silently falls back to the host namespace" row |
 | R-11 (NEW) | ~~The spec lands, is correct, and no operator ever uses it: a permanent maintenance surface for a hypothetical user~~ **WITHDRAWN 2026-07-16.** Its premise was A-12 as framed plus a default fix that is not happening. With the default staying `"dataplane"`, the users are every default LCP install, and the maintenance surface serves the shipped config rather than a hypothesis | ~~Nobody asks for it after the default fix lands~~ N/A | ~~Accept deliberately or sequence behind demonstrated work~~ N/A. The honest residual risk is now R-13 |
 | R-13 (NEW, 2026-07-16) | The netns gap is worked around instead of fixed: operators keep setting `vpp.lcp.netns` to `host`/`root` because the doctor warning tells them to, so the isolation model quietly dies in the field and this spec never looks urgent | Deployments and docs that treat the root-reachable override as the normal answer rather than a workaround (`docs/guide/vpp.md` documents it as the way out today) | Word the doctor check and the guide as "BGP cannot follow yet", not "use a root-reachable netns". AC-3 narrows the check to a mismatch once BGP can follow. This risk is the honest counterweight to the raised priority: the workaround is cheap, which is exactly why the gap can persist |
 | R-12 (NEW) | The two halves of the split touch the same file (`internal/plugins/iface/vpp/doctor.go`) and land in either order, colliding | A merge conflict in `checkVPPLCPNetns`, or an AC-3 narrowing applied to a check the parent spec just rewrote | AC-3 is the ONLY shared file. The parent ships `test/ui/doctor-vpp-lcp-netns.ci` for the CURRENT behavior; this spec rewrites it when it narrows the check (accepted, see AC-3). Whichever lands second re-reads the file rather than trusting this spec's line numbers |
@@ -464,8 +470,8 @@ R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| A BGP netns config surface (shape pending Q3) plus a listen address | -> | `reactor.config` -> `newListenerFactory` (`reactor.go:1378-1385`) -> `RealListenerFactory{Netns}` (`network.go:147`) -> `listener.go:108` | `TestNetnsListenerFactoryBindsInNamedNamespace` |
-| Same, **with MD5 configured on the port** | -> | the MD5/GTSM branch of `newListenerFactory` (`reactor.go:1381-1382`) | `TestNewListenerFactoryCarriesNetnsWithMD5` (R-8: without this row the netns silently vanishes for MD5 peers) |
+| A BGP netns config surface (shape pending Q3) plus a listen address | -> | `reactor.config` -> `newListenerFactory` (`reactor.go:1402`) -> `RealListenerFactory{Netns}` (`network.go:147`) -> `listener.go:108` | `TestNetnsListenerFactoryBindsInNamedNamespace` |
+| Same, **with MD5 configured on the port** | -> | the MD5/GTSM branch of `newListenerFactory` (`reactor.go:1401-1402`) | `TestNewListenerFactoryCarriesNetnsWithMD5` (R-8: without this row the netns silently vanishes for MD5 peers) |
 | `vpp { lcp { netns X } }` + BGP netns Y (a MISMATCH), `ze doctor` | -> | narrowed `checkVPPLCPNetns` (`doctor.go:100-143`) | `test/ui/doctor-vpp-lcp-netns.ci` (rewritten from the parent spec's version; AC-3) |
 | BGP peer establishing over an LCP TAP in a non-root netns | -> | full listener plus reactor accept path (`listener.go:149-202`) | `test/ui/bgp-listener-netns.ci` with `option=needs-linux` (runs under `make ze-qemu-needs-linux-test`) |
 
@@ -503,7 +509,7 @@ duplicated. Gaps (AC-4 to AC-7, AC-11) are the doctor half's and stay in the par
 | `TestNetnsListenerFactoryUnknownNamespaceErrors` | `internal/core/network/netns_integration_linux_test.go` | An absent namespace errors clearly rather than silently binding in the host netns (AC-10) | proposed |
 | `TestNetnsListenerFactoryEmptyNetnsUnchanged` | `internal/core/network/netns_linux_test.go` | An empty `Netns` takes the existing path; no thread pinning, no behavior change (AC-2). Host-runnable, no kernel capability needed | proposed |
 | `TestNetnsListenerFactoryAppliedWithMD5` | `internal/core/network/netns_integration_linux_test.go` | `Netns` + `MD5Peers` together: BOTH are applied (AC-9, R-8) | proposed |
-| `TestNewListenerFactoryCarriesNetnsWithMD5` | `internal/component/bgp/reactor/reactor_test.go` | The producer `newListenerFactory` (`reactor.go:1378-1385`) threads netns through the MD5/GTSM branch instead of discarding it (R-8). Pure struct assertion, no kernel needed | proposed |
+| `TestNewListenerFactoryCarriesNetnsWithMD5` | `internal/component/bgp/reactor/reactor_test.go` | The producer `newListenerFactory` (`reactor.go:1402`) threads netns through the MD5/GTSM branch instead of discarding it (R-8). Pure struct assertion, no kernel needed | proposed |
 | `TestCheckVPPLCPNetnsMismatchWarns` | `internal/plugins/iface/vpp/doctor_test.go` | The narrowed check warns on a `vpp.lcp.netns` vs BGP netns MISMATCH (AC-3) | proposed |
 | `TestCheckVPPLCPNetnsAgreementSilent` | `internal/plugins/iface/vpp/doctor_test.go` | Agreeing namespaces produce no diagnostic (AC-3) | proposed |
 
@@ -550,7 +556,7 @@ None deferred. Scope is set above and every AC is assigned.
   the build-tagged helper when it is non-empty. NOT through `lc.Control`: the socket must be
   CREATED in the namespace, so the helper wraps the whole `lc.Listen` call
 - `internal/component/bgp/reactor/reactor.go` - **REQUIRED (A-2 BROKEN, R-8).**
-  `newListenerFactory` (lines 1374-1385) must carry the netns into BOTH branches, or netns is
+  `newListenerFactory` (lines 1394-1422) must carry the netns into BOTH branches, or netns is
   silently dropped on MD5/GTSM ports
 - `internal/component/bgp/reactor/config.go` - carry the netns value from config to
   `newListenerFactory`
@@ -565,7 +571,7 @@ None deferred. Scope is set above and every AC is assigned.
   limit; it stops being one
 - `internal/component/bgp/reactor/listener.go` - **NO EDIT.** Recorded because the parent spec
   originally expected one. The netns rides on the factory the reactor builds; the seam at
-  `listener.go:66-68` is overwritten by the reactor (`reactor.go:1004`, `:1402`) and is not
+  `listener.go:66-68` is overwritten by the reactor (`reactor.go:1024`, `:1422`) and is not
   usable
 
 **Not to modify:**
@@ -666,7 +672,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: `make ze-tier-check` still passes (core import direction)
 3. **Phase 3: Config surface + thread it through the reactor.**
    - Add the BGP netns leaf (shape pending Q3), carry it via `config.go` into
-     `newListenerFactory` (`reactor.go:1378-1385`) so BOTH branches set `Netns` (R-8)
+     `newListenerFactory` (`reactor.go:1402`) so BOTH branches set `Netns` (R-8)
    - Tests: `TestNewListenerFactoryCarriesNetnsWithMD5`
    - Files: `internal/component/bgp/reactor/reactor.go`, `config.go`,
      `internal/component/bgp/yang/`
@@ -731,7 +737,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| (A-2) A netns listener can be a new `ListenerFactory` implementation injected through the existing seam, with no reactor surgery | `Listener.SetListenerFactory` (`listener.go:66-68`) is overwritten by the reactor immediately after `NewListener` (`reactor.go:1004`, `:1402`), so it is not an external seam. And the producer `newListenerFactory` (`reactor.go:1378-1385`) DISCARDS the injected `r.listenerFactory` whenever MD5 or GTSM applies to the port, returning a fresh `RealListenerFactory{...}` | Read the producer `newListenerFactory` instead of stopping at the consumer `listener.go:108`. The original skeleton had read only the call site and the setter, and inferred the seam was usable | Design change: netns becomes a FIELD on `RealListenerFactory`, not a rival factory. Reactor DOES change. Prevented a silent wrong-namespace bind for every MD5/GTSM peer (R-8) |
+| (A-2) A netns listener can be a new `ListenerFactory` implementation injected through the existing seam, with no reactor surgery | `Listener.SetListenerFactory` (`listener.go:66-68`) is overwritten by the reactor immediately after `NewListener` (`reactor.go:1024`, `:1422`), so it is not an external seam. And the producer `newListenerFactory` (`reactor.go:1398`) DISCARDS the injected `r.listenerFactory` whenever MD5 or GTSM applies to the port, returning a fresh `RealListenerFactory{...}` | Read the producer `newListenerFactory` instead of stopping at the consumer `listener.go:108`. The original skeleton had read only the call site and the setter, and inferred the seam was usable | Design change: netns becomes a FIELD on `RealListenerFactory`, not a rival factory. Reactor DOES change. Prevented a silent wrong-namespace bind for every MD5/GTSM peer (R-8) |
 | (A-3, basis only) The `runtime.LockOSThread` netns precedent lives at `internal/plugins/static/resolve_integration_linux_test.go:65-86` | That path was not verified. The real in-tree netns idiom is `internal/test/runner/netns_linux.go` (`enterTestNetns`), plus `internal/core/routewatch/routewatch_linux.go` | Grepped for netns across the tree instead of trusting the cited path | Basis corrected. The assumption's substance (pinning is needed) still needs a prototype; only its citation was wrong |
 | (A-7, framing) The question is "is a non-root LCP netns worth supporting", implying a niche opt-in capability | The unreachable case is the DEFAULT: `ze-vpp-conf.yang:199-201` defaults `netns` to "dataplane" and `doctor.go:136-143` accepts only "", "host", "root", so the shipped default puts LCP TAPs where BGP cannot bind | Reframed by reading the YANG default and the root-reachable predicate together, then presenting both to Thomas | The question split in two. Recorded because the framing, not the answer, was the mistake: a spec's assumption can be mis-framed such that BOTH possible answers are wrong |
 | (A-7, second framing error) The default `"dataplane"` "contradicts its own design intent", cited from the comment at `lcp.go:105-108` | The default is DELIBERATE and correct. `plan/deferrals.md:36` (2026-07-10) records the actual decision: make BGP netns-aware "so LCP TAPs in a non-root netns are reachable by BGP **without forcing the operator to a root-reachable netns**". `"dataplane"` is IPng's production convention, copied on purpose (`54bffb83b` "following IPng production template"; `docs/research/vpp-deployment-reference.md:179-180`) | Thomas rejected the premise, 2026-07-16. The session had read `plan/deferrals.md` EARLIER IN THE SAME SESSION (it is this spec's Origin row) and still went to a code comment for design intent | Produced a phantom spec (`plan/spec-fixit-vpp-lcp-netns-default.md`, never created) and INVERTED this spec's priority: it argued itself down to "build last, no user evidenced" when it is in fact the fix for the default config. **A comment states what its author believed; recorded decisions live in `plan/deferrals.md`, `plan/learned/`, and specs.** Escalated below |
@@ -741,7 +747,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
-| A netns-aware `ListenerFactory` implementation injected via `Reactor.SetListenerFactory` | Silently discarded by `newListenerFactory` (`reactor.go:1378-1385`) on every MD5/GTSM port: the factory is chosen either/or, never stacked | A `Netns string` FIELD on `RealListenerFactory`, threaded through both branches |
+| A netns-aware `ListenerFactory` implementation injected via `Reactor.SetListenerFactory` | Silently discarded by `newListenerFactory` (`reactor.go:1402`) on every MD5/GTSM port: the factory is chosen either/or, never stacked | A `Netns string` FIELD on `RealListenerFactory`, threaded through both branches |
 | A new `internal/core/netns` package | `internal/core/network` already owns listener socket creation; a second package splits one concern across two | `netns_linux.go` / `netns_other.go` inside `internal/core/network`, mirroring `md5_*.go` / `ttl_*.go` |
 | Inheriting the BGP netns from `vpp.lcp.netns` | Couples BGP to VPP and inverts the dependency (`ai/rules/design-context.md` anti-pattern "translation layer") | A generic BGP netns leaf; the operator sets both; the doctor check catches disagreement (AC-3) |
 
@@ -754,7 +760,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Design Insights
 
-- The keystone: `newListenerFactory` (`reactor.go:1374-1385`) is an either/or selector, not a
+- The keystone: `newListenerFactory` (`reactor.go:1394-1422`) is an either/or selector, not a
   composer. Anything a listener needs at socket-creation time must be a FIELD on
   `RealListenerFactory`, because that is the only thing both branches can carry. `MD5Peers` and
   `ListenTTL` are already fields for exactly this reason. This generalizes beyond netns: the
@@ -816,7 +822,7 @@ PACKAGE is right, the SHAPE was wrong.**
 
 Why the shape (field, not wrapper) is forced, not chosen:
 
-- `newListenerFactory` (`reactor.go:1378-1385`) selects a factory **either/or**: a fresh
+- `newListenerFactory` (`reactor.go:1402`) selects a factory **either/or**: a fresh
   `RealListenerFactory{MD5Peers, ListenTTL}` OR the injected one. There is no stacking. A
   wrapper factory is therefore silently discarded exactly when MD5/GTSM is configured (R-8).
 - `MD5Peers` and `ListenTTL` are already fields for the identical reason: both are per-bind
@@ -847,7 +853,7 @@ Why the shape (field, not wrapper) is forced, not chosen:
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| `Netns` as a FIELD on `RealListenerFactory` | A rival `ListenerFactory` implementation; a wrapping/decorating factory | `newListenerFactory` (`reactor.go:1378-1385`) chooses either/or and discards the injected factory on MD5/GTSM ports, so a rival or wrapper is silently dropped exactly where it matters (R-8). Verified at the producer |
+| `Netns` as a FIELD on `RealListenerFactory` | A rival `ListenerFactory` implementation; a wrapping/decorating factory | `newListenerFactory` (`reactor.go:1402`) chooses either/or and discards the injected factory on MD5/GTSM ports, so a rival or wrapper is silently dropped exactly where it matters (R-8). Verified at the producer |
 | Helper in `internal/core/network` | A new `internal/core/netns` package; inline syscalls in the reactor | The package already owns listener socket creation and already splits per-OS work per field (`md5_*.go`, `ttl_*.go`). A second package splits one concern; reactor syscalls bypass the layer |
 | A generic BGP netns leaf | Inheriting `vpp.lcp.netns` into the BGP config | Inheriting couples BGP to VPP and inverts the dependency. The operator sets both; the doctor check catches disagreement |
 | Split from the parent spec | One combined spec | Thomas, 2026-07-16: unrelated problems sharing a filename. The doctor half is bounded and ships now; this half needs a config surface, reactor surgery, a kernel prototype, and a QEMU rail |

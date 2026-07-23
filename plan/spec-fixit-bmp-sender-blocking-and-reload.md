@@ -98,14 +98,16 @@ latent rather than live and the fix is a cheap guard plus a regression test.
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Defect 1: RIB best-change batches enter `BMPPlugin.handleBestChange` synchronously on the RIB publisher goroutine -- engine EventBus subscribers fire from `deliverEvent` (`internal/component/plugin/server/engine_event.go`, `SubscribeEngineEvent`)
+- Format at entry: best-change batch (`batch.Changes`), one entry per changed prefix
+- Defect 2: BMP collector config enters via the Stage-2 configure callback (`OnConfigure` in `internal/component/bgp/plugins/bmp/bmp.go`), delivered by `deliverConfig` from the 5-stage startup driver (`internal/component/plugin/server/startup_driver.go`)
 
 ### Transformation Path
-1. [Stage 1: e.g., "Wire parsing in internal/bgp/message/"]
-2. [Stage 2: e.g., "Attribute extraction via iterators"]
-3. [Stage 3: e.g., "Pool storage with dedup"]
-4. [Stage N: ...]
+1. RIB publishes a best-change batch on the engine EventBus; `deliverEvent` runs subscribers synchronously on the publisher goroutine
+2. `BMPPlugin.handleBestChange` (`internal/component/bgp/plugins/bmp/bmp_locrib.go`) builds a Route Monitoring message per change
+3. Today: `len(batch.Changes) x len(senders)` blocking `conn.Write` calls to collector sockets, each bounded only by the 10s `writeTimeout` -- a wedged collector stalls RIB best-change publication (the defect)
+4. Wanted: the subscriber callback only enqueues into a bounded per-session send queue; a per-sender goroutine drains the queue and does the socket writes
+5. Reload path: `OnConfigure` calls `startSender`, which appends to `bp.senders` and starts one goroutine per collector with no preceding `stopSenders`; a re-delivered configure doubles the sender set (the second defect)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -115,7 +117,11 @@ latent rather than live and the fix is a cheap guard plus a regression test.
 | [other boundaries] | [mechanism] | [ ] |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `EventBus.Subscribe` (`pkg/ze/eventbus.go`) - contract the fix restores: handler "runs synchronously when an event is emitted and MUST NOT block on I/O"
+- `deliverEvent` / `SubscribeEngineEvent` (`internal/component/plugin/server/engine_event.go`) - synchronous delivery path that puts `handleBestChange` on the RIB publisher goroutine
+- `BMPPlugin.handleBestChange` (`internal/component/bgp/plugins/bmp/bmp_locrib.go`) - becomes enqueue-only; the per-session send queue drains on a per-sender goroutine
+- `BMPPlugin.startSender` / `bp.senders` (`internal/component/bgp/plugins/bmp/bmp.go`) - gains the idempotency guard (stop-before-start or equivalent) across `OnConfigure` re-delivery
+- `deliverConfig` (`internal/component/plugin/server/startup_driver.go`) - the reload re-delivery question to settle first (defect 2)
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -149,9 +155,10 @@ latent rather than live and the fix is a cheap guard plus a regression test.
 <!-- BLOCKING: Proves the feature is reachable from its intended entry point. -->
 <!-- Without this, the feature exists in isolation — unit tests pass but nothing calls it. -->
 <!-- Every row MUST have a test name. "Deferred" / "TODO" / empty = spec cannot be marked done. -->
-| Entry Point | → | Feature Code | Test |
+| Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| RIB best-change event on engine EventBus | -> | `BMPPlugin.handleBestChange` enqueues to the bounded per-session send queue (no socket write on the subscriber goroutine) | `test/plugin/bmp-sender-nonblocking.ci` |
+| Config reload re-delivering `OnConfigure` | -> | `startSender` idempotency guard (sender set not doubled, no leaked goroutines/sockets) | `test/plugin/bmp-sender-reload-idempotent.ci` |
 
 ## Acceptance Criteria
 

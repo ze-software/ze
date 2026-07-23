@@ -7,13 +7,22 @@
 | Phase | - |
 | Updated | 2026-06-19 |
 
+PATH RELOCATION (2026-07-22 plan review; citations corrected in-body
+2026-07-22): the package moved from `internal/component/rsvpte/` to
+`internal/plugins/rsvpte/` (the tiers reorg). Every source citation in this
+spec now uses the new path, and the drifted line cites are corrected in-body:
+`register.go` `runRefreshLoop` `:872` (was `:876`), `runCleanupLoop` `:928`
+(was `:932`), loop launches `:605`/`:607` (were `:609`/`:611`),
+`expiredPSBs(...)` `:937` (was `:941`), `OnConfigApply` `~:525` (was `~:537`).
+Both reload gaps still un-fixed.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file
-2. `internal/component/rsvpte/register.go` - `OnConfigApply`, `runRefreshLoop`, `runCleanupLoop`, `reconcileTunnels`
-3. `internal/component/rsvpte/admission.go` - `setInterface`, `Reserve`/`Release`, `interfaceBandwidth`, `sessions`
-4. `internal/component/rsvpte/engine.go` - `engine.cfg()`/`setConfig` (atomic config, mpls-4)
+2. `internal/plugins/rsvpte/register.go` - `OnConfigApply`, `runRefreshLoop`, `runCleanupLoop`, `reconcileTunnels`
+3. `internal/plugins/rsvpte/admission.go` - `setInterface`, `Reserve`/`Release`, `interfaceBandwidth`, `sessions`
+4. `internal/plugins/rsvpte/engine.go` - `engine.cfg()`/`setConfig` (atomic config, mpls-4)
 5. `plan/learned/925-mpls-rsvp-te-fast-reroute.md` - the two limitations this spec closes ("Known pre-existing limitations")
 
 ## Task
@@ -24,7 +33,7 @@ that changes the rsvp-te config does not fully take effect until the daemon
 restarts:
 
 1. **Stale refresh/cleanup timers.** `runRefreshLoop` and `runCleanupLoop`
-   (`register.go:876`, `:932`) capture `cfg` by value when started in `OnStarted`
+   (`register.go:872`, `:928`) capture `cfg` by value when started in `OnStarted`
    and build `time.NewTicker(cfg.RefreshPeriod)` once. A reload that changes
    `refresh-period` or `refresh-multiplier` is never adopted: the refresh cadence,
    and the soft-state expiry factor in `expiredPSBs(now, cfg.RefreshMultiplier)`,
@@ -47,19 +56,19 @@ the reconcile read it.
 ## Required Reading
 
 ### Source files (read BEFORE implementing)
-- [ ] `internal/component/rsvpte/register.go` - `OnConfigApply` (the reload commit step, already pushes `eng.setConfig(cfg)` and reconciles tunnels), `runRefreshLoop`/`runCleanupLoop` (the two stale-ticker loops), `reconcileTunnels`, `addrToUint32`
+- [ ] `internal/plugins/rsvpte/register.go` - `OnConfigApply` (the reload commit step, already pushes `eng.setConfig(cfg)` and reconciles tunnels), `runRefreshLoop`/`runCleanupLoop` (the two stale-ticker loops), `reconcileTunnels`, `addrToUint32`
   → Constraint: the loops are passed `eng`, and `eng.cfg()` returns the current atomic config; read the live config there instead of the launch-time copy.
   → Constraint: `OnConfigApply` already holds `tunnelsMu` and tracks `configuredTunnels`; interface reconcile belongs in the same place with a sibling `configuredInterfaces` set.
-- [ ] `internal/component/rsvpte/admission.go` - `setInterface` (now RMW, mpls-4 fix), `interfaceBandwidth`, `sessions`, `Reserve`/`Release`/`reserveSession`/`releaseSession`
+- [ ] `internal/plugins/rsvpte/admission.go` - `setInterface` (now RMW, mpls-4 fix), `interfaceBandwidth`, `sessions`, `Reserve`/`Release`/`reserveSession`/`releaseSession`
   → Constraint: a removed interface must drop both `interfaces[name]` and `sessions[name]`; do not zero a live interface (mpls-4's setInterface RMW lesson).
-- [ ] `internal/component/rsvpte/engine.go` - `engine.cfg()` (atomic load) / `setConfig`
-- [ ] `internal/component/rsvpte/fsm.go` - `lspTable.expiredPSBs(now, factor)` (consumes the multiplier)
+- [ ] `internal/plugins/rsvpte/engine.go` - `engine.cfg()` (atomic load) / `setConfig`
+- [ ] `internal/plugins/rsvpte/fsm.go` - `lspTable.expiredPSBs(now, factor)` (consumes the multiplier)
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE implementing this spec)
-- [ ] `register.go` - `runRefreshLoop` (`:876`): `ticker := time.NewTicker(cfg.RefreshPeriod)`; loop body uses the captured `cfg`. `runCleanupLoop` (`:932`): same ticker, plus `expiredPSBs(now, cfg.RefreshMultiplier)` (`:941`). Both launched `go run...Loop(ctx, log, lspTable, cfg, eng)` at `:609`/`:611` with `cfg` copied by value. `eng` is non-nil here (engine built only with a valid router-id).
-- [ ] `admission.go` - `setInterface` updates/creates `interfaces[name]`; there is no `removeInterface`. `OnConfigApply` (`register.go` ~`:537`) loops `for _, iface := range cfg.Interfaces { admission.setInterface(...) }` with no teardown of removed interfaces.
+- [ ] `register.go` - `runRefreshLoop` (`:872`): `ticker := time.NewTicker(cfg.RefreshPeriod)`; loop body uses the captured `cfg`. `runCleanupLoop` (`:928`): same ticker, plus `expiredPSBs(now, cfg.RefreshMultiplier)` (`:937`). Both launched `go run...Loop(ctx, log, lspTable, cfg, eng)` at `:605`/`:607` with `cfg` copied by value. `eng` is non-nil here (engine built only with a valid router-id).
+- [ ] `admission.go` - `setInterface` updates/creates `interfaces[name]`; there is no `removeInterface`. `OnConfigApply` (`register.go` ~`:525`) loops `for _, iface := range cfg.Interfaces { admission.setInterface(...) }` with no teardown of removed interfaces.
 
 **Behavior to preserve:**
 - The mpls-4 atomic config (`e.cfg()`/`setConfig`, RouterID restart-class), the FRR
@@ -157,9 +166,9 @@ the reconcile read it.
 - N/A — no wire-protocol change; reload is a local config operation. (Justification per `ai/rules/interop-and-goal-validation.md`: this spec changes only local timer/accounting lifecycle, not on-wire behavior.)
 
 ## Files to Modify
-- `internal/component/rsvpte/admission.go` - add `removeInterface(name)`; drop `interfaces[name]` + `sessions[name]`
-- `internal/component/rsvpte/register.go` - `OnConfigApply` interface reconcile (sibling `configuredInterfaces` set + `removeInterface` for dropped); `runRefreshLoop`/`runCleanupLoop` read `eng.cfg()` each tick and `ticker.Reset` on a changed period; cleanup uses the live multiplier
-- `internal/component/rsvpte/admission_test.go`, `register_test.go` - unit tests
+- `internal/plugins/rsvpte/admission.go` - add `removeInterface(name)`; drop `interfaces[name]` + `sessions[name]`
+- `internal/plugins/rsvpte/register.go` - `OnConfigApply` interface reconcile (sibling `configuredInterfaces` set + `removeInterface` for dropped); `runRefreshLoop`/`runCleanupLoop` read `eng.cfg()` each tick and `ticker.Reset` on a changed period; cleanup uses the live multiplier
+- `internal/plugins/rsvpte/admission_test.go`, `register_test.go` - unit tests
 - `test/reload/rsvpte-reload.ci` - functional reload test
 
 ### Integration Checklist
@@ -202,8 +211,8 @@ the reconcile read it.
 ### Deliverables Checklist (/implement stage 11)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `removeInterface` exists + called | `grep -n "func (ac \*admissionController) removeInterface" internal/component/rsvpte/admission.go` and a caller in `register.go` |
-| timers read live config | `grep -n "eng.cfg()" internal/component/rsvpte/register.go` inside the loops |
+| `removeInterface` exists + called | `grep -n "func (ac \*admissionController) removeInterface" internal/plugins/rsvpte/admission.go` and a caller in `register.go` |
+| timers read live config | `grep -n "eng.cfg()" internal/plugins/rsvpte/register.go` inside the loops |
 | functional reload test | `ls test/reload/rsvpte-reload.ci` and it passes via `bin/ze-test` |
 
 ### Security Review Checklist (/implement stage 12)

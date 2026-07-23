@@ -4,8 +4,14 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-perf-next-0-umbrella.md |
-| Phase | 1/5 |
-| Updated | 2026-06-14 |
+| Phase | 5/5 |
+| Updated | 2026-07-22 |
+
+Awaiting closure (recorded 2026-07-22 during plan review): implemented and in
+the tree -- the `AppendText`/lazy-marshaler community-display path at
+`internal/core/bgp/attribute/text_append.go` (+ `_test.go`), credited to this
+child by `plan/learned/900-perf-next-round-3.md`. Only the two-commit closure
+remains.
 
 ## Post-Compaction Recovery
 
