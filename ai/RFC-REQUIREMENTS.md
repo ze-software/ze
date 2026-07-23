@@ -4878,9 +4878,9 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC9494-4.3-3` | SHOULD NOT | 4.3 | -- | -- |  |
 | `RFC9494-4.4-1` | MUST | 4.4 | `internal/component/bgp/plugins/rib/bestpath_test.go:740` | `internal/component/bgp/plugins/rib/bestpath_test.go:768` |  |
 | `RFC9494-4.5-1` | MUST | 4.5 | `internal/component/bgp/plugins/gr/gr_event_test.go:327` | `internal/component/bgp/plugins/gr/gr_event_test.go:288` |  |
-| `RFC9494-4.6-1` | MUST | 4.6 | `internal/component/bgp/plugins/gr/gr_egress_test.go:158` | `internal/component/bgp/plugins/gr/gr_egress_test.go:127` |  |
-| `RFC9494-4.6-2` | MUST | 4.6 | `internal/component/bgp/plugins/gr/gr_egress_test.go:162` | `internal/component/bgp/plugins/gr/gr_egress_test.go:95` |  |
-| `RFC9494-4.6-3` | MUST | 4.6 | `internal/component/bgp/plugins/gr/gr_egress_test.go:165` | `internal/component/bgp/plugins/gr/gr_egress_test.go:99` |  |
+| `RFC9494-4.6-1` | MUST | 4.6 | `internal/component/bgp/plugins/gr/gr_egress_test.go:219` | `internal/component/bgp/plugins/gr/gr_egress_test.go:189` |  |
+| `RFC9494-4.6-2` | MUST | 4.6 | `internal/component/bgp/plugins/gr/gr_egress_test.go:223` | `internal/component/bgp/plugins/gr/gr_egress_test.go:158` |  |
+| `RFC9494-4.6-3` | MUST | 4.6 | `internal/component/bgp/plugins/gr/gr_egress_test.go:226` | `internal/component/bgp/plugins/gr/gr_egress_test.go:162` |  |
 | `RFC9494-4.6-4` | MAY | 4.6 | -- | -- |  |
 | `RFC9494-4.7.1-1` | SHOULD | 4.7.1 | -- | -- |  |
 | `RFC9494-4.7.1-2` | MAY | 4.7.1 | -- | -- |  |

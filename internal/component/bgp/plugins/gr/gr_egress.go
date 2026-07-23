@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- LLGR egress filter
 // RFC: rfc/short/rfc9494.md -- Long-Lived Graceful Restart readvertisement
 // Overview: gr.go -- GR plugin entry point, peerLLGRCaps storage
-// Related: gr_state.go -- LLGR state transitions, llgrActiveCount maintenance
+// Related: gr_state.go -- LLGR state transitions
 
 package gr
 
@@ -36,8 +36,7 @@ var localPrefZero [4]byte // zero-value is correct: 0x00000000
 // (dest.LocalAS), which correctly honors a per-peer local-as override where a
 // single captured global value would not.
 type egressFilterState struct {
-	peerLLGRCaps    map[string]*llgrPeerCap // peerAddr -> LLGR capability (read under mu in grPlugin)
-	llgrActiveCount atomic.Int32            // number of peers currently in LLGR state
+	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> LLGR capability (read under mu in grPlugin)
 }
 
 // egressState is the package-level pointer to the filter's shared state.
@@ -53,26 +52,30 @@ func setEgressState(s *egressFilterState) {
 // LLGREgressFilter is the LLGR egress filter registered with the BGP filter pipeline (filterapi).
 // Called by the reactor for each destination peer during ForwardUpdate.
 //
-// RFC 9494 Section 4.5: LLGR_STALE routes SHOULD NOT be advertised to peers
-// that have not advertised the LLGR capability.
+// RFC 9494 Section 4.3: LLGR_STALE routes SHOULD NOT be advertised to peers
+// that have not advertised the LLGR capability (the internal-neighbor exception
+// is Section 4.6).
 //
-// Fast path: when no peers are in LLGR state (common case), returns true
-// after one atomic load -- zero overhead on normal traffic.
+// Fast path: a route with no stale metadata (the common case, staleLevel == 0)
+// returns true immediately with no modifications.
 func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
 	s := egressState.Load()
 	if s == nil {
 		return true // Plugin not yet started.
 	}
 
-	// Fast path: no peers in LLGR state.
-	if s.llgrActiveCount.Load() == 0 {
-		return true
-	}
-
-	// Check route metadata for stale level.
+	// The stale level on the ROUTE is the authoritative signal, not a peer-state
+	// counter. A route carries meta["stale"] whenever it is being readvertised
+	// stale -- whether that was driven by an LLGR restart transition
+	// (onLLGREntryDone) OR by an operator/GR-timer `request bgp rib mark-stale`,
+	// which marks routes stale without any LLGR restart. An earlier version guarded
+	// this filter on a peer-restart counter and dropped the depreference for the
+	// mark-stale path entirely (the route went out fresh toward a non-LLGR iBGP
+	// peer, an RFC 9494 Section 4.6 violation), so the check below on staleLevel is
+	// the correct and sufficient fast exit.
 	staleLevel := staleFromMeta(meta)
 	if staleLevel == 0 {
-		return true // Non-stale route, pass through.
+		return true // Non-stale route, pass through. This is the real fast path.
 	}
 
 	// Route is stale. Check destination peer's LLGR capability.
@@ -84,13 +87,13 @@ func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta m
 	}
 
 	// Destination peer does NOT have LLGR capability.
-	// RFC 9494 Section 4.5.3: iBGP is dest.PeerAS == our local AS for this session.
+	// RFC 9494 Section 4.6: iBGP is dest.PeerAS == our local AS for this session.
 	// The reactor supplies the effective per-peer local AS in dest.LocalAS
 	// (peer_forward_facts.go / reactor_api_batch.go readvertise rail).
 	isIBGP := dest.PeerAS == dest.LocalAS
 
 	if isIBGP {
-		// RFC 9494 Section 4.5.3: Partial deployment (IBGP).
+		// RFC 9494 Section 4.6: Optional Partial Deployment Procedure (IBGP).
 		// Attach NO_EXPORT community and set LOCAL_PREF=0.
 		// Route is delivered but deprioritized.
 		mods.Op(attrCodeCommunity, filterapi.AttrModAdd, communityNoExport[:])

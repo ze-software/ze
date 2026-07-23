@@ -141,20 +141,12 @@ func RunGRPlugin(conn net.Conn) int {
 		for _, fam := range families {
 			gp.dispatchCommand("clear bgp rib out", excludeSel, fam.String())
 		}
-		// Increment LLGR active count for egress filter fast-path.
-		if s := egressState.Load(); s != nil {
-			s.llgrActiveCount.Add(1)
-		}
 	}
 	gp.state.onLLGRFamilyExpired = func(peerAddr string, fam family.Family) {
 		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
 		gp.dispatchCommand("request bgp rib release-routes", peerAddr)
-		// Decrement LLGR active count for egress filter fast-path.
-		if s := egressState.Load(); s != nil {
-			s.llgrActiveCount.Add(-1)
-		}
 	}
 
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time
@@ -372,14 +364,9 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
+		purged, _ := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
-		}
-		if wasInLLGR {
-			if s := egressState.Load(); s != nil {
-				s.llgrActiveCount.Add(-1)
-			}
 		}
 	}
 }
@@ -544,15 +531,10 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
+		purged, _ := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
-		}
-		if wasInLLGR {
-			if s := egressState.Load(); s != nil {
-				s.llgrActiveCount.Add(-1)
-			}
 		}
 	}
 }

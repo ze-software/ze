@@ -30,7 +30,6 @@ func TestLLGREgressFilter_NonStale(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		"10.0.0.1": {}, // One peer has LLGR caps
 	})
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
@@ -50,22 +49,86 @@ func TestLLGREgressFilter_NonStale(t *testing.T) {
 //
 // VALIDATES: AC-7: egress filter returns immediately when no peers in LLGR (zero overhead).
 // PREVENTS: Unnecessary map lookups and metadata checks on normal traffic.
-func TestLLGREgressFilter_NoLLGRActive(t *testing.T) {
+// TestLLGREgressFilter_StaleDepreferencesRegardlessOfActiveCount is the
+// regression guard for a real RFC 9494 Section 4.5.3 violation that this test
+// used to ENCODE as correct. That old test (TestLLGREgressFilter_NoLLGRActive)
+// asserted no modifications whenever the peer-restart counter was zero. Its dest
+// was eBGP (PeerAS 65001, LocalAS 65000), so its assertions were doubly weak: on
+// an eBGP dest the correct outcome is a withdraw, which also leaves mods.Len()==0,
+// so the test passed under both the bug and the fix and gated neither. This
+// replacement pins the iBGP depreference, which the bug genuinely suppressed.
+//
+// That counter is incremented only when an LLGR RESTART transition completes
+// (gr.go onLLGREntryDone), never by `request bgp rib mark-stale`. A route
+// readvertised stale via the mark-stale path therefore reached the filter with
+// staleLevel==2 but activeCount==0, took the fast-path early return, and went out
+// FRESH toward a non-LLGR iBGP peer -- exactly the depreference RFC 9494 requires.
+// The route's stale level, not a peer-state counter, is the authoritative signal.
+//
+// This strengthens the RFC9494-4.6-2 / 4.6-3 positives already proven by
+// TestLLGREgressFilter_IBGPPartial (which sets activeCount=1). That test passed
+// while the bug shipped precisely because it never exercised activeCount==0, the
+// state the mark-stale readvertise path produces. No new requirement id: same
+// obligation, exercised in the state that was missing.
+func TestLLGREgressFilter_StaleDepreferencesRegardlessOfActiveCount(t *testing.T) {
 	state := newTestEgressState(nil)
-	state.llgrActiveCount.Store(0)
 	setEgressState(state)
 	defer setEgressState(nil)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	// iBGP: dest.PeerAS == dest.LocalAS, and NOT in peerLLGRCaps (non-LLGR).
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
-	// Even with stale metadata, fast path skips everything.
 	meta := map[string]any{"stale": uint8(2)}
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
 
-	assert.True(t, accept, "fast path should accept when no LLGR active")
-	assert.Equal(t, 0, mods.Len(), "no mods on fast path")
+	assert.True(t, accept, "route is delivered, depreferenced, not withdrawn")
+	assert.True(t, mods.HasModifications(),
+		"a stale route to a non-LLGR iBGP peer MUST be depreferenced even when activeCount==0")
+}
+
+// TestLLGREgressFilter_FreshRouteIsTheOnlyFastPath verifies the surviving fast
+// exit is the stale-level check: a route carrying no stale metadata passes
+// through untouched, which is the common (non-readvertise) case.
+func TestLLGREgressFilter_FreshRouteIsTheOnlyFastPath(t *testing.T) {
+	state := newTestEgressState(nil)
+	setEgressState(state)
+	defer setEgressState(nil)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	var mods filterapi.ModAccumulator
+
+	// No "stale" key: a normal, non-readvertised route.
+	accept := LLGREgressFilter(src, dest, nil, map[string]any{}, &mods)
+
+	assert.True(t, accept, "a fresh route passes through")
+	assert.Equal(t, 0, mods.Len(), "a fresh route gets no modifications")
+}
+
+// TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState covers the
+// other half of the same bug: with the removed peer-restart guard, a stale route
+// to a non-LLGR EBGP peer would also have gone out FRESH when no peer was
+// restarting, instead of being withdrawn (RFC 9494 Section 4.3: stale routes
+// SHOULD NOT be advertised to peers lacking the LLGR capability). No peer-restart
+// state is set up here on purpose.
+func TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState(t *testing.T) {
+	state := newTestEgressState(nil) // 10.0.0.2 not in peerLLGRCaps => non-LLGR
+	setEgressState(state)
+	defer setEgressState(nil)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	// EBGP: dest.PeerAS (65001) != dest.LocalAS (65000).
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	var mods filterapi.ModAccumulator
+
+	meta := map[string]any{"stale": uint8(2)}
+	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
+
+	assert.True(t, accept, "the route is handled (converted to a withdraw), not passed as-is")
+	assert.True(t, mods.IsWithdraw(),
+		"a stale route to a non-LLGR eBGP peer MUST be withdrawn, not advertised fresh")
 }
 
 // TestLLGREgressFilter_NilState verifies filter passes through when plugin not yet started.
@@ -104,7 +167,6 @@ func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
 	})
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
@@ -132,7 +194,6 @@ func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
 	})
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
@@ -169,7 +230,6 @@ func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
 	})
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
@@ -219,7 +279,6 @@ func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 func TestLLGREgressIBGPClassification(t *testing.T) {
 	// 10.0.0.2 not LLGR-capable so classification is exercised.
 	state := newTestEgressState(map[string]*llgrPeerCap{})
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
@@ -255,7 +314,6 @@ func TestLLGREgressIBGPClassification(t *testing.T) {
 // PREVENTS: Nil pointer dereference when meta is nil.
 func TestLLGREgressFilter_NilMeta(t *testing.T) {
 	state := newTestEgressState(nil)
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
@@ -277,7 +335,6 @@ func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
 	state := newTestEgressState(map[string]*llgrPeerCap{
 		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
 	})
-	state.llgrActiveCount.Store(1)
 	setEgressState(state)
 	defer setEgressState(nil)
 
