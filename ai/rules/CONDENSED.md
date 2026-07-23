@@ -81,18 +81,20 @@ The answer is always "no."
 | "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Fix it or log it to `plan/known-failures/`. A passing comment is not logging |
-**Every test failure gets fixed or formally logged. BLOCKING.**
+| "Pre-existing issue" | Fix it. "Pre-existing" says when it started, not whose it is. You are the entry point that reached it |
+**Every test failure gets FIXED. BLOCKING.** Logging is not an alternative outcome
+(owner directive 2026-07-23; full rule: `ai/rules/no-parking.md` "Recording is not fixing").
 1. **Fix it** as a separate commit (not mixed with feature work). Do not block current work on a
-failure you didn't cause, but DO fix it in the same session after completing the primary task.
-2. **If fixing requires deep investigation beyond session scope**, add a
-3. **Mechanical check before session end:** if your session encountered any failure you did not fix,
+2. **A shard is allowed for ONE case only: a failure you actively tried and failed to
+3. **Mechanical check before session end:** every failure your session encountered is
 | Banned | Why |
 |--------|-----|
-| "Pre-existing, not my changes" | Acknowledging a failure without fixing or logging it means the next session hits the same wall |
-| "Known issue with the netlink API" | Known to whom? If it's not in `known-failures/`, it's not known to the project |
-| Mentioning a failure only in response text | Response text is ephemeral. `known-failures/` persists across sessions |
+| "Pre-existing, not my changes" | Acknowledging a failure without fixing it means the next session hits the same wall |
+| "Known issue with the netlink API" | Known to whom? And "known" is not "fixed" |
+| Mentioning a failure only in response text | Response text is ephemeral, and describing a bug does not fix it |
 | "The only failures are..." (then moving on) | Enumeration without action is rationalization |
+| "Tracked in `plan/known-failures/`" offered as the outcome | Tracking is not fixing. The product is still broken. See `ai/rules/no-parking.md` |
+| Adding a shard for a failure that reproduces on demand | A reproduction command IS the start of the fix, not a substitute for it |
 ## Completion
 | Excuse | Answer |
 |--------|--------|
@@ -2669,6 +2671,21 @@ When replacing X with Y: DELETE X first, then implement Y.
 
 ## Directives
 When a defect blocks a goal the current work exists to achieve, you FIX the defect.
+**Recording a problem is not addressing it. Fix the root cause, always.** Writing a
+## Recording is not fixing (owner directive, 2026-07-23)
+**"ALWAYS" is literal.** Encountering a defect while doing something else is not a
+reason to catalogue it and move on.
+| What you are about to do | Do this instead |
+|---|---|
+| Add a `plan/known-failures/` entry for a test that fails deterministically | Diagnose it (`ai/rules/diagnosis-before-fix.md`) and fix the root cause |
+| Write "pre-existing, tracked in known-failures" in a report | Fix it. "Pre-existing" describes when it started, not whose it is |
+| List failures in an Executive Summary as though listing were the deliverable | Every listed failure is either fixed, or has a named reason you are blocked on it |
+| Note that a tool is broken and work around it | Fix the tool. You just proved it does not work |
+| Record an inert config surface, a dead registration, or an unwired symbol | Wire it, delete it, or reject the config -- pick one and do it |
+**The one narrow exception**, unchanged from `ai/rules/anti-rationalization.md`: a
+**non-deterministic** failure you have actively tried and failed to reproduce may get
+**A structural, deterministic, or reproducible failure has no recording path at all.**
+**A hypothesis in a shard is not a finding.** If you record one, the next agent will
 ## The failure this rule exists to stop
 A required deliverable (an interop test, a functional test, a goal-validation row) was blocked by a bug.
 - proposed dropping the deliverable to close the spec, or
@@ -3662,7 +3679,10 @@ A functional `.ci` test that boots a daemon (or runs `ze`) which exercises a rea
 |--------------------|-----|
 | Only validates config (`ze config validate -`), parses, or runs offline `ze show`/`ze env` | nothing (runs natively on every OS) |
 | Boots a daemon that **applies** Linux-only config (interface/VLAN, firewall, L2TP kernel) | `option=needs-linux` |
+| Same, AND needs privileged network configuration (creates interfaces, brings links up, netlink) | `option=needs-linux:caps=net-admin` |
 | Needs to skip only on a specific non-Linux OS for an unrelated reason | `option=skip-os:value=darwin` |
+**`caps=net-admin` exists because Linux alone is not the requirement.** On an
+**Know what you are trading.** A `caps=net-admin` test runs in NO automated
 ## How to Write a QEMU Integration Test
 ### 1. File naming and build tags
 File name: `<feature>_integration_linux_test.go`

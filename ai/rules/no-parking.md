@@ -7,6 +7,43 @@
 
 When a defect blocks a goal the current work exists to achieve, you FIX the defect. You do not park it, move it to `tmp/`, file it as a deferral, or offer to drop the deliverable. Interoperability and correctness are never "optional" and never a scope-reduction candidate. A network daemon that another implementation rejects has failed at its only job.
 
+**Recording a problem is not addressing it. Fix the root cause, always.** Writing a
+failure down -- in `plan/known-failures/`, a spec, a learned summary, a deferral row,
+or a report to the user -- changes nothing about the product. A record is a step
+*toward* a fix and never a substitute for one. When you find a red test, a hang, a
+wrong result, or a silent misbehavior, the deliverable is the FIX.
+
+## Recording is not fixing (owner directive, 2026-07-23)
+
+**"ALWAYS" is literal.** Encountering a defect while doing something else is not a
+reason to catalogue it and move on. It is the reason you are now the one who fixes it.
+
+| What you are about to do | Do this instead |
+|---|---|
+| Add a `plan/known-failures/` entry for a test that fails deterministically | Diagnose it (`ai/rules/diagnosis-before-fix.md`) and fix the root cause |
+| Write "pre-existing, tracked in known-failures" in a report | Fix it. "Pre-existing" describes when it started, not whose it is |
+| List failures in an Executive Summary as though listing were the deliverable | Every listed failure is either fixed, or has a named reason you are blocked on it |
+| Note that a tool is broken and work around it | Fix the tool. You just proved it does not work |
+| Record an inert config surface, a dead registration, or an unwired symbol | Wire it, delete it, or reject the config -- pick one and do it |
+
+**The one narrow exception**, unchanged from `ai/rules/anti-rationalization.md`: a
+**non-deterministic** failure you have actively tried and failed to reproduce may get
+a `plan/known-failures/` shard, and only as the running record of an investigation you
+are still driving. It must carry the reproduction command, the evidence gathered, and
+the next step. A shard is a live investigation, never a resting place, and never a
+substitute for a fix on anything that reproduces.
+
+**A structural, deterministic, or reproducible failure has no recording path at all.**
+Fix it.
+
+**A hypothesis in a shard is not a finding.** If you record one, the next agent will
+read it as fact. Before acting on an existing shard's stated cause, verify it against
+source (`ai/rules/no-fabrication.md`) -- and when it turns out to be wrong, say so in
+the shard. On 2026-07-23 a shard's "the plugin connection closes before verify is
+dispatched" hypothesis was disproved by the first real stress run: the signature
+appeared nowhere in the capture, and the true cause was a test-harness race
+(`plan/known-failures/reload-transaction-tests-load-sensitive.md`).
+
 ## The failure this rule exists to stop
 
 A required deliverable (an interop test, a functional test, a goal-validation

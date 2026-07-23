@@ -25,24 +25,34 @@ Rationale: `ai/rationale/anti-rationalization.md`
 | "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Fix it or log it to `plan/known-failures/`. A passing comment is not logging |
+| "Pre-existing issue" | Fix it. "Pre-existing" says when it started, not whose it is. You are the entry point that reached it |
 
-**Every test failure gets fixed or formally logged. BLOCKING.**
+**Every test failure gets FIXED. BLOCKING.** Logging is not an alternative outcome
+(owner directive 2026-07-23; full rule: `ai/rules/no-parking.md` "Recording is not
+fixing"). A `plan/known-failures/` shard is the running record of an investigation you
+are still driving, never a place to leave a defect.
 
 1. **Fix it** as a separate commit (not mixed with feature work). Do not block current work on a
    failure you didn't cause, but DO fix it in the same session after completing the primary task.
-2. **If fixing requires deep investigation beyond session scope**, add a
-   `plan/known-failures/<make-target>-<test-name>.md` shard with: failure output, root-cause hypothesis, and reproduction command.
-   This is not optional. A casual mention in your response is not logging.
-3. **Mechanical check before session end:** if your session encountered any failure you did not fix,
-   grep `plan/known-failures/` for a matching entry dated today. No entry = violation.
+2. **A shard is allowed for ONE case only: a failure you actively tried and failed to
+   reproduce.** Deterministic reds, structural gates, and anything with a reproduction
+   command are fixed, never sharded. When the exception does apply, add
+   `plan/known-failures/<make-target>-<test-name>.md` with: failure output, the
+   reproduction attempt and its result, evidence gathered, and the next step. Label a
+   root cause you have not verified against source a HYPOTHESIS, so the next agent does
+   not inherit it as fact.
+3. **Mechanical check before session end:** every failure your session encountered is
+   fixed, or is a non-reproducible one whose shard names the next step. An unfixed
+   deterministic failure is a violation regardless of what was written down.
 
 | Banned | Why |
 |--------|-----|
-| "Pre-existing, not my changes" | Acknowledging a failure without fixing or logging it means the next session hits the same wall |
-| "Known issue with the netlink API" | Known to whom? If it's not in `known-failures/`, it's not known to the project |
-| Mentioning a failure only in response text | Response text is ephemeral. `known-failures/` persists across sessions |
+| "Pre-existing, not my changes" | Acknowledging a failure without fixing it means the next session hits the same wall |
+| "Known issue with the netlink API" | Known to whom? And "known" is not "fixed" |
+| Mentioning a failure only in response text | Response text is ephemeral, and describing a bug does not fix it |
 | "The only failures are..." (then moving on) | Enumeration without action is rationalization |
+| "Tracked in `plan/known-failures/`" offered as the outcome | Tracking is not fixing. The product is still broken. See `ai/rules/no-parking.md` |
+| Adding a shard for a failure that reproduces on demand | A reproduction command IS the start of the fix, not a substitute for it |
 
 ## Completion
 

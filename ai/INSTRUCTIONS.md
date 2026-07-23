@@ -58,6 +58,14 @@
   coverage to reach green is the failure, not a choice to present.
 - If you are genuinely blocked: say so plainly with evidence, keep the spec OPEN, and
   reach for the fix before asking. Ask "which way do I fix it", never "may I skip it."
+- **RECORDING A PROBLEM IS NOT ADDRESSING IT. FIX THE ROOT CAUSE, ALWAYS.** Writing a
+  failure into `plan/known-failures/`, a spec, a learned summary, or a report changes
+  nothing about the product. A record is a step toward a fix, never a substitute.
+  Finding a defect while doing something else is not permission to catalogue it and
+  move on; it is the reason you are now the one who fixes it. The ONLY thing that may
+  be recorded instead of fixed is a failure you actively tried and FAILED to
+  reproduce, and its shard must carry the reproduction attempt and the next step.
+  Anything deterministic or reproducible gets fixed.
 - Full rule: `ai/rules/no-parking.md`
 
 ## On violation: STOP immediately
@@ -205,7 +213,7 @@ means "no rule applies".
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source; never weaken the test |
-| Hit a blocker (pre-existing bug, failing interop, a goal that will not pass) | `ai/rules/no-parking.md` -- fix the blocker; never park it, move it to `tmp/`, or offer to drop the deliverable. "Pre-existing" is not out of scope. Reducing coverage to reach green is banned |
+| Hit a blocker, a red test, a hang, or ANY defect (yours or not) | `ai/rules/no-parking.md` -- FIX THE ROOT CAUSE, ALWAYS. Recording it (`plan/known-failures/`, a spec, a report) is not addressing it. Never park it, move it to `tmp/`, or offer to drop the deliverable. "Pre-existing" says when it started, not whose it is. Reducing coverage to reach green is banned. Only a failure you tried and could not reproduce may be recorded instead of fixed |
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/language-and-spelling.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
