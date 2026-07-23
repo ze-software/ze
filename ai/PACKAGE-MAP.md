@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 615 packages, 612 described, 3 TODO
+Total: 616 packages, 613 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -59,6 +59,7 @@ Total: 615 packages, 612 described, 3 TODO
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `internal/appliance` | is the self-contained command provider for ze appliance |  |
+| `internal/appliance/instance` | prepares a relocated copy of the checked-in gokrazy instance so an image build never runs from, or writes to, a tracked path |  |
 
 ## `internal/chaos/`
 

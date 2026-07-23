@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 297 design docs, 3057 files
+Total: 298 design docs, 3058 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2602,6 +2602,10 @@ Total: 297 design docs, 3057 files
 ## `plan/learned/1226-test-health-dashboard.md`
 
 - `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
+
+## `plan/learned/1254-gokrazy-derived-parent-discards-pins.md`
+
+- `internal/appliance/instance/prepare.go` -- preparing a
 
 ## `plan/learned/415-prefix-data.md`
 
