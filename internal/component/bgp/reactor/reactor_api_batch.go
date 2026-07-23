@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 )
 
@@ -71,8 +72,12 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// peers with identical build parameters and build the UPDATE once per group.
 	// Falls back to per-peer when disabled or when peers differ.
 	type announceBuildKey struct {
-		nextHop  netip.Addr
-		isIBGP   bool
+		nextHop netip.Addr
+		isIBGP  bool
+		// rsClient partitions the groups: RFC 7947 S2.2.2.1 suppresses the AS_PATH
+		// prepend for RS-clients, so an RS-client and an ordinary eBGP peer no
+		// longer produce identical wire and must not share a built UPDATE.
+		rsClient bool
 		localAS  uint32
 		addPath  bool
 		asn4     bool
@@ -128,6 +133,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 				bk := announceBuildKey{
 					nextHop:  nextHop,
 					isIBGP:   isIBGP,
+					rsClient: peer.Settings().RSClient,
 					localAS:  peer.Settings().LocalAS,
 					addPath:  peer.addPathFor(batch.Family),
 					asn4:     peer.asn4(),
@@ -147,7 +153,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 
 				attrHandle := getBuildBuf()
 				nlriHandle := getBuildBuf()
-				update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath, peer.Settings().LocalAS)
+				update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, peer.Settings().LocalAS)
 
 				if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
 					lastErr = err
@@ -161,7 +167,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// Session not established or queue draining: queue to preserve order
 			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
 			// path builds AS_PATH inside the UPDATE wire bytes directly.
-			asPath := a.buildBatchASPath(userASPath, batch.OriginAS, isIBGP, peer.Settings().LocalAS)
+			asPath := a.buildBatchASPath(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, peer.Settings().LocalAS)
 			for _, n := range batch.NLRIs {
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
 				peer.QueueAnnounce(ribRoute)
@@ -179,7 +185,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 
 		attrHandle := getBuildBuf()
 		nlriHandle := getBuildBuf()
-		update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.asn4, bg.key.addPath, bg.key.localAS)
+		update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.localAS)
 
 		for _, peer := range bg.peers {
 			if err := peer.sendUpdateWithSplit(update, maxMsgSize, bg.key.addPath); err != nil {
@@ -307,13 +313,36 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 
 // buildBatchASPath builds AS_PATH for batch operations.
 // RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS.
-func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, originAS uint32, isIBGP bool, localAS uint32) *attribute.ASPath {
+// RFC 7947 §2.2.2: a route server does NOT prepend, for RS-client peers only.
+func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, originAS uint32, isIBGP, rsClient bool, localAS uint32) *attribute.ASPath {
 	switch {
 	case len(userASPath) > 0:
-		// Verbatim explicit as-path (route-server transparency): sent as-is.
+		// An operator-supplied as-path used to be emitted verbatim to EVERY peer,
+		// justified as route-server transparency. RFC 7947 Section 2.2.2.1 grants
+		// that transparency to RS-CLIENTS; it says nothing about ordinary peers.
+		// It is a SHOULD NOT, and the RFC says so explicitly ("a recommendation
+		// rather than a requirement"), deviating from RFC 4271 Section 5.1.2 only
+		// for clients that cannot accept a non-adjacent leftmost AS (Section
+		// 2.2.2.2). Ze takes the recommendation for RS-clients and the RFC 4271
+		// requirement for everyone else.
+		// For a plain eBGP peer RFC 4271 Section 5.1.2 still applies -- "the local
+		// system prepends its own AS number as the last element of the sequence"
+		// -- so a path that omitted our AS put a non-conformant UPDATE on the
+		// wire, invisible to the receiver's loop detection.
+		//
+		// Prepend only when our AS is not already leading, so an operator who
+		// spelled out the full path (the common case when scripting a specific
+		// AS_PATH) is not double-prepended. userASPath is the caller's slice and
+		// is never mutated.
+		asns := userASPath
+		if !isIBGP && !rsClient && asns[0] != localAS {
+			prefixed := make([]uint32, 0, len(asns)+1)
+			prefixed = append(prefixed, localAS)
+			asns = append(prefixed, asns...)
+		}
 		return &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: userASPath},
+				{Type: attribute.ASSequence, ASNs: asns},
 			},
 		}
 	case originAS != 0:
@@ -338,11 +367,97 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, originAS uint3
 	}
 }
 
+// aspathLeadsWith reports whether p already begins with asn in a leading
+// AS_SEQUENCE. Only that shape counts: RFC 4271 Section 5.1.2 case 2 prepends a
+// NEW AS_SEQUENCE when the first segment is an AS_SET, so an asn buried inside a
+// leading AS_SET does not satisfy the requirement.
+func aspathLeadsWith(p *attribute.ASPath, asn uint32) bool {
+	if p == nil || len(p.Segments) == 0 {
+		return false
+	}
+	seg := p.Segments[0]
+	return seg.Type == attribute.ASSequence && len(seg.ASNs) > 0 && seg.ASNs[0] == asn
+}
+
+// packedWithLocalASPrepended copies packed into dst with the AS_PATH attribute
+// replaced by one carrying localAS at the front (RFC 4271 Section 5.1.2), leaving
+// every other attribute byte-identical and in its original type order.
+//
+// Returns ok=false when no rewrite applies -- an internal peer (Section 5.1.2
+// forbids modifying the path), an RS-client (RFC 7947 Section 2.2.2.1 grants
+// transparency), no local AS, or a path that already leads with ours -- and the
+// caller then copies packed verbatim, which is correct in every one of those
+// cases.
+//
+// ok=false ALSO covers an AS_PATH that cannot be parsed or re-encoded. That path
+// logs: shipping a path without our AS to an external peer is a conformance
+// defect, and a guard that cannot act must at least say so
+// (ai/rules/fail-closed-guards.md).
+func (a *reactorAPIAdapter) packedWithLocalASPrepended(dst, packed []byte, isIBGP, rsClient, srcKnown, srcASN4, dstASN4 bool, localAS uint32) (int, bool) {
+	if isIBGP || rsClient || localAS == 0 {
+		return 0, false
+	}
+	// The 2-octet vs 4-octet encoding of the EXISTING path cannot be guessed: read
+	// it wrong and the rewrite silently corrupts AS_PATH, which is worse than the
+	// violation being fixed. AttributesWire.Get is not usable here -- it decodes
+	// via a REGISTERED source context and the builder-built wire carries context 0
+	// (buildBatchAnnounceUpdate), so it always errors. The caller, which knows
+	// which mode produced the bytes, passes the answer in.
+	if !srcKnown {
+		routesLogger().Warn("as-path prepend skipped: source ASN encoding unknown; sending an explicit as-path unchanged violates RFC 4271 S5.1.2 toward an external peer",
+			"localAS", localAS)
+		return 0, false
+	}
+
+	dstCtx := bgpctx.EncodingContextForASN4(dstASN4)
+	off := 0
+	for i := 0; i+3 <= len(packed); {
+		flags := packed[i]
+		code := packed[i+1]
+		hdr, vlen := 3, int(packed[i+2])
+		if flags&byte(attribute.FlagExtLength) != 0 {
+			if i+4 > len(packed) {
+				return 0, false
+			}
+			hdr, vlen = 4, int(packed[i+2])<<8|int(packed[i+3])
+		}
+		end := i + hdr + vlen
+		if end > len(packed) {
+			routesLogger().Warn("as-path prepend skipped: attribute length runs past the packed block",
+				"code", code, "localAS", localAS)
+			return 0, false
+		}
+		if attribute.AttributeCode(code) == attribute.AttrASPath {
+			existing, err := attribute.ParseASPath(packed[i+hdr:end], srcASN4)
+			if err != nil {
+				routesLogger().Warn("as-path prepend skipped: AS_PATH did not decode",
+					"localAS", localAS, "srcASN4", srcASN4, "error", err)
+				return 0, false
+			}
+			if aspathLeadsWith(existing, localAS) {
+				return 0, false // already conformant; leave the operator's path alone
+			}
+			prepended := &attribute.ASPath{Segments: make([]attribute.ASPathSegment, len(existing.Segments))}
+			for k, seg := range existing.Segments {
+				asns := make([]uint32, len(seg.ASNs))
+				copy(asns, seg.ASNs)
+				prepended.Segments[k] = attribute.ASPathSegment{Type: seg.Type, ASNs: asns}
+			}
+			prepended.Prepend(localAS)
+			off += attribute.WriteAttrToWithContext(prepended, dst, off, nil, dstCtx)
+		} else {
+			off += copy(dst[off:], packed[i:end])
+		}
+		i = end
+	}
+	return off, true
+}
+
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, asn4, addPath bool, localAS uint32) *message.Update {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
@@ -353,7 +468,11 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
 		hadASPath, _ := batch.Wire.Has(attribute.AttrASPath)
-		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4, localAS, batch.OriginAS)
+		srcASN4, srcKnown := false, false
+		if ctx := bgpctx.Registry.Get(batch.Wire.SourceContext()); ctx != nil {
+			srcASN4, srcKnown = ctx.ASN4(), true
+		}
+		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS, batch.OriginAS)
 		update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
 		if !hadASPath {
 			a.appendAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS)
@@ -375,7 +494,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
 	wire := attribute.NewAttributesWire(builtBytes, 0)
 	hadASPath, _ := wire.Has(attribute.AttrASPath)
-	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4, localAS, batch.OriginAS)
+	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, rsClient, true /*srcKnown*/, true /*Builder writes 4-octet ASNs*/, asn4, localAS, batch.OriginAS)
 
 	// Add NEXT_HOP or MP_REACH_NLRI
 	update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
@@ -547,12 +666,21 @@ func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.At
 // RFC 4271 Section 5.1: Attributes must appear in type code order.
 // If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
 // localAS is the peer-specific local AS (used for AS_PATH prepend when missing).
-func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, asn4 bool, localAS, originAS uint32) int {
+func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, rsClient, srcKnown, srcASN4, asn4 bool, localAS, originAS uint32) int {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
 	hasASPath, _ := wire.Has(attribute.AttrASPath)
 	packed := wire.Packed()
 
 	if hasOrigin && hasASPath {
+		// RFC 4271 Section 5.1.2: an AS_PATH that arrived complete still has to
+		// carry OUR AS toward an external peer. Copying `packed` straight through
+		// (what this arm used to do unconditionally) shipped an operator-supplied
+		// as-path without ze in it, so the receiver's loop detection could not see
+		// itself behind us. RFC 7947 Section 2.2.2.1 excuses RS-clients, and
+		// Section 5.1.2 forbids touching the path toward an internal peer.
+		if n, ok := a.packedWithLocalASPrepended(buf, packed, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS); ok {
+			return n
+		}
 		copy(buf, packed)
 		return len(packed)
 	}
@@ -875,12 +1003,13 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	addPath := peer.addPathFor(batch.Family)
 	asn4 := peer.asn4()
 	localAS := peer.Settings().LocalAS
+	rsClient := peer.Settings().RSClient
 
 	attrHandle := getBuildBuf()
 	nlriHandle := getBuildBuf()
 	defer putBuildBuf(attrHandle)
 	defer putBuildBuf(nlriHandle)
-	update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath, localAS)
+	update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS)
 
 	// Run the readvertise egress filters. LLGREgressFilter keys off meta["stale"]
 	// and the destination peer's LLGR capability; it writes into mods.

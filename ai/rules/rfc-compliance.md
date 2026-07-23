@@ -1,11 +1,36 @@
-# RFC Compliance
+# RFC Compliance (every protocol, not just BGP)
 
-**When:** Ze MUST be a fully RFC 4271 compliant BGP speaker
-**Severity:** advisory
+**When:** writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements
+**Severity:** blocking
 
 ## Directives
 
-Ze MUST be a fully RFC 4271 compliant BGP speaker.
+**Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
+just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP,
+RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface is held to its
+own RFCs, and so is anything Ze speaks that has a standard behind it.
+
+You cannot write an RFC-based application and not ensure RFC compliance.
+Conformance is a property of the code, checked against the RFC text, and it is
+never traded away for convenience, for a green test, or for expedience.
+
+**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation.**
+
+When he does authorise one, record it in `plan/learned/` with the RFC section and
+the reason, so the next reader finds a decision rather than a bug.
+
+| Situation | What you MUST do |
+|-----------|------------------|
+| You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/no-parking.md`) |
+| A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
+| A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/no-fabrication.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
+| The RFC requirement is not in `rfc/short/<stem>.md` | An unextracted obligation is still an obligation. Add the checklist row (see Extraction Completeness) -- the gate's silence is not conformance |
+| Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
+| An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
+
+**Before claiming a protocol behaviour is correct, read the RFC text**, not only
+the summary and not only the surrounding code. Cite the section you relied on.
+
 Rationale: `ai/rationale/rfc-compliance.md`
 
 ## RFC Summaries (`rfc/short/`)

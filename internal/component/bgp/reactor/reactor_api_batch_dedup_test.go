@@ -79,7 +79,7 @@ func TestBuildBatchAnnounce_WireMode_IPv4_NoDuplicateNextHop(t *testing.T) {
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
 	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.MustParseAddr("10.0.0.9"), false, true, false, 65000)
+		netip.MustParseAddr("10.0.0.9"), false, false, true, false, 65000)
 	require.NotNil(t, update)
 
 	assert.Equal(t, 1, countAttr(t, update.PathAttributes, attribute.AttrNextHop),
@@ -125,7 +125,7 @@ func TestBuildBatchAnnounce_WireMode_IPv4_InvalidNextHopKeepsBlock(t *testing.T)
 	nlriBuf := make([]byte, message.MaxMsgLen)
 	// isIBGP=false so no LOCAL_PREF is appended; an invalid (zero) resolved next-hop.
 	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.Addr{}, false, true, false, 65000)
+		netip.Addr{}, false, false, true, false, 65000)
 	require.NotNil(t, update)
 
 	assert.Equal(t, wireAttrs, update.PathAttributes,
@@ -159,7 +159,7 @@ func TestBuildBatchAnnounce_WireMode_IPv4_NextHopSelfReplaces(t *testing.T) {
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
 	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.MustParseAddr("192.0.2.1"), false, true, false, 65000)
+		netip.MustParseAddr("192.0.2.1"), false, false, true, false, 65000)
 	require.NotNil(t, update)
 
 	require.Equal(t, 1, countAttr(t, update.PathAttributes, attribute.AttrNextHop))
@@ -202,7 +202,7 @@ func TestBuildBatchAnnounce_WireMode_IPv6_NoDuplicateMPReach(t *testing.T) {
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
 	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
-		netip.MustParseAddr("2001:db8::1"), false, true, false, 65000)
+		netip.MustParseAddr("2001:db8::1"), false, false, true, false, 65000)
 	require.NotNil(t, update)
 
 	assert.Equal(t, 1, countAttr(t, update.PathAttributes, attribute.AttrMPReachNLRI),

@@ -181,7 +181,7 @@ func TestStaleReadvertiseWireOutput(t *testing.T) {
 	// The announce body an LLGR-capable peer receives unchanged (the keep case).
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	announce := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), true, false, false, 65000)
+	announce := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), true, false, false, false, 65000)
 	require.NotNil(t, announce)
 	announceBody := fwdPackUpdateBody(announce)
 

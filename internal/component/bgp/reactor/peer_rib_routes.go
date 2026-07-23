@@ -19,6 +19,19 @@ import (
 // Rebuilds the full set of required attributes since rib.Route may not store all.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+//
+// A stored AS_PATH is emitted VERBATIM, with no local-AS prepend. That is
+// deliberate, not an oversight: the only production caller that supplies one is
+// the API announce path (rib.NewRouteWithASPath in reactor_api_batch.go), and the
+// path it stores has ALREADY had the local AS applied by buildBatchASPath. RFC
+// 4271 Section 5.1.2 is enforced there, once, for this rail. Prepending again
+// here would double it. The prepend arm below is for locally-originated routes
+// that carry no stored path at all.
+//
+// NOT pinned by TestRIBRouteUpdate_* in reactor_as4path_test.go, despite the
+// name: those assert only the AS4_PATH attribute, and every case passes
+// localAS == asns[0], so they cannot tell a verbatim emission from a conditional
+// prepend. Anyone changing this arm needs a new test that inspects AS_PATH.
 func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
 	off := 0
 
