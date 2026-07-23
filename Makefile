@@ -12,7 +12,9 @@
 .PHONY: help-test help-deploy help-dev
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
-export GOCACHE := $(CURDIR)/tmp/go-cache
+# GOCACHE is on the durable side (cache/ -> ~/.cache/ze), not disposable tmp/, so it
+# survives a scratch wipe. Still inside CURDIR, so the socket-path note above holds.
+export GOCACHE := $(CURDIR)/cache/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 export CGO_ENABLED := 0
 

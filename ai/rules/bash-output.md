@@ -75,7 +75,8 @@ The whole directory is removed at session end (`.claude/hooks/session-end-scratc
 with a 24h backstop in `session-start.sh`), so your scratch is self-contained and
 disposable. Do NOT relocate artifacts that are already session-keyed (commit
 scripts `tmp/commit-<sid>.sh`, session state `tmp/session/*-<SID>*`) or shared by
-design (`tmp/go-cache`, `tmp/ze-verify.*`, the durable `cache/`) -- those stay put.
+design (`tmp/ze-verify.*`, the durable `cache/`) -- those stay put. `GOCACHE` is
+`cache/go-cache` (`Makefile:17`), on the durable side.
 
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 

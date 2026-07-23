@@ -79,12 +79,13 @@ outside it. `rm -rf tmp/` (or a full `$TMPDIR` wipe) never destroys anything exp
 Only the sentinel is genuinely special. Everything else stays as-is; there is NO third
 directory:
 
-1. **Go build caches STAY in `tmp/` (unchanged).** `Makefile:14-15` keep `GOCACHE`/
-   `GOLANGCI_LINT_CACHE` at `$(CURDIR)/tmp/...`. The `Makefile:13` note "not TMPDIR - breaks
-   Unix socket tests" describes a TEST bug (a socket path exceeding `sun_path` under a long
-   `$TMPDIR`), NOT a cache-location requirement. Do not repoint the cache. If a socket test
-   actually fails on a symlinked tree, fix THAT test's socket path (short/relative), which is
-   the real bug.
+1. ~~**Go build caches STAY in `tmp/` (unchanged).** `Makefile:14-15` keep `GOCACHE`/
+   `GOLANGCI_LINT_CACHE` at `$(CURDIR)/tmp/...`. ... Do not repoint the cache.~~
+
+   **SUPERSEDED 2026-07-23 by owner instruction, for `GOCACHE` only.** `GOCACHE` is now
+   `$(CURDIR)/cache/go-cache` (`Makefile:17`), the durable side. No third directory: `cache/`
+   already existed. Still inside `CURDIR`, so the socket-path note is unaffected, and the
+   reading of `Makefile:13` above still stands. `GOLANGCI_LINT_CACHE` is unchanged.
 2. **Container/VM scratch keeps using `tmp/`** (`/src/tmp`, `/workspace/tmp`). On a migrated
    (symlinked) tree the host `tmp` symlink can dangle inside a bind/9p mount. Handle that ONLY
    if it actually bites, by fixing that one consumer minimally (e.g. a guest-local cache dir
@@ -348,7 +349,7 @@ the relocation (AC-7). Precedent for `XDG_CACHE_HOME` redirection:
 |-------|----------------|
 | Bootstrap ordering | ensure-links precedes every `mkdir -p tmp*`; no path materialises a real `tmp/` |
 | Sentinel / `go list` | `go list ./...` clean on the relocated tree; sentinel handled per A-6 outcome |
-| GOCACHE unchanged | GOCACHE stays `$(CURDIR)/tmp/go-cache`; no third cache dir exists. If a socket test fails on a symlinked tree, the fix is that test's path, not the cache location |
+| ~~GOCACHE unchanged~~ | ~~GOCACHE stays `$(CURDIR)/tmp/go-cache`; no third cache dir exists. If a socket test fails on a symlinked tree, the fix is that test's path, not the cache location~~ -> **Superseded 2026-07-23 by owner instruction**: GOCACHE is now `$(CURDIR)/cache/go-cache` (`Makefile:19`). Reason the original call was wrong: a ~3-6 GB rebuildable-but-expensive artifact was on the DISPOSABLE side, so a scratch wipe cost a full rebuild, and on this host it filled the root filesystem to 100% until `~/.cache` was moved to its own volume (it broke `ze-platform-vet` with `no space left on device`). No third cache dir is created -- `cache/` already existed. The socket-path rationale is unaffected: `cache/` is still inside CURDIR |
 | Consumer paths | all ~20 `tmp/kernel/*` consumers unchanged; `test -f` guards still fire |
 | Option C key | exactly one key implementation (Go); `run.py` never guesses; `ze-host` is a HOST build (no GOARCH) |
 | Eviction safety | key-change-only, keep-N=2, cannot race a live boot; touches only the intended namespaces |

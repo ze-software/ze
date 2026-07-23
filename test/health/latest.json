@@ -81,7 +81,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 20090,
+        "denominator": 20113,
         "numerator": 136,
         "percent": 0.7
       },
@@ -89,7 +89,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 20090 (floor 136)",
+      "value": "136 / 20113 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -184,15 +184,15 @@
         "ci_files": 1458,
         "et_files": 164,
         "fuzz_funcs": 72,
-        "test_files": 2632,
-        "test_funcs": 20119
+        "test_files": 2635,
+        "test_funcs": 20142
       },
-      "detail": "2632 Go test files, 72 fuzz targets, 122 benchmarks, 1458 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2635 Go test files, 72 fuzz targets, 122 benchmarks, 1458 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20119 test functions"
+      "value": "20142 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -270,13 +270,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2632,
-        "numerator": 843,
-        "percent": 32.0
+        "denominator": 2635,
+        "numerator": 846,
+        "percent": 32.1
       },
       "question": "Q2",
-      "status": "warn",
-      "value": "843 / 2632",
+      "status": "ok",
+      "value": "846 / 2635",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -350,7 +350,7 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 485,
+          "packages": 487,
           "with_ci": 30,
           "with_fuzz": 29,
           "with_rfc_tag": 88
