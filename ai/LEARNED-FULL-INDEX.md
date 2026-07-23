@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1225 summaries
+Total: 1226 summaries
 
 ## 000-099
 
@@ -1299,3 +1299,4 @@ Total: 1225 summaries
 | 1251 | feature-gate-11-bmp-mrt | `plan/learned/1251-feature-gate-11-bmp-mrt.md` |
 | 1252 | A verdict that passes on any one peer, and an RFC exemption granted to everyone | `plan/learned/1252-masked-verdict-and-rfc-exemption.md` |
 | 1254 | gokrazy derived parent discards every builddir pin | `plan/learned/1254-gokrazy-derived-parent-discards-pins.md` |
+| 1255 | fixit-codeql-security-triage | `plan/learned/1255-fixit-codeql-security-triage.md` |

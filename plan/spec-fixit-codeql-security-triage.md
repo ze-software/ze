@@ -559,25 +559,56 @@ are; they already cite the mandating section.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| 1. Remove the unsalted digest of an operator secret from the PXE network | Done | `internal/core/rescueauth`, `plugins/provision/main.go`, `plugins/imageserver/` | Dedicated random token behind salted argon2id; old path deleted, not aliased |
+| 2. Make the appliance config push authenticate its host | Done | `internal/appliance/cmd_config_push.go` | `~/.ssh/known_hosts`, fails closed; call site asserted by test |
+| 3. Close the EAP-TLS fail-open with no trust anchor | Done | `ike/eap/peer.go`, `ike/engine/fsm.go`, `ike/ipsec/validate.go` | Initiator runtime, config builder, and config verify |
+| 4. Close the `HX-Current-URL` open redirect | Done | `web/auth.go`, `web/handler_config_commit.go`, `web/handler_config_form.go` | One shared `isSameOriginPath`; the sibling producer was found by review |
+| 5. Reject rather than truncate out-of-range operator input | Done | `filter_irr/command.go`, `cmd/announce/announce.go` | |
+| 6. Bound the OSPF/IS-IS narrowing locally | Done | `ospf/config.go`, `ospf/sr_config.go`, `isis/config.go` | 42 sites; does NOT clear the alerts (corrected claim) |
+| 7. Leave the scanning page fully triaged | Done | GitHub code scanning | 169 alerts, 0 open |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestValueIsSalted`, `TestValueIsCmdlineSafe`, `TestPrintRescueToken`, `TestValuePinnedVector` | |
+| AC-2 | Done | `TestRescueGateAcceptsProvisionedToken` | Drives `gateWithRescueToken`, mutation-verified |
+| AC-3 | Done | `TestRescueGateRefusesWrongToken`, `TestRescueGateFailsClosedOnMalformedCmdlineValue`, `TestCheckFailsClosedOnMalformedValue` | |
+| AC-4 | Done | Full-tree grep: only `test-relax:` provenance comments remain | |
+| AC-5 | Done | `TestSSHExecRefusesUnknownHost`, `TestSSHExecRealUsesVerifyingHostKeyCallback`, `TestApplianceHostKeyCallbackRefusesEmptyPath` | |
+| AC-6 | Done | `TestSSHExecAcceptsPinnedHostKey` | |
+| AC-7 | Done | `TestSSHExecRejectsChangedHostKey` | |
+| AC-8 | Done | `TestValidateIPsecSectionsRejectsEAPTLSWithoutCA`, `test/reload/test-tx-ipsec-eap-tls-requires-ca.ci` | Enforced at the reload transaction, not offline `ze config validate` |
+| AC-9 | Done | Full `ike/...` suite green; `TestValidatePKIRefsAllowsEAPTLSIdentityUnlikeCertCN` | |
+| AC-10 | Done | `TestParentFromCurrentURL*`, `TestConfigDiscard*RedirectIsSameOrigin`, `TestBackToRefererOrShowIsSameOrigin` | |
+| AC-11 | Done | `TestUpdateASNRejectsOutOfRange` | |
+| AC-12 | Done | `TestParseDurationRejectsOverflow` | |
+| AC-13 | Done | `TestConfigUintRejectsAboveMax` (ospf + isis), `TestNarrowedLeavesDeclareARange` | |
+| AC-14 | Done | ospf/... + isis/... suites, 28 packages, green before and after | |
+| AC-15 | Done | `gh api` listing: 169 alerts, 0 open | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Rescue credential suite | Done | `internal/core/rescueauth/` | Plus `TestDeriveMemoryIsBounded`, added to resolve A-2 |
+| Installer gate + fatal policy | Done | `internal/install/disk/rescue_linux_test.go` | Now actually runs, via `ze-installer-unit-test` |
+| Appliance host key | Done | `internal/appliance/cmd_config_push_hostkey_test.go` | |
+| EAP-TLS trust anchor | Done | `ike/eap/`, `ike/engine/`, `ike/ipsec/` | |
+| Web redirect | Done | `internal/component/web/handler_config_commit_test.go` | |
+| configUint | Done | `ospf/config_uint_test.go`, `isis/config_uint_test.go` | IS-IS test added by review |
+| Functional `.ci` | Done | `test/parse/`, `test/reload/` | Reload test is load-sensitive; see known-failures |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| All "Files to Modify" entries | Done | Plus `web/handler_config_form.go`, `mk/test-unit.mk`, `ospf/yang/ze-ospf-conf.yang`, added by review findings |
+| All "Files to Create" entries | Done | Plus `build_peer_tls_test.go`, `memory_test.go`, `isis/config_uint_test.go` |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 15 ACs + 7 task requirements
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-8 lands at the reload transaction rather than offline `ze config validate`, because `ze config validate` does not invoke plugin verify callbacks (traced to `config_tx_bridge.go`). Documented in Deviations.
 
 ## Goal Validation (BLOCKING)
 
