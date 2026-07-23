@@ -1,7 +1,7 @@
 # Test: remove-private-as replace-with peer-as applies to ORIGINATED routes
 # VALIDATES: RFC 6996 Section 4 on the session write gate, in `replace-with peer-as`
 # VALIDATES: mode: the substituted ASN is the EXPORT DESTINATION peer AS (65002),
-# VALIDATES: not the local AS (65000).
+# VALIDATES: not the local AS (64500).
 # PREVENTS: exportFilterForBody passing the wrong destPeerAS to the export chain.
 # PREVENTS: the STRIP-only sibling test passing while peer-as substitution is unwired
 # PREVENTS: (STRIP cannot distinguish a wrong peerAS -- it never uses it).
@@ -16,10 +16,21 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
 cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
-# Private 64512 replaced by peer AS 65002 (0xFDEA): AS_PATH=AS_SEQUENCE[64496 65002 64497].
-# attrs(0x1C=28) = ORIGIN(4) + AS_PATH(17) + NEXT_HOP(7). 0xFDEA is the receiver's
-# remote AS; a local-AS substitution would encode 0xFDE8 and fail this assertion.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C4001010040020E02030000FBF00000FDEA0000FBF140030401010101180A0000
+# Private 64512 replaced by peer AS 65002 (0xFDEA), and the local AS 64500 (0xFBF4)
+# prepended ahead of the operator's path per RFC 4271 S5.1.2:
+# AS_PATH=AS_SEQUENCE[64500 64496 65002 64497].
+# attrs(0x20=32) = ORIGIN(4) + AS_PATH(21) + NEXT_HOP(7). 0xFDEA is the receiver's
+# remote AS; a local-AS substitution would encode the local AS here and fail this
+# assertion, which is what this test exists to catch.
+#
+# The local AS is 64500, NOT a private ASN, and that matters. It used to be 65000,
+# which is inside RFC 6996's private range 64512-65534, so once the local AS is
+# prepended the export filter below replaces ZE'S OWN AS with the peer's -- yielding
+# AS_PATH[65002 ...] toward the peer whose AS is 65002, which that peer must drop as
+# a loop. Peering externally from a private ASN is the RFC 6996 problem this test was
+# never trying to exercise; using a non-private local AS keeps the subject (the
+# substituted ASN is the PEER AS, not the local AS) and drops the accident.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FBF40000FBF00000FDEA0000FBF140030401010101180A0000
 EOF_PEER
 
 tmpfs=remove-private-as-replace-originated.run:mode=755:terminator=EOF_RUN
@@ -64,7 +75,7 @@ bgp {
 		}
 		session {
 			asn {
-				local 65000
+				local 64500
 				remote 65002
 			}
 			router-id 1.2.3.4
