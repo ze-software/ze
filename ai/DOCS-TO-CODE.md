@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 297 design docs, 3052 files
+Total: 297 design docs, 3057 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1486,6 +1486,9 @@ Total: 297 design docs, 3052 files
 | `internal/test/runner/accept_only.go` | accept-only (weak) .ci predicate and annotation marker |
 | `internal/test/runner/await_stderr.go` | await=stderr deterministic fence |
 | `internal/test/runner/base.go` | test runner framework |
+| `internal/test/runner/caps.go` | option=needs-linux capability gating |
+| `internal/test/runner/caps_linux.go` | option=needs-linux capability gating |
+| `internal/test/runner/caps_other.go` | option=needs-linux capability gating |
 | `internal/test/runner/color.go` | test runner framework |
 | `internal/test/runner/decode.go` | test runner framework |
 | `internal/test/runner/decoding.go` | test runner framework |
@@ -3095,6 +3098,7 @@ Total: 297 design docs, 3052 files
 |------|-------|
 | `internal/component/ike/engine/auth.go` | AUTH payload computation |
 | `internal/component/ike/engine/config.go` | config parsing for IKE engine |
+| `internal/component/ike/engine/doctor.go` | IKE engine readiness checks |
 | `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
 | `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
 | `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |
@@ -3229,6 +3233,7 @@ Total: 297 design docs, 3052 files
 |------|-------|
 | `internal/component/ike/eap/eap_tls_handshake_test.go` | EAP-TLS in-memory handshake harness |
 | `internal/component/ike/eap/eap_tls_regression_test.go` | EAP-TLS transport + peer fixes |
+| `internal/component/ike/eap/eap_tls_trust_anchor_test.go` | EAP-TLS trust anchor handling |
 | `internal/component/ike/eap/peer.go` | EAP peer (client/initiator) side |
 | `internal/component/ike/eap/peer_test.go` | EAP peer session tests |
 

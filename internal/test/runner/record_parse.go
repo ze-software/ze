@@ -400,10 +400,34 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// inert and the test runs normally. This is how Linux-only functional
 		// tests are validated automatically via QEMU instead of failing
 		// natively. See ai/rules/qemu-testing.md "Linux-only functional tests".
+		//
+		// An optional `caps=net-admin` declares that the test also needs
+		// privileged network configuration. Without it, a test that applies
+		// interface config on an unprivileged Linux host does not fail cleanly:
+		// the interface plugin dies with "operation not permitted" during its
+		// stage-3 handshake, the daemon never reaches the asserted state, and
+		// the test HANGS until the suite timeout. Declaring the capability turns
+		// that hang into an honest skip that names the QEMU runner, where the
+		// test does have the capability and therefore really runs.
 		r.NeedsLinux = true
-		if runtime.GOOS != "linux" {
+
+		// Validate the declared capability BEFORE the GOOS early-return. A typo
+		// is a property of the .ci file, not of the host, so it must be rejected
+		// everywhere: validating after the return would silently accept
+		// `caps=net-admn` on macOS, leaving the author who wrote it with no
+		// feedback and the gate quietly disabled until someone ran on Linux.
+		caps := kv["caps"]
+		if caps != "" && caps != capsNetAdmin {
+			return fmt.Errorf("option=needs-linux: unknown caps %q (supported: %s)", caps, capsNetAdmin)
+		}
+
+		if runtime.GOOS != goosLinux {
 			var tb textbuf.Buffer
 			r.SkipReason = tb.Str("needs-linux (run via make ze-qemu-needs-linux-test; current GOOS=").Str(runtime.GOOS).Byte(')').String()
+			return nil
+		}
+		if caps == capsNetAdmin && !hasNetAdmin() {
+			r.SkipReason = "needs-linux caps=net-admin (no CAP_NET_ADMIN; run via make ze-qemu-needs-linux-test)"
 			return nil
 		}
 

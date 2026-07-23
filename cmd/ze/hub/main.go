@@ -1185,6 +1185,12 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 					cancel()
 					return
 				}
+				// The hub-config reload loop, selected by Run on
+				// zeconfig.ProbeConfigType. It must announce completion for the
+				// same reason handleSIGHUPReload does: without it a hub daemon's
+				// last word is "received SIGHUP, reloading config...", whether
+				// the reload finished or wedged, and no .ci can fence on it.
+				reloadComplete()
 			}
 		}
 	}()

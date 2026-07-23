@@ -246,7 +246,7 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | (none) | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. See `ai/rules/qemu-testing.md`. |
+| `needs-linux` | `[caps=net-admin]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. Add `caps=net-admin` when the test also needs privileged network configuration (creating interfaces, bringing links up, netlink): without the capability the test is SKIPped instead of hanging. See `ai/rules/qemu-testing.md`. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 
 ### OPEN Behaviors

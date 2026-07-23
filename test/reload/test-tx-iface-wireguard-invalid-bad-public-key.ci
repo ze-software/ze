@@ -8,7 +8,7 @@
 # validate only runs YANG schema checks, and the YANG schema accepts
 # any string for public-key.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 stdin=peer:terminator=EOF_PEER
 
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801

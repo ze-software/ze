@@ -462,3 +462,74 @@ Environment deps (skip-env tagged): show-policy-routes, wireguard-invalid.
 **Resolved 2026-05-31.** TypeEmpty wired end-to-end. Single-marshal,
 stale plugin lists, migration keyword, multi-line descriptions, CLI
 grammar catch-up.
+
+### 2026-07-23 -- `ze-test bgp reload` `commit-transactional` never writes `meta/config/rollback`
+
+**Resolved 2026-07-23.** Root cause: a successful SIGHUP reload emitted no
+signal at all. `handleSIGHUPReload` (`cmd/ze/hub/main_reload.go`) printed
+`received SIGHUP, reloading config...` on entry and, on success, printed
+nothing; only failures printed `reload error: %v`. The daemon's last word was
+therefore identical whether a reload finished instantly, was still running, or
+had wedged.
+
+Two consequences, and the second is what disguised this as flakiness:
+
+1. An operator could not tell a completed reload from a stuck one.
+2. No functional test could fence on completion, so every reload `.ci` raced its
+   own teardown. The runner tears the daemon down right after `action=sighup`;
+   under load it was killed mid-reload, leaving a partial atomic write (a stray
+   `.ze-storage-*` under `rollback/`) and no `meta/config/rollback` pointer.
+   Reproduced by hand outside the harness: SIGHUP, nothing logged, process still
+   alive, temp file orphaned.
+
+Fix: `reloadComplete()` prints the stable phrase `reload complete` after a
+successful reload (direct and queued-SIGHUP paths), and `commit-transactional.ci`
+fences on it with `await=stderr:contains=reload complete`.
+`test-tx-ipsec-eap-tls-requires-ca.ci` got the same treatment for its own
+rejection message, replacing a back-to-back SIGHUP/SIGTERM pair no daemon could
+win under load.
+
+Verified: `bgp reload` 31/31 green unloaded; the ipsec test survived 40/40
+invocations of `stress-repro.py "bgp reload" --test 34` at 64 burners on 32
+cores, having previously failed on invocation 1.
+
+### 2026-07-23 -- `ze-test bgp reload` seven iface/apply-ordering tests hang without CAP_NET_ADMIN
+
+**Resolved 2026-07-23.** Root cause: the wrong marker, and a marker that could
+not express the requirement.
+
+The seven tests carried `option=skip-os:value=darwin` ("skip on macOS").
+`ai/rules/qemu-testing.md` prescribes `option=needs-linux` for a `.ci` that boots
+a daemon which APPLIES Linux-only config, which is what these do. And
+`needs-linux` gated only on `runtime.GOOS`, so even the correct marker would not
+have helped on an unprivileged Linux host.
+
+Unprivileged, the interface plugin dies during its stage-3 handshake
+(`iface: set up "order-del0": operation not permitted`), the daemon never reaches
+the asserted state, and the test does not fail -- it HANGS to the suite timeout.
+That is why these read as load-sensitive timeouts.
+
+Fix: `option=needs-linux` now accepts `caps=net-admin`, gated on the effective
+capability read from `/proc/self/status` (`internal/test/runner/caps_linux.go`),
+not on uid 0 -- a setcap'd binary holds the capability without being root, and a
+restricted container may lack it while being root. The seven tests declare it and
+now SKIP with a reason naming `make ze-qemu-needs-linux-test`, where they run for
+real as root. An unknown `caps=` value is a parse error, so a typo cannot silently
+disable the gate. Guarded by `TestNeedsLinux*` in
+`internal/test/runner/caps_option_test.go`, which injects the probe so BOTH
+polarities are asserted on any host -- an earlier version asserted only the host's
+real answer and was therefore vacuous in QEMU, the one place the suite runs for
+real.
+
+Only the seven that actually fail were marked; the four sibling iface tests that
+pass unprivileged still run.
+
+**What this does NOT claim.** These seven now execute in no automated pipeline:
+CI runs `make ze-verify` unprivileged (so they skip), and no workflow invokes
+`ze-qemu-needs-linux-test` -- `ai/rules/qemu-testing.md` already records the QEMU
+suites as run by "NOTHING automated". The change converts an opaque hang into an
+honest skip; it does not give these tests a gate. Two follow-ups, both recorded in
+`reload-transaction-tests-load-sensitive.md`: a workflow that runs the QEMU
+needs-linux target, and the daemon-side defect underneath (an unprivileged `ze`
+whose config names an interface hangs instead of failing, which is a
+`fail-closed-guards.md` violation in the product, not just in the tests).

@@ -42,6 +42,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
 		} else {
 			recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "SIGHUP")
+			reloadComplete()
 		}
 		// After reload completes, drain any queued SIGHUP.
 		if s.DrainSIGHUP() {
@@ -54,8 +55,50 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
 			} else {
 				recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "queued SIGHUP")
+				reloadComplete()
 			}
 		}
+	}
+}
+
+// reloadCompleteLine is the stable line a finished SIGHUP reload prints on
+// stderr. Until it existed a successful reload printed NOTHING, so "received
+// SIGHUP, reloading config..." was the daemon's last word whether the reload
+// took a millisecond or never finished.
+//
+// Two consequences, both real:
+//   - an operator could not tell a completed reload from a wedged one;
+//   - no functional test could fence on completion, so every reload .ci raced
+//     its own teardown. Under load the daemon was killed mid-reload, leaving a
+//     partial atomic write (a stray `.ze-storage-*` in rollback/) and no
+//     meta/config/rollback pointer, which is what made `commit-transactional`
+//     and its neighbors look like flaky "load-sensitive" tests rather than a
+//     missing signal.
+//
+// The phrase is "sighup reload complete" and NOT the obvious "reload complete"
+// because the latter is a SUBSTRING of an existing log line,
+// `logger().Info("config reload completed")` (plugin/server/reload.go). That
+// line is emitted INSIDE ReloadConfig -- before applyLoadedTreeToProvider,
+// eng.Reload, and critically before storage.PromoteCandidate writes
+// meta/config/active and meta/config/rollback. It is suppressed at the default
+// WARN level, so a `contains=reload complete` fence would work today purely by
+// accident; the first .ci raising the level to info would fence on the EARLIER
+// line, tear the daemon down mid-promotion, and reintroduce exactly the race
+// this marker exists to kill -- while reporting green.
+//
+// Keep it stable and keep it non-colliding: .ci tests fence with
+// `await=stderr:contains=sighup reload complete` (ai/rules/error-messages.md --
+// one stable phrase per outcome, and no phrase a prefix of another).
+const reloadCompleteLine = "sighup reload complete\n"
+
+// reloadComplete announces that a SIGHUP reload finished successfully. BOTH
+// SIGHUP reload loops in this binary call it: handleSIGHUPReload (YANG/BGP
+// config) and the orchestrator loop in main.go (hub config), which Run selects
+// between on zeconfig.ProbeConfigType. A reload path that does not call it is
+// invisible to operators and un-fenceable by tests.
+func reloadComplete() {
+	if _, err := os.Stderr.WriteString(reloadCompleteLine); err != nil {
+		return // stderr is gone; there is nowhere left to report it
 	}
 }
 

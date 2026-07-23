@@ -62,7 +62,29 @@ Decision rule:
 |--------------------|-----|
 | Only validates config (`ze config validate -`), parses, or runs offline `ze show`/`ze env` | nothing (runs natively on every OS) |
 | Boots a daemon that **applies** Linux-only config (interface/VLAN, firewall, L2TP kernel) | `option=needs-linux` |
+| Same, AND needs privileged network configuration (creates interfaces, brings links up, netlink) | `option=needs-linux:caps=net-admin` |
 | Needs to skip only on a specific non-Linux OS for an unrelated reason | `option=skip-os:value=darwin` |
+
+**`caps=net-admin` exists because Linux alone is not the requirement.** On an
+unprivileged Linux host (CI runners, most dev boxes, any rootless container) a
+test that applies interface config does NOT fail cleanly: the interface plugin
+dies during its stage-3 handshake with `operation not permitted`, the daemon
+never reaches the state the test asserts, and the test **hangs** to the suite
+timeout. Seven `test/reload/` tests spent their life in exactly that state,
+mis-recorded as "load-sensitive". The gate reads `CapEff` from
+`/proc/self/status` (`internal/test/runner/caps_linux.go`), not uid 0: a setcap'd
+binary holds the capability without being root, and a restricted container can be
+root without it.
+
+A `caps=` typo is a parse error on every host, so it cannot silently disable the
+gate.
+
+**Know what you are trading.** A `caps=net-admin` test runs in NO automated
+pipeline today: CI runs `make ze-verify` unprivileged, and no workflow invokes
+`ze-qemu-needs-linux-test` (see the "What actually RUNS these suites" table
+below, which already records the QEMU suites as automated by nothing). The marker
+turns an opaque hang into an honest skip -- it does not by itself give the test a
+home. Run the QEMU target locally when you add one, and say so.
 
 Do NOT use `skip-os:value=darwin` as a substitute for `needs-linux`: `skip-os`
 says "do not run here", whereas `needs-linux` documents intent ("this is a

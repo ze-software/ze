@@ -7,7 +7,7 @@
 # Expected: daemon survives with zero peers after ordering-aware removal.
 
 # ze-peer expectations
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 stdin=peer:terminator=EOF_PEER
 
 # Connection 1: Static route (192.168.1.0/24) + EOR from initial config
