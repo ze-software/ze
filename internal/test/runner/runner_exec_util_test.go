@@ -253,3 +253,40 @@ func TestLockedBuilderCapsOutput(t *testing.T) {
 		t.Fatalf("truncation marker appears %d times, want exactly 1", n)
 	}
 }
+
+// TestResolveOrchestratedTimeout verifies the precedence of the three timeout
+// sources for orchestrated (cmd=) tests, and in particular that the record-level
+// `option=timeout:value=` is honored at all.
+//
+// VALIDATES: a declared .ci timeout takes effect on the cmd= path.
+// PREVENTS: the regression this fixed -- `option=timeout:` was read only on the
+// non-orchestrated path, so every cmd= test silently ran on the global default
+// while its .ci claimed a budget. test/appliance/vpp-hugepages-qemu.ci was
+// killed at 15s despite declaring 900s.
+func TestResolveOrchestratedTimeout(t *testing.T) {
+	const suggested = 15 * time.Second
+	fg := func(to string) []RunCommand {
+		return []RunCommand{{Mode: modeForeground, Timeout: to}}
+	}
+
+	for _, tc := range []struct {
+		name   string
+		record string
+		cmds   []RunCommand
+		want   time.Duration
+	}{
+		{"nothing declared falls back", "", nil, suggested},
+		{"record-level option wins over the fallback", "900s", nil, 900 * time.Second},
+		{"per-command timeout wins over the record option", "900s", fg("30s"), 30 * time.Second},
+		{"per-command timeout alone", "", fg("42s"), 42 * time.Second},
+		{"unparseable record option is ignored", "later", nil, suggested},
+		{"unparseable per-command timeout keeps the record option", "900s", fg("soon"), 900 * time.Second},
+		{"background commands do not set the budget", "", []RunCommand{{Mode: modeBackground, Timeout: "99s"}}, suggested},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := resolveOrchestratedTimeout(suggested, tc.record, tc.cmds); got != tc.want {
+				t.Errorf("resolveOrchestratedTimeout(%v, %q, %v) = %v, want %v", suggested, tc.record, tc.cmds, got, tc.want)
+			}
+		})
+	}
+}

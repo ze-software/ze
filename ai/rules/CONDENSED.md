@@ -153,6 +153,11 @@ The alert is almost always a stale *vendored upstream manifest*, not your real d
 5. **Re-vendor + prune.** `ze-gokrazy-deps` extracts the new version's source under
 6. **Refresh coupling.** `git grep <old-version-string>` — update any doc/spec that
 7. **Verify (BLOCKING).** `grep -r <old-version>` is empty; the new committed
+| Proof | What it does | Use it for |
+|-------|--------------|------------|
+| `make ze-vpp-hugepages-qemu-test` | builds a real image via `ze appliance build`, boots it in QEMU, asserts the kernel cmdline and the reserved hugepage count | the default boot proof |
+| `ze-deployment-gokrazy-l2tp-ppp-test` | builds the appliance and boots it against a real LAC | the L2TP path |
+| ~~`test/appliance/serial-login.ci`~~ | **boots nothing.** Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | never cite it as a boot proof |
 ## Git safety
 The re-vendor deletes ~60 tracked files and adds ~60 new ones.
 ## Cache permissions

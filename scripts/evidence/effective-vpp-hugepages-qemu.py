@@ -210,7 +210,9 @@ def boot_and_assert(img: Path) -> int:
     # Keep the serial console: when the appliance does not answer, its boot log
     # is the only evidence of why, and discarding it once cost a full debugging
     # session (the daemon was up in 10s; the QUERY was wrong).
-    console = Path(tempfile.gettempdir()) / f"ze-vpp-hp-console-{ssh_port}.log"
+    # Beside the image, which lives under the project tmp/ (ai/rules/testing.md),
+    # so the boot log is where the operator is already looking after a failure.
+    console = img.parent / f"ze-vpp-hp-console-{ssh_port}.log"
     with console.open("wb") as clog:
         vm = subprocess.Popen(qemu_cmd, stdout=clog, stderr=subprocess.STDOUT)
         try:
@@ -350,7 +352,15 @@ def main() -> int:
         return skip(reason)
 
     keep = os.environ.get("ZE_VPP_HP_KEEP") == "1"
-    work = Path(tempfile.mkdtemp(prefix="ze-vpp-hp-qemu-"))
+    # Project tmp/, never the system temp dir (ai/rules/testing.md). This build
+    # writes a ~2GB image; on a host where /tmp is a small tmpfs, or on a
+    # different filesystem from the checkout, mkdtemp() with no dir= put it
+    # somewhere the operator could neither predict nor clean up. A failed run
+    # leaves it behind for inspection under tmp/, where it is gitignored and
+    # visible.
+    work_root = root / "tmp" / "vpp-hugepages-qemu"
+    work_root.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="run-", dir=work_root))
     try:
         ze = build_host_ze(root, work)
         img = build_image(ze, root, work)

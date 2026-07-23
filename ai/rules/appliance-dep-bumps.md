@@ -54,9 +54,21 @@ modcache go.sum hashes.
    referenced the old modcache path (e.g. `plan/spec-kernel-lockdown-hardening.md`).
 7. **Verify (BLOCKING).** `grep -r <old-version>` is empty; the new committed
    `go.mod` names the fixed dependency version; `make ze-gokrazy` builds; and the
-   appliance boots + supervises in QEMU (`test/appliance/serial-login.ci` and, for the
-   L2TP path, `ze-deployment-gokrazy-l2tp-ppp-test`). The image *build* alone is not
-   sufficient — an init bump can regress boot; run the QEMU appliance proof.
+   appliance **boots in QEMU**. The image *build* alone is not sufficient — an init
+   bump can regress boot.
+
+   Use a proof that actually boots an image, and check what it asserts before
+   citing it:
+
+   | Proof | What it does | Use it for |
+   |-------|--------------|------------|
+   | `make ze-vpp-hugepages-qemu-test` | builds a real image via `ze appliance build`, boots it in QEMU, asserts the kernel cmdline and the reserved hugepage count | the default boot proof |
+   | `ze-deployment-gokrazy-l2tp-ppp-test` | builds the appliance and boots it against a real LAC | the L2TP path |
+   | ~~`test/appliance/serial-login.ci`~~ | **boots nothing.** Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | never cite it as a boot proof |
+
+   A `SKIP` is not evidence. Under a hardware accelerator the hugepage proof
+   treats a no-answer as a FAIL; if it skips for want of KVM access, fix that
+   (on Linux, group membership: `make ze-setup CHECK=1`) and rerun.
 
 ## Git safety
 
@@ -99,11 +111,21 @@ through the pins, and the version it built is not the version this repo chose:
 
 Both were live between 2026-07-18 and 2026-07-22: the derived (hugepage) parent
 handed `gok` an instance with no `builddir`, so every pin was discarded
-(`internal/appliance/kernelargs.go` `materializeDerivedParent`, against
-`vendor/github.com/gokrazy/tools/packer/gotool.go` `getPkg`/`getIncomplete`). That
-route is closed, and `TestMaterializeDerivedParent` gates it. A reappearance is a
-regression in whatever new path prepares an instance: find that path, do not just
-delete the directory.
+(against `vendor/github.com/gokrazy/tools/packer/gotool.go` `getPkg`/`getIncomplete`).
+
+That route is closed. **Every** image build now runs from a prepared copy of the
+instance under the project `tmp/`, carrying the full `builddir` with its
+filesystem-path replaces rewritten to absolute paths
+(`internal/appliance/instance`). Both entry points go through it: `ze appliance
+build` via `resolveBuildParentDir`, and `make ze-gokrazy` via `cmd/ze-gok`, which
+rewrites `--parent_dir` before gok sees it. Preparation fails closed when the
+builddir is missing or empty, rather than letting gok synthesize modules.
+
+`TestPrepareRealInstanceCarriesEveryModule` and
+`TestPreparedModulesResolveIdenticallyToTracked` gate it against the real
+eight-module instance, the latter by comparing `go list -m all` before and after
+preparation. A reappearance is a regression in whatever new path prepares an
+instance: find that path, do not just delete the directory.
 
 **Never `rm -rf gokrazy/modcache`.** 60 tracked files live inside it (the gokrazy
 init source, whitelisted by `gokrazy/modcache/.gitignore`). Delete named `@version`

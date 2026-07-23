@@ -1,12 +1,19 @@
 # Test (item 5): make ze-kernel builds the runtime kernel via run.py and assembles
-# it into an OUT-OF-TREE package (tmp/kernel/pkg) consumed via a go.mod replace.
-# The pinned rtr7/kernel modcache is read, never mutated in place.
+# it into an OUT-OF-TREE package (tmp/kernel/pkg). The pinned rtr7/kernel modcache
+# is read, never mutated in place, and no tracked file is written.
 #
 # // test-relax: kernel-build-consolidation replaced the in-place modcache overlay
 # + .ze-pinned-kernel backup/restore with out-of-tree consumption. The old
 # assertions (modcache vmlinuz overwritten, backup created/restored,
-# MODULES=yes/PATCHES_DIR in the docker env) no longer apply; this asserts the
-# out-of-tree package + go.mod replace and that the modcache is untouched.
+# MODULES=yes/PATCHES_DIR in the docker env) no longer apply.
+#
+# // test-relax: spec-gokrazy-builddir-tmp (AC-7/AC-8) then removed the tracked
+# go.mod replace that this test REQUIRED to be present after `make ze-kernel`.
+# The replace is now written into ze-gok's prepared copy of the instance, per
+# build, selected by KERNEL_PKG. The assertion is inverted and STRENGTHENED: the
+# tracked go.mod must be byte-identical after the build, not merely carry a
+# relative path. That KERNEL_PKG still reaches the build is proven by
+# ze-kernel-no-modcache-mutation.ci and by TestZeGokPassesKernelPackage.
 
 option=timeout:value=40s
 
@@ -37,6 +44,7 @@ trap cleanup EXIT
 [ -f tmp/kernel/vmlinuz ] && { saved_vmlinuz="$work/sv"; mv tmp/kernel/vmlinuz "$saved_vmlinuz"; }
 
 before=$(shasum -a256 "$modcache/vmlinuz" | cut -d' ' -f1)
+gomod_before=$(shasum -a256 "$gomod" | cut -d' ' -f1)
 
 mkdir -p "$work/fakebin"
 cat > "$work/fakebin/docker" <<'EOF_DOCKER'
@@ -78,8 +86,16 @@ grep -q 'out-of-tree' "$work/stdout"
 [ -f tmp/kernel/pkg/go.mod ]            # carried over from the pinned module -> valid replace target
 [ -f tmp/kernel/pkg/empty.go ]
 
-# gok is pointed at it via go.mod replace.
-grep -q 'replace github.com/rtr7/kernel' "$gomod"
+# The tracked builddir go.mod is NOT touched. gok is pointed at the package per
+# build (KERNEL_PKG -> ze.gok.kernel-package), and ze-gok writes the replace into
+# its prepared COPY of the instance, so a custom-kernel build leaves the working
+# tree clean and cannot leak into a later build.
+if grep -q 'replace github.com/rtr7/kernel' "$gomod"; then
+	echo "make ze-kernel wrote a replace into the tracked $gomod" >&2
+	exit 1
+fi
+gomod_after=$(shasum -a256 "$gomod" | cut -d' ' -f1)
+[ "$gomod_before" = "$gomod_after" ]
 
 # The pinned modcache vmlinuz is byte-for-byte unchanged (read, not mutated).
 after=$(shasum -a256 "$modcache/vmlinuz" | cut -d' ' -f1)

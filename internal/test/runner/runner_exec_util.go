@@ -617,3 +617,29 @@ func stopBackgroundProcess(cmd *exec.Cmd, signal string) {
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
 }
+
+// resolveOrchestratedTimeout picks the timeout for an orchestrated (cmd=) test.
+// Most specific wins: a per-command timeout= on a foreground cmd, then the
+// record-level `option=timeout:value=`, then the caller's suggested value
+// (baseline-derived, itself capped by the global default).
+//
+// The record-level option was previously read only on the non-orchestrated path,
+// which Run returns from before reaching it. Every test that declared
+// `option=timeout:` alongside a `cmd=` directive therefore ran on the global
+// default with its declaration silently ignored -- a stated timeout that did
+// nothing. An option that is accepted and then discarded is worse than one that
+// is rejected, because the .ci file reads as if the budget were set.
+func resolveOrchestratedTimeout(suggested time.Duration, recordTimeout string, cmds []RunCommand) time.Duration {
+	timeout := suggested
+	if d, err := time.ParseDuration(recordTimeout); recordTimeout != "" && err == nil {
+		timeout = d
+	}
+	for _, cmd := range cmds {
+		if cmd.Mode == modeForeground && cmd.Timeout != "" {
+			if d, err := time.ParseDuration(cmd.Timeout); err == nil {
+				timeout = d
+			}
+		}
+	}
+	return timeout
+}

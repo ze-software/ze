@@ -613,12 +613,31 @@ def add_env_once(envs: list[str], item: str) -> None:
 
 
 def prepare_instance(root: Path, work: Path) -> Path:
+    """Build a gokrazy parent dir carrying ONLY this proof's config.json patch.
+
+    Copying the builddir and rewriting its `replace` directives used to happen
+    here too, in parallel with the same logic in Go. That duplication is gone:
+    ze-gok prepares the instance it is handed (internal/appliance/instance),
+    copying the builddir and absolutizing every filesystem-path replace. So this
+    symlinks the builddir rather than duplicating it, and the go.mod regexes are
+    deleted along with the custom-kernel one, which is now selected per build
+    with `make ze-gokrazy KERNEL_PKG=...` instead of an in-tree replace.
+    """
     parent = work / "gokrazy-parent"
     instance = parent / "ze"
     instance.mkdir(parents=True, exist_ok=True)
 
     source = root / "gokrazy" / "ze"
-    shutil.copytree(source / "builddir", instance / "builddir", symlinks=True)
+
+    # A symlink, not a copy: ze-gok copies it into the prepared instance. The
+    # preparer resolves a symlinked builddir precisely so callers need not.
+    builddir = instance / "builddir"
+    if builddir.is_symlink() or builddir.exists():
+        if builddir.is_symlink():
+            builddir.unlink()
+        else:
+            shutil.rmtree(builddir)
+    builddir.symlink_to(source / "builddir")
 
     config = json.loads((source / "config.json").read_text(encoding="utf-8"))
     pkg_cfg = config.setdefault("PackageConfig", {}).setdefault(ZE_PACKAGE, {})
@@ -628,29 +647,6 @@ def prepare_instance(root: Path, work: Path) -> Path:
     (instance / "config.json").write_text(
         json.dumps(config, indent=4) + "\n", encoding="utf-8"
     )
-
-    ze_mod = instance / "builddir" / "codeberg.org" / "thomas-mangin" / "ze" / "go.mod"
-    text = ze_mod.read_text(encoding="utf-8")
-    text = re.sub(
-        r"replace codeberg\.org/thomas-mangin/ze => .+",
-        f"replace codeberg.org/thomas-mangin/ze => {root}",
-        text,
-    )
-    ze_mod.write_text(text, encoding="utf-8")
-
-    # The custom L2TP kernel (`make ze-kernel`) adds a RELATIVE replace to the
-    # rtr7/kernel go.mod; that path breaks once builddir is copied into the
-    # instance dir here, so rewrite it to an absolute path (mirrors the ze
-    # self-replace above). No-op when no custom-kernel replace is present.
-    kernel_mod = instance / "builddir" / "github.com" / "rtr7" / "kernel" / "go.mod"
-    if kernel_mod.is_file():
-        ktext = kernel_mod.read_text(encoding="utf-8")
-        ktext = re.sub(
-            r"replace github\.com/rtr7/kernel => .+",
-            f"replace github.com/rtr7/kernel => {root}/tmp/kernel/pkg",
-            ktext,
-        )
-        kernel_mod.write_text(ktext, encoding="utf-8")
 
     return parent
 
@@ -680,6 +676,13 @@ def build_image(root: Path, work: Path, template: Path) -> Path:
         "PASS=secret",
         f"GOKRAZY_TEMPLATE={template}",
     ]
+    # An out-of-tree kernel is now opt-in per build. Previously `make ze-kernel`
+    # wrote a replace into the tracked go.mod, so ANY later build -- including
+    # this proof -- silently inherited that kernel. Forward it only when the
+    # operator asks for it.
+    kernel_pkg = os.environ.get("KERNEL_PKG")
+    if kernel_pkg:
+        cmd.append(f"KERNEL_PKG={kernel_pkg}")
     result = run(cmd, cwd=root, env=env)
     if result.returncode != 0:
         raise SystemExit("make ze-gokrazy for L2TP appliance evidence failed")

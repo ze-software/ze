@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-22 |
+| Phase | 8/8 (code complete; QEMU goal validation outstanding) |
+| Updated | 2026-07-23 |
 
 > **The confirmed bug (A-1/A-1b) was fixed ahead of this spec on 2026-07-22**, out
 > of a disk-usage investigation that found its fallout in `gokrazy/modcache`. The
@@ -237,23 +237,66 @@ Not applicable. This spec changes build orchestration and touches no wire protoc
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
 - [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugin-self-containment.md`)
 
-## Open Decision (blocks approval)
+## D-1: DECIDED 2026-07-23 — neither option; the preparer moves into `ze-gok`
 
-**D-1: how does `make ze-gokrazy` reach the preparer?** `make ze-gokrazy`
-(`mk/gokrazy.mk:73-130`) does not go through `ze appliance build`; it calls gok
-directly at `:117` and then does mkfs and credential injection in shell at
-`:121-126`. But `internal/appliance/cmd_build.go` already implements that whole
-flow in Go (`:1`, `:56-59`, `:144`, `:294-301`). Two options:
+The equivalence audit that D-1a was gated on was run, and it dissolved the
+question rather than answering it. **Both build paths already invoke gok on the
+same instance**: `mk/gokrazy.mk:117` passes `--parent_dir gokrazy -i ze`, and
+`internal/appliance/cmd_build.go:295-296` passes `parentDir` (rooted at
+`gokrazy`, `:269`) with `gokrazyInstance` (`"ze"`,
+`internal/appliance/kernelargs.go:32`). The gok half is already one thing. Only
+the *pre-gok* half differs, and that half is database seeding, which the
+preparer does not touch.
 
-| Option | What it means | Cost | Risk |
-|--------|---------------|------|------|
-| D-1a: make delegates to `ze appliance build` | One build path. The preparer question disappears, because the only caller already owns `resolveBuildParentDir` | Larger: the make path carries `GOKRAZY_ARCH` cross-compilation, the config template, cert caching and external-ZeFS handling that must be proven equivalent first | Higher up front, lower forever |
-| D-1b: add a subcommand that prepares an instance and prints its path | make calls it, uses the path for gok, and removes it afterwards | Smaller | Keeps two build implementations and adds a CLI surface whose only consumer is a Makefile |
+### The audit (make ze-gokrazy vs ze appliance build)
 
-Recommendation: **D-1a**, gated on an explicit equivalence audit of the two paths
-as the first implementation phase. If the audit finds a genuine gap, fall back to
-D-1b. This decision must be made before implementation starts; it changes the
-Files to Modify list and the CLI integration answer below.
+| Step | `make ze-gokrazy` | `ze appliance build` | Verdict |
+|------|-------------------|----------------------|---------|
+| gok instance | `--parent_dir gokrazy -i ze` (`mk:117`) | same, via `resolveBuildParentDir` + `gokrazyInstance` (`cmd_build.go:269`, `:295-296`) | **identical** |
+| GOOS | explicit `GOOS=linux` (`mk:117`) | never set; gok defaults `goos` to `"linux"` (`vendor/.../packer/gotool.go:46-49`) | equivalent; the make export is redundant |
+| GOARCH | `GOKRAZY_ARCH` make var (`mk:117`) | `cfg.Image.Arch` (`cmd_build.go:282`) | equivalent per invocation, but see R-7 |
+| image size | literal `2147483648` (`mk:41`) | `cfg.Image.SizeBytes` (`cmd_build.go:299`) | Go is config-driven, strictly better |
+| /perm offsets | hardcoded `GOKRAZY_PERM_OFF/BLK/4K/SKIP` (`mk:42-45`) | discovered from the GPT (`findLastPartition`, `cmd_build.go:390-438`) | Go strictly better; the make constants silently rot if the partition layout changes |
+| mkfs block size | not passed (`mk:119`) | explicit `-b 4096` (`cmd_build.go:332`) | Go strictly better; see the `permBlocks` comment at `:321-325` |
+| credential injection | debugfs mkdir + write (`mk:122-124`) | same, plus `build.json` (`cmd_build.go:354-371`) | Go superset |
+| inject verification | none | `verifyInject` (`cmd_build.go:373`) | Go superset |
+| checksum + manifest | none | `WriteImageChecksum`, `WriteManifest` (`cmd_build.go:184`, `:200`) | Go superset |
+| encrypted appliance | none | `IsEncrypted` + `ResolvePassphrase` (`cmd_build.go:128-136`) | Go superset |
+| database seeding | shell `ze init --force --yes --seed`, per-`CERTNAME` cert cache, `file/template/ze.conf` (`mk:76-107`) | `assembleZeFS` from an appliance dir (`cmd_build.go:144`, `cmd_assemble.go:73`) | **genuinely different**, and out of this spec's scope |
+| external database | `ZEFS=/path` (`mk:76-78`) | no equivalent | make-only convenience |
+| output path | fixed `tmp/gokrazy/ze.img` (`mk:40`) | timestamped under `AppliancePath` (`cmd_build.go:149-151`) | different by design |
+
+### Decision: D-1c
+
+`bin/gok` is not upstream gok, it is **our** wrapper (`cmd/ze-gok/main.go`, built
+at `mk/gokrazy.mk:53-56`), and it already owns exactly this class of
+preparation: it resolves `GOMODCACHE` (`:21-37`) and appends `-modcacherw` to
+`GOFLAGS` (`:43-53`) before handing `os.Args` to `gok.Context.Execute` (`:59`).
+Instance preparation belongs beside those two.
+
+So: **`ze-gok` intercepts `--parent_dir`, prepares the instance under project
+`tmp/`, substitutes the prepared path, and cleans up on exit.** The shared
+preparer is extracted to a leaf package both callers import.
+
+| Consequence | Effect |
+|-------------|--------|
+| `make ze-gokrazy` | needs **no change at all**; `mk:117` keeps working verbatim |
+| `ze appliance build` | keeps `resolveBuildParentDir` (`cmd_build.go:269`), which calls the same extracted preparer. It uses `runGokInProcess` (`:238`), not the `ze-gok` binary, so it must prepare on its own side |
+| new CLI surface | none. D-1b's prepare subcommand, whose only consumer would have been a Makefile, is not needed |
+| A-7 | **withdrawn, not validated.** D-1c never requires the two build flows to be equivalent, so the assumption has no consumer. See the Assumptions table |
+| database seeding divergence | untouched and out of scope. It is a seeding concern, not a gok concern |
+
+Rejected: **D-1a** (make delegates to `ze appliance build`) would have forced the
+make path to adopt appliance directories, encryption, timestamped output and
+manifest generation to gain nothing the preparer needs, and would have dropped
+`ZEFS=` and the `CERTNAME` cert cache. **D-1b** adds a command that exists only
+because a Makefile cannot call a Go function, when the Makefile already calls a
+Go binary we own.
+
+Placement: the preparer moves out of `internal/appliance/kernelargs.go` into a
+leaf package (proposed `internal/appliance/instance`) so `cmd/ze-gok` can import
+it without pulling in the whole appliance package. `cmd/ze-gok/main.go:42`
+already records refusing to import `internal/appliance` for exactly this reason.
 
 ## Risks & Assumptions
 
@@ -269,7 +312,8 @@ Files to Modify list and the CLI integration answer below.
 | A-4 | `make ze-gokrazy-deps` keeps populating the cache unchanged, because no builddir module is removed | `mk/gokrazy.mk:63-66` iterates `find ... -name go.mod`; this session observed that running it is what placed `grpc@v1.82.1` into `gokrazy/modcache` | The offline guarantee regresses | Run `make ze-gokrazy-deps` on a tree with a cleared cache entry and confirm repopulation | unvalidated |
 | A-5 | A prepared build completes with no network | `cmd/ze-gok/main.go:34-37` and `cmd_build.go:246` both point `GOMODCACHE` at the checked-in cache, and the copied `go.sum` files come with the modules | The documented offline guarantee (`mk/gokrazy.mk:8-9`) regresses | **confirmed** 2026-07-22: `ze appliance build` on a hugepage appliance with `GOPROXY=off` exits 0; `gokrazy/modcache` is byte-stable across the run and the log contains no `go get`. Log: `tmp/hp-proof-build-offline.log` (ephemeral; the outcome is quoted here because `tmp/` does not survive) | **confirmed** |
 | A-6 | Nothing outside the build reads the tracked builddir `go.sum` files | grep over `mk/`, `Makefile`, `scripts/`, `.github/` finds no consumer; `mk/gokrazy.mk:63` matches `-name go.mod` only | A consumer breaks | Repeat the grep at implementation time | unvalidated |
-| A-7 | `ze appliance build` is functionally equivalent to `make ze-gokrazy` (needed only if D-1a is chosen) | `cmd_build.go:1`, `:56-59`, `:144`, `:294-301` implement assemble plus gok plus ext4, the same steps `mk/gokrazy.mk:73-130` performs | D-1a is not viable and D-1b is required | The D-1 equivalence audit in Phase 1 | unvalidated |
+| A-7 | `ze appliance build` is functionally equivalent to `make ze-gokrazy` (needed only if D-1a is chosen) | `cmd_build.go:1`, `:56-59`, `:144`, `:294-301` implement assemble plus gok plus ext4, the same steps `mk/gokrazy.mk:73-130` performs | D-1a is not viable and D-1b is required | The D-1 equivalence audit in Phase 1 | **withdrawn** 2026-07-23. The audit ran (see D-1) and found the two flows are NOT equivalent below the gok call: database seeding genuinely differs and the Go path is a superset on every shared step. D-1c makes equivalence unnecessary, so this assumption has no consumer. Recorded rather than deleted, because "the audit found them unequal" is the finding that chose D-1c |
+| A-8 | Extracting the preparer into a leaf package lets `cmd/ze-gok` import it without dragging in the appliance package's dependency weight | `cmd/ze-gok/main.go:42` records deliberately NOT importing `internal/appliance` for exactly this reason, and duplicates `ensureModcacheRW` instead | The preparer stays in `internal/appliance` and `ze-gok` cannot call it, forcing D-1b after all | Build `bin/gok` after the extraction and confirm it compiles and stays a thin wrapper | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -280,6 +324,7 @@ Files to Modify list and the CLI integration answer below.
 | R-4 | Two concurrent builds in one checkout collide | Interleaved or corrupted builds | Unique prepared directory per build, with the existing cleanup contract |
 | R-5 | The kernel parameter changes operator behaviour: today a stale replace persists until `ze-kernel-clean`, and an implicit "use `tmp/kernel/pkg` if present" rule would persist silently forever | Operators getting a custom kernel they did not ask for | Make the kernel package an explicit parameter, never an implicit filesystem probe. Document the behaviour change |
 | R-6 | Scope creep into `spec-unify-dep-stores`, or back into the first draft's ambition | The diff starts deleting tracked builddir files or touching `vendor/` | Non-goals are stated in the Task section; the Mistake Log records why the deletion was wrong |
+| R-7 | **Live defect, found by the D-1 audit 2026-07-23.** `ze appliance build --all` compiles every appliance for the FIRST appliance's `GOARCH`. `packer.Env()` memoizes the build environment behind a `sync.Once` (`vendor/github.com/gokrazy/tools/packer/gotool.go:39-42`, `:70-76`), and that memoized slice is what every target `go build` receives (`:333`, `cmd.Env = append(Env(), ...)`). `buildAll` loops `buildOne` in ONE process (`internal/appliance/cmd_build.go:440-479`) while `runGokBuild` sets `GOARCH` per appliance (`:282`). Meanwhile `TargetArch()` (`gotool.go:32-37`) reads the env FRESH, so the image layout follows the current appliance while its binaries follow the first one: a silently mismatched image, not a build error | A mixed-arch `--all` run that exits 0. There is no failure to observe, which is what makes it dangerous | Fail closed in `buildAll`: refuse a heterogeneous-arch `--all` naming both archs, rather than emitting an image whose kernel and userland disagree. Covered by AC-12; it lands in the phase that touches `runGokBuild`, not as a follow-up |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -289,6 +334,8 @@ Files to Modify list and the CLI integration answer below.
 | `ze appliance build <name>` | → | the prepared instance carries a complete builddir, all eight modules with their sums | `TestPrepareInstanceCopiesFullBuilddir` |
 | `ze appliance build <name>` with hugepages | → | full path: preparer to gok to a booting image | `test/appliance/vpp-hugepages-qemu.ci` |
 | `make ze-kernel` then an image build | → | the kernel replace reaches the prepared copy and no tracked path is touched | `TestPrepareInstanceInjectsKernelReplace` plus `test/appliance/appliance-build-leaves-tree-clean.ci` |
+| `make ze-gokrazy` (unmodified) | → | `bin/gok` prepares the instance itself before gok sees `--parent_dir` (D-1c) | `TestZeGokPreparesParentDir` |
+| `ze appliance build --all` over mixed `image.arch` | → | `buildAll` refuses before writing any image | `TestBuildAllRefusesMixedArch` |
 | gokrazy image boot | → | an image built from a prepared instance boots and serves | `ze-deployment-gokrazy-l2tp-ppp-test` |
 
 ## Acceptance Criteria
@@ -306,6 +353,8 @@ Files to Modify list and the CLI integration answer below.
 | AC-9 | An image config requesting hugepages | Kernel arguments still reach `config.json` and the prepared instance still has a complete builddir |
 | AC-10 | A prepared build with `GOPROXY=off` on a tree that has run `make ze-gokrazy-deps` | The build completes offline |
 | AC-11 | Two builds run concurrently in one checkout | Each uses a distinct prepared directory |
+| AC-12 | `ze appliance build --all` over appliances that do not all share one `image.arch` | The run is refused before any image is written, naming the conflicting architectures. It must NOT emit an image whose GPT layout and compiled binaries disagree (R-7) |
+| AC-13 | `make ze-gokrazy` is run unchanged | gok receives a `--parent_dir` under project `tmp/`, prepared by `ze-gok` itself, with no edit to `mk/gokrazy.mk:117` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -335,6 +384,9 @@ Files to Modify list and the CLI integration answer below.
 | `TestPreparedBuildResolvesOffline` | `internal/appliance/kernelargs_test.go` | AC-10: resolution with `GOPROXY=off` | |
 | `TestPrepareInstanceConcurrentBuildsIsolated` | `internal/appliance/kernelargs_test.go` | AC-11: distinct directories | |
 | `TestPrepareInstanceUnderSymlinkedTmp` | `internal/appliance/kernelargs_test.go` | R-3: real-path resolution before absolute rewrite | |
+| `TestBuildAllRefusesMixedArch` | `internal/appliance/cmd_build_test.go` | AC-12 and R-7: a heterogeneous-arch `--all` is refused before any image is written | |
+| `TestZeGokPreparesParentDir` | `cmd/ze-gok/main_test.go` | AC-13 and D-1c: `--parent_dir gokrazy` is rewritten to a prepared path under `tmp/` before gok sees it | |
+| `TestZeGokRestoresUnpreparableParentDir` | `cmd/ze-gok/main_test.go` | D-1c fail-closed: a `--parent_dir` that cannot be prepared errors out naming the path, rather than silently passing the tracked dir through | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -355,10 +407,12 @@ boot proof, recorded in Goal Validation.
 - None. Every acceptance criterion has a named test above.
 
 ## Files to Modify
-- `internal/appliance/kernelargs.go` - `resolveBuildParentDir` always prepares; `materializeDerivedParent` copies the builddir, uses project `tmp/`, rewrites the ze replace, and injects an optional kernel replace
-- `internal/appliance/cmd_build.go` - kernel package parameter plumbed through; cleanup always runs
-- `mk/gokrazy.mk` - `ze-kernel` stops editing a tracked `go.mod` and passes the package path instead; `ze-kernel-clean` loses the tracked revert; the relative-path workaround (`:184-187`) is removed; `ze-gokrazy` follows D-1
-- `scripts/evidence/effective-gokrazy-l2tp-ppp.py` - `prepare_instance` deleted in favour of the shared preparer
+- `internal/appliance/instance/` (NEW leaf package, per D-1c) - the extracted preparer: copy the builddir, materialize under project `tmp/`, rewrite the ze self-replace, inject an optional kernel replace, own the cleanup contract. Moved out of `kernelargs.go` so `cmd/ze-gok` can import it (A-8)
+- `internal/appliance/kernelargs.go` - `resolveBuildParentDir` always prepares and delegates to the new package; `materializeDerivedParent`, `copyBuildDir` and `absolutizeReplaces` move out
+- `internal/appliance/cmd_build.go` - kernel package parameter plumbed through; cleanup always runs; `buildAll` refuses a mixed-arch run (AC-12, R-7)
+- `cmd/ze-gok/main.go` - intercept `--parent_dir`, prepare, substitute, clean up on exit (D-1c). This is what lets `mk/gokrazy.mk:117` stay untouched
+- `mk/gokrazy.mk` - `ze-kernel` stops editing a tracked `go.mod` (`:257`) and passes the package path instead; `ze-kernel-clean` (`:262`) loses the tracked revert; the relative-path workaround (`:184-187`) is removed. **`ze-gokrazy` itself is NOT modified** (D-1c)
+- `scripts/evidence/effective-gokrazy-l2tp-ppp.py` - `prepare_instance` (`:615`) deleted in favour of the shared preparer
 - `ai/rules/appliance-dep-bumps.md` - correct `:57`, which names a test that boots nothing, and describe the prepared-instance flow
 - `.gitignore` - the entry added by `ccdc8483f` stays; nothing in this spec removes a tracked file
 
@@ -425,35 +479,44 @@ boot proof, recorded in Goal Validation.
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Settle D-1 and A-1b before writing code** — A-1 is already confirmed by the 2026-07-22 A/B build; what remains is the online blast radius and the make-path decision
-   - Tests: re-run the A/B with network available, comparing the resolved `rtr7/kernel` version against the pin (A-1b); audit `make ze-gokrazy` against `ze appliance build` for equivalence (A-7)
-   - Files: none; this phase produces evidence recorded in Assumptions and D-1
-   - Verify: A-1b and A-7 leave `unvalidated`; D-1 is decided
+1. **Phase: Settle D-1 and A-1b before writing code** — **COMPLETE 2026-07-23**
+   - A-1 was already confirmed by the 2026-07-22 A/B build, and A-1b was confirmed from the modcache forensics recorded in the Assumptions table
+   - The `make ze-gokrazy` vs `ze appliance build` audit ran; its table is in the D-1 section. It found the two flows unequal below the gok call and identical at it, which selected **D-1c** (the preparer moves into `ze-gok`) over both originally-listed options and **withdrew A-7** as having no consumer
+   - The audit also found **R-7**, a live mixed-arch defect in `--all`, now carried as AC-12
+   - Files: none. This phase produced the D-1 decision, the A-7 withdrawal, R-7 and AC-12/AC-13
    - Note: `scripts/evidence/effective-vpp-hugepages-qemu.py` SKIPped on 2026-07-22 (`appliance did not reach SSH within the timeout`) because the host user is not in the `kvm` group and tcg was too slow. Fix the group membership before relying on it as the boot proof, or the Goal Validation row cannot be satisfied
-2. **Phase: Wiring (MANDATORY FIRST)** — every build path prepares
-   - Tests: `TestResolveBuildParentDirAlwaysPrepares`, `TestPrepareInstanceUsesProjectTmp`, `test/appliance/appliance-build-leaves-tree-clean.ci`
-   - Files: `internal/appliance/kernelargs.go`, `internal/appliance/cmd_build.go`
-   - Verify: the entry point always prepares and the wiring test fails because the builddir is not yet copied
-3. **Phase: Copy the builddir and rewrite the ze replace**
+2. **Phase: Extract the preparer into a leaf package** (D-1c prerequisite, A-8)
+   - Tests: existing `TestMaterializeDerivedParent`, `TestMaterializeDerivedParentIsolatesConcurrentBuilds`, `TestCopyBuildDirFailsClosedWithoutModules`, `TestAbsolutizeReplacesLeavesVersionReplaces` must pass unchanged in their new home; `bin/gok` must still build
+   - Files: `internal/appliance/instance/` (new), `internal/appliance/kernelargs.go`
+   - Verify: a pure move with no behaviour change; `go build -mod=vendor -o bin/gok ./cmd/ze-gok` succeeds and `ze-gok` stays a thin wrapper
+3. **Phase: Wiring (MANDATORY FIRST for the new behaviour)** — every build path prepares
+   - Tests: `TestResolveBuildParentDirAlwaysPrepares`, `TestPrepareInstanceUsesProjectTmp`, `TestZeGokPreparesParentDir`, `TestZeGokRestoresUnpreparableParentDir`, `test/appliance/appliance-build-leaves-tree-clean.ci`
+   - Files: `internal/appliance/kernelargs.go`, `internal/appliance/cmd_build.go`, `cmd/ze-gok/main.go`
+   - Verify: both entry points always prepare; `mk/gokrazy.mk:117` is unmodified and still works (AC-13)
+4. **Phase: Fail closed on a mixed-arch `--all`** (AC-12, R-7)
+   - Tests: `TestBuildAllRefusesMixedArch`, mutation-verified by removing the guard
+   - Files: `internal/appliance/cmd_build.go`
+   - Verify: a heterogeneous set is refused naming both archs, before any image is written; a homogeneous set is unaffected
+5. **Phase: Copy the builddir and rewrite the ze replace**
    - Tests: `TestPrepareInstanceCopiesFullBuilddir`, `TestPrepareInstanceRewritesZeReplaceAbsolute`, `TestPrepareInstanceResolvedVersionsMatchTracked`, `TestPrepareInstanceFailsOnMissingModule`, `TestPrepareInstanceUnderSymlinkedTmp`, `TestPrepareInstanceConcurrentBuildsIsolated`, `TestPrepareInstancePreservesHugepageArgs`, `TestPreparedBuildResolvesOffline`
-   - Files: `internal/appliance/kernelargs.go`
+   - Files: `internal/appliance/instance/`
    - Verify: per-module resolved versions match the tracked instance, and the wiring test passes
-4. **Phase: Kernel package as a parameter** — `ze-kernel` writes no state; the replace is injected into the prepared copy
+6. **Phase: Kernel package as a parameter** — `ze-kernel` writes no state; the replace is injected into the prepared copy
    - Tests: `TestPrepareInstanceInjectsKernelReplace`, `TestPrepareInstanceNoKernelPackageUsesPin`, then `make ze-kernel` plus `ze-deployment-gokrazy-l2tp-ppp-test`
    - Files: `mk/gokrazy.mk`, `internal/appliance/cmd_build.go`
    - Verify: `git status --porcelain gokrazy/` is clean after a kernel build, and the image boots the custom kernel
-5. **Phase: Collapse the third implementation** — delete `prepare_instance` from the evidence script
+7. **Phase: Collapse the third implementation** — delete `prepare_instance` from the evidence script
    - Tests: `ze-deployment-gokrazy-l2tp-ppp-test`
    - Files: `scripts/evidence/effective-gokrazy-l2tp-ppp.py`
    - Verify: the L2TP evidence passes with no private copy of the logic
-6. **Phase: Correct the runbook** — fix the false boot-proof citation and describe the new flow
+8. **Phase: Correct the runbook** — fix the false boot-proof citation and describe the new flow
    - Tests: `make ze-doc-test`
    - Files: `ai/rules/appliance-dep-bumps.md`, `docs/guide/appliance.md`
    - Verify: no rule or doc names a test that does not do what it is cited for
-7. **Functional tests** → Create after the feature works.
-8. **RFC refs** → Not applicable.
-9. **Full verification** → `make ze-verify`, plus the QEMU boot proofs at a PASS.
-10. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`. TWO commits: commit A saves code + tests + spec + learned summary; commit B does `git rm` of the spec.
+9. **Functional tests** → Create after the feature works.
+10. **RFC refs** → Not applicable.
+11. **Full verification** → `make ze-verify`, plus the QEMU boot proofs at a PASS.
+12. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`. TWO commits: commit A saves code + tests + spec + learned summary; commit B does `git rm` of the spec.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
@@ -581,7 +644,66 @@ Not applicable. This spec changes build orchestration and enforces no protocol r
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+
+Phases 1-3 (2026-07-23). Every claim below is mutation-verified: the production
+path was broken and the named test confirmed red, then reverted.
+
+| Landed | Where | Proof (and its mutation) |
+|--------|-------|--------------------------|
+| D-1 decided (D-1c) and A-7 withdrawn | this spec | the audit table in the D-1 section |
+| Preparer extracted to a leaf package so `cmd/ze-gok` can import it (A-8) | `internal/appliance/instance/prepare.go` | `go build -mod=vendor -o bin/gok ./cmd/ze-gok` succeeds; `make ze-tier-check` clean |
+| **AC-1**: every build prepares, not only hugepage builds | `internal/appliance/kernelargs.go` `resolveBuildParentDir` | `TestResolveBuildParentDirAlwaysPrepares`. Mutation: restoring the `len(extraArgs) == 0` early return turns it red at "build would run from the tracked dir" |
+| AC-1 is behavior-neutral for plain images | same | `TestResolveBuildParentDirPatchesOnlyWhenRequested` asserts an empty `KernelExtraArgs` |
+| **AC-13 / D-1c**: `ze-gok` prepares `--parent_dir` itself, so `mk/gokrazy.mk:117` is untouched | `cmd/ze-gok/main.go` `prepareArgs` | `TestZeGokPreparesParentDir` (both pflag spellings). Mutation: making `prepareArgs` a pass-through turns it red |
+| Preparation is scoped to image-building subcommands | same, `buildingSubcommands` allowlist | `TestZeGokLeavesMutatingSubcommandsAlone`. Mutation: preparing unconditionally turns it red. Without this, `gok edit`/`add` would write the operator's change into a temp copy that is deleted moments later |
+| Fail-closed on an unpreparable `--parent_dir` | same | `TestZeGokFailsClosedOnUnpreparableParentDir` asserts the error names the path |
+| **AC-3**: the REAL eight-module instance survives preparation, sums included | `internal/appliance/instance/prepare_repo_test.go` | `TestPrepareRealInstanceCarriesEveryModule`, enumerating the tracked modules rather than hardcoding 8. Mutation: dropping `go.sum` from the copy turns it red naming each missing sum |
+| **AC-2** (unit level): preparation writes nothing under the tracked tree | same file | `TestPrepareRealInstanceLeavesTrackedTreeClean` snapshots size+mtime of every file under `gokrazy/ze` across a preparation |
+| Every prepared replace is absolute AND its target exists | same file | asserted per module in `TestPrepareRealInstanceCarriesEveryModule`; a relative survivor would resolve against the new depth and point at nothing |
+
+Two existing tests changed because the behavior they pinned is the behavior this
+spec deliberately removes, not because they were inconvenient:
+
+| Test | Why it changed |
+|------|----------------|
+| `TestBuildUsesGokBuildFn` | It asserted `--parent_dir` equals the tracked `gokrazy` dir. AC-1 makes that assertion the defect. It now asserts the opposite (prepared, under `tmp/`, pins present) and observes inside the gok stub, because `runGokBuild` defers cleanup of the prepared dir |
+| `TestBuildNoGokBinaryCheck` | Relied on the removed no-op path; now given the same fixture |
+
+The moved tests carry a `// test-relax:` note in `kernelargs_test.go` recording
+that the assertions moved verbatim to the instance package rather than being
+dropped, with the command to verify.
+
+Phases 4-8 (2026-07-23), same mutation discipline.
+
+| Landed | Where | Proof (and its mutation) |
+|--------|-------|--------------------------|
+| **AC-12 / R-7**: a mixed-architecture `--all` is refused before any image is written | `uniformArch` in `internal/appliance/cmd_build.go` | `TestBuildAllRefusesMixedArch`. Mutation: removing the guard from `buildAll` turns it red |
+| **AC-5**: every builddir module resolves to an identical version graph after preparation | `internal/appliance/instance/prepare_repo_test.go` | `TestPreparedModulesResolveIdenticallyToTracked` runs `go list -m all` offline against the checked-in modcache for all 8 modules. Mutation: disabling `absolutizeReplaces` turns it red on the ze module |
+| **AC-7**: an out-of-tree kernel reaches the prepared copy only | `replaceKernel` in the instance package; `KERNEL_PKG` in `mk/gokrazy.mk`; `ze.gok.kernel-package` in `cmd/ze-gok` | `TestPrepareInjectsKernelReplace`, `TestZeGokPassesKernelPackage`. Mutation: dropping the env wiring turns the latter red |
+| **AC-8**: no kernel package means the pin, with no leftover state | same | `TestPrepareNoKernelPackageUsesPin`, and the "unset builds the pin" subtest |
+| A kernel package that does not exist is rejected | `Prepare` | `TestPrepareRejectsMissingKernelPackage` |
+| **AC-2**: a build, including a custom-kernel build, leaves `gokrazy/ze` byte-identical and leaves no prepared dir behind | `cmd/ze-gok/main_test.go` | `TestZeGokLeavesTrackedTreeClean` over the REAL instance, both kernel modes |
+| Fail closed when the source instance has NO builddir | `Prepare` | `TestPrepareFailsClosedWithoutBuildDir`. `copyBuildDir` only guarded an EMPTY builddir; an absent one was never copied and never noticed |
+| A symlinked builddir is accepted, so callers need not copy it themselves | `copyBuildDir` via `filepath.EvalSymlinks` | `TestPrepareAcceptsSymlinkedBuildDir` |
+| The third preparer is deleted | `scripts/evidence/effective-gokrazy-l2tp-ppp.py` | `prepare_instance` now only patches `config.json` and symlinks the builddir; both go.mod rewriting regexes are gone |
+| The runbook stops citing a test that boots nothing | `ai/rules/appliance-dep-bumps.md` | step 7 now tabulates what each proof actually asserts, and strikes `serial-login.ci` |
+
+### Deviations from plan
+- **AC-2 is proven by a Go test, not `test/appliance/appliance-build-leaves-tree-clean.ci`.**
+  The functional runner has no vehicle for it: a real image build is a
+  multi-minute cross-compile, and the entry point under test is `bin/gok`, which
+  is not a `ze` subcommand, so none of the `.ci` categories in
+  `ai/rules/functional-test-gate.md` fit. `TestZeGokLeavesTrackedTreeClean`
+  exercises the same `prepareArgs` the binary runs, against the real checked-in
+  instance, in both kernel modes. The planned `.ci` was not created.
+- **`make ze-gokrazy` was not modified**, per D-1c. The original Files to Modify
+  expected to change it.
+- **A new env var** (`ze.gok.kernel-package`) carries the kernel selection from
+  the Makefile to the preparer. The spec did not anticipate needing one; a flag
+  was not possible because gok owns its own flag parsing.
+
+### Still outstanding
+The QEMU boot proofs at a PASS (Goal Validation), and spec closure.
 
 ### Bugs Found/Fixed
 - (fill during implementation; A-1 may become the first entry)
@@ -619,21 +741,47 @@ Not applicable. This spec changes build orchestration and enforces no protocol r
 
 ## Goal Validation (BLOCKING)
 
-| Goal (from Task section) | Evidence Type | Concrete Evidence |
-|--------------------------|---------------|-------------------|
-| No build step writes to a tracked path | functional test | `test/appliance/appliance-build-leaves-tree-clean.ci` output, plus a clean `git status --porcelain gokrazy/` after `make ze-kernel` and a build |
-| An image built the new way boots | QEMU boot proof | `test/appliance/vpp-hugepages-qemu.ci` output showing PASS, with `ZE_GOKRAZY_SKIP_BUILD` unset. A SKIP is not evidence |
-| The custom-kernel path still works end to end | QEMU boot proof | `ze-deployment-gokrazy-l2tp-ppp-test` output after `make ze-kernel` |
-| The pins are preserved exactly | version comparison | Per-module `go list -m all` diff, tracked against prepared, empty for all eight |
-| Offline builds still work | functional evidence | A prepared build with `GOPROXY=off` completing after `make ze-gokrazy-deps` |
-| One preparer, not three | absence check | `grep -c 'def prepare_instance' scripts/evidence/effective-gokrazy-l2tp-ppp.py` is 0, and no build path names a tracked `gokrazy` parent |
+| Goal (from Task section) | Evidence Type | Status | Concrete Evidence |
+|--------------------------|---------------|--------|-------------------|
+| No build step writes to a tracked path | Go test over the real instance | **MET** | `TestZeGokLeavesTrackedTreeClean` compares size+mtime of every file under `gokrazy/ze` across a preparation, in both the pinned and out-of-tree kernel modes, and asserts the prepared dir is removed. Corroborated live: `bin/gok --parent_dir gokrazy -i ze overwrite` reported `--parent_dir /…/tmp/appliance-build-3435674835` and left `git status --porcelain gokrazy/` empty |
+| The pins are preserved exactly | version comparison | **MET** | `TestPreparedModulesResolveIdenticallyToTracked`: `go list -m all` with `GOPROXY=off`, tracked vs prepared, identical for **8/8** builddir modules |
+| Offline builds still work | resolution evidence | **MET** | The comparison above runs entirely with `GOPROXY=off` against the checked-in `gokrazy/modcache`; A-5 additionally confirmed a full `ze appliance build` offline on 2026-07-22 |
+| One preparer, not three | absence check | **MET** | The evidence script's `prepare_instance` no longer copies the builddir or rewrites any `go.mod`; both regexes are deleted and it symlinks instead. `resolveBuildParentDir` and `cmd/ze-gok` both call `instance.Prepare` |
+| An image built the new way boots | QEMU boot proof | **NOT MET — blocked** | `make ze-vpp-hugepages-qemu-test` on 2026-07-23 built the image and then died writing it: `write 989838336 bytes at offset 1157627904: no space left on device`. The host root filesystem is 98% full (2.0 GB free; the image is 2 GB). This is disk exhaustion on the build host, not a defect in the change. It must PASS before this spec closes |
+| The custom-kernel path still works end to end | QEMU boot proof | **NOT MET — not run** | `ze-deployment-gokrazy-l2tp-ppp-test` after `make ze-kernel` + `KERNEL_PKG=tmp/kernel/pkg`. Not attempted: it needs the same disk headroom, plus a custom kernel build |
+
+**Two goals are unmet, so this spec stays OPEN.** The unit and integration
+evidence is complete and mutation-verified, but "the image boots" is the claim
+that unit tests cannot make, and it has not been demonstrated. Nothing here may
+be reported as done until both QEMU rows are green.
+
+Found while attempting the boot proof, and fixed rather than recorded:
+`scripts/evidence/effective-vpp-hugepages-qemu.py` created its ~2 GB working
+directory with `tempfile.mkdtemp()` and no `dir=`, i.e. the **system** temp dir,
+which `ai/rules/testing.md` bans and which on this host shares the exhausted
+filesystem while being invisible to the operator. It now builds under
+`tmp/vpp-hugepages-qemu/`, and the serial console log lands beside the image
+instead of in the system temp dir. This does not by itself free the disk.
 
 ## Review Gate
 
 ### Run 1 (initial)
+
+**Caveat on independence, stated rather than glossed:** `ai/rules/critical-review.md`
+requires reviewers in a different context from the author. This session was
+explicitly instructed not to spawn agents, so the pass below is the AUTHOR's
+review. It is weaker than the rule asks for, and this spec must NOT be closed on
+it: an independent pass is owed before the closure commit. Recorded so the gap is
+visible rather than assumed satisfied.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (fill from /ze-review) | file:line | fixed / deferred (id) / acknowledged |
+| 1 | BLOCKER | The build/mutate decision scanned EVERY argument for a build verb, so `gok edit --instance overwrite` looked like a build. Preparing an `edit` writes the operator's change into a temp copy deleted moments later: silent data loss | `cmd/ze-gok/main.go` `prepareArgs` | fixed: `subcommandOf` skips the values of global value-taking flags; `TestZeGokIdentifiesTheSubcommandNotAnyToken`, mutation-verified |
+| 2 | BLOCKER | The AC-12 subtest asserted only that gok was never called. `buildOne` fails on missing secrets long before reaching gok, so it passed with the guard deleted: a vacuous test | `internal/appliance/cmd_build_test.go` | fixed: it now captures stderr and asserts the refusal message plus the absence of any per-appliance build announcement. Mutation-verified |
+| 3 | ISSUE | `copyBuildDir` guarded an EMPTY builddir, but an ABSENT one was never copied, leaving gok to resolve everything over the network from an instance that looked fine | `internal/appliance/instance/prepare.go` `Prepare` | fixed: explicit guard, `TestPrepareFailsClosedWithoutBuildDir` |
+| 4 | ISSUE | The L2TP evidence script could not use the shared preparer without duplicating the builddir, because `WalkDir` does not follow a symlinked root | `copyBuildDir` | fixed: `filepath.EvalSymlinks` on the root, `TestPrepareAcceptsSymlinkedBuildDir`; the script now symlinks |
+| 5 | NOTE | `os.Exit` skips deferred calls, so the prepared-dir cleanup in `main` cannot be a `defer` | `cmd/ze-gok/main.go` | acknowledged: cleanup is called explicitly on both exit paths, with a comment saying why |
+| 6 | NOTE | `uniformArch` re-loads each config that `buildAll` already loaded | `internal/appliance/cmd_build.go` | acknowledged: once per appliance at build time, not a hot path |
 
 ### Fixes applied
 - (fill during review)
@@ -671,8 +819,8 @@ Not applicable. This spec changes build orchestration and enforces no protocol r
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-11 all demonstrated
-- [ ] D-1 decided and recorded before implementation began
+- [ ] AC-1..AC-13 all demonstrated
+- [ ] D-1 decided and recorded before implementation began (done 2026-07-23: D-1c, see the D-1 section)
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] Every named proof mutation-verified: break the production path, confirm the test goes red

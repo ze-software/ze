@@ -28,7 +28,12 @@
 #   make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret  -- native Apple Silicon VM image
 #   make ze-gokrazy                         -- rebuild: reuse existing credentials
 #   make ze-gokrazy ZEFS=/path/to/db.zefs   -- rebuild: use external database
+#   make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg  -- build against a custom kernel (see ze-kernel)
 #   make ze-gokrazy-run                     -- boot image in QEMU
+#
+# Builds run from a COPY of gokrazy/ze under tmp/, prepared by ze-gok
+# (internal/appliance/instance). No build step writes to a tracked path, so a
+# custom-kernel build needs nothing reverted afterwards.
 
 .PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean ze-host
 
@@ -65,6 +70,12 @@ ze-gokrazy-deps: bin/gok
 		(cd "$$d" && GOMODCACHE=$(GOMODCACHE_LOCAL) GOFLAGS=-modcacherw go mod download all) || exit 1; \
 	done
 	@echo "Done. Builds now work offline."
+
+# Out-of-tree kernel package for a single build (see ze-kernel). Empty means the
+# pinned github.com/rtr7/kernel. Never inferred from the filesystem: an implicit
+# "use tmp/kernel/pkg if it exists" rule would silently give every later build a
+# custom kernel.
+KERNEL_PKG       ?=
 
 GOKRAZY_ZEFS     := tmp/gokrazy/init/database.zefs
 GOKRAZY_CERT_DIR := tmp/gokrazy/certs/$(CERTNAME)
@@ -114,7 +125,13 @@ ze-gokrazy: ze bin/gok
 		echo "--- Reusing existing database ---"; \
 	fi
 	@echo "--- Building gokrazy image ---"
-	GOOS=linux GOARCH=$(GOKRAZY_ARCH) bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
+	@# ze-gok copies the instance under tmp/ before building, so the tracked
+	@# gokrazy/ dir is never built from and never written to. KERNEL_PKG selects an
+	@# out-of-tree kernel for THIS build only; leaving it unset uses the pin.
+	@# `env` is required: a dotted name is not a valid shell identifier, so the
+	@# `VAR=val cmd` prefix form would fail with "not a valid identifier".
+	GOOS=linux GOARCH=$(GOKRAZY_ARCH) env 'ze.gok.kernel-package=$(KERNEL_PKG)' \
+		bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
 		--full $(GOKRAZY_IMG) \
 		--target_storage_bytes $(GOKRAZY_IMG_SIZE)
 	@echo "--- Formatting /perm partition ---"
@@ -168,11 +185,16 @@ ze-gokrazy-run:
 # The runtime kernel is built out-of-tree (tmp/kernel/build via run.py, which
 # reads internal/appliance/kernel.version), then assembled into an out-of-tree
 # kernel PACKAGE (tmp/kernel/pkg: a copy of the pinned rtr7/kernel module with
-# our vmlinuz/modules/DTBs/overlays). gok is pointed at it with a go.mod
-# `replace github.com/rtr7/kernel => tmp/kernel/pkg`. The pinned module cache is
-# NEVER mutated in place and there is no .ze-pinned-kernel backup; ze-kernel-clean
-# drops the replace and removes tmp/kernel. gok resolves the kernel dir via
-# `go list -mod=mod`, which honours the replace.
+# our vmlinuz/modules/DTBs/overlays).
+#
+# The package is selected PER BUILD: `make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg`.
+# ze-gok writes the `replace github.com/rtr7/kernel => <pkg>` into its prepared
+# COPY of the instance, so no tracked file changes and there is nothing to
+# revert; omitting KERNEL_PKG builds the pin. ze-kernel therefore writes no
+# state, and ze-kernel-clean only removes tmp/kernel (plus a one-time migration
+# for replaces left in the tracked go.mod by the pre-2026-07-23 flow). The pinned
+# module cache is never mutated in place. gok resolves the kernel dir via
+# `go list -mod=mod`, which honors the replace.
 KERNEL_MODULE         := github.com/rtr7/kernel
 KERNEL_ARCH           ?= $(GOKRAZY_ARCH)
 KERNEL_BUILDER        ?= docker
@@ -181,11 +203,6 @@ KERNEL_MODCACHE_DIR   := $(GOKRAZY_DIR)/modcache/$(KERNEL_MODULE)@$(KERNEL_MODUL
 KERNEL_BUILD_DIR      := tmp/kernel/build
 KERNEL_PKG_DIR        := tmp/kernel/pkg
 KERNEL_BUILDDIR_GOMOD := gokrazy/ze/builddir/$(KERNEL_MODULE)/go.mod
-# The replace path is stored relative to the go.mod's own directory
-# (gokrazy/ze/builddir/github.com/rtr7/kernel, six levels below the repo root)
-# so it is machine-independent: an absolute $(CURDIR) path would leak a
-# developer's home directory into the tracked go.mod if accidentally committed.
-KERNEL_PKG_REPLACE    := ../../../../../../$(KERNEL_PKG_DIR)
 # Legacy in-place-mutation backup from the pre-consolidation flow. The new flow
 # never creates this; ze-kernel-clean restores from it once to migrate users
 # whose modcache was overlaid by the old ze-kernel.
@@ -253,16 +270,18 @@ ze-kernel: ze-host
 		rm -rf "$(KERNEL_PKG_DIR)/overlays"; \
 		cp -R "$(KERNEL_BUILD_DIR)/overlays" "$(KERNEL_PKG_DIR)/"; \
 	fi
-	@echo "--- Pointing gok at the out-of-tree kernel (go.mod replace; pinned modcache untouched) ---"
-	@$(GO) mod edit -replace=$(KERNEL_MODULE)=$(KERNEL_PKG_REPLACE) $(KERNEL_BUILDDIR_GOMOD)
 	@echo ""
 	@module_version=""; for d in $(KERNEL_PKG_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version (out-of-tree at $(KERNEL_PKG_DIR))"
-	@echo "Next: make ze-gokrazy USER=... PASS=...   (then: make ze-kernel-clean to revert the replace)"
+	@echo "Next: make ze-gokrazy KERNEL_PKG=$(KERNEL_PKG_DIR) USER=... PASS=..."
+	@echo "      (omit KERNEL_PKG to build against the pinned kernel; nothing to revert)"
 
 ze-kernel-clean:
 	@$(MAKE) -C gokrazy/kernel clean
+	@# Migration only. Builds no longer write a replace into the tracked go.mod
+	@# (the kernel package is passed per build via KERNEL_PKG), so this clears a
+	@# replace left behind by a pre-2026-07-23 ze-kernel run.
 	@if grep -q 'replace $(KERNEL_MODULE) ' $(KERNEL_BUILDDIR_GOMOD) 2>/dev/null; then \
-		echo "--- Dropping out-of-tree kernel replace ---"; \
+		echo "--- Dropping a stale out-of-tree kernel replace from the tracked go.mod ---"; \
 		$(GO) mod edit -dropreplace=$(KERNEL_MODULE) $(KERNEL_BUILDDIR_GOMOD); \
 	fi
 	@if [ -d "$(KERNEL_PINNED_BACKUP)" ]; then \

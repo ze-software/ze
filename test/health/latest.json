@@ -81,7 +81,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 19975,
+        "denominator": 20090,
         "numerator": 136,
         "percent": 0.7
       },
@@ -89,7 +89,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 19975 (floor 136)",
+      "value": "136 / 20090 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -138,7 +138,7 @@
       "detail": "Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, so these tests exist but never run.",
       "key": "tag-orphan",
       "label": "Test files no `go test` target can build",
-      "orphan_count": 12,
+      "orphan_count": 8,
       "orphans": [
         {
           "file": "cmd/ze/build_tag_appliance_test.go",
@@ -169,46 +169,30 @@
           "requires": "ze_distro"
         },
         {
-          "file": "internal/install/disk/bootstrap_linux_test.go",
-          "requires": "ze_installer"
-        },
-        {
-          "file": "internal/install/disk/console_linux_test.go",
-          "requires": "ze_installer"
-        },
-        {
           "file": "internal/install/disk/fault_linux_test.go",
-          "requires": "ze_installer, ze_installer_fault"
-        },
-        {
-          "file": "internal/install/disk/initrd_linux_test.go",
-          "requires": "ze_installer"
-        },
-        {
-          "file": "internal/install/disk/rescue_linux_test.go",
-          "requires": "ze_installer"
+          "requires": "ze_installer_fault"
         }
       ],
       "question": "Q3",
       "status": "ok",
-      "value": "12 (floor 12)"
+      "value": "8 (floor 8)"
     },
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 122,
-        "ci_files": 1456,
+        "ci_files": 1458,
         "et_files": 164,
         "fuzz_funcs": 72,
-        "test_files": 2598,
-        "test_funcs": 20004
+        "test_files": 2632,
+        "test_funcs": 20119
       },
-      "detail": "2598 Go test files, 72 fuzz targets, 122 benchmarks, 1456 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2632 Go test files, 72 fuzz targets, 122 benchmarks, 1458 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20004 test functions"
+      "value": "20119 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -286,13 +270,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2598,
-        "numerator": 830,
-        "percent": 31.9
+        "denominator": 2632,
+        "numerator": 843,
+        "percent": 32.0
       },
       "question": "Q2",
       "status": "warn",
-      "value": "830 / 2598",
+      "value": "843 / 2632",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -366,7 +350,7 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 480,
+          "packages": 485,
           "with_ci": 30,
           "with_fuzz": 29,
           "with_rfc_tag": 88
@@ -382,12 +366,12 @@
     },
     {
       "action": "Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.",
-      "detail": "Reds logged rather than fixed, one shard file per live failure (26 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
+      "detail": "Reds logged rather than fixed, one shard file per live failure (28 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
       "key": "known-failures",
       "label": "Logged known-failing tests",
       "live": 11,
       "question": "Q3",
-      "resolved": 26,
+      "resolved": 28,
       "status": "warn",
       "value": "11"
     }

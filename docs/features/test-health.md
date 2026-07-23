@@ -11,7 +11,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 165** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Test files that expect a specific error | Q2 | **830 / 2598** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Test files that expect a specific error | Q2 | **843 / 2632** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **11** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 7 further metric(s) are within threshold and are listed in full below.
@@ -22,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 19975 (floor 136)** (ok)
+**136 / 20090 (floor 136)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -84,7 +84,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**830 / 2598** (attention)
+**843 / 2632** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -126,9 +126,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**20004 test functions** (ok)
+**20119 test functions** (ok)
 
-2598 Go test files, 72 fuzz targets, 122 benchmarks, 1456 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2632 Go test files, 72 fuzz targets, 122 benchmarks, 1458 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
@@ -143,7 +143,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 480 | 29 | 88 | 30 |
+| 2026 | 485 | 29 | 88 | 30 |
 
 ## Integrity
 
@@ -153,13 +153,13 @@ A technique adopted only forward from its introduction shows here as a step: rec
 
 **11** (attention)
 
-Reds logged rather than fixed, one shard file per live failure (26 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
+Reds logged rather than fixed, one shard file per live failure (28 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
 
 *Action if this degrades:* Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.
 
 ### Test files no `go test` target can build
 
-**12 (floor 12)** (ok)
+**8 (floor 8)** (ok)
 
 Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, so these tests exist but never run.
 
@@ -174,11 +174,7 @@ Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, s
 | `cmd/ze/ze_chaos_main_test.go` | `ze_chaos` |
 | `internal/component/config/system/backend_ze_distro_test.go` | `ze_distro` |
 | `internal/component/config/system/selfupdate_test.go` | `ze_distro` |
-| `internal/install/disk/bootstrap_linux_test.go` | `ze_installer` |
-| `internal/install/disk/console_linux_test.go` | `ze_installer` |
-| `internal/install/disk/fault_linux_test.go` | `ze_installer, ze_installer_fault` |
-| `internal/install/disk/initrd_linux_test.go` | `ze_installer` |
-| `internal/install/disk/rescue_linux_test.go` | `ze_installer` |
+| `internal/install/disk/fault_linux_test.go` | `ze_installer_fault` |
 
 ## Trends
 

@@ -360,15 +360,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		return cmds[i].Seq < cmds[j].Seq
 	})
 
-	// Determine timeout: explicit foreground cmd > baseline-derived > global default.
-	timeout := r.timings.SuggestedTimeout(r.display.label, rec.Name, opts.Timeout)
-	for _, cmd := range cmds {
-		if cmd.Mode == modeForeground && cmd.Timeout != "" {
-			if d, err := time.ParseDuration(cmd.Timeout); err == nil {
-				timeout = d
-			}
-		}
-	}
+	// Determine timeout, most specific wins: per-command timeout= on a foreground
+	// cmd, then the record-level `option=timeout:value=`, then baseline-derived,
+	// then the global default.
+	//
+	// The record-level option used to be read only on the non-orchestrated path
+	// (see the sibling block in Run, which returns to this function before
+	// reaching it). Any test declaring `option=timeout:` alongside a `cmd=`
+	// directive therefore had its declaration silently ignored and ran on the
+	// global default instead -- a stated timeout that did nothing.
+	timeout := resolveOrchestratedTimeout(
+		r.timings.SuggestedTimeout(r.display.label, rec.Name, opts.Timeout),
+		rec.Extra["timeout"],
+		cmds,
+	)
 	timeout = r.withParallelHeadroom(timeout)
 
 	testCtx, cancel := context.WithTimeout(ctx, timeout)

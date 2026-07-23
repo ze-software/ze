@@ -38,11 +38,18 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	var called bool
 	var gotArgs []string
 	var gotArch string
+	var pinsVisibleToGok bool
 	old := gokBuildFn
 	gokBuildFn = func(args []string) error {
 		called = true
 		gotArgs = args
 		gotArch = os.Getenv("GOARCH")
+		// runGokBuild defers cleanup of the prepared dir, so what gok can see must
+		// be observed HERE, not after the call returns.
+		if len(args) > 1 {
+			_, err := os.Stat(filepath.Join(args[1], "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", "go.mod"))
+			pinsVisibleToGok = err == nil
+		}
 		return nil
 	}
 	defer func() { gokBuildFn = old }()
@@ -55,11 +62,16 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 
 	t.Setenv("GOARCH", archAMD64)
 
+	// Every build now runs from a PREPARED instance under the project tmp/, so the
+	// test needs a checked-in gokrazy tree to prepare from (AC-1).
+	root := writeGokrazyFixture(t)
+
 	cfg := &applianceConfig{}
 	cfg.Image.Arch = archARM64
 	cfg.Image.SizeBytes = 1073741824
 
-	runGokBuild(cfg, "/tmp/test.img")
+	imgPath := filepath.Join(root, "test.img")
+	runGokBuild(cfg, imgPath)
 
 	if !called {
 		t.Fatal("gokBuildFn was not called")
@@ -67,21 +79,38 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 
 	// runGokBuild passes absolute paths because gok resolves modules from
 	// gokrazy/modcache; relative paths would resolve incorrectly.
-	wantParent, _ := filepath.Abs("gokrazy")
-	wantImg, _ := filepath.Abs("/tmp/test.img")
-	wantArgs := []string{
-		"--parent_dir", wantParent,
+	wantImg, _ := filepath.Abs(imgPath)
+	if len(gotArgs) != 9 {
+		t.Fatalf("got %d args, want 9: %v", len(gotArgs), gotArgs)
+	}
+	if gotArgs[0] != "--parent_dir" {
+		t.Fatalf("arg[0] = %q, want --parent_dir", gotArgs[0])
+	}
+
+	// The parent is the prepared copy under tmp/, NEVER the tracked gokrazy dir.
+	// Asserting inequality alone would pass for any wrong path, so also pin the
+	// prefix and confirm the pins traveled.
+	tracked, _ := filepath.Abs("gokrazy")
+	if gotArgs[1] == tracked {
+		t.Errorf("gok was pointed at the tracked dir %s", tracked)
+	}
+	wantTmp := filepath.Join(root, "tmp")
+	if !strings.HasPrefix(gotArgs[1], wantTmp+string(filepath.Separator)) {
+		t.Errorf("--parent_dir = %q, want a prepared dir under %q", gotArgs[1], wantTmp)
+	}
+	if !pinsVisibleToGok {
+		t.Error("the prepared instance gok was handed carried no builddir pins, so gok would resolve every package over the network")
+	}
+
+	wantRest := []string{
 		"-i", "ze",
 		"overwrite",
 		"--full", wantImg,
 		"--target_storage_bytes", "1073741824",
 	}
-	if len(gotArgs) != len(wantArgs) {
-		t.Fatalf("got %d args, want %d", len(gotArgs), len(wantArgs))
-	}
-	for i := range wantArgs {
-		if gotArgs[i] != wantArgs[i] {
-			t.Errorf("arg[%d] = %q, want %q", i, gotArgs[i], wantArgs[i])
+	for i, want := range wantRest {
+		if gotArgs[i+2] != want {
+			t.Errorf("arg[%d] = %q, want %q", i+2, gotArgs[i+2], want)
 		}
 	}
 	if gotArch != archARM64 {
@@ -181,6 +210,9 @@ func TestBuildNoGokBinaryCheck(t *testing.T) {
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// Preparation is unconditional (AC-1), so even a build that stubs out gok
+	// needs a checked-in gokrazy tree to prepare from.
+	writeGokrazyFixture(t)
 
 	cfg := &applianceConfig{}
 	cfg.Identity.Name = "test-app"
@@ -677,4 +709,119 @@ func TestInjectZeFSNoManifest(t *testing.T) {
 	if sawManifest {
 		t.Error("injectZeFS wrote ze/build.json despite an empty manifest path")
 	}
+}
+
+// writeApplianceWithArch creates a minimal appliance directory whose config
+// names the given architecture. It is enough for LoadConfig, which is all the
+// --all arch guard needs.
+func writeApplianceWithArch(t *testing.T, dir, name, arch string) {
+	t.Helper()
+	if err := os.MkdirAll(AppliancePath(dir, name), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := DefaultConfig(name)
+	cfg.Image.Arch = arch
+	if err := saveConfig(ConfigPath(dir, name), &cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestBuildAllRefusesMixedArch verifies `ze appliance build --all` refuses a set
+// of appliances that do not share one architecture, before any image is written.
+//
+// gok's build environment is memoized once per process
+// (vendor/github.com/gokrazy/tools/packer/gotool.go Env/envOnce), and that
+// memoized slice carries GOARCH into every target compile (same file, getPkg).
+// buildAll loops in ONE process while runGokBuild sets GOARCH per appliance, so
+// the second and later appliances would compile for the FIRST appliance's arch
+// while packer.TargetArch() -- which reads the environment fresh -- lays the
+// image out for their own. The result is an image whose GPT and binaries
+// disagree, produced with exit code 0.
+//
+// VALIDATES: AC-12 -- the run is refused, naming both architectures.
+// PREVENTS: silently shipping an appliance image whose userland cannot execute.
+func TestBuildAllRefusesMixedArch(t *testing.T) {
+	t.Run("mixed is refused", func(t *testing.T) {
+		dir := t.TempDir()
+		writeApplianceWithArch(t, dir, "edge-amd", archAMD64)
+		writeApplianceWithArch(t, dir, "edge-arm", archARM64)
+
+		_, err := uniformArch(dir, []string{"edge-amd", "edge-arm"})
+		if err == nil {
+			t.Fatal("uniformArch accepted a mixed-architecture set")
+		}
+		if !strings.Contains(err.Error(), archAMD64) || !strings.Contains(err.Error(), archARM64) {
+			t.Errorf("error names neither architecture: %v", err)
+		}
+		if !strings.Contains(err.Error(), "edge-arm") {
+			t.Errorf("error does not name the appliance that differs: %v", err)
+		}
+	})
+
+	t.Run("uniform is accepted", func(t *testing.T) {
+		dir := t.TempDir()
+		writeApplianceWithArch(t, dir, "edge-01", archARM64)
+		writeApplianceWithArch(t, dir, "edge-02", archARM64)
+
+		got, err := uniformArch(dir, []string{"edge-01", "edge-02"})
+		if err != nil {
+			t.Fatalf("uniformArch rejected a uniform set: %v", err)
+		}
+		if got != archARM64 {
+			t.Errorf("arch = %q, want %q", got, archARM64)
+		}
+	})
+
+	// This subtest must DISCRIMINATE. Asserting only "gokBuildFn was not called"
+	// is vacuous: buildOne fails on missing secrets long before it reaches gok, so
+	// that assertion passes with the guard deleted. Assert the refusal itself --
+	// the message on stderr, and that no per-appliance build was ever announced.
+	t.Run("refused before any appliance is attempted", func(t *testing.T) {
+		dir := t.TempDir()
+		baseDir = dir
+		writeApplianceWithArch(t, dir, "edge-amd", archAMD64)
+		writeApplianceWithArch(t, dir, "edge-arm", archARM64)
+
+		old := gokBuildFn
+		gokBuildFn = func(args []string) error { return nil }
+		defer func() { gokBuildFn = old }()
+
+		stderr := captureStderr(t, func() {
+			if code := buildAll(); code != exitError {
+				t.Errorf("buildAll returned %d, want %d for a mixed-arch set", code, exitError)
+			}
+		})
+
+		if !strings.Contains(stderr, "cannot mix architectures") {
+			t.Errorf("buildAll did not refuse the mixed set; stderr was:\n%s", stderr)
+		}
+		// buildOne announces "building <name>..." for each appliance it attempts.
+		// The guard runs first, so none may appear.
+		if strings.Contains(stderr, "building ") {
+			t.Errorf("an appliance build was attempted despite the refusal; stderr was:\n%s", stderr)
+		}
+	})
+}
+
+// captureStderr redirects os.Stderr for the duration of fn and returns what was
+// written. Needed because buildAll reports through os.Stderr directly.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "stderr.txt")
+	f, err := os.Create(path) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stderr
+	os.Stderr = f
+	fn()
+	os.Stderr = orig
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }

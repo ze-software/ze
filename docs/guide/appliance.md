@@ -305,6 +305,39 @@ cmd/ze-gok/
 
 The gok build tool source is vendored in the main `vendor/github.com/gokrazy/` directory. The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.
 
+### Builds never run from this directory
+
+The tree above is the build *input*; no build runs inside it. Every image build
+first copies `gokrazy/ze` to a fresh directory under the project `tmp/`,
+including the whole `builddir`, rewriting each filesystem-path `replace` to an
+absolute path so it still resolves from the new depth. gok is then pointed at the
+copy, and the copy is deleted afterwards.
+
+<!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
+
+Both entry points do this: `ze appliance build` through `resolveBuildParentDir`,
+and `make ze-gokrazy` through `bin/gok`, which rewrites `--parent_dir` before gok
+sees it. As a result a build leaves the working tree unchanged, two builds in one
+checkout cannot collide, and a build that would have to resolve packages over the
+network fails instead of silently using unpinned versions.
+
+<!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
+<!-- source: cmd/ze-gok/main.go -- prepareArgs -->
+
+To build against a locally built kernel, pass it per build:
+
+```
+make ze-kernel                                   # builds tmp/kernel/pkg
+make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
+```
+
+The `replace` is written into the prepared copy only, so nothing needs reverting
+afterwards and a later build without `KERNEL_PKG` uses the pinned kernel.
+
+<!-- source: mk/gokrazy.mk -- KERNEL_PKG, ze-kernel -->
+<!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
+
+
 ## ze-setup binary
 
 Appliance build commands (`ze appliance`) and PXE provisioning (`ze install

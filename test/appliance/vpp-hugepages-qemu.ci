@@ -15,6 +15,14 @@
 # `kvm` group -- `make ze-setup` checks this as kvm-access. The exhaustive run is
 # `make ze-vpp-hugepages-qemu-test`.
 
+# The auto-timeout is derived from this test's rolling baseline (5x the average).
+# On a host without KVM the driver SKIPs in a couple of seconds, so the baseline
+# settles around 3s and the derived budget lands near 15s -- far too short for the
+# real work this test does when the prerequisites ARE present: a host ze build, an
+# appliance init, a full gokrazy image build, and a QEMU boot. That mismatch killed
+# the run at 15s on the first KVM-capable host to meet it. An explicit timeout
+# always wins over the derived one, so pin it to the real cost.
+option=timeout:value=900s
 cmd=foreground:seq=1:exec=python3 scripts/evidence/effective-vpp-hugepages-qemu.py
 expect=exit:code=0
 expect=stdout:regex=VPP-HUGEPAGES-QEMU: (PASS|SKIP)

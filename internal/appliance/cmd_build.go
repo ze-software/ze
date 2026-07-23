@@ -18,6 +18,7 @@ import (
 
 	"github.com/gokrazy/tools/gok"
 
+	"codeberg.org/thomas-mangin/ze/internal/appliance/instance"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -293,7 +294,7 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 
 	if err := gokBuildFn([]string{
 		"--parent_dir", parentDir,
-		"-i", gokrazyInstance,
+		"-i", instance.Name,
 		"overwrite",
 		"--full", absImg,
 		"--target_storage_bytes", gokSizeArg(cfg.Image.SizeBytes),
@@ -437,6 +438,42 @@ func findLastPartition(imgPath string) (offsetBytes, sizeBytes int64, err error)
 	return int64(lastStart) * gptSectorSize, int64(lastEnd-lastStart+1) * gptSectorSize, nil
 }
 
+// uniformArch returns the single image architecture shared by every named
+// appliance, or an error naming the first appliance that differs.
+//
+// This is a fail-closed guard on a process-wide memoization in the vendored
+// builder. packer.Env() computes the target build environment once behind a
+// sync.Once (vendor/github.com/gokrazy/tools/packer/gotool.go), and that
+// memoized slice is handed to every target compile. buildAll runs in a single
+// process and sets GOARCH per appliance, so appliance two onwards would compile
+// for appliance one's architecture, while packer.TargetArch() reads GOARCH fresh
+// and lays their images out for their own. Nothing fails: the result is an image
+// whose partition layout and binaries disagree.
+//
+// Refusing is the honest option. Building each appliance in its own process
+// would also work, but that is a larger change than this guard, and a wrong
+// image shipped silently is worse than a run that stops and says why.
+func uniformArch(dir string, names []string) (string, error) {
+	var arch, archOwner string
+	for _, name := range names {
+		cfg, err := LoadConfig(ConfigPath(dir, name))
+		if err != nil {
+			return "", fmt.Errorf("read config for %s: %w", name, err)
+		}
+		if arch == "" {
+			arch, archOwner = cfg.Image.Arch, name
+			continue
+		}
+		if cfg.Image.Arch != arch {
+			return "", fmt.Errorf(
+				"build --all cannot mix architectures in one run: %s is %s but %s is %s; "+
+					"build each architecture separately (ze appliance build <name>)",
+				archOwner, arch, name, cfg.Image.Arch)
+		}
+	}
+	return arch, nil
+}
+
 func buildAll() int {
 	dir := getBaseDir()
 	entries, err := os.ReadDir(dir)
@@ -457,6 +494,13 @@ func buildAll() int {
 
 	if len(names) == 0 {
 		fmt.Fprintf(os.Stderr, "no appliances found in %s\n", dir)
+		return exitError
+	}
+
+	// Refuse a mixed-architecture set BEFORE writing anything: every appliance in
+	// this run would compile for the first one's arch. See uniformArch.
+	if _, err := uniformArch(dir, names); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 
