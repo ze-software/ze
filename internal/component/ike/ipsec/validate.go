@@ -55,7 +55,12 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 			if !hasCert(cert) {
 				return fmt.Errorf("ipsec peer %q: certificate %q not found in PKI store", name, cert)
 			}
-			if peer.Auth.LocalID != "" {
+			// X.509 only. For EAP-TLS the IKE AUTH is derived from the EAP MSK,
+			// not signed by this certificate, and local-id is the EAP identity
+			// (an NAI); nothing in RFC 5216 or RFC 7296 binds it to the
+			// certificate subject. Requiring equality there would reject the
+			// ordinary deployment of a user identity with a device certificate.
+			if peer.Auth.Mode == AuthX509 && peer.Auth.LocalID != "" {
 				cn := certCN(cert)
 				if cn != "" && peer.Auth.LocalID != cn {
 					return fmt.Errorf(

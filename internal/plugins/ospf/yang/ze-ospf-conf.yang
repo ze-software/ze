@@ -205,7 +205,7 @@ module ze-ospf-conf {
                 leaf no-php { type boolean; default false; description "Set the NP-Flag: the penultimate hop keeps the label rather than popping it (no penultimate-hop-popping)."; }
                 leaf explicit-null { type boolean; default false; description "Set the E-Flag: the upstream neighbor uses the Explicit NULL label (0 IPv4 / 2 IPv6). Requires no-php."; }
             }
-            leaf srms-preference { type uint8; description "SR Mapping-Server preference advertised in the SRMS-Preference TLV (RFC 8665 sec 3.4). Absent when unset."; }
+            leaf srms-preference { type uint8 { range "0..255"; } description "SR Mapping-Server preference advertised in the SRMS-Preference TLV (RFC 8665 sec 3.4). Absent when unset."; }
         }
     }
 

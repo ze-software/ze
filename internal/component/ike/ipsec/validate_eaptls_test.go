@@ -83,3 +83,50 @@ func TestValidatePKIRefsIgnoresNonCertificateModes(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: the local-id/CN equality rule stays X.509-only.
+// PREVENTS: Widening the loop to EAP-TLS silently importing an X.509 rule that
+// has no basis for it. The EAP-TLS IKE AUTH is MSK-derived, not signed by this
+// certificate, and local-id is the EAP identity: an NAI such as
+// "alice@example.com" against a device certificate CN of "alice" is the ordinary
+// deployment, and rejecting it would break working configs on upgrade.
+func TestValidatePKIRefsAllowsEAPTLSIdentityUnlikeCertCN(t *testing.T) {
+	cfg := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{
+			"branch": {Auth: AuthConfig{
+				Mode:          AuthEAPTLS,
+				Certificate:   "alice-cert",
+				CACertificate: "corp-ca",
+				LocalID:       "alice@example.com",
+			}},
+		},
+	}
+	certCN := func(string) string { return "alice" }
+
+	if err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, certCN); err != nil {
+		t.Fatalf("an eap-tls peer whose local-id differs from the cert CN was rejected: %v", err)
+	}
+}
+
+// VALIDATES: the same rule still applies to X.509 peers.
+// PREVENTS: Scoping the check so tightly that it stops running where it belongs.
+func TestValidatePKIRefsStillChecksCNForX509(t *testing.T) {
+	cfg := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{
+			"branch": {Auth: AuthConfig{
+				Mode:        AuthX509,
+				Certificate: "alice-cert",
+				LocalID:     "alice@example.com",
+			}},
+		},
+	}
+	certCN := func(string) string { return "alice" }
+
+	err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, certCN)
+	if err == nil {
+		t.Fatal("an x509 peer whose local-id differs from the cert CN was accepted")
+	}
+	if !strings.Contains(err.Error(), "does not match certificate CN") {
+		t.Errorf("error %q is not the CN mismatch", err)
+	}
+}

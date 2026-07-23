@@ -3853,12 +3853,23 @@ Learned: `plan/learned/363-file-modularity.md`.
 
 ---
 
-## RFC Compliance
+## RFC Compliance (every protocol, not just BGP)
 `ai/rules/rfc-compliance.md`
-**When:** Ze MUST be a fully RFC 4271 compliant BGP speaker — **Severity:** advisory
+**When:** writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements — **Severity:** blocking
 
 ## Directives
-Ze MUST be a fully RFC 4271 compliant BGP speaker.
+**Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
+just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface is held to its own RFCs, and so is anything Ze speaks that has a standard...
+**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation.**
+| Situation | What you MUST do |
+|-----------|------------------|
+| You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/no-parking.md`) |
+| A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
+| A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/no-fabrication.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
+| The RFC requirement is not in `rfc/short/<stem>.md` | An unextracted obligation is still an obligation. Add the checklist row (see Extraction Completeness) -- the gate's silence is not conformance |
+| Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
+| An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
+**Before claiming a protocol behaviour is correct, read the RFC text**, not only
 ## RFC Summaries (`rfc/short/`)
 RFC summaries are protocol-only reference documents.
 ## Extraction Completeness (BLOCKING when enrolling a summary)

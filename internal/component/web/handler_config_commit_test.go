@@ -150,3 +150,31 @@ func assertSameOriginPath(t *testing.T, target string) {
 	assert.False(t, strings.HasPrefix(target, "/\\"), "target %q is backslash-escaped (off-origin)", target)
 	assert.NotContains(t, target, "://", "target %q carries a scheme (off-origin)", target)
 }
+
+// VALIDATES: backToRefererOrShow, the other request-derived redirect producer,
+// obeys the same same-origin guard.
+// PREVENTS: The guard's own doc claiming "every redirect target ... MUST pass
+// this" while a sibling producer one file over kept an inline check that
+// rejected "//host" but not "/\host", which several browsers normalize to
+// "//host".
+func TestBackToRefererOrShowIsSameOrigin(t *testing.T) {
+	for _, tc := range hostileRedirectHeaders {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/config/set/", http.NoBody)
+			req.Header.Set("Referer", tc.header)
+
+			assertSameOriginPath(t, backToRefererOrShow(req))
+		})
+	}
+}
+
+// VALIDATES: a legitimate Referer still returns its path.
+// PREVENTS: The shared guard flattening every post-form redirect to the fallback.
+func TestBackToRefererOrShowKeepsLegitimatePath(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/config/set/", http.NoBody)
+	req.Header.Set("Referer", "https://ze.example/show/bgp/peer/")
+
+	if got := backToRefererOrShow(req); got != "/show/bgp/peer/" {
+		t.Errorf("backToRefererOrShow = %q, want %q", got, "/show/bgp/peer/")
+	}
+}

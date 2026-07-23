@@ -367,7 +367,11 @@ func backToRefererOrShow(r *http.Request) string {
 		return fallback
 	}
 	u, err := url.Parse(ref)
-	if err != nil || u.Path == "" || !strings.HasPrefix(u.Path, "/") || strings.HasPrefix(u.Path, "//") {
+	// isSameOriginPath is the single guard for every request-derived redirect
+	// target (see auth.go). The inline check this replaced rejected "//host" but
+	// not "/\host", which several browsers normalize to "//host" -- the exact
+	// case the shared guard exists to catch.
+	if err != nil || !isSameOriginPath(u.Path) {
 		return fallback
 	}
 	return u.Path

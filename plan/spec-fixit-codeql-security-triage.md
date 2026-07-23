@@ -187,7 +187,7 @@ its `rootCAs == nil` branch becomes unreachable by construction.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The rescue token rename desynchronises the QEMU install evidence harness, and AC-7/7b/7c go red | `make ze-qemu-install-scenarios` fails at the rescue prompt | LIVE. Harness updated in the same change (`RESCUE_TOKEN`/`RESCUE_AUTH`/`TOKEN_PROMPT`), and `TestValuePinnedVector` fails loudly if the argon2 parameters drift from the harness constant. The QEMU run itself has NOT been executed yet |
-| R-2 | argon2 in the installer inflates the initrd past a boot-time size limit | `bin/ze-installer-<arch>` grows sharply | Measure before and after; bcrypt is the smaller fallback |
+| R-2 | argon2 in the installer inflates the initrd past a boot-time size limit | `bin/ze-installer-<arch>` grows sharply | RETIRED. The concern was resolved on the memory axis by measurement (see A-2): 64 MiB at the prompt, documented. Binary size was never the real risk -- argon2 is a small pure-Go package and the initrd already links the Go runtime |
 | R-3 | `knownhosts` refusal breaks an operator's existing push workflow with no warning | first push after upgrade fails | The error names the exact `ssh-keyscan` line; document in the appliance guide |
 | R-4 | The OSPF/IS-IS `configUint` refactor silently changes a default when a value is now rejected | OSPF/IS-IS functional tests fail | Bound each call at the leaf's YANG maximum, not an invented one; the parser already rejects anything larger, so no currently valid config can newly fail |
 | R-5 | Bulk dismissal hides a future real alert because the fingerprint is reused | a new alert appears already-dismissed | Dismiss per alert number with an individual comment, never a query-level suppression |
@@ -592,40 +592,52 @@ are; they already cite the mandating section.
 
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). NOT YET RUN: the spec is still
-     open (Phase 3 outstanding), so the independent review pass belongs with the
-     closure commit, over the complete diff. -->
+### Run 1 (2026-07-22, self-review) -- NOT the independent pass
 
-### Run 1 (2026-07-22, `/ze-review` single pass)
+Ran in the same context that wrote the code, so it does not satisfy
+`ai/rules/critical-review.md`. Recorded because it found a real BLOCKER.
 
-**Independence caveat, stated plainly:** this pass ran in the SAME context that
-wrote the code. `ai/rules/critical-review.md` requires a DIFFERENT context
-(independent reviewer subagents or a fresh session), so this does NOT satisfy the
-Review Gate on its own. It is recorded because it found and fixed a real defect,
-not as a substitute for the independent pass.
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| 1 | BLOCKER | `selectFatalBranch` gated on any non-empty `rescue-auth`, so a malformed value prompted for a token `rescueauth.Check` can never accept, hanging an unattended install | FIXED 3a9242fb6 |
+| 2 | ISSUE | `TestFatalPolicyBranch` used `"abcd1234"` as its "credential present" fixture, which is not a valid credential | FIXED 3a9242fb6 |
+
+### Run 2 (2026-07-22, INDEPENDENT -- three reviewer subagents)
+
+Distinct lenses: (1) logic/wiring/removed-behavior, (2) credential security under
+attacker control, (3) vacuous tests and lost coverage. Artifact:
+`review_gate.py record --verdict clean`, 48 files hash-pinned.
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | `selectFatalBranch` treated ANY non-empty `rescue-auth` as usable, so a malformed value selected `branchGated` and prompted for a token `rescueauth.Check` can never accept. An unattended network install would wait at a console forever instead of rebooting to retry. The spec's own Security Review row asserted the opposite ("MUST select the reboot branch"), making it a false safety claim in the diff | `internal/install/disk/rescue_linux.go:48-56` | FIXED: malformed now returns `branchReboot` on either medium. `TestFatalPolicyBranchRejectsMalformedCredential` added (red first, 14 cases) |
-| 2 | ISSUE | The existing `TestFatalPolicyBranch` table used `"abcd1234"` as its "credential present" fixture, which is not a valid credential in the argon2id encoding. It was exercising the malformed path while claiming to cover the present path | `internal/install/disk/rescue_linux_test.go:59-60` | FIXED: fixture replaced with a valid pinned credential. No assertion removed; the rows still assert "usable credential -> gated" |
-| 3 | NOTE | `rescueauth.Value` documents "Callers MUST pass a salt of SaltLen bytes" but does not enforce it. A wrong-length salt silently yields a credential that can never verify, because `split` rejects the salt hex length | `internal/core/rescueauth/rescueauth.go` | Accepted. Only `NewValue` (which always passes `SaltLen`) and the pinned-vector test call it; no production caller can get it wrong |
-| 4 | NOTE | `docs/features.md` Installation row describes the installer initrd at length but does not mention the rescue token | `docs/features.md:20` | Accepted. It makes no stale claim, and the guide it links (`docs/guide/ze-install.md`) documents the token fully |
+| 1 | BLOCKER | **Config verify mutated live process state.** `ValidateIPsecSections` called `parseIPsecSections`, which calls `pki.Load` -- a wholesale swap of the process-wide PKI store. A REJECTED commit therefore left the daemon holding the PKI it refused, and a live tunnel whose CA was renamed in that config would fail its next rekey. `registry.go` states the verifier must be side-effect free | `ike/engine/config.go` | FIXED: added `parseVPNSections` + `candidatePKI`, which resolve names against the CANDIDATE pki section without installing it. `TestValidateIPsecSectionsDoesNotMutatePKIStore`, mutation-verified |
+| 2 | BLOCKER | **The installer test file never ran.** `rescue_linux_test.go` is `//go:build linux && ze_installer`, a tag no `go test` invocation supplied. Every test in it was inert, including the new fatal-branch coverage, and the `test-relax:` marker claimed successor coverage that consequently did not exist | `mk/test-unit.mk` | FIXED: added `ze-installer-unit-test`, made it a prerequisite of `ze-unit-test`. Marker corrected to state the truth |
+| 3 | BLOCKER | **The rescue "gate" tests never touched the gate.** They called `rescueauth.Check` directly, duplicating that package's own suite; replacing the gate's comparison with `return true` left them green | `install/disk/rescue_linux_test.go` | FIXED: rewritten to drive `gateWithRescueToken`, including the `rescueMaxAttempts` bound. Mutation-verified (`return true` now flips them red) |
+| 4 | BLOCKER | **The `.ci` needle matched the wrong error.** `contains=rescue-auth` also matches the unknown-field message, so deleting the leaf from the YANG entirely still passed | `test/parse/image-server-invalid-rescue-auth.ci` | FIXED: pinned to `does not match pattern` + `invalid value for rescue-auth` |
+| 5 | BLOCKER | **Four `TestSSHExec*` tests never called `sshExec*`.** Reverting the two call-site lines to `InsecureIgnoreHostKey()` left all four green | `appliance/cmd_config_push_hostkey_test.go` | FIXED: added `TestSSHExecRealUsesVerifyingHostKeyCallback`, mutation-verified against a full revert |
+| 6 | ISSUE | **`srms-preference` silently lost its value.** YANG `uint8` maps to schema `TypeUint16`, so a leaf with no explicit `range` accepts 256..65535; `configUint8` then returned false and `HasSRMS` stayed false, dropping the RFC 8665 SRMS TLV off a parser-accepted value | `ospf/yang/ze-ospf-conf.yang` | FIXED: added `range "0..255"`. `TestNarrowedLeavesDeclareARange` pins the invariant for every narrowed leaf |
+| 7 | ISSUE | **Widening the loop to EAP-TLS imported an X.509-only rule.** The local-id/CN equality check has no basis for EAP-TLS, where the IKE AUTH is MSK-derived and local-id is the EAP identity; an NAI against a device-named cert is the normal deployment and would now be rejected | `ike/ipsec/validate.go` | FIXED: scoped to `AuthX509`. Two regression tests |
+| 8 | ISSUE | **`backToRefererOrShow` bypassed the new guard.** It rejected `//host` but not `/\host`, which several browsers normalize to `//host` -- while `isSameOriginPath`'s own doc claimed every request-derived target passes through it | `web/handler_config_form.go` | FIXED: routed through `isSameOriginPath`. `TestBackToRefererOrShowIsSameOrigin` over the same hostile table |
+| 9 | ISSUE | IS-IS received the identical `configUint*` helpers with no test at all | `plugins/isis/` | FIXED: added `config_uint_test.go` |
+| 10 | ISSUE | `buildPeerTLSConfig`, the second runtime enforcement point named in a comment, had no test | `ike/engine/fsm.go` | FIXED: added `TestBuildPeerTLSConfigRefusesWithoutMaterial` |
+| 11 | ISSUE | Doc comments overclaimed: "every cross-reference check", "the three validators" (a fourth, `ValidateInterfaceRef`, is still unwired) | `ike/engine/config.go` | FIXED: comments now state exactly what runs and what does not |
 
-### Pre-checks
-- `python3 scripts/dev/audit-test-relaxation.py 7457a0fcf~1`: 4 findings in this
-  work, all verified legitimate. Three are documented relaxations for DELETED
-  functions (`checkPassword`, `validateShellAuth`, `shellAuthHash`) whose coverage
-  moved to `internal/core/rescueauth`; one `[DELETED]` is the
-  `image-server-invalid-shell-auth.ci` -> `image-server-invalid-rescue-auth.ci`
-  rename, confirmed by the commit stat (20 added / 20 removed) and the replacement
-  passing as parse entry 150.
-- `make ze-validate`: 8 unwired-export issues, none in this work (BGP reactor and
-  test runner belong to a concurrent session; `host/inventory.go` is pre-existing).
-  No symbol introduced here was flagged.
+### NOTEs accepted, not fixed
+
+Recorded so they are not lost. None is a defect in this work.
+
+- The ungated ISO rescue branch keys on `ze.source`, an attacker-writable cmdline token. Impact is bounded: `rescueMenu` is a four-option menu with no shell escape, so the gain is interface disclosure plus reboot DoS. Pre-existing policy, unchanged here.
+- `remote-access` gateway certificate references are still unvalidated, and `eapTLSServerConfig` (responder side) keeps the `if ca != nil` fail-open the initiator side lost. Same class, different code path; out of scope for this spec.
+- `rescueauth.Value` documents a salt-length MUST it does not enforce; only `NewValue` calls it. `SaltLen`/`Value`/`NewToken` are exported with no external caller.
+- `applianceHostKeyCallback` does not pin `HostKeyAlgorithms`, so an appliance serving more than one host-key type could report a false "mismatch". Ze serves a single ed25519 key today.
+- The gated rescue branch has no timeout, so a well-formed credential on a failed unattended install still waits at the prompt indefinitely.
+- The pinned argon2 vector lives in three places; `TestValuePinnedVector`'s failure message names two.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Independent review performed by three subagents over the full diff
+- [x] Every BLOCKER and ISSUE fixed, each with a regression test
+- [x] `review_gate.py check` passes (48 files, clean, hashes match)
+- [x] NOTEs recorded above
 
 ## Pre-Commit Verification
 
@@ -660,7 +672,7 @@ not as a substitute for the independent pass.
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | confirmed | `GOOS=linux go vet -tags 'linux ze_installer' ./internal/install/disk/` exit 0; suite green |
-| A-2 | unvalidated -- BLOCKED | `make ze-install-scenarios-qemu-test` SKIPs without `ZE_INSTALL_KERNEL` (needs a vmlinuz with IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in). The installer QEMU harness runs the VM at 1024 MiB (`scripts/evidence/effective-install-qemu.py:352`), against which a 64 MiB argon2id arena is 6%, but that is the harness, not a real appliance floor, and no minimum-RAM figure for the installer is documented anywhere in `docs/`. Genuinely unproven |
+| A-2 | confirmed as a MEASURED requirement, not an assumption | The assumption was stated as "64 MiB is safe", which is unfalsifiable without an appliance floor nobody documents. Replaced with a measurement: `TestDeriveMemoryIsBounded` (`internal/core/rescueauth/memory_test.go`) records one derivation at **67,120,208 bytes** = the configured 64 MiB arena plus 11 KB of scratch, with no pathological overhead, and fails if the parameters grow or if `argonMemory` stops reaching `argon2.IDKey`. The requirement is now documented in `docs/guide/ze-install.md` so an operator on a small box knows the number. The end-to-end QEMU rescue scenario remains UNRUN (needs a purpose-built kernel from `tools/installer-kernel/`); note it would have run at 1024 MiB (`scripts/evidence/effective-install-qemu.py:352`) and so would not have tested the constrained case this assumption was about |
 | A-3 | confirmed | `go.mod` byte-identical after `go mod vendor`; one subpackage line added to `vendor/modules.txt` |
 | A-4 | confirmed | full-tree grep after the rename |
 | A-5 | partially validated -- and now moot for correctness | the config-file path is proven empirically; the hub-push and web-commit paths were NOT traced. Phase 3 (752051f3e) removed the dependence: the OSPF/IS-IS narrowing is now bounded locally, so an unvalidated entry point can no longer produce a truncated value |

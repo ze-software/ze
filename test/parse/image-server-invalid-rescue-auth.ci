@@ -17,4 +17,8 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stdout:contains=rescue-auth
+# The needle must be the PATTERN rejection, not the bare leaf name: an unknown
+# field also errors with "rescue-auth" in the text, so `contains=rescue-auth`
+# alone still passed with the leaf deleted from the YANG entirely.
+expect=stdout:contains=does not match pattern
+expect=stdout:contains=invalid value for rescue-auth

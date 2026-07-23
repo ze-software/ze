@@ -88,7 +88,7 @@ Total: 90 rules
 | Quality Standards | All checks must pass before claiming "done." Severity: blocking | `ai/rules/quality.md` |
 | Registration-Based Dispatch | the registration pattern: register handlers into a dispatcher (or sub-dispatcher), Severity: advisory | `ai/rules/registration-dispatch.md` |
 | File Cross-References | Cross-reference comments let Claude load only needed files without scanning the whole package Severity: advisory | `ai/rules/related-refs.md` |
-| RFC Compliance | Ze MUST be a fully RFC 4271 compliant BGP speaker Severity: advisory | `ai/rules/rfc-compliance.md` |
+| RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements Severity: blocking | `ai/rules/rfc-compliance.md` |
 | RFC Summaries Before Design | when a spec lists RFC summaries in its Required Reading section Severity: blocking | `ai/rules/rfc-reading.md` |
 | Rule File Format | authoring or editing any `ai/rules/*.md` rule file Severity: blocking Related: canonical-sources, discovery-updates | `ai/rules/rule-format.md` |
 | Self-Documenting Code | Code that implements external APIs or protocols MUST reference the upstream spec inline Severity: blocking | `ai/rules/self-documenting.md` |

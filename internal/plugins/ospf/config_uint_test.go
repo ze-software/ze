@@ -1,6 +1,10 @@
 package ospf
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+)
 
 // VALIDATES: AC-13 -- a config value above the target type's range is refused by
 // configUint8/16/32, so the caller keeps its default rather than storing a
@@ -100,5 +104,37 @@ func TestOutOfRangeLeafKeepsDefault(t *testing.T) {
 
 	if cfg.MaximumPaths != want {
 		t.Errorf("MaximumPaths = %d after an out-of-range leaf, want the default %d", cfg.MaximumPaths, want)
+	}
+}
+
+// VALIDATES: every YANG leaf feeding a configUintN call declares a range no
+// wider than the Go type it feeds, which is the invariant that makes the
+// mechanical narrowing safe.
+// PREVENTS: The srms-preference case. YANG `uint8` maps to schema TypeUint16
+// (internal/component/config/yang_schema.go), so a uint8 leaf with NO explicit
+// range accepts 256..65535 at parse time. configUint8 then returns ok=false and
+// the caller keeps its default -- for srms-preference that meant HasSRMS stayed
+// false and the SRMS-Preference TLV was silently never advertised, off a value
+// the parser had accepted.
+func TestNarrowedLeavesDeclareARange(t *testing.T) {
+	data, err := os.ReadFile("yang/ze-ospf-conf.yang")
+	if err != nil {
+		t.Fatalf("read yang: %v", err)
+	}
+	body := string(data)
+
+	// Every leaf consumed by configUint8 must bound itself at or below 255.
+	for _, leaf := range []string{"srms-preference", "maximum-paths", "priority"} {
+		idx := strings.Index(body, "leaf "+leaf+" {")
+		if idx < 0 {
+			t.Errorf("leaf %q not found in the OSPF schema", leaf)
+			continue
+		}
+		decl := body[idx:min(idx+220, len(body))]
+		if !strings.Contains(decl, "range") {
+			t.Errorf("leaf %q declares no range: a bare uint8 leaf accepts 256..65535 at parse "+
+				"time, so configUint8 would reject a parser-accepted value and silently keep the "+
+				"default:\n%s", leaf, decl)
+		}
 	}
 }

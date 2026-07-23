@@ -36,61 +36,111 @@ func parseIPsecSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error
 }
 
 func loadPKIFromJSON(data string) error {
-	var raw map[string]any
-	if err := json.Unmarshal([]byte(data), &raw); err != nil {
-		return err
-	}
-	wrapper := map[string]any{"pki": raw}
-	tree := treeFromMap(wrapper)
-	cfg, err := pki.ParseConfig(tree)
+	cfg, err := parsePKIFromJSON(data)
 	if err != nil {
 		return err
 	}
 	return pki.Load(cfg)
 }
 
-// ValidateIPsecSections parses the delivered config sections and runs every
-// cross-reference check the IPsec data model defines: group references, PKI
-// references (including the RFC 5216 Section 5.3 trust-anchor requirement for
-// EAP-TLS peers), and the remote-access pool and credentials.
+// parsePKIFromJSON parses a "pki" config section WITHOUT touching the global
+// store. Verification must be able to resolve certificate names in the config
+// it is judging without adopting that config: pki.Load swaps the process-wide
+// store outright (internal/component/pki/store.go Load) and raises expiry
+// warnings, so calling it from a verify path would leave a REJECTED config's
+// PKI installed in a running daemon.
+func parsePKIFromJSON(data string) (*pki.PKIConfig, error) {
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(data), &raw); err != nil {
+		return nil, err
+	}
+	wrapper := map[string]any{"pki": raw}
+	return pki.ParseConfig(treeFromMap(wrapper))
+}
+
+// parseVPNSections parses the "vpn" section only. Unlike parseIPsecSections it
+// has no side effects, so it is safe on a verify path.
+func parseVPNSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) {
+	for _, s := range sections {
+		if s.Root != "vpn" {
+			continue
+		}
+		return parseIPsecFromJSON(s.Data)
+	}
+	return &ipsec.IPsecConfig{
+		ESPGroups: make(map[string]ipsec.ESPGroup),
+		IKEGroups: make(map[string]ipsec.IKEGroup),
+		Peers:     make(map[string]ipsec.SiteToSitePeer),
+	}, nil
+}
+
+// candidatePKI parses the "pki" section of a candidate delivery into a lookup
+// set, without installing it. An absent section yields an empty set, so a
+// certificate reference in a config that defines no PKI is correctly reported
+// as unresolvable.
+func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) bool, certCN func(string) string, err error) {
+	cfg := &pki.PKIConfig{
+		CACerts:      make(map[string]*pki.CACertEntry),
+		Certificates: make(map[string]*pki.CertificateEntry),
+	}
+	for _, s := range sections {
+		if s.Root != "pki" {
+			continue
+		}
+		parsed, perr := parsePKIFromJSON(s.Data)
+		if perr != nil {
+			return nil, nil, nil, perr
+		}
+		cfg = parsed
+		break
+	}
+
+	hasCA = func(name string) bool { return cfg.CACerts[name] != nil }
+	hasCert = func(name string) bool { return cfg.Certificates[name] != nil }
+	certCN = func(name string) string {
+		entry := cfg.Certificates[name]
+		if entry == nil || entry.Certificate == nil {
+			return ""
+		}
+		return entry.Certificate.Subject.CommonName
+	}
+	return hasCA, hasCert, certCN, nil
+}
+
+// ValidateIPsecSections parses the delivered config sections and runs the
+// site-to-site cross-reference checks: group references, peer PKI references
+// (including the RFC 5216 Section 5.3 trust-anchor requirement for EAP-TLS
+// peers), and the remote-access pool and user credentials. It does NOT yet
+// check the remote-access gateway's own certificate references, nor the
+// interface binding (ValidateInterfaceRef remains unwired).
 //
-// This is the plugin's OnConfigVerify body. Before it existed the three
-// IPsecConfig validators had no non-test caller anywhere in the repo, so a
-// config naming a missing ike-group, a missing certificate, or an EAP-TLS peer
-// with no CA was accepted at commit and only failed later, at session setup, or
-// not at all.
+// This is the plugin's OnConfigVerify body. Before it existed, none of the
+// IPsecConfig validators had a non-test caller anywhere in the repo, so a config
+// naming a missing ike-group, a missing certificate, or an EAP-TLS peer with no
+// CA was accepted and only failed later, at session setup, or not at all.
 //
-// The certificate lookups read the process-wide PKI store, which
-// parseIPsecSections has just loaded from the same config delivery, so a
-// reference to a certificate defined in the very config being verified resolves.
+// It is SIDE-EFFECT FREE, which the InProcessConfigVerifier contract requires
+// (internal/component/plugin/registry/registry.go) and which correctness requires
+// independently: certificate names are resolved against the CANDIDATE pki
+// section, parsed into a throwaway lookup set, never by installing it. Verifying
+// against the live store would both judge the new config by the old PKI and, via
+// pki.Load, leave a rejected config's certificates installed in a running daemon.
 func ValidateIPsecSections(sections []sdk.ConfigSection) error {
-	cfg, err := parseIPsecSections(sections)
+	cfg, err := parseVPNSections(sections)
+	if err != nil {
+		return err
+	}
+	hasCA, hasCert, certCN, err := candidatePKI(sections)
 	if err != nil {
 		return err
 	}
 	if err := cfg.ValidateGroupRefs(); err != nil {
 		return err
 	}
-	if err := cfg.ValidatePKIRefs(hasPKICA, hasPKICertificate, pkiCertificateCN); err != nil {
+	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
 		return err
 	}
 	return cfg.ValidateRemoteAccess()
-}
-
-func hasPKICA(name string) bool { return pki.GetCA(name) != nil }
-
-func hasPKICertificate(name string) bool { return pki.GetCertificate(name) != nil }
-
-// pkiCertificateCN returns the subject CN of a stored certificate, or "" when
-// the certificate is absent. Returning "" is safe: ValidatePKIRefs skips the
-// local-id comparison for an empty CN, and a missing certificate is already
-// reported by the hasCert check.
-func pkiCertificateCN(name string) string {
-	entry := pki.GetCertificate(name)
-	if entry == nil || entry.Certificate == nil {
-		return ""
-	}
-	return entry.Certificate.Subject.CommonName
 }
 
 // parseIPsecFromJSON parses the JSON config section data into IPsecConfig.

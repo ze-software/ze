@@ -9,7 +9,7 @@
 #   make ze-test-cli           CLI only (~10s)
 #   make ze-test-rest          Everything else (~1:00)
 
-.PHONY: ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed
+.PHONY: ze-unit-test ze-installer-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest
 
 ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest: ze-ensure-links
@@ -29,11 +29,25 @@ ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/cli')
 
 # Run ze unit tests with race detector (default-on features plus bare-core compile-out checks).
-ze-unit-test:
+ze-unit-test: ze-installer-unit-test
 	@echo "Running ze unit tests..."
 	$(GO_TEST_RACE) $(ZE_PACKAGES)
 	@echo "Unit tests: bare ze_core compile-out checks..."
 	$(GO_TEST_CORE_RACE) ./cmd/ze/hub
+
+# The installer initrd is built with `ze_installer`, so every _test.go guarded by
+# that tag is invisible to the default test run: `go test` without it silently
+# compiles a package with those files excluded. Four files sat in that state
+# (tracked as `tag-orphan` in test/health/latest.json), including the rescue
+# console's fatal-branch policy -- the code that decides whether a failed install
+# opens a shell, opens nothing, or reboots. They compile and pass; they were just
+# never asked to run.
+#
+# GOOS=linux because the files are also `//go:build linux`; this is a compile +
+# run of the installer's own logic, not a QEMU boot.
+ze-installer-unit-test:
+	@echo "Unit tests: installer initrd (ze_installer tag)..."
+	GOOS=linux go test -tags 'ze_core ze_installer' ./internal/install/...
 
 # Run ze unit tests with coverage.
 ze-unit-test-cover:

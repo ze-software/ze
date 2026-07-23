@@ -2,10 +2,17 @@
 // PREVENTS: wrong fatal branch selection; a rescue gate that accepts the wrong token
 
 // test-relax: the four TestRecoveryAuth* cases exercised checkPassword, which was
-// DELETED along with the unsalted-sha256 credential it verified. Their successor
-// coverage (correct/wrong/empty token, malformed values, no double-derivation) is
-// internal/core/rescueauth's test suite, which is strictly broader. The gate is
-// re-covered end to end below against rescueauth.Check.
+// DELETED along with the unsalted-sha256 credential it verified. Successor
+// coverage is in two places: internal/core/rescueauth's suite covers the
+// encoding and the comparison, and TestRescueGate* below drive THIS package's
+// own entry point, gateWithRescueToken -- which the deleted tests reached via
+// checkPassword and which an earlier version of this replacement did not cover
+// at all.
+//
+// Note this file is guarded by `ze_installer`, a build tag no plain `go test`
+// supplies. It ran nowhere until `make ze-installer-unit-test` was added
+// (mk/test-unit.mk) and made a prerequisite of ze-unit-test; before that, every
+// test here was inert. See the tag-orphan list in test/health/latest.json.
 
 //go:build linux && ze_installer
 
@@ -18,41 +25,68 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
 )
 
-// VALIDATES: AC-2/AC-3 -- the installer's rescue gate accepts the provisioned
-// token and refuses anything else, through the same call the console makes.
-// PREVENTS: The gate being wired to a stale or absent verifier after the
-// credential changed shape.
+// VALIDATES: AC-2/AC-3 -- the installer's own rescue gate accepts the
+// provisioned token and refuses everything else, driven through
+// gateWithRescueToken, the function the console actually calls.
+// PREVENTS: Testing rescueauth.Check directly and calling that "the gate". That
+// duplicates internal/core/rescueauth's own suite and proves nothing about this
+// package: replacing the rescueauth.Check call at the gate with `return true`
+// would leave such a test green while every install dropped to an open shell.
 func TestRescueGateAcceptsProvisionedToken(t *testing.T) {
 	token, authValue, err := rescueauth.NewValue()
 	if err != nil {
 		t.Fatalf("NewValue: %v", err)
 	}
 
-	if !rescueauth.Check(token, authValue) {
-		t.Fatal("the provisioned token was refused by the rescue gate")
+	var out strings.Builder
+	if !gateWithRescueToken(strings.NewReader(token+"\n"), &out, authValue) {
+		t.Fatalf("the provisioned token was refused by the gate (console said %q)", out.String())
 	}
-	for _, wrong := range []string{"", "wrong", token + "x", strings.ToUpper(token)} {
-		if rescueauth.Check(wrong, authValue) {
-			t.Errorf("rescue gate accepted %q", wrong)
-		}
+	if !strings.Contains(out.String(), "authenticated") {
+		t.Errorf("console did not confirm authentication: %q", out.String())
 	}
 }
 
-// VALIDATES: AC-3 -- a malformed ze.rescue-auth never opens the shell.
+// VALIDATES: AC-3 -- a wrong token is refused, and the gate gives up after
+// rescueMaxAttempts rather than prompting forever.
+// PREVENTS: An unbounded retry loop at the console, and a gate that accepts on
+// the wrong comparison.
+func TestRescueGateRefusesWrongToken(t *testing.T) {
+	_, authValue, err := rescueauth.NewValue()
+	if err != nil {
+		t.Fatalf("NewValue: %v", err)
+	}
+
+	var out strings.Builder
+	// Offer more lines than the gate is allowed to consume.
+	attempts := strings.Repeat("wrong\n", rescueMaxAttempts+3)
+	if gateWithRescueToken(strings.NewReader(attempts), &out, authValue) {
+		t.Fatal("a wrong token opened the rescue shell")
+	}
+	if got := strings.Count(out.String(), "incorrect"); got != rescueMaxAttempts {
+		t.Errorf("gate prompted %d times, want exactly rescueMaxAttempts=%d", got, rescueMaxAttempts)
+	}
+	if !strings.Contains(out.String(), "too many attempts") {
+		t.Errorf("gate did not report giving up: %q", out.String())
+	}
+}
+
+// VALIDATES: AC-3 -- a malformed ze.rescue-auth never opens the shell, through
+// the installer's own gate.
 // PREVENTS: A cmdline value an attacker can supply on the PXE network being
 // treated as "nothing to verify" (ai/rules/fail-closed-guards.md).
 func TestRescueGateFailsClosedOnMalformedCmdlineValue(t *testing.T) {
 	for _, bad := range []string{"", "garbage", strings.Repeat("a", 64), "aabb:ccdd"} {
-		if rescueauth.Check("anything", bad) {
+		var out strings.Builder
+		if gateWithRescueToken(strings.NewReader("anything\n"), &out, bad) {
 			t.Errorf("malformed ze.rescue-auth %q opened the gate", bad)
 		}
 	}
 }
 
 // validRescueAuth is a well-formed "<saltHex>:<digestHex>" credential. The
-// original table used "abcd1234", which is NOT a valid credential in the
-// argon2id encoding, so it exercised the malformed case while claiming to
-// exercise the present case.
+// original table used "abcd1234", which is NOT valid in the argon2id encoding,
+// so it exercised the malformed case while claiming to exercise the present one.
 const validRescueAuth = "5a65726573637565536f6c74303031ff:fed7b65bb317bc34097440c9bbd0a2ab3749edb8d88d3d37c94abe6cf62e399b"
 
 func TestFatalPolicyBranch(t *testing.T) {
