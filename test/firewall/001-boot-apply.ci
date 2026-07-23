@@ -11,7 +11,7 @@
 # Apply() fails with EPERM and the "firewall config applied" log line
 # never appears, so the expect on stderr fails too.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

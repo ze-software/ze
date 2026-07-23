@@ -3,7 +3,7 @@
 #            removal cleanly withdraws the copp-managed table.
 # PREVENTS: orphaned nft table left after config removal.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

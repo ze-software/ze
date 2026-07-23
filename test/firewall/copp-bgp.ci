@@ -3,7 +3,7 @@
 #            an nft input-hook chain with tcp dport 179 limit rate.
 # PREVENTS: CoPP config accepted but no nft chain programmed.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

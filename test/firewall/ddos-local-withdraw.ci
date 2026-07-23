@@ -13,7 +13,7 @@
 # (withdrawing it), exercising the real detect->responder->nft path the responder's
 # unit tests can only mock.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

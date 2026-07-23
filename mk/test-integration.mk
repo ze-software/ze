@@ -225,11 +225,21 @@ ZE_QEMU_PARALLEL ?= 4
 # native parse runner (cmd/ze-test buildZe) builds ze WITHOUT version ldflags,
 # so test/parse/cli-show-version.ci asserts `ze show version` prints "ze dev".
 # Stamping a real version here makes that test fail spuriously. Keep it unstamped.
+#
+# The tag set MUST match internal/test/runner TestBuildTags (runner.go:50):
+# zetest + ze_core + ze_distro + ze_setup + every default-on feature tag. It
+# omitted ze_setup and $(ZE_FEATURES) until 2026-07-23, so the VM ran a daemon
+# with NO ssh, web, bgp, isis, ospf, vrrp, ldp, rsvpte, gnmi or telemetry -- not
+# the binary `make ze` ships. That surfaced as unrelated-looking failures: a
+# config using `system { authentication { user ... } }` was rejected with
+# "unknown field in authentication: user", because that leaf is declared in
+# internal/component/ssh/yang/ze-ssh-conf.yang and ze_ssh gates that package
+# (feature-gates.txt:35).
 
 ze-qemu-all-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
@@ -251,7 +261,7 @@ ze-qemu-all-test:
 ze-qemu-needs-linux-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."

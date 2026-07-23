@@ -64,21 +64,42 @@ def cache_target() -> Path:
     return Path.home() / ".cache" / "ze"
 
 
-def ensure_symlink(link: Path, target: Path) -> str:
+def ensure_symlink(link: Path, target: Path, repoint_live: bool = True) -> str:
     """Create/repoint `link` -> `target`, creating `target` if absent. Returns a status line.
 
     Refuses to clobber a real (non-symlink) path at `link`.
-    """
-    target.mkdir(parents=True, exist_ok=True)
 
+    repoint_live=False means: only repoint when the CURRENT target is missing.
+    That is for links whose target is derived from the environment (HOME/XDG)
+    rather than from the checkout path, i.e. cache/. tmp/ is keyed on the
+    checkout path, so a mismatch there really is drift (the checkout moved) and
+    must be repointed; cache/ cannot drift for a given user, so a mismatch means
+    ensure-links is running in a FOREIGN environment and repointing would hijack
+    the link for everyone else. It did: `make ze-qemu-*-test` runs `make
+    ze-unit-test-cached` inside the VM with HOME=/root (qemu-run.py), the repo is
+    9p-mounted read-write, and every QEMU run silently repointed the host's
+    cache/ to /root/.cache/ze -- which broke the host build outright once GOCACHE
+    moved under cache/ (Makefile:17).
+    """
+    # Decide BEFORE creating anything: a target we are not going to point at must
+    # not be created, and computing it under a foreign HOME may not even be
+    # writable (HOME=/root as an unprivileged user raises PermissionError).
     if link.is_symlink():
         current = os.readlink(link)
+        if not repoint_live and current != str(target) and Path(current).is_dir():
+            return (
+                f"kept     {link.name} -> {current} "
+                f"(live; not repointed to {target} -- foreign HOME/XDG?)"
+            )
+        target.mkdir(parents=True, exist_ok=True)
         if current == str(target):
             return f"ok       {link.name} -> {target}"
-        # Drifted (e.g. checkout moved); repoint.
+        # Drifted (e.g. checkout moved), or the current target is gone; repoint.
         link.unlink()
         link.symlink_to(target)
         return f"repointed {link.name} -> {target}"
+
+    target.mkdir(parents=True, exist_ok=True)
 
     if link.exists():
         return (
@@ -94,15 +115,16 @@ def ensure_symlink(link: Path, target: Path) -> str:
     return f"created  {link.name} -> {target}"
 
 
-def migrate(link: Path, target: Path) -> str:
+def migrate(link: Path, target: Path, repoint_live: bool = True) -> str:
     """One-time cutover: convert an existing REAL dir at `link` into a symlink -> `target`.
 
     Moves the real directory's contents into the target, then replaces it with a symlink.
     Refuses rather than clobber if a name already exists in the target. A symlink or an
-    absent path needs no migration and is handled by ensure_symlink().
+    absent path needs no migration and is handled by ensure_symlink(), which is where
+    repoint_live applies; it is accepted here only so both actions share a call site.
     """
     if link.is_symlink() or not link.exists():
-        return ensure_symlink(link, target)
+        return ensure_symlink(link, target, repoint_live)
     if not link.is_dir():
         return f"REFUSE   {link.name}: exists and is not a directory; resolve manually"
 
@@ -158,9 +180,11 @@ def main(argv: list[str]) -> int:
     do_migrate = "--migrate" in argv
     root = repo_root()
     action = migrate if do_migrate else ensure_symlink
+    # cache/ passes repoint_live=False: its target is HOME/XDG-derived, so a
+    # mismatch means a foreign environment, never drift. See ensure_symlink.
     results = [
         action(root / "tmp", scratch_target(root)),
-        action(root / "cache", cache_target()),
+        action(root / "cache", cache_target(), False),
     ]
     ensure_sentinel(root)
     flagged = any(r.startswith(("SKIP", "REFUSE")) for r in results)

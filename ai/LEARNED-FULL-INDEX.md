@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1227 summaries
+Total: 1229 summaries
 
 ## 000-099
 
@@ -1301,3 +1301,5 @@ Total: 1227 summaries
 | 1254 | gokrazy derived parent discards every builddir pin | `plan/learned/1254-gokrazy-derived-parent-discards-pins.md` |
 | 1255 | fixit-codeql-security-triage | `plan/learned/1255-fixit-codeql-security-triage.md` |
 | 1256 | fixit-ipsec-verify-siblings | `plan/learned/1256-fixit-ipsec-verify-siblings.md` |
+| 1257 | A declared `.ci` timeout that did nothing | `plan/learned/1257-ci-timeout-option-ignored.md` |
+| 1258 | The QEMU gate ran a feature-stripped daemon, and every run hijacked cache/ | `plan/learned/1258-qemu-gate-ran-a-stripped-daemon.md` |

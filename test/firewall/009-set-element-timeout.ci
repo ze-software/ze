@@ -18,7 +18,7 @@
 # chain also has direct Go coverage in
 # internal/plugins/firewall/nft/*_linux_test.go. See plan/learned/1112.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

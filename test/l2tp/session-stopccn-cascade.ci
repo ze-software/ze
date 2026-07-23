@@ -199,6 +199,12 @@ environment {
 }
 EOF_CONF
 
+# skip-kernel-probe below bypasses only the modprobe at Start, and its producer
+# scopes it to "tests that only exercise the CLI surface (no data plane)"
+# (internal/component/l2tp/subsystem.go:198-200). This test establishes a tunnel,
+# so it reaches the data plane: without CAP_NET_ADMIN the genl tunnel create
+# returns EPERM and the asserted stderr never appears.
+option=needs-linux:caps=net-admin
 option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_SECRET:value=s3cr3t

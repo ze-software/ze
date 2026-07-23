@@ -20,7 +20,7 @@
 # command. Behavioural assertions (fw10_004, allow-https, exit 0) are unchanged
 # in intent; this is not test weakening.
 
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
