@@ -1,0 +1,36 @@
+# Test: ze doctor --json reports a missing vpn ipsec interface
+# VALIDATES: the ike plugin's doctor check is reachable from the USER entry
+# point, not merely present in the registry -- registration, phase filtering,
+# platform filtering and the diagnostic code all have to line up for this to
+# emit anything.
+# PREVENTS: the check regressing to what ValidateInterfaceRef was before it:
+# implemented, unit-tested, and called by nothing. A unit test proves the
+# function; only this proves `ze doctor` reaches it.
+# Required by ai/rules/doctor-checks.md ("Test Requirement": unit AND
+# functional), mirroring test/ui/doctor-dhcp-iface.ci for the check this one
+# was modelled on.
+
+tmpfs=ipsec-missing-iface.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface ze-doctor-missing0
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ipsec-missing-iface.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-ipsec-iface
+expect=stdout:contains=ze-doctor-missing0

@@ -51,11 +51,25 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 		ServerCertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw}),
 		ServerKeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}),
 	}
-	if caName := sa.PeerCfg.Auth.CACertificate; caName != "" {
-		if ca := pki.GetCA(caName); ca != nil {
-			cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
-		}
+	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
+	// The authenticator validates the client chain against this trust anchor and has
+	// no other means to do so. Refuse rather than proceed without one: newTLSMethod
+	// sets ClientAuth to RequireAndVerifyClientCert over whatever pool it is given,
+	// and an empty pool rejects every client with an opaque "certificate signed by
+	// unknown authority" that names neither the peer nor the CA that failed to load.
+	// Denying while saying nothing is the failure this guards (ai/rules/fail-closed-guards.md).
+	caName := sa.PeerCfg.Auth.CACertificate
+	if caName == "" {
+		return eap.MethodConfig{}, fmt.Errorf(
+			"ike: EAP-TLS peer %q requires a ca-certificate to validate the client chain (RFC 5216 Section 5.3)",
+			sa.PeerName)
 	}
+	ca := pki.GetCA(caName)
+	if ca == nil {
+		return eap.MethodConfig{}, fmt.Errorf(
+			"ike: EAP-TLS ca-certificate %q not found in PKI store (peer %q)", caName, sa.PeerName)
+	}
+	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
 	return cfg, nil
 }
 

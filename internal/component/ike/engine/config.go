@@ -110,9 +110,15 @@ func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) boo
 // ValidateIPsecSections parses the delivered config sections and runs the
 // site-to-site cross-reference checks: group references, peer PKI references
 // (including the RFC 5216 Section 5.3 trust-anchor requirement for EAP-TLS
-// peers), and the remote-access pool and user credentials. It does NOT yet
-// check the remote-access gateway's own certificate references, nor the
-// interface binding (ValidateInterfaceRef remains unwired).
+// peers), and the remote-access pool and user credentials. It does NOT check
+// the remote-access gateway's own certificate references -- that whole config
+// surface is inert today and is owned by plan/spec-ipsec-remote-access.md.
+//
+// It deliberately does NOT check the interface binding either: interface
+// existence is a HOST fact, so ValidateInterfaceRef is driven from the ike
+// plugin's ze doctor check (engine/doctor.go) instead. Verifying it here would
+// reject a config-first deployment that names an interface the same commit
+// creates, and this plugin's ConfigRoots do not carry the interfaces section.
 //
 // This is the plugin's OnConfigVerify body. Before it existed, none of the
 // IPsecConfig validators had a non-test caller anywhere in the repo, so a config

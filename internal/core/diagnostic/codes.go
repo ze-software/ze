@@ -446,6 +446,14 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-dhcp-iface"},
 	},
 	{
+		Code:  "doctor-ipsec-iface",
+		Title: "IPsec interface missing",
+		Description: "vpn ipsec interface names an interface that does not exist on the system, " +
+			"or whose name is malformed. IPsec resolves the local address of every peer that has " +
+			"no explicit local-address from this interface, so those peers will not establish.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-iface"},
+	},
+	{
 		Code:        "doctor-bgp-listen",
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",

@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -171,6 +172,15 @@ func init() {
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBus(eb)
 		},
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "ipsec-interface",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        730,
+			Dependencies: []string{"config-loaded", "interface"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ipsec-iface"},
+			Check:        checkIPsecInterface,
+		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
