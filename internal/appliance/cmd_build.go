@@ -254,6 +254,16 @@ func runGokInProcess(args []string) error {
 	if setErr := ensureModcacheRW(); setErr != nil {
 		return fmt.Errorf("set GOFLAGS: %w", setErr)
 	}
+	// Resolve strictly from the checked-in modcache. gok reads the ambient GOPROXY
+	// and does not force offline, so a module missing from the builddir/modcache
+	// would silently resolve to a NEWER version than the pins choose. off makes
+	// that a loud failure instead. Explicit GOPROXY wins (ze-gokrazy-deps is a
+	// separate, network-using target). Mirrors cmd/ze-gok/main.go.
+	if os.Getenv("GOPROXY") == "" {
+		if setErr := os.Setenv("GOPROXY", "off"); setErr != nil {
+			return fmt.Errorf("set GOPROXY: %w", setErr)
+		}
+	}
 
 	return gok.Context{
 		Stdout: os.Stdout,

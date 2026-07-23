@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/mod/modfile"
 )
@@ -386,6 +387,59 @@ func TestPrepareRejectsMissingKernelPackage(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), missing) {
 		t.Errorf("error does not name the missing path: %v", err)
+	}
+}
+
+// TestReapStalePreparedDirs verifies that a prepared dir left behind by a build
+// that died without cleanup (gok's pack.Main os.Exit skips both the deferred and
+// the explicit cleanup) is removed by a later preparation, while a fresh sibling
+// from a concurrent build is left alone.
+//
+// VALIDATES: the leak on gok's os.Exit build-failure path is bounded.
+// PREVENTS: unbounded accumulation of orphaned tmp/appliance-build-* dirs.
+func TestReapStalePreparedDirs(t *testing.T) {
+	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
+	tmpRoot := filepath.Join(filepath.Dir(srcParent), "tmp")
+	if err := os.MkdirAll(tmpRoot, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// A leaked dir from a long-dead build: old mtime.
+	stale := filepath.Join(tmpRoot, "appliance-build-STALE")
+	if err := os.MkdirAll(stale, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-3 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	// A fresh dir from a concurrent build: recent mtime. Must survive.
+	fresh := filepath.Join(tmpRoot, "appliance-build-FRESH")
+	if err := os.MkdirAll(fresh, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// A sibling that is not ours: must never be touched.
+	bystander := filepath.Join(tmpRoot, "something-else")
+	if err := os.MkdirAll(bystander, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	_, cleanup, err := Prepare(srcParent, Options{})
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	defer cleanup()
+
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("stale prepared dir was not reaped: %v", err)
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Errorf("a fresh concurrent build's dir was wrongly reaped: %v", err)
+	}
+	if _, err := os.Stat(bystander); err != nil {
+		t.Errorf("an unrelated sibling was reaped: %v", err)
 	}
 }
 

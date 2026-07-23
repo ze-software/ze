@@ -19,6 +19,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"golang.org/x/mod/modfile"
 )
@@ -41,6 +43,17 @@ const (
 	// KernelModule is the module supplying the appliance kernel. An out-of-tree
 	// kernel is selected by replacing it in the prepared copy.
 	KernelModule = "github.com/rtr7/kernel"
+
+	// preparedPrefix names the per-build prepared instance dirs under project
+	// tmp/, so a later run can recognize and reap the ones a dead build left.
+	preparedPrefix = "appliance-build-"
+
+	// preparedStaleAge is how old a prepared dir must be before reapStalePrepared
+	// removes it. It bounds the leak from gok's os.Exit build-failure path (which
+	// skips both the deferred and explicit cleanup) without racing a concurrent
+	// build, whose dir is only ever minutes old. No real image build runs anywhere
+	// near this long.
+	preparedStaleAge = 2 * time.Hour
 )
 
 // Options controls how an instance is prepared. The zero value prepares a
@@ -139,7 +152,8 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 	if err := os.MkdirAll(tmpRoot, 0o750); err != nil {
 		return "", nil, fmt.Errorf("create project tmp dir %s: %w", tmpRoot, err)
 	}
-	tmpParent, err := os.MkdirTemp(tmpRoot, "appliance-build-")
+	reapStalePrepared(tmpRoot)
+	tmpParent, err := os.MkdirTemp(tmpRoot, preparedPrefix)
 	if err != nil {
 		return "", nil, fmt.Errorf("create prepared parent dir under %s: %w", tmpRoot, err)
 	}
@@ -239,6 +253,34 @@ func replaceKernel(buildDir, pkg string) error {
 		return fmt.Errorf("write %s: %w", modPath, err)
 	}
 	return nil
+}
+
+// reapStalePrepared best-effort removes prepared instance dirs under tmpRoot that
+// a dead build left behind. gok's pack.Main calls os.Exit(1) on a build failure
+// from inside gok.Execute, which skips both the deferred cleanup in runGokBuild
+// and the explicit cleanup in cmd/ze-gok/main; there is no way to run cleanup
+// across a callee's os.Exit, so the leaked dir is reclaimed here on the next run.
+//
+// Only dirs matching the prepared prefix AND older than preparedStaleAge are
+// removed, so a concurrent build's dir (always minutes old) and any unrelated
+// sibling are never touched. All errors are ignored: reaping is an optimization,
+// never a precondition for the build.
+func reapStalePrepared(tmpRoot string) {
+	entries, err := os.ReadDir(tmpRoot)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-preparedStaleAge)
+	for _, e := range entries {
+		if !e.IsDir() || !strings.HasPrefix(e.Name(), preparedPrefix) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		_ = os.RemoveAll(filepath.Join(tmpRoot, e.Name()))
+	}
 }
 
 // copyBuildDir copies a gokrazy builddir tree, rewriting each go.mod's

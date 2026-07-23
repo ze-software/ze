@@ -165,13 +165,35 @@ func main() {
 		}
 	}
 
+	// Resolve the module graph strictly from the checked-in modcache. gok reads
+	// the ambient GOPROXY (vendor/.../packer/gotool.go getIncomplete) and does NOT
+	// force offline, so a module missing from the builddir/modcache would silently
+	// resolve over the network to a NEWER version than the pins choose -- the exact
+	// ship-a-different-kernel failure the prepared instance exists to prevent. off
+	// turns that into a loud "module lookup disabled" error, enforcing the offline
+	// build contract (mk/gokrazy.mk header). Explicit GOPROXY wins, so
+	// ze-gokrazy-deps (a separate target that needs the network) is unaffected.
+	if os.Getenv("GOPROXY") == "" {
+		if err := os.Setenv("GOPROXY", "off"); err != nil {
+			fmt.Fprintf(os.Stderr, "ze-gok: setenv: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	if env.IsEnabled("ze.gok.debug") {
 		fmt.Fprintf(os.Stderr, "ze-gok: GOMODCACHE=%s\n", modcache)
 	}
 
 	// Build from a prepared copy of the instance under project tmp/, so an image
-	// build never runs from, or writes to, the tracked gokrazy dir. Cleanup runs
-	// before every exit path below, so it cannot be a defer (os.Exit skips those).
+	// build never runs from, or writes to, the tracked gokrazy dir.
+	//
+	// cleanup is called explicitly, not deferred, because THIS function ends in
+	// os.Exit on the error paths and os.Exit skips defers. It does NOT fully
+	// protect against gok's own os.Exit: gok's pack.Main calls os.Exit(1) on a
+	// build failure (vendor/.../internal/packer/packer.go) from inside Execute
+	// below, so on a failed build control never returns here and the prepared dir
+	// is left behind. instance.Prepare reaps such stale dirs on the next run, which
+	// bounds the leak; there is no way to run a cleanup across a callee's os.Exit.
 	args, cleanup, err := prepareArgs(os.Args[1:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ze-gok: %v\n", err)
