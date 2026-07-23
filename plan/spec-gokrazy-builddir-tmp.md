@@ -703,7 +703,38 @@ Phases 4-8 (2026-07-23), same mutation discipline.
   was not possible because gok owns its own flag parsing.
 
 ### Still outstanding
-The QEMU boot proofs at a PASS (Goal Validation), and spec closure.
+- The hugepage QEMU boot proof PASSED on 2026-07-23 (see the update below); the
+  custom-kernel L2TP boot proof has still not been run.
+- The independent critical review (this session was barred from spawning agents).
+- Spec closure.
+
+### Update 2026-07-23: the hugepage boot proof now PASSES
+
+`ze-test appliance 11` (`test/appliance/vpp-hugepages-qemu.ci`) returned PASS
+after running its full 120s, on a host with KVM access. Two things unblocked it,
+both real and neither a weakening of the test:
+
+- A concurrent session's `4839ba562` moved `GOCACHE` off `tmp/` to the durable
+  `cache/` symlink, freeing the disk the 2GB image build had been exhausting.
+- This spec's own `runner_exec_util.go` fix let the test run to 120s instead of
+  being killed at the 15s default; before it, the pinned `option=timeout:value=900s`
+  was silently ignored (`plan/learned/1257`).
+
+PASS is not a bare exit code here: the driver
+(`scripts/evidence/effective-vpp-hugepages-qemu.py`) reads `show host memory | json`
+and FAILs when `hugepages-total == 0` (`:287-292`), having already checked the
+`show host kernel | json` cmdline. A PASS therefore proves both that the
+reserved-pages arguments reached the kernel AND that the kernel actually reserved
+the pages (`:294-296`), over the real Ze CLI on a booted image built through the
+prepared-instance path. This is the exact A/B that failed offline on 2026-07-22.
+
+Verbatim driver output (`make ze-vpp-hugepages-qemu-test`):
+
+```
+VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64
+```
+
+The kernel reserved all 64 requested pages.
 
 ### Bugs Found/Fixed
 - (fill during implementation; A-1 may become the first entry)
@@ -747,7 +778,7 @@ The QEMU boot proofs at a PASS (Goal Validation), and spec closure.
 | The pins are preserved exactly | version comparison | **MET** | `TestPreparedModulesResolveIdenticallyToTracked`: `go list -m all` with `GOPROXY=off`, tracked vs prepared, identical for **8/8** builddir modules |
 | Offline builds still work | resolution evidence | **MET** | The comparison above runs entirely with `GOPROXY=off` against the checked-in `gokrazy/modcache`; A-5 additionally confirmed a full `ze appliance build` offline on 2026-07-22 |
 | One preparer, not three | absence check | **MET** | The evidence script's `prepare_instance` no longer copies the builddir or rewrites any `go.mod`; both regexes are deleted and it symlinks instead. `resolveBuildParentDir` and `cmd/ze-gok` both call `instance.Prepare` |
-| An image built the new way boots | QEMU boot proof | **NOT MET — blocked** | `make ze-vpp-hugepages-qemu-test` on 2026-07-23 built the image and then died writing it: `write 989838336 bytes at offset 1157627904: no space left on device`. The host root filesystem is 98% full (2.0 GB free; the image is 2 GB). This is disk exhaustion on the build host, not a defect in the change. It must PASS before this spec closes |
+| An image built the new way boots | QEMU boot proof | **MET** | `make ze-vpp-hugepages-qemu-test` (and `ze-test appliance 11`, its `.ci` wrapper) on 2026-07-23: `VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64`. A booted image built through the prepared-instance path, asserted over the real Ze CLI; the kernel reserved all 64 requested pages. The earlier ENOSPC failure was disk exhaustion on the build host (`GOCACHE` on `tmp/`), cleared by the concurrent `4839ba562`; the 15s kill before that was the ignored `.ci` timeout, fixed here (`plan/learned/1257`) |
 | The custom-kernel path still works end to end | QEMU boot proof | **NOT MET — not run** | `ze-deployment-gokrazy-l2tp-ppp-test` after `make ze-kernel` + `KERNEL_PKG=tmp/kernel/pkg`. Not attempted: it needs the same disk headroom, plus a custom kernel build |
 
 **Two goals are unmet, so this spec stays OPEN.** The unit and integration
