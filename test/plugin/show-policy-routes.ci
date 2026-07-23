@@ -75,7 +75,7 @@ policy {
 }
 EOF_CONF
 
-option=env:var=ze.log.policy-routes:value=info
+option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp

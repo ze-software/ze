@@ -29,15 +29,24 @@ func (rm *linuxRuleManager) close() {
 	}
 }
 
+// newIPRule MUST start from netlink.NewRule(), never a bare &netlink.Rule{}.
+// Several fields use -1 as "unset" and NewRule seeds them (rule.go:50-60:
+// SuppressIfgroup, SuppressPrefixlen, Priority, Goto, Flow). The encoder emits
+// an attribute for each one that is >= 0 (rule_linux.go:116, :132, :137, :149),
+// so a zero-valued literal puts FRA_FLOW, FRA_GOTO and both suppress attributes
+// on the wire. FRA_GOTO on a rule whose action is not FR_ACT_GOTO is rejected,
+// and the kernel returns EINVAL -- surfacing as
+// "ip rule add (mark 0x50000 table 100): invalid argument", which took the whole
+// policy-routes plugin down at startup and timed out test/policy 2-5.
 func newIPRule(r ipRuleSpec) *netlink.Rule {
 	mask := r.Mask
-	return &netlink.Rule{
-		Priority: r.Priority,
-		Table:    int(r.Table),
-		Mark:     r.Mark,
-		Mask:     &mask,
-		Family:   unix.AF_INET,
-	}
+	rule := netlink.NewRule()
+	rule.Priority = r.Priority
+	rule.Table = int(r.Table)
+	rule.Mark = r.Mark
+	rule.Mask = &mask
+	rule.Family = unix.AF_INET
+	return rule
 }
 
 func (rm *linuxRuleManager) applyIPRules(rules []ipRuleSpec) error {

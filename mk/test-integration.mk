@@ -117,6 +117,21 @@ ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integr
 # `nft list tables` is byte-identical before and after (R-2 host-safety). The
 # setcap'd binary refuses to program nft if it ever lands in the host netns
 # (refuseHostNetnsFirewall), the belt to this braces. See docs/functional-tests.md.
+#
+# PATH is forwarded because sudo resets it to secure_path, which on a default
+# Debian/Ubuntu install does NOT contain /usr/local/go/bin. Several ospf/ospfv3
+# tests exec `go` themselves (a helper peer), so without this they fail with
+# `start go: exec: "go": executable file not found in $PATH` -- 79 of 97 ospf
+# tests, which reads like a protocol regression and is not one.
+#
+# ZE_TEST_NO_BUILD=1 is REQUIRED, not an optimisation. The runner's Build()
+# rebuilds with `go build -o bin/ze` (internal/test/runner/runner.go:227), and
+# file capabilities are an xattr on the inode, so a rebuild silently DISCARDS the
+# setcap applied two lines above -- the daemon then runs without CAP_NET_ADMIN and
+# every test in all four suites fails. It also removes the need for `go` on sudo's
+# secure_path, which it is not on a default Debian/Ubuntu install. The target
+# already declares bin/ze, bin/ze-stripped and bin/ze-test as prerequisites, so
+# the binaries are current before setcap runs.
 ZE_NETNS_SUITES ?= firewall policy ospf ospfv3
 ZE_NETNS_CAPS   ?= cap_net_admin,cap_net_raw,cap_net_bind_service+ep
 ze-netns-test: bin/ze bin/ze-stripped bin/ze-test
@@ -129,7 +144,7 @@ ze-netns-test: bin/ze bin/ze-stripped bin/ze-test
 	@before=$$(sudo nft list tables 2>/dev/null | sort); failed=0; \
 	for suite in $(ZE_NETNS_SUITES); do \
 		printf "\n=== netns suite: %s ===\n" "$$suite"; \
-		sudo env ZE_TEST_NETNS=1 ZE_TEST_UID=$$(id -u) ZE_TEST_GID=$$(id -g) \
+		sudo env PATH="$$PATH" ZE_TEST_NO_BUILD=1 ZE_TEST_NETNS=1 ZE_TEST_UID=$$(id -u) ZE_TEST_GID=$$(id -g) \
 			bin/ze-test $$suite --all -p 1 || failed=$$((failed + 1)); \
 	done; \
 	after=$$(sudo nft list tables 2>/dev/null | sort); \

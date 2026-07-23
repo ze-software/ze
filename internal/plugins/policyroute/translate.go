@@ -34,10 +34,18 @@ func (a *allocator) translate(policies []PolicyRoute) (*translationResult, error
 	result := &translationResult{}
 	basePriority := 100
 
+	// Type is FILTER, not ROUTE. nftables only accepts a `type route` chain on the
+	// OUTPUT hook -- it exists to force a re-route of LOCALLY GENERATED packets
+	// after a mark change. At prerouting the kernel rejects the combination with
+	// EOPNOTSUPP, which surfaces as "netlink receive: operation not supported" and
+	// takes the whole policy-routes plugin down at startup, so every test/policy
+	// case timed out. Marking at prerouting in a filter chain is the correct and
+	// standard way to drive `ip rule fwmark`: the routing decision for forwarded
+	// traffic happens after prerouting, so it sees the mark this chain sets.
 	chain := firewall.Chain{
 		Name:     "prerouting",
 		IsBase:   true,
-		Type:     firewall.ChainRoute,
+		Type:     firewall.ChainFilter,
 		Hook:     firewall.HookPrerouting,
 		Priority: -150,
 		Policy:   firewall.PolicyAccept,

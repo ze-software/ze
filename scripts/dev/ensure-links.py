@@ -64,37 +64,43 @@ def cache_target() -> Path:
     return Path.home() / ".cache" / "ze"
 
 
-def ensure_symlink(link: Path, target: Path, repoint_live: bool = True) -> str:
+def ensure_symlink(link: Path, target: Path, auto_repoint: bool = True) -> str:
     """Create/repoint `link` -> `target`, creating `target` if absent. Returns a status line.
 
     Refuses to clobber a real (non-symlink) path at `link`.
 
-    repoint_live=False means: only repoint when the CURRENT target is missing.
-    That is for links whose target is derived from the environment (HOME/XDG)
-    rather than from the checkout path, i.e. cache/. tmp/ is keyed on the
-    checkout path, so a mismatch there really is drift (the checkout moved) and
-    must be repointed; cache/ cannot drift for a given user, so a mismatch means
-    ensure-links is running in a FOREIGN environment and repointing would hijack
-    the link for everyone else. It did: `make ze-qemu-*-test` runs `make
-    ze-unit-test-cached` inside the VM with HOME=/root (qemu-run.py), the repo is
-    9p-mounted read-write, and every QEMU run silently repointed the host's
-    cache/ to /root/.cache/ze -- which broke the host build outright once GOCACHE
-    moved under cache/ (Makefile:17).
+    auto_repoint=False means: NEVER silently repoint an existing symlink; report
+    the mismatch and leave it. That is for cache/, whose target is derived from
+    HOME/XDG rather than from the checkout path. tmp/ is keyed on the checkout
+    path, so a mismatch there is real drift (the checkout moved) and must be
+    followed; cache/ cannot drift for a given user, so a mismatch means
+    ensure-links is running somewhere that does not own this checkout, and
+    repointing hijacks the link for whoever does.
+
+    It did, twice. `make ze-qemu-*-test` runs `make ze-unit-test-cached` INSIDE
+    the VM with HOME=/root (scripts/evidence/qemu-run.py) over a read-write 9p
+    mount, so every QEMU run repointed the host's cache/ to /root/.cache/ze --
+    which breaks the host build outright now that GOCACHE lives under cache/
+    (Makefile:17). An earlier attempt to detect this by asking whether the
+    CURRENT target is a live directory does NOT work: from inside the VM the
+    host's target genuinely does not exist, so the probe says "dangling" and
+    repoints anyway. There is no reliable ownership signal to infer, so the
+    decision is explicit: `ensure-links.py --repoint-cache`.
     """
-    # Decide BEFORE creating anything: a target we are not going to point at must
-    # not be created, and computing it under a foreign HOME may not even be
-    # writable (HOME=/root as an unprivileged user raises PermissionError).
     if link.is_symlink():
         current = os.readlink(link)
-        if not repoint_live and current != str(target) and Path(current).is_dir():
+        if current == str(target):
+            target.mkdir(parents=True, exist_ok=True)
+            return f"ok       {link.name} -> {target}"
+        if not auto_repoint:
+            # Do NOT stat `current`: an unreadable target (e.g. /root/.cache/ze
+            # as a normal user) makes Path.is_dir() raise PermissionError on
+            # Python 3.12 rather than return False, which crashed this script.
             return (
-                f"kept     {link.name} -> {current} "
-                f"(live; not repointed to {target} -- foreign HOME/XDG?)"
+                f"MISMATCH {link.name} -> {current} (expected {target}); left as is. "
+                f"If this checkout is yours, run: python3 scripts/dev/ensure-links.py --repoint-cache"
             )
         target.mkdir(parents=True, exist_ok=True)
-        if current == str(target):
-            return f"ok       {link.name} -> {target}"
-        # Drifted (e.g. checkout moved), or the current target is gone; repoint.
         link.unlink()
         link.symlink_to(target)
         return f"repointed {link.name} -> {target}"
@@ -115,16 +121,16 @@ def ensure_symlink(link: Path, target: Path, repoint_live: bool = True) -> str:
     return f"created  {link.name} -> {target}"
 
 
-def migrate(link: Path, target: Path, repoint_live: bool = True) -> str:
+def migrate(link: Path, target: Path, auto_repoint: bool = True) -> str:
     """One-time cutover: convert an existing REAL dir at `link` into a symlink -> `target`.
 
     Moves the real directory's contents into the target, then replaces it with a symlink.
     Refuses rather than clobber if a name already exists in the target. A symlink or an
     absent path needs no migration and is handled by ensure_symlink(), which is where
-    repoint_live applies; it is accepted here only so both actions share a call site.
+    auto_repoint applies; it is accepted here only so both actions share a call site.
     """
     if link.is_symlink() or not link.exists():
-        return ensure_symlink(link, target, repoint_live)
+        return ensure_symlink(link, target, auto_repoint)
     if not link.is_dir():
         return f"REFUSE   {link.name}: exists and is not a directory; resolve manually"
 
@@ -178,19 +184,22 @@ def ensure_sentinel(root: Path) -> None:
 def main(argv: list[str]) -> int:
     quiet = "--quiet" in argv
     do_migrate = "--migrate" in argv
+    repoint_cache = "--repoint-cache" in argv
     root = repo_root()
     action = migrate if do_migrate else ensure_symlink
-    # cache/ passes repoint_live=False: its target is HOME/XDG-derived, so a
-    # mismatch means a foreign environment, never drift. See ensure_symlink.
+    # cache/ never auto-repoints: its target is HOME/XDG-derived, so a mismatch
+    # means "not my checkout" (the QEMU VM runs make with HOME=/root over a
+    # read-write 9p mount), never drift. See ensure_symlink.
     results = [
         action(root / "tmp", scratch_target(root)),
-        action(root / "cache", cache_target(), False),
+        action(root / "cache", cache_target(), repoint_cache),
     ]
     ensure_sentinel(root)
-    flagged = any(r.startswith(("SKIP", "REFUSE")) for r in results)
+    noisy = ("SKIP", "REFUSE", "MISMATCH")
+    flagged = any(r.startswith(noisy) for r in results)
     if not quiet or flagged or do_migrate:
         for line in results:
-            stream = sys.stderr if line.startswith(("SKIP", "REFUSE")) else sys.stdout
+            stream = sys.stderr if line.startswith(noisy) else sys.stdout
             print(line, file=stream)
     return 1 if any(r.startswith("REFUSE") for r in results) else 0
 

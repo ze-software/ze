@@ -50,8 +50,13 @@ func TestPolicyToFirewallTable(t *testing.T) {
 		t.Fatalf("expected 1 chain, got %d", len(tbl.Chains))
 	}
 	chain := tbl.Chains[0]
-	if chain.Type != firewall.ChainRoute {
-		t.Errorf("chain type = %v, want route", chain.Type)
+	// CORRECTED: this asserted ChainRoute, which the kernel cannot load at
+	// prerouting -- `type route` is OUTPUT-only. The green unit test is why the
+	// defect shipped: translation matched its own expectation while producing a
+	// chain nftables rejects with EOPNOTSUPP, taking the plugin down at startup.
+	// This is not a relaxation; the previous expectation was unsatisfiable.
+	if chain.Type != firewall.ChainFilter {
+		t.Errorf("chain type = %v, want filter (route is output-only)", chain.Type)
 	}
 	if chain.Hook != firewall.HookPrerouting {
 		t.Errorf("chain hook = %v, want prerouting", chain.Hook)

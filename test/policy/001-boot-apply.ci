@@ -67,7 +67,13 @@ policy {
 }
 EOF_CONF
 
-option=env:var=ze.log.policy-routes:value=info
+# The key is DOTTED. The plugin registers as "policy-routes", but the engine maps
+# the registry name to the subsystem via CanonicalSubsystemName (strings.ReplaceAll
+# "-" -> ".", internal/component/plugin/inprocess.go:27), so the logger is
+# "policy.routes" and the level key is ze.log.policy.routes. ze.log.policy-routes
+# matches nothing, leaving the level at the WARN default and filtering the INFO
+# line this test asserts. ze.log.firewall below only works because it has no hyphen.
+option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
