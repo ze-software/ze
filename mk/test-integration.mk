@@ -360,14 +360,16 @@ ze-netns-qemu-test:
 	@mkdir -p bin
 	# This is the functional-test DUT daemon: zetest pulls in the test-only
 	# plugins (internal/test/plugins/all) the .ci suites need -- it is NOT a
-	# production build (the real bin/ze has neither zetest nor ze_test). ze_ssh
-	# is added for 004-cli-show: it compiles in the SSH component's `system
-	# authentication` / `environment ssh` config schema + the SSH CLI server
-	# (//go:build ze_ssh in all_ze_ssh.go). In the real bin/ze, ze_ssh is a
-	# default feature-gate, so 004's SSH path is present there too; `ze init` is
-	# already in ze_core (no ze_setup needed). Harmless for the other firewall
-	# suites -- the SSH server only starts when a config declares environment ssh.
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_ssh $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	# production build (the real bin/ze has neither zetest nor ze_test). It builds
+	# with the SAME tag set as the sibling QEMU targets above (257/279) and as
+	# internal/test/runner TestBuildTags: ze_core zetest ze_distro ze_setup plus
+	# $(ZE_FEATURES) (the default-on feature gates from feature-gates.txt). The
+	# full feature set is REQUIRED, not a convenience: a test-only plugin's YANG
+	# can import a feature-gated module (fakeddos/yang imports ze-ddos-detect-conf,
+	# owned by ze_ddos), and a hand-picked minimal build then fails EVERY config
+	# load with "no such module: ze-ddos-detect-conf". $(ZE_FEATURES) also carries
+	# ze_ssh (for 004-cli-show's SSH path), so no feature needs listing by hand.
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."
