@@ -250,11 +250,19 @@ ZE_QEMU_PARALLEL ?= 4
 # "unknown field in authentication: user", because that leaf is declared in
 # internal/component/ssh/yang/ze-ssh-conf.yang and ze_ssh gates that package
 # (feature-gates.txt:35).
+#
+# ZE_QEMU_DUT_TAGS captures that exact set ONCE, and every QEMU target that
+# builds $(ZE_QEMU_BIN) uses it -- so no target can hand-write a narrower set
+# and drift (it drifted three times: plan/learned/1258, 1269). zetest without
+# ze_setup $(ZE_FEATURES) pulls in fakeddos, whose YANG imports
+# ze-ddos-detect-conf (ze_ddos), and then every config load dies "no such
+# module: ze-ddos-detect-conf".
+ZE_QEMU_DUT_TAGS := ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)
 
 ze-qemu-all-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
@@ -276,7 +284,7 @@ ze-qemu-all-test:
 ze-qemu-needs-linux-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
@@ -308,12 +316,7 @@ ze-qemu-debug:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-# DUT daemon: MUST carry the same tags as internal/test/runner TestBuildTags
-# (runner.go:50) and the sibling QEMU DUT builds (ze-qemu-all-test,
-# ze-qemu-needs-linux-test, ze-netns-qemu-test). With zetest but no ze_setup
-# $(ZE_FEATURES), fakeddos's YANG imports ze-ddos-detect-conf (ze_ddos) and every
-# config load dies "no such module: ze-ddos-detect-conf". Do NOT strip.
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endif
 	python3 scripts/evidence/qemu-run.py \
@@ -334,12 +337,7 @@ ze-qemu-shell:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-# DUT daemon: MUST carry the same tags as internal/test/runner TestBuildTags
-# (runner.go:50) and the sibling QEMU DUT builds (ze-qemu-all-test,
-# ze-qemu-needs-linux-test, ze-netns-qemu-test). With zetest but no ze_setup
-# $(ZE_FEATURES), fakeddos's YANG imports ze-ddos-detect-conf (ze_ddos) and every
-# config load dies "no such module: ze-ddos-detect-conf". Do NOT strip.
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endif
 	python3 scripts/evidence/qemu-run.py \
@@ -379,7 +377,7 @@ ze-netns-qemu-test:
 	# owned by ze_ddos), and a hand-picked minimal build then fails EVERY config
 	# load with "no such module: ze-ddos-detect-conf". $(ZE_FEATURES) also carries
 	# ze_ssh (for 004-cli-show's SSH path), so no feature needs listing by hand.
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."
