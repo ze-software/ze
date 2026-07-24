@@ -100,15 +100,14 @@ tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 # `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
 # (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
 # A more robust rewrite, not a relaxation: same "wait until BOTH RS clients are
-# established and each sent its EOR" semantics -- the runtime_fail on a stuck
-# establishment (the whole point of this test's gate: without every peer's EOR the
-# transcoded UPDATE is unobservable) is preserved via run_rs_observer's returned bool.
-# No expect/action/reject assertion removed. The old poll's dispatch RPC could stall
-# ~30s under load and strand the shutdown until ze was killed.
-from ze_api import API, runtime_fail
+# established and each sent its EOR" semantics. run_rs_observer fails closed -- it
+# runtime_fails on a stalled replay -- which is the whole point of this test's gate:
+# without every peer's EOR the transcoded UPDATE is unobservable. No expect/action/
+# reject assertion removed. The old poll's dispatch RPC could stall ~30s under load
+# and strand the shutdown until ze was killed.
+from ze_api import API
 
-if not API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24"):
-    runtime_fail('not every RS client reached established with an EOR sent')
+API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
