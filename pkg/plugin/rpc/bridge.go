@@ -65,6 +65,8 @@ type DirectBridge struct {
 	hasForwardCached    atomic.Bool                // set atomically when forwardCached is written
 	releaseCached       ReleaseCachedHandler       // Typed fast path (no JSON) -- rs-fastpath-3
 	hasReleaseCached    atomic.Bool                // set atomically when releaseCached is written
+	relayStoredRoute    RelayStoredRouteHandler    // Typed fast path (no JSON) -- egress-rail
+	hasRelayStoredRoute atomic.Bool                // set atomically when relayStoredRoute is written
 	injectWireRoute     InjectWireRouteHandler     // Typed fast path (no JSON) -- bmp-6
 	hasInjectWireRoute  atomic.Bool                // set atomically when injectWireRoute is written
 	updateRouteSel      UpdateRouteSelHandler      // Typed fast path with *selector.Selector
@@ -493,6 +495,38 @@ func (b *DirectBridge) ReleaseCached(ctx context.Context, ids []uint64) error {
 // HasReleaseCached reports whether the typed release-cached handler is set.
 func (b *DirectBridge) HasReleaseCached() bool {
 	return b.ready.Load() && b.hasReleaseCached.Load()
+}
+
+// RelayStoredRouteHandler is the typed handler for relay-stored-route via
+// DirectBridge. Skips JSON entirely -- takes native Go values.
+// spec-fixit-bgp-egress-rail-divergence.
+//
+// ctx is checked before dispatch; a canceled context short-circuits the call.
+type RelayStoredRouteHandler func(ctx context.Context, destination string, routes []StoredRoute) error
+
+// SetRelayStoredRoute registers the engine-side typed relay-stored-route handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+func (b *DirectBridge) SetRelayStoredRoute(fn RelayStoredRouteHandler) {
+	b.relayStoredRoute = fn
+	b.hasRelayStoredRoute.Store(fn != nil)
+}
+
+// RelayStoredRoute calls the engine's typed relay-stored-route handler directly.
+// Returns ctx.Err() when ctx is already canceled before dispatch, or the
+// handler's error otherwise. Not-set returns an error without dispatching.
+func (b *DirectBridge) RelayStoredRoute(ctx context.Context, destination string, routes []StoredRoute) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !b.hasRelayStoredRoute.Load() {
+		return errors.New("relay-stored-route handler not set")
+	}
+	return b.relayStoredRoute(ctx, destination, routes)
+}
+
+// HasRelayStoredRoute reports whether the typed relay-stored-route handler is set.
+func (b *DirectBridge) HasRelayStoredRoute() bool {
+	return b.ready.Load() && b.hasRelayStoredRoute.Load()
 }
 
 // InjectWireRouteHandler is the typed handler for inject-wire-route via DirectBridge.

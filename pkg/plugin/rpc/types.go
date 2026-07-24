@@ -41,6 +41,7 @@ const (
 	MethodEmitEvent           = "ze-plugin-engine:emit-event"
 	MethodForwardCached       = "ze-plugin-engine:forward-cached"
 	MethodReleaseCached       = "ze-plugin-engine:release-cached"
+	MethodRelayStoredRoute    = "ze-plugin-engine:relay-stored-route"
 	MethodRouteInstall        = "ze-plugin-engine:route-install"
 	MethodRouteRemove         = "ze-plugin-engine:route-remove"
 	MethodInjectWireRoute     = "ze-plugin-engine:inject-wire-route"
@@ -358,6 +359,42 @@ type ForwardCachedInput struct {
 // Acks the listed IDs for the calling plugin without forwarding to peers.
 type ReleaseCachedInput struct {
 	IDs []uint64 `json:"ids"`
+}
+
+// StoredRoute is one route a plugin holds as raw wire bytes and asks the engine
+// to relay on its behalf (adj-rib-in peer-up replay).
+//
+// It is deliberately NOT a cache id: forward-cached relays an UPDATE the engine
+// still holds in recentUpdates, whereas a stored route outlives that cache (the
+// consumer-ack valve drops entries within minutes) and is the only copy left when
+// a peer establishes long after the UPDATE arrived.
+//
+// SourcePeer is the peer the route was LEARNED from. The engine needs it to pick
+// the same egress transform a live forward would use -- AS_PATH prepend decisions,
+// the RFC 9234 role/OTC step and export policy all key off the source. Dropping it
+// (as the older "update hex ... add" replay command did) is what let the replay and
+// forward rails diverge.
+//
+// Hex fields are the stored wire bytes: AttrHex is the whole path-attribute
+// section as received (it INCLUDES MP_REACH/MP_UNREACH for MP families -- see
+// the A-1 note in plan/spec-fixit-bgp-egress-rail-divergence.md), NextHopHex is
+// the next hop in wire form, NLRIHex is this route's own NLRI bytes.
+type StoredRoute struct {
+	SourcePeer string `json:"source-peer"`
+	Family     string `json:"family"`
+	AttrHex    string `json:"attr-hex"`
+	NextHopHex string `json:"next-hop-hex"`
+	NLRIHex    string `json:"nlri-hex"`
+}
+
+// RelayStoredRouteInput is the input for ze-plugin-engine:relay-stored-route.
+// One call carries a whole peer-up replay: every stored route destined for a
+// single newly-established peer, so a replay costs one RPC rather than one per
+// route. Destination is that peer's IP address string; the engine resolves it at
+// the reactor boundary exactly as forward-cached does.
+type RelayStoredRouteInput struct {
+	Destination string        `json:"destination"`
+	Routes      []StoredRoute `json:"routes"`
 }
 
 // RouteInstallEntry is one route a forked route-installing plugin (OSPF, IS-IS,

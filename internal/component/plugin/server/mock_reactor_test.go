@@ -6,6 +6,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // ErrPeerNotFound is a test error matching reactor.ErrPeerNotFound.
@@ -23,6 +24,18 @@ type mockReactor struct {
 		message string
 	}
 	removedPeers []netip.Addr
+
+	// relayCalls records every RelayStoredRoute the server dispatched, so a
+	// wiring test can prove the RPC reached the coordinator with the payload
+	// intact rather than merely returning nil.
+	relayCalls []mockRelayCall
+	relayErr   error
+}
+
+// mockRelayCall is one recorded RelayStoredRoute dispatch.
+type mockRelayCall struct {
+	destination netip.Addr
+	routes      []rpc.StoredRoute
 }
 
 func (m *mockReactor) Peers() []plugin.PeerInfo {
@@ -107,3 +120,10 @@ func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ str
 }
 
 func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
+
+// RelayStoredRoute implements plugin.ReactorRelayCoordinator, recording the
+// dispatch so a wiring test can assert the payload survived the RPC boundary.
+func (m *mockReactor) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error {
+	m.relayCalls = append(m.relayCalls, mockRelayCall{destination: destination, routes: routes})
+	return m.relayErr
+}

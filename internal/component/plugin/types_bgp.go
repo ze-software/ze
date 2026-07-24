@@ -385,6 +385,26 @@ type ReactorCacheCoordinator interface {
 	ReleaseUpdates(updateIDs []uint64, pluginName string) error
 }
 
+// ReactorRelayCoordinator relays routes a plugin stores as raw wire bytes to a
+// single newly-established peer, through the same egress pipeline a live forward
+// uses. spec-fixit-bgp-egress-rail-divergence.
+//
+// Kept separate from ReactorCacheCoordinator rather than folded into it: a cache
+// coordinator relays UPDATEs the engine still holds by id, while this relays
+// bytes the PLUGIN holds after the cache has dropped them. The two have different
+// lifetimes and different implementers, so a caller should be able to depend on
+// one without the other (interface segregation, ai/rules/design-principles.md).
+type ReactorRelayCoordinator interface {
+	// RelayStoredRoute relays each stored route to destination through the
+	// forward rail, applying the egress transform that route's SOURCE peer
+	// implies (AS_PATH prepend, role/OTC, export policy).
+	//
+	// Returns an error when destination resolves to no established peer or no
+	// route could be relayed; per-route failures are logged and do not fail the
+	// call. An empty routes slice is a success no-op.
+	RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error
+}
+
 // ReactorLifecycle is the full BGP reactor interface composed from focused
 // sub-interfaces. It extends ProtocolReactor with BGP-specific peer management,
 // introspection, and cache coordination.

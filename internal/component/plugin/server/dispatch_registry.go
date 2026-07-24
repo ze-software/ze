@@ -120,6 +120,15 @@ var engineOps = []engineOp{
 		},
 	},
 	{
+		method: rpc.MethodRelayStoredRoute,
+		handle: (*Server).opRelayStoredRoute,
+		typedWire: func(s *Server, _ *process.Process, b *rpc.DirectBridge) {
+			b.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+				return s.relayStoredRoute(destination, routes)
+			})
+		},
+	},
+	{
 		method: rpc.MethodRouteInstall,
 		handle: (*Server).opRouteInstall,
 		// No typed slot: forked-plugin batch path, socket/Direct only.

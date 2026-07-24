@@ -35,6 +35,7 @@ func TestPluginRPCRegistryCoversAllPaths(t *testing.T) {
 		rpc.MethodEmitEvent,
 		rpc.MethodForwardCached,
 		rpc.MethodReleaseCached,
+		rpc.MethodRelayStoredRoute,
 		rpc.MethodRouteInstall,
 		rpc.MethodRouteRemove,
 		rpc.MethodInjectWireRoute,
@@ -51,6 +52,7 @@ func TestPluginRPCRegistryCoversAllPaths(t *testing.T) {
 		rpc.MethodEmitEvent:           true,
 		rpc.MethodForwardCached:       true,
 		rpc.MethodReleaseCached:       true,
+		rpc.MethodRelayStoredRoute:    true, // adj-rib-in peer-up replay, in-process
 		rpc.MethodInjectWireRoute:     true,
 		rpc.MethodBatchValidate:       true,
 	}

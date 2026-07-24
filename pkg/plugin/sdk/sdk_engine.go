@@ -89,6 +89,36 @@ func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 	return err
 }
 
+// RelayStoredRoute asks the engine to relay routes the plugin holds as raw wire
+// bytes to one newly-established peer, through the SAME egress pipeline a live
+// forward uses. spec-fixit-bgp-egress-rail-divergence.
+//
+// This exists because the older replay path -- emitting "update hex ... add"
+// text commands -- reached the peer by a different rail than a live forward:
+// it prepended the local AS BEFORE the write gate and ran only the session's
+// export filters, skipping the in-process role/OTC steps. Same route, two
+// transforms, so a peer establishing while an UPDATE was in flight could see
+// a rewritten AS_PATH, a duplicate announce, or an unsuppressed OTC route.
+// Relaying through this call gives a replayed route one egress transform.
+//
+// Each route carries the peer it was learned from, so the engine can apply the
+// source-dependent egress decisions (prepend, role/OTC, export policy) it would
+// have applied had the route been forwarded live.
+//
+// Returns an error when the destination cannot be resolved to an established
+// peer or the request cannot be dispatched. Per-route failures are logged and
+// do not fail the call.
+func (p *Plugin) RelayStoredRoute(ctx context.Context, destination string, routes []rpc.StoredRoute) error {
+	// Fast path: typed DirectBridge dispatch (no JSON serialization).
+	if p.bridge != nil && p.bridge.HasRelayStoredRoute() {
+		return p.bridge.RelayStoredRoute(ctx, destination, routes)
+	}
+	// Slow path: JSON-based RPC (external plugins or pre-startup).
+	input := &rpc.RelayStoredRouteInput{Destination: destination, Routes: routes}
+	_, err := p.callEngineWithResult(ctx, rpc.MethodRelayStoredRoute, input)
+	return err
+}
+
 // RouteInstall inserts a batch of computed routes into the engine's process-wide
 // Loc-RIB. It is the cross-process bridge for a FORKED route-installing plugin
 // (OSPF, IS-IS): in-process the plugin writes locrib.Default() directly, but a
