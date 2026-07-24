@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Updated | 2026-07-24 |
 
 ## Post-Compaction Recovery
@@ -98,9 +98,47 @@ adj-rib-in `handleState`/`handleStructuredState` on a peer `isUp` event (`rib.go
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | `AttrsWire.Packed()` excludes MP_REACH/UNREACH but includes type-3 NEXT_HOP | comment `rib.go:67`; MP/legacy nhop split `rib.go:264` vs `:282` | MP reconstruction step changes | read the wire splitter that populates `AttrsWire` | unvalidated |
-| A-2 | `WriteAnnounceUpdate` prepends local AS before the egress gate | inferred from `SendAnnounce` (`session_write.go:509,514`) | order claim wrong | read `WriteAnnounceUpdate` body | unvalidated |
+| A-1 | `AttrsWire.Packed()` excludes MP_REACH/UNREACH but includes type-3 NEXT_HOP | comment `rib.go:67`; MP/legacy nhop split `rib.go:264` vs `:282` | MP reconstruction step changes | read the wire splitter that populates `AttrsWire` | **BROKEN** |
+| A-2 | the replay rail prepends local AS before the egress gate | inferred from `SendAnnounce` (`session_write.go:509,514`) | order claim wrong | read the announce builder body | **confirmed** |
 | A-3 | add-path path-id is lost on structured ingest (`rib.go:314-323`) vs legacy (`:861-868`) | two ingest paths differ | add-path replay wrong through forward rail | add-path replay test | unvalidated |
+| A-4 | on peer-up BOTH adj-rib-in self-replay and bgp-rs `replayForPeer` fire; only rs gates the concurrent forward (`Replaying`) | `rib.go:563-572` + `rs/server_handlers.go:149-208` | 378 needs a different dedupe | read both peer-up handlers | **confirmed** |
+
+**A-1 BROKEN — evidence.** `RawMessage.AttrsWire` is assigned `wireUpdate.Attrs()`
+(`internal/component/bgp/reactor/reactor_notify.go:331,345`), and `WireUpdate.Attrs()`
+builds it over `u.sections.Attrs(u.payload)` — the WHOLE path-attribute section
+(`internal/component/bgp/wireu/wire_update.go:106`). `Packed()` returns those bytes
+verbatim (`internal/core/bgp/attribute/wire.go:52-54`). So a stored `AttrHex` for an
+MP family CONTAINS the entire MP_REACH_NLRI attribute, including every NLRI of the
+originating UPDATE — not just this route's. The `rib.go:67` doc comment asserting
+otherwise is its author's belief, not a producer fact (`no-fabrication.md`).
+→ Constraint: the reconstruction MUST strip attribute types 14/15 from the stored
+   block and re-synthesize a single-NLRI MP_REACH, otherwise a replayed MP route
+   emits a duplicate MP_REACH and re-announces the whole original NLRI set.
+→ Constraint: attribute ORDER of the surviving attributes must be preserved —
+   the `.ci` expectations are exact hex, and a real forward preserves source order.
+
+**A-2 confirmed — evidence.** The replay rail is `update hex … add` →
+`handleUpdateWire`/`DispatchNLRIGroups`
+(`internal/component/bgp/plugins/cmd/update/update_wire.go:391-403`,
+`update_text.go:767-798`) → `AnnounceNLRIBatch`
+(`internal/component/bgp/reactor/reactor_api_batch.go:33`), whose AS_PATH builder
+prepends local AS for a non-RS-client eBGP peer
+(`buildBatchASPath` :317-345, `packedWithLocalASPrepended` :385) BEFORE
+`sendUpdateWithSplit` → `writeUpdateGated(update, gate=true)`
+(`session_write.go:246,268-289`) runs `exportFilterForBody`
+(`egress_inject_filter.go:43-91`). Prepend-then-filter, and the gate runs ONLY
+`facts.exportFilters` (`egress_inject_filter.go:50,76`), never the in-process
+`orderedEgressSteps` that carry role/OTC (`role/register.go:22-31` registers via
+`filterapi.Register`, i.e. the forward rail's `orderedEgressSteps` only).
+
+**A-4 confirmed — evidence.** 378's duplicate is NOT two replays: it is one replay
+plus one forward. `bgp-rs` marks a peer `Replaying` and excludes it from forward
+targets until replay completes (`rs/server_handlers.go:157-162`), so the rs replay
+is already race-free. adj-rib-in's OWN peer-up self-replay
+(`rib.go:563-572`, `:732-744`) has no such gate, so under load it emits the route a
+second time alongside the reactor forward.
+→ Constraint: the dedupe is "rs owns replay, adj-rib-in stands down", not
+   "collapse two replays into one".
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -158,6 +196,57 @@ adj-rib-in `handleState`/`handleStructuredState` on a peer `isUp` event (`rib.go
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | "route via forward rail" = point replay at `ForwardCached` | `ForwardCached`/`recentUpdates` is cache-keyed; adj-rib-in routes never cache-resident | mechanism investigation (`recent_cache.go:25-67`) | needs a NEW `RelayStoredRoute` primitive, not a redirect |
+| A-1: stored `AttrHex` excludes MP_REACH/UNREACH | it is the FULL attribute section, MP attributes included (`reactor_notify.go:345` → `wire_update.go:106` → `attribute/wire.go:52`) | read the producer chain during the audit, before any code | reconstruction gains a mandatory strip-14/15 step; without it an MP replay duplicates MP_REACH and re-announces the source UPDATE's whole NLRI set |
+| 378's duplicate is two replays racing | it is ONE replay plus the reactor forward; rs already gates its own replay with `Replaying` | read both peer-up handlers (`rib.go:563`, `rs/server_handlers.go:157`) | dedupe is "rs owns replay, adj-rib-in stands down", not "merge two replays" |
+
+## Critical Review Checklist
+
+| # | What to verify | Method |
+|---|----------------|--------|
+| C-1 | Reconstructed payload is byte-identical to the received wire for IPv4 unicast (attribute order preserved, no re-ordered NEXT_HOP) | golden-byte unit test over a real received frame |
+| C-2 | MP families: exactly one MP_REACH in the output, carrying only this route's NLRI | unit test with a 3-NLRI MP_REACH source frame |
+| C-3 | Pool buffer returned exactly once — no leak, no double-return | buffer-accounting unit test; `make ze-race-reactor` |
+| C-4 | Source peer gone/not-established fails CLOSED (no unfiltered send) | unit test with an unknown source address |
+| C-5 | Originated/injected/redistribute routes STILL run `exportFilterForBody` (/1231 private-ASN leak stays fixed) | existing egress_inject_filter tests + private-asn `.ci` still green |
+| C-6 | The relay path never re-enters the write gate (no double filtering, /1161) | `writeUpdatePreFiltered` is the only write reached; assert via the 372 golden bytes |
+| C-7 | Standalone adj-rib-in (no bgp-rs) still replays on peer-up | `.ci` without the rs plugin |
+| C-8 | No new communication mechanism: typed coordinator call mirroring `ForwardCached`, JSON RPC fallback for forked plugins | code read against `ai/rules/plugin-design.md` DirectBridge section |
+
+## Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| `RelayStoredRoutes` reactor primitive | `grep -n "func (a \*reactorAPIAdapter) RelayStoredRoutes"` + unit tests |
+| Coordinator / RPC / SDK / bridge plumbing | `grep -n RelayStored` across `internal/component/plugin`, `pkg/plugin` |
+| adj-rib-in replay uses the relay rail | `grep -n formatHexCommand` returns no live replay caller |
+| Replay-owner dedupe | unit test + `.ci` asserting one announce per peer-up |
+| 372/378/394/395/351 green under stress | `scripts/dev/stress-repro.py bgp plugin` per test, 0 reproductions |
+| Mutation-verified gates | revert the relay switch → the new `.ci` goes red |
+
+## Security Review Checklist
+
+| # | Concern | Check |
+|---|---------|-------|
+| S-1 | Attacker-controlled attribute bytes drive the reconstruction walker | bounds-check every header read; malformed block → reject the route, never a partial/OOB write |
+| S-2 | Length fields (attr len, MP_REACH len, message len) can overflow 16-bit or the buffer | explicit range checks before backfill; oversize → reject |
+| S-3 | Unbounded allocation from a large replay batch | batch is bounded by stored RIB size; buffers come from the bounded read pool, exhaustion → reject not grow |
+| S-4 | Fail-open on missing source peer would send an unfiltered route | fail closed (C-4) |
+| S-5 | Hex decode of untrusted plugin input | `hex.DecodeString` errors reject the route with a named error |
+
+## Documentation Update Checklist
+
+| # | Category | Applies | File / action |
+|---|----------|---------|---------------|
+| D-1 | Feature list | No | no new user-facing feature; a wire-correctness fix |
+| D-2 | User guide | No | no config or CLI surface change |
+| D-3 | Config syntax | No | no YANG change |
+| D-4 | CLI reference | No | no new command (relay is a plugin-engine RPC, not a CLI verb) |
+| D-5 | API/RPC docs | **Yes** | `docs/architecture/api/process-protocol.md` — add the relay-stored-routes engine RPC |
+| D-6 | Plugin SDK | **Yes** | `docs/plugin-development/` — the new SDK call, if the SDK surface is documented there |
+| D-7 | Wire format | No | no encoding change; the relay reproduces the received shape |
+| D-8 | RFC compliance | **Yes (verify)** | `docs/features/rfc-status.md` — RFC 9234 OTC egress now applies on the replay path too |
+| D-9 | Architecture | **Yes** | `docs/architecture/api/architecture.md` — the egress-rail note in `egress_inject_filter.go` header must stop claiming replay goes through that gate |
+| D-10 | Test infrastructure | No | no new runner or format |
 
 ## Review Gate
 ### Run 1 (initial)
