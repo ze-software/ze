@@ -17,7 +17,7 @@ module exabgp {
         leaf origin { type string; }
         leaf local-preference { type uint32; }
         leaf med { type uint32; }
-        leaf as-path { ze:syntax "value-or-array"; type string; }
+        leaf as-path { ze:syntax "value-or-array"; ze:ordered; type string; }
         leaf community { ze:syntax "value-or-array"; type string; }
         leaf extended-community { ze:syntax "value-or-array"; type string; }
         leaf large-community { ze:syntax "value-or-array"; type string; }
@@ -27,7 +27,7 @@ module exabgp {
         leaf cluster-list { ze:syntax "value-or-array"; type string; }
         leaf rd { type string; }
         leaf label { type string; }
-        leaf labels { ze:syntax "value-or-array"; type string; }
+        leaf labels { ze:syntax "value-or-array"; ze:ordered; type string; }
         leaf path-information { type string; }
         leaf name { type string; }
         leaf watchdog { type string; }

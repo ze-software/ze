@@ -19,6 +19,12 @@ func testSchema() *Schema {
 
 	schema.Define("name-server", ValueOrArray(TypeIP))
 
+	// as-path is an ordered SEQUENCE (ze:ordered): duplicate ASNs are meaningful
+	// prepends and must NOT be deduplicated the way a set leaf-list is.
+	orderedASPath := ValueOrArray(TypeString)
+	orderedASPath.Ordered = true
+	schema.Define("as-path", orderedASPath)
+
 	schema.Define("neighbor", List(TypeIP,
 		Field("description", Leaf(TypeString)),
 		Field("router-id", Leaf(TypeIPv4)),
@@ -138,6 +144,66 @@ func TestParserLeafListRepeatedStatements(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParserOrderedLeafListPreservesDuplicates locks the ze:ordered behavior: a
+// leaf-list modeling an ordered SEQUENCE (AS_PATH, MPLS labels) keeps duplicate
+// values instead of deduplicating them as a set. Duplicate ASNs are load-bearing
+// prepends (RFC 4271 Section 5.1.2), so collapsing `as-path [ 30740 30740 ... ]`
+// to a single 30740 silently drops the prepend and changes what ze advertises.
+//
+// VALIDATES: an Ordered ValueOrArray node preserves order and duplicates in both the
+// bracket form and repeated-statement form, while a non-ordered set still dedups.
+//
+// PREVENTS: the l2vpn AS_PATH regression (encode 31 / exabgp conf-l2vpn) where
+// `as-path [ 30740 x7 ]` was stored as a single ASN.
+func TestParserOrderedLeafListPreservesDuplicates(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{"bracket keeps duplicates", "as-path [ 30740 30740 30740 30740 30740 30740 30740 ];\n", []string{"30740", "30740", "30740", "30740", "30740", "30740", "30740"}},
+		{"repeated statements keep duplicates", "as-path 65001;\nas-path 65001;\n", []string{"65001", "65001"}},
+		{"distinct sequence preserved in order", "as-path [ 65001 65002 65001 ];\n", []string{"65001", "65002", "65001"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree, err := NewParser(testSchema()).Parse(tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, tree.GetSlice("as-path"))
+			// The scalar mirror joins every member, so config-route parsing
+			// (GetSlice -> join -> ParseASPath) recovers the full ordered path.
+			v, _ := tree.Get("as-path")
+			require.Equal(t, strings.Join(tc.want, " "), v)
+		})
+	}
+
+	// A non-ordered set leaf-list must still deduplicate: the ordered flag is the
+	// only thing that changes the behavior.
+	setTree, err := NewParser(testSchema()).Parse("name-server 9.9.9.9;\nname-server 9.9.9.9;\n")
+	require.NoError(t, err)
+	require.Equal(t, []string{"9.9.9.9"}, setTree.GetSlice("name-server"))
+}
+
+// TestParserOrderedLeafListRejectsAmbiguousDeactivation locks the fail-closed guard
+// that keeps duplicate preservation from opening an AS_PATH-corruption hole:
+// deactivation is value-keyed, so deactivating one of several identical members
+// would blank every copy. An ordered leaf-list rejects that; a unique member still
+// deactivates cleanly.
+//
+// PREVENTS: `as-path [ 65001 inactive:65001 ]` silently collapsing to an empty
+// AS_PATH (all copies of 65001 marked inactive).
+func TestParserOrderedLeafListRejectsAmbiguousDeactivation(t *testing.T) {
+	// Deactivating a REPEATED value in an ordered leaf-list is a parse error.
+	_, err := NewParser(testSchema()).Parse("as-path [ 65001 inactive:65001 ];\n")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "as-path")
+
+	// Deactivating a UNIQUE value still works; the remaining member survives.
+	tree, err := NewParser(testSchema()).Parse("as-path [ 65001 inactive:65002 ];\n")
+	require.NoError(t, err)
+	require.Equal(t, []string{"65001"}, tree.GetSlice("as-path"))
 }
 
 // TestParserLeafListRepeatedStatementsDeactivation locks the scalar-mirror/GetSlice

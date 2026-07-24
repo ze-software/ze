@@ -35,8 +35,11 @@ type Tree struct {
 	// stays clean in multiValues (never carries an "inactive:" prefix), and the
 	// effective-config accessors (GetSlice/GetMultiValues/ToMap) exclude any
 	// member marked here. Serialize/diff/reactor read the raw slice + this map
-	// via GetMultiValuesState. Leaf-lists are sets (no duplicate members), so
-	// keying by value is unambiguous.
+	// via GetMultiValuesState. Deactivation is keyed by value, so it is only
+	// unambiguous when the value is unique: a set (the default) never repeats a
+	// value, and an ordered ze:ordered sequence that DOES repeat one (AS_PATH
+	// prepends, MPLS labels) refuses deactivation of that value in
+	// DeactivateMultiValue rather than silently marking every copy inactive.
 	inactiveMembers map[string]map[string]bool
 	containers      map[string]*Tree
 	lists           map[string]map[string]*Tree
@@ -217,19 +220,40 @@ func (t *Tree) SetSlice(name string, items []string) {
 // when an earlier statement deactivated a member (the caller must NOT also Set
 // the mirror from the full list, which would leak the deactivated member).
 func (t *Tree) AppendSlice(name string, items []string) {
+	t.appendMembersLocked(name, items, true)
+}
+
+// AppendSequence adds members to an ordered-SEQUENCE leaf-list, preserving order
+// AND duplicates. Unlike AppendSlice it never deduplicates, because the leaf-list
+// models a sequence whose repeated values are load-bearing -- AS_PATH prepends
+// (RFC 4271 Section 5.1.2) and MPLS label stacks (RFC 8277) -- not a set. Such
+// nodes carry the ze:ordered YANG extension; the parser routes them here instead
+// of AppendSlice. Without this, `as-path [ 65001 65001 65001 ]` would collapse to
+// a single 65001 and silently drop the prepends.
+func (t *Tree) AppendSequence(name string, items []string) {
+	t.appendMembersLocked(name, items, false)
+}
+
+// appendMembersLocked is the shared body of AppendSlice (dedup=true, set
+// semantics) and AppendSequence (dedup=false, ordered-sequence semantics).
+func (t *Tree) appendMembersLocked(name string, items []string, dedup bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	members := t.multiValues[name]
-	seen := make(map[string]struct{}, len(members)+len(items))
-	for _, v := range members {
-		seen[v] = struct{}{}
-	}
-	for _, v := range items {
-		if _, dup := seen[v]; dup {
-			continue
+	if !dedup {
+		members = append(members, items...)
+	} else {
+		seen := make(map[string]struct{}, len(members)+len(items))
+		for _, v := range members {
+			seen[v] = struct{}{}
 		}
-		seen[v] = struct{}{}
-		members = append(members, v)
+		for _, v := range items {
+			if _, dup := seen[v]; dup {
+				continue
+			}
+			seen[v] = struct{}{}
+			members = append(members, v)
+		}
 	}
 	t.multiValues[name] = members
 	t.syncMultiValueToValueLocked(name)
@@ -864,6 +888,14 @@ func (t *Tree) DeactivateMultiValue(name, value string) error {
 	if multiValueIndex(t.multiValues[name], value) < 0 {
 		return fmt.Errorf("%q not found in %s", value, name)
 	}
+	// A repeated value cannot be deactivated unambiguously: inactiveMembers is
+	// value-keyed, so marking it would deactivate EVERY copy. A set never repeats a
+	// value; only an ordered ze:ordered sequence (AS_PATH, MPLS labels) can, and
+	// there the operator must edit the whole list, not one ambiguous copy. Fail
+	// closed so a stray inactive: on a duplicate cannot silently blank the sequence.
+	if n := multiValueOccurrences(t.multiValues[name], value); n > 1 {
+		return fmt.Errorf("cannot deactivate %q in %s: it appears %d times; deactivation is ambiguous for a repeated member of an ordered leaf-list", value, name, n)
+	}
 	if t.inactiveMembers[name][value] {
 		return fmt.Errorf("%q is already deactivated in %s", value, name)
 	}
@@ -900,6 +932,19 @@ func multiValueIndex(items []string, value string) int {
 		}
 	}
 	return -1
+}
+
+// multiValueOccurrences counts how many times value appears in items. Used to
+// detect a repeated member, which value-keyed deactivation cannot address
+// unambiguously (see DeactivateMultiValue).
+func multiValueOccurrences(items []string, value string) int {
+	n := 0
+	for _, item := range items {
+		if item == value {
+			n++
+		}
+	}
+	return n
 }
 
 // isValidInsertPosition returns true if position is a valid insert position keyword.

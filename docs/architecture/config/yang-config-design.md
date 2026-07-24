@@ -67,6 +67,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:sensitive` | Marks a leaf as containing sensitive data (passwords, keys) | (none) |
 | `ze:key-type` | Key type for inline-list nodes | type name |
 | `ze:route-attributes` | Marks a node as accepting standard BGP route attributes | (none) |
+| `ze:ordered` | Marks a leaf-list as an ordered sequence whose duplicate values are meaningful (AS_PATH prepends, MPLS label stacks); the parser preserves duplicates instead of deduplicating as a set | (none) |
 | `ze:allow-unknown-fields` | Container accepts arbitrary key-value pairs | (none) |
 | `ze:related` | workbench: declares an operator tool descriptor on a config node | descriptor string |
 
@@ -292,6 +293,16 @@ Plain leaf-lists (`leaf-list` without `ze:syntax`, compiled to
 | `delete <path>` | Removes the whole leaf-list |
 | `insert <path> <member> first\|last\|before <ref>\|after <ref>` | Adds at an exact position |
 | `deactivate <path> <member>` / `activate <path> <member>` | Toggles one member in place |
+
+A plain leaf-list is a **set**: repeated values are deduplicated on parse
+(`Tree.AppendSlice`). A leaf-list that models an ordered **sequence** whose
+duplicate values are meaningful (AS_PATH prepends, MPLS label stacks) must carry
+the `ze:ordered` extension so the parser preserves duplicates
+(`Tree.AppendSequence`). Without it, `as-path [ 65001 65001 65001 ]` collapses to
+a single `65001` and silently drops the prepends. Because deactivation is
+value-keyed, a repeated member of an ordered leaf-list cannot be deactivated
+individually — `DeactivateMultiValue` rejects it rather than blank every copy.
+<!-- source: internal/component/config/tree.go -- AppendSlice / AppendSequence -->
 
 **Invariant: leaf-list nodes MUST use the multi-value Tree API
 (`AddMultiValueMember`, `RemoveMultiValueMember`, `SetSlice`,

@@ -233,12 +233,12 @@ module ze-bgp-conf {
                 }
                 leaf med { type uint32; description "Multi-Exit Discriminator (MED). Lower values are preferred. Used to influence inbound path selection by an external peer (RFC 4271 Section 5.1.4)."; }
                 leaf local-preference { type uint32; description "LOCAL_PREF value for iBGP best-path selection. Higher wins. Only meaningful within a single AS (RFC 4271 Section 5.1.5). Default: 100."; }
-                leaf-list as-path { type string; description "AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred)."; }
+                leaf-list as-path { type string; ze:ordered; description "AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred)."; }
                 leaf-list community { type string; description "Standard BGP communities (RFC 1997). Format: AS:value (e.g., 65000:100) or well-known names (no-export, no-advertise)."; }
                 leaf-list large-community { type string; description "Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively."; }
                 leaf-list extended-community { type string; description "Extended communities (RFC 4360). Used for route targets, site-of-origin, and VPN semantics. Format: type:admin:value."; }
                 leaf label { type string; description "MPLS label value for labeled unicast routes (RFC 3107). Numeric or keyword."; }
-                leaf-list labels { type string; description "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top."; }
+                leaf-list labels { type string; ze:ordered; description "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated)."; }
                 leaf path-information { type string; description "ADD-PATH path identifier (RFC 7911). Distinguishes multiple paths for the same prefix from the same peer."; }
                 leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364). Prepended to the prefix to create a unique VPN route. Format: ASN:nn or IP:nn."; }
                 leaf aggregator { type string; description "AGGREGATOR attribute (RFC 4271 Section 5.1.7). Format: AS:IP. Identifies the AS and router that formed the aggregate."; }

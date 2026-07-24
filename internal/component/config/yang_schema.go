@@ -319,10 +319,12 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	case "bracket":
 		node := BracketLeafList(yangTypeToValueType(entry.Type))
 		node.Patterns = patternsFromType(entry.Type)
+		node.Ordered = getOrderedExtension(entry)
 		return node
 	case "value-or-array":
 		node := ValueOrArray(yangTypeToValueType(entry.Type))
 		node.Patterns = patternsFromType(entry.Type)
+		node.Ordered = getOrderedExtension(entry)
 		return node
 	}
 
@@ -335,10 +337,12 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 				node := ValueOrArrayEnum(entry.Type.Enum.Names())
 				node.Patterns = patternsFromType(entry.Type)
+				node.Ordered = getOrderedExtension(entry)
 				return node
 			}
 			node := ValueOrArray(yangTypeToValueType(entry.Type))
 			node.Patterns = patternsFromType(entry.Type)
+			node.Ordered = getOrderedExtension(entry)
 			return node
 		}
 		return yangToLeaf(entry, path)
@@ -362,6 +366,19 @@ func getSyntaxExtension(entry *gyang.Entry) string {
 		}
 	}
 	return ""
+}
+
+// getOrderedExtension reports whether the ze:ordered extension is present on a
+// leaf-list entry. It marks the leaf-list as an ordered SEQUENCE whose duplicate
+// values are meaningful (AS_PATH prepends, MPLS label stacks) rather than a set,
+// so the parser preserves duplicates instead of deduplicating.
+func getOrderedExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:ordered" || strings.HasSuffix(ext.Keyword, ":ordered") {
+			return true
+		}
+	}
+	return false
 }
 
 // getKeyTypeExtension reads the ze:key-type extension from a YANG entry.

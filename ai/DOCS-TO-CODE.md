@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3092 files
+Total: 298 design docs, 3093 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1131,6 +1131,7 @@ Total: 298 design docs, 3092 files
 | `internal/exabgp/bridge/bridge_command.go` | ExaBGP text command to ZeBGP translation |
 | `internal/exabgp/bridge/bridge_event.go` | ZeBGP to ExaBGP JSON event translation |
 | `internal/exabgp/bridge/bridge_muxconn.go` | MuxConn wire format parsing for bridge runtime |
+| `internal/exabgp/migration/aspath_ordered_test.go` | external format translation |
 | `internal/exabgp/migration/env.go` | ExaBGP env file migration |
 | `internal/exabgp/migration/migrate.go` | ExaBGP migration orchestration |
 | `internal/exabgp/migration/migrate_family.go` | family and nexthop syntax conversion |

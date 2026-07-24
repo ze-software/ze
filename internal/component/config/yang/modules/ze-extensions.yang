@@ -53,6 +53,20 @@ module ze-extensions {
                      (next-hop, origin, community, etc.)";
     }
 
+    // Extension: ordered
+    // Marks a leaf-list as an ordered SEQUENCE whose duplicate values are
+    // meaningful, rather than a set. YANG leaf-lists are sets (RFC 7950 sec 7.7,
+    // unique values), but a few BGP attributes are ordered sequences where
+    // repeats are load-bearing: AS_PATH prepends (RFC 4271 sec 5.1.2) and MPLS
+    // label stacks (RFC 8277). The parser preserves order AND duplicates for
+    // these nodes instead of deduplicating.
+    extension ordered {
+        description "Marks a leaf-list as an ordered sequence whose duplicate
+                     values are meaningful (AS_PATH prepends, MPLS label stacks),
+                     so the parser preserves duplicates instead of treating the
+                     leaf-list as a set.";
+    }
+
     // Extension: allow-unknown-fields
     // Container accepts arbitrary key-value pairs beyond defined leaves.
     // Used for dynamic configuration like per-subsystem log levels.

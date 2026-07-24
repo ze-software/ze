@@ -341,8 +341,12 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 	// stays consistent with GetSlice; without a slice store, GetSlice returns nil
 	// and ToMap emits the joined text as one string, so every consumer sees
 	// `[ a b ]` as the single value "a b" -- which is why a unit could not carry
-	// two addresses.
-	tree.AppendSlice(name, items)
+	// two addresses. An ordered SEQUENCE (ze:ordered) preserves duplicates.
+	if node.Ordered {
+		tree.AppendSequence(name, items)
+	} else {
+		tree.AppendSlice(name, items)
+	}
 	return nil
 }
 
@@ -436,12 +440,22 @@ func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 	// silently winning; a single statement on an empty leaf-list is unchanged.
 	// AppendSlice re-syncs the scalar mirror to the active members (excluding any
 	// member deactivated by an earlier statement); the loop below then deactivates
-	// this statement's inactive: members, each re-syncing again.
-	tree.AppendSlice(name, clean)
+	// this statement's inactive: members, each re-syncing again. An ordered
+	// SEQUENCE (ze:ordered: AS_PATH, MPLS labels) preserves duplicates -- collapsing
+	// `as-path [ 65001 65001 ]` to one AS drops a load-bearing prepend.
+	if node.Ordered {
+		tree.AppendSequence(name, clean)
+	} else {
+		tree.AppendSlice(name, clean)
+	}
 	for _, member := range deactivated {
-		// Ignore "already deactivated" on a repeated prefixed member: the
-		// marker is idempotent and the member value is already recorded.
-		_ = tree.DeactivateMultiValue(name, member)
+		// An ordered sequence refuses deactivation of a REPEATED value (value-keyed
+		// deactivation would blank every copy); surface that as a parse error rather
+		// than silently drop the prepend. A set tolerates a repeated inactive: prefix
+		// on the same value -- the marker is idempotent and the value is unique there.
+		if err := tree.DeactivateMultiValue(name, member); err != nil && node.Ordered {
+			return p.errorf(tok, "invalid value for %s: %v", name, err)
+		}
 	}
 	return nil
 }

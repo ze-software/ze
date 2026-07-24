@@ -25,10 +25,10 @@ module ze-types {
         leaf-list community { type string; ze:validate "community-range"; description "BGP communities"; }
         leaf-list extended-community { type string; description "Extended communities"; }
         leaf-list large-community { type string; description "Large communities"; }
-        leaf-list as-path { type string; description "AS path"; }
+        leaf-list as-path { type string; ze:ordered; description "AS path (ordered sequence; duplicate ASNs are meaningful prepends, not deduplicated)"; }
         leaf path-information { type string; description "Path information"; }
         leaf label { type string; description "MPLS label"; }
-        leaf-list labels { type string; description "MPLS labels (RFC 8277)"; }
+        leaf-list labels { type string; ze:ordered; description "MPLS labels (RFC 8277; ordered label stack, duplicates preserved)"; }
         leaf rd { type string; description "Route Distinguisher"; }
         leaf aggregator { type string; description "Aggregator attribute"; }
         container atomic-aggregate { presence "Atomic aggregate flag"; description "Atomic aggregate"; }

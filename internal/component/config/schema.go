@@ -573,6 +573,11 @@ func MultiLeaf(typ ValueType) *MultiLeafNode {
 type BracketLeafListNode struct {
 	Type     ValueType
 	Patterns []string
+	// Ordered marks this leaf-list as an ordered SEQUENCE whose duplicate values
+	// are meaningful rather than a set. Set from the ze:ordered YANG extension;
+	// the parser preserves duplicates instead of deduplicating. See
+	// Tree.AppendSequence.
+	Ordered bool
 }
 
 func (n *BracketLeafListNode) Kind() NodeKind { return NodeLeaf }
@@ -594,6 +599,11 @@ type ValueOrArrayNode struct {
 	Type        ValueType
 	ValidValues []string // If non-nil, each item must be one of these values (YANG enum)
 	Patterns    []string
+	// Ordered marks this leaf-list as an ordered SEQUENCE whose duplicate values
+	// are meaningful (AS_PATH prepends, MPLS label stacks) rather than a set. Set
+	// from the ze:ordered YANG extension; the parser preserves duplicates instead
+	// of deduplicating. See Tree.AppendSequence.
+	Ordered bool
 }
 
 func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
