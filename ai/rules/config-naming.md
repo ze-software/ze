@@ -17,7 +17,7 @@ the docs, and vice versa.
 |------|---------|-------------|
 | kebab-case, no abbreviations | `forward-queue-size` | `fwd-chan-size` |
 | Noun or noun-phrase | `read-buffer-size` | `read-buf-sz` |
-| Unit suffix when ambiguous | `teardown-grace-seconds` | `teardown-grace` (seconds? milliseconds?) |
+| Dimensioned value: state the unit via a YANG `units` statement, keep the name unit-free (`yang-structure.md` Units) | `teardown-grace` + `units seconds;` | `teardown-grace-seconds` (unit in the name), `teardown-grace` with no `units` |
 | No `ze-` prefix (implicit in the tree) | `cache-ttl` | `ze-cache-ttl` |
 | Boolean: positive assertion | `update-groups` | `no-update-groups`, `disable-update-groups` |
 
@@ -82,7 +82,7 @@ var path changes too. The old path becomes an alias.
 
 ```
 [ ] YANG leaf: full words, kebab-case, no abbreviations
-[ ] YANG leaf: unit suffix if ambiguous (seconds, bytes, count)
+[ ] YANG leaf: dimensioned value states its unit via a `units` statement, name unit-free (yang-structure.md Units)
 [ ] Env var: ze.<component>.<container>.<yang-leaf-name>
 [ ] Env var leaf segment matches YANG leaf name exactly
 [ ] Go struct: PascalCase of YANG leaf, same word boundaries

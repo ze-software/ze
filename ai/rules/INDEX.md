@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 90 rules
+Total: 91 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -98,5 +98,6 @@ Total: 90 rules
 | Test-Driven Development | Tests must exist and fail before implementation Severity: blocking | `ai/rules/tdd.md` |
 | Testing | writing tests, or when a test fails and you are tempted to weaken it Severity: blocking | `ai/rules/testing.md` |
 | Wiring Completeness | Wiring is not a verification step at the end Severity: blocking | `ai/rules/wiring-completeness.md` |
+| YANG Module Structure | authoring or editing any `*.yang` module (module identity, imports, value typing, layout). Complements `config-naming.md` (leaf/env/struct names) and `cli-grammar.md` (command grammar). Severity:... | `ai/rules/yang-structure.md` |
 | Ze Divergences from Standard Go | Ze differs from typical Go projects in specific, load-bearing ways Severity: advisory | `ai/rules/ze-divergences.md` |
 | zefs Persistence (no loose state files) | Writing or reviewing code under `internal/plugins`, `internal/component`, or `cmd/ze` that needs to persist daemon runtime state across a restart, reconfigure, or update (a rolling baseline, a... | `ai/rules/zefs-persistence.md` |
