@@ -41,17 +41,22 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010
 # Receiver peer (conn=2): private 64512 becomes peer AS 65002 and local AS 65000 is prepended.
 # Expected AS_PATH=AS_SEQUENCE[65000 64496 65002 64497].
 #
-# ORDERING: the receiver's EOR precedes the forwarded UPDATE on its wire, so it is
-# declared first (seq=1) and the announce second (seq=2). This is a guarantee, not
-# a race: ze sends a peer its EOR from initial sync at ITS OWN establishment
-# (peer_initial_sync.go:329-336), and conn_map completes BOTH handshakes before any
-# conn's script runs (peer_connmap.go:129), so the source's UPDATE above is not even
-# written until after the receiver has been sent its EOR. Any route arriving during
-# initial sync is queued FIFO behind the EOR (peer_initial_sync.go:180-188).
-# Declaring the announce at seq=1 makes it unmatchable: an EOR that does not match
-# the current rule is silently swallowed (checker.go:416), never re-offered.
+# The receiver's EOR is NOT asserted on conn=2. An earlier comment here claimed the
+# EOR is guaranteed to precede the forwarded route ("queued FIFO behind the EOR"),
+# but that is false for a route-server FORWARD: the forward path bypasses the
+# initial-sync opQueue that orders the EOR, and AnnounceEOR itself documents that a
+# route-server EoR "could race ahead of the still-queued route NLRI and reach the
+# wire first" (reactor_api_forward.go:48-58). RFC 4724 Section 4.1
+# (rfc/full/rfc4724.txt:303) owes the EOR only after the INITIAL routing update and
+# constrains no ordering vs routes learned afterward, so the forward reaching conn=2
+# before its EOR is conformant. The receiver's EOR is still SENT (ze sends one to
+# every established peer); this test's subject is the export policy on the forwarded
+# route (conn=2:seq=2), and the source's own EOR (conn=1) does not race a forward, so
+# it stays. Measured: with the conn=2 EOR rule flaky, without it 18/18. Same fix as
+# bgp-rs-asn4-transcode.ci and bgp-rs-fastpath-ebgp-shared.ci.
+# // test-relax: the conn=2 EOR rule is removed, not weakened -- RFC 4724 owes no
+# ordering vs post-initial-update routes; the forwarded-route assertion is unchanged.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FDE80000FBF00000FDEA0000FBF140030401010101180A0000
 EOF_PEER
 
