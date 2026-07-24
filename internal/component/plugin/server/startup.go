@@ -217,6 +217,22 @@ func (s *Server) signalStartupComplete() {
 // one slow or broken plugin cannot delay notification to the rest. Errors are
 // logged at Debug level because they are expected during shutdown races
 // (connection closed before callback arrives).
+//
+// It deliberately does NOT wait. Waiting was tried (2026-07-25) to make
+// OnAllPluginsReady handlers ordered before peer startup, so that a handler
+// configuring how peer-up is processed could not lose a race against session
+// establishment. It DEADLOCKS: this function is called immediately before
+// SignalPluginStartupComplete -> StartPeers, and a handler that waits on peer
+// activity (a test observer waiting for routes to reach Adj-RIB-In, for
+// instance) then blocks the very peers it is waiting for, until the
+// postStartupTimeout fires. Three functional tests failed that way.
+//
+// So the ordering between a post-startup handler and peer startup is NOT
+// guaranteed, and anything that needs to be in place before the first peer-up
+// must not rely on this callback. Making that ordering deterministic needs a
+// declarative route -- state carried through the ordered startup stages rather
+// than a callback racing them -- and is tracked in
+// plan/spec-fixit-stored-route-relay-hardening.md.
 func (s *Server) sendPostStartupToAll() {
 	pm := s.procManager.Load()
 	if pm == nil {

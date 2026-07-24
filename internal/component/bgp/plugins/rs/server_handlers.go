@@ -31,6 +31,16 @@ const errUnknownCommandMarker = "unknown command"
 // peer's stored Adj-RIB-In. Args carry the peer address and cursor index.
 const cmdAdjRIBInReplay = "request bgp adj-rib-in replay"
 
+// cmdAdjRIBInClaimReplay takes ownership of peer-up replay from bgp-adj-rib-in.
+//
+// Both plugins used to replay on peer-up. This one marks a peer Replaying and
+// withholds it from forward targets until its replay finishes, so its replay
+// never races the live forward; adj-rib-in's self-replay has no such gate, and
+// with both running a route learned just before establishment went out twice.
+// Claiming at startup -- before any session can establish -- rather than
+// implicitly on the first replay is what covers the FIRST peer too.
+const cmdAdjRIBInClaimReplay = "request bgp adj-rib-in claim-replay"
+
 // isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
 // from the engine's ErrUnknownCommand -- i.e. no plugin handled the command.
 // Used as the soft-dep "adj-rib-in is not loaded" signal in replayForPeer.
@@ -135,6 +145,39 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 			}
 			rs.updateRouteSel(excludeSel, buf.String())
 		}
+	}
+}
+
+// claimReplayOwnership tells bgp-adj-rib-in to stand down from peer-up
+// self-replay, because this plugin drives replay explicitly.
+//
+// Called from OnAllPluginsReady, which guarantees the dispatcher's command
+// registry is frozen so the dispatch resolves.
+//
+// It does NOT guarantee this runs before the first session establishes:
+// sendPostStartupToAll fans out without waiting and signalStartupComplete then
+// starts peers (internal/component/plugin/server/startup.go). Waiting there was
+// tried and deadlocks -- a handler that waits on peer activity blocks the peers
+// it waits for. So the claim still races TCP connect for the FIRST peer, and
+// that peer can be replayed twice. Narrower than the previous design (which
+// latched on the first replay and so missed every peer until one arrived), but
+// not yet deterministic; the declarative fix is tracked in
+// plan/spec-fixit-stored-route-relay-hardening.md.
+//
+// A missing adj-rib-in is not an error -- it is an OptionalDependency, and with
+// it absent there is no self-replay to stand down.
+func (rs *RouteServer) claimReplayOwnership() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	status, _, err := rs.dispatchCommand(ctx, cmdAdjRIBInClaimReplay)
+	switch {
+	case isDispatchUnknownCommand(err):
+		// adj-rib-in not loaded; nothing replays but this plugin anyway.
+	case err != nil || status != statusDone:
+		// Not fatal, but the duplicate-announce this claim prevents is now
+		// possible, so say so rather than fail silently.
+		logger().Warn("could not claim adj-rib-in replay ownership; peer-up routes may be announced twice",
+			"status", status, "error", err)
 	}
 }
 

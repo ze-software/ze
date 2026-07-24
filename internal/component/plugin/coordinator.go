@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // ErrNoReactor is returned by protocol-specific methods when no reactor is registered.
@@ -351,4 +352,22 @@ func (c *Coordinator) ReleaseUpdates(updateIDs []uint64, pluginName string) erro
 		return ErrNoReactor
 	}
 	return r.ReleaseUpdates(updateIDs, pluginName)
+}
+
+// --- ReactorRelayCoordinator ---
+
+// RelayStoredRoute relays a plugin's stored routes to one destination peer.
+// Returns ErrNoReactor when no BGP reactor is registered.
+//
+// This delegation is not optional plumbing: the plugin server holds the
+// Coordinator as its ReactorLifecycle, so a coordinator method that does not
+// exist makes the server's type assertion fail and the whole replay degrade to a
+// per-route warning. ReactorLifecycle now composes ReactorRelayCoordinator so
+// that omission is a compile error rather than a runtime one.
+func (c *Coordinator) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute) error {
+	r := c.getReactor()
+	if r == nil {
+		return ErrNoReactor
+	}
+	return r.RelayStoredRoute(destination, routes)
 }

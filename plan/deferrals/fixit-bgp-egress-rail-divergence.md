@@ -1,0 +1,27 @@
+# Deferrals — spec-fixit-bgp-egress-rail-divergence
+
+| Date | Source | What | Reason | Destination | Status |
+|------|--------|------|--------|-------------|--------|
+| 2026-07-24 | spec-fixit-bgp-egress-rail-divergence | `OTCEgressFilter`'s Gao-Rexford safety net reads `meta["src-role"]` and treats a MISSING key as "no restriction", so it goes unevaluated for any caller without ingress metadata (the Adj-RIB-In relay path, and any future one). The value is recoverable exactly — `OTCIngressFilter` writes `meta["src-role"] = cfg.role` from the same `getFilterConfig(src)` lookup the egress filter already performs — so the fix is a config-derived fallback when meta is absent. | Not required by any AC of this spec: RFC 9234 egress suppression on the replay path already works, because the ingress filter stamps OTC into the WIRE bytes before the route is stored and the wire-bytes rule (`checkOTCEgress`, `role/otc.go:201-206`) sees it on the reconstruction. Verified by removing the fallback and re-running 394/395 — both still pass. Landing it here would also require editing `TestOTCEgressNoStampProvider`, which carries `RFC requirement: RFC9234-5-4 negative` and may only be changed with explicit user approval (`ai/rules/testing.md` RFC-Tagged Tests). | plan/spec-fixit-otc-src-role-meta-fallback.md | deferred |
+
+| 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | Normalize the stored NLRI framing so ADD-PATH (RFC 7911) routes can be replayed. The structured ingest strips the 4-byte path-id (`nlri/iterator.go` `Next`, stored verbatim by `installStructuredNLRIs`) while the legacy ingest prepends it (`prefixToWireHex`, and only when non-zero though path-id 0 is legal), so the stored bytes carry one of two framings and nothing records which. | Emitting either framing under the source's add-path context corrupts the destination session, so the relay refuses add-path sources outright (`errRelayAddPath`) rather than guess. Refusing loses the replay; guessing loses the session. Spec assumption A-3, Phase 5. | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
+| 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | `test/plugin/adj-rib-in-replay-on-peerup.ci` replays to `10.0.0.99`, which is not a configured peer, so `RelayStoredRoute` returns at destination resolution and the test asserts on the SELECTED route count. It passes with the relay entirely dead (fails the mutation check in `ai/rules/functional-test-gate.md`). | Found by independent review; making it gate needs a second source peer and wire-byte assertions, which is test authoring beyond this spec's fix. The relay path is covered meanwhile by the four target `.ci` tests plus the reactor unit tests. | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
+| 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | Four smaller relay gaps: RFC 2545 32-byte next hop (global + link-local) truncated to 16 by `nhopHexFromAddr`; complex families (VPN/EVPN/Flowspec) store the WHOLE MP_REACH NLRI block so a replay re-announces every NLRI of the originating UPDATE; no backpressure on in-flight relays (each pins a read-pool buffer); `Coordinator.RelayStoredRoute` has no test. | Each is real but none is reachable from the four failures this spec fixes, and each needs its own fixture work. | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
+| 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | Replay ownership is process-global (`replayOwned`) while event delivery is per-peer per-plugin, so a peer whose `process` block gives `state` to adj-rib-in but not bgp-rs is replayed by NOBODY. Separately the claim does not survive an adj-rib-in respawn (`SendPostStartup` has one call site, inside `signalStartupComplete`). | Both found by independent review Run 2. Scoping ownership per-peer and re-delivering post-startup on respawn are lifecycle changes wider than this spec's fix; the startup ORDERING race they compounded was made deterministic here (`sendPostStartupToAll` now waits before `StartPeers`). | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
+| 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | `relayChunkSize` chunks by route COUNT, which does not bound BYTES: `AttrHex` is hex (~2x the attribute block), so 4096 routes x a 4 KB block already exceeds the 16 MB `rpc.MaxMessageSize` frame ceiling for a forked adj-rib-in. | Fails closed (the error propagates), so availability rather than corruption. Needs a byte-budget accumulator plus a `last-index` contract assertion across chunks. | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
+
+## Detail
+
+The fixture `TestOTCEgressNoStampProvider` (`internal/component/bgp/plugins/role/otc_test.go:995`)
+configures local role `customer` toward the source — meaning the SOURCE peer is a
+Provider (`otc.go:393-395`) — with a Provider destination, and asserts `accept == true`.
+RFC 9234 Section 5 requires a Provider-learned route NOT be propagated to a Provider,
+so that assertion only holds because `meta` is nil and the safety net is skipped.
+
+Closing the gap therefore needs the fixture to change so the route legitimately
+reaches the stamp block (local role `provider` toward the source, i.e. the source is
+a Customer and transit is allowed), preserving the RFC9234-5-4 negative proof, plus a
+NEW test asserting the Provider→Provider leak is suppressed with `meta == nil`.
+
+That is a strengthening rewrite, not a relaxation — but the RFC-tagged-test hook
+cannot tell the two apart, and correctly demands user approval first.

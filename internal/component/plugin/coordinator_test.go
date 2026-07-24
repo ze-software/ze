@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -249,6 +251,12 @@ func (m *mockReactor) SignalPeerAPIReady(string)          {}
 func (m *mockReactor) RegisterCacheConsumer(string, bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(string)     {}
 func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
+	return nil
+}
+
+// RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
+// nothing because these tests exercise command dispatch, not the forward rail.
+func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute) error {
 	return nil
 }
 func (m *mockReactor) ReleaseUpdates([]uint64, string) error { return nil }

@@ -309,7 +309,7 @@ second time alongside the reactor forward.
 | AC-1 (372 AS_PATH) | **MET** | `ze-test bgp plugin --pattern remove-private-as-replace-peer` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 372" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-372-20260724-233009.log`). Previously `AS_PATH [65002 ...]` (`bgp-plugin-372-20260724-183402.log`). |
 | AC-2 (378 duplicate) | **MET** | `pass 1/1`; stress-repro 10 invocations, not reproduced (`bgp-plugin-378-20260724-233020.log`). |
 | AC-3 (394/395 OTC) | **MET** | both `pass 1/1`; 394 stress-repro 10 invocations, not reproduced (`bgp-plugin-394-20260724-233021.log`). |
-| AC-4 (351 multi-peer nexthop) | **BLOCKED -- not by this spec** | 351 fails with NOTIFICATION OPEN Message Error subcode 3 (Bad BGP Identifier) at OPEN time, before any UPDATE is exchanged. Cause: the concurrent RFC 6286 work in this tree (`internal/component/bgp/reactor/session_open_validation.go`, uncommitted) correctly rejects an iBGP OPEN whose BGP Identifier equals the local one; 351's fixture configures `local 65533 / remote 65533` with `router-id 1.2.3.4` on both peers (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci:148-155,174-181`) and `ze-peer` mirrors that identifier. Same signature in 223 and 254. Belongs to `plan/spec-fixit-rfc6286-bgp-identifier.md`, whose fixtures need distinct peer identifiers. |
+| AC-4 (351 multi-peer nexthop) | **MET, but NOT attributable to this spec** | `ze-test bgp plugin --pattern redistribute-l2tp-multi-peer-nexthop` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 351" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-351-20260725-000715.log`). **351 does not exercise the replay rail at all**: it launches `ze -` with no `--plugin` flags (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci:204`) and its `plugin {}` block loads only `l2tp-nexthop-test`, `redistribute-orchestrator` and `fakel2tp` (`:121-131`) -- neither `bgp-adj-rib-in` nor `bgp-rs` is present, so no peer-up replay exists in that test and `RelayStoredRoute` is never reached. Its load-dependent failure was the RFC 6286 duplicate BGP Identifier race, fixed by commit `e4076920c` (which gave the second ze-peer a distinct identifier, `+option=open:value=router-id:id=1.2.3.6`). 351 was mis-triaged into this spec's cluster; the egress-rail change neither caused nor fixed it. |
 | AC-5 (dedupe) | **MET** | `TestReplayOwnerDedupe` (both directions: standalone still replays, owned stands down). Mutation-verified: removing `!r.replayOwned.Load()` turns it RED. |
 
 ### Gates
@@ -331,7 +331,86 @@ second time alongside the reactor forward.
 
 ### Remaining before closure
 
-- [ ] AC-4 unblocked (needs the RFC 6286 fixtures updated by their own spec)
 - [ ] `make ze-verify`
 - [ ] Independent review gate (0 BLOCKER / 0 ISSUE)
 - [ ] Learned summary + two-commit closure
+
+## Review Gate -- Run 2 (after fixes)
+
+Independent reviewers again (2, distinct lenses: fix-correctness; regression risk + test
+integrity). Fixes applied for every BLOCKER and ISSUE from Run 1:
+
+| Run 1 finding | Fix | Evidence |
+|---------------|-----|----------|
+| BLOCKER 1 -- add-path NLRI framing corrupts the peer session | `errRelayAddPath` refuses before any buffer is taken (`reactor_api_relay.go` `buildRelayUpdate`) | `TestRelayStoredRouteRefusesAddPathSource` |
+| BLOCKER 2 -- `updateRoute` dead code, lint gate red | deleted | `make ze-lint-changed` exit 0 |
+| ISSUE 3 -- relay error swallowed, bgp-rs told the RIB is complete | `relayRoutes` returns error; `replayCommand` returns `statusError` | `TestAdjRibInReplayArgsPassthrough` (which was passing on a swallowed error and now needs a real relayer) |
+| ISSUE 4 -- partial relay reported as success | `errRelayIncomplete` when `relayed < eligible` | -- |
+| ISSUE 5 -- ownership claim missed the FIRST peer | new hidden `request bgp adj-rib-in claim-replay`, claimed by bgp-rs from `OnAllPluginsReady` before any session establishes | `TestReplayOwnerDedupe/claim precedes the first peer-up`; mutation-verified (claim not setting the flag turns it red) |
+| ISSUE 6 -- operator verb permanently latched ownership | plain `replay` no longer latches | `TestReplayOwnerDedupe/operator replay does not latch ownership` |
+| ISSUE 7 -- 16 MB IPC frame ceiling for a forked plugin | `relayChunkSize` = 4096 routes per call | -- |
+| ISSUE 8 -- RFC 5549 next hop emitted as a 16-byte legacy NEXT_HOP | `errRelayNextHopLen` | `TestRelayStoredRouteRejectsMalformedInput/ipv4 next-hop not 4 bytes` |
+| NOTE 10 -- body bounded by the attribute limit | `maxUpdateBodyLen` = `message.ExtMsgLen - message.HeaderLen` | boundary test updated to the real last-valid/first-invalid pair |
+| NOTE 11 -- stray legacy NEXT_HOP on MP reconstructions | `isRelayStrippedAttr` also strips type 3 when `fam != IPv4Unicast` | -- |
+| NOTE 14 -- build-time Release not deferred | deferred inside a closure around `forwardUpdateCore` | -- |
+| NOTE 16 -- stale comments incl. operator-visible YANG | updated | `grep` clean |
+
+Still open and homed, not silently dropped:
+
+| Item | Where |
+|------|-------|
+| Run 1 NOTE 12 (RFC 2545 32-byte next hop truncated), NOTE 13 (complex families store the whole MP_REACH block), NOTE 15 (no relay backpressure), NOTE 17 (no `Coordinator.RelayStoredRoute` test) | `plan/deferrals/fixit-bgp-egress-rail-divergence.md` |
+| Run 1 ISSUE 9 (`adj-rib-in-replay-on-peerup.ci` replays to a non-peer, so it does not gate) | same shard |
+| A-3 add-path storage normalisation (what `errRelayAddPath` refuses on) | same shard |
+
+### Suite state
+
+`ze-test bgp plugin --all`: **491/495**, up from 470 before the fixes, and equal to the
+baseline commit `e4076920c` recorded. Zero `relay-stored-route` errors across the run.
+Remaining 4: 37 and 145 (external-plugin tests, feature-tag build artifact), 460
+(`plan/known-failures/bgp-plugin-show-l2tp-tunnel-detail.md`), 398 (new shard
+`plan/known-failures/bgp-plugin-role-otc-export-unknown.md` -- 3/3 in isolation, not
+reproduced in 10 stress-repro invocations).
+# Review Gate -- spec-fixit-bgp-egress-rail-divergence
+
+## Run 2 (fixes for Run 1), verdict: findings
+
+Two independent reviewers again. Run 1's BLOCKERs and ISSUEs were fixed; Run 2 found that
+one of those fixes INTRODUCED a blocker and that two others rested on false premises.
+
+### Fixed in Run 2, then corrected again after Run 2 found them wrong
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| R2-1 | BLOCKER | A route legitimately suppressed by egress policy was counted as a failed relay. `forwardUpdateCore` returns `errNoEstablishedPeersToForwardTo` when no destination was dispatched to (`reactor_api_forward.go:689-691`), and with the single peer this call targets that is exactly what correct suppression looks like -- RFC 7947 community policy (`:470-472`), RFC 4456 reflection (`:474-479`) and the RFC 9234 role step (`:513-514`) all `continue` past the peer. My `relayed < eligible` check then failed the WHOLE replay, `replayCommand` returned `statusError`, and bgp-rs skipped its delta-convergence loop -- strictly FEWER routes delivered than before the guard existed, and the common case on a route server. | **FIXED**: `errors.Is(fwdErr, errNoEstablishedPeersToForwardTo)` now counts as handled, not dropped. |
+| R2-2 | ISSUE | The `eligible` counter fell open: `eligible++` came AFTER the unparseable-source `continue`, so a route dropped for a bad source was invisible to the completeness check and the call returned nil having relayed nothing. Also made `errRelayIncomplete` unreachable. | **FIXED**: `eligible++` moved above the parse guard; `source == destination` decrements it (never eligible). |
+| R2-3 | ISSUE | Three comments asserted bgp-rs sends End-of-RIB only on a successful replay. FALSE: `rs/server_handlers.go:236-240` sends EOR on the failure path too ("Always send EOR when replay terminates"). The fail-closed claim those comments made was not honored by the consumer. | **FIXED**: all three corrected to state what error propagation actually buys (ERROR visibility + skipping the delta loop), and that EOR suppression lives in bgp-rs. |
+
+### Open -- design decisions, NOT mechanical fixes
+
+| # | Severity | Finding | Why not fixed here |
+|---|----------|---------|--------------------|
+| R2-4 | ISSUE | `OnAllPluginsReady` is NOT ordered before session establishment. `startup.go:220-242` spawns one goroutine per plugin and does not wait; `startup.go:207-212` then calls `SignalPluginStartupComplete` -> `bgpReactor.StartPeers()` (`bgp/plugin/register.go:174-180`). No happens-before edge, so the ownership claim races TCP connect + OPEN. Narrower than the old first-replay latch, but AC-5 rests on an unenforced race. | The fix is declarative ownership (bgp-rs declares it in Stage 1 `declare-registration`, or `signalStartupComplete` waits for post-startup delivery before starting peers). Both change plugin-startup semantics for every plugin. |
+| R2-5 | ISSUE | The claim does not survive an adj-rib-in respawn (`SendPostStartup` has one call site, inside `signalStartupComplete`; `process/manager.go` `Respawn` gets no post-startup callback), so a respawned adj-rib-in resumes self-replay and the duplicate returns. Separately, event delivery is per-peer per-plugin (`reactor/config.go:723-800`), so a peer whose `process` block gives `state` to adj-rib-in but not bgp-rs leaves NOBODY replaying -- a config away, not a crash away. | Needs scoped (per-peer) ownership or a re-confirm/expiry protocol. |
+| R2-6 | ISSUE | The ADD-PATH refusal removes behavior that previously WORKED. Both reviewers independently established that the old rail emitted `nlri <fam> add <hex>` with no `addpath` keyword, `parseWireNLRISection` defaults `addPath=false` (`cmd/update/update_wire.go:272-278`), and the structured ingest stores bare prefixes (`nlri/iterator.go:71-96`) -- so add-path-sourced routes replayed correctly, collapsed to path-id 0, for single-path prefixes. The refusal keys on the SOURCE context, so one add-path peer now kills replay of its routes to EVERY destination. | Reviewer's proposed fix -- tag the reconstruction with `bgpctx.EncodingContextForASN4` (ASN4 width, no add-path) instead of `src.ctxID` -- is plausible and would restore reach, but it silently collapses multi-path routes and needs its own correctness argument. Recorded as a functional regression accepted as an interim, per `ai/rules/no-parking.md`, not as a fix. |
+| R2-7 | ISSUE | `relayChunkSize` chunks by ROUTE COUNT, which does not bound BYTES. `AttrHex` is hex (~2x the attribute block), so 4096 routes x a 4 KB block is ~33 MB, already over `rpc.MaxMessageSize` (16 MB). Fails closed, so availability not corruption. | Needs a byte-budget accumulator. |
+| R2-8 | NOTE | `relayRoutes`' test seam `routeRelayer` has no error return, so `replayCommand`'s new `statusError` path cannot be driven by a test. | Small, but it is test-seam design. |
+| R2-9 | NOTE | `rs.claimReplayOwnership` has no test; `relay_payload_test.go:33` asserts `n <= size` where `n == size` is the real contract; `test/plugin/adj-rib-in-replay-on-peerup.ci:5` still says "routeSender spy". | Cleanup. |
+
+### Verified correct by Run 2
+
+- Add-path guard PLACEMENT: precedes every buffer acquisition and cache insertion; the nil-context bypass needs `src.ctxID == 0`, only reachable when no add-path knowledge exists anywhere (benign) or on registry exhaustion (already logged). No establishment race -- `setEncodingContexts` runs before `setState(Established)` (`peer_run.go:344-346`).
+- Payload arithmetic: `relayPayloadLen` matches `writeRelayPayload` byte-for-byte on all three branches; `maxUpdateBodyLen = 65516` correctly bounds the 64K pool buffer.
+- Deferred Release: exactly-once on every path including early `forwardUpdateCore` error; no leak.
+- Dead code: clean, `make ze-lint-changed` exit 0.
+- `no-test-deletion` compliance: clean. No skips, no downgrades, no removed assertions except for genuinely removed functionality. `TestReplayCommandFormat` -> `TestReplayRouteCarriesSource` is strictly stronger (full struct equality through the real producer). The `TestAdjRibInReplayArgsPassthrough` fixture change is legitimate: at HEAD it passed only because `updateRoute` swallowed the failure, and the new version ADDS two assertions HEAD never made.
+- RFC-tagged tests untouched.
+
+### Gates
+
+| Gate | Result |
+|------|--------|
+| `make ze-lint-changed` | exit 0, 0 issues |
+| `make ze-race-reactor` | 0 data races, `ok ... reactor 101.873s` |
+| `ze-test bgp plugin --all` | 491/495 (baseline `e4076920c` recorded the same), zero `relay-stored-route` errors |
+| 372 / 378 / 394 / 395 | pass; not reproduced under stress-repro |

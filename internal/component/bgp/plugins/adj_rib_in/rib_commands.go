@@ -33,6 +33,8 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 		return statusDone, r.show(showSelector(args, peer)), nil
 	case "request bgp adj-rib-in replay":
 		return r.replayCommand(args)
+	case "request bgp adj-rib-in claim-replay":
+		return r.claimReplayCommand()
 	case "request bgp adj-rib-in enable-validation":
 		return r.enableValidationCommand()
 	case "request bgp adj-rib-in accept-routes":
@@ -293,14 +295,46 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 		}
 	}
 
-	cmds, maxSeq := r.buildReplayCommands(targetPeer, fromIndex)
+	routes, maxSeq := r.buildReplayRoutes(targetPeer, fromIndex)
 
-	// Send all replay commands to target peer (original arg as RPC selector).
-	for _, cmd := range cmds {
-		r.updateRoute(args[0], cmd)
+	// The relay carries the whole replay (original arg as the destination), in
+	// bounded chunks. A failure surfaces as statusError so the caller can tell a
+	// replay that happened from one that did not: bgp-rs logs it at ERROR and
+	// skips its delta-convergence loop rather than converging against nothing.
+	// It still sends End-of-RIB either way (rs/server_handlers.go, "Always send
+	// EOR when replay terminates"), so this is visibility, not suppression.
+	if err := r.relayRoutes(args[0], routes); err != nil {
+		return statusError, "", fmt.Errorf("adj-rib-in replay to %s: %w", args[0], err)
 	}
 
-	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(cmds)}, nil
+	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(routes)}, nil
+}
+
+// claimReplayCommand handles "request bgp adj-rib-in claim-replay".
+//
+// A peer plugin (bgp-rs) calls this ONCE at startup to take ownership of peer-up
+// replay. While owned, this plugin does not self-replay -- the owner drives
+// replay explicitly per peer and gates the concurrent forward while it runs.
+//
+// The claim is issued from the owner's OnAllPluginsReady, which is NOT ordered
+// against session establishment (see claimReplayOwnership in
+// internal/component/bgp/plugins/rs/server_handlers.go), so the FIRST peer can
+// still race it. Tracked in plan/spec-fixit-stored-route-relay-hardening.md.
+//
+// It is deliberately NOT the plain "replay" verb doing the claiming. Latching on
+// the first replay had two defects: the FIRST peer-up still raced (nothing had
+// claimed yet, so both the self-replay and the owner's replay fired and the route
+// went out twice -- the very duplicate this spec fixes), and an operator running
+// the diagnostic "request bgp adj-rib-in replay" once on a standalone deployment
+// silently disabled peer-up replay for the lifetime of the process.
+//
+// Hidden from the CLI: this is plumbing between two plugins, not an operator verb.
+func (r *AdjRIBInManager) claimReplayCommand() (string, any, error) {
+	already := r.replayOwned.Swap(true)
+	if !already {
+		logger().Info("peer-up replay ownership claimed by another plugin; self-replay disabled")
+	}
+	return statusDone, map[string]any{"claimed": true, "already-owned": already}, nil
 }
 
 // enableValidationCommand handles "request bgp adj-rib-in enable-validation".

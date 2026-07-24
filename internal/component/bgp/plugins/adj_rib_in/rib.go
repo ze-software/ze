@@ -5,7 +5,9 @@
 //
 // Package bgp_adj_rib_in implements an Adj-RIB-In plugin for ze.
 // It stores all received routes per source peer as raw hex wire bytes
-// (from format=full events) and replays them via "update hex" commands.
+// (from format=full events) and replays them, with the source peer attached,
+// through the engine's relay-stored-route call so a replayed route takes the
+// same egress rail a forwarded one does.
 //
 // RFC 4271 Section 3.2: Adj-RIBs-In stores unprocessed routing information
 // advertised to the local BGP speaker by its peers.
@@ -33,7 +35,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -64,7 +65,16 @@ func setLogger(l *slog.Logger) {
 }
 
 // RawRoute stores a route as raw hex wire bytes for efficient replay.
-// AttrHex comes from format=full event's raw.attributes (path attrs without MP_REACH/UNREACH).
+//
+// AttrHex is the WHOLE path-attribute section as received, MP_REACH_NLRI and
+// MP_UNREACH_NLRI INCLUDED -- it comes from RawMessage.AttrsWire, which
+// reactor_notify.go sets to WireUpdate.Attrs() over the entire attribute block.
+// For an MP family it therefore carries every NLRI of the originating UPDATE,
+// not just this route's, so any consumer rebuilding a single-route UPDATE must
+// strip types 14/15 and re-synthesize MP_REACH (see the reactor's relay_payload.go).
+// This comment previously claimed the opposite; see assumption A-1 in
+// plan/spec-fixit-bgp-egress-rail-divergence.md.
+//
 // NHopHex is the next-hop IP converted to wire hex.
 // NLRIHex is the individual NLRI wire bytes in hex.
 // Sequence numbers are tracked by the seqmap, not stored in RawRoute.
@@ -77,7 +87,7 @@ type RawRoute struct {
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
-// Stores received routes as raw hex for fast replay via "update hex" commands.
+// Stores received routes as raw hex for fast replay via relay-stored-route.
 type AdjRIBInManager struct {
 	plugin *sdk.Plugin
 
@@ -109,9 +119,22 @@ type AdjRIBInManager struct {
 
 	mu sync.RWMutex
 
-	// routeSender, if set, overrides updateRoute for replay delivery.
-	// Used in tests to verify handleState triggers replay.
-	routeSender func(peerSelector, command string)
+	// routeRelayer, if set, overrides the engine relay call for replay delivery.
+	// Used in tests to verify peer-up triggers replay without an engine.
+	routeRelayer func(destination string, routes []rpc.StoredRoute)
+
+	// replayOwned is set when another plugin has claimed peer-up replay (bgp-rs,
+	// via "request bgp adj-rib-in claim-replay" at startup). While set, this
+	// plugin does NOT self-replay on peer-up.
+	//
+	// Both used to fire. bgp-rs marks a peer Replaying and withholds it from
+	// forward targets until its replay finishes, so the rs-driven replay never
+	// races the live forward. This plugin's self-replay has no such gate, so with
+	// both running a route learned just before a peer established went out twice:
+	// once from the ungated self-replay and once from the forward path. Standing
+	// down here leaves exactly one replay owner. With bgp-rs absent nothing claims
+	// ownership, the flag stays false, and self-replay remains the only path.
+	replayOwned atomic.Bool
 }
 
 // newSeqMap creates a new seqmap for route storage.
@@ -186,6 +209,9 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 			{Name: "show bgp adj-rib-in status"},
 			{Name: "show bgp adj-rib-in"},
 			{Name: "request bgp adj-rib-in replay"},
+			// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims
+			// peer-up replay ownership with this at startup.
+			{Name: "request bgp adj-rib-in claim-replay", Hidden: true},
 			{Name: "request bgp adj-rib-in enable-validation"},
 			{Name: "request bgp adj-rib-in accept-routes"},
 			{Name: "request bgp adj-rib-in reject-routes"},
@@ -212,16 +238,6 @@ func parsePeerAddress(peerAddr string) (netip.Addr, error) {
 		return netip.Addr{}, fmt.Errorf("adj-rib-in: invalid peer address %q: %w (expected an IP address)", peerAddr, err)
 	}
 	return addr, nil
-}
-
-// updateRoute sends a route update command to matching peers via the engine.
-func (r *AdjRIBInManager) updateRoute(peerSelector, command string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_, _, err := r.plugin.UpdateRoute(ctx, peerSelector, command)
-	if err != nil {
-		logger().Warn("update-route failed", "peer", peerSelector, "error", err)
-	}
 }
 
 // handleReceivedStructured processes received UPDATE events from StructuredEvent wire types.
@@ -560,14 +576,10 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 	r.mu.Unlock()
 
-	if isUp {
-		cmds, _ := r.buildReplayCommands(peerAddr, 0)
-		for _, cmd := range cmds {
-			if r.routeSender != nil {
-				r.routeSender(se.PeerAddress, cmd)
-			} else {
-				r.updateRoute(se.PeerAddress, cmd)
-			}
+	if isUp && !r.replayOwned.Load() {
+		routes, _ := r.buildReplayRoutes(peerAddr, 0)
+		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
+			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
 		}
 	}
 }
@@ -617,7 +629,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 			switch op.Action { //nolint:exhaustive // only Add/Del relevant for adj-rib-in
 			case routeaction.Add:
 				// Skip adds without essential fields -- routes missing attributes
-				// or next-hop cannot be replayed correctly via "update hex" commands.
+				// or next-hop cannot be reconstructed for relay.
 				if event.GetRawAttributesHex() == "" {
 					continue
 				}
@@ -696,7 +708,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 // handleState processes peer state changes.
 // On peer-up: marks peer as up, then replays all known routes from other
 // source peers. Replay runs after lock release to avoid deadlock
-// (buildReplayCommands takes RLock, updateRoute does I/O).
+// (buildReplayRoutes takes RLock, relayRoutes does I/O).
 // Only processes "up" and "down" states; unknown/intermediate FSM states are ignored.
 func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	if event.GetPeerAddress() == "" {
@@ -729,37 +741,49 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	}
 	r.mu.Unlock()
 
-	if isUp {
+	if isUp && !r.replayOwned.Load() {
 		// Replay all known routes to the newly-up peer.
-		// buildReplayCommands takes RLock internally; updateRoute does I/O.
+		// buildReplayRoutes takes RLock internally; relayRoutes does I/O.
 		// Both must run outside the write lock to avoid deadlock.
-		cmds, _ := r.buildReplayCommands(peerAddr, 0)
-		for _, cmd := range cmds {
-			if r.routeSender != nil {
-				r.routeSender(event.GetPeerAddress(), cmd)
-			} else {
-				r.updateRoute(event.GetPeerAddress(), cmd)
-			}
+		routes, _ := r.buildReplayRoutes(peerAddr, 0)
+		if err := r.relayRoutes(event.GetPeerAddress(), routes); err != nil {
+			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
 		}
 	}
 }
 
-// buildReplayCommands builds "update hex" commands for replay to a target peer.
-// Returns the commands and the maximum sequence index of replayed routes.
+// buildReplayRoutes collects the stored routes to replay to a target peer.
+// Returns the routes and the maximum sequence index among them.
 // Uses seqmap.Since for O(log N + K) delta replay instead of O(N) full scan.
-func (r *AdjRIBInManager) buildReplayCommands(targetPeer netip.Addr, fromIndex uint64) ([]string, uint64) {
+//
+// Each route carries the peer it was LEARNED from. That is the whole point of
+// this shape: the engine reproduces the egress transform that source implies
+// (AS_PATH prepend decision, RFC 4456 reflection, RFC 9234 role/OTC, export
+// policy). The previous form built "update hex ... add" command strings, which
+// dropped the source and sent the route down the ANNOUNCE rail -- prepending the
+// local AS first and then running only the session's export filters, so a
+// replayed route and a forwarded one diverged on the wire. See
+// plan/spec-fixit-bgp-egress-rail-divergence.md.
+func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uint64) ([]rpc.StoredRoute, uint64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var cmds []string
+	var out []rpc.StoredRoute
 	var maxSeq uint64
 
 	for sourcePeer, routes := range r.ribIn {
 		if sourcePeer == targetPeer {
 			continue // Don't replay a peer's own routes back to it.
 		}
+		sourceStr := sourcePeer.String()
 		routes.Since(fromIndex, func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
-			cmds = append(cmds, formatHexCommand(rt))
+			out = append(out, rpc.StoredRoute{
+				SourcePeer: sourceStr,
+				Family:     rt.Family.String(),
+				AttrHex:    rt.AttrHex,
+				NextHopHex: rt.NHopHex,
+				NLRIHex:    rt.NLRIHex,
+			})
 			if seq > maxSeq {
 				maxSeq = seq
 			}
@@ -767,14 +791,48 @@ func (r *AdjRIBInManager) buildReplayCommands(targetPeer netip.Addr, fromIndex u
 		})
 	}
 
-	return cmds, maxSeq
+	return out, maxSeq
 }
 
-// formatHexCommand builds the "update hex" command string from a RawRoute.
-func formatHexCommand(rt *RawRoute) string {
-	b := textbuf.Get()
-	defer b.Release()
-	return b.Str("update hex attr set ").Str(rt.AttrHex).Str(" nhop set ").Str(rt.NHopHex).Str(" nlri ").Str(rt.Family.String()).Str(" add ").Str(rt.NLRIHex).String()
+// relayChunkSize bounds how many stored routes travel in one relay call.
+//
+// A forked adj-rib-in reaches the engine over the plugin IPC framing, which
+// rejects a frame above rpc.MaxMessageSize (16 MB) and does NOT split
+// plugin->engine RPC payloads -- only the event path is chunked. A StoredRoute
+// serializes to a couple of hundred bytes, so an unchunked replay of a large
+// Adj-RIB-In would fail as a single oversized frame with every route lost at
+// once. Chunking also bounds how many reconstruction buffers the engine holds in
+// flight per call.
+const relayChunkSize = 4096
+
+// relayRoutes hands stored routes to the engine for relay through the forward
+// rail, in bounded chunks.
+//
+// Returns an error when ANY chunk fails. The caller MUST propagate it. bgp-rs
+// sends End-of-RIB on its failure path too (rs/server_handlers.go, "Always send
+// EOR when replay terminates"), so propagating does not by itself stop a peer
+// being told its table is complete -- what it does is make the failure visible
+// at ERROR instead of WARN-and-continue, and skip the delta-convergence loop
+// that would otherwise run against a replay that never happened.
+func (r *AdjRIBInManager) relayRoutes(destination string, routes []rpc.StoredRoute) error {
+	if len(routes) == 0 {
+		return nil
+	}
+	if r.routeRelayer != nil {
+		r.routeRelayer(destination, routes)
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for start := 0; start < len(routes); start += relayChunkSize {
+		end := min(start+relayChunkSize, len(routes))
+		if err := r.plugin.RelayStoredRoute(ctx, destination, routes[start:end]); err != nil {
+			logger().Warn("relay-stored-route failed",
+				"peer", destination, "routes", len(routes), "chunk-start", start, "error", err)
+			return err
+		}
+	}
+	return nil
 }
 
 // nhopToHex converts a next-hop IP address string to wire hex.

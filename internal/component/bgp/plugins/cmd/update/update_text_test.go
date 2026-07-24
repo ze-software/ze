@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -1236,6 +1238,12 @@ func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                         
 func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool)                       {}
 func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)                             {}
 func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
+	return nil
+}
+
+// RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
+// nothing because these tests exercise command dispatch, not the forward rail.
+func (m *mockReactorBatch) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute) error {
 	return nil
 }
 func (m *mockReactorBatch) ReleaseUpdates(_ []uint64, _ string) error { return nil }

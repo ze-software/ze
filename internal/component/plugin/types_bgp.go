@@ -417,6 +417,13 @@ type ReactorLifecycle interface {
 	ReactorConfigurator
 	ReactorStartupCoordinator
 	ReactorCacheCoordinator
+	// ReactorRelayCoordinator is composed here on purpose. The plugin server
+	// holds a ReactorLifecycle (often the Coordinator facade) and reaches the
+	// relay through a type assertion; leaving relay out of the composed
+	// interface let the facade compile without the method and fail that
+	// assertion at RUNTIME, degrading every peer-up replay to a warning.
+	// Composing it makes a missing delegation a compile error.
+	ReactorRelayCoordinator
 }
 
 // PeerProcessBinding describes which plugin receives messages from a BGP peer.

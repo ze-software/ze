@@ -215,6 +215,16 @@ func RunRouteServer(conn net.Conn) int {
 	rs.wireFlowControl()
 	defer rs.resumeAllPaused()
 
+	// Claim peer-up replay ownership from bgp-adj-rib-in once everything is up.
+	// OnAllPluginsReady (not OnStarted) because this dispatches to ANOTHER
+	// plugin's command, which only resolves after the dispatcher's command
+	// registry is frozen (ai/rules/plugin-design.md, OnStarted vs
+	// OnAllPluginsReady).
+	p.OnAllPluginsReady(func() error {
+		rs.claimReplayOwnership()
+		return nil
+	})
+
 	// Register structured event handler for DirectBridge delivery.
 	// UPDATE events carry RawMessage for zero-copy wire forwarding (hot path).
 	// State events use metadata fields (no text parsing).

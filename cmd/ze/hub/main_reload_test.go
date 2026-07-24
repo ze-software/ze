@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 type reloadTestReactor struct {
@@ -77,6 +78,12 @@ func (r *reloadTestReactor) FlushForwardPoolPeer(context.Context, string) error 
 	return nil
 }
 func (r *reloadTestReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
+	return nil
+}
+
+// RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
+// nothing because these tests exercise SIGHUP reload, not the forward rail.
+func (r *reloadTestReactor) RelayStoredRoute(netip.Addr, []rpc.StoredRoute) error {
 	return nil
 }
 func (r *reloadTestReactor) ReleaseUpdates([]uint64, string) error { return nil }

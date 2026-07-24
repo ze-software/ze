@@ -32,14 +32,14 @@ import (
 // internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
 // compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
 // in this file is a package-qualifier requalification: no assertion was added,
-// removed, reworded, weakened or re-tagged, verified by normalising the diff
+// removed, reworded, weakened or re-tagged, verified by normalizing the diff
 // under the renaming and confirming the add/delete multisets cancel.
 
 // ipv4VPN is the ipv4/mpls-vpn family for tests (registered via TestMain).
 var ipv4VPN = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 
 // newTestManager creates an AdjRIBInManager with closed SDK connections for unit testing.
-// The SDK plugin is initialized but connections are closed, so RPC calls (updateRoute)
+// The SDK plugin is initialized but connections are closed, so RPC calls (relayRoutes)
 // will fail silently. This is appropriate for testing internal state changes.
 func newTestManager(t *testing.T) *AdjRIBInManager {
 	t.Helper()
@@ -316,7 +316,7 @@ func TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute(t *testing.T) {
 		"2-5 negative: treat-as-withdraw must remove the route from the Adj-RIB-In")
 }
 
-// TestReplayAllSources verifies replay sends "update hex" commands from all sources except target.
+// TestReplayAllSources verifies replay excludes the target peer's own routes from all sources except target.
 //
 // VALIDATES: Replay sends routes from A,B to X, excludes X's own routes.
 // PREVENTS: Replaying a peer's own routes back to it.
@@ -348,16 +348,19 @@ func TestReplayAllSources(t *testing.T) {
 	r.ribIn[netip.MustParseAddr("10.0.0.3")] = m3
 
 	// Replay for target peer 10.0.0.3, from-index 0
-	cmds, _ := r.buildReplayCommands(netip.MustParseAddr("10.0.0.3"), 0)
+	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.3"), 0)
 
 	// Should have routes from A and B, not from X (10.0.0.3)
 	assert.Len(t, cmds, 2, "should replay routes from 2 source peers, excluding target")
-	for _, cmd := range cmds {
-		assert.True(t, strings.HasPrefix(cmd, "update hex "), "replay must use 'update hex' format")
-		assert.Contains(t, cmd, "attr set ", "must include raw attributes")
-		assert.Contains(t, cmd, "nhop set ", "must include next-hop hex")
-		assert.Contains(t, cmd, "nlri ipv4/unicast add ", "must include NLRI with family")
-		assert.NotContains(t, cmd, "0a000003", "must not contain target peer's nhop")
+	for _, rt := range cmds {
+		assert.Equal(t, "ipv4/unicast", rt.Family, "family travels with the route")
+		assert.NotEmpty(t, rt.AttrHex, "must include raw attributes")
+		assert.NotEmpty(t, rt.NextHopHex, "must include next-hop hex")
+		assert.NotEmpty(t, rt.NLRIHex, "must include NLRI")
+		// The source peer is what lets the engine reproduce the forward rail's
+		// egress transform; the old "update hex" command form dropped it.
+		assert.NotEqual(t, "10.0.0.3", rt.SourcePeer, "target peer's own routes are excluded")
+		assert.NotEqual(t, "0a000003", rt.NextHopHex, "must not contain target peer's nhop")
 	}
 }
 
@@ -384,7 +387,7 @@ func TestReplayFromIndex(t *testing.T) {
 	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
 	// Replay from index 5 → only routes with SeqIndex >= 5
-	cmds, _ := r.buildReplayCommands(netip.MustParseAddr("10.0.0.99"), 5)
+	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 5)
 	assert.Len(t, cmds, 2, "should replay only routes with SeqIndex >= 5")
 }
 
@@ -402,7 +405,7 @@ func TestReplayReturnsLastIndex(t *testing.T) {
 	})
 	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
-	_, lastIdx := r.buildReplayCommands(netip.MustParseAddr("10.0.0.99"), 0)
+	_, lastIdx := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0)
 	assert.Equal(t, uint64(42), lastIdx, "last-index should be max SeqIndex of replayed routes")
 }
 
@@ -503,20 +506,36 @@ func TestNHopToHex(t *testing.T) {
 	}
 }
 
-// TestReplayCommandFormat verifies the exact "update hex" command format.
+// TestReplayRouteCarriesSource verifies a replayed route carries the peer it was
+// learned from, alongside the stored wire bytes.
 //
-// VALIDATES: Replay builds correct "update hex attr set ... nhop set ... nlri FAM add ..." command.
-// PREVENTS: Malformed commands that engine can't parse.
-func TestReplayCommandFormat(t *testing.T) {
-	route := &RawRoute{
+// VALIDATES: the engine can reproduce the forward rail's egress transform, which
+// keys off the SOURCE peer (AS_PATH prepend, RFC 4456 reflection, RFC 9234 role).
+// PREVENTS: regressing to the old "update hex attr set ..." command form, which
+// dropped the source and so sent replays down the announce rail where the local
+// AS is prepended BEFORE the export filters run
+// (plan/spec-fixit-bgp-egress-rail-divergence.md).
+func TestReplayRouteCarriesSource(t *testing.T) {
+	r := newTestManager(t)
+
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family:  family.IPv4Unicast,
 		AttrHex: "400101004002060201000000c8",
 		NHopHex: "0a000001",
 		NLRIHex: "180a0000",
-	}
+	})
+	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
-	cmd := formatHexCommand(route)
-	assert.Equal(t, "update hex attr set 400101004002060201000000c8 nhop set 0a000001 nlri ipv4/unicast add 180a0000", cmd)
+	routes, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0)
+	require.Len(t, routes, 1)
+	assert.Equal(t, rpc.StoredRoute{
+		SourcePeer: "10.0.0.1",
+		Family:     "ipv4/unicast",
+		AttrHex:    "400101004002060201000000c8",
+		NextHopHex: "0a000001",
+		NLRIHex:    "180a0000",
+	}, routes[0])
 }
 
 // TestHandleCommand_Status verifies status command returns route counts.
@@ -647,11 +666,27 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	})
 	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
+	// Capture the relay instead of reaching a live engine. newTestManager's SDK
+	// plugin has closed connections, so the real call fails -- and since
+	// replayCommand now propagates that failure (rather than logging and
+	// reporting statusDone), the stub is what lets this test exercise the
+	// argument passthrough it is actually about.
+	var gotDest string
+	var gotRoutes []rpc.StoredRoute
+	r.routeRelayer = func(dest string, routes []rpc.StoredRoute) {
+		gotDest, gotRoutes = dest, routes
+	}
+
 	// Call handleCommand with the selector that would come from args
 	// This simulates: command="request bgp adj-rib-in replay", args=["127.0.0.2", "0"]
 	status, data, err := r.handleCommand("request bgp adj-rib-in replay", []string{"127.0.0.2", "0"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
+
+	// The target peer from args[0] must reach the relay verbatim.
+	assert.Equal(t, "127.0.0.2", gotDest, "args[0] is the relay destination")
+	require.Len(t, gotRoutes, 1)
+	assert.Equal(t, "10.0.0.1", gotRoutes[0].SourcePeer, "the route carries its source peer")
 
 	// Should have replayed 1 route (from 10.0.0.1, target is 127.0.0.2)
 	assert.Contains(t, string(mustMarshal(t, data)), `"replayed":1`)
@@ -673,15 +708,21 @@ func TestAdjRibInReplayArgsEmpty(t *testing.T) {
 // TestHandleState_PeerUpTriggersReplay verifies that peer-up triggers automatic replay
 // of routes from all other source peers to the newly-up peer.
 //
-// VALIDATES: handleState on peer-up calls routeSender/updateRoute with correct peer and commands.
+// VALIDATES: handleState on peer-up relays the stored routes to the newly-up peer.
 // PREVENTS: Newly-added peers receiving no routes until other peers send new UPDATEs.
 func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	r := newTestManager(t)
 
 	// Spy on route sends to verify handleState actually triggers replay.
-	var sent []struct{ peer, cmd string }
-	r.routeSender = func(peer, cmd string) {
-		sent = append(sent, struct{ peer, cmd string }{peer, cmd})
+	var sent []struct {
+		peer   string
+		routes []rpc.StoredRoute
+	}
+	r.routeRelayer = func(peer string, routes []rpc.StoredRoute) {
+		sent = append(sent, struct {
+			peer   string
+			routes []rpc.StoredRoute
+		}{peer, routes})
 	}
 
 	// Pre-populate routes from peer A (10.0.0.1)
@@ -712,12 +753,15 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	// Verify peer is marked up.
 	assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.3")], "peer should be marked up")
 
-	// Verify handleState actually triggered replay via routeSender.
-	assert.Len(t, sent, 2, "should replay routes from peers A and B")
-	for _, s := range sent {
-		assert.Equal(t, "10.0.0.3", s.peer, "routes should target newly-up peer")
-		assert.True(t, strings.HasPrefix(s.cmd, "update hex "), "replay uses 'update hex' format")
-	}
+	// Verify handleState actually triggered replay via routeRelayer. One relay
+	// call carries the whole replay, so assert on the routes it contains rather
+	// than on a call count.
+	require.Len(t, sent, 1, "a peer-up replay is one relay call")
+	assert.Equal(t, "10.0.0.3", sent[0].peer, "routes should target newly-up peer")
+	require.Len(t, sent[0].routes, 2, "should replay routes from peers A and B")
+	sources := []string{sent[0].routes[0].SourcePeer, sent[0].routes[1].SourcePeer}
+	assert.ElementsMatch(t, []string{"10.0.0.1", "10.0.0.2"}, sources,
+		"each replayed route names the peer it was learned from")
 }
 
 // TestHandleState_PeerUpEmptyRIB verifies that peer-up with no routes in RIB
@@ -729,7 +773,7 @@ func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 	r := newTestManager(t)
 
 	var sendCount int
-	r.routeSender = func(_, _ string) { sendCount++ }
+	r.routeRelayer = func(_ string, routes []rpc.StoredRoute) { sendCount += len(routes) }
 
 	// No routes in ribIn -- this is the startup scenario.
 	upEvent := &bgp.Event{
@@ -753,9 +797,15 @@ func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	r := newTestManager(t)
 
-	var sent []struct{ peer, cmd string }
-	r.routeSender = func(peer, cmd string) {
-		sent = append(sent, struct{ peer, cmd string }{peer, cmd})
+	var sent []struct {
+		peer   string
+		routes []rpc.StoredRoute
+	}
+	r.routeRelayer = func(peer string, routes []rpc.StoredRoute) {
+		sent = append(sent, struct {
+			peer   string
+			routes []rpc.StoredRoute
+		}{peer, routes})
 	}
 
 	// Peer 10.0.0.1 has routes from itself (shouldn't happen normally,
@@ -785,10 +835,11 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	r.handleState(upEvent)
 
 	// Only routes from 10.0.0.2 should be replayed, not 10.0.0.1's own routes.
-	assert.Len(t, sent, 1, "should replay only routes from other peers")
+	require.Len(t, sent, 1, "a peer-up replay is one relay call")
 	assert.Equal(t, "10.0.0.1", sent[0].peer, "routes target the newly-up peer")
-	assert.Contains(t, sent[0].cmd, "0a000002", "should contain peer B's next-hop")
-	assert.NotContains(t, sent[0].cmd, "0a000001", "should NOT contain own next-hop")
+	require.Len(t, sent[0].routes, 1, "should replay only routes from other peers")
+	assert.Equal(t, "10.0.0.2", sent[0].routes[0].SourcePeer, "the surviving route is peer B's")
+	assert.Equal(t, "0a000002", sent[0].routes[0].NextHopHex, "should contain peer B's next-hop")
 }
 
 // TestComplexFamilyMultiNLRI verifies that multi-NLRI VPN UPDATEs store
@@ -828,4 +879,97 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 	require.NotNil(t, route)
 	assert.Equal(t, "aabbccdd11223344", route.NLRIHex,
 		"must store entire raw blob, not computed prefix bytes")
+}
+
+// TestReplayOwnerDedupe verifies that an explicit replay request makes this
+// plugin stand down from its own peer-up replay, while a plugin nobody drives
+// keeps self-replaying.
+//
+// VALIDATES: spec AC-5 -- exactly one replay owner per process. bgp-rs withholds
+// a peer from forward targets while it replays (Replaying), so its replay never
+// races the live forward; this plugin's self-replay has no such gate, and with
+// both firing a route learned just before establishment went out twice.
+// PREVENTS: the duplicate announce in test/plugin/rfc7606-relay-one-field.ci,
+// and equally the opposite regression -- a standalone adj-rib-in silently
+// replaying nothing because it stood down for an owner that does not exist.
+func TestReplayOwnerDedupe(t *testing.T) {
+	newWithRoute := func(t *testing.T) (*AdjRIBInManager, *[]string) {
+		t.Helper()
+		r := newTestManager(t)
+		m := seqmap.New[compactRouteKey, *RawRoute]()
+		m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
+			Family: family.IPv4Unicast, AttrHex: "40010100",
+			NHopHex: "0a000001", NLRIHex: "180a0000",
+		})
+		r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+		var destinations []string
+		r.routeRelayer = func(dest string, routes []rpc.StoredRoute) {
+			if len(routes) > 0 {
+				destinations = append(destinations, dest)
+			}
+		}
+		return r, &destinations
+	}
+
+	upEvent := &bgp.Event{
+		Type:  "state",
+		State: "up",
+		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: "10.0.0.2", AS: 65002}}),
+	}
+
+	t.Run("standalone self-replays", func(t *testing.T) {
+		r, dest := newWithRoute(t)
+		r.handleState(upEvent)
+		assert.Equal(t, []string{"10.0.0.2"}, *dest,
+			"with no replay owner, peer-up must still replay")
+	})
+
+	t.Run("owned stands down", func(t *testing.T) {
+		r, dest := newWithRoute(t)
+
+		// bgp-rs claims ownership at startup, before any session establishes.
+		status, _, err := r.claimReplayCommand()
+		require.NoError(t, err)
+		require.Equal(t, statusDone, status)
+		require.Empty(t, *dest, "claiming ownership does not itself replay")
+
+		// Every peer-up from here on must stand down.
+		r.handleState(upEvent)
+		assert.Empty(t, *dest, "once replay is owned, peer-up must not self-replay")
+		assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.2")],
+			"standing down from replay must not stop tracking peer state")
+
+		// The owner's explicit replay still runs.
+		status, _, err = r.replayCommand([]string{"10.0.0.3"})
+		require.NoError(t, err)
+		require.Equal(t, statusDone, status)
+		assert.Equal(t, []string{"10.0.0.3"}, *dest, "the owner's replay still runs")
+	})
+
+	// The ownership claim must cover the FIRST peer, not just later ones.
+	// Latching on the first replay left the first peer-up racing: nothing had
+	// claimed yet, so the self-replay AND the owner's replay both fired and the
+	// route went out twice -- the duplicate this spec exists to remove.
+	t.Run("claim precedes the first peer-up", func(t *testing.T) {
+		r, dest := newWithRoute(t)
+		_, _, err := r.claimReplayCommand()
+		require.NoError(t, err)
+		r.handleState(upEvent)
+		assert.Empty(t, *dest, "the very first peer-up after a claim must not self-replay")
+	})
+
+	// An operator running the diagnostic replay verb must NOT silently disable
+	// peer-up replay for the rest of the process lifetime.
+	t.Run("operator replay does not latch ownership", func(t *testing.T) {
+		r, dest := newWithRoute(t)
+
+		status, _, err := r.replayCommand([]string{"10.0.0.3"})
+		require.NoError(t, err)
+		require.Equal(t, statusDone, status)
+		require.Equal(t, []string{"10.0.0.3"}, *dest)
+
+		r.handleState(upEvent)
+		assert.Equal(t, []string{"10.0.0.3", "10.0.0.2"}, *dest,
+			"a plain replay must leave peer-up self-replay working")
+	})
 }

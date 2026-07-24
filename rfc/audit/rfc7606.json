@@ -8,8 +8,8 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_withdraw_test.go:21": "2af6ebd31e22d882",
         "internal/component/bgp/message/rfc7606_withdraw_test.go:57": "2af6ebd31e22d882",
-        "internal/component/bgp/plugins/rib/rib_structured_test.go:92": "01e3f4da8778b515",
         "internal/component/bgp/plugins/rib/rib_structured_test.go:166": "01e3f4da8778b515",
+        "internal/component/bgp/plugins/rib/rib_structured_test.go:92": "01e3f4da8778b515",
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go:286": "316c82a36bed8358",
         "internal/component/bgp/reactor/session_test.go:1939": "94b1421f97c87436"
       },
@@ -26,7 +26,7 @@
       "verdict": "enforced"
     },
     "RFC7606-2-3": {
-      "note": "TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case — a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding.",
+      "note": "TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case \u2014 a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding.",
       "requirement_sha": "7da8ba3eb6f41f1c",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:418": "669936946251c215",
@@ -35,11 +35,11 @@
       "verdict": "enforced"
     },
     "RFC7606-2-5": {
-      "note": "now proven at the Adj-RIB-In itself, not by a dispatch-shape proxy shared with 2-1. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute (adj_rib_in/rib_test.go): a valid announce leaves 10.0.0.0/8 in ribIn (Len 1, the positive); feeding the message.SynthesizeWithdraw output for a malformed re-announce of the same prefix removes it (Len 0, the negative), observed directly on r.ribIn via removeStructuredNLRIs. The proxy 2-5 tags on the reactor session tests were removed; the reactor still proves 2-1 (dispatched as a withdrawal). 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
+      "note": "now proven at the Adj-RIB-In itself, not by a dispatch-shape proxy shared with 2-1. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute (adj_rib_in/rib_test.go): a valid announce leaves 10.0.0.0/8 in ribIn (Len 1, the positive); feeding the message.SynthesizeWithdraw output for a malformed re-announce of the same prefix removes it (Len 0, the negative), observed directly on r.ribIn via removeStructuredNLRIs. The proxy 2-5 tags on the reactor session tests were removed; the reactor still proves 2-1 (dispatched as a withdrawal). 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-07-25 re-stamp: stale again for the same structural reason -- spec-fixit-bgp-egress-rail-divergence edited OTHER tests in rib_test.go (replay now carries the source peer; the update-hex command form is gone), and tagged_unit_shas fingerprints the whole enclosing file. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute is byte-identical, and so is every line of the path it exercises: git diff on rib.go shows handleReceivedStructured, installStructuredNLRIs and removeStructuredNLRIs unmodified (the only diff match is a context line). rfc/short/rfc7606.md is byte-identical, so requirement_sha is unchanged. Re-judged against rfc/full/rfc7606.txt:243-254 rather than the summary: the obligation is that contained routes be removed from the Adj-RIB-In, and the test asserts ribIn Len 1->0 -- RIB state, not a dispatch-shape proxy -- with exact equality on both halves, and the two buffers differ only in the ORIGIN length octet with identical NLRI, so the removal is measured against the key that was installed. Narrowness noted and unchanged: it covers the IPv4-unicast body-NLRI encoding, not the MP_UNREACH_NLRI parenthetical, which is a separate branch. Verdict stands.",
       "requirement_sha": "a8534d7b2f2b4ae6",
       "tests": {
-        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:267": "17ff645e7fc24ef1",
-        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:268": "17ff645e7fc24ef1"
+        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:267": "87cd9f223ee0bc41",
+        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:268": "87cd9f223ee0bc41"
       },
       "verdict": "enforced"
     },
@@ -82,7 +82,7 @@
       "verdict": "enforced"
     },
     "RFC7606-3.d-1": {
-      "note": "TestRFC7606MissingOrigin (rfc7606_test.go:54) and TestRFC7606MissingASPath (:72) assert require.Equal(TreatAsWithdraw) with AttrCode 1/2; mp_reach/missing_ORIGIN (:2180) and missing_AS_PATH (:2190) do the same on the MP_REACH path. NEXT_HOP correctly not required (discretionary per §3.d note). Positive TestRFC7606ValidUpdate (:111) accepts a full mandatory set. Exact assertions, isolated buffers.",
+      "note": "TestRFC7606MissingOrigin (rfc7606_test.go:54) and TestRFC7606MissingASPath (:72) assert require.Equal(TreatAsWithdraw) with AttrCode 1/2; mp_reach/missing_ORIGIN (:2180) and missing_AS_PATH (:2190) do the same on the MP_REACH path. NEXT_HOP correctly not required (discretionary per \u00a73.d note). Positive TestRFC7606ValidUpdate (:111) accepts a full mandatory set. Exact assertions, isolated buffers.",
       "requirement_sha": "086b456334687d23",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:132": "0b8739c630bb26fe",
@@ -121,8 +121,8 @@
       "requirement_sha": "f0e79a44d92324d0",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:214": "0b8739c630bb26fe",
-        "internal/component/bgp/message/rfc7606_test.go:702": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:2256": "0b8739c630bb26fe",
+        "internal/component/bgp/message/rfc7606_test.go:702": "0b8739c630bb26fe",
         "internal/component/bgp/reactor/session_test.go:1787": "94b1421f97c87436"
       },
       "verdict": "enforced"
@@ -137,7 +137,7 @@
       "verdict": "enforced"
     },
     "RFC7606-3.h-1": {
-      "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 — fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer.",
+      "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 \u2014 fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer.",
       "requirement_sha": "b6a304b223f5df94",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1529": "0b8739c630bb26fe"
@@ -145,7 +145,7 @@
       "verdict": "enforced"
     },
     "RFC7606-3.h-2": {
-      "note": "TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 — fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6.",
+      "note": "TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 \u2014 fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6.",
       "requirement_sha": "c624f5c5539d0434",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1505": "0b8739c630bb26fe"
@@ -153,7 +153,7 @@
       "verdict": "enforced"
     },
     "RFC7606-3.i-1": {
-      "note": "Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err — proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (session_rfc7606_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
+      "note": "Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err \u2014 proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (session_rfc7606_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
       "requirement_sha": "55678935f22b8a58",
       "tests": {
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go:82": "316c82a36bed8358",
@@ -197,7 +197,7 @@
       "verdict": "enforced"
     },
     "RFC7606-5.1-1": {
-      "note": "{gap} is honest and confirmed: buildUpdatePayload (wireu/split.go:440-476) writes the attribute section as baseAttrs, then mpUnreach, then mpReach (:463-470), so MP_REACH is emitted LAST, not 'the very first path attribute' as §5.1 SHALL requires. Disclosed in docs/architecture/wire/mp-nlri-ordering.md ('MP_REACH last: Intentionally non-compliant') and rfc-status.md gap (1).",
+      "note": "{gap} is honest and confirmed: buildUpdatePayload (wireu/split.go:440-476) writes the attribute section as baseAttrs, then mpUnreach, then mpReach (:463-470), so MP_REACH is emitted LAST, not 'the very first path attribute' as \u00a75.1 SHALL requires. Disclosed in docs/architecture/wire/mp-nlri-ordering.md ('MP_REACH last: Intentionally non-compliant') and rfc-status.md gap (1).",
       "requirement_sha": "3ea72464437d16f3",
       "tests": {},
       "verdict": "unimplemented"
@@ -376,7 +376,7 @@
       "verdict": "enforced"
     },
     "RFC7606-7.14-2": {
-      "note": "Single-polarity (positive-only) argument holds: §7.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it.",
+      "note": "Single-polarity (positive-only) argument holds: \u00a77.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it.",
       "requirement_sha": "14286f46ce5b9963",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:366": "0b8739c630bb26fe"
@@ -415,7 +415,7 @@
       "verdict": "enforced"
     },
     "RFC7606-7.2-1": {
-      "note": "All four §7.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 'segment type'), overrun (:366 'overrun'), underrun (:389 'underrun'), zero-length segment (:414 'zero'). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None).",
+      "note": "All four \u00a77.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 'segment type'), overrun (:366 'overrun'), underrun (:389 'underrun'), zero-length segment (:414 'zero'). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None).",
       "requirement_sha": "6caf55064f644470",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1393": "0b8739c630bb26fe",
@@ -452,8 +452,8 @@
       "requirement_sha": "1195a3adf37e9590",
       "tests": {
         "internal/component/bgp/message/attr_discard_test.go:407": "e631404e10fbee92",
-        "internal/component/bgp/message/rfc7606_test.go:983": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1004": "0b8739c630bb26fe",
+        "internal/component/bgp/message/rfc7606_test.go:983": "0b8739c630bb26fe",
         "internal/component/bgp/reactor/session_test.go:2021": "94b1421f97c87436"
       },
       "verdict": "enforced"
@@ -519,7 +519,7 @@
       "verdict": "enforced"
     },
     "RFC7606-8-1": {
-      "note": "{not-applicable} annotation holds up: RFC §8 ('A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error...') binds AUTHORS of future BGP attribute specifications, not a running implementation. There is genuinely no Ze code path that could satisfy or violate it, so it is not implementable (per the method, an implementable N/A would be 'wrong' -- this one is not). Recorded 'enforced' only in the sense that the N/A classification is honest and correct; there is no test to demand and no finding.",
+      "note": "{not-applicable} annotation holds up: RFC \u00a78 ('A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error...') binds AUTHORS of future BGP attribute specifications, not a running implementation. There is genuinely no Ze code path that could satisfy or violate it, so it is not implementable (per the method, an implementable N/A would be 'wrong' -- this one is not). Recorded 'enforced' only in the sense that the N/A classification is honest and correct; there is no test to demand and no finding.",
       "requirement_sha": "acce9cef76f7fb09",
       "tests": {},
       "verdict": "enforced"
