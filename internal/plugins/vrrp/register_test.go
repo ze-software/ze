@@ -26,14 +26,21 @@ import (
 func TestWaitDevicePresentExisting(t *testing.T) {
 	lo := loopbackName(t)
 
+	// Inject a huge poll interval: a first-probe hit still returns at once, but a
+	// sleep-before-probe regression would block for the whole interval. This keeps
+	// the "first probe, no poll" assertion deterministic even on a loaded machine,
+	// where a single net.InterfaceByName syscall can itself exceed a 20ms interval
+	// and be mistaken for a poll cycle.
+	const hugeInterval = 30 * time.Second
 	start := time.Now()
-	if err := waitDevicePresent(lo, 2*time.Second); err != nil {
-		t.Fatalf("waitDevicePresent(%q) = %v, want nil for an existing device", lo, err)
+	if err := waitDevicePresentEvery(lo, 2*time.Second, hugeInterval); err != nil {
+		t.Fatalf("waitDevicePresentEvery(%q) = %v, want nil for an existing device", lo, err)
 	}
-	// It must return on the first probe, not after polling: an existing device
-	// should cost one net.InterfaceByName call, well under a poll interval.
-	if elapsed := time.Since(start); elapsed > macvlanPollInterval {
-		t.Fatalf("waitDevicePresent returned after %s for an existing device; expected an immediate first-probe hit", elapsed)
+	// Well under one poll interval => no sleep happened; the device was found on
+	// the first probe. The bound is generous enough to absorb a slow syscall yet
+	// far below hugeInterval, so a poll would be unmistakable.
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("waitDevicePresentEvery returned after %s for an existing device; expected a first-probe hit, not a %s poll", elapsed, hugeInterval)
 	}
 }
 

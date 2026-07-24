@@ -393,6 +393,17 @@ const macvlanPollInterval = 20 * time.Millisecond
 // logical name (iface/resolve.go:84-97), and a hit there says nothing about
 // whether this kernel device is present.
 func waitDevicePresent(dev string, timeout time.Duration) error {
+	return waitDevicePresentEvery(dev, timeout, macvlanPollInterval)
+}
+
+// waitDevicePresentEvery is waitDevicePresent with an explicit poll interval. It
+// probes FIRST (before any sleep), so an already-present device returns on the
+// first InterfaceByName without waiting a poll cycle. The interval is a
+// parameter only so a test can prove the first-probe property deterministically:
+// with a huge interval a first-probe hit still returns at once, while a
+// sleep-before-probe regression would block for the whole interval. Production
+// always passes macvlanPollInterval.
+func waitDevicePresentEvery(dev string, timeout, interval time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
 		if _, err := net.InterfaceByName(dev); err == nil {
@@ -401,7 +412,7 @@ func waitDevicePresent(dev string, timeout time.Duration) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("macvlan %s did not appear within %s: iface reconcile did not create it", dev, timeout)
 		}
-		time.Sleep(macvlanPollInterval)
+		time.Sleep(interval)
 	}
 }
 
