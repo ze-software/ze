@@ -357,3 +357,25 @@ numeric set). Names exact-match and are stable.
 - Any items outside the OSPF/OSPFv3 interface cluster listed earlier in this
   handover that a prior session did not close (audit the per-suite "Remaining ids"
   table above against the current suite before assuming completion).
+
+## Update 2026-07-24 (session "left-overs"): ze-qemu-debug/shell tag drift + contention thread RESOLVED
+
+The two threads left for this session are done and committed (unpushed, `main`):
+
+- **ze-qemu-debug / ze-qemu-shell built a stripped DUT.** Same defect class as
+  `plan/learned/1258-qemu-gate-ran-a-stripped-daemon.md`: both built
+  `$(ZE_QEMU_BIN)` with `ze_core zetest ze_distro` (no
+  `ze_setup $(ZE_FEATURES)`), so `zetest` pulled in `fakeddos` whose YANG imports
+  `ze-ddos-detect-conf` (`ze_ddos`) and every config load through those two targets
+  died "no such module: ze-ddos-detect-conf". Aligned both with `TestBuildTags`
+  (`runner.go:50`). `ospf-interface-runtime` (33) and `ospf-route-daemon` (66) both
+  PASS under `make ze-qemu-debug` (QEMU-validated). Commit `26155571f`.
+- **Contention-detector drift.** `internal/test/runner/hostload.go` and
+  `scripts/status/verify_run.go` had two copies of contention detection that
+  disagreed (the status tool warned on process count alone, no load gate).
+  Extracted into leaf package `internal/core/hostload` as the single source of
+  truth; `verify_run.go` now load-gates its warning. Commit `26155571f`; details
+  in `plan/learned/1269`.
+- **Durable prevention.** All five QEMU DUT build lines now derive their `-tags`
+  from one `ZE_QEMU_DUT_TAGS` make variable, so a fourth drift is structurally
+  impossible. Commit `a6f930c98`.

@@ -40,10 +40,11 @@ proc-count and digit-parse helpers copy-pasted between them.
 
 - `verify_run`'s contended warning is now load-gated: fewer false positives, and
   the two surfaces cannot silently disagree again.
-- The DUT-tag drift has now bitten three of the five DUT build lines. The durable
-  fix (not taken here) is a single shared make variable, e.g.
-  `ZE_QEMU_DUT_TAGS := ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)`,
-  used by all five so a fourth recurrence is structurally impossible.
+- The DUT-tag drift had bitten three of the five DUT build lines. The durable fix
+  -- a single shared `ZE_QEMU_DUT_TAGS := ze_core zetest ze_distro ze_setup
+  $(ZE_FEATURES) $(ZE_TAGS)` used by all five DUT build lines, so a fourth
+  recurrence is structurally impossible -- was applied in the immediate follow-up
+  commit (refactor(test): single-source the QEMU DUT build tags).
 - `ospf-interface-runtime` (33) and `ospf-route-daemon` (66) both PASS under
   `make ze-qemu-debug` after the fix (QEMU-validated).
 
