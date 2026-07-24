@@ -800,7 +800,7 @@ Files: 52 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/a
 | `forward_pool_weight_tracker.go` | `docs/architecture/forward-congestion-pool.md` |
 | `forward_rs.go` | `docs/comparison.md` |
 | `negotiated.go` | `docs/architecture/encoding-context.md` |
-| `peer.go` | `docs/DESIGN.md`, `docs/architecture/api/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/behavior/fsm.md`, `docs/architecture/behavior/peer-lifecycle.md`, `docs/architecture/encoding-context.md`, `docs/bgp-fsm.md`, `docs/features/configuration.md`, `docs/guide/debugging-tools.md` |
+| `peer.go` | `docs/DESIGN.md`, `docs/architecture/api/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/behavior/fsm.md`, `docs/architecture/behavior/peer-lifecycle.md`, `docs/architecture/encoding-context.md`, `docs/bgp-fsm.md`, `docs/features/configuration.md`, `docs/guide/configuration.md`, `docs/guide/debugging-tools.md` |
 | `peer_bfd.go` | `docs/guide/bfd.md` |
 | `peer_connection.go` | `docs/architecture/behavior/peer-lifecycle.md` |
 | `peer_connection_test.go` | `docs/architecture/behavior/peer-lifecycle.md` |

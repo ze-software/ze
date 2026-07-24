@@ -89,6 +89,20 @@ module ze-bgp-conf {
                     description "Local Autonomous System Number (required)";
                 }
             }
+            leaf allow-shared-router-id {
+                type boolean;
+                default false;
+                description "Accept a peer whose BGP Identifier (router-id) duplicates
+                             another established peer in the same AS. Default false
+                             enforces AS-wide uniqueness by rejecting the second OPEN with
+                             Bad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide
+                             uniqueness only a SHOULD, so accepting a shared identifier is
+                             conformant; set true when the duplication is intentional,
+                             e.g. one anycast speaker (AS112) peering over both IPv4 and
+                             IPv6 with the same router-id. When true, ze performs no
+                             router-id uniqueness check at all (it does not implement
+                             RFC 6286 Section 2.3 collision detection).";
+            }
         }
 
         // Named filter policy definitions. Filter type plugins augment this

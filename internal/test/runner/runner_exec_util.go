@@ -120,15 +120,32 @@ func zeRepoRootEnv(baseDir string) string {
 	return tb.Str("ZE_REPO_ROOT=").Str(baseDir).String()
 }
 
+// parallelFactor is the multiplier withParallelHeadroom applies:
+// ParallelTimeoutHeadroom under concurrent execution, 1 for a serial run.
+// Exposed so COUNT-based budgets (an HTTP readiness poll's retry attempts)
+// scale by the same factor as the duration budgets, from one source of truth.
+func (r *Runner) parallelFactor() int {
+	if r.concurrency > 1 {
+		return ParallelTimeoutHeadroom
+	}
+	return 1
+}
+
 // withParallelHeadroom widens a resolved per-test timeout by
 // ParallelTimeoutHeadroom when this Run executes tests concurrently. Serial
 // runs (-p 1 or a single selected test) keep the authored value so real
 // slowdowns surface quickly. See ParallelTimeoutHeadroom for rationale.
+//
+// This applies to the OUTER per-test budget AND to the fixed inner readiness
+// gates it used to leave untouched: BOTH ze-peer bind barriers (orchestrated and
+// non-orchestrated), BOTH daemon.ready waits (background and foreground), the
+// await=stderr fence, the per-message `ze bgp decode` fork, and the HTTP
+// readiness wait / retry-count / per-request budgets (runner_exec.go,
+// await_stderr.go, runner_validate.go). Those gates are what a contended run
+// blows first while the widened outer budget still has room -- the flaky-under-load
+// class in plan/known-failures/reload-transaction-tests-load-sensitive.md.
 func (r *Runner) withParallelHeadroom(timeout time.Duration) time.Duration {
-	if r.concurrency > 1 {
-		return timeout * ParallelTimeoutHeadroom
-	}
-	return timeout
+	return timeout * time.Duration(r.parallelFactor())
 }
 
 // engineStepsForRun returns a copy of steps with each step's timeout widened by

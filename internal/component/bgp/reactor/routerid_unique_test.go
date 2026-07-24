@@ -42,6 +42,55 @@ func TestRouterIDConflictError(t *testing.T) {
 	assert.True(t, errors.As(err, &valErr), "should satisfy NotifyCodes interface via errors.As")
 }
 
+// TestValidateOpenAllowSharedRouterID verifies the bgp/session/allow-shared-router-id
+// opt-out gates the AS-wide uniqueness rejection in validateOpen.
+//
+// VALIDATES: default (AllowSharedRouterID=false) rejects a peer whose BGP Identifier
+// duplicates an established same-AS peer (a routerIDConflictError).
+// VALIDATES: opt-in (AllowSharedRouterID=true) accepts it -- the AS112 v4+v6 case.
+// PREVENTS: the load-dependent check-then-act race being the only behavior; and a
+// zero-value reactor.Config silently DISABLING enforcement (fail-closed: false enforces).
+func TestValidateOpenAllowSharedRouterID(t *testing.T) {
+	// Established iBGP peer in AS 65001, router-id 1.2.3.4.
+	dup, cleanup := makeEstablishedPeerWithID(t, "192.0.2.1", 65001, 0x01020304)
+	defer cleanup()
+
+	// The validating peer presents the SAME AS and SAME BGP Identifier from a
+	// DIFFERENT address -- the exact shape RFC 6286 permits and 345 exercises.
+	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
+	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
+
+	cases := []struct {
+		name         string
+		allow        bool
+		wantConflict bool
+	}{
+		{"default enforces uniqueness (reject)", false, true},
+		{"opt-in accepts shared router-id", true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := New(&Config{AllowSharedRouterID: c.allow})
+			// Isolate the gate under test: with no plugin validators the accept path
+			// must resolve to nil, so drop any dispatcher New() wired up.
+			r.eventDispatcher = nil
+			r.peers[dup.settings.PeerKey()] = dup
+
+			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65001, 65001, 0x01020301)
+			p := NewPeer(settings)
+			p.SetReactor(r)
+
+			err := p.validateOpen("192.0.2.2", localOpen, remoteOpen)
+			var conflictErr *routerIDConflictError
+			if c.wantConflict {
+				require.ErrorAs(t, err, &conflictErr, "duplicate router-id must be rejected by default")
+			} else {
+				require.NoError(t, err, "shared router-id must be accepted when opted in")
+			}
+		})
+	}
+}
+
 // makeEstablishedPeerWithID creates a peer with an ESTABLISHED session
 // and a known remote BGP Identifier. Used for router-ID uniqueness tests.
 func makeEstablishedPeerWithID(t *testing.T, addr string, peerAS, remoteRID uint32) (*Peer, func()) {

@@ -70,6 +70,16 @@ bgp {
 }
 ```
 
+By default Ze enforces AS-wide BGP Identifier uniqueness: an OPEN whose router-id
+duplicates another established peer in the same AS is rejected with a Bad BGP
+Identifier NOTIFICATION (RFC 6286 Section 2.1 makes this only a SHOULD). Set
+`bgp { session { allow-shared-router-id true; } }` to accept the duplication when
+it is intentional, for example one anycast speaker (AS112) peering over both IPv4
+and IPv6 with the same router-id. When enabled, Ze performs no router-id
+uniqueness check at all.
+
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — allow-shared-router-id; internal/component/bgp/reactor/peer.go — validateOpen -->
+
 ## OSPF
 
 The top-level `ospf` block enables Ze's native OSPF engine. The root container

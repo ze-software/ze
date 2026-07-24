@@ -70,6 +70,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Extract global BGP settings directly from tree
 	var routerID uint32
 	var localAS uint32
+	var allowSharedRouterID bool
 
 	if bgpContainer := tree.GetContainer("bgp"); bgpContainer != nil {
 		if v, ok := bgpContainer.Get("router-id"); ok {
@@ -82,6 +83,15 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 				if n, parseErr := strconv.ParseUint(v, 10, 32); parseErr == nil {
 					localAS = uint32(n)
 				}
+			}
+		}
+		// bgp/session/allow-shared-router-id (YANG boolean, default false): opt out
+		// of AS-wide BGP-Identifier uniqueness enforcement. Tree booleans arrive as
+		// the string "true"/"false" (config-string-coercion.md), same idiom as
+		// resolve.go's rs-client read. Absent leaf keeps the strict default.
+		if sessionContainer := bgpContainer.GetContainer("session"); sessionContainer != nil {
+			if v, ok := sessionContainer.Get("allow-shared-router-id"); ok {
+				allowSharedRouterID = v == "true"
 			}
 		}
 	}
@@ -171,6 +181,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		// No global ListenAddr -- Ze derives listeners from per-peer connection > local.
 		RouterID:                  routerID,
 		LocalAS:                   localAS,
+		AllowSharedRouterID:       allowSharedRouterID,
 		ConfigDir:                 configDir,
 		ConfigTree:                tree.ToMap(),
 		ConfiguredFamilies:        configuredFamilies,

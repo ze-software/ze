@@ -662,17 +662,27 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	// RFC 4456 Section 8: ORIGINATOR_ID carries the BGP Identifier of the originator.
 	p.remoteRouterID.Store(remote.BGPIdentifier)
 
-	// RFC 4271 Section 4.2: BGP Identifier MUST be unique within an AS.
-	// Reject if another ESTABLISHED peer in the same ASN has the same router-ID.
-	r.mu.RLock()
-	conflictAddr, conflict := checkRouterIDConflict(
-		r.peers, p.settings.PeerKey(), p.settings.PeerAS, remote.BGPIdentifier)
-	r.mu.RUnlock()
-	if conflict {
-		return &routerIDConflictError{
-			conflictAddr: conflictAddr,
-			peerAS:       p.settings.PeerAS,
-			bgpID:        remote.BGPIdentifier,
+	// RFC 6286 Section 2.1: the BGP Identifier SHOULD be unique within an AS. Ze
+	// enforces that by default -- reject if another ESTABLISHED peer in the same
+	// ASN has the same router-ID -- but an operator can opt out
+	// (bgp/session/allow-shared-router-id) when the duplication is intentional, e.g.
+	// one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same
+	// router-id. Because uniqueness is only a SHOULD, NOT enforcing it is conformant;
+	// ze then performs no router-id check at all (it does not implement the
+	// Section 2.3 shared-identifier collision detection). Skipping the check also
+	// removes the load-dependent check-then-act race (it only fired when the other
+	// same-id peer reached Established first).
+	if !r.config.AllowSharedRouterID {
+		r.mu.RLock()
+		conflictAddr, conflict := checkRouterIDConflict(
+			r.peers, p.settings.PeerKey(), p.settings.PeerAS, remote.BGPIdentifier)
+		r.mu.RUnlock()
+		if conflict {
+			return &routerIDConflictError{
+				conflictAddr: conflictAddr,
+				peerAS:       p.settings.PeerAS,
+				bgpID:        remote.BGPIdentifier,
+			}
 		}
 	}
 

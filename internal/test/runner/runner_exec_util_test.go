@@ -89,6 +89,39 @@ func TestWithParallelHeadroom(t *testing.T) {
 	}
 }
 
+// TestParallelFactor checks the integer multiplier used for COUNT-based inner
+// budgets (the HTTP readiness-poll retry count). It must match the concurrency
+// gate withParallelHeadroom uses for durations: 1 serial, ParallelTimeoutHeadroom
+// concurrent. The two must agree so the fixed inner readiness gates (bind barrier,
+// daemon.ready wait, HTTP wait/retry) scale identically and stay tight serially.
+func TestParallelFactor(t *testing.T) {
+	const base = 4 * time.Second
+	cases := []struct {
+		name        string
+		concurrency int
+		wantFactor  int
+	}{
+		{"zero (outside a Run) not widened", 0, 1},
+		{"serial run not widened", 1, 1},
+		{"parallel run widened", 2, ParallelTimeoutHeadroom},
+		{"high concurrency widened", 20, ParallelTimeoutHeadroom},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := &Runner{concurrency: c.concurrency}
+			if got := r.parallelFactor(); got != c.wantFactor {
+				t.Fatalf("concurrency=%d: parallelFactor()=%d, want %d", c.concurrency, got, c.wantFactor)
+			}
+			// The duration and count budgets must scale by the same factor, or a
+			// widened wait would poll a still-tight number of times.
+			wantDur := base * time.Duration(c.wantFactor)
+			if got := r.withParallelHeadroom(base); got != wantDur {
+				t.Fatalf("concurrency=%d: withParallelHeadroom(%v)=%v, want %v", c.concurrency, base, got, wantDur)
+			}
+		})
+	}
+}
+
 // TestFirstZeSubcommand checks that the ze verb is found past leading flags and
 // that the daemon "read config from stdin" sentinel "-" is not treated as a verb.
 func TestFirstZeSubcommand(t *testing.T) {

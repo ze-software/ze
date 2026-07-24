@@ -78,8 +78,13 @@ func teeDaemonStderr(acc io.Writer, sw *syncWriter, isDaemon bool) io.Writer {
 // await=stderr needle, returning true. On timeout it records a precise failure
 // on rec, gracefully stops the daemon processes (bgProcs that are not ze-peer),
 // and returns false. Called only when rec.AwaitStderr != "".
-func awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWriter, bgProcs []*exec.Cmd, peerProcs map[*exec.Cmd]bool) bool {
-	timeout := rec.awaitStderrTimeout()
+func (r *Runner) awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWriter, bgProcs []*exec.Cmd, peerProcs map[*exec.Cmd]bool) bool {
+	// Scale the fence by the parallel headroom (identity for serial runs): the
+	// authored budget (default awaitStderrDefaultTimeout, or the test's :timeout=)
+	// is measured unloaded, but a daemon slow to emit the awaited stderr line under
+	// oversubscription must not trip this hard failure while the (also-widened)
+	// outer test budget still has room.
+	timeout := r.withParallelHeadroom(rec.awaitStderrTimeout())
 	awaitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	if sw.waitFor(awaitCtx) {

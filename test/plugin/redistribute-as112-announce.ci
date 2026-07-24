@@ -132,6 +132,15 @@ redistribute {
 }
 
 bgp {
+	# peer4 (IPv4) and peer6 (IPv6) are one AS112 anycast speaker reached over both
+	# families, so they legitimately share router-id 1.2.3.4 in AS 65533. Opt out of
+	# the default AS-wide BGP-Identifier uniqueness enforcement so ze accepts both
+	# (RFC 6286 Section 2.1 makes uniqueness only a SHOULD). Without this, ze rejects
+	# whichever session reaches Established second with OPEN error subcode 3 -- a
+	# load-dependent check-then-act race (spec-fixit-load-dependent-functional-failures).
+	session {
+		allow-shared-router-id true
+	}
 	peer peer4 {
 		connection {
 			remote {

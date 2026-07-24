@@ -138,13 +138,18 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return false
 	}
 
-	// Wait for peer to be ready (listening) instead of fixed sleep
-	// Use a short timeout context to avoid hanging forever if peer fails to start
-	waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
+	// Wait for peer to be ready (listening) instead of fixed sleep. Use a short
+	// timeout context to avoid hanging forever if peer fails to start; scale it by
+	// the parallel headroom (identity for serial runs) so a ze-peer slow to bind
+	// under CPU oversubscription is not read as a spurious "never listening" -- the
+	// same non-orchestrated-path deadline named in
+	// plan/known-failures/reload-transaction-tests-load-sensitive.md.
+	peerBindTimeout := r.withParallelHeadroom(5 * time.Second)
+	waitCtx, waitCancel := context.WithTimeout(testCtx, peerBindTimeout)
 	if !peerStdout.waitFor(waitCtx) {
 		waitCancel()
 		_ = peerCmd.Process.Kill()
-		rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", peerStderr.String(), peerStdout.String())
+		rec.Error = fmt.Errorf("peer did not start listening within %s (stderr=%q, stdout=%q)", peerBindTimeout, peerStderr.String(), peerStdout.String())
 		return false
 	}
 	waitCancel()
@@ -890,7 +895,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				if !strings.Contains(execStr, "--dial") {
 					po := &peerOutputs[len(peerOutputs)-1]
 					po.proc = proc
-					waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
+					// 5s to bind is generous unloaded, but a parallel run oversubscribes
+					// every core: a ze-peer process can take longer than 5s just to start
+					// and listen, which reads as a spurious "peer never bound". Scale the
+					// bind budget by the same parallel headroom the outer test budget gets
+					// (identity for serial runs, so real bind failures still surface fast).
+					waitCtx, waitCancel := context.WithTimeout(testCtx, r.withParallelHeadroom(5*time.Second))
 					if !po.stdout.waitFor(waitCtx) {
 						waitCancel()
 						rec.Error = peerBindFailure(po.stderr.String(), po.stdout.String())
@@ -912,7 +922,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					// so skip this 5s wait then -- mirrors the foreground path.
 					if !hasPeer && rec.AwaitStderr == "" {
 						readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
-						waitReady(testCtx, readyPath, 5*time.Second)
+						// Parallel-run headroom: a daemon that writes daemon.ready after
+						// startup can be slow to reach it under oversubscription. Identity
+						// for serial runs.
+						waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 					}
 					pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
 					_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
@@ -975,7 +988,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// startup may never write daemon.ready), so skip this wait then.
 				if !hasPeer && rec.AwaitStderr == "" {
 					readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
-					waitReady(testCtx, readyPath, 5*time.Second)
+					// Same parallel-run headroom as the background-daemon path above:
+					// a foreground ze slow to write daemon.ready under oversubscription
+					// must not make the runner publish daemon.pid (and let signal.sh
+					// SIGHUP) before handler registration. Identity for serial runs.
+					waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 				}
 				pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
 				_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
@@ -1058,7 +1075,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// the synchronization point for the reject-fence bucket, where the plugin
 		// under test aborts startup and no in-daemon observer can run. On timeout
 		// the helper tears the daemon down and records the failure.
-		if !awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs) {
+		if !r.awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs) {
 			return false
 		}
 	case rec.ExpectExitCode != nil && fgProc != nil:

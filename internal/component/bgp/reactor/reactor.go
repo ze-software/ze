@@ -118,6 +118,17 @@ type Config struct {
 	// LocalAS is the local AS number.
 	LocalAS uint32
 
+	// AllowSharedRouterID opts OUT of the default AS-wide BGP-Identifier
+	// uniqueness enforcement. Default false (the zero value) keeps the strict
+	// behavior: an OPEN whose BGP Identifier duplicates another established peer
+	// in the same AS is rejected. Set true (config `bgp/session/allow-shared-router-id`)
+	// to accept it -- e.g. one anycast speaker (AS112) peering over both IPv4 and
+	// IPv6 with the same router-id. RFC 6286 Section 2.1 makes AS-wide uniqueness a
+	// SHOULD, so both are conformant; when true ze performs no router-id uniqueness
+	// check at all (it does not implement Section 2.3 collision detection). See
+	// routerid_unique.go / validateOpen.
+	AllowSharedRouterID bool
+
 	// Plugins defines external plugin processes for API communication.
 	Plugins []PluginConfig
 

@@ -43,8 +43,10 @@ func bgpIDString(id uint32) string {
 // checkRouterIDConflict checks if any ESTABLISHED peer in the same ASN
 // already has the given BGP Identifier (router-ID).
 //
-// RFC 4271 Section 4.2: The BGP Identifier "MUST be unique within an AS."
-// Duplicate router-IDs within an AS indicate misconfiguration and can break:
+// RFC 6286 Section 2.1: the BGP Identifier SHOULD be unique within an AS. Ze
+// enforces that SHOULD by default (this function); an operator opts out via
+// bgp/session/allow-shared-router-id, in which case validateOpen skips this call.
+// Duplicate router-IDs within an AS otherwise indicate misconfiguration and can break:
 //   - ORIGINATOR_ID loop detection in route reflection (RFC 4456)
 //   - BGP Identifier tie-breaking in best path selection
 //

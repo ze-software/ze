@@ -501,7 +501,11 @@ func resolveCheckPath(baseDir, rel string) (string, error) {
 
 // decodeToEnvelope decodes a hex message using ze bgp decode and returns the envelope.
 func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Scale the per-decode fork budget by the parallel headroom (identity for
+	// serial runs): under oversubscription a slow `ze bgp decode` fork must not
+	// time out and drop a received message, which would surface as a spurious
+	// JSON expectation mismatch rather than the real (absent) defect.
+	ctx, cancel := context.WithTimeout(context.Background(), r.withParallelHeadroom(5*time.Second))
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, r.zePath, "bgp", "decode", "--json", "--update", hexMsg) //nolint:gosec // test runner
@@ -533,7 +537,7 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 
 	ciDir := filepath.Dir(rec.CIFile)
 	for _, chk := range checks {
-		client := httpClientForCheck(chk)
+		client := r.httpClientForCheck(chk)
 		url := strings.ReplaceAll(chk.URL, "$PORT2", strconv.Itoa(rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
 		// Resolve bodyfile and sendfile paths relative to .ci file directory.
@@ -561,8 +565,12 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	return nil
 }
 
-func httpClientForCheck(chk httpCheck) *http.Client {
-	client := &http.Client{Timeout: 5 * time.Second}
+func (r *Runner) httpClientForCheck(chk httpCheck) *http.Client {
+	// Scale the per-request budget by the parallel headroom (identity for serial
+	// runs): a server that is listening but slow to respond under oversubscription
+	// must not trip a net timeout, which isTransientConnError treats as
+	// non-retryable so the check would fail immediately.
+	client := &http.Client{Timeout: r.withParallelHeadroom(5 * time.Second)}
 	if !chk.InsecureTLS {
 		return client
 	}
@@ -576,7 +584,12 @@ func httpClientForCheck(chk httpCheck) *http.Client {
 // Retries up to 20 times with 200ms intervals for connection-refused errors
 // (server may still be starting). Non-connection errors fail immediately.
 func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk httpCheck, url string) error {
-	const maxRetries = 20
+	// The retry budget is a server-startup readiness window (connection-refused ->
+	// wait -> retry). 20 x 200ms = 4s is fine unloaded, but a parallel run
+	// oversubscribes every core and a web/LG server can take longer than 4s to
+	// bind. Scale the attempt count by the same parallel headroom the outer test
+	// budget gets; identity for serial runs so a genuinely dead server still fails fast.
+	maxRetries := 20 * r.parallelFactor()
 	const retryInterval = 200 * time.Millisecond
 
 	var lastErr error
@@ -678,7 +691,7 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 	})
 
 	for _, w := range waits {
-		client := httpClientForCheck(w)
+		client := r.httpClientForCheck(w)
 		url := strings.ReplaceAll(w.URL, "$PORT2", strconv.Itoa(rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
 		if err := r.executeOneHTTPWait(ctx, client, w, url); err != nil {
@@ -701,7 +714,12 @@ func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, ch
 		}
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	// The authored wait (default 15s, or the check's Timeout=) is measured against
+	// an unloaded server startup. Under a parallel run the server shares every core
+	// and can take multiples of that to bind, while the outer test budget -- already
+	// widened by the same headroom -- still has room. Scale the wait to match so the
+	// inner readiness gate stops expiring first (identity for serial runs).
+	waitCtx, cancel := context.WithTimeout(ctx, r.withParallelHeadroom(timeout))
 	defer cancel()
 
 	var lastErr error
