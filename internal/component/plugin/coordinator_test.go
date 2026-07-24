@@ -21,10 +21,11 @@ func (fakePeerCB) OnPeerClosed(any, string) {}
 
 // TestBootstrapRoundTrip proves the coordinator stores and returns the typed
 // BGPBootstrap struct that replaced the string-keyed extra bag, preserving all
-// nine fields, and that *Coordinator still satisfies CoordinatorAccessor.
+// its fields (seven since feature-gate-11 moved the two MRT callbacks to the
+// registry seam), and that *Coordinator still satisfies CoordinatorAccessor.
 //
-// VALIDATES: P2 AC-3 (bootstrap delivered via a typed struct; the 9 extra keys
-// and their per-read assertions are gone).
+// VALIDATES: P2 AC-3 (bootstrap delivered via a typed struct; the string-keyed
+// extra bag and its per-read assertions are gone).
 // PREVENTS: a field being dropped or mistyped when threading hub -> reactor factory.
 func TestBootstrapRoundTrip(t *testing.T) {
 	var _ registry.CoordinatorAccessor = (*Coordinator)(nil)

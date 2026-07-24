@@ -33,9 +33,14 @@ two gates have opposite dependency shapes, which is the whole lesson.
   and the ze_bgp-gated consumer `bgp/config` reads them via the getters. Dropped
   the two `BGPBootstrap` fields entirely. `main.go` no longer imports MRT.
 - **`msgtype` / `internal/mrt` stay untagged core-leaves, gated by DCE.** They are
-  pure libraries (no `init()`); their drop-condition is exactly `ze_bgp || ze_mrt`
-  (engine or MRT references them), achieved by dead-code elimination, verified by
-  `nm`, never a source tag.
+  pure libraries (no `init()`); dead-code elimination drops them from any build
+  that does not reference them, verified by `nm`, never a source tag. Post-review
+  correction (2026-07-23): `msgtype` SYMBOLS survive only under `ze_bgp` -- MRT
+  uses only the `MessageType` type and `TypeUPDATE` constant
+  (`internal/plugins/mrt/component.go`), which inline away, so an `ze_mrt`-only
+  build links zero `msgtype` symbols even though it imports the package. Symbol
+  presence is not a proxy for package use when a consumer touches only
+  consts/types; the matrix test encodes the empirical truth.
 - **Callback signatures already share where correct.** `HealthPeerCallback` and
   `MRTPeerCallback` are both `PeerLifecycleCallback`; `MRTMessageCallback` is
   `MessageCallback` (raw wire bytes), a distinct concern -- merging all three would
@@ -45,10 +50,12 @@ two gates have opposite dependency shapes, which is the whole lesson.
 ## Consequences
 
 - A `ze_bgp` build can now ship without BMP (`ze_bmp` off), and any build can ship
-  without MRT (`ze_mrt` off). Symbol matrix (proven by `nm`): `bmp` present iff
-  `ze_bgp && ze_bmp`; `mrt`/`internal/mrt` present iff `ze_mrt`; `msgtype` present
-  iff `ze_bgp || ze_mrt`. `ze_bmp` WITHOUT `ze_bgp` links neither BMP nor the
-  engine (the dependent gate holds).
+  without MRT (`ze_mrt` off). Symbol matrix (proven by `nm`,
+  `TestBuildTag_Gate11_SymbolMatrix`): `bmp` present iff `ze_bgp && ze_bmp`;
+  `mrt`/`internal/mrt` present iff `ze_mrt`; `msgtype` present iff `ze_bgp`
+  (with `ze_mrt` alone the package is imported but fully inlined -- see
+  Decisions). `ze_bmp` WITHOUT `ze_bgp` links neither BMP nor the engine (the
+  dependent gate holds).
 - The dependent-gate mechanism (`parentTagOf`/`buildConstraint` in
   `plugin_imports.go`) is general for one nesting level: any future gate whose
   package nests under another gate's tree AND imports it gets the compound
