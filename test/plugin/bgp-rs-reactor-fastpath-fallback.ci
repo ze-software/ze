@@ -1,56 +1,98 @@
-# bgp-rs-reactor-fastpath-fallback -- fallback to plugin dispatch (rs-gap-1)
+# bgp-rs-reactor-fastpath-fallback -- a destination without rs-fast-path still
+# receives forwarded UPDATEs (rs-gap-1).
 #
-# VALIDATES: peers without rs-fast-path enable still receive UPDATEs through
-# the normal bgp-rs ForwardCached plugin dispatch chain. The reactor fast path
-# skips peers that lack the flag, and bgp-rs picks them up via ForwardCached.
+# VALIDATES: rs-fast-path is a SOURCE-side gate. It activates the reactor fast
+# path for UPDATEs RECEIVED from the peer that carries the flag; a DESTINATION
+# peer's own rs-fast-path setting is never consulted in fast-path destination
+# selection (reactor/forward_rs.go: a candidate is skipped only when it has
+# export filters or is not Established). So the receiver here -- rs-fast-path off
+# (the default), no export filters -- is still a fast-path destination and gets
+# the forwarded UPDATE with local AS 65000 prepended onto the source's [65001].
+# (An earlier version of this test claimed the fast path SKIPS flagless peers and
+# bgp-rs picks them up via ForwardCached. That is wrong: the flag is not read on
+# the destination side. Delivery here is the fast path.)
 #
-# PREVENTS: regression where disabling rs-fast-path causes UPDATEs to be lost
-# entirely (neither fast path nor plugin path forwards them).
+# PREVENTS: a regression where a destination peer that does not carry the
+# rs-fast-path flag stops receiving forwarded UPDATEs. The flag is source-side,
+# so a destination's delivery must not depend on it.
 #
-# Two eBGP peers: source (65001) sends one UPDATE, receiver (65002) has
-# rs-fast-path DISABLED (the default). The UPDATE must still arrive at the
-# receiver via the normal plugin dispatch chain.
+# Two eBGP peers: source (65001, rs-fast-path enabled) sends one UPDATE; receiver
+# (65002, rs-fast-path disabled) must still receive the forwarded UPDATE.
+#
+# // test-relax: the observer's synchronous `show bgp summary` poll is replaced by
+# event-driven readiness (subscribe + wait_for_event) plus a fire-and-forget
+# shutdown -- a more robust rewrite, not a relaxation. No expect/action/reject
+# assertion was removed; the conn=2 route assertion was STRENGTHENED from
+# contains=180A0000 (a bare NLRI a peer-down withdraw also carries) to the
+# prepended AS_PATH+NEXT_HOP bytes that only a real announce can produce.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=15s
 option=bind:value=0.0.0.0
+# Map conn=N to a peer by remote IP instead of accept order (peer_connmap.go).
+# Without this, conn=N binds to ACCEPT ORDER, so which peer is conn=1 is a race
+# (the source UPDATE below could be sent from the WRONG peer), and check-mode
+# accept is otherwise sequential (peer.go), so the two clients do not establish
+# simultaneously. conn_map handshakes the whole batch before running any conn's
+# script, so both peers are Established before the source's UPDATE is sent -- the
+# same fix the sibling bgp-rs-reactor-fastpath.ci already carries.
+option=conn_map:value=remote-ip
 
 # Source peer (conn=1): send one UPDATE with NLRI 10.0.0.0/24.
 # ORIGIN=IGP, AS_PATH=[65001] (4-byte), NEXT_HOP=1.1.1.1, LOCAL_PREF=100
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
 
-# Receiver peer (conn=2): expect the forwarded UPDATE containing NLRI 10.0.0.0/24.
-# Forwarded via plugin dispatch (not fast path), with AS 65000 prepended.
-# Use contains= to match the NLRI bytes (180A0000 = /24 10.0.0.0).
-expect=bgp:conn=2:seq=1:contains=180A0000
+# Receiver peer (conn=2): expect the forwarded UPDATE. The asserted bytes are the
+# AS_PATH + NEXT_HOP of the forwarded route:
+#   AS_PATH:  40020A02020000FDE80000FDE9 (AS_SEQUENCE[65000, 65001])
+#   NEXT_HOP: 40030401010101 (1.1.1.1)
+# This replaces contains=180A0000, which proved nothing: a plain strings.Contains
+# match (checker.go) is satisfied by the peer-down withdraw wire
+# ...0004180A00000000 just as well as a real announce. The new bytes cannot be
+# produced by any withdraw (a withdraw carries no path attributes), so they prove
+# the route was actually forwarded with local AS 65000 prepended onto [65001].
+expect=bgp:conn=2:seq=1:contains=40020A02020000FDE80000FDE940030401010101
 
-# Both peers receive EOR.
+# The source's own EOR (from its initial sync). conn=2's early EOR is NOT asserted:
+# it is emitted by the receiver's OWN initial sync before any route is forwarded to
+# it, does not match the forwarded-route rule above, and checker.go silently
+# swallows an unmatched EOR rather than re-offering it. RFC 4724 orders the EOR only
+# against this speaker's own initial dump, never against routes learned afterwards,
+# so there is no ordering here for a test to assert.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# // test-relax: the removed End-of-RIB rule was unsatisfiable by construction, so
-# it asserted nothing and only produced a red the runner used to mask. This peer's
-# EOR is emitted by its OWN initial sync the moment it establishes
-# (peer_initial_sync.go), which is BEFORE any route is forwarded to it from
-# another peer. That early EOR does not match the route rule(s) above, and
-# checker.go silently swallows an unmatched EOR instead of re-offering it, so the
-# trailing EOR slot could never be filled. RFC 4724 orders the EOR only against
-# this speaker's own initial dump, never against routes learned afterwards, so
-# there is no ordering here for a test to assert. The forwarded-route rule(s)
-# above are this test's actual subject and are unchanged.
 EOF_PEER
 
-# Observer: shut down cleanly after forwarding completes.
+# Observer: shut down cleanly once the forwarded route is on the wire.
+#
+# This is event-driven, NOT a `show bgp summary` poll. The old poll drove a tight
+# loop of synchronous ze-plugin-engine:dispatch-command RPCs; under load one of
+# those occasionally got no response for its 30s TLS timeout while the engine was
+# forwarding fine, so the gate never fired and ze was killed at the outer timeout.
+# Here we instead block on the async event channel until ze emits the SENT-to-
+# receiver forward event (the exact frame conn=2 expects), then fire-and-forget
+# the shutdown -- send `request shutdown` WITHOUT waiting on its RPC response,
+# which ze may never send if it closes the connection first.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
+import json
+
 from ze_api import API
 
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
 
-def all_peers_eor_sent(api):
-    r = dispatch(api, 'show bgp summary').get('result', {})
-    peers = r.get('data', {}).get('summary', {}).get('peers', [])
-    return bool(peers) and all(p.get('eor-sent', 0) >= 1 for p in peers)
+def forward_sent_to_receiver(ev):
+    # A sent-direction UPDATE carrying the announced prefix: ze has put the exact
+    # frame conn=2 expects on the wire. The sent EORs carry no NLRI, and the
+    # received copy from the source is direction=received, so this matches only
+    # the forward to the receiver. wait_for_event decodes the event JSON and
+    # passes the dict, so navigate it (str(dict) would use single quotes and never
+    # match a double-quoted needle).
+    if not isinstance(ev, dict):
+        return False
+    if ev.get('bgp', {}).get('message', {}).get('direction') != 'sent':
+        return False
+    return '10.0.0.0/24' in json.dumps(ev)
+
 
 def main():
     api = API()
@@ -58,16 +100,19 @@ def main():
     api.wait_for_config()
     api.capability_done()
     api.wait_for_registry()
+    # Subscribe over the async callback channel. Event delivery is pushed by the
+    # engine; unlike a command dispatch it cannot stall waiting on a response.
+    api.subscribe(['update'])
     api.ready()
-    # Deterministic replacement for sleep(2.0): wait until rs has replayed to every
-    # established client and sent each its EOR, so ze exits only after the peers'
-    # expected EOR frames are on the wire (rs AnnounceEOR needs established peers).
-    for _ in range(100):
-        if all_peers_eor_sent(api):
-            break
-        api.wait_for_event(timeout=0.2)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
+    # Block until the forwarded route has been sent to the receiver. A timeout
+    # here is harmless: the fast-path forward happens independently of this
+    # observer, so on timeout the route is already delivered and we still exit.
+    api.wait_for_event(timeout=30.0, predicate=forward_sent_to_receiver)
+    # Fire-and-forget shutdown (fd arg is ignored in TLS mode).
+    api._send_rpc(0, api._next_id(), 'ze-plugin-engine:dispatch-command',
+                  {'command': 'request shutdown'})
+    api.wait_for_shutdown(timeout=15.0)
+
 
 if __name__ == '__main__':
     main()
