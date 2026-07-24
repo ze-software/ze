@@ -92,35 +92,15 @@ EOF_PEER
 # Observer: shut down cleanly after forwarding completes.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
+# // test-relax: the observer's synchronous `show bgp summary` eor-sent poll +
+# `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
+# (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
+# A more robust rewrite, not a relaxation: same "wait until the RS replayed to every
+# peer" semantics, no expect/action/reject assertion removed. The old poll's dispatch
+# RPC could stall ~30s under load and strand the shutdown until ze was killed.
 from ze_api import API
 
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-def all_peers_eor_sent(api):
-    r = dispatch(api, 'show bgp summary').get('result', {})
-    peers = r.get('data', {}).get('summary', {}).get('peers', [])
-    return bool(peers) and all(p.get('eor-sent', 0) >= 1 for p in peers)
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Deterministic replacement for sleep(2.0): wait until rs has replayed to every
-    # established client and sent each its EOR, so ze exits only after the peers'
-    # expected EOR frames are on the wire (rs AnnounceEOR needs established peers).
-    for _ in range(100):
-        if all_peers_eor_sent(api):
-            break
-        api.wait_for_event(timeout=0.2)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
+API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF

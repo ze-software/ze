@@ -503,6 +503,15 @@ the 5-stage plugin protocol and runtime assertions. Key functions:
 | `wait_until(predicate, attempts=20, delay=0.25)` | Poll an arbitrary `predicate()` (e.g. kernel FIB state) until true; returns bool |
 | `dispatch_until(api, cmd, predicate, ...)` | Re-dispatch `cmd` until `predicate(result)` is true; returns the winning result dict (also `api.dispatch_until(cmd, predicate, ...)`) |
 | `dispatch_until_done(cmd, ...)` | `dispatch_until` with the fixed `status=="done"` predicate |
+| `run_rs_observer(expected_peers, forward_prefix=None)` | The standard route-server observer, one line: handshake, wait (event-driven) until every peer's EOR (and `forward_prefix`'s route, when given) is on the wire, then fire-and-forget shutdown. Load-robust successor to the `show bgp summary` `eor-sent` poll |
+| `wait_rs_replayed(expected_peers, forward_prefix=None)` | The readiness half of `run_rs_observer`: block on the async event stream until N EORs (and optionally a route carrying `forward_prefix`) are sent. Returns bool |
+| `shutdown_fire_and_forget()` | Send `request shutdown` without blocking on its RPC response (ze may close the connection before replying under load) |
+
+**Prefer `run_rs_observer` for any route-server `.ci`.** The old copy-pasted
+`all_peers_eor_sent` poll drove synchronous `show bgp summary` dispatch RPCs whose
+30s TLS read could stall under load while the engine forwarded fine, stranding the
+shutdown until the outer timeout killed ze. `run_rs_observer` waits on pushed events
+instead (no request/response to stall on) and shuts down fire-and-forget.
 
 `wait_until` / `dispatch_until` / `wait_for_event(predicate)` are the
 payload-predicate waits: prefer them over `time.sleep` + a single-shot assert so

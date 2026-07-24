@@ -1290,6 +1290,125 @@ class API:
             self.read_line(timeout=min(remaining, 0.5))
         return self._post_startup_received
 
+    def wait_rs_replayed(
+        self,
+        expected_peers: int,
+        forward_prefix: str | None = None,
+        timeout: float = 30.0,
+    ) -> bool:
+        """Block until the route server has replayed: an EOR sent to `expected_peers`
+        distinct peers AND, when `forward_prefix` is given, a route carrying that
+        prefix sent to some peer.
+
+        Event-driven replacement for the `show bgp summary` `eor-sent` poll that
+        route-server observers used to gate a clean shutdown. That poll drove a
+        tight loop of synchronous ze-plugin-engine:dispatch-command RPCs; under
+        load one occasionally got no response for its 30s TLS read timeout while
+        the engine was forwarding fine, and the observer stalled until ze was
+        killed at the outer test timeout.
+
+        This reads the async event stream instead (pushed by the engine, so it
+        cannot stall waiting on a response). An EOR sent to a peer arrives as a
+        sent-direction UPDATE event with no NLRI (RFC 4724 -- an EOR is an empty
+        UPDATE); a relayed route arrives as a sent-direction UPDATE whose payload
+        contains the prefix. `forward_prefix` matters for tests whose forward is
+        delivered AFTER the EORs (e.g. the ForwardCached relay in
+        rfc7606-relay-one-field): waiting only for EORs would shut ze down before
+        the relay reached the receiver. Both conditions are tracked in one loop so
+        an EOR and the forward can arrive in any order. The caller MUST have called
+        `subscribe(['update'])` before `ready()`.
+
+        Returns True once both conditions hold, or False on `timeout` (a caller may
+        `runtime_fail` on False to turn a stuck establishment into a loud failure).
+        """
+        import time
+
+        eor_peers: set[str] = set()
+        forward_seen = forward_prefix is None
+        deadline = time.monotonic() + timeout
+        while (
+            len(eor_peers) < expected_peers or not forward_seen
+        ) and not self._shutdown:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            ev = self.wait_for_event(timeout=min(remaining, 0.5))
+            if ev is None:
+                continue
+            try:
+                decoded = json.loads(ev)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+            if not isinstance(decoded, dict):
+                continue
+            bgp = decoded.get("bgp", {})
+            if bgp.get("message", {}).get("direction") != "sent":
+                continue
+            update = bgp.get("update", {})
+            if not update.get("nlri"):
+                # No NLRI -> an EOR (an empty UPDATE).
+                addr = bgp.get("peer", {}).get("remote", {}).get("address")
+                if addr:
+                    eor_peers.add(addr)
+            elif not forward_seen and forward_prefix in json.dumps(update):
+                forward_seen = True
+        return len(eor_peers) >= expected_peers and forward_seen
+
+    def shutdown_fire_and_forget(self) -> None:
+        """Ask the engine to shut down without blocking on the RPC response.
+
+        `request shutdown` sent through the synchronous _call_engine path raises
+        when ze closes the connection before it emits the response (which it may
+        do under load). Send the command and let ze process it; `wait_for_shutdown`
+        observes the close. The fd argument is ignored in TLS mode.
+        """
+        self._send_rpc(
+            0,
+            self._next_id(),
+            "ze-plugin-engine:dispatch-command",
+            {"command": "request shutdown"},
+        )
+
+    def run_rs_observer(
+        self,
+        expected_peers: int,
+        forward_prefix: str | None = None,
+        eor_timeout: float = 30.0,
+        shutdown_timeout: float = 15.0,
+    ) -> bool:
+        """Standard route-server observer: hand-shake, wait for the RS replay to
+        finish (every peer sent its EOR, and -- when `forward_prefix` is given --
+        the relayed route reached the receiver), then shut ze down cleanly.
+
+        This is the load-robust successor to the copy-pasted `all_peers_eor_sent`
+        `show bgp summary` poll + synchronous `request shutdown` that stalled
+        under load (see `wait_rs_replayed` and `shutdown_fire_and_forget`). A whole
+        observer collapses to:
+
+            from ze_api import API
+            API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
+
+        Pass `forward_prefix` for any test whose receiver expects a forwarded route
+        (so the observer holds ze open until that route is on the wire); omit it for
+        tests that only need each peer's own EOR.
+
+        Returns True if the RS replayed fully before `eor_timeout`; False means it
+        did not (ze is still shut down cleanly -- the caller may `runtime_fail` on
+        False to make a stuck establishment a loud failure).
+        """
+        self.declare_done()
+        self.wait_for_config()
+        self.capability_done()
+        self.wait_for_registry()
+        self.subscribe(["update"])
+        self.ready()
+        ok = self.wait_rs_replayed(
+            expected_peers, forward_prefix=forward_prefix, timeout=eor_timeout
+        )
+        self.shutdown_fire_and_forget()
+        self.wait_for_shutdown(timeout=shutdown_timeout)
+        return ok
+
     def wait_for_shutdown(self, timeout: float = 5.0) -> None:
         """Wait for shutdown signal from ZeBGP.
 
