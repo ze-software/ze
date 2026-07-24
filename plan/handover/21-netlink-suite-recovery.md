@@ -123,6 +123,34 @@ OSPF. Resolving this cluster needs those two gaps fixed first (plugin env
 propagation + backend loading under uid-drop), then per-test `netns-link`
 provisioning + an ospf subset in `scripts/evidence/netns_qemu.py`.
 
+### Sharper diagnosis (session 2c): the "no backend loaded" is an OSPF product bug, not netns
+
+`netns-link` provisioning DOES work -- with `nbma0` provisioned, the OSPF
+transport's `resolveIfaceBinding` (`iface.Resolve`) succeeds; the failure moves
+to `interfaceIPv4` -> `iface.Addresses` -> `osDeviceFor` -> `GetInterface` ->
+`backendOrErr` = **"iface: no backend loaded"**
+(`internal/plugins/ospf/transport/backend_linux.go:49,246` +
+`internal/component/iface/dispatch.go:15`). The iface netlink backend is loaded
+ONLY by the iface component's `OnConfigure` when the config has an `interface {}`
+block (`internal/component/iface/register.go:400-414`); an OSPF-only config has
+none, so the backend never loads and OSPF cannot read the interface's IPv4 for
+its multicast join. This is INDEPENDENT of netns/uid-drop -- it would break a
+real `ze` daemon running OSPF on an interface whose address is set by the OS/DHCP
+(no `interface {}` stanza). Every ospf test masked it by failing at "Link not
+found" first; provisioning the link surfaces it.
+
+Candidate fix (NOT taken -- daemon-wide behaviour change I could not end-to-end
+validate while the cluster is still blocked on `ze_api`): have the iface plugin
+ensure a default backend (`iface.DefaultBackendName`, `backend.go:239`) is loaded
+at startup for its dependents (OSPF declares `Dependencies: ["interface", ...]`),
+guarded by `GetBackend() == nil` so an explicit `interface { backend vpp }` still
+wins. The design currently REQUIRES an explicit backend
+(`errInterfaceNoBackendConfiguredAndNo`, `register.go:407`), so this needs an
+owner decision, not a drive-by change. So the interface cluster now needs THREE
+things, in order: (1) the iface-default-backend fix above, (2) `ze_api`
+importable under uid-drop, (3) per-test `netns-link` + ospf subset in the netns
+gate.
+
 ## Update 2026-07-24 (session 2): items 1/2/5 fixed, ospf tail fully diagnosed
 
 A second session (macOS, validating under `make ze-netns-qemu-test`) landed the
