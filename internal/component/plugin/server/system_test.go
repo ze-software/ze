@@ -75,6 +75,52 @@ func TestHandleSystemDispatchMissingCommand(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
+// TestHandleDaemonShutdownReactorlessUsesShutdownFunc verifies that a daemon
+// without a BGP reactor stops via the daemon-provided shutdownFunc.
+//
+// VALIDATES: `request shutdown` on an OSPF-only (reactorless) daemon invokes the
+// fallback shutdownFunc and reports done, instead of failing RequireReactor.
+// PREVENTS: the regression where a reactorless daemon could not be stopped by
+// command and hung until the test timeout (ospf ldp-sync tests).
+func TestHandleDaemonShutdownReactorlessUsesShutdownFunc(t *testing.T) {
+	called := false
+	// A reactorless daemon carries the Coordinator as its reactor; its
+	// FullReactor() returns the coordinator itself (a no-op Stop), so ctx.Reactor()
+	// is non-nil. The handler must recognize this fallback and use shutdownFunc,
+	// not silently no-op on coordinator.Stop() (the ospf ldp-sync hang).
+	srv := &Server{reactor: plugin.NewCoordinator(nil)}
+	srv.SetShutdownFunc(func() { called = true })
+
+	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.True(t, called, "reactorless shutdown must invoke the daemon shutdownFunc, not coordinator.Stop()")
+}
+
+// TestHandleDaemonShutdownRealReactorStops verifies a BGP daemon (real reactor,
+// not the coordinator fallback) still stops via the reactor and does NOT use the
+// shutdownFunc, preserving graceful BGP shutdown.
+func TestHandleDaemonShutdownRealReactorStops(t *testing.T) {
+	reactor := &mockReactor{}
+	funcCalled := false
+	srv := &Server{reactor: reactor}
+	srv.SetShutdownFunc(func() { funcCalled = true })
+
+	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.True(t, reactor.stopped, "a real reactor must be stopped directly")
+	assert.False(t, funcCalled, "a real reactor must not fall back to shutdownFunc")
+}
+
+// TestHandleDaemonShutdownNoReactorNoFuncErrors verifies a clean error when
+// neither a reactor nor a shutdownFunc is available (fail closed, no panic).
+func TestHandleDaemonShutdownNoReactorNoFuncErrors(t *testing.T) {
+	resp, err := handleDaemonShutdown(&CommandContext{Server: &Server{}}, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+}
+
 // TestHandleSystemDispatchNoDispatcher verifies error when dispatcher unavailable.
 //
 // VALIDATES: Nil dispatcher returns error.

@@ -1033,6 +1033,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
+	// Reactor-independent `request shutdown`: a BGP daemon stops via the reactor,
+	// but a reactorless daemon (OSPF-only, etc.) needs the command to reach the
+	// signal-based teardown below. Wired ungated so `request shutdown` works
+	// regardless of which protocols are configured (non-blocking, mirrors
+	// monitorStdinEOF).
+	apiServer.SetShutdownFunc(func() {
+		select {
+		case sigCh <- syscall.SIGTERM:
+		default:
+		}
+	})
+
 	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins,
 	// refreshes the shared ConfigProvider, then notifies every registered
 	// subsystem so it can hot-apply diff-able knobs.

@@ -30,6 +30,15 @@ func ProbeConfigType(content string) ConfigType {
 
 	hasBGP := false
 	hasPlugin := false
+	// hasOther records any top-level block that is neither `plugin` nor the
+	// hub-native `env`: an ospf/firewall/environment/... block means the config
+	// drives the full YANG daemon (which runs built-in protocols AND forks the
+	// external plugins declared in `plugin {}`, wiring a TLS acceptor for them),
+	// not the standalone plugin-hub orchestrator (which runs no built-in protocol
+	// and never sets an acceptor). Without this, an OSPF-only config with an
+	// external observer plugin misroutes to the orchestrator: built-in OSPF never
+	// starts and the observer dies "no TLS acceptor configured".
+	hasOther := false
 	depth := 0
 
 	for {
@@ -50,8 +59,13 @@ func ProbeConfigType(content string) ConfigType {
 					switch t.Value {
 					case string(ConfigTypeBGP):
 						hasBGP = true
-					case "plugin":
+					case sectionPlugin:
 						hasPlugin = true
+					case "env":
+						// hub-native block; on its own it neither forces the
+						// full daemon nor is a YANG protocol indicator.
+					default:
+						hasOther = true
 					}
 				}
 			}
@@ -60,6 +74,11 @@ func ProbeConfigType(content string) ConfigType {
 
 	if hasBGP {
 		return ConfigTypeBGP
+	}
+	// A YANG config block outside the hub-native set routes to the full daemon,
+	// even alongside a `plugin {}` block. Only a pure plugin/env hub is ConfigTypeHub.
+	if hasOther {
+		return ConfigTypeUnknown
 	}
 	if hasPlugin {
 		return ConfigTypeHub
@@ -72,6 +91,12 @@ func ProbeConfigType(content string) ConfigType {
 func probeSetFormat(content string) ConfigType {
 	hasBGP := false
 	hasPlugin := false
+	// hasOther mirrors the hierarchical path: a `set ospf ...` (or any block
+	// outside the hub-native plugin/env set) means the committed config drives
+	// the full YANG daemon, not the plugin-hub orchestrator. A committed
+	// OSPF + external-plugin config serializes to set format and is probed on
+	// `ze start`/reboot, so without this the reboot path keeps the misroute.
+	hasOther := false
 
 	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
@@ -106,13 +131,20 @@ func probeSetFormat(content string) ConfigType {
 		switch fields[1] {
 		case string(ConfigTypeBGP):
 			hasBGP = true
-		case "plugin":
+		case sectionPlugin:
 			hasPlugin = true
+		case "env":
+			// hub-native block; not a YANG-daemon indicator on its own.
+		default:
+			hasOther = true
 		}
 	}
 
 	if hasBGP {
 		return ConfigTypeBGP
+	}
+	if hasOther {
+		return ConfigTypeUnknown
 	}
 	if hasPlugin {
 		return ConfigTypeHub

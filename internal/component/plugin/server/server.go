@@ -97,6 +97,7 @@ type Server struct {
 	configLoader ConfigLoader   // Loads new config tree for ReloadFromDisk
 	fullReload   FullReloadFunc // Runs hub-level reload for daemon-reload RPC
 	rebootFunc   func()         // Set by daemon; called on "daemon reboot" RPC
+	shutdownFunc func()         // Set by daemon; reactor-independent daemon shutdown (used when no BGP reactor is present)
 
 	ctx    context.Context
 	cancel context.CancelFunc

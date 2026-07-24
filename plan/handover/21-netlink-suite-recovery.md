@@ -76,6 +76,53 @@ the marker change below they SKIP there, which is honest but means a green
    host build died with `mkdir cache: file exists`. `cache/` now never
    auto-repoints; use `python3 scripts/dev/ensure-links.py --repoint-cache`.
 
+## Update 2026-07-24 (session 2b): ospf ldp-sync cluster RESOLVED via two product-bug fixes
+
+Root-causing the ldp-sync/multiaf "no TLS acceptor" cluster found TWO real
+product bugs in the non-BGP (OSPF-only) daemon path, both now fixed and
+QEMU-validated (ldp-sync 35/37/38/39 PASS):
+
+1. **Config misrouting (`internal/component/config/probe.go`).** `ProbeConfigType`
+   classified any `plugin {}` + no-`bgp {}` config as `ConfigTypeHub`, routing it
+   to the plugin-hub Orchestrator (no built-in protocols, no TLS acceptor). An
+   OSPF-only config with an external observer plugin was misrouted: built-in OSPF
+   never ran and the observer died "no TLS acceptor configured". Fix: any
+   top-level block other than `plugin`/`env` (e.g. `ospf`) routes to the full YANG
+   daemon. Verified the ONLY `ze -` daemon tests matching the old misroute were
+   these 9 ospf tests.
+2. **Reactorless shutdown (`server/system.go`, `cmd/ze/hub/main.go`).**
+   `handleDaemonShutdown` required a BGP reactor; an OSPF-only daemon has none, so
+   `request shutdown` could not stop it and it hung. Subtlety: `Coordinator.
+   FullReactor` returns the coordinator ITSELF as a no-op fallback, so
+   `ctx.Reactor()` is non-nil even without BGP. Fix: a reactor-independent
+   `SetShutdownFunc` (signal-based teardown), used when the reactor is the
+   coordinator fallback.
+
+**These two fixes are the real deliverable of the acceptor cluster** -- they fix
+an OSPF-only (or any non-BGP) daemon that runs external plugins and can be shut
+down by command, not just the tests.
+
+### Interface-missing cluster (9 tests) -- BLOCKED on netns-uid-drop infra, not an ospf bug
+
+50/58/68/29 + multiaf 45/46/47/48 + ospfv3-vlink 14 configure ACTIVE OSPF
+interfaces (nbma/ptmp/point-to-point on nbma0/ptmp0/eth0/eth1) that do not exist.
+`openConfiguredInterface` (`internal/plugins/ospf/instance.go:668`) opens active
+types via `openInterface`, which needs a real link + an IPv4 address
+(`interfaceIPv4`, transport/backend_linux.go). The config-syntax part is fixed
+(50/58/ospfv3 6/7 semicolons, committed). The interface must be provisioned via
+`option=netns-link` under netns mode -- BUT running these ospf OBSERVER tests
+under the netns launch mode (uid-dropped ze) surfaced two infrastructure gaps the
+firewall/policy netns tests never exercise (they use `driver.py`, not `ze_api`):
+- **`ModuleNotFoundError: No module named 'ze_api'`** -- the uid-dropped observer
+  cannot import `ze_api` (PYTHONPATH from `runner_exec.go:734` is not reaching the
+  forked plugin under uid-drop). ldp-sync proves ze_api works in NORMAL mode.
+- **`iface: no backend loaded`** -- the OSPF transport's interface-address query
+  finds no iface backend under uid-drop (loads fine as root in normal mode).
+Both are netns-launch-mode + uid-drop infrastructure problems, separable from
+OSPF. Resolving this cluster needs those two gaps fixed first (plugin env
+propagation + backend loading under uid-drop), then per-test `netns-link`
+provisioning + an ospf subset in `scripts/evidence/netns_qemu.py`.
+
 ## Update 2026-07-24 (session 2): items 1/2/5 fixed, ospf tail fully diagnosed
 
 A second session (macOS, validating under `make ze-netns-qemu-test`) landed the

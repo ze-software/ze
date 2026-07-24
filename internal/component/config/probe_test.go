@@ -32,6 +32,20 @@ func TestProbeConfigType(t *testing.T) {
 			want:    ConfigTypeHub,
 		},
 		{
+			// A built-in protocol block alongside an external plugin routes to the
+			// full YANG daemon, NOT the plugin-hub orchestrator: built-in OSPF must
+			// run and the external observer needs a TLS acceptor. Regression guard
+			// for the misrouted ldp-sync/multiaf/vlink ospf tests.
+			name:    "plugin_with_ospf_is_yang_not_hub",
+			content: "plugin {\n\texternal obs { run \"./obs\"; }\n}\nospf {\n\trouter-id 1.2.3.4\n}",
+			want:    ConfigTypeUnknown,
+		},
+		{
+			name:    "plugin_with_env_stays_hub",
+			content: "env {\n\tKEY value\n}\nplugin {\n\texternal x { run \"./x\"; }\n}",
+			want:    ConfigTypeHub,
+		},
+		{
 			name:    "unknown_empty",
 			content: "",
 			want:    ConfigTypeUnknown,
@@ -70,6 +84,15 @@ func TestProbeConfigType(t *testing.T) {
 			name:    "set_format_plugin",
 			content: "set plugin hub listen 127.0.0.1:5555",
 			want:    ConfigTypeHub,
+		},
+		{
+			// A committed OSPF + external-plugin config serializes to set format
+			// and is probed on `ze start`/reboot; it must route to the YANG daemon,
+			// not the acceptor-less orchestrator (regression guard for the reboot
+			// path of the ospf-observer misroute).
+			name:    "set_format_plugin_with_ospf_is_yang",
+			content: "set plugin external obs run ./obs\nset ospf router-id 1.2.3.4",
+			want:    ConfigTypeUnknown,
 		},
 		{
 			name:    "set_meta_format_bgp",

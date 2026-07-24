@@ -20,6 +20,7 @@ var (
 	errMissingCommand              = errors.New("missing command")
 	errDispatcherNotAvailable      = errors.New("dispatcher not available")
 	errRebootFunctionNotConfigured = errors.New("reboot function not configured")
+	errShutdownNotConfigured       = errors.New("shutdown not available: no reactor and no shutdown function configured")
 )
 
 func init() {
@@ -132,19 +133,40 @@ func handleSystemVersionAPI(_ *CommandContext, _ []string) (*plugin.Response, er
 	}, nil
 }
 
-// handleDaemonShutdown signals the reactor to stop.
+// handleDaemonShutdown stops the daemon. A BGP daemon stops the reactor (which
+// runs its graceful-shutdown sequence); a reactorless daemon (e.g. OSPF-only)
+// has no reactor, so it falls back to the daemon-provided shutdownFunc that
+// triggers the same signal-based teardown as SIGTERM. Without the fallback a
+// reactorless daemon could not be stopped by command and hung until timeout.
 func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, error) {
-	_, errResp, err := RequireReactor(ctx)
-	if err != nil {
-		return errResp, err
+	// Coordinator.FullReactor returns the coordinator ITSELF as a no-op fallback
+	// when no BGP reactor is registered, so ctx.Reactor() is non-nil even for an
+	// OSPF-only daemon and its Stop() does nothing. Only a real reactor (not the
+	// *plugin.Coordinator fallback) is stopped directly; otherwise fall back to
+	// the daemon shutdownFunc (signal-based teardown). Without this a reactorless
+	// daemon hangs until timeout on `request shutdown`.
+	r := ctx.Reactor()
+	if _, isFallback := r.(*plugin.Coordinator); r != nil && !isFallback {
+		r.Stop()
+		return shutdownInitiated(), nil
 	}
-	ctx.Reactor().Stop()
+	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
+		ctx.Server.shutdownFunc()
+		return shutdownInitiated(), nil
+	}
+	return &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  "shutdown not available: no reactor and no shutdown function configured",
+	}, errShutdownNotConfigured
+}
+
+func shutdownInitiated() *plugin.Response {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"message": "shutdown initiated",
 		},
-	}, nil
+	}
 }
 
 // handleDaemonReboot signals a system reboot after graceful shutdown.
@@ -170,28 +192,50 @@ func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	}, nil
 }
 
+// SetShutdownFunc sets a reactor-independent daemon-shutdown callback. The
+// daemon wires it (ungated by BGP) to the same signal-based teardown SIGTERM
+// triggers, so `request shutdown` stops a reactorless daemon (OSPF-only, etc.).
+func (s *Server) SetShutdownFunc(fn func()) {
+	s.shutdownFunc = fn
+}
+
 // SetRebootFunc sets the function called for "daemon reboot" commands.
 // Called by the daemon to wire graceful shutdown + OS reboot.
 func (s *Server) SetRebootFunc(fn func()) {
 	s.rebootFunc = fn
 }
 
-// handleDaemonQuit dumps all goroutine stacks then shuts down.
+// handleDaemonQuit dumps all goroutine stacks then shuts down. Like
+// handleDaemonShutdown it must not rely on a BGP reactor: on a reactorless
+// daemon ctx.Reactor() is the no-op Coordinator fallback, so it stops via the
+// daemon shutdownFunc instead (otherwise quit dumps stacks but never exits).
 func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error) {
-	_, errResp, err := RequireReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
 	buf := make([]byte, 1<<20) // 1MB
 	n := runtime.Stack(buf, true)
 	slog.Warn("goroutine dump (quit)", "stacks", string(buf[:n]))
-	ctx.Reactor().Stop()
+
+	r := ctx.Reactor()
+	if _, isFallback := r.(*plugin.Coordinator); r != nil && !isFallback {
+		r.Stop()
+		return quitInitiated(), nil
+	}
+	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
+		ctx.Server.shutdownFunc()
+		return quitInitiated(), nil
+	}
+	return &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  "quit not available: no reactor and no shutdown function configured",
+	}, errShutdownNotConfigured
+}
+
+func quitInitiated() *plugin.Response {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"message": "quit initiated (goroutines dumped)",
 		},
-	}, nil
+	}
 }
 
 // handleDaemonStatus returns daemon status.
