@@ -52,13 +52,16 @@ var gate11SymbolGroups = map[string][]string{
 }
 
 func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
+	// t.Parallel() must precede the -short skip guard: tparallel does not
+	// recognize a top-level t.Parallel() call that sits after an early
+	// t.Skip(), and flags the parent as non-parallel while its subtests are.
+	t.Parallel()
 	// test-relax: -short guard only; this test still runs in full (make ze-verify
 	// passes no -short). It builds and links six ze binaries, so opt-in -short
 	// runs skip it for speed. No coverage is lost in the verify/CI suite.
 	if testing.Short() {
 		t.Skip("builds six ze binaries (slow); skipped under -short")
 	}
-	t.Parallel()
 	// No meta-test guards the t-passing discipline below; the failure mode it
 	// prevents (parent Fatalf from a subtest goroutine skipping later rows)
 	// is a Go testing-framework interaction that a regression test would have
