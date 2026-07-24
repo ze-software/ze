@@ -169,6 +169,9 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 		if fileConfig.TCPConnections > 0 {
 			config.TCPConnections = fileConfig.TCPConnections
 		}
+		if fileConfig.Linger {
+			config.Linger = true
+		}
 		if len(fileConfig.CapabilityOverrides) > 0 {
 			config.CapabilityOverrides = fileConfig.CapabilityOverrides
 		}

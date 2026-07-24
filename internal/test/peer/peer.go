@@ -112,6 +112,13 @@ type Config struct {
 	TCPConnections int
 	// Mode: operation mode (check, sink, echo). Default ModeCheck.
 	Mode Mode
+	// Linger: after all expectations complete, announce success but keep the
+	// session open (reading and answering KEEPALIVEs) until the test tears
+	// the peer down. Without it a check peer closes its connection the moment
+	// its own script completes, and ze correctly treats that as session-down
+	// and withdraws the peer's routes -- racing any forwarding still in
+	// flight toward other peers (option=linger:value=true).
+	Linger bool
 	// IPv6: bind to IPv6 instead of IPv4
 	IPv6 bool
 	// Decode: decode messages to human-readable format in output
@@ -280,7 +287,44 @@ func (p *Peer) Run(ctx context.Context) Result {
 			p.printf("\nwaiting for next connection (%d/%d)...\n", connCount, maxConns)
 			continue
 		case <-ctx.Done():
+			// A lingering peer holds its session open past completion, so
+			// teardown-by-cancel is its NORMAL success exit.
+			if p.config.Linger && p.checker.Completed() {
+				return Result{Success: true}
+			}
 			return Result{Success: false, Error: errContextCanceled}
+		}
+	}
+}
+
+// completed is returned at every check-mode completion site. Without linger it
+// simply reports success (the connection closes when the caller returns). With
+// linger it announces success on the peer's output NOW -- teardown is a kill,
+// so the post-Run "successful" print may never happen -- and then holds the
+// session open until the test ends or the remote closes.
+func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
+	if !p.config.Linger {
+		return Result{Success: true}
+	}
+	p.printf("\nsuccessful\n")
+	p.printf("lingering: holding the session open until teardown (option=linger)\n")
+	for {
+		select {
+		case <-ctx.Done():
+			return Result{Success: true}
+		default:
+		}
+		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		if _, _, err := ReadMessage(conn); err != nil {
+			if isTimeout(err) {
+				continue
+			}
+			// EOF/reset after completion: the exchange already validated.
+			return Result{Success: true}
+		}
+		if _, err := conn.Write(KeepaliveMsg()); err != nil {
+			// Remote closed after completion: the exchange already validated.
+			return Result{Success: true}
 		}
 	}
 }
@@ -415,7 +459,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			return Result{Success: false, Error: fmt.Errorf("write send: %w", err)}
 		}
 		if p.checker.Completed() {
-			return Result{Success: true}
+			return p.completed(ctx, conn)
 		}
 	}
 
@@ -501,7 +545,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		}
 
 		if p.checker.Completed() {
-			return Result{Success: true}
+			return p.completed(ctx, conn)
 		}
 
 		// Check if this message completed a sequence - connection should close
@@ -525,7 +569,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 				return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
 			}
 			if p.checker.Completed() {
-				return Result{Success: true}
+				return p.completed(ctx, conn)
 			}
 			// More sequences expected - connection will close and client should reconnect.
 			return Result{Success: true}
@@ -547,7 +591,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 				return Result{Success: false, Error: fmt.Errorf("write send: %w", err)}
 			}
 			if p.checker.Completed() {
-				return Result{Success: true}
+				return p.completed(ctx, conn)
 			}
 		}
 

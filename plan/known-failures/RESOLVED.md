@@ -9,6 +9,30 @@ resolved.
 
 ## Struck-through (resolved in place, were not yet under `## Resolved`)
 
+### ~~`ze-test bgp plugin 224 forward-overflow-two-tier` -- deterministic dest-peer teardown on darwin~~ -- RESOLVED 2026-07-24: real forwarding bug, fixed under `spec-fixit-peer-verdict-and-forward-rail` (defects 7-10)
+
+The shard's own triage was right ("if it reproduces on Linux it is a real
+forwarding/establishment bug and belongs in a spec, not here"). The cause was
+not darwin timing but four real defects, all fixed 2026-07-24: (7) a forward-pool
+FIFO violation across the overflow/channel boundary; (8) the test asserting
+per-message NLRI framing ze does not owe (the forward rail packs same-attr NLRIs);
+(9) the source check-peer closing its session the moment its script completed, so
+ze correctly withdrew its routes mid-burst; and (10) the observer shutting ze down
+after only ONE route reached adj-rib-in, truncating the throttled forwarding. 224
+now passes 10/10 in isolation and in the full `bgp plugin --all` suite. See the
+`plan/spec-fixit-peer-verdict-and-forward-rail.md` addendum.
+
+Original shard (verbatim):
+
+> `ze-test bgp plugin 224` (forward-overflow-two-tier) fails deterministically --
+> 4/4 isolated runs, RC=1, each ~12-13s. The dest peer (127.0.0.2) exchanges OPEN
+> then closes: `failed: connection closed before completion`; the source's
+> 50-route burst never reaches adj-rib-in; the EOR dispatch then fails with
+> `no established peers to send to`. Forces overflow with `ZE_FWD_CHAN_SIZE=2`
+> plus a 50-UPDATE burst under a 20s timeout. A HEAD baseline (`dfb8c01ac`) failed
+> 3/3 with the identical symptom, so it was not caused by
+> `spec-fixit-bgp-concurrency-races`. Root cause was left unasserted at the time.
+
 ### ~~`internal/component/doctor` -- 4 listener/schema tests fail on macOS~~ -- RESOLVED 2026-07-15: DISPROVEN, was a missing-build-tags artifact
 
 **The macOS diagnosis was wrong. These tests pass. Nothing to fix.**

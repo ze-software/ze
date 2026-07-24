@@ -7,7 +7,9 @@
 # Flow:
 # 1. ze.fwd.chan.size=2 forces a tiny per-worker channel (overflow guaranteed)
 # 2. Source peer sends 80 UPDATEs in a burst
-# 3. Destination peer asserts all 80 NLRIs arrive in order, then EOR
+# 3. Destination peer asserts all 80 NLRIs arrive in order (ordered= needles:
+#    the forward rail may legally pack several same-attr NLRIs into one
+#    UPDATE via fwdBucketMerge, so per-message framing is not asserted)
 # 4. Python observer smoke-checks metric registration while the tiny channel
 #    and full destination delivery prove the overflow path was taken
 
@@ -16,6 +18,10 @@ option=env:var=ze.log.bgp.reactor.session:value=debug
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=20s
+# linger: hold the source session open after its script completes. Closing it
+# makes ze correctly withdraw the source's routes toward dest, racing the very
+# forwarding burst this test asserts.
+option=linger:value=true
 
 # 80 UPDATEs: 10.0.{0..79}.0/24
 # ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, LOCAL_PREF=100
@@ -102,90 +108,96 @@ action=send:conn=1:seq=80:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_SOURCE
 
-# Dest peer (ASN 65002) -- verify every forwarded route plus EOR
+# Dest peer (ASN 65002) -- verify every forwarded route arrives, in order
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
-expect=bgp:conn=1:seq=1:contains=180A0000
-expect=bgp:conn=1:seq=2:contains=180A0001
-expect=bgp:conn=1:seq=3:contains=180A0002
-expect=bgp:conn=1:seq=4:contains=180A0003
-expect=bgp:conn=1:seq=5:contains=180A0004
-expect=bgp:conn=1:seq=6:contains=180A0005
-expect=bgp:conn=1:seq=7:contains=180A0006
-expect=bgp:conn=1:seq=8:contains=180A0007
-expect=bgp:conn=1:seq=9:contains=180A0008
-expect=bgp:conn=1:seq=10:contains=180A0009
-expect=bgp:conn=1:seq=11:contains=180A000A
-expect=bgp:conn=1:seq=12:contains=180A000B
-expect=bgp:conn=1:seq=13:contains=180A000C
-expect=bgp:conn=1:seq=14:contains=180A000D
-expect=bgp:conn=1:seq=15:contains=180A000E
-expect=bgp:conn=1:seq=16:contains=180A000F
-expect=bgp:conn=1:seq=17:contains=180A0010
-expect=bgp:conn=1:seq=18:contains=180A0011
-expect=bgp:conn=1:seq=19:contains=180A0012
-expect=bgp:conn=1:seq=20:contains=180A0013
-expect=bgp:conn=1:seq=21:contains=180A0014
-expect=bgp:conn=1:seq=22:contains=180A0015
-expect=bgp:conn=1:seq=23:contains=180A0016
-expect=bgp:conn=1:seq=24:contains=180A0017
-expect=bgp:conn=1:seq=25:contains=180A0018
-expect=bgp:conn=1:seq=26:contains=180A0019
-expect=bgp:conn=1:seq=27:contains=180A001A
-expect=bgp:conn=1:seq=28:contains=180A001B
-expect=bgp:conn=1:seq=29:contains=180A001C
-expect=bgp:conn=1:seq=30:contains=180A001D
-expect=bgp:conn=1:seq=31:contains=180A001E
-expect=bgp:conn=1:seq=32:contains=180A001F
-expect=bgp:conn=1:seq=33:contains=180A0020
-expect=bgp:conn=1:seq=34:contains=180A0021
-expect=bgp:conn=1:seq=35:contains=180A0022
-expect=bgp:conn=1:seq=36:contains=180A0023
-expect=bgp:conn=1:seq=37:contains=180A0024
-expect=bgp:conn=1:seq=38:contains=180A0025
-expect=bgp:conn=1:seq=39:contains=180A0026
-expect=bgp:conn=1:seq=40:contains=180A0027
-expect=bgp:conn=1:seq=41:contains=180A0028
-expect=bgp:conn=1:seq=42:contains=180A0029
-expect=bgp:conn=1:seq=43:contains=180A002A
-expect=bgp:conn=1:seq=44:contains=180A002B
-expect=bgp:conn=1:seq=45:contains=180A002C
-expect=bgp:conn=1:seq=46:contains=180A002D
-expect=bgp:conn=1:seq=47:contains=180A002E
-expect=bgp:conn=1:seq=48:contains=180A002F
-expect=bgp:conn=1:seq=49:contains=180A0030
-expect=bgp:conn=1:seq=50:contains=180A0031
-expect=bgp:conn=1:seq=51:contains=180A0032
-expect=bgp:conn=1:seq=52:contains=180A0033
-expect=bgp:conn=1:seq=53:contains=180A0034
-expect=bgp:conn=1:seq=54:contains=180A0035
-expect=bgp:conn=1:seq=55:contains=180A0036
-expect=bgp:conn=1:seq=56:contains=180A0037
-expect=bgp:conn=1:seq=57:contains=180A0038
-expect=bgp:conn=1:seq=58:contains=180A0039
-expect=bgp:conn=1:seq=59:contains=180A003A
-expect=bgp:conn=1:seq=60:contains=180A003B
-expect=bgp:conn=1:seq=61:contains=180A003C
-expect=bgp:conn=1:seq=62:contains=180A003D
-expect=bgp:conn=1:seq=63:contains=180A003E
-expect=bgp:conn=1:seq=64:contains=180A003F
-expect=bgp:conn=1:seq=65:contains=180A0040
-expect=bgp:conn=1:seq=66:contains=180A0041
-expect=bgp:conn=1:seq=67:contains=180A0042
-expect=bgp:conn=1:seq=68:contains=180A0043
-expect=bgp:conn=1:seq=69:contains=180A0044
-expect=bgp:conn=1:seq=70:contains=180A0045
-expect=bgp:conn=1:seq=71:contains=180A0046
-expect=bgp:conn=1:seq=72:contains=180A0047
-expect=bgp:conn=1:seq=73:contains=180A0048
-expect=bgp:conn=1:seq=74:contains=180A0049
-expect=bgp:conn=1:seq=75:contains=180A004A
-expect=bgp:conn=1:seq=76:contains=180A004B
-expect=bgp:conn=1:seq=77:contains=180A004C
-expect=bgp:conn=1:seq=78:contains=180A004D
-expect=bgp:conn=1:seq=79:contains=180A004E
-expect=bgp:conn=1:seq=80:contains=180A004F
+# // test-relax: reframed seq=N:contains= (one NLRI per message) to seq=1:ordered=
+# (same 80 needles, strict in-order consumption across message boundaries).
+# The old framing asserted a property ze does not owe: the forward rail packs
+# same-attr NLRIs into one UPDATE (fwdBucketMerge), which is legal BGP UPDATE
+# packing. ordered= still fails on any lost or out-of-order NLRI, so the
+# coverage this test claims (delivery without loss, in order) is unchanged.
+expect=bgp:conn=1:seq=1:ordered=180A0000
+expect=bgp:conn=1:seq=1:ordered=180A0001
+expect=bgp:conn=1:seq=1:ordered=180A0002
+expect=bgp:conn=1:seq=1:ordered=180A0003
+expect=bgp:conn=1:seq=1:ordered=180A0004
+expect=bgp:conn=1:seq=1:ordered=180A0005
+expect=bgp:conn=1:seq=1:ordered=180A0006
+expect=bgp:conn=1:seq=1:ordered=180A0007
+expect=bgp:conn=1:seq=1:ordered=180A0008
+expect=bgp:conn=1:seq=1:ordered=180A0009
+expect=bgp:conn=1:seq=1:ordered=180A000A
+expect=bgp:conn=1:seq=1:ordered=180A000B
+expect=bgp:conn=1:seq=1:ordered=180A000C
+expect=bgp:conn=1:seq=1:ordered=180A000D
+expect=bgp:conn=1:seq=1:ordered=180A000E
+expect=bgp:conn=1:seq=1:ordered=180A000F
+expect=bgp:conn=1:seq=1:ordered=180A0010
+expect=bgp:conn=1:seq=1:ordered=180A0011
+expect=bgp:conn=1:seq=1:ordered=180A0012
+expect=bgp:conn=1:seq=1:ordered=180A0013
+expect=bgp:conn=1:seq=1:ordered=180A0014
+expect=bgp:conn=1:seq=1:ordered=180A0015
+expect=bgp:conn=1:seq=1:ordered=180A0016
+expect=bgp:conn=1:seq=1:ordered=180A0017
+expect=bgp:conn=1:seq=1:ordered=180A0018
+expect=bgp:conn=1:seq=1:ordered=180A0019
+expect=bgp:conn=1:seq=1:ordered=180A001A
+expect=bgp:conn=1:seq=1:ordered=180A001B
+expect=bgp:conn=1:seq=1:ordered=180A001C
+expect=bgp:conn=1:seq=1:ordered=180A001D
+expect=bgp:conn=1:seq=1:ordered=180A001E
+expect=bgp:conn=1:seq=1:ordered=180A001F
+expect=bgp:conn=1:seq=1:ordered=180A0020
+expect=bgp:conn=1:seq=1:ordered=180A0021
+expect=bgp:conn=1:seq=1:ordered=180A0022
+expect=bgp:conn=1:seq=1:ordered=180A0023
+expect=bgp:conn=1:seq=1:ordered=180A0024
+expect=bgp:conn=1:seq=1:ordered=180A0025
+expect=bgp:conn=1:seq=1:ordered=180A0026
+expect=bgp:conn=1:seq=1:ordered=180A0027
+expect=bgp:conn=1:seq=1:ordered=180A0028
+expect=bgp:conn=1:seq=1:ordered=180A0029
+expect=bgp:conn=1:seq=1:ordered=180A002A
+expect=bgp:conn=1:seq=1:ordered=180A002B
+expect=bgp:conn=1:seq=1:ordered=180A002C
+expect=bgp:conn=1:seq=1:ordered=180A002D
+expect=bgp:conn=1:seq=1:ordered=180A002E
+expect=bgp:conn=1:seq=1:ordered=180A002F
+expect=bgp:conn=1:seq=1:ordered=180A0030
+expect=bgp:conn=1:seq=1:ordered=180A0031
+expect=bgp:conn=1:seq=1:ordered=180A0032
+expect=bgp:conn=1:seq=1:ordered=180A0033
+expect=bgp:conn=1:seq=1:ordered=180A0034
+expect=bgp:conn=1:seq=1:ordered=180A0035
+expect=bgp:conn=1:seq=1:ordered=180A0036
+expect=bgp:conn=1:seq=1:ordered=180A0037
+expect=bgp:conn=1:seq=1:ordered=180A0038
+expect=bgp:conn=1:seq=1:ordered=180A0039
+expect=bgp:conn=1:seq=1:ordered=180A003A
+expect=bgp:conn=1:seq=1:ordered=180A003B
+expect=bgp:conn=1:seq=1:ordered=180A003C
+expect=bgp:conn=1:seq=1:ordered=180A003D
+expect=bgp:conn=1:seq=1:ordered=180A003E
+expect=bgp:conn=1:seq=1:ordered=180A003F
+expect=bgp:conn=1:seq=1:ordered=180A0040
+expect=bgp:conn=1:seq=1:ordered=180A0041
+expect=bgp:conn=1:seq=1:ordered=180A0042
+expect=bgp:conn=1:seq=1:ordered=180A0043
+expect=bgp:conn=1:seq=1:ordered=180A0044
+expect=bgp:conn=1:seq=1:ordered=180A0045
+expect=bgp:conn=1:seq=1:ordered=180A0046
+expect=bgp:conn=1:seq=1:ordered=180A0047
+expect=bgp:conn=1:seq=1:ordered=180A0048
+expect=bgp:conn=1:seq=1:ordered=180A0049
+expect=bgp:conn=1:seq=1:ordered=180A004A
+expect=bgp:conn=1:seq=1:ordered=180A004B
+expect=bgp:conn=1:seq=1:ordered=180A004C
+expect=bgp:conn=1:seq=1:ordered=180A004D
+expect=bgp:conn=1:seq=1:ordered=180A004E
+expect=bgp:conn=1:seq=1:ordered=180A004F
 # // test-relax: the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes
@@ -220,23 +232,39 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll adj-rib-in until routes have been forwarded and accepted.
-    # // test-relax: blind sleep(8.0) + single show -> dispatch_until(total-routes >= 1)
+    # Every prefix the source announced must reach adj-rib-in. The receive path
+    # is not throttled by ZE_FWD_CHAN_SIZE, so this fills quickly and only
+    # proves nothing was lost on ingest before we drain forwarding to the dest.
+    # // test-relax: blind sleep(8.0) + single show(>= 1) -> wait for the FULL count.
+    EXPECTED_ROUTES = 80
     result = api.dispatch_until(
         'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
-        attempts=40,
+        lambda r: result_json_data(r, {}).get('total-routes', 0) >= EXPECTED_ROUTES,
+        attempts=80,
     )
-    data = result_json_data(result, {})
-    total = data.get('total-routes', 0)
-
-    if total < 0:  # architectural blocker: no forwarding plugin loaded
-        msg = f'adj-rib-in query failed, got total={total}'
+    total = result_json_data(result, {}).get('total-routes', 0)
+    if total < EXPECTED_ROUTES:  # negative = query failed; short = ingest incomplete
+        msg = f'adj-rib-in has {total}/{EXPECTED_ROUTES} routes'
         print(f'FAIL: {msg}', file=sys.stderr)
         sys.stderr.flush()
         runtime_fail(msg)
 
     print(f'OK: {total} routes in adj-rib-in', file=sys.stderr)
+
+    # Drain forwarding deterministically before shutting down. The tiny forward
+    # channel leaves routes queued in the per-destination overflow buffer well
+    # after adj-rib-in is full; 'request peer * flush' blocks until the forward
+    # pool has written every queued item to the wire (BarrierPeer), so an early
+    # shutdown cannot truncate the dest. This replaces a shutdown-races-forwarding
+    # window that made the test fail under load.
+    fr = api.dispatch_until_done('request peer * flush', attempts=40)
+    if fr.get('status') != 'done':
+        msg = f'forward-pool flush did not complete: {fr}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
+
+    print('OK: forward pool flushed to all peers', file=sys.stderr)
 
     # Verify two-tier metrics exist.
     r = dispatch(api, 'show metrics values')

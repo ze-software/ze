@@ -128,7 +128,12 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			content = tb.Str("contains:").Str(strings.ToUpper(strings.ReplaceAll(containsVal, ":", ""))).String()
 			return conn, seq, content, nil
 		}
-		return 0, 0, "", fmt.Errorf("expect=bgp missing hex, prefix, or contains: %q", rule)
+		if orderedVal := kv["ordered"]; orderedVal != "" {
+			var tb textbuf.Buffer
+			content = tb.Str("ordered:").Str(strings.ToUpper(strings.ReplaceAll(orderedVal, ":", ""))).String()
+			return conn, seq, content, nil
+		}
+		return 0, 0, "", fmt.Errorf("expect=bgp missing hex, prefix, contains, or ordered: %q", rule)
 	}
 
 	// action=notification:conn=N:seq=N:text=...
@@ -339,6 +344,89 @@ func (c *Checker) Init() bool {
 	return true
 }
 
+// consumeMatches removes every pending check the received message satisfies.
+// Caller must hold c.mu. Returns true when at least one check was consumed.
+//
+// Plain checks (hex, prefix, contains) keep their set semantics: at most one
+// is consumed per message, whichever matches first. Ordered checks
+// ("ordered:" prefix) form a strict FIFO subqueue: the front needle must be
+// found in the message; one packed message may consume several consecutive
+// needles, each matched at an advancing offset so intra-message order is
+// enforced too. A message whose content matches only a non-front ordered
+// needle consumes nothing (out-of-order delivery is a mismatch).
+func (c *Checker) consumeMatches(stream string) bool {
+	for i, check := range c.messages {
+		if strings.HasPrefix(check, "ordered:") {
+			continue
+		}
+		received := stream
+		if !strings.HasPrefix(check, strings.Repeat("F", 32)) && !strings.Contains(check, ":") {
+			received = received[32:]
+		}
+
+		if matchRule(check, received) {
+			c.messages = append(c.messages[:i], c.messages[i+1:]...)
+			c.updateMessagesIfRequired()
+			return true
+		}
+	}
+	return c.consumeOrdered(stream)
+}
+
+// consumeOrdered pops ordered needles from the front of the current group's
+// ordered subqueue while each is found in the message at or after the
+// previous needle's position. Caller must hold c.mu. The group is advanced
+// only after the loop, so one message never consumes needles across a seq
+// group boundary.
+func (c *Checker) consumeOrdered(stream string) bool {
+	upper := strings.ToUpper(stream)
+	pos := 0
+	consumed := false
+	for {
+		front := -1
+		needle := ""
+		for i, check := range c.messages {
+			if after, ok := strings.CutPrefix(check, "ordered:"); ok {
+				front = i
+				needle = after
+				break
+			}
+		}
+		if front < 0 {
+			break
+		}
+		at := indexByteAligned(upper, needle, pos)
+		if at < 0 {
+			break
+		}
+		pos = at + len(needle)
+		c.messages = append(c.messages[:front], c.messages[front+1:]...)
+		consumed = true
+	}
+	if consumed {
+		c.updateMessagesIfRequired()
+	}
+	return consumed
+}
+
+// indexByteAligned returns the first index >= from where needle occurs in
+// stream at an EVEN offset. The stream is hex text (two chars per wire byte),
+// so a match at an odd offset would straddle byte boundaries and match bytes
+// that do not exist on the wire.
+func indexByteAligned(stream, needle string, from int) int {
+	for {
+		at := strings.Index(stream[from:], needle)
+		if at < 0 {
+			return -1
+		}
+		idx := from + at
+		if idx%2 == 0 {
+			return idx
+		}
+		from = idx + 1
+	}
+}
+
 // Expected checks if the received message matches expectations.
 func (c *Checker) Expected(msg *Message) bool {
 	c.mu.Lock()
@@ -351,17 +439,8 @@ func (c *Checker) Expected(msg *Message) bool {
 
 	stream := msg.Stream()
 
-	for i, check := range c.messages {
-		received := stream
-		if !strings.HasPrefix(check, strings.Repeat("F", 32)) && !strings.Contains(check, ":") {
-			received = received[32:]
-		}
-
-		if matchRule(check, received) {
-			c.messages = append(c.messages[:i], c.messages[i+1:]...)
-			c.updateMessagesIfRequired()
-			return true
-		}
+	if c.consumeMatches(stream) {
+		return true
 	}
 
 	// No match - accept KEEPALIVE anyway (normal BGP operation).
@@ -397,17 +476,8 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 
 	stream := msg.Stream()
 
-	for i, check := range c.messages {
-		received := stream
-		if !strings.HasPrefix(check, strings.Repeat("F", 32)) && !strings.Contains(check, ":") {
-			received = received[32:]
-		}
-
-		if matchRule(check, received) {
-			c.messages = append(c.messages[:i], c.messages[i+1:]...)
-			c.updateMessagesIfRequired()
-			return true, false
-		}
+	if c.consumeMatches(stream) {
+		return true, false
 	}
 
 	// No match - if KEEPALIVE or EOR, silently accept.

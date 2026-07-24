@@ -104,10 +104,21 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		return
 	}
 
-	peer := items[0].peer
+	// Select the destination from the first REAL item: sentinel items (barrier
+	// done-callbacks, overflow wake-ups) carry a nil peer and no data, and a
+	// batch may interleave them with real items. Returning on items[0] alone
+	// would skip the writes of every real item batched behind a sentinel
+	// (their done() would still fire in safeBatchHandle -- silent route loss).
+	var peer *Peer
+	for i := range items {
+		if items[i].peer != nil {
+			peer = items[i].peer
+			break
+		}
+	}
 	if peer == nil {
-		// Sentinel item (barrier) — no data to write. done() is called
-		// by safeBatchHandle regardless.
+		// Sentinel-only batch — nothing to write. done() is called by
+		// safeBatchHandle regardless.
 		return
 	}
 
@@ -307,6 +318,17 @@ type fwdWorker struct {
 	// goroutine after processing each batch.
 	overflowMu sync.Mutex
 	overflow   []fwdItem
+
+	// overflowPending counts items logically queued behind the overflow
+	// buffer, INCLUDING items an in-flight drainOverflow has snapshotted out
+	// of w.overflow but not yet moved into the channel. While nonzero,
+	// TryDispatch refuses new items so callers route them through
+	// DispatchOverflow behind the pending ones. Without this gate a newer
+	// item could enter the freed channel ahead of older overflow items and
+	// break the pool's per-key FIFO guarantee -- checking len(w.overflow)
+	// alone cannot close the drain window, because the snapshot empties the
+	// slice before its items reach the channel.
+	overflowPending atomic.Int64
 
 	// congested tracks whether this worker's channel is full.
 	// Set on TryDispatch failure, cleared when channel drains below low-water.
@@ -545,6 +567,14 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 		w.pending.Add(1)
 		fp.mu.Unlock()
 
+		// The re-check may have found an existing worker with pending
+		// overflow items; refuse so FIFO is preserved (see below).
+		if w.overflowPending.Load() > 0 {
+			w.pending.Add(-1)
+			fp.dispatchWG.Done()
+			return false
+		}
+
 		select {
 		case w.ch <- item:
 			w.pending.Add(-1)
@@ -555,6 +585,18 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 			fp.dispatchWG.Done()
 			return false
 		}
+	}
+
+	// FIFO gate: while overflow items are pending (queued, or snapshotted by
+	// an in-flight drain), a direct channel send would let this newer item
+	// overtake them. Refuse so the caller routes it through DispatchOverflow
+	// behind the pending items. The congested flag is not touched here: it
+	// was already set when the overflow episode began, and clearing is the
+	// worker's job once overflow fully drains.
+	if w.overflowPending.Load() > 0 {
+		fp.mu.RUnlock()
+		fp.dispatchWG.Done()
+		return false
 	}
 
 	// Fast path: non-blocking send under RLock.
@@ -698,6 +740,7 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	}
 
 	w.overflow = append(w.overflow, item)
+	w.overflowPending.Add(1)
 
 	// Log when overflow grows large (potential slow peer), but never drop.
 	// Routes are critical data — dropping causes silent routing inconsistency
@@ -710,6 +753,21 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 		)
 	}
 	w.overflowMu.Unlock()
+
+	// Wake an idle worker. The worker only drains overflow after receiving a
+	// channel item, and the TryDispatch FIFO gate routes items here even when
+	// the channel has room -- so an item appended just after the worker's
+	// final drain would otherwise sit in overflow with the worker blocked on
+	// an empty channel. A non-blocking nil-peer sentinel closes that wedge:
+	// it carries no data (fwdBatchHandler skips nil-peer items) and only
+	// triggers the next drain cycle. Safe against Stop: we are inside the
+	// dispatchWG window, so the channel cannot close under the send.
+	if len(w.ch) == 0 {
+		select {
+		case w.ch <- fwdItem{}:
+		default: // channel gained an item meanwhile -- that item wakes the worker
+		}
+	}
 	return true
 }
 
@@ -772,6 +830,7 @@ func (fp *fwdPool) Stop() {
 			fp.releaseItem(&kw.w.overflow[i])
 		}
 		kw.w.overflow = nil
+		kw.w.overflowPending.Store(0)
 		kw.w.overflowMu.Unlock()
 	}
 
@@ -1142,10 +1201,13 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 
 			// Check congestion: clear if channel dropped below low-water mark.
 			// Single lock acquisition to atomically decide whether to fire onResumed.
+			// overflowPending must also be zero: a nonzero count means older
+			// items are still queued behind overflow (possibly in a drain
+			// snapshot) and the episode is not over.
 			if len(w.ch) <= lowWater {
 				var fireResumed bool
 				w.overflowMu.Lock()
-				if w.congested && len(w.overflow) == 0 {
+				if w.congested && len(w.overflow) == 0 && w.overflowPending.Load() == 0 {
 					w.congested = false
 					fireResumed = true
 				}
@@ -1171,7 +1233,7 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			}
 			// Also check overflow — don't idle-exit with pending overflow items.
 			w.overflowMu.Lock()
-			hasOverflow := len(w.overflow) > 0
+			hasOverflow := len(w.overflow) > 0 || w.overflowPending.Load() > 0
 			w.overflowMu.Unlock()
 			if hasOverflow {
 				fp.mu.Unlock()
@@ -1224,6 +1286,7 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	fp.mu.RLock()
 	if fp.stopped {
 		fp.mu.RUnlock()
+		w.overflowPending.Add(-int64(len(items)))
 		fp.safeBatchHandle(key, items)
 		return
 	}
@@ -1243,7 +1306,11 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 		}
 		select {
 		case w.ch <- items[i]:
-			// Enqueued successfully -- worker loop will process it in FIFO order.
+			// Enqueued successfully -- worker loop will process it in FIFO
+			// order. Only now does the item stop being "pending overflow":
+			// decrementing at snapshot time would open the drain window
+			// TryDispatch's FIFO gate exists to close.
+			w.overflowPending.Add(-1)
 		default: // channel full -- push remaining back to overflow to preserve FIFO
 			// Running them directly here would break FIFO relative to the
 			// items already in the channel. The next drainOverflow cycle

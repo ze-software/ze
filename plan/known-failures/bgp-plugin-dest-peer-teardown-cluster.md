@@ -9,9 +9,13 @@ exchange, so the routes never reach adj-rib-in and the downstream assertion
 
 Members seen: 85 `bgp-rs-asn4-transcode`, 97 `bmp-locrib`,
 222 `forward-congestion-teardown-metrics`, 398 `role-otc-unicast-scope`. This is
-the same mechanism already recorded for 224 `forward-overflow-two-tier` and 458
-`show-l2tp-tunnel-detail`, which have their own shards because they reproduce
-deterministically rather than only under suite load.
+the same mechanism recorded for 458 `show-l2tp-tunnel-detail`, which has its own
+shard because it reproduces deterministically rather than only under suite load.
+(224 `forward-overflow-two-tier`, which had its own shard for the same reason,
+was root-caused and fixed on 2026-07-24 -- see `RESOLVED.md` and
+`plan/spec-fixit-peer-verdict-and-forward-rail.md`. Its fixes, especially the
+source-peer `option=linger` and the observer's `request peer * flush` before
+shutdown, are the most likely levers for clearing this cluster too.)
 
 PRE-EXISTING, NOT caused by `spec-feature-gate-10-bgp`. Attribution is a
 like-for-like A/B against a clean HEAD baseline, not an inference:

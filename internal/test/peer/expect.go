@@ -142,6 +142,9 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 	case "conn_map":
 		config.ConnMap = kv["value"]
 
+	case "linger":
+		config.Linger = kv["value"] == "true"
+
 	case "tcp_connections":
 		if v, err := strconv.Atoi(kv["value"]); err == nil {
 			config.TCPConnections = v

@@ -83,6 +83,63 @@ Out of scope, recorded for its own spec: the forwarding rail consults
 `reactor_api_forward.go:58`), so a forwarded withdraw can overtake a queued
 announce for the same prefix.
 
+### 2026-07-24 addendum -- the 224/225 residual (slice from
+`plan/handover/22-forward-overflow-two-tier-flake.md`, FIXED, both 10/10)
+
+After Phases 1-2 landed (16601c4c5), 224 still failed ~4 in 5 and 225 was
+untested. Four defects were root-caused from the dest peer's wire and fixed;
+224 and 225 now each pass 10/10 in isolation and in the full suite.
+
+7. **[HIGH, FIXED] Forward pool FIFO violation across the overflow/channel
+   boundary.** `TryDispatch` enqueued into the worker channel without checking
+   pending overflow, and during `drainOverflow`'s snapshot window
+   (`w.overflow` emptied before its items reach the channel) a newer item
+   could overtake older ones -- dest observed 10.0.6.0/24 before
+   10.0.4-5.0/24. The Barrier documented this exact hazard for its sentinel
+   (forward_pool_barrier.go) but the real producers were unguarded. Fix: a
+   per-worker `overflowPending` counter spanning the drain window gates
+   TryDispatch (forward_pool.go). The gate created a new wedge (an item could
+   sit in overflow with the worker asleep on an empty channel), closed by a
+   non-blocking nil-peer wake-up sentinel in DispatchOverflow; `fwdBatchHandler`
+   was hardened to select the destination from the first NON-nil item so a
+   sentinel batched ahead of real items cannot skip their writes. Proven by
+   `TestFwdPool_TryDispatchRefusesWhileOverflowPending` (red before, green
+   after) and the pre-existing `TestForwardPoolOrderingProperty` concurrency
+   property (which caught the wedge under -race). `make ze-race-reactor` green.
+
+8. **[MEDIUM, FIXED] 224/225 asserted per-message framing ze does not owe.**
+   The forward rail legally packs same-attr NLRIs into one UPDATE
+   (`fwdBucketMerge`); the tests asserted one NLRI per sequential message.
+   Fix: new peer checker rule kind `ordered=` (strict FIFO needle subqueue,
+   multi-consume per message at an advancing byte-aligned offset -- order and
+   completeness still asserted, framing not). Both .ci files reframed 1:1;
+   `group-updates` does NOT gate this rail (consumed only at
+   peer_initial_sync.go:80).
+
+9. **[HIGH, FIXED] The source check-peer closed its session the moment its
+   script completed**, so ze correctly withdrew the source's routes toward
+   dest, racing the very burst under test (dest saw announce 0000-0006 then a
+   withdraw of exactly those). Fix: `option=linger:value=true` peer directive
+   -- after completion the peer prints its success token and holds the session
+   open until teardown (peer.go `completed`/linger loop; merge wired through
+   cmd_peer.go).
+
+10. **[HIGH, FIXED] The observer shut ze down after only ONE route reached
+    adj-rib-in.** `dispatch_until(total-routes >= 1)` then `request shutdown`
+    tore the daemon down while forwarding to the dest (throttled by the tiny
+    channel) was still in flight -- the dest received 2 of 50/80 and the test
+    failed. This was the residual after fixes 7-9 (earlier mis-hypothesised as a
+    dual-rail duplicate; the wire showed truncation, not duplication). Fix: the
+    observer now waits for the FULL adj-rib-in count, then issues
+    `request peer * flush` (BarrierPeer -- blocks until the forward pool has
+    written every queued item, overflow included, to the wire) before
+    `request shutdown`. Deterministic barrier, no poll/sleep. The flush
+    composes with fix 7: the barrier sentinel routes through overflow behind
+    pending items when `overflowPending > 0`.
+
+Result: 224 and 225 each **10/10** (from 1/10 and untested), in isolation and
+in the full `bgp plugin --all` suite.
+
 ## Required Reading
 
 ### Architecture Docs

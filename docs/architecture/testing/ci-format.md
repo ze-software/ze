@@ -242,11 +242,13 @@ option=<type>:key=value[:key=value...]
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
+| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down — withdrawing that peer's routes and racing any forwarding still in flight toward other peers. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 | `needs-linux` | `[caps=net-admin]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. Add `caps=net-admin` when the test also needs privileged network configuration (creating interfaces, bringing links up, netlink): without the capability the test is SKIPped instead of hanging. See `ai/rules/qemu-testing.md`. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Consumed only under netns mode (`ZE_TEST_NETNS`, set by `make ze-netns-test`); inert and host-safe on the default path. Needed when a test matches or routes through an interface the daemon never creates itself — e.g. a policy-routing next-hop needs a connected route to resolve its gateway, since `enterTestNetns` brings up only loopback. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 
 ### OPEN Behaviors
@@ -502,9 +504,29 @@ expect=<type>:key=value[:key=value...]
 
 ```
 expect=bgp:conn=<N>:seq=<N>:hex=<hex-bytes>
+expect=bgp:conn=<N>:seq=<N>:prefix=<hex-bytes>
+expect=bgp:conn=<N>:seq=<N>:contains=<hex-bytes>
+expect=bgp:conn=<N>:seq=<N>:ordered=<hex-bytes>
 ```
 
-Validates the exact BGP wire message received.
+Validates the BGP wire message received: `hex=` matches the exact message,
+`prefix=` the message start, `contains=` a substring anywhere in one message.
+Within one `seq` group, `hex`/`prefix`/`contains` checks match in any order and
+each consumes exactly one received message.
+
+`ordered=` checks in a `seq` group form a strict FIFO subqueue for asserting
+in-order delivery across message boundaries: the front needle must appear in
+the received message, and one message may consume several consecutive needles,
+each matched at an advancing offset (so order inside a packed message is
+enforced too). Use `ordered=` instead of per-message `contains=` when the
+sender may legally pack several NLRIs into one UPDATE (the forward rail's
+bucket merge): per-message framing is not a property ze owes, but delivery
+order is. A message whose content matches only a non-front needle consumes
+nothing and is reported as a mismatch.
+<!-- source: internal/test/peer/checker.go -- parseExpectRule, consumeMatches, consumeOrdered -->
+
+These forms are peer-block directives (inside a `stdin=<name>:` block);
+top-level `expect=bgp` lines support `hex=` only.
 
 ### JSON Expectations
 

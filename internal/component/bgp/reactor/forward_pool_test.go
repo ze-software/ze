@@ -1789,3 +1789,76 @@ func TestFwdPool_ReregisterExtMsg(t *testing.T) {
 	assert.Equal(t, message.ExtMsgLen, len(buf64K))
 	pp64K.Return(idx64K)
 }
+
+// TestFwdPool_TryDispatchRefusesWhileOverflowPending verifies the per-key
+// FIFO guarantee across the channel/overflow boundary: while any item is
+// pending in the overflow buffer (including items an in-flight drain has
+// snapshotted), TryDispatch must refuse new items so they route through
+// DispatchOverflow behind the pending ones.
+//
+// VALIDATES: AC-11 (all routes delivered in order across overflow dispatch)
+// PREVENTS: a newer UPDATE entering the freed worker channel ahead of older
+// overflow items — functional test 224 observed 10.0.6.0/24 on the dest wire
+// before 10.0.4.0/24 and 10.0.5.0/24 which were parked in overflow.
+func TestFwdPool_TryDispatchRefusesWhileOverflowPending(t *testing.T) {
+	release := make(chan struct{})
+	entered := make(chan struct{}, 16)
+	var orderMu sync.Mutex
+	var order []int
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		entered <- struct{}{}
+		<-release
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	// Unblock the handler on every exit path (a failed require would
+	// otherwise leave the worker blocked and deadlock the deferred Stop).
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
+	item := func(id int) fwdItem {
+		return fwdItem{done: func() {
+			orderMu.Lock()
+			order = append(order, id)
+			orderMu.Unlock()
+		}}
+	}
+
+	// Item 1 occupies the worker (handler blocked); 2 and 3 fill the channel.
+	require.True(t, pool.TryDispatch(key, item(1)))
+	<-entered // worker is blocked in the handler on batch [1]
+	require.True(t, pool.TryDispatch(key, item(2)))
+	require.True(t, pool.TryDispatch(key, item(3)))
+
+	// Channel full: 4 refuses and goes to overflow (the documented protocol).
+	require.False(t, pool.TryDispatch(key, item(4)))
+	require.True(t, pool.DispatchOverflow(key, item(4)))
+
+	// Unblock batch [1]. The worker's post-batch drainOverflow cannot fit 4
+	// (channel still holds [2,3]), so it re-queues 4 and starts batch [2,3],
+	// blocking in the handler again. The channel is now EMPTY while item 4
+	// is still pending in overflow.
+	release <- struct{}{}
+	<-entered // worker is blocked in the handler on batch [2,3]
+
+	// THE INVARIANT: item 5 must not be allowed into the empty channel ahead
+	// of pending overflow item 4.
+	require.False(t, pool.TryDispatch(key, item(5)),
+		"TryDispatch must refuse while overflow items are pending (per-key FIFO)")
+	require.True(t, pool.DispatchOverflow(key, item(5)))
+
+	// Drain everything and verify global FIFO order 1..5.
+	unblock()
+	require.Eventually(t, func() bool {
+		orderMu.Lock()
+		defer orderMu.Unlock()
+		return len(order) == 5
+	}, 2*time.Second, time.Millisecond, "all five items should be processed")
+
+	orderMu.Lock()
+	defer orderMu.Unlock()
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, order, "items must be processed in dispatch order")
+}
