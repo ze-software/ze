@@ -52,7 +52,7 @@ func TestApplyEvolutionsBackupCreated(t *testing.T) {
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.conf")
-	originalData := []byte("# ze-schema: 26.05.01\nset bgp router-id 1.2.3.4\nset bgp session asn local 65000\n")
+	originalData := []byte("# ze-schema: 26.05.01\nset environment log level warn\n")
 	if err := os.WriteFile(configPath, originalData, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestApplyEvolutionsDataUpdated(t *testing.T) {
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.conf")
-	originalData := []byte("# ze-schema: 26.05.01\nset bgp router-id 1.2.3.4\nset bgp session asn local 65000\n")
+	originalData := []byte("# ze-schema: 26.05.01\nset environment log level warn\n")
 	if err := os.WriteFile(configPath, originalData, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestApplyEvolutionsNoEvolutionsNeeded(t *testing.T) {
 	defer cleanup()
 	defer registerTestEvolution(t, "26.04.01", "old-change")()
 
-	originalData := []byte("# ze-schema: 26.05.01\nset bgp router-id 1.2.3.4\n")
+	originalData := []byte("# ze-schema: 26.05.01\nset environment log level warn\n")
 	tree, err := parseTestConfig(t, string(originalData))
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +162,7 @@ func TestApplyEvolutionsStdinConfig(t *testing.T) {
 	defer cleanup()
 	defer registerTestEvolution(t, "26.06.01", "stdin-test")()
 
-	originalData := []byte("# ze-schema: 26.05.01\nset bgp router-id 1.2.3.4\nset bgp session asn local 65000\n")
+	originalData := []byte("# ze-schema: 26.05.01\nset environment log level warn\n")
 	tree, err := parseTestConfig(t, string(originalData))
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +189,7 @@ func TestApplyEvolutionsWriteBackMatchesDisk(t *testing.T) {
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.conf")
-	originalData := []byte("# ze-schema: 26.05.01\nset bgp router-id 1.2.3.4\nset bgp session asn local 65000\n")
+	originalData := []byte("# ze-schema: 26.05.01\nset environment log level warn\n")
 	if err := os.WriteFile(configPath, originalData, 0o600); err != nil {
 		t.Fatal(err)
 	}
