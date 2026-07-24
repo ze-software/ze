@@ -4,8 +4,14 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 2/7 |
 | Updated | 2026-07-24 |
+
+> **Concurrency note (2026-07-24).** Two sessions worked this spec at once. Phase 1
+> (RPC/SDK/coordinator plumbing) and Phase 2 (`relay_payload.go` byte builders) were
+> built in parallel by different sessions and are complementary, not duplicated — the
+> join point is `buildRelayUpdate`. Check `git log` and the working tree before
+> starting any phase here.
 
 ## Post-Compaction Recovery
 
@@ -183,8 +189,26 @@ second time alongside the reactor forward.
 
 ## Implementation Steps
 
-1. **Phase 1 (Wiring)** — add `RelayStoredRoute` skeleton + RPC/SDK method + a failing wiring test.
-2. **Phase 2** — reconstruct received-shape `ReceivedUpdate` from `RawRoute` (IPv4 first, then per-family MP_REACH synthesis); validate A-1/A-2.
+1. **Phase 1 (Wiring)** — DONE (`83cf7da80`). `ze-plugin-engine:relay-stored-route` on both
+   transports from one `engineOp` entry (JSON + typed DirectBridge slot); `rpc.StoredRoute` /
+   `RelayStoredRouteInput`; `Plugin.RelayStoredRoute` SDK method; narrow
+   `plugin.ReactorRelayCoordinator`; `reactorAPIAdapter.RelayStoredRoute`
+   (`reactor_api_relay.go`) resolving destination + per-source `forwardSourceInfo` and calling
+   `forwardUpdateCore`. `StoredRoute` carries the SOURCE peer — the field the old
+   `update hex … add` replay dropped, and the reason the rails could diverge.
+   5 wiring tests in `dispatch_relay_test.go`, mutation-verified (short-circuiting the
+   dispatch turns 3 red). `TestPluginRPCRegistryCoversAllPaths` updated deliberately.
+2. **Phase 2** — reconstruct received-shape `ReceivedUpdate` from `RawRoute` (IPv4 first, then
+   per-family MP_REACH synthesis); validate A-1/A-2.
+   → IN FLIGHT IN A CONCURRENT SESSION: `internal/component/bgp/reactor/relay_payload.go`
+     (+ `relay_payload_test.go`) already provides the byte-level builders — `scanAttrBlock`,
+     `isRelayStrippedAttr`, `relayNeedsNextHopAttr`, `writeMPReach`, `relayPayloadLen`,
+     `writeRelayPayload` — buffer-first, honouring the A-1 constraint (strip types 14/15,
+     re-synthesize a single-NLRI MP_REACH, preserve surviving attribute order).
+   → REMAINING GLUE: `reactorAPIAdapter.buildRelayUpdate` (`reactor_api_relay.go`) is the
+     seam. It currently returns `errRelayReconstruct`; it must take a pooled buffer, call
+     `writeRelayPayload`, and wrap the result as a `*ReceivedUpdate`. Do NOT re-derive the
+     payload builders — they exist.
 3. **Phase 3** — switch `buildReplayCommands` consumers to the primitive; stress-repro 372/378/394/395.
 4. **Phase 4** — replay-owner dedupe (rs owns; adj-rib-in gates self-replay); dedupe test.
 5. **Phase 5** — add-path path-id gap (A-3); 351.
