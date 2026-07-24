@@ -14,6 +14,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
+// bgpPeerPathPrefix is the base path for per-peer show/edit/action URLs
+// (e.g. /show/bgp/peer/<name>/...).
+const bgpPeerPathPrefix = "/show/bgp/peer/"
+
 // peerEntry holds extracted fields for one BGP peer from the config tree.
 type peerEntry struct {
 	Name     string
@@ -110,7 +114,7 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 	if group != "" {
 		pe.EditURL = tb.Str("/show/bgp/group/").Str(group).Str("/peer/").Str(name).Byte('/').String()
 	} else {
-		pe.EditURL = tb.Str("/show/bgp/peer/").Str(name).Byte('/').String()
+		pe.EditURL = tb.Str(bgpPeerPathPrefix).Str(name).Byte('/').String()
 	}
 
 	return pe
@@ -224,7 +228,7 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 		emptyMsg = tb.Str("No peers in group ").Str(strconv.Quote(filterGroup)).Byte('.').String()
 	}
 
-	addURL := "/show/bgp/peer/"
+	addURL := bgpPeerPathPrefix
 	if filterGroup != "" {
 		var tb textbuf.Buffer
 		addURL = tb.Str("/show/bgp/group/").Str(filterGroup).Str("/peer/").String()
@@ -261,7 +265,7 @@ func BuildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
 		{Key: "actions", Label: "Actions", Content: actionsHTML},
 	}
 
-	closeURL := "/show/bgp/peer/"
+	closeURL := bgpPeerPathPrefix
 	if pe.Group != "" {
 		var tb textbuf.Buffer
 		closeURL = tb.Str("/show/bgp/group/").Str(pe.Group).Str("/peer/").String()
