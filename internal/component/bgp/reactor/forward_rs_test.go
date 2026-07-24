@@ -1003,7 +1003,7 @@ func TestTryDirectWriteNotEstablishedIsNotDelivered(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	peer, dstSession, conn := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // test cleanup of an in-memory pipe
 
 	// Drive the session out of Established; the peer object stays wired up.
 	require.NoError(t, dstSession.fsm.Event(fsm.EventTCPConnectionFails))
