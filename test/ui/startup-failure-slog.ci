@@ -1,0 +1,27 @@
+# Test: fatal daemon startup failures reach the slog backend, not only stderr
+# VALIDATES: logStartupFailure (cmd/ze/hub/main.go) — a daemon that dies before
+#   serving emits msg="startup failed" through slog in addition to the stderr
+#   print. On the gokrazy appliance the slog backend is kmsg, the only channel
+#   reaching the serial console; stderr is captured by the supervisor and never
+#   shown, which made first-boot crash-loops (the L2TP kernel-probe refusal on
+#   the pinned no-l2tp kernel) undiagnosable from the console.
+# PREVENTS: regressing to stderr-only fatal startup errors that crash-loop
+#   invisibly under the gokrazy supervisor.
+
+# An unparsable compound listen address fails startup after config load, on the
+# same fatal pre-serve path as every other startup failure.
+option=env:var=ze.web.listen:value=not-a-listen-address
+
+tmpfs=startup-failure-slog.conf:terminator=EOF_CONF
+environment {
+    log {
+        level info
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start startup-failure-slog.conf:timeout=10s
+expect=exit:code=1
+expect=stderr:contains=error: ze.web.listen
+expect=stderr:contains=msg="startup failed"
+expect=stderr:contains=stage=ze.web.listen

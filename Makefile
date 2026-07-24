@@ -813,7 +813,7 @@ help-deploy:
 	@echo "                                 GOKRAZY_ARCH=arm64 for Apple Silicon"
 	@echo ""
 	@echo "  Custom kernel:"
-	@echo "    ze-kernel KVER=7.0           Build kernel with L2TP/PPP support (~5 min)"
+	@echo "    ze-kernel KERNEL_ARCH=amd64  Build/materialize the runtime kernel (L2TP/PPP built in; ~30 min cold via KERNEL_BUILDER=docker, instant from cache)"
 	@echo "    ze-kernel-clean              Restore pinned rtr7/kernel"
 	@echo ""
 	@echo "  Deployment evidence:"

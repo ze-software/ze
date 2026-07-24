@@ -35,7 +35,7 @@
 # (internal/appliance/instance). No build step writes to a tracked path, so a
 # custom-kernel build needs nothing reverted afterwards.
 
-.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean ze-host
+.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean ze-host bin/gok
 
 GOKRAZY_INSTANCE   := ze
 GOKRAZY_DIR        := gokrazy
@@ -56,6 +56,10 @@ GOKRAZY_QEMU_ACCEL ?= tcg
 GOKRAZY_QEMU_AARCH64_BIOS ?= /opt/homebrew/share/qemu/edk2-aarch64-code.fd
 GOKRAZY_QEMU_AARCH64_CPU ?= max
 
+# .PHONY on purpose: as a plain file target with no source prerequisites, a
+# bin/gok built once was never rebuilt, so image builds silently ran a stale
+# orchestrator (pre-preparer gok reached the network and skipped the prepared
+# instance entirely). The vendored go build is cheap and cache-hot.
 bin/gok:
 	@echo "Building ze-gok from vendored source..."
 	@mkdir -p bin
@@ -239,7 +243,20 @@ ze-kernel: ze-host
 		if [ -e "$(KERNEL_BUILD_DIR)" ]; then rm -rf "$$staging"; else mv "$$staging" "$(KERNEL_BUILD_DIR)"; rm -rf "$(KERNEL_BUILD_DIR)/$${staging##*/}"; fi; \
 	else \
 		echo "--- Runtime kernel cache MISS: building ($(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"; \
+		: "Purge any stale build view first. The sub-make's target is the FILE"; \
+		: "tmp/kernel/build/vmlinuz with no arch prerequisite, so a leftover view"; \
+		: "from another arch would satisfy it, build NOTHING, and the populate"; \
+		: "step below would poison this arch's durable cache key with the wrong"; \
+		: "architecture -- permanently, since the HIT branch is existence-only."; \
+		rm -rf "$(KERNEL_BUILD_DIR)"; \
 		$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH); \
+		: "Fail closed if what we are about to cache is not the requested"; \
+		: "architecture: tmp/kernel/build is one shared unlocked path, so a"; \
+		: "concurrent ze-kernel run with a different KERNEL_ARCH can rewrite it"; \
+		: "between our sub-make and this populate, and an existence-only HIT"; \
+		: "check would then serve the poisoned tree forever."; \
+		python3 -c "import sys; magic={'amd64':(0x202,b'HdrS'),'arm64':(0x38,b'ARMd')}[sys.argv[2]]; data=open(sys.argv[1],'rb').read(magic[0]+4); sys.exit(0 if data[magic[0]:magic[0]+4]==magic[1] else 1)" "$(KERNEL_BUILD_DIR)/vmlinuz" "$(KERNEL_ARCH)" || { \
+			echo "error: $(KERNEL_BUILD_DIR)/vmlinuz is missing or not a $(KERNEL_ARCH) kernel -- the build produced no usable image, or a concurrent ze-kernel run with a different KERNEL_ARCH clobbered the shared build dir; re-run: make ze-kernel KERNEL_ARCH=$(KERNEL_ARCH)"; exit 1; }; \
 		echo "--- Populating durable cache: $$cache_dir ---"; \
 		cache_parent="$$(dirname "$$cache_dir")"; mkdir -p "$$cache_parent"; \
 		staging="$$(mktemp -d "$$cache_parent/.copytree-XXXXXX")" && \

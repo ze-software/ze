@@ -107,7 +107,10 @@ The proof image is built from a temporary gokrazy instance config so the normal
 appliance config is left unchanged. It disables IPv6CP in that proof image
 because the current static L2TP pool is IPv4-only. Set
 `ZE_GOKRAZY_SKIP_BUILD=1` to run against an existing `tmp/gokrazy/ze.img` that
-was already built with the L2TP proof template and proof runtime environment.
+was already built with the L2TP proof template, the proof runtime environment,
+and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
+resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
+crash-loops at first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
 <!-- source: mk/gokrazy.mk -- ze-kernel -->
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
@@ -318,8 +321,12 @@ copy, and the copy is deleted afterwards.
 Both entry points do this: `ze appliance build` through `resolveBuildParentDir`,
 and `make ze-gokrazy` through `bin/gok`, which rewrites `--parent_dir` before gok
 sees it. As a result a build leaves the working tree unchanged, two builds in one
-checkout cannot collide, and a build that would have to resolve packages over the
-network fails instead of silently using unpinned versions.
+checkout use isolated prepared instances, and a build that would have to resolve
+packages over the network fails instead of silently using unpinned versions. The
+one shared mutable path left is `tmp/kernel/pkg`: every `make ze-kernel` rewrites
+it (starting with a delete), so concurrent kernel materializations for different
+architectures do collide there. The L2TP boot proof therefore consumes a per-run
+copy of the package, never the shared path.
 
 <!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
 <!-- source: cmd/ze-gok/main.go -- prepareArgs -->
@@ -591,7 +598,7 @@ artifacts automatically:
 `Image`); `--target runtime` builds the gokrazy runtime kernel tree (modules +
 `vmlinuz`) from `gokrazy/kernel/` with the runtime requirement floor enforced.
 The command reports the target it built (`kernel ready: ... (target=installer,
-profile=qemu, version=7.1.1)`). The installer target tries cache first, then a
+profile=qemu, version=7.1.4)`). The installer target tries cache first, then a
 configured prebuilt-artifact URL if `ze.appliance.kernel.url` is set, then local
 build. Every local build runs through the shared driver
 `tools/kernel-builder/run.py`, which selects Docker when available and falls back

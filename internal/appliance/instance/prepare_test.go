@@ -210,8 +210,17 @@ func TestPrepare(t *testing.T) {
 	if len(f.Replace) != 1 {
 		t.Fatalf("prepared ze go.mod has %d replaces, want 1:\n%s", len(f.Replace), preparedData)
 	}
-	if got := f.Replace[0].New.Path; got != root {
-		t.Errorf("replace target = %q, want the repo root %q", got, root)
+	// Compare resolved paths, not spellings: copyBuildDir resolves the builddir
+	// source through EvalSymlinks, and on darwin the tempdir prefix /var is a
+	// symlink to /private/var, so the written target is the resolved form of
+	// the same directory. The property under test is "the replace resolves to
+	// the repository root", not a particular spelling of it.
+	got := f.Replace[0].New.Path
+	gotResolved, gotErr := filepath.EvalSymlinks(got)
+	wantResolved, wantErr := filepath.EvalSymlinks(root)
+	if gotErr != nil || wantErr != nil || gotResolved != wantResolved {
+		t.Errorf("replace target = %q (resolved %q, %v), want the repo root %q (resolved %q, %v)",
+			got, gotResolved, gotErr, root, wantResolved, wantErr)
 	}
 	if len(f.Require) != 1 || f.Require[0].Mod.Path != "codeberg.org/thomas-mangin/ze" {
 		t.Errorf("prepared ze go.mod lost its require:\n%s", preparedData)

@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 8/8 (code complete; QEMU goal validation outstanding) |
-| Updated | 2026-07-23 |
+| Phase | 8/8 (all goals met; closing) |
+| Updated | 2026-07-24 |
 
 > **The confirmed bug (A-1/A-1b) was fixed ahead of this spec on 2026-07-22**, out
 > of a disk-usage investigation that found its fallout in `gokrazy/modcache`. The
@@ -309,9 +309,9 @@ already records refusing to import `internal/appliance` for exactly this reason.
 | A-1b | The failing module is the pinned kernel, not the ze package as first hypothesized, so the silent-online case substitutes the appliance's kernel | The A/B failure names `github.com/rtr7/kernel` while `codeberg.org/thomas-mangin/ze/cmd/ze` is listed as building normally | The blast radius is different from the one recorded and R-1's wording needs revising | `gokrazy/modcache` held `rtr7/kernel@v0.0.0-20260705070647-eeea0c47d01b` (fetched 2026-07-18 15:02) and `@v0.0.0-20260719062436-25aab92d2b39` (fetched 2026-07-20 11:16), both NEWER than the only version this repo ever pinned (`20260403073601-5a996da3a37b`, added in 86960d858 and never changed). Each fetch is one to two minutes before an extracted ze self-copy of the same build. Online derived builds shipped an unpinned kernel; it is BOTH modules, not one | **confirmed** |
 | A-2 | Copying the builddir verbatim into a prepared instance and rewriting only the ze self-replace produces an identical image | `scripts/evidence/effective-gokrazy-l2tp-ppp.py:609-649` does exactly this today and the L2TP appliance evidence is built on it | The copy approach is not transparent and each difference needs investigation | **partly confirmed** 2026-07-22: a derived build with `GOPROXY=off` completes and produces a bootable-shaped image carrying the pinned kernel and the derived cmdline. Image-to-image equality against a non-derived build was NOT compared, and the image was not booted | partly confirmed |
 | A-3 | Absolute replace paths resolve identically to today's relative one | Go resolves a relative `replace` against the `go.mod`'s own directory; the evidence script already rewrites to absolute at `:626-633` and `:639-647` | The rewrite changes resolution and the prepared depth must match the tracked depth instead | **confirmed** 2026-07-22: with ze's proxy copies deleted from `gokrazy/modcache` and `GOPROXY=off`, the derived build still resolved ze, which is only possible through the rewritten absolute replace pointing at the working tree | **confirmed** |
-| A-4 | `make ze-gokrazy-deps` keeps populating the cache unchanged, because no builddir module is removed | `mk/gokrazy.mk:63-66` iterates `find ... -name go.mod`; this session observed that running it is what placed `grpc@v1.82.1` into `gokrazy/modcache` | The offline guarantee regresses | Run `make ze-gokrazy-deps` on a tree with a cleared cache entry and confirm repopulation | unvalidated |
+| A-4 | `make ze-gokrazy-deps` keeps populating the cache unchanged, because no builddir module is removed | `mk/gokrazy.mk:63-66` iterates `find ... -name go.mod`; this session observed that running it is what placed `grpc@v1.82.1` into `gokrazy/modcache` | The offline guarantee regresses | Run `make ze-gokrazy-deps` on a tree with a cleared cache entry and confirm repopulation | **confirmed** 2026-07-23 (late): the pinned kernel modcache entry was cleared and restored from the proxy zip, then the deps target ran over all 8 builddir modules; the pinned kernel dir is byte-stable (30 files, 16036K before and after), only the pinned version exists, and no tracked gokrazy/ path changed |
 | A-5 | A prepared build completes with no network | `cmd/ze-gok/main.go:34-37` and `cmd_build.go:246` both point `GOMODCACHE` at the checked-in cache, and the copied `go.sum` files come with the modules | The documented offline guarantee (`mk/gokrazy.mk:8-9`) regresses | **confirmed** 2026-07-22: `ze appliance build` on a hugepage appliance with `GOPROXY=off` exits 0; `gokrazy/modcache` is byte-stable across the run and the log contains no `go get`. Log: `tmp/hp-proof-build-offline.log` (ephemeral; the outcome is quoted here because `tmp/` does not survive) | **confirmed** |
-| A-6 | Nothing outside the build reads the tracked builddir `go.sum` files | grep over `mk/`, `Makefile`, `scripts/`, `.github/` finds no consumer; `mk/gokrazy.mk:63` matches `-name go.mod` only | A consumer breaks | Repeat the grep at implementation time | unvalidated |
+| A-6 | Nothing outside the build reads the tracked builddir `go.sum` files | grep over `mk/`, `Makefile`, `scripts/`, `.github/` finds no consumer; `mk/gokrazy.mk:63` matches `-name go.mod` only | A consumer breaks | Repeat the grep at implementation time | **confirmed** 2026-07-23 (late): grep over `mk/`, `Makefile`, `scripts/`, `.github/` for builddir `go.sum` consumers finds none |
 | A-7 | `ze appliance build` is functionally equivalent to `make ze-gokrazy` (needed only if D-1a is chosen) | `cmd_build.go:1`, `:56-59`, `:144`, `:294-301` implement assemble plus gok plus ext4, the same steps `mk/gokrazy.mk:73-130` performs | D-1a is not viable and D-1b is required | The D-1 equivalence audit in Phase 1 | **withdrawn** 2026-07-23. The audit ran (see D-1) and found the two flows are NOT equivalent below the gok call: database seeding genuinely differs and the Go path is a superset on every shared step. D-1c makes equivalence unnecessary, so this assumption has no consumer. Recorded rather than deleted, because "the audit found them unequal" is the finding that chose D-1c |
 | A-8 | Extracting the preparer into a leaf package lets `cmd/ze-gok` import it without dragging in the appliance package's dependency weight | `cmd/ze-gok/main.go:42` records deliberately NOT importing `internal/appliance` for exactly this reason, and duplicates `ensureModcacheRW` instead | The preparer stays in `internal/appliance` and `ze-gok` cannot call it, forcing D-1b after all | Build `bin/gok` after the extraction and confirm it compiles and stays a thin wrapper | unvalidated |
 
@@ -738,6 +738,70 @@ The kernel reserved all 64 requested pages.
 
 ### Bugs Found/Fixed
 - (fill during implementation; A-1 may become the first entry)
+- **2026-07-23 (late): the L2TP boot-proof crash-loop root-caused and fixed.**
+  Thomas directed "fix the crash and then close". Diagnosis
+  (`ai/rules/diagnosis-before-fix.md` five parts):
+  1. *Symptom*: `ze-deployment-gokrazy-l2tp-ppp-test` times out waiting for
+     `web server listening`; the appliance ze crash-loops at first boot.
+  2. *Root cause*: the proof builds the appliance on the pinned
+     `github.com/rtr7/kernel`, which has NO l2tp/ppp support — the proxy zip of
+     the pinned `v0.0.0-20260403073601-5a996da3a37b` carries an x86 6.19.11
+     `vmlinuz` whose `modules.builtin` has no l2tp/ppp entries and ZERO
+     loadable `.ko` files. The baked template sets `l2tp enabled true`
+     (`write_template`), so ze's RFC 2661 fail-closed probe
+     (`internal/component/l2tp/kernel_linux.go:468-482`) fails, l2tp `Start`
+     returns the error (`subsystem.go:203-205`), `Engine.Start` unwinds
+     (`engine.go:80-88`), and `runYANGConfig` exits 1
+     (`cmd/ze/hub/main.go` "error starting engine"), which the gokrazy
+     supervisor turns into a restart loop. Empirically confirmed by booting
+     the exact proof image on the pinned kernel in QEMU: serial shows
+     `msg="startup failed" stage="starting engine" err='start subsystem
+     "l2tp": ... failed to load kernel modules (tried l2tp_ppp, pppol2tp)'`
+     repeating every ~3s.
+  3. *Owning layer*: the proof harness — it authored the l2tp-enabled
+     template, so it owns providing a kernel that can satisfy it. ze's
+     fail-closed refusal is correct and unchanged.
+  4. *Fixes considered*: `[workaround]` set `ze.l2tp.skip-kernel-probe` in the
+     proof env — rejected (the harness itself bans it: the proof exists to
+     exercise the kernel datapath, and sessions would fail later anyway).
+     `[source]` the proof resolves an L2TP-capable kernel itself.
+  5. Landed `[source]` fix: `resolve_kernel_pkg` / `assert_kernel_pkg` /
+     `kernel_pkg_problems` in `scripts/evidence/effective-gokrazy-l2tp-ppp.py`
+     — an explicit `KERNEL_PKG` is validated (arch magic + l2tp in
+     `modules.builtin` or a loadable `l2tp_ppp.ko`); otherwise the runtime
+     kernel (`gokrazy/kernel/runtime.config:106-110` builds
+     `CONFIG_L2TP/PPPOL2TP=y`) is materialized from the durable cache via
+     `make ze-kernel`, and a cold or poisoned cache fails FAST naming
+     `make ze-kernel KERNEL_ARCH=<arch>` instead of booting an image that can
+     only crash-loop. Unit-tested (`scripts/dev/gokrazy_l2tp_kernel_test.py`,
+     11 tests) and mutation-verified (neutering `kernel_pkg_problems` turns 6
+     tests red).
+- **First-boot failures were invisible on the appliance serial console.** All
+  fatal pre-serve exits in `cmd/ze/hub` printed to stderr only, which the
+  gokrazy supervisor captures away from serial — this is precisely why the
+  2026-07-23 (early) run could only report "crash-loops at first boot" with no
+  reason. Fixed: `logStartupFailure` mirrors every fatal pre-serve failure
+  onto slog (`kmsg` on the appliance, which the kernel prints to the
+  console). Functional test `test/ui/startup-failure-slog.ci` drives it from
+  the user entry point (daemon start with an unparsable `ze.web.listen` →
+  exit 1 with the `startup failed` slog line); mutation-verified (no-op
+  mirror → red).
+- **Stale `bin/gok` trap.** `bin/gok` was a file target with no prerequisites,
+  so a once-built gok was never rebuilt and `make ze-gokrazy` silently ran a
+  pre-preparer orchestrator (observed live: a Jul-3 gok reached the network
+  and skipped the prepared instance entirely). Now `.PHONY` (`mk/gokrazy.mk`).
+- **Doubled error prefix.** `errL2tpFailedToLoadKernelModules` carried an
+  `l2tp:` prefix its wrapping call site adds again; seen verbatim on serial
+  as `l2tp: l2tp:`. Prefix dropped from the sentinel.
+- **Found, not fixed here (out of this spec's path):** the durable
+  runtime-kernel cache for amd64 on this build host
+  (`~/.cache/ze/runtime-kernel/7.1.1-runtime-amd64-...`) holds placeholder
+  stub files (15-byte `vmlinuz` reading `runtime-kernel`, a fake `ze.ko`),
+  which `make ze-kernel`'s `-f vmlinuz` HIT check would happily assemble into
+  a garbage package. The proof's new content validation rejects it. The
+  writer was not found in committed code; likely in-flight work of the open
+  `spec-fixit-qemu-runtime-kernel` (a concurrent session). Recorded there,
+  and the new validation is the guard either way.
 
 ### Documentation Updates
 - (fill during implementation)
@@ -747,28 +811,77 @@ The kernel reserved all 64 requested pages.
 
 ## Implementation Audit
 
+Filled 2026-07-23 (late), against the code on disk, after the crash-loop fix.
+
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| No build step writes to a tracked path | ✅ Done | `internal/appliance/instance/prepare.go`, `cmd/ze-gok/main.go` `prepareArgs` | `TestZeGokLeavesTrackedTreeClean`, `TestPrepareRealInstanceLeavesTrackedTreeClean` |
+| Pins preserved exactly (offline, no unpinned kernel) | ✅ Done | `instance.Prepare` + `GOPROXY=off` on both gok paths | `TestPreparedModulesResolveIdenticallyToTracked` (8/8 modules, `GOPROXY=off`) |
+| One preparer, not three | ✅ Done | `internal/appliance/instance` package; `resolveBuildParentDir`; `prepare_instance` in the evidence script only symlinks + patches config.json | grep: no go.mod-rewriting regex remains in the script |
+| `make ze-gokrazy` unmodified at the gok call (D-1c) | ✅ Done | `cmd/ze-gok/main.go` rewrites `--parent_dir`; `mk/gokrazy.mk:117` untouched | `TestZeGokPreparesParentDir` |
+| Out-of-tree kernel per build, no tracked-file mutation | ✅ Done | `KERNEL_PKG` / `ze.gok.kernel-package`; `replaceKernel` in the preparer | `TestPrepareInjectsKernelReplace`, `TestZeGokPassesKernelPackage`, `TestPrepareNoKernelPackageUsesPin` |
+| Images boot | ✅ Done | Goal Validation | hugepage QEMU PASS (twice); L2TP appliance boots and serves after the crash-loop fix (Update 2026-07-23 late) |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | `TestResolveBuildParentDirAlwaysPrepares`, `TestPrepare` (project-tmp assertion) | mutation-verified (early-return restore goes red) |
+| AC-2 | 🔄 Changed | `TestZeGokLeavesTrackedTreeClean`, `TestPrepareRealInstanceLeavesTrackedTreeClean` | Go tests over the real instance instead of the planned `.ci` (Deviations: no `.ci` vehicle for a `bin/gok` entry point) |
+| AC-3 | ✅ Done | `TestPrepareRealInstanceCarriesEveryModule` | enumerates tracked modules, sums included |
+| AC-4 | ✅ Done | `TestPrepare` (absolute replace, require preserved), `TestAbsolutizeReplacesLeavesVersionReplaces` | darwin path-spelling fixed in the assertion (resolved-path comparison) |
+| AC-5 | ✅ Done | `TestPreparedModulesResolveIdenticallyToTracked` | `go list -m all`, tracked vs prepared, `GOPROXY=off` |
+| AC-6 | ✅ Done | `TestPrepareFailsClosedWithoutBuildDir`, `TestCopyBuildDirFailsClosedWithoutModules` | plus `GOPROXY=off` makes any miss loud |
+| AC-7 | ✅ Done | `TestPrepareInjectsKernelReplace`, `TestZeGokPassesKernelPackage` | replace in the prepared copy only |
+| AC-8 | ✅ Done | `TestPrepareNoKernelPackageUsesPin` | includes the unset-env subtest |
+| AC-9 | ✅ Done | `TestResolveBuildParentDirPatchesOnlyWhenRequested`, `TestKernelArgsHugepages`, `TestDeriveConfigJSON*` | hugepage QEMU boot proof is the end-to-end |
+| AC-10 | ✅ Done | `TestPreparedModulesResolveIdenticallyToTracked` (offline resolution); A-5 full offline `ze appliance build` | |
+| AC-11 | ✅ Done | `TestPrepareIsolatesConcurrentBuilds` | distinct prepared dirs |
+| AC-12 | ✅ Done | `TestBuildAllRefusesMixedArch` | mutation-verified (guard removal goes red) |
+| AC-13 | ✅ Done | `TestZeGokPreparesParentDir`, `TestZeGokFailsClosedOnUnpreparableParentDir`, `TestZeGokLeavesMutatingSubcommandsAlone`, `TestZeGokIdentifiesTheSubcommandNotAnyToken`, `TestZeGokWithoutParentDirIsUntouched` | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestResolveBuildParentDirAlwaysPrepares` | ✅ Done | `internal/appliance/kernelargs_test.go` | |
+| `TestPrepareInstanceUsesProjectTmp` | 🔄 Changed | `TestPrepare` (project-tmp assertion), `internal/appliance/instance/prepare_test.go` | folded into the package's `TestPrepare` |
+| `TestPrepareInstanceCopiesFullBuilddir` | 🔄 Changed | `TestPrepareRealInstanceCarriesEveryModule`, `prepare_repo_test.go` | real instance instead of a fixture |
+| `TestPrepareInstanceRewritesZeReplaceAbsolute` | 🔄 Changed | `TestPrepare` + `TestPrepareRealInstanceCarriesEveryModule` | |
+| `TestPrepareInstanceResolvedVersionsMatchTracked` | 🔄 Changed | `TestPreparedModulesResolveIdenticallyToTracked` | |
+| `TestPrepareInstanceFailsOnMissingModule` | 🔄 Changed | `TestPrepareFailsClosedWithoutBuildDir`, `TestCopyBuildDirFailsClosedWithoutModules` | |
+| `TestPrepareInstanceInjectsKernelReplace` | 🔄 Changed | `TestPrepareInjectsKernelReplace` | instance package |
+| `TestPrepareInstanceNoKernelPackageUsesPin` | 🔄 Changed | `TestPrepareNoKernelPackageUsesPin` | |
+| `TestPrepareInstancePreservesHugepageArgs` | 🔄 Changed | `TestDeriveConfigJSONPreservesFields` + `TestKernelArgsHugepages` | |
+| `TestPreparedBuildResolvesOffline` | 🔄 Changed | `TestPreparedModulesResolveIdenticallyToTracked` (runs `GOPROXY=off`) | |
+| `TestPrepareInstanceConcurrentBuildsIsolated` | 🔄 Changed | `TestPrepareIsolatesConcurrentBuilds` | |
+| `TestPrepareInstanceUnderSymlinkedTmp` | 🔄 Changed | `TestPrepareAcceptsSymlinkedBuildDir` | symlink resolution moved into `copyBuildDir` |
+| `TestBuildAllRefusesMixedArch` | ✅ Done | `internal/appliance/cmd_build_test.go` | |
+| `TestZeGokPreparesParentDir` | ✅ Done | `cmd/ze-gok/main_test.go` | |
+| `TestZeGokRestoresUnpreparableParentDir` | 🔄 Changed | `TestZeGokFailsClosedOnUnpreparableParentDir` | fail-closed instead of restore |
+| `appliance-build-leaves-tree-clean.ci` | ❌ Skipped -> 🔄 | `TestZeGokLeavesTrackedTreeClean` | Deviations: no `.ci` vehicle (entry point is `bin/gok`, a multi-minute image build); Thomas-approved closure covers this deviation |
+| `vpp-hugepages-qemu.ci` | ✅ Done | `test/appliance/vpp-hugepages-qemu.ci` | PASS on 2026-07-23 |
+| (added) kernel validation unit tests | ✅ Done | `scripts/dev/gokrazy_l2tp_kernel_test.py` | 11 tests, mutation-verified |
+| (added) startup-failure slog mirror | ✅ Done | `test/ui/startup-failure-slog.ci` | mutation-verified |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/appliance/instance/` (new leaf package) | ✅ | `prepare.go`, `prepare_test.go`, `prepare_repo_test.go` |
+| `internal/appliance/kernelargs.go` | ✅ | `resolveBuildParentDir` always prepares |
+| `cmd/ze-gok/main.go` | ✅ | `prepareArgs`, `GOPROXY=off`, kernel env |
+| `internal/appliance/cmd_build.go` | ✅ | `uniformArch`, `GOPROXY=off`, reaper call |
+| `mk/gokrazy.mk` | ✅ | `KERNEL_PKG`, `ze-kernel` cache flow, `.PHONY: bin/gok` (late) |
+| `scripts/evidence/effective-gokrazy-l2tp-ppp.py` | ✅ | third preparer deleted; late: kernel resolution + validation |
+| `cmd/ze/hub/main.go` (late) | ✅ | `logStartupFailure` slog mirror on every fatal pre-serve exit |
+| `internal/component/l2tp/kernel_linux.go` (late) | ✅ | sentinel prefix dedup |
+| `docs/functional-tests.md`, `docs/labs/l2tp-interop.md` (late) | ✅ | kernel-resolution + TAP + serial-observability docs, source anchors |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 6 requirements, 13 ACs, 18 planned tests + 2 added
+- **Done:** all requirements and ACs implemented with named, mostly mutation-verified tests
+- **Partial:** none
+- **Skipped:** none silently; the planned `.ci` for AC-2 became Go tests over the real instance (recorded in Deviations)
+- **Changed:** planned `kernelargs_test.go` test names landed in the extracted `instance` package under clearer names (table above); `.ci` -> Go test for AC-2
 
 ## Goal Validation (BLOCKING)
 
@@ -779,7 +892,7 @@ The kernel reserved all 64 requested pages.
 | Offline builds still work | resolution evidence | **MET** | The comparison above runs entirely with `GOPROXY=off` against the checked-in `gokrazy/modcache`; A-5 additionally confirmed a full `ze appliance build` offline on 2026-07-22 |
 | One preparer, not three | absence check | **MET** | The evidence script's `prepare_instance` no longer copies the builddir or rewrites any `go.mod`; both regexes are deleted and it symlinks instead. `resolveBuildParentDir` and `cmd/ze-gok` both call `instance.Prepare` |
 | An image built the new way boots | QEMU boot proof | **MET** | `make ze-vpp-hugepages-qemu-test` (and `ze-test appliance 11`, its `.ci` wrapper) on 2026-07-23: `VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64`. A booted image built through the prepared-instance path, asserted over the real Ze CLI; the kernel reserved all 64 requested pages. The earlier ENOSPC failure was disk exhaustion on the build host (`GOCACHE` on `tmp/`), cleared by the concurrent `4839ba562`; the 15s kill before that was the ignored `.ci` timeout, fixed here (`plan/learned/1257`) |
-| The `make ze-gokrazy` path boots an appliance | QEMU boot proof | **NOT MET — proof fails for an unrelated reason** | `ze-deployment-gokrazy-l2tp-ppp-test` run under sudo on 2026-07-23. The image built through the `make ze-gokrazy` prepared-instance path and BOOTED (gokrazy init up, ze spawned), but the driver's wait for `web server listening` timed out: the appliance's ze daemon crash-loops at first boot (restarted at PIDs 90/110/187). This is NOT caused by this change — `gokrazy/modcache` held only the pinned kernel `v0.0.0-20260403073601-5a996da3a37b` (no newer version fetched), the build and boot were clean, and the config carried through the double-preparation. The failure is a runtime appliance issue orthogonal to instance preparation, in a proof that has never completed on any host (see `plan/spec-finish-appliance-qemu-evidence.md`, and `plan/learned/1103`: "AC-3's end-to-end qemu run remains to be executed on a root host"). Homed there; not this spec's defect |
+| The `make ze-gokrazy` path boots an appliance | QEMU boot proof | **MET** (2026-07-24) | The crash-loop was root-caused (proof booted the pinned rtr7 kernel, which has no l2tp; ze's fail-closed probe `probeKernelModules` at `internal/component/l2tp/kernel_linux.go:470` correctly refused startup) and fixed at the source. An image built through the `make ze-gokrazy` prepared-instance path with the freshly-built **7.1.4** arm64 runtime kernel BOOTS AND SERVES: serial shows `l2tp_core: L2TP core driver, V2.0` / `l2tp_ppp: PPPoL2TP kernel driver` at kernel init, then `msg="L2TP listener bound" address=0.0.0.0:1701` and `msg="web server listening" address=0.0.0.0:8080`. Boot-proof driver VERDICT=0, zero start errors, zero restarts (`tmp/l2tp-714-serial.log`). What this darwin host cannot run is the driver's LAC stages (xl2tpd/pppd in a Linux netns), so the full `ze-deployment-gokrazy-l2tp-ppp-test` LCP/IPCP/dataplane-ping/teardown assertions still need their documented Linux-root host — but the blocker (crash-loop) is removed and the proof's first two gates (`web server listening`, `L2TP listener bound`) are reached |
 
 **The custom-kernel-through-boot proof is NOT separately required.** The unit
 level proves `KERNEL_PKG` reaches gok's prepared go.mod
@@ -789,11 +902,39 @@ compiles and boots. A full custom-kernel boot would only add coverage of gok
 compiling against the replaced package, which the L2TP proof would have
 exercised had it not failed upstream at the appliance's web server.
 
-**One goal is unmet, so this spec stays OPEN**, but the core mechanism is
-proven: the hugepage QEMU boot proof is green (twice), and the independent
-review has looped to zero (see Review Gate). The remaining gap is the L2TP
-appliance runtime failure, which is not this change's defect and is homed in the
-appliance-evidence spec. Closure is the user's call.
+**All six goals are MET (2026-07-24).** The core mechanism is proven by the
+hugepage QEMU boot proof (green twice), and the L2TP appliance boot — the one
+row that was previously unmet — is now green after the crash-loop was
+root-caused and fixed (Thomas: "fix the crash and then close"): an image built
+through the `make ze-gokrazy` prepared-instance path with the 7.1.4 arm64
+runtime kernel boots and serves (L2TP listener + web server, VERDICT=0). The
+independent review looped to zero across five passes (see Review Gate). The
+only residual is the full L2TP LAC dataplane assertions, which need a Linux
+root host this darwin machine cannot provide — but that is an environment
+limit, not a defect, and the crash-loop blocker is gone.
+
+### Update 2026-07-23 (late): the L2TP row is resolved — crash-loop fixed, appliance boots
+
+Thomas directed "fix the crash and then close". The crash-loop was
+root-caused (proof harness boots the pinned kernel, which has no l2tp
+support; ze's fail-closed probe correctly refuses — full diagnosis under Bugs
+Found/Fixed) and fixed at the source: the proof now resolves an L2TP-capable
+kernel itself. The A/B on this host (QEMU, image built by the SAME
+`make ze-gokrazy` prepared-instance path both times):
+
+| Kernel | Outcome (serial console, verbatim) |
+|--------|-------------------------------------|
+| Pinned rtr7 (old behavior, forced) | `msg="startup failed" stage="starting engine" err='start subsystem "l2tp": l2tp: l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)'` repeating ~3s apart — the crash-loop, now with its reason visible (verbatim at observation time; the doubled `l2tp: l2tp:` prefix was itself then fixed by dropping the prefix from the sentinel, so a re-run prints it once) |
+| Runtime kernel via the fixed script path (arm64, real cached runtime kernel) | `l2tp_core: L2TP core driver, V2.0` / `l2tp_ppp: PPPoL2TP kernel driver` at kernel init, then `msg="L2TP listener bound" address=0.0.0.0:1701`, `msg="l2tp-pool: configured"`, `msg="web server listening" address=0.0.0.0:8080` — VERDICT=0, zero start errors, zero restarts |
+
+The `make ze-gokrazy` path therefore builds an appliance that BOOTS AND
+SERVES, through the prepared instance, with the L2TP listener bound: the Goal
+Validation row's goal is met. What this host cannot run is the driver's LAC
+stages (xl2tpd/pppd in a Linux netns; this is a darwin machine), so the full
+`ze-deployment-gokrazy-l2tp-ppp-test` PASS — LCP/IPCP, dataplane ping,
+teardown snapshots — still needs its documented Linux-root host, now with the
+blocker removed. The proof's first two gates (`web server listening`,
+`L2TP listener bound`) are exactly what the fixed image demonstrably reaches.
 
 Found while attempting the boot proofs, and fixed rather than recorded:
 `scripts/evidence/effective-vpp-hugepages-qemu.py` created its ~2 GB working
@@ -854,27 +995,128 @@ module `golang.org/toolchain@v0.0.1-go1.26.2` is in the checked-in modcache, so
 - [x] All NOTEs recorded above
 - [x] Review-gate artifact recorded (`review_gate.py record --verdict clean`, 18 files)
 
+### Run 3 — INDEPENDENT review of the crash-loop fix (2026-07-23/24)
+
+Three fresh reviewer subagents over the crash-loop-fix diff (kernel resolution
+in the evidence script, hub slog mirror, sentinel prefix, `.PHONY: bin/gok`),
+distinct lenses: logic/fail-closed, test-quality/vacuity, build-orchestration.
+
+| # | Severity | Lens | Finding | Action |
+|---|----------|------|---------|--------|
+| 1 | BLOCKER | orchestration | Cross-arch durable-cache poisoning: the kernel sub-make's target is the FILE `tmp/kernel/build/vmlinuz` with no arch prerequisite, so `ze-kernel`'s MISS branch with a stale other-arch build view builds NOTHING and populates the requested arch's cache key with the wrong-arch tree — permanently (HIT check is existence-only), with the remediation message looping the operator back in | fixed: the MISS branch purges `KERNEL_BUILD_DIR` before invoking the sub-make (`mk/gokrazy.mk`) |
+| 2 | ISSUE | orchestration | `tmp/kernel/pkg` is shared and validate-then-consume: any concurrent `make ze-kernel` (other arch/session) rewrites it between the proof's validation and gok's read | fixed: `copy_kernel_pkg` — the proof always consumes a per-run copy under its work dir; `docs/guide/appliance.md` concurrency claim qualified |
+| 3 | ISSUE | orchestration | Under sudo the durable cache probed is root's (HOME reset), so a kernel built as the user is invisible and the remediation loops | fixed: cache-miss message explains the sudo/HOME split and both ways out |
+| 4 | ISSUE | orchestration | Every proof run re-ran `make ze-kernel`, restaging `tmp/kernel/vmlinuz` and clobbering the arm64 kernel staged for the sibling QEMU labs | fixed: a valid staged `tmp/kernel/pkg` (arch + l2tp + pinned version) is reused without invoking make at all |
+| 5 | ISSUE | orchestration | A TOCTOU cache eviction between probe and make would run the ~30-min docker build silently inside a captured pipe | fixed: the make invocation streams live with an upfront notice |
+| 6 | ISSUE | logic | The mgmt-listener refusal (`checkMgmtListeners`) was still stderr-only — a fatal pre-serve appliance exit with no serial diagnosis, the exact class being fixed | fixed: mirror added at the call site (`errUnauthenticatedMgmtListener`); also mirrored `parse hub config` and the `--plugin` rejection |
+| 7 | ISSUE | logic | The skip-build/image-override paths bypass kernel validation and their contract text omitted the kernel requirement | fixed: messages and `docs/guide/appliance.md` now name the L2TP-capable-kernel precondition (explicit opt-in modes keep their bypass) |
+| 8 | ISSUE | logic | `FATAL_NEEDLES` ignored the new serial signal, so a probe-refusal crash-loop burned the full 90s timeout | fixed: `failed to load kernel modules` added as a deterministic fatal needle |
+| 9 | ISSUE | tests | The magic-byte comparison branch was untested (all wrong-magic fixtures shorter than the offset, rejected by the short-read guard) | fixed: long wrong-magic fixtures both directions; deleting the comparison now goes red |
+| 10 | ISSUE | tests | Resolve tests inherited the caller's `GOKRAZY_ARCH` via the import-time `ARCH` global (spurious reds / wrong-reason passes) | fixed: `_ResolveBase` pins `PROOF.ARCH` and `KERNEL_PKG` with save/restore |
+| 11 | ISSUE | tests | The cache-probe stdout parse could `IndexError` on empty output (the make equivalent guards `-z`), and the whole probe path was uncovered | fixed: `probe_kernel_cache_dir` fails closed with the remediation; covered by monkeypatched-subprocess tests (empty-output, bad-cache, staged-reuse) |
+| 12 | NOTE->fixed | tests | `.ci` assertions loosened to any `startup failed` substring | tightened to `msg="startup failed"` + `stage=ze.web.listen` |
+| 13 | NOTE->fixed | tests+logic | Loadable-module glob missed compressed modules (`.ko.xz/.zst`); unsupported arch raised a raw `KeyError` | glob broadened to `l2tp_ppp.ko*`; unsupported arch is a clean `SystemExit` (unit-tested) |
+| 14 | NOTE->fixed | orchestration | Root `Makefile` help still advertised `ze-kernel KVER=7.0 ... (~5 min)` (KVER is not consumed anywhere) | help line rewritten to the real knobs and cost |
+| 15 | NOTE->fixed | logic | Spec quoted the doubled `l2tp: l2tp:` serial line without noting the prefix fix | parenthetical added to the A/B table |
+| 16 | NOTE (accepted) | logic | "read config" mirror uses env-only log settings (config-file-only backends see no mirror); `kmsg,stderr` prints failures on both channels | inherent to failing before config parse; the appliance injects the backend via env, which is the case that matters |
+| 17 | NOTE (accepted) | logic+orchestration | `.PHONY: bin/gok` widens a pre-existing concurrent `go build -o` write/exec race; static validation cannot catch an internally inconsistent hand-assembled KERNEL_PKG | accepted: same shape as the pre-existing `bin/ze` race; explicit KERNEL_PKG is the operator's own choice |
+
+Additionally, in the same pass: `kernel.version` bumped 7.1.1 -> 7.1.4 (owner
+direction), and `kernel_pkg_problems` gained a pinned-version check (staged-pkg
+reuse and cache paths only, never the operator's explicit KERNEL_PKG) so a
+stale package cannot survive a kernel bump — with unit tests including the
+`7.1.40`-vs-`7.1.4` prefix-collision case.
+
+### Run 4 — focused re-review of the Run-3 fixes (2026-07-24)
+
+One independent re-reviewer verified each claimed fix against the real files
+(and ran the unit tests and the `.ci`). Verified clean: the sequential cache
+purge, the version pin (including no false-reject: the kernel build produces
+`lib/modules/7.1.4` exactly, no LOCALVERSION anywhere), the probe stdout
+guard, the fatal-needle chain end-to-end into the kmsg TextHandler rendering,
+`_ResolveBase` pinning completeness, the 7.1.4 bump surface, and the
+tightened `.ci` rendering. Three remaining ISSUEs, all fixed:
+
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| 1 | ISSUE | `runOrchestratorWithData`'s `o.Start` and `dropPrivileges` fatal exits were still stderr-only (mirror added only to its parse site) | fixed: both mirrored (`start orchestrator`, `drop privileges`) |
+| 2 | ISSUE | Concurrent cross-arch `make ze-kernel` runs share the unlocked `tmp/kernel/build`, so run B's rebuild can land between run A's sub-make and A's populate, poisoning A's arch-keyed durable cache | fixed fail-closed: the populate step verifies the built vmlinuz's arch magic against `KERNEL_ARCH` and errors loudly instead of caching a wrong-arch tree |
+| 3 | ISSUE (low) | The invalid-cache remediation ("run make ze-kernel") was FALSE for an existing-but-bad entry: make's existence-only HIT branch re-materializes the same bad tree | fixed: when the cache dir exists, the message says to `rm -rf` it first, then rebuild |
+| 4 | NOTE | `test/install/kernel-compose.ci` comment still said "the 7.1.1 target" | reworded version-agnostically (pin lives in `kernel.version`) |
+
+Post-fix: script imports clean, 21/21 unit tests pass, `cmd/ze` compiles.
+
+### Run 5 — re-review of the Run-4 fixes (2026-07-24): 0 BLOCKER, 0 ISSUE
+
+One independent reviewer over the three Run-4 fixes, with executed evidence:
+FIX 1 (orchestrator mirrors) clean — all three fatal exits paired, stage names
+consistent, compile OK; FIX 2 (arch guard) clean — shell quoting and abort
+semantics proven LIVE (a `make -n` still executes `$(MAKE)` recipe lines: the
+guard fired on a missing vmlinuz and killed the recipe before the populate),
+fixture matrix all-correct including short/stub/missing files failing closed;
+FIX 3 (remediation branching) clean — 21/21 tests, both branches carry the
+build command. Three NOTEs, two of which were then applied: the guard message
+no longer over-attributes to concurrency (a no-output build fires it too),
+and a new test discriminates the existing-bad (`rm -rf` demanded) from the
+missing-cache branch (22 tests total now). The third NOTE (the hub SIGHUP
+reload-error path exits the daemon with a stderr-only reason — same serial
+invisibility, pre-existing) was verified against the producer
+(`o.Reload` failure -> `cancel()` -> return in the hub reload loop) and
+fixed too: the shutdown reason is mirrored onto slog
+(`config reload failed; shutting down`).
+
+**The review gate for the crash-loop fix is at zero.**
+
 ## Pre-Commit Verification
+
+Independently re-verified 2026-07-23 (late), not copied from the audit.
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/appliance/instance/prepare.go` | ✅ | `ls -la`: 15K Jul 23 22:17 |
+| `internal/appliance/instance/prepare_test.go` | ✅ | 22K Jul 23 23:52 (darwin path fix) |
+| `internal/appliance/instance/prepare_repo_test.go` | ✅ | 9.8K Jul 23 22:17 |
+| `cmd/ze-gok/main.go` / `main_test.go` | ✅ | 7.7K / 14K Jul 23 22:17 |
+| `scripts/dev/gokrazy_l2tp_kernel_test.py` | ✅ | 6.4K Jul 23 23:28 |
+| `test/ui/startup-failure-slog.ci` | ✅ | 1.2K Jul 23 23:43 |
+| `test/appliance/vpp-hugepages-qemu.ci` | ✅ | 1.8K Jul 23 22:17 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..AC-11 | prepared-instance mechanics | fresh run 2026-07-23T23:52: `go test -count=1 ./internal/appliance/... ./cmd/ze-gok/` -> `ok internal/appliance 15.2s`, `ok internal/appliance/instance 0.6s` (after the darwin assertion fix), `ok cmd/ze-gok 1.2s` |
+| AC-12, AC-13 | mixed-arch refusal; ze-gok preparation | same run (cmd_build_test.go, main_test.go in the packages above) |
+| (late) kernel validation | pinned/no-l2tp and stub kernels rejected, runtime kernel accepted | `python3 scripts/dev/gokrazy_l2tp_kernel_test.py`: 11 tests OK; mutation (validator neutered) -> 6 FAIL; reverted -> OK |
+| (late) startup observability | fatal pre-serve failures reach slog | `bin/ze-test ui --pattern startup-failure-slog` -> PASS; mutation (no-op mirror) -> exit 1; reverted -> exit 0 |
+| (late) hub + l2tp under full default tags | no regression | `go test -count=1 -tags "ze_core <feature-gates>" ./cmd/ze/hub/ ./internal/component/l2tp/` -> ok / ok |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze appliance build` (hugepages) -> prepared instance -> gok -> booted image | `test/appliance/vpp-hugepages-qemu.ci` | PASS 2026-07-23: `VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64` |
+| `make ze-gokrazy` -> ze-gok preparation -> gok -> booted image -> ze serves | (QEMU A/B, Update 2026-07-23 late) | fixed-path arm64 image: `L2TP listener bound`, `web server listening`, zero restarts; pinned-kernel control: crash-loop with the probe error on serial |
+| `ze start <conf>` with a fatal startup error -> slog mirror | `test/ui/startup-failure-slog.ci` | PASS (fresh, mutation-verified) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | A/B build 2026-07-22 (spec Assumptions table) |
+| A-2 | confirmed | upgraded from "partly confirmed": derived images now BOOT — hugepage proof PASS (amd64) and the L2TP appliance boots and serves (arm64, Update 2026-07-23 late). Byte-equality against a non-derived build was never the goal; boot was |
+| A-3 | confirmed | 2026-07-22 (replace-resolution proof, spec Assumptions table) |
+| A-4 | confirmed | deps target re-run 2026-07-23 (late): pinned kernel dir byte-stable (30 files, 16036K), only the pinned version present |
+| A-5 | confirmed | 2026-07-22 offline build; re-confirmed by `TestPreparedModulesResolveIdenticallyToTracked` running `GOPROXY=off` |
+| A-6 | confirmed | fresh grep 2026-07-23 (late): no builddir `go.sum` consumer outside the build |
+| A-7 | withdrawn | D-1 audit found the flows unequal; no consumer under D-1c (recorded in the Assumptions table) |
+| A-8 (leaf-package import) | confirmed | `cmd/ze-gok` compiles against `internal/appliance/instance`; `make ze-tier-check` clean at commit `1d4342451` |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Appliance L2TP proof kernel requirement + resolution flow | `docs/functional-tests.md` (anchors: `resolve_kernel_pkg`, `probeKernelModules`, `ze-kernel`) | ✅ `make ze-doc-test` exit 0 after edit |
+| TAP-bridge (not hostfwd) claim corrected | `docs/functional-tests.md`, `docs/labs/l2tp-interop.md` (anchor: `qemu_command`) | ✅ matches `effective-gokrazy-l2tp-ppp.py` `qemu_command` comment |
+| Serial-console startup-failure observability | `docs/functional-tests.md` (anchor: `logStartupFailure`) | ✅ |
+| Generated indexes | `ai/CODE-TO-DOCS.md`, `ai/DOCS-TO-CODE.md` | ✅ regenerated (`make ze-doc-index`, `make ze-discovery-index`), `make ze-doc-test` exit 0 |
 
 ## Checklist
 

@@ -390,6 +390,10 @@ class LineCollector:
 
 
 FATAL_NEEDLES = [
+    # ze's fail-closed L2TP module probe refusing startup: the appliance will
+    # crash-loop forever, so fail the proof now instead of burning the 90s
+    # boot timeout (this line reaches serial via the kmsg startup mirror).
+    "failed to load kernel modules",
     "skipping kernel module probe",
     "genl family resolve failed",
     "kernel integration disabled",
@@ -596,6 +600,224 @@ def write_lac_inputs(work: Path) -> None:
     )
 
 
+# The appliance kernel must provide PPPoL2TP: the baked template sets
+# `l2tp enabled true`, and ze's RFC 2661 fail-closed probe (probeKernelModules,
+# internal/component/l2tp/kernel_linux.go) exits the daemon when neither
+# l2tp_ppp nor pppol2tp is available, which gokrazy turns into a first-boot
+# crash-loop with no "web server listening" ever appearing. The pinned
+# github.com/rtr7/kernel has NO l2tp/ppp support (nothing in modules.builtin,
+# zero loadable modules), so booting it here can never pass. The runtime kernel
+# (gokrazy/kernel/runtime.config) builds CONFIG_L2TP/PPPOL2TP in; this proof
+# therefore REQUIRES a kernel that carries l2tp and resolves one itself.
+KERNEL_MAGIC = {
+    # (offset, magic): amd64 bzImage "HdrS", arm64 Image "ARMd".
+    "amd64": (0x202, b"HdrS"),
+    "arm64": (0x38, b"ARMd"),
+}
+
+
+def pinned_kernel_version(root: Path) -> str:
+    """The repo's single kernel source of truth (internal/appliance/kernel.version)."""
+    return (
+        (root / "internal" / "appliance" / "kernel.version")
+        .read_text(encoding="utf-8")
+        .strip()
+    )
+
+
+def kernel_pkg_problems(
+    pkg: Path, arch: str, expected_version: str | None = None
+) -> list[str]:
+    """Pure validation of an out-of-tree kernel package tree.
+
+    Returns the list of reasons this package cannot boot this proof: missing
+    or wrong-architecture vmlinuz (a polluted module cache once held an arm64
+    kernel under the amd64 pin), absent PPPoL2TP support (neither built into
+    the kernel per modules.builtin nor present as a loadable module), and,
+    when expected_version is given, a module tree for a different kernel than
+    the pinned one (a staged tmp/kernel/pkg left by an older build would
+    otherwise be reused across a kernel.version bump).
+    """
+    if arch not in KERNEL_MAGIC:
+        # Same closed set qemu_command enforces, but that check runs AFTER
+        # kernel resolution; failing here keeps the message ahead of a KeyError.
+        raise SystemExit(
+            f"unsupported ZE_GOKRAZY_ARCH={arch} (expected amd64 or arm64)"
+        )
+    problems: list[str] = []
+    vmlinuz = pkg / "vmlinuz"
+    if not vmlinuz.is_file():
+        problems.append(f"no vmlinuz at {vmlinuz}")
+    else:
+        offset, magic = KERNEL_MAGIC[arch]
+        with vmlinuz.open("rb") as fh:
+            header = fh.read(offset + len(magic))
+        if (
+            len(header) < offset + len(magic)
+            or header[offset : offset + len(magic)] != magic
+        ):
+            problems.append(
+                f"vmlinuz at {vmlinuz} is not a {arch} kernel"
+                f" (magic {magic!r} not found at {hex(offset)})"
+            )
+    builtin_files = sorted(pkg.glob("lib/modules/*/modules.builtin"))
+    # l2tp_ppp.ko* also accepts compressed loadable modules (.ko.xz/.ko.zst);
+    # the runtime kernel builds l2tp in, so this arm is for foreign packages.
+    loadable = sorted(pkg.glob("lib/modules/*/**/l2tp_ppp.ko*"))
+    if not builtin_files and not loadable:
+        problems.append(f"no lib/modules/*/modules.builtin under {pkg}")
+    else:
+        builtin_l2tp = any(
+            "l2tp_ppp" in path.read_text(encoding="utf-8", errors="replace")
+            for path in builtin_files
+        )
+        if not builtin_l2tp and not loadable:
+            problems.append(
+                f"kernel package {pkg} has no PPPoL2TP support:"
+                " l2tp_ppp is neither in modules.builtin nor a loadable .ko"
+            )
+    if expected_version is not None:
+        releases = sorted(p.name for p in pkg.glob("lib/modules/*") if p.is_dir())
+        if not any(
+            r == expected_version or r.startswith(expected_version + "-")
+            for r in releases
+        ):
+            problems.append(
+                f"kernel package {pkg} carries release(s) {releases or ['none']},"
+                f" not the pinned kernel.version {expected_version}"
+            )
+    return problems
+
+
+def assert_kernel_pkg(
+    pkg: Path, arch: str, context: str, expected_version: str | None = None
+) -> None:
+    problems = kernel_pkg_problems(pkg, arch, expected_version)
+    if problems:
+        detail = "\n  ".join(problems)
+        raise SystemExit(
+            f"unusable kernel package ({context}):\n  {detail}\n"
+            f"rebuild it with: make ze-kernel KERNEL_ARCH={arch}"
+            " (~30 min on a cache miss, needs docker)"
+        )
+
+
+def copy_kernel_pkg(src: Path, work: Path, arch: str) -> Path:
+    """Copy a kernel package into this run's work dir and validate the copy.
+
+    `tmp/kernel/pkg` is a shared fixed path that any concurrent `make
+    ze-kernel` (another proof run, another arch, another session) rewrites
+    starting with an rm -rf. gok reads the package minutes after validation,
+    so consuming the shared path directly is validate-then-clobber TOCTOU;
+    the per-run copy is what gok actually reads.
+    """
+    dst = work / "kernel-pkg"
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst, symlinks=True)
+    assert_kernel_pkg(dst, arch, f"per-run copy of {src}")
+    return dst
+
+
+def probe_kernel_cache_dir(root: Path) -> Path:
+    """Ask ze-host for the arch-keyed runtime-kernel cache directory."""
+    run_required(["make", "ze-host"], "build host ze binary", cwd=root)
+    cache_probe = run_required(
+        [
+            str(root / "ze-host"),
+            "appliance",
+            "kernel",
+            "--target",
+            "runtime",
+            "--arch",
+            ARCH,
+            "--print-cache-dir",
+        ],
+        "resolve runtime kernel cache dir",
+        cwd=root,
+    )
+    lines = [line for line in cache_probe.stdout.splitlines() if line.strip()]
+    if not lines:
+        # The make equivalent guards `[ -z "$cache_dir" ]`; without this the
+        # operator would get an IndexError traceback instead of a next step.
+        raise SystemExit(
+            "could not resolve the runtime kernel cache dir: ze-host"
+            " appliance kernel --print-cache-dir produced no output;"
+            f" try: make ze-kernel KERNEL_ARCH={ARCH}"
+        )
+    return Path(lines[-1].strip())
+
+
+def resolve_kernel_pkg(root: Path, work: Path) -> Path:
+    """Resolve the L2TP-capable kernel package this proof boots.
+
+    An explicit KERNEL_PKG is validated and used as-is. Otherwise: a valid
+    already-assembled `tmp/kernel/pkg` is reused (no shared-state rewrite, no
+    `tmp/kernel/vmlinuz` restaging for the sibling QEMU labs); failing that,
+    the runtime kernel is materialized from the durable cache via `make
+    ze-kernel`, and a cold or unusable cache fails fast with the exact command
+    to run, instead of booting an image whose ze can only crash-loop. Either
+    way the package handed to the build is a per-run copy under this proof's
+    work dir (see copy_kernel_pkg).
+    """
+    explicit = os.environ.get("KERNEL_PKG")
+    if explicit:
+        # No version pin here: an explicit KERNEL_PKG is the operator's own
+        # kernel choice (that is the flag's purpose); arch + l2tp still gate.
+        pkg = Path(explicit)
+        if not pkg.is_absolute():
+            pkg = root / pkg
+        assert_kernel_pkg(pkg, ARCH, "from KERNEL_PKG")
+        return copy_kernel_pkg(pkg, work, ARCH)
+
+    pinned = pinned_kernel_version(root)
+    staged = root / "tmp" / "kernel" / "pkg"
+    if not kernel_pkg_problems(staged, ARCH, pinned):
+        return copy_kernel_pkg(staged, work, ARCH)
+
+    cache_dir = probe_kernel_cache_dir(root)
+    problems = kernel_pkg_problems(cache_dir, ARCH, pinned)
+    if problems:
+        detail = "\n  ".join(problems)
+        # make's HIT branch is existence-only, so an EXISTING-but-invalid
+        # cache entry (stub, wrong arch from a pre-guard populate) would be
+        # re-materialized as-is by `make ze-kernel`; the remediation is only
+        # true if the bad entry is removed first.
+        if cache_dir.is_dir():
+            remediation = (
+                f"the cache entry exists but is unusable; remove it first:\n"
+                f"  rm -rf {cache_dir}\n"
+                f"then rebuild it: make ze-kernel KERNEL_ARCH={ARCH}"
+            )
+        else:
+            remediation = f"build it once with: make ze-kernel KERNEL_ARCH={ARCH}"
+        raise SystemExit(
+            "this proof needs the runtime kernel (PPPoL2TP built in;"
+            " the pinned rtr7 kernel has no l2tp support and the appliance"
+            " would crash-loop on ze's fail-closed module probe), but the"
+            f" durable cache at {cache_dir} cannot provide it:\n  {detail}\n"
+            f"{remediation}"
+            " (~30 min, needs docker), then re-run this proof.\n"
+            "note: this proof usually runs under sudo, and sudo commonly"
+            " resets HOME, so the cache probed here is root's; a kernel built"
+            " as your own user lives in YOUR cache. Either run the ze-kernel"
+            " build under sudo too, or re-run the proof with XDG_CACHE_HOME"
+            " pointed at the cache that holds the kernel"
+        )
+    sys.stderr.write(
+        "materializing the runtime kernel package from the durable cache"
+        " (make ze-kernel; instant on this validated cache)...\n"
+    )
+    # Streamed (no capture): if the cache is evicted between the probe above
+    # and this invocation, make's MISS branch starts a ~30-minute docker
+    # build, and that must be visible live, not silent inside a pipe.
+    result = run(["make", "ze-kernel", f"KERNEL_ARCH={ARCH}"], cwd=root)
+    if result.returncode != 0:
+        raise SystemExit("make ze-kernel failed; see output above")
+    assert_kernel_pkg(staged, ARCH, "assembled by make ze-kernel", pinned)
+    return copy_kernel_pkg(staged, work, ARCH)
+
+
 def proof_image_path(root: Path, work: Path) -> Path:
     override = os.environ.get("ZE_GOKRAZY_IMAGE")
     if override:
@@ -657,13 +879,17 @@ def build_image(root: Path, work: Path, template: Path) -> Path:
         if not image.is_file():
             raise SystemExit(f"gokrazy image not found: {image}")
         sys.stderr.write(
-            "using existing gokrazy image; it must already contain the L2TP proof template and proof runtime environment\n"
+            "using existing gokrazy image; it must already contain the L2TP"
+            " proof template, the proof runtime environment, AND an"
+            " L2TP-capable kernel (the pinned rtr7 kernel has none; an image"
+            " built without KERNEL_PKG crash-loops at first boot)\n"
         )
         return image
 
     env = os.environ.copy()
     env.setdefault("USER", "admin")
-    run_required(["make", "bin/gok"], "prepare gokrazy build tool", cwd=root, env=env)
+    # No `make bin/gok` here: bin/gok is .PHONY and the ze-gokrazy target
+    # below rebuilds it (a stale gok once silently ran pre-preparer logic).
     parent = prepare_instance(root, work)
     cmd = [
         "make",
@@ -676,13 +902,13 @@ def build_image(root: Path, work: Path, template: Path) -> Path:
         "PASS=secret",
         f"GOKRAZY_TEMPLATE={template}",
     ]
-    # An out-of-tree kernel is now opt-in per build. Previously `make ze-kernel`
-    # wrote a replace into the tracked go.mod, so ANY later build -- including
-    # this proof -- silently inherited that kernel. Forward it only when the
-    # operator asks for it.
-    kernel_pkg = os.environ.get("KERNEL_PKG")
-    if kernel_pkg:
-        cmd.append(f"KERNEL_PKG={kernel_pkg}")
+    # This proof ALWAYS builds with an L2TP-capable kernel: the pinned rtr7
+    # kernel has no l2tp support, so without this the appliance ze crash-loops
+    # at first boot on its fail-closed module probe and the proof can never
+    # pass. resolve_kernel_pkg validates an explicit KERNEL_PKG or reuses /
+    # materializes the runtime kernel, always handing back a per-run copy.
+    kernel_pkg = resolve_kernel_pkg(root, work)
+    cmd.append(f"KERNEL_PKG={kernel_pkg}")
     result = run(cmd, cwd=root, env=env)
     if result.returncode != 0:
         raise SystemExit("make ze-gokrazy for L2TP appliance evidence failed")

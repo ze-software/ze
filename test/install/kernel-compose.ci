@@ -92,7 +92,8 @@ done
 # test-relax: CONFIG_L2TP_NETLINK moved from require_enabled to require_absent.
 # It was removed as a standalone Kconfig symbol in kernel 7.0 (netlink is always
 # built with L2TP; see gokrazy/kernel/runtime.config line 98), so requiring it
-# enabled is wrong for the 7.1.1 target. Asserting it absent matches the other
+# enabled is wrong for any post-7.0 target (the pinned version lives in
+# internal/appliance/kernel.version). Asserting it absent matches the other
 # removed-in-newer-kernel options below. Coverage is preserved, not dropped.
 for opt in \
 	CONFIG_NF_NAT_IPV4 \

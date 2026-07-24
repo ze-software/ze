@@ -2071,21 +2071,45 @@ privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
 
-For appliance evidence, run `make ze-kernel` first, then
-`make ze-deployment-gokrazy-l2tp-ppp-test` on a Linux host or target runner
-with QEMU and the same PPPoL2TP LAC-side kernel support. `make ze-kernel`
-defaults to `KERNEL_BUILDER=docker`; set `KERNEL_BUILDER=qemu` when you need to
-force the shared QEMU backend. In both cases it uses the shared kernel builder
-and tracked runtime fragments before copying vmlinuz/modules/DTBs into the
-gokrazy module cache. The target builds a temporary gokrazy image with an L2TP
-first-boot template and proof-only runtime environment
-(`ze.l2tp.ncp.enable-ipv6cp=false`, because the static pool is IPv4-only),
-boots it under QEMU with UDP 1701 forwarded into the appliance, drives a real
+For appliance evidence, run `make ze-deployment-gokrazy-l2tp-ppp-test` on a
+Linux host or target runner with QEMU and the same PPPoL2TP LAC-side kernel
+support. The proof resolves an L2TP-capable kernel itself: the pinned
+`github.com/rtr7/kernel` ships no l2tp/ppp support at all, so booting it with
+the proof's `l2tp enabled true` template makes ze's fail-closed module probe
+refuse startup and the appliance crash-loops without ever serving. The script
+therefore validates an explicit `KERNEL_PKG`, or materializes the runtime
+kernel from the durable cache via `make ze-kernel`, and fails fast naming
+`make ze-kernel KERNEL_ARCH=<arch>` when the cache cannot provide one
+(~30 min on a cache miss; `make ze-kernel` defaults to `KERNEL_BUILDER=docker`,
+set `KERNEL_BUILDER=qemu` to force the shared QEMU backend). `make ze-kernel`
+assembles the kernel as an out-of-tree package at `tmp/kernel/pkg`; it never
+mutates the tracked gokrazy module cache. The target builds a temporary
+gokrazy image with an L2TP first-boot template and proof-only runtime
+environment (`ze.l2tp.ncp.enable-ipv6cp=false`, because the static pool is
+IPv4-only), boots it under QEMU attached to a host bridge by TAP (user-mode
+slirp cannot deliver the LAC's inbound UDP 1701), drives a real
 `xl2tpd`/`pppd` LAC from a Linux namespace, verifies PPP/IPCP and
 LAC `pppN` address state, pings the Ze LNS address through PPP, and observes
 appliance route inject/withdraw logs.
+<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
 <!-- source: mk/gokrazy.mk -- ze-kernel -->
 <!-- source: gokrazy/kernel/Makefile -- all -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- probeKernelModules -->
+
+A ze appliance that dies before serving reports the reason on the serial
+console: every fatal pre-serve startup failure is mirrored onto the slog
+backend as `msg="startup failed"` with a `stage` attribute, and the appliance
+logs through kmsg, which the kernel prints to the configured console. Without
+this the failure was only on stderr, which the gokrazy supervisor captures
+away from serial, and a first-boot crash-loop was undiagnosable from the
+console.
+<!-- source: cmd/ze/hub/main.go -- logStartupFailure -->
+<!-- source: gokrazy/ze/config.json -- ze.log.backend=kmsg,stderr -->
+
+The `test/ui/startup-failure-slog.ci` functional test pins the slog mirror
+from the user entry point: a daemon started with an unparsable
+`ze.web.listen` exits 1 with both the stderr print and the
+`startup failed` slog line.
 
 ### Tunnel lifecycle
 

@@ -25,7 +25,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 )
 
-var errL2tpFailedToLoadKernelModules = errors.New("l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)")
+// No "l2tp:" prefix: the subsystem Start wraps this with fmt.Errorf("l2tp: %w"),
+// and the doubled prefix showed up verbatim on the appliance serial console.
+var errL2tpFailedToLoadKernelModules = errors.New("failed to load kernel modules (tried l2tp_ppp, pppol2tp)")
 
 // kernelOps holds function pointers for the actual kernel syscalls.
 // Tests inject fakes via the struct fields. Production uses newKernelOps().

@@ -39,6 +39,19 @@ duplicated mkfs/debugfs work) or whether the two are deliberately different
 products. If they converge, `ZEFS=` and the `CERTNAME` cert cache must survive in
 some form: they are developer conveniences with no Go equivalent today.
 
+Two further items deferred out of the same source spec (recorded in its
+`plan/deferrals/gokrazy-builddir-tmp.md` shard, which the closure commit
+removes; this spec is their home):
+
+- **Gate the tracked builddir `go.sum` files against the root module.** Nothing
+  checks them today, so they can drift without any gate firing. The source
+  spec's A-6 validation confirmed no consumer reads them outside the build,
+  which also means nothing would notice drift.
+- **Rename the `builddir` directory.** The build no longer runs there (every
+  build copies it into a prepared instance under project `tmp/`), so the name
+  misdescribes its role as a pinned module manifest. Mechanical rename, no
+  behavior change; kept out of the source spec to keep its diff reviewable.
+
 ## Required Reading
 
 ### Architecture Docs
