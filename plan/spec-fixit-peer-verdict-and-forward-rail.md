@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/5 |
-| Updated | 2026-07-22 |
+| Phase | 5/5 |
+| Updated | 2026-07-24 |
 
 ## Post-Compaction Recovery
 
@@ -385,3 +385,50 @@ touches them. Add the missing `[RFC4271-5.1.2-N]` requirement row to
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for BGP message length
+
+## Implementation Audit (closure 2026-07-24)
+
+All ten defects (1-6 in the Task section, 7-10 in the addendum) are resolved. The
+spec was largely completed by sibling sessions/commits after the 2026-07-22 draft;
+its metadata (Phase 1/5) never caught up. Closure state established by three
+independent read-only investigation agents (defects 1,2,6 / defect 3 / defects 4,5)
+and, for the 7-10 slice, two independent code reviewers over commit 928e28b10.
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | Done | Per-peer verdict `failedCheckPeers` (`internal/test/runner/peer_contract.go:106-130`); gated by `TestPeerVerdictRequiresAllCheckPeers` (`peer_contract_test.go:313`). Commits `aaefef8ce`, `16601c4c5` |
+| AC-2 | Done | Both fixtures byte-correct; repo-wide `TestCIFrameLengthsWellFormed` (`internal/test/runner/ci_fixture_test.go:40`) passes (1519 frames, 0 malformed) |
+| AC-3 | Done | `forward-overflow-two-tier` (224) 10/10; `role-otc-unicast-scope` (398) 5/5 this session; sessions stay established (frames well-formed, no `invalid marker`) |
+| AC-4 | Done (re-scoped) | test 91 = 20/20 this session. Per the Known Limitation, defect 3 was environmental, not a code defect: the prepend gate is statically correct at every rail (`forward_rs.go:375`, `reactor_api_forward.go:540`; nil facts SKIP a peer, never emit un-prepended), and the original 2/8 flake was incidentally closed by the reactor concurrency-race fixes `99ff5e85f` + `f9146a35c`. Re-scope approved by owner 2026-07-24 |
+| AC-5 | Done | Explicit decline paths in `reactor_notify.go:578-598` (cache-miss and zero-peer both logged, `ReactorForwarded` left clear, handed off to bgp-rs which delivers via `rs/server_withdrawal.go:71-72`); `forward_rs.go` splits handled/delivered; `TestTryDirectWriteNotEstablishedIsNotDelivered` (`forward_rs_test.go:1001`). Commit `cf31a5862` |
+| AC-6 | Done | tests 90 and 91 each 20/20 this session; no EOR-ordering failure. Racy receiver-EOR dropped (audited 4/6→0/6), source-EOR kept with an `eor-sent` teardown gate. Commit `f9146a35c` |
+| Defects 7-10 (224/225) | Done | Committed `928e28b10` + hardening `3abcbdca1`; 224/225 10/10; two independent reviews clean; `ze-race-reactor -count=20` green |
+
+## Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| A wrong check peer fails its multi-peer test (no vacuous pass) | `TestPeerVerdictRequiresAllCheckPeers` (its peer-B-fails case asserts the failure) |
+| No malformed `.ci` frame can land | `TestCIFrameLengthsWellFormed` repo-wide gate, passes |
+| ze prepends its AS to eBGP peers on every forwarding rail | test 91 20/20 + static-clear of fast path, reactor fallback, and bgp-rs rail |
+| The fast-path seam never silently drops an UPDATE | AC-5 evidence; both decline branches logged and delivered |
+| Overflow forwarding delivers all routes, in order | 224/225 10/10 (defects 7-10) |
+
+## Pre-Commit Verification (closure)
+
+Independently re-verified, not copied from the audit:
+
+| Item | How verified |
+|------|--------------|
+| Defects 1, 2, 6 done | Agent A read the producing code + tests + commits (not comments) |
+| Defects 4, 5 done | Agent C read `reactor_notify.go` / `forward_rs.go` / `server_withdrawal.go` + the two `.ci` |
+| Defect 3 not reproducible | Agent B: test 91 34/34; re-confirmed 20/20 (and 90 20/20) this session |
+| ACs 3, 4, 6 functional | 224 10/10, 398 5/5, 90/91 20/20 this session |
+| RFC 4271 §5.1.2 prepend obligation extracted | `rfc/short/rfc4271.md:739` `[RFC4271-5.1.2-3]` already exists (the spec's "unextracted" note was itself stale) |
+| Deferral homed | `ShouldQueue` row → `plan/spec-fixit-forward-rail-initial-sync-ordering.md` (exists, owns the work) |
+
+Assumptions A-1..A-4 resolved. A-4 (the un-prepend comes from a rail that skipped the prepend) is **broken** as the Known Limitation anticipated: the un-prepend was not a rail defect but a timing artifact of the reactor FSM/delivery races, now closed. Recorded in the learned summary.
+
+## Not done (recorded, not dropped)
+- Cosmetic only: the self-contradictory `# ORDERING:` comment in `test/plugin/bgp-rs-reactor-fastpath.ci:32-41` — the `test-relax` block directly below already documents the true (measured) behavior, and the assertions are correct. Left for whoever next touches that file; no code or assertion impact.
+- `plan/known-failures/bgp-plugin-show-l2tp-tunnel-detail.md` (test 458) is a separate test's shard and was not resolved by this spec's work; it remains live.

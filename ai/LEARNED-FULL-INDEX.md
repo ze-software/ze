@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1237 summaries
+Total: 1238 summaries
 
 ## 000-099
 
@@ -1311,3 +1311,4 @@ Total: 1237 summaries
 | 1263 | feature-gate-12: gate the remaining compile-out candidates | `plan/learned/1263-feature-gate-12-remaining.md` |
 | 1264 | netlink-suite-recovery-2 | `plan/learned/1264-netlink-suite-recovery-2.md` |
 | 1265 | ospf-only-daemon-external-plugins | `plan/learned/1265-ospf-only-daemon-external-plugins.md` |
+| 1266 | fixit-peer-verdict-and-forward-rail | `plan/learned/1266-fixit-peer-verdict-and-forward-rail.md` |
