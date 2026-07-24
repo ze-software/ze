@@ -104,10 +104,12 @@ OSPF_IDS = [
     "ospf-ptmp",
     "ospf-show",
 ]
-# OSPFv3 subset: ospfv3-vlink boots a top-level IPv6 virtual-link config; the v6
-# engine opens a raw proto-89 socket on the netns-provisioned eth0 (EnsureBackend
-# v3). Its observer only needs the daemon to survive booting the vlink wiring.
-OSPFV3_IDS = ["ospfv3-vlink"]
+# OSPFv3 subset (all boot a top-level IPv6 OSPFv3 config; the v6 engine opens a raw
+# proto-89 socket on the netns-provisioned link, IPv6 link-local auto on link-up):
+#   ospfv3-vlink  virtual-link wiring survives boot
+#   ospfv3-nbma   NBMA interface (network-type nbma + static neighbor) boots clean
+#   ospfv3-ptmp   point-to-multipoint interface boots clean
+OSPFV3_IDS = ["ospfv3-vlink", "ospfv3-nbma", "ospfv3-ptmp"]
 
 
 def sh(cmd, **kw):

@@ -347,8 +347,13 @@ silently renumbers and an in-range-but-shifted nick runs the WRONG test still gr
 (caught in review: `ospf-multiaf` had been converted for netns but omitted from the
 numeric set). Names exact-match and are stable.
 
+### Resolved after the interface cluster
+- ospfv3-nbma and ospfv3-ptmp: the OSPFv3 counterparts of the v2 nbma/ptmp tests.
+  Same fix -- `needs-linux:caps=net-admin` + `netns-link:name=<if>` (no address,
+  IPv6 link-local auto on link-up); both added to the netns_qemu OSPFV3 subset and
+  QEMU-validated green.
+
 ### Still open (the genuine remaining tail)
-- ospfv3 6 (nbma) and 7 (ptmp): the OSPFv3 counterparts of the v2 nbma/ptmp tests;
-  same netns-link provisioning pattern, not yet converted this session.
 - Any items outside the OSPF/OSPFv3 interface cluster listed earlier in this
-  handover that a prior session did not close.
+  handover that a prior session did not close (audit the per-suite "Remaining ids"
+  table above against the current suite before assuming completion).

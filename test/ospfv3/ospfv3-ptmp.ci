@@ -11,7 +11,12 @@
 #
 # PLATFORM: needs-linux -- the OSPFv3 raw IPv6 socket and interface backend are
 # Linux-only, so this is validated in the QEMU Alpine VM.
-option=needs-linux
+option=needs-linux:caps=net-admin
+# The v6 engine opens a raw proto-89 socket on ptmp0 (IPv6 link-local, auto on
+# link-up); provision the dummy link inside the per-test netns. No address: the
+# link-local address the socket joins is assigned automatically when the link
+# comes up.
+option=netns-link:name=ptmp0
 
 tmpfs=ospfv3-ptmp.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
