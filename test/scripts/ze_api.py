@@ -1375,6 +1375,7 @@ class API:
         forward_prefix: str | None = None,
         eor_timeout: float = 30.0,
         shutdown_timeout: float = 15.0,
+        require: bool = True,
     ) -> bool:
         """Standard route-server observer: hand-shake, wait for the RS replay to
         finish (every peer sent its EOR, and -- when `forward_prefix` is given --
@@ -1392,9 +1393,13 @@ class API:
         (so the observer holds ze open until that route is on the wire); omit it for
         tests that only need each peer's own EOR.
 
-        Returns True if the RS replayed fully before `eor_timeout`; False means it
-        did not (ze is still shut down cleanly -- the caller may `runtime_fail` on
-        False to make a stuck establishment a loud failure).
+        Fails closed: when the replay does not complete before `eor_timeout` this
+        calls `runtime_fail`, so a stuck establishment is reported as itself rather
+        than surfacing later as a confusing `expect=` mismatch on frames that never
+        arrived. Pass `require=False` for a test that deliberately tolerates an
+        incomplete replay; it then returns False and shuts ze down cleanly.
+
+        Returns True if the RS replayed fully before `eor_timeout`.
         """
         self.declare_done()
         self.wait_for_config()
@@ -1405,6 +1410,13 @@ class API:
         ok = self.wait_rs_replayed(
             expected_peers, forward_prefix=forward_prefix, timeout=eor_timeout
         )
+        if not ok and require:
+            # runtime_fail requests its own shutdown and exits; it does not return.
+            runtime_fail(
+                "route server did not replay within "
+                f"{eor_timeout}s (expected_peers={expected_peers}, "
+                f"forward_prefix={forward_prefix})"
+            )
         self.shutdown_fire_and_forget()
         self.wait_for_shutdown(timeout=shutdown_timeout)
         return ok
