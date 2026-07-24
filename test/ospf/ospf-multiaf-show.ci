@@ -8,7 +8,11 @@
 
 # The daemon opens raw IPv6 sockets to run the OSPFv3 engines; darwin lacks that path, so
 # this runs under the Linux/QEMU functional harness (authored-pending-QEMU).
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
+# OSPFv3 opens raw proto-89 sockets on eth0/eth1 (IPv6 link-local, auto on link-up);
+# provision the dummy links inside the per-test netns.
+option=netns-link:name=eth0
+option=netns-link:name=eth1
 
 tmpfs=ospf-multiaf-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

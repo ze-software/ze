@@ -333,13 +333,16 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 	}
 
 	// Store the members AND the joined scalar mirror, exactly like the sibling
-	// leaf-list path (storeValueOrArray). Without SetSlice, GetSlice returns nil
+	// leaf-list path (storeValueOrArray). AppendSlice (not SetSlice) so a leaf-list
+	// spelled as repeated `name value;` statements accumulates per YANG (RFC 7950
+	// sec 7.7) instead of the last statement silently winning; a single bracket
+	// statement on an empty leaf-list is unchanged. AppendSlice re-syncs the scalar
+	// mirror to the active members, so Get() keeps returning the joined form and
+	// stays consistent with GetSlice; without a slice store, GetSlice returns nil
 	// and ToMap emits the joined text as one string, so every consumer sees
 	// `[ a b ]` as the single value "a b" -- which is why a unit could not carry
-	// two addresses. Get() keeps returning the joined form for the consumers
-	// that read the mirror.
-	tree.SetSlice(name, items)
-	tree.Set(name, textbuf.Join(items, " "))
+	// two addresses.
+	tree.AppendSlice(name, items)
 	return nil
 }
 
@@ -428,9 +431,13 @@ func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 		}
 	}
 
-	// Store clean members; scalar mirror is the (active-only) joined string.
-	tree.SetSlice(name, clean)
-	tree.Set(name, textbuf.Join(clean, " "))
+	// Store clean members; AppendSlice (not SetSlice) so repeated `name value;`
+	// statements accumulate per YANG (RFC 7950 sec 7.7) instead of the last one
+	// silently winning; a single statement on an empty leaf-list is unchanged.
+	// AppendSlice re-syncs the scalar mirror to the active members (excluding any
+	// member deactivated by an earlier statement); the loop below then deactivates
+	// this statement's inactive: members, each re-syncing again.
+	tree.AppendSlice(name, clean)
 	for _, member := range deactivated {
 		// Ignore "already deactivated" on a repeated prefixed member: the
 		// marker is idempotent and the member value is already recorded.

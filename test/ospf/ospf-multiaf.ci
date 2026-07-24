@@ -5,9 +5,13 @@
 # a per-AF neighbor list is independent.
 # PREVENTS: the two AFs collapsing into one engine or sharing an LSDB/neighbor table.
 
-# Raw IPv6 sockets and adjacency formation are Linux-only; runs under QEMU
-# (authored-pending-QEMU). Two-node convergence lives in the interop scenarios.
-option=skip-os:value=darwin
+# Raw IPv6 sockets and adjacency formation are Linux-only; runs under QEMU under
+# the netns launch mode. The two OSPFv3 AF instances open raw proto-89 sockets on
+# eth0/eth1, which must exist; provision them inside the per-test netns (OSPFv3
+# uses IPv6 link-local, auto-assigned when the dummy link comes up, so no address).
+option=needs-linux:caps=net-admin
+option=netns-link:name=eth0
+option=netns-link:name=eth1
 
 tmpfs=ospf-multiaf.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

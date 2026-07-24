@@ -76,6 +76,42 @@ the marker change below they SKIP there, which is honest but means a green
    host build died with `mkdir cache: file exists`. `cache/` now never
    auto-repoints; use `python3 scripts/dev/ensure-links.py --repoint-cache`.
 
+## Update 2026-07-24 (session 2d): interface cluster UNBLOCKED; ddos RESOLVED
+
+The "needs a full Linux host" framing in 2c was wrong -- the QEMU Alpine VM IS a
+full Linux host (root, netns, nftables, conntrack, eBPF). The two "netns infra"
+blockers were real but tractable, and both are now fixed and QEMU-validated:
+
+- **`ze_api` under uid-drop (runner fix).** Root cause: the repo root is often
+  0700, so a uid-dropped observer cannot traverse `/workspace` to import `ze_api`
+  via PYTHONPATH. Fix: `copyTestScripts` (`internal/test/runner/runner_exec_util.go`)
+  copies `test/scripts/*.py` into the tmpfs workdir (the observer script's own
+  dir, on sys.path[0], chowned to the child). Proven: `ospf-ldp-sync-broadcast`
+  now PASSES under uid-drop netns mode (was `ModuleNotFoundError`).
+- **iface backend not loaded (product fix).** OSPF's transport needs the iface
+  backend for the interface's IPv4, but it loads only from an `interface {}`
+  config block. `iface.EnsureBackend` (`internal/component/iface/backend.go`) loads
+  the default when none is loaded (no-op when an explicit backend already did),
+  called from `resolveOSPFInterface`. Fixes a real OSPF-on-OS-configured-interface
+  bug, not just the tests.
+
+With those + `option=netns-link` provisioning, **`ospf-nbma` (50) is GREEN** under
+netns in QEMU (after also fixing the observer to read the kebab `poll-interval` /
+`nbma-neighbors` fields the Snapshot actually emits). Added to the netns gate
+(`scripts/evidence/netns_qemu.py` OSPF_IDS). The remaining interface-missing tests
+(58 ptmp, 68 show, 29 demux, 45-48 multiaf, ospfv3-vlink 14) need the same
+treatment -- `needs-linux:caps=net-admin` + per-interface `netns-link` + any
+per-test observer kebab/underscore fixes -- the mechanism is proven.
+
+- **ddos-detect-characterize (155) RESOLVED.** On loopback, flooding the closed
+  127.0.0.2:9999 makes the kernel emit ICMP-unreachables back to 127.0.0.1; those
+  egress toward 127.0.0.1 and (embedding the datagram) are LARGER per packet, so
+  `parseTopDestination`'s by-destination-bytes victim pick latched onto 127.0.0.1
+  (the source) not 127.0.0.2, and characterization could not narrow to a victim it
+  was not tracking. Fix: the driver binds a listener on 127.0.0.2:9999 so no
+  reverse ICMP is generated -- a loopback-only artifact a real transit box does
+  not have. GREEN in QEMU (`ze-test bgp plugin 155`).
+
 ## Update 2026-07-24 (session 2b): ospf ldp-sync cluster RESOLVED via two product-bug fixes
 
 Root-causing the ldp-sync/multiaf "no TLS acceptor" cluster found TWO real
@@ -287,3 +323,32 @@ real dataplane behaviour in policy routing and has had no second pair of eyes.
 Several commits carry `--unverified` because `ze-functional-test` is red for the
 reasons above. GPG signing needed an interactive passphrase; commits were run by
 the owner from their own terminal.
+
+## Update 2026-07-24 (session 2f): interface cluster RESOLVED; multi-instance root cause was the config parser
+
+The OSPF interface-missing cluster is done and QEMU-validated. All eight run green
+under `make ze-netns-qemu-test` (host nft unchanged): `ospf-nbma`, `ospf-ptmp`,
+`ospf-show`, `ospf-multiaf`, `ospf-multiaf-reconcile`, `ospf-multiaf-show`,
+`ospf-multiaf-v4-route`, `ospf-instance-demux`, plus `ospfv3-vlink`.
+
+The last holdout, `ospf-instance-demux`, was NOT an OSPF bug. `instance-id 0;
+instance-id 5;` (two repeated leaf-list statements on one interface) silently kept
+only 5 because the brace parser's leaf-list stores called `Tree.SetSlice`, which
+REPLACES the whole leaf-list. YANG models repeated leaf-list statements as additive
+(RFC 7950 sec 7.7). Fix: `Tree.AppendSlice` (append, dedup as a set, preserve
+deactivation markers, re-sync the scalar mirror to active members), used by both
+brace-parser leaf-list stores. This is a general fix -- every leaf-list, spelled as
+repeated statements, now accumulates instead of silently losing all but the last.
+See `plan/learned/1267`.
+
+The netns gate now selects OSPF tests by NAME, not numeric nick: nicks are
+load-order ordinals over the sorted glob, so an added/renamed earlier `.ci`
+silently renumbers and an in-range-but-shifted nick runs the WRONG test still green
+(caught in review: `ospf-multiaf` had been converted for netns but omitted from the
+numeric set). Names exact-match and are stable.
+
+### Still open (the genuine remaining tail)
+- ospfv3 6 (nbma) and 7 (ptmp): the OSPFv3 counterparts of the v2 nbma/ptmp tests;
+  same netns-link provisioning pattern, not yet converted this session.
+- Any items outside the OSPF/OSPFv3 interface cluster listed earlier in this
+  handover that a prior session did not close.

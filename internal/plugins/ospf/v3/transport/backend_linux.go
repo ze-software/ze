@@ -36,6 +36,7 @@ func NewBackend() Backend { return linuxBackend{} }
 var (
 	resolveIfaceBinding   = iface.Resolve
 	resolveIfaceAddresses = iface.Addresses
+	ensureIfaceBackend    = iface.EnsureBackend
 )
 
 type resolvedInterface struct {
@@ -48,6 +49,13 @@ type resolvedInterface struct {
 // and link-local source address. A missing link-local source (IPv6 DAD not yet
 // complete) returns ErrNoLinkLocal so the orchestrator marks the open pending.
 func resolveOSPFv3Interface(name string) (resolvedInterface, error) {
+	// An OSPFv3-only config has no interface{} block to load the iface backend,
+	// but the resolver below needs it. Ensure a default backend is loaded (no-op
+	// when an explicit interface{} backend already loaded one). Mirrors the v2
+	// transport; without it an OSPFv3-only config fails "iface: no backend loaded".
+	if err := ensureIfaceBackend(); err != nil {
+		return resolvedInterface{}, fmt.Errorf("ospfv3/transport: interface %s: %w", name, err)
+	}
 	b, err := resolveIfaceBinding(name)
 	if err != nil {
 		return resolvedInterface{}, fmt.Errorf("ospfv3/transport: resolve interface %s: %w", name, err)

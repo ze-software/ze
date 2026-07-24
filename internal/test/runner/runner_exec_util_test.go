@@ -11,12 +11,57 @@ package runner
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// TestCopyTestScripts verifies the ze_api-under-uid-drop fix: the .py test-support
+// modules are copied from <baseDir>/test/scripts into the observer's tmpfs workdir
+// (which is on its sys.path), and non-.py files and a missing source dir are handled.
+func TestCopyTestScripts(t *testing.T) {
+	base := t.TempDir()
+	srcDir := filepath.Join(base, "test", "scripts")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "ze_api.py"), []byte("X=1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "notes.txt"), []byte("skip me\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := t.TempDir()
+	// A test-shipped module of the same name must win (not be clobbered by the repo copy).
+	if err := os.WriteFile(filepath.Join(dst, "shared.py"), []byte("OWN\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "shared.py"), []byte("REPO\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyTestScripts(base, dst); err != nil {
+		t.Fatalf("copyTestScripts: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dst, "ze_api.py")); err != nil || string(got) != "X=1\n" {
+		t.Errorf("ze_api.py not copied correctly: got %q err %v", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dst, "shared.py")); err != nil || string(got) != "OWN\n" {
+		t.Errorf("a test's own module must not be clobbered: got %q err %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "notes.txt")); !os.IsNotExist(err) {
+		t.Error("non-.py file must not be copied")
+	}
+
+	// A missing source dir is not an error (a test with no observer needs nothing).
+	if err := copyTestScripts(t.TempDir(), dst); err != nil {
+		t.Errorf("missing source dir must be a no-op, got %v", err)
+	}
+}
 
 // TestWithParallelHeadroom checks that per-test timeouts are widened only when
 // the Run executes tests concurrently (concurrency > 1), leaving serial runs

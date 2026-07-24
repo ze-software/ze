@@ -313,6 +313,24 @@ func GetBackend() Backend {
 	return activeBackend
 }
 
+// EnsureBackend loads the build-time default backend when none is loaded, so a
+// consumer that needs interface data (e.g. OSPF reading an interface's IPv4 for
+// its multicast join) works even when the config has no interface{} block to
+// trigger an explicit backend load. It is a no-op when a backend is already
+// loaded, so an explicit `interface { backend vpp }` always wins. The default
+// name is empty on platforms with no OS backend (only the stub), where it
+// returns the same "no backend" error the caller would have hit anyway.
+func EnsureBackend() error {
+	if GetBackend() != nil {
+		return nil
+	}
+	name := DefaultBackendName()
+	if name == "" {
+		return errIfaceNoBackendLoaded
+	}
+	return LoadBackend(name)
+}
+
 // ActiveBackendName returns the registered name of the active iface backend
 // (e.g. "netlink" or "vpp"), or "" when no backend is loaded. It lets a
 // data-plane-specific consumer confirm the active iface backend matches its

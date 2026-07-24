@@ -10,7 +10,10 @@
 # Live raw-IP adjacency (Ze<->Ze at Instance 5, legacy isolation vs FRR) is owned by the
 # QEMU interop scenario test/interop/scenarios/ospf-multiinstance-frr. Requires the full
 # daemon and a raw socket, so it does not run on darwin.
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
+# OSPFv2 opens a raw proto-89 socket on eth0 (both instances share it) and reads
+# its IPv4 for the multicast join; provision the dummy link inside the per-test netns.
+option=netns-link:name=eth0:address=10.0.0.1/24
 
 tmpfs=ospf-instance-demux.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

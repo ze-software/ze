@@ -103,6 +103,65 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "65001", val)
 }
 
+// TestParserLeafListRepeatedStatements verifies that a leaf-list spelled as
+// repeated `name value;` statements accumulates per YANG (RFC 7950 sec 7.7),
+// rather than the last statement silently winning.
+//
+// VALIDATES: repeated leaf-list statements append; the bracket form and a single
+// statement still produce the same members; duplicates collapse (leaf-lists are sets).
+//
+// PREVENTS: a regression where two `instance-id 0; instance-id 5;` lines kept only
+// instance 5 -- silent config data loss (the ospf-instance-demux failure).
+func TestParserLeafListRepeatedStatements(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{"repeated statements accumulate", "name-server 9.9.9.9;\nname-server 8.8.8.8;\n", []string{"9.9.9.9", "8.8.8.8"}},
+		{"bracket form", "name-server [ 9.9.9.9 8.8.8.8 ];\n", []string{"9.9.9.9", "8.8.8.8"}},
+		{"single statement", "name-server 9.9.9.9;\n", []string{"9.9.9.9"}},
+		{"duplicate collapses", "name-server 9.9.9.9;\nname-server 9.9.9.9;\n", []string{"9.9.9.9"}},
+		{"bracket then repeated append", "name-server [ 9.9.9.9 ];\nname-server 8.8.8.8;\n", []string{"9.9.9.9", "8.8.8.8"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree, err := NewParser(testSchema()).Parse(tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, tree.GetSlice("name-server"))
+			// The scalar mirror reflects the full accumulated list, not the last statement.
+			v, _ := tree.Get("name-server")
+			require.Equal(t, strings.Join(tc.want, " "), v)
+			// ToMap delivers the leaf-list to plugins as an array (>1 member).
+			if len(tc.want) > 1 {
+				require.Equal(t, tc.want, tree.ToMap()["name-server"])
+			}
+		})
+	}
+}
+
+// TestParserLeafListRepeatedStatementsDeactivation locks the scalar-mirror/GetSlice
+// consistency when a member deactivated by an EARLIER statement is followed by a
+// later plain statement: the mirror must NOT leak the deactivated member.
+//
+// VALIDATES: AppendSlice re-syncs the scalar mirror to active members, so Get() and
+// GetSlice() agree even across repeated statements with an out-of-band deactivation.
+//
+// PREVENTS: a regression where `import inactive:X; import Y;` leaves Get()="X Y" while
+// GetSlice()=["Y"] (the mirror leaking a deactivated member into scalar consumers).
+func TestParserLeafListRepeatedStatementsDeactivation(t *testing.T) {
+	tree, err := NewParser(testSchema()).Parse("name-server inactive:9.9.9.9;\nname-server 8.8.8.8;\n")
+	require.NoError(t, err)
+	// Effective view drops the deactivated member.
+	require.Equal(t, []string{"8.8.8.8"}, tree.GetSlice("name-server"))
+	// The scalar mirror must match the effective view, not leak 9.9.9.9.
+	v, _ := tree.Get("name-server")
+	require.Equal(t, "8.8.8.8", v)
+	// Structural view keeps both, with 9.9.9.9 marked inactive.
+	require.Equal(t, []MemberState{{Value: "9.9.9.9", Inactive: true}, {Value: "8.8.8.8"}},
+		tree.GetMultiValuesState("name-server"))
+}
+
 // TestParserMultipleNeighbors verifies multiple list entries.
 //
 // VALIDATES: Multiple neighbors are parsed independently.

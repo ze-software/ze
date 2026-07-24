@@ -59,6 +59,20 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(("127.0.0.1", 11211))
 payload = b"x" * 64
 
+# Bind the victim port so the flood lands on an OPEN port. Without a listener the
+# kernel answers each UDP to the closed 127.0.0.2:9999 with an ICMP port-unreachable
+# back to 127.0.0.1 -- a loopback-only artifact (attacker and victim share the box).
+# Those ICMP replies EGRESS toward 127.0.0.1 and, carrying the quoted datagram, are
+# larger per packet than the forward flood, so trafficusage's by-destination-bytes
+# victim pick (parseTopDestination) latches onto 127.0.0.1 (the source) instead of
+# 127.0.0.2, and characterization can never narrow to a victim it is not tracking.
+# On a real transit box forwarding a flood the victim egress dominates and there is
+# no such confound; the bound socket models that. It only receives (buffer fills and
+# drops silently); no drain needed.
+victim_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+victim_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 20)
+victim_sock.bind((victim, 9999))
+
 
 def blast(n):
     sent = 0

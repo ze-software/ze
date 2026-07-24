@@ -6,9 +6,11 @@
 # PREVENTS: a PtMP interface being parsed but taking the broadcast (Waiting/DR)
 # ISM path, or the show snapshot not surfacing the new network type.
 #
-# PLATFORM: needs-linux -- the interface backend and OSPF raw socket are Linux-only,
-# so this daemon-boot scenario is validated in the QEMU Alpine VM.
-option=needs-linux
+# PLATFORM: needs-linux:caps=net-admin -- an active point-to-multipoint interface
+# needs a real link with an IPv4 address (OSPF binds a raw proto-89 socket and
+# reads the interface IPv4 for its multicast join), provisioned in the per-test netns.
+option=needs-linux:caps=net-admin
+option=netns-link:name=ptmp0:address=10.0.0.1/24
 
 tmpfs=ospf-ptmp.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

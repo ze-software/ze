@@ -7,7 +7,11 @@
 # PREVENTS: an added AF never opening its instance, or one AF's engine disturbing another.
 
 # Raw IPv6 sockets are Linux-only; runs under QEMU (authored-pending-QEMU).
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
+# OSPFv3 opens raw proto-89 sockets on eth0/eth1 (IPv6 link-local, auto on link-up);
+# provision the dummy links inside the per-test netns.
+option=netns-link:name=eth0
+option=netns-link:name=eth1
 
 tmpfs=ospf-multiaf-reconcile.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

@@ -207,6 +207,34 @@ func (t *Tree) SetSlice(name string, items []string) {
 	delete(t.inactiveMembers, name)
 }
 
+// AppendSlice adds leaf-list members to any already stored under name,
+// preserving insertion order and existing per-member deactivation markers, and
+// skipping values already present (leaf-lists are sets). It is the accumulating
+// counterpart to SetSlice: YANG models a leaf-list's repeated statements as
+// additive (RFC 7950 sec 7.7), so the brace parser appends across `name value;`
+// statements instead of the last one winning. The scalar mirror (values[name])
+// is re-synced to the ACTIVE members, so it stays consistent with GetSlice even
+// when an earlier statement deactivated a member (the caller must NOT also Set
+// the mirror from the full list, which would leak the deactivated member).
+func (t *Tree) AppendSlice(name string, items []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	members := t.multiValues[name]
+	seen := make(map[string]struct{}, len(members)+len(items))
+	for _, v := range members {
+		seen[v] = struct{}{}
+	}
+	for _, v := range items {
+		if _, dup := seen[v]; dup {
+			continue
+		}
+		seen[v] = struct{}{}
+		members = append(members, v)
+	}
+	t.multiValues[name] = members
+	t.syncMultiValueToValueLocked(name)
+}
+
 // GetSlice returns the active (non-deactivated) members of a leaf-list as a
 // string slice in order. Returns nil if the key is not set or every member is
 // deactivated. See GetMultiValues for the deactivation contract.

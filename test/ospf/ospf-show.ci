@@ -8,7 +8,11 @@
 # command path is not registered or the configured daemon cannot answer it.
 
 # Live FRR/QEMU kernel convergence remains owned by the spec-ospf-13 interop scenarios.
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
+# OSPFv2 opens raw proto-89 sockets on eth0/eth1 and reads their IPv4 for the
+# multicast join; provision the dummy links inside the per-test netns.
+option=netns-link:name=eth0:address=10.0.1.1/24
+option=netns-link:name=eth1:address=10.0.2.1/24
 
 tmpfs=ospf-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

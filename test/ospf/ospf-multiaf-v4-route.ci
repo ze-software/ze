@@ -10,7 +10,10 @@
 # Raw IPv6 sockets + FIB install are Linux-only; the peer-side route install is proven by
 # the ospf-multiaf-v4-frr interop scenario. This single-node smoke test runs under QEMU
 # (authored-pending-QEMU).
-option=skip-os:value=darwin
+option=needs-linux:caps=net-admin
+# OSPFv3 opens a raw proto-89 socket on eth1 (IPv6 link-local, auto on link-up);
+# provision the dummy link inside the per-test netns.
+option=netns-link:name=eth1
 
 tmpfs=ospf-multiaf-v4-route.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

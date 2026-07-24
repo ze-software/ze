@@ -29,6 +29,7 @@ func NewBackend() Backend { return linuxBackend{} }
 var (
 	resolveIfaceBinding   = iface.Resolve
 	resolveIfaceAddresses = iface.Addresses
+	ensureIfaceBackend    = iface.EnsureBackend
 )
 
 type resolvedInterface struct {
@@ -38,6 +39,14 @@ type resolvedInterface struct {
 }
 
 func resolveOSPFInterface(name string) (resolvedInterface, error) {
+	// An OSPF-only config has no interface{} block to load the iface backend, but
+	// OSPF still needs it to read the interface's ifindex and IPv4. Ensure a
+	// default backend is loaded (no-op when an explicit interface{} backend
+	// already loaded one). Without this, opening an active interface fails
+	// "iface: no backend loaded" even when the link exists.
+	if err := ensureIfaceBackend(); err != nil {
+		return resolvedInterface{}, fmt.Errorf("ospf/transport: interface %s: %w", name, err)
+	}
 	b, err := resolveIfaceBinding(name)
 	if err != nil {
 		return resolvedInterface{}, fmt.Errorf("ospf/transport: resolve interface %s: %w", name, err)

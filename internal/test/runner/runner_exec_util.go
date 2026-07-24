@@ -35,6 +35,44 @@ func netnsModeActive() bool {
 	return runtime.GOOS == "linux" && os.Getenv("ZE_TEST_NETNS") != ""
 }
 
+// copyTestScripts copies the Python test-support modules (test/scripts/*.py,
+// notably ze_api.py) from baseDir into dstDir. In netns launch mode ze runs as a
+// normal user and forks observer plugins as that user; PYTHONPATH points at
+// test/scripts under the repo, but a uid-dropped observer cannot traverse a 0700
+// repo root to reach it. The observer's own script directory (dstDir, the tmpfs
+// workdir) is on sys.path[0], so placing the modules there makes `import ze_api`
+// work regardless of repo-root permissions. A missing source dir is not an error
+// (a test with no observer needs nothing).
+func copyTestScripts(baseDir, dstDir string) error {
+	srcDir := filepath.Join(baseDir, "test", "scripts")
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".py") {
+			continue
+		}
+		dst := filepath.Join(dstDir, e.Name())
+		// A test may ship its own .py of the same name (materialized earlier from a
+		// tmpfs= block); it wins. Only fill in modules the test did not provide.
+		if _, statErr := os.Stat(dst); statErr == nil {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(srcDir, e.Name())) //nolint:gosec // fixed repo path test/scripts/*.py, not user input
+		if readErr != nil {
+			return fmt.Errorf("read %s: %w", e.Name(), readErr)
+		}
+		if writeErr := os.WriteFile(dst, data, 0o644); writeErr != nil { //nolint:gosec // test-support module, world-readable by design so the uid-dropped observer can import it
+			return fmt.Errorf("write %s: %w", e.Name(), writeErr)
+		}
+	}
+	return nil
+}
+
 // netnsChildIDs parses the normal-user uid/gid the netns mode drops the ze
 // daemon to (ZE_TEST_UID, ZE_TEST_GID). ze must NOT run as root in the netns:
 // its readiness file is created after dropPrivileges, so a root ze never writes
@@ -353,7 +391,7 @@ type peerOutput struct {
 // the flakiness the per-peer verdict exists to remove.
 //
 // Bounded: a peer that never exits must not hang the run. On expiry the capture
-// is read as-is, which is the pre-existing behaviour, and the peer's own failure
+// is read as-is, which is the pre-existing behavior, and the peer's own failure
 // (or the test timeout) reports it.
 func drainPeers(peers []peerOutput, grace time.Duration) {
 	done := make(chan int, len(peers))

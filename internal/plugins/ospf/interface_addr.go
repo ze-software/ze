@@ -22,6 +22,11 @@ const (
 )
 
 func interfaceNetworkMask(name string) [4]byte {
+	// Passive / loopback interfaces skip the transport open that loads the iface
+	// backend, so an OSPF-only config (no interface{} block) with only such
+	// interfaces would otherwise read no backend here and originate a Router-LSA
+	// advertising 0.0.0.0. Ensure the default backend is loaded (no-op otherwise).
+	_ = ifcomp.EnsureBackend()
 	addrs, err := ifcomp.Addresses(name)
 	if err != nil {
 		return [4]byte{}
@@ -36,6 +41,9 @@ func interfaceNetworkMask(name string) [4]byte {
 }
 
 func interfaceIPv4Address(name string) [4]byte {
+	// See interfaceNetworkMask: ensure the iface backend is loaded so a
+	// passive/loopback-only OSPF config does not advertise 0.0.0.0.
+	_ = ifcomp.EnsureBackend()
 	addrs, err := ifcomp.Addresses(name)
 	if err != nil {
 		return [4]byte{}

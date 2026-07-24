@@ -7,9 +7,13 @@
 # PREVENTS: an NBMA interface being parsed but taking the point-to-point ISM path,
 # or the show snapshot not surfacing the NBMA neighbor/poll state.
 #
-# PLATFORM: needs-linux -- the interface backend and OSPF raw socket are Linux-only,
-# so this daemon-boot scenario is validated in the QEMU Alpine VM.
-option=needs-linux
+# PLATFORM: needs-linux:caps=net-admin -- an active NBMA interface needs a real
+# link with an IPv4 address (OSPF binds a raw proto-89 socket and reads the
+# interface IPv4 for its multicast join), so nbma0 is provisioned inside the
+# per-test netns. Validated in the QEMU Alpine VM under the netns launch mode.
+option=needs-linux:caps=net-admin
+# nbma0 on 10.0.0.0/24 so the static neighbors 10.0.0.2/10.0.0.3 are on-link.
+option=netns-link:name=nbma0:address=10.0.0.1/24
 
 tmpfs=ospf-nbma.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
@@ -52,13 +56,13 @@ def main():
         runtime_fail(f"missing nbma0 in {rows!r}")
     if row.get('network_type') != 'nbma':
         runtime_fail(f"nbma0 network_type = {row.get('network_type')!r}, want nbma")
-    if int(row.get('poll_interval') or 0) != 90:
-        runtime_fail(f"nbma0 poll_interval = {row.get('poll_interval')!r}, want 90")
+    if int(row.get('poll-interval') or 0) != 90:
+        runtime_fail(f"nbma0 poll-interval = {row.get('poll-interval')!r}, want 90")
     # Eligible (priority 1) NBMA interface waits for the election (may already have
     # elected itself DR on a single node).
     if row.get('state') not in ('waiting', 'dr', 'backup', 'dr-other', 'down'):
         runtime_fail(f"nbma0 state = {row.get('state')!r}")
-    neighbors = row.get('nbma_neighbors') or []
+    neighbors = row.get('nbma-neighbors') or []
     addrs = {n.get('neighbor') for n in neighbors if isinstance(n, dict)}
     if '10.0.0.2' not in addrs or '10.0.0.3' not in addrs:
         runtime_fail(f"nbma0 configured neighbors = {neighbors!r}, want 10.0.0.2 and 10.0.0.3")

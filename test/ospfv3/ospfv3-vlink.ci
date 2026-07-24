@@ -11,7 +11,10 @@
 # ospfv3-vlink-frr QEMU interop lab (no `show ipv6 ospf6` surface exists to assert natively);
 # the FSM + endpoint resolution are unit-tested (TestV6VirtualAdjacencyReachesFull). This
 # boots a real daemon and applies IPv6 OSPFv3 config, so it is Linux-only (raw proto-89).
-option=needs-linux
+# The v6 engine opens a raw proto-89 socket on the active eth0 (IPv6 link-local, auto on
+# link-up); provision the dummy link inside the per-test netns.
+option=needs-linux:caps=net-admin
+option=netns-link:name=eth0
 
 tmpfs=ospfv3-vlink.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

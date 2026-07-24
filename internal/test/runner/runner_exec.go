@@ -424,6 +424,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.FailureType = stateUnknown
 			return false
 		}
+		// Observer plugins forked by ze import ze_api from test/scripts, but a
+		// uid-dropped observer cannot traverse the (often 0700) repo root to reach
+		// it via PYTHONPATH. Copy the test-script modules into the tmpfs workdir,
+		// which is the observer script's OWN directory (so it lands on sys.path[0])
+		// and is chowned to the child uid just below. Without this, netns-mode
+		// observer tests fail "ModuleNotFoundError: No module named 'ze_api'".
+		if netnsHasUID && rec.TmpfsTempDir != "" {
+			if cpErr := copyTestScripts(r.baseDir, rec.TmpfsTempDir); cpErr != nil {
+				rec.Error = fmt.Errorf("provide ze_api to netns child: %w", cpErr)
+				rec.FailureType = stateUnknown
+				return false
+			}
+		}
 		// The ze daemon is dropped to a normal user; make it own its tmpfs workdir
 		// so it can chdir in, read config, and write daemon.ready (see chownTree).
 		if netnsHasUID && rec.TmpfsTempDir != "" {

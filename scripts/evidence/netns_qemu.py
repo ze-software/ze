@@ -79,6 +79,36 @@ FIREWALL_IDS = [
 # next-hop auto-route resolves inside the throwaway netns.
 POLICY_IDS = ["1", "2", "3", "4", "5"]
 
+# OSPF interface subset that exercises the netns launch mode's uid-drop path for
+# observer tests. Each provisions its dummy link(s) via option=netns-link, loads
+# the iface backend on demand (EnsureBackend, v2 and v3), and its ze_api-using
+# observer imports ze_api from the tmpfs workdir (the copyTestScripts fix). This
+# is the gate for all three infra fixes. Selected by test NAME, not numeric nick:
+# nicks are load-order ordinals over the alphabetically-sorted glob, so adding or
+# renaming any earlier ospf/*.ci silently renumbers -- and an in-range-but-shifted
+# nick runs the WRONG test and still reports green. Names exact-match (selection.go
+# indexRecordSelector) so the set stays stable.
+#   ospf-nbma, ospf-ptmp, ospf-show                     (v2 raw-socket + IPv4 read)
+#   ospf-multiaf, ospf-multiaf-reconcile, ospf-multiaf-show,
+#   ospf-multiaf-v4-route                               (v3 AF engines, EnsureBackend v3)
+#   ospf-instance-demux                                 (RFC 6549 repeated leaf-list
+#      `instance-id 0; instance-id 5;`; guards the config-parser fix that makes
+#      repeated leaf-list statements accumulate so both instances carry eth0)
+OSPF_IDS = [
+    "ospf-instance-demux",
+    "ospf-multiaf",
+    "ospf-multiaf-reconcile",
+    "ospf-multiaf-show",
+    "ospf-multiaf-v4-route",
+    "ospf-nbma",
+    "ospf-ptmp",
+    "ospf-show",
+]
+# OSPFv3 subset: ospfv3-vlink boots a top-level IPv6 virtual-link config; the v6
+# engine opens a raw proto-89 socket on the netns-provisioned eth0 (EnsureBackend
+# v3). Its observer only needs the daemon to survive booting the vlink wiring.
+OSPFV3_IDS = ["ospfv3-vlink"]
+
 
 def sh(cmd, **kw):
     print(f"+ {cmd}", flush=True)
@@ -142,6 +172,8 @@ def main():
     before = host_nft()
     rc_firewall = run_suite("firewall", FIREWALL_IDS)
     rc_policy = run_suite("policy", POLICY_IDS)
+    rc_ospf = run_suite("ospf", OSPF_IDS)
+    rc_ospfv3 = run_suite("ospfv3", OSPFV3_IDS)
     after = host_nft()
 
     ok = True
@@ -150,6 +182,12 @@ def main():
         ok = False
     if rc_policy != 0:
         print(f"FAIL: policy netns subset returned {rc_policy}")
+        ok = False
+    if rc_ospf != 0:
+        print(f"FAIL: ospf netns subset returned {rc_ospf}")
+        ok = False
+    if rc_ospfv3 != 0:
+        print(f"FAIL: ospfv3 netns subset returned {rc_ospfv3}")
         ok = False
     if before != after:
         print("HOST-SAFETY FAIL: host nft tables changed during the netns run")
