@@ -6,12 +6,15 @@
 package runner
 
 import (
+	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
 
@@ -103,4 +106,64 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 		t.Fatalf("child namespace %s != runner-thread namespace %s: children do not share the per-test netns", childLink, threadLink)
 	}
 	t.Logf("A-5 holds: host=%s child=%s (isolated)", hostLink, childLink)
+}
+
+// TestProvisionNetnsLinksMakesNextHopRoutable is the direct regression test for
+// test/policy 005-next-hop: enterTestNetns brings up only loopback, so a policy
+// next-hop's auto-route (`default via 10.0.0.1`) fails "network is unreachable"
+// with no connected interface. provisionNetnsLinks (fed by option=netns-link)
+// creates the interface with a same-subnet address so the gateway resolves.
+//
+// The test enters a fresh netns, provisions eth1/10.0.0.2/24, then performs the
+// exact operation that was failing -- adding a default route via 10.0.0.1 -- and
+// asserts it succeeds. Requires CAP_SYS_ADMIN + CAP_NET_ADMIN; self-skips on an
+// unprivileged host and runs for real in QEMU (make ze-qemu-needs-linux-test).
+func TestProvisionNetnsLinksMakesNextHopRoutable(t *testing.T) {
+	restore, _, err := enterTestNetns("ze-provision-link")
+	if err != nil {
+		// test-relax: new test; capability guard mirrors the sibling
+		// TestNetnsLaunchChildInheritsNamespace -- a netns cannot be created
+		// without CAP_SYS_ADMIN, so the test self-skips off-QEMU and runs for
+		// real in QEMU. Not a relaxation of existing coverage.
+		t.Skipf("requires CAP_SYS_ADMIN to create a per-test netns: %v", err)
+	}
+	defer restore()
+
+	links := []NetnsLinkSpec{{
+		Name:    "eth1",
+		Address: netip.MustParsePrefix("10.0.0.2/24"),
+	}}
+	if err := provisionNetnsLinks(links); err != nil {
+		t.Fatalf("provisionNetnsLinks: %v", err)
+	}
+
+	// The interface exists and is up with the requested address.
+	link, err := netlink.LinkByName("eth1")
+	if err != nil {
+		t.Fatalf("provisioned link eth1 not found: %v", err)
+	}
+	if link.Attrs().Flags&net.FlagUp == 0 {
+		t.Error("provisioned link eth1 is not up")
+	}
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("list addresses on eth1: %v", err)
+	}
+	var haveAddr bool
+	for _, a := range addrs {
+		if a.IPNet != nil && a.IPNet.String() == "10.0.0.2/24" {
+			haveAddr = true
+		}
+	}
+	if !haveAddr {
+		t.Errorf("eth1 missing 10.0.0.2/24; addresses = %v", addrs)
+	}
+
+	// The exact failing operation from test/policy 005: a default route via a
+	// gateway on the connected subnet must now succeed instead of returning
+	// "network is unreachable".
+	gw := net.IPv4(10, 0, 0, 1)
+	if err := netlink.RouteAdd(&netlink.Route{Gw: gw, Table: 2000}); err != nil {
+		t.Fatalf("RouteAdd(default via 10.0.0.1 table 2000) after provisioning: %v -- the next-hop is still unreachable", err)
+	}
 }

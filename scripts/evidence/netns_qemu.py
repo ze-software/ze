@@ -18,6 +18,13 @@ is ALSO included: it drives `ze cli` over the real SSH CLI path (a config-declar
 SSH user + `ze init`-provisioned client credentials), which needs the daemon
 built with ze_ssh (see the make target; ze init is already in ze_core).
 
+It ALSO runs a policy-routing subset. 005-next-hop needs an interface on the
+next-hop's subnet to exist inside the netns (enterTestNetns brings up only
+loopback), which the test now provisions via option=netns-link -- this run is
+that fix's real-kernel regression guard. 006-reload is EXCLUDED: it is a
+separate, still-open reload-reconciliation failure (stale ip rules after SIGHUP),
+not the netns-interface bug, and is tracked in plan/handover/21-netlink-suite-recovery.md.
+
 The 9p workspace mount is security_model=none (no xattr), so file capabilities
 cannot be set there; ze is copied to a tmpfs dir first. That dir must be
 world-traversable because the credential-dropped ze (uid 1000) execs it, and a
@@ -66,6 +73,12 @@ FIREWALL_IDS = [
     "ddos-local-withdraw",
 ]
 
+# Policy-routing subset, host-safe under the netns launch mode. 006-reload is
+# excluded (separate open reload-reconciliation failure, not the netns-interface
+# bug this run guards). 005-next-hop provisions eth1 via option=netns-link so its
+# next-hop auto-route resolves inside the throwaway netns.
+POLICY_IDS = ["1", "2", "3", "4", "5"]
+
 
 def sh(cmd, **kw):
     print(f"+ {cmd}", flush=True)
@@ -96,7 +109,7 @@ def host_nft():
     ).stdout
 
 
-def run_firewall():
+def run_suite(suite, ids):
     env = {
         **os.environ,
         "ZE_TEST_NO_BUILD": "1",
@@ -109,7 +122,7 @@ def run_firewall():
         "ZE_TEST_GID": "1000",
         "ze.config.dir": STATE,
     }
-    cmd = [f"bin/ze-test-linux-{ARCH}", "firewall", "-p", "1", *FIREWALL_IDS]
+    cmd = [f"bin/ze-test-linux-{ARCH}", suite, "-p", "1", *ids]
     print(f"+ {' '.join(cmd)}", flush=True)
     return subprocess.run(cmd, env=env).returncode
 
@@ -127,12 +140,16 @@ def main():
     os.umask(0o077)
 
     before = host_nft()
-    rc = run_firewall()
+    rc_firewall = run_suite("firewall", FIREWALL_IDS)
+    rc_policy = run_suite("policy", POLICY_IDS)
     after = host_nft()
 
     ok = True
-    if rc != 0:
-        print(f"FAIL: firewall netns subset returned {rc}")
+    if rc_firewall != 0:
+        print(f"FAIL: firewall netns subset returned {rc_firewall}")
+        ok = False
+    if rc_policy != 0:
+        print(f"FAIL: policy netns subset returned {rc_policy}")
         ok = False
     if before != after:
         print("HOST-SAFETY FAIL: host nft tables changed during the netns run")

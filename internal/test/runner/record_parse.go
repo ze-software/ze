@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,6 +36,7 @@ var (
 	errOptionSkipOsMissingValue         = errors.New("option:skip-os missing value=")
 	errOptionSkipEnvMissingVar          = errors.New("option:skip-env missing var=")
 	errOptionRequireTagMissingValue     = errors.New("option:require-tag missing value=")
+	errOptionNetnsLinkMissingName       = errors.New("option:netns-link missing name=")
 	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
 	errExpectJsonMissingJson            = errors.New("expect:json missing json=")
 	errExpectExitMissingCode            = errors.New("expect:exit missing code=")
@@ -430,6 +432,27 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			r.SkipReason = "needs-linux caps=net-admin (no CAP_NET_ADMIN; run via make ze-qemu-needs-linux-test)"
 			return nil
 		}
+
+	case "netns-link":
+		// Provision an interface inside the per-test network namespace before ze
+		// launches. name= is the link (created as a dummy); address= is an
+		// optional CIDR assigned to it. Consumed only under netns mode
+		// (ZE_TEST_NETNS); on the default host path the option is inert and never
+		// touches the host. The name/address are validated here so a typo fails at
+		// parse time on every platform, not silently at run time on Linux only.
+		name := kv["name"]
+		if name == "" {
+			return errOptionNetnsLinkMissingName
+		}
+		spec := NetnsLinkSpec{Name: name}
+		if addr := kv["address"]; addr != "" {
+			p, err := netip.ParsePrefix(addr)
+			if err != nil {
+				return fmt.Errorf("option=netns-link: invalid address %q: %w", addr, err)
+			}
+			spec.Address = p
+		}
+		r.NetnsLinks = append(r.NetnsLinks, spec)
 
 	case "skip-env":
 		varName := kv["var"]

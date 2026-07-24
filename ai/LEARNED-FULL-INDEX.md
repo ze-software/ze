@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1235 summaries
+Total: 1236 summaries
 
 ## 000-099
 
@@ -1309,3 +1309,4 @@ Total: 1235 summaries
 | 1261 | migrate-plugin-sleeps | `plan/learned/1261-migrate-plugin-sleeps.md` |
 | 1262 | gokrazy-builddir-tmp | `plan/learned/1262-gokrazy-builddir-tmp.md` |
 | 1263 | feature-gate-12: gate the remaining compile-out candidates | `plan/learned/1263-feature-gate-12-remaining.md` |
+| 1264 | netlink-suite-recovery-2 | `plan/learned/1264-netlink-suite-recovery-2.md` |

@@ -21,3 +21,7 @@ func enterTestNetns(string) (restore func(), hostInode uint64, err error) {
 // testNetnsName is unused off Linux (enterTestNetns never succeeds) but kept so
 // callers compile without a build tag.
 func testNetnsName(string, int) string { return "" }
+
+// provisionNetnsLinks is unsupported off Linux; see the linux build. The runner
+// only calls it inside netns mode, which is Linux-only.
+func provisionNetnsLinks([]NetnsLinkSpec) error { return errNetnsUnsupported }

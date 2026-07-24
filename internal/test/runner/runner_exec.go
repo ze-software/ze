@@ -414,6 +414,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 		defer restore()
 		netnsHostInode = hostInode
+		// Provision any interfaces the test declared (option=netns-link) inside the
+		// fresh namespace, on this locked thread, before spawning ze. A policy
+		// next-hop route needs a connected interface to resolve its gateway; without
+		// this the daemon's RouteAdd fails "network is unreachable" and the test
+		// asserts against a daemon that never reached its target state.
+		if nlErr := provisionNetnsLinks(rec.NetnsLinks); nlErr != nil {
+			rec.Error = nlErr
+			rec.FailureType = stateUnknown
+			return false
+		}
 		// The ze daemon is dropped to a normal user; make it own its tmpfs workdir
 		// so it can chdir in, read config, and write daemon.ready (see chownTree).
 		if netnsHasUID && rec.TmpfsTempDir != "" {

@@ -5,6 +5,7 @@
 package runner
 
 import (
+	"net/netip"
 	"sort"
 	"strconv"
 	"sync"
@@ -13,6 +14,20 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
+
+// NetnsLinkSpec is one interface a test asks the runner to provision inside its
+// per-test network namespace before ze launches (option=netns-link). It exists
+// because some Linux-only tests match or route through an interface the daemon
+// never creates itself: a policy-routing next-hop needs a connected route to
+// resolve its gateway, and enterTestNetns brings up only loopback. A dummy link
+// with the given address gives the netns that connectivity without touching the
+// host (provisioning is gated on netns mode, so the option is inert elsewhere).
+type NetnsLinkSpec struct {
+	Name string
+	// Address is the CIDR assigned to the link. The zero value means create the
+	// link and bring it up without an address.
+	Address netip.Prefix
+}
 
 var recordLogger = slogutil.LazyLogger("test.record")
 
@@ -205,6 +220,12 @@ type Record struct {
 	// ZE_QEMU_LINUX_ONLY filter (the `ze-qemu-needs-linux-test` tight loop) to
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
+
+	// NetnsLinks are interfaces the runner provisions inside this test's per-test
+	// network namespace (option=netns-link) before spawning ze. Populated at parse
+	// time; consumed only under netns mode (ZE_TEST_NETNS), so the option is inert
+	// on the default host path and never touches the host.
+	NetnsLinks []NetnsLinkSpec
 
 	// ParseFailed marks a .ci file that could not be parsed at discovery time.
 	// Discover records the file as a permanent failure (State=StateFail, Error

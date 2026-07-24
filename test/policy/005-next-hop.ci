@@ -8,6 +8,13 @@
 
 option=needs-linux:caps=net-admin
 
+# The next-hop 10.0.0.1 needs a connected route to resolve. enterTestNetns brings
+# up only loopback, so without an interface on 10.0.0.0/24 the auto-route RouteAdd
+# fails "network is unreachable". Provision eth1 (the match interface the config
+# names) with a same-subnet address inside the per-test netns. Inert off netns
+# mode, so the host is never touched.
+option=netns-link:name=eth1:address=10.0.0.2/24
+
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import os, signal, subprocess, sys, time
