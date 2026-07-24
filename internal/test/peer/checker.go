@@ -379,6 +379,19 @@ func (c *Checker) consumeMatches(stream string) bool {
 // only after the loop, so one message never consumes needles across a seq
 // group boundary.
 func (c *Checker) consumeOrdered(stream string) bool {
+	// Fast path: consumeMatches calls this for every received message in every
+	// check-peer test. When the current group declares no ordered needles
+	// (the common case), return before allocating the uppercased stream copy.
+	hasOrdered := false
+	for _, check := range c.messages {
+		if strings.HasPrefix(check, "ordered:") {
+			hasOrdered = true
+			break
+		}
+	}
+	if !hasOrdered {
+		return false
+	}
 	upper := strings.ToUpper(stream)
 	pos := 0
 	consumed := false

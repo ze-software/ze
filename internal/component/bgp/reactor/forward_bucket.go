@@ -169,9 +169,22 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 		}
 		result = append(result, items[i])
 	}
+	// Merged items inherit the destination peer. Use the first NON-nil peer,
+	// not items[0].peer: a batch may lead with a nil-peer wake-up sentinel
+	// (fwdBatchHandler skips those for the write, but a merged item copying a
+	// nil peer would be a latent nil-deref for any future reader of .peer).
+	// All real items in a batch share one destination, so the first non-nil
+	// peer is the correct owner.
+	mergedPeer := items[0].peer
+	for i := range items {
+		if items[i].peer != nil {
+			mergedPeer = items[i].peer
+			break
+		}
+	}
 	for i, body := range merged {
 		result = append(result, fwdItem{
-			peer:          items[0].peer,
+			peer:          mergedPeer,
 			rawBodies:     [][]byte{body},
 			meta:          mergedMeta[i],
 			sourcePeerStr: mergedSourcePeer[i],
