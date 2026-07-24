@@ -27,7 +27,11 @@ import (
 
 func main() {
 	checkOnly := flag.Bool("check", false, "verify generated all.go is current without writing it")
+	selftest := flag.Bool("selftest", false, "run in-process assertions for the build-tag constraint logic and exit")
 	flag.Parse()
+	if *selftest {
+		os.Exit(runSelftest())
+	}
 	if flag.NArg() != 0 {
 		fatal(fmt.Errorf("unexpected arguments: %s", strings.Join(flag.Args(), " ")))
 	}
@@ -595,28 +599,39 @@ func taggedFileName(tag string) string {
 	return b.String()
 }
 
-// parentTagOfImport returns the tag of the longest gated package of ANOTHER
-// tag that is a path-prefix of importPath, or "" if none. A gated package
-// nested inside another gate's package tree is a DEPENDENT piece: it is only
-// ever compiled when the parent gate is on (it imports the parent's packages),
-// so its blank import must AND the parent tag -- otherwise a build requesting
-// the child tag without the parent would drag the parent's whole subtree back
-// in. Example: ze_bmp lives at internal/component/bgp/plugins/bmp, under
-// ze_bgp's internal/component/bgp, so its import is guarded
-// //go:build ze_bgp && ze_bmp (feature-gate-11).
+// ancestorTagsOfImport returns the tags of EVERY other gated package whose path
+// is a segment-aligned ancestor of importPath, sorted for determinism. A gated
+// package nested inside another gate's package tree is a DEPENDENT piece: it is
+// only ever compiled when the ancestor gate is on (it imports the ancestor's
+// packages), so its blank import must AND every ancestor tag -- otherwise a
+// build requesting the child tag without an ancestor would drag that ancestor's
+// whole subtree back in. Example: ze_bmp lives at
+// internal/component/bgp/plugins/bmp, under ze_bgp's internal/component/bgp, so
+// its import is guarded //go:build ze_bgp && ze_bmp (feature-gate-11).
 //
-// The parent is computed PER PACKAGE, not per tag: a tag may mix independent
-// and dependent packages (ze_radius gates internal/component/radius, usable
-// alone, AND l2tp/plugins/authradius, which needs ze_l2tp), and only the
-// nested subset takes the compound constraint (feature-gate-12).
-func parentTagOfImport(importPath, tag string) string {
-	best, bestTag := "", ""
+// ALL ancestors are collected, not just the nearest: a package nested two or
+// more gates deep (grandparent/parent/child) must AND every level, or the
+// constraint fails open and the outer subtrees leak back in when the child tag
+// is requested alone. Selecting a single parent was correct only while the
+// manifest's maximum nesting depth was 1.
+//
+// Ancestry is computed PER PACKAGE, not per tag: a tag may mix independent and
+// dependent packages (ze_radius gates internal/component/radius, usable alone,
+// AND l2tp/plugins/authradius, which needs ze_l2tp), and only the nested subset
+// takes the compound constraint (feature-gate-12).
+//
+// The result is sorted (sort.Strings), so two different iteration orders of the
+// featureTags map yield the SAME set of ancestors: the previous strict-> tie-break
+// over map iteration order made the chosen ancestor non-deterministic when two
+// candidates were equal length.
+func ancestorTagsOfImport(importPath, tag string) []string {
+	seen := map[string]bool{}
 	for pSuffix, pTag := range featureTags {
 		if pTag == tag {
 			continue
 		}
-		// pSuffix is a path-prefix of importPath at a '/' boundary, matched at
-		// a path boundary on the left too (importPath is module-qualified).
+		// pSuffix is a segment-aligned ancestor path of importPath: bounded by a
+		// '/' (or the string start) on the left and a '/' (or the end) on the right.
 		idx := strings.Index(importPath, pSuffix)
 		if idx < 0 {
 			continue
@@ -628,26 +643,117 @@ func parentTagOfImport(importPath, tag string) string {
 		if rest != "" && rest[0] != '/' {
 			continue
 		}
-		if len(pSuffix) > len(best) {
-			best, bestTag = pSuffix, pTag
-		}
+		seen[pTag] = true
 	}
-	return bestTag
+	tags := make([]string, 0, len(seen))
+	for t := range seen {
+		tags = append(tags, t)
+	}
+	sort.Strings(tags)
+	return tags
 }
 
 // constraintForImport returns the //go:build expression gating one import of a
-// tag's group: the tag alone, or "<parent> && <tag>" for a dependent package
-// (see parentTagOfImport).
+// tag's group: the tag alone, or "<ancestor> && ... && <tag>" for a dependent
+// package nested under one or more OTHER gates (see ancestorTagsOfImport). The
+// ancestors are emitted in sorted order with the group's own tag last, so the
+// expression is deterministic and, for a package nested N gates deep, closed
+// under every ancestor.
 func constraintForImport(importPath, tag string) string {
-	parent := parentTagOfImport(importPath, tag)
-	if parent == "" {
+	ancestors := ancestorTagsOfImport(importPath, tag)
+	if len(ancestors) == 0 {
 		return tag
 	}
 	var b strings.Builder
-	b.WriteString(parent)
-	b.WriteString(" && ")
+	for _, a := range ancestors {
+		b.WriteString(a)
+		b.WriteString(" && ")
+	}
 	b.WriteString(tag)
 	return b.String()
+}
+
+// runSelftest exercises the build-tag constraint logic against synthetic
+// feature-gate manifests the real one does not yet contain: a package nested
+// two gates deep (which must AND both ancestors, not just the nearest), and an
+// equal-length ancestor collision (whose selection must not depend on map
+// iteration order). It fails closed -- any mismatch prints the offending case
+// and returns a non-zero exit, so the shelling Go test
+// (plugin_imports_selftest_test.go) goes red.
+func runSelftest() int {
+	saved := featureTags
+	defer func() { featureTags = saved }()
+
+	var failed []string
+	check := func(name, got, want string) {
+		if got == want {
+			return
+		}
+		var b strings.Builder
+		b.WriteString(name)
+		b.WriteString(" (got ")
+		b.WriteString(got)
+		b.WriteString(", want ")
+		b.WriteString(want)
+		b.WriteByte(')')
+		failed = append(failed, b.String())
+	}
+
+	// Finding 1 -- multi-level nesting: grandparent gp -> parent p -> child c.
+	// A package two gates deep must AND BOTH ancestors; emitting only the nearest
+	// fails open and leaks the grandparent subtree.
+	featureTags = map[string]string{
+		"internal/a":     "ze_gp",
+		"internal/a/b":   "ze_p",
+		"internal/a/b/c": "ze_c",
+		"internal/solo":  "ze_solo",
+	}
+	check("depth0", constraintForImport("example.com/m/internal/a", "ze_gp"), "ze_gp")
+	check("depth1", constraintForImport("example.com/m/internal/a/b", "ze_p"), "ze_gp && ze_p")
+	check("depth2", constraintForImport("example.com/m/internal/a/b/c", "ze_c"), "ze_gp && ze_p && ze_c")
+	check("independent", constraintForImport("example.com/m/internal/solo", "ze_solo"), "ze_solo")
+
+	// Finding 2 -- determinism on an equal-length ancestor collision. Two gate
+	// paths of the SAME length both segment-align as ancestors of one import; the
+	// old strict-> selection returned whichever the map yielded first. All
+	// ancestors are now collected and sorted, so the constraint is stable across
+	// the map iteration orders Go randomizes per range.
+	featureTags = map[string]string{
+		"seg/aaa": "ze_two",
+		"seg/bbb": "ze_one",
+	}
+	const tieImport = "example.com/m/seg/aaa/seg/bbb/leaf"
+	const tieWant = "ze_one && ze_two && ze_leaf"
+	for range 200 {
+		if got := constraintForImport(tieImport, "ze_leaf"); got != tieWant {
+			check("determinism", got, tieWant)
+			break
+		}
+	}
+	check("determinism-final", constraintForImport(tieImport, "ze_leaf"), tieWant)
+	order, _ := constraintGroups("ze_leaf", []string{tieImport})
+	var ob strings.Builder
+	for i, o := range order {
+		if i > 0 {
+			ob.WriteByte('|')
+		}
+		ob.WriteString(o)
+	}
+	check("groups-order", ob.String(), tieWant)
+
+	if len(failed) > 0 {
+		var b strings.Builder
+		b.WriteString("selftest FAILED:\n")
+		for _, f := range failed {
+			b.WriteString("  ")
+			b.WriteString(f)
+			b.WriteByte('\n')
+		}
+		os.Stdout.WriteString(b.String())
+		return 1
+	}
+	os.Stdout.WriteString("selftest: PASS\n")
+	return 0
 }
 
 // constraintGroups splits a tag's imports by their per-import constraint,

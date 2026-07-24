@@ -144,3 +144,26 @@ func repoRoot(t *testing.T) string {
 	}
 	return root
 }
+
+// VALIDATES: the build-tag constraint logic (ancestorTagsOfImport /
+// constraintForImport / constraintGroups) ANDs EVERY ancestor of a package
+// nested more than one gate deep and is deterministic on an equal-length
+// ancestor collision.
+// PREVENTS: a regression to single-parent constraint generation (fail-open: a
+// two-level-nested package would drop its grandparent gate and leak that subtree
+// back in) or to map-iteration-order-dependent ancestor selection
+// (non-deterministic output). Both were raised as gate-11 review findings and
+// left unaddressed by gate-12; --selftest is their first executable coverage.
+func TestPluginImportsConstraintSelftest(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), pluginImportsTimeout)
+	defer cancel()
+
+	script := filepath.Join(repoRoot(t), "scripts", "codegen", "plugin_imports.go")
+	out, err := osexec.CommandContext(ctx, "go", "run", script, "--selftest").CombinedOutput()
+	if err != nil {
+		t.Fatalf("plugin_imports.go --selftest failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "selftest: PASS") {
+		t.Fatalf("plugin_imports.go --selftest did not report PASS:\n%s", out)
+	}
+}
