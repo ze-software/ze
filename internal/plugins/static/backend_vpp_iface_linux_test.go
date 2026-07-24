@@ -6,7 +6,7 @@
 // PREVENTS: a static route silently programming the wrong VPP interface, or the
 // interface-only next-hop form staying unusable on the VPP data plane.
 
-//go:build linux
+//go:build linux && ze_vpp
 
 package static
 

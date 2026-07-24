@@ -34,11 +34,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/engine"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoeclient"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -168,6 +163,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read config: %v\n", err)
+		logStartupFailure("read config", err)
 		return 1
 	}
 
@@ -179,6 +175,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	case zeconfig.ConfigTypeHub:
 		if len(plugins) > 0 {
 			fmt.Fprintf(os.Stderr, "error: --plugin is not supported with hub/orchestrator configs; use plugin { external ... } in the config file\n")
+			logStartupFailure("flag validation", errors.New("--plugin is not supported with hub/orchestrator configs"))
 			return 1
 		}
 		return runOrchestratorWithData(store, configPath, data)
@@ -229,6 +226,21 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runYANGConfig handles all YANG-based configs. Plugins are auto-loaded
 // via ConfigRoots matching: bgp {} loads BGP, interface {} loads iface, etc.
 // This is the unified startup path for all ze configs (except hub orchestrator mode).
+// errUnauthenticatedMgmtListener summarizes the mgmt-listener refusal for the
+// slog mirror; the per-listener detail is on stderr from checkMgmtListeners.
+var errUnauthenticatedMgmtListener = errors.New("refusing unauthenticated non-loopback management listener (detail on stderr)")
+
+// logStartupFailure mirrors a fatal pre-serve failure onto the slog backend.
+// The stderr print beside each call reaches interactive operators, but on the
+// gokrazy appliance stderr is captured by the supervisor and never reaches
+// the serial console; the slog backend there is kmsg, which does. A daemon
+// that dies before "web server listening" must say why on a channel the
+// operator can see, or it crash-loops undiagnosably from the console (this
+// hid the L2TP kernel-probe refusal on the pinned no-l2tp kernel).
+func logStartupFailure(stage string, err error) {
+	slogutil.Logger("hub").Error("startup failed", "stage", stage, "err", err)
+}
+
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
 	// Close the AAA bundle on every exit path so TACACS+ accounting and other
 	// backend workers drain before the process terminates. swapAAABundle is
@@ -242,6 +254,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			loadResult = recovered
 		} else {
 			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+			logStartupFailure("load config", err)
 			return 1
 		}
 	}
@@ -259,6 +272,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if configPath != "" && configPath != "-" {
 		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
+			logStartupFailure("initialize active config", activeErr)
 			return 1
 		}
 	}
@@ -267,6 +281,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	auditLog, auditErr := openAuditLog(configPath)
 	if auditErr != nil {
 		fmt.Fprintf(os.Stderr, "error: audit log: %v\n", auditErr)
+		logStartupFailure("audit log", auditErr)
 		return 1
 	}
 	showCmd.RegisterAuditProvider(auditLog.Query)
@@ -290,6 +305,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
+			logStartupFailure("ze.looking-glass.listen", parseErr)
 			return 1
 		}
 		lgAddrs = make([]string, 0, len(endpoints))
@@ -308,6 +324,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.web.listen: %v\n", parseErr)
+			logStartupFailure("ze.web.listen", parseErr)
 			return 1
 		}
 		webAddrs = make([]string, 0, len(endpoints))
@@ -329,6 +346,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.mcp.listen: %v\n", parseErr)
+			logStartupFailure("ze.mcp.listen", parseErr)
 			return 1
 		}
 		mcpAddrs = make([]string, 0, len(endpoints))
@@ -388,10 +406,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	pkiConfig, pkiErr := preparePKIConfig(configTree)
 	if pkiErr != nil {
 		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
+		logStartupFailure("pki config", pkiErr)
 		return 1
 	}
 	if pkiErr := zepki.Load(pkiConfig); pkiErr != nil {
 		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
+		logStartupFailure("pki load", pkiErr)
 		return 1
 	}
 
@@ -472,6 +492,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {
 		fmt.Fprintf(os.Stderr, "error: create plugin server: %v\n", serverErr)
+		logStartupFailure("create plugin server", serverErr)
 		return 1
 	}
 	apiServer.SetProcessSpawner(pm)
@@ -534,44 +555,32 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	var webPortalServices []webPortalService
 
-	// L2TP subsystem (phase 3 scaffolding). ExtractParameters returns a
-	// zero-value struct when the config tree has no `environment { l2tp {} }`
-	// block; we only register with the engine when the operator actually
-	// asked for L2TP (Enabled=true or at least one listener configured).
-	// Full tunnel-reactor wiring lands in later phases.
-	l2tpParams, l2tpErr := l2tp.ExtractParameters(loadResult.Tree)
-	if l2tpErr != nil {
-		fmt.Fprintf(os.Stderr, "error: parse l2tp config: %v\n", l2tpErr)
-		return 1
-	}
-	if l2tpParams.Enabled || len(l2tpParams.ListenAddrs) > 0 {
-		if regErr := eng.RegisterSubsystem(l2tp.NewSubsystem(l2tpParams)); regErr != nil {
-			fmt.Fprintf(os.Stderr, "error: register l2tp subsystem: %v\n", regErr)
+	// L2TP / PPPoE (BNG) subsystem construction is gated on ze_l2tp: the
+	// register_l2tp.go init sets bngRegister (bng_infra.go), which extracts
+	// the l2tp/pppoe parameters and registers the subsystems with the engine.
+	// With the tag off the seam stays nil and the schema rejects l2tp/pppoe
+	// config at parse, so nothing is silently skipped here.
+	if bngRegister != nil {
+		portals, bngErr := bngRegister(loadResult.Tree, configTree, eng)
+		if bngErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", bngErr)
+			logStartupFailure("register bng subsystems", bngErr)
 			return 1
 		}
-		webPortalServices = append(webPortalServices, webPortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
-	}
-
-	// PPPoE subsystem. ExtractParameters returns defaults when the config
-	// tree has no `pppoe {}` block; we only register when the operator
-	// configured at least one access interface.
-	pppoeParams := pppoe.ExtractParameters(configTree)
-	if pppoeParams.Enabled && len(pppoeParams.Interfaces) > 0 {
-		if regErr := eng.RegisterSubsystem(pppoe.NewSubsystem(pppoeParams)); regErr != nil {
-			fmt.Fprintf(os.Stderr, "error: register pppoe subsystem: %v\n", regErr)
-			return 1
-		}
+		webPortalServices = append(webPortalServices, portals...)
 	}
 
 	startCtx := context.Background()
 	if err := eng.Start(startCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting engine: %v\n", err)
+		logStartupFailure("starting engine", err)
 		return 1
 	}
 
 	// Start plugin server (auto-loads BGP, iface, fib, etc. via ConfigRoots).
 	if err := apiServer.StartWithContext(startCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting plugin server: %v\n", err)
+		logStartupFailure("starting plugin server", err)
 		_ = eng.Stop(startCtx)
 		return 1
 	}
@@ -583,6 +592,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	pidPath, pidErr := writePIDFile()
 	if pidErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", pidErr)
+		logStartupFailure("write pid file", pidErr)
 		apiServer.Stop()
 		_ = eng.Stop(startCtx)
 		return 1
@@ -591,6 +601,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	if err := dropPrivileges(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
+		logStartupFailure("drop privileges", err)
 		apiServer.Stop()
 		_ = eng.Stop(startCtx)
 		return 1
@@ -753,6 +764,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		host, port, parseErr := net.SplitHostPort(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.api.rest.listen: %v\n", parseErr)
+			logStartupFailure("ze.api.rest.listen", parseErr)
 			return 1
 		}
 		// Env-var override replaces the config-provided list with one entry.
@@ -767,6 +779,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		host, port, parseErr := net.SplitHostPort(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.api.grpc.listen: %v\n", parseErr)
+			logStartupFailure("ze.api.grpc.listen", parseErr)
 			return 1
 		}
 		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
@@ -856,11 +869,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if serviceFactoryRegistered("mcp") && mcpCfgOK {
 		if err := mcpCfg.Validate(); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			logStartupFailure("mcp config", err)
 			return 1
 		}
 	}
 
 	if checkMgmtListeners(mgmtListeners) {
+		// checkMgmtListeners printed the per-listener refusals to stderr.
+		logStartupFailure("management listener guard", errUnauthenticatedMgmtListener)
 		return 1
 	}
 
@@ -973,6 +989,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				h, apiErr := restBuild(apiIn, shared)
 				if apiErr != nil {
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
+					logStartupFailure("start rest api", apiErr)
 					apiServer.Stop()
 					_ = eng.Stop(startCtx)
 					return 1
@@ -986,6 +1003,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				h, apiErr := grpcBuild(apiIn, shared)
 				if apiErr != nil {
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
+					logStartupFailure("start grpc api", apiErr)
 					apiServer.Stop()
 					_ = eng.Stop(startCtx)
 					return 1
@@ -1032,6 +1050,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		logStartupFailure("plugin startup", err)
 		startupCancel()
 		if gnmiSrv != nil {
 			gnmiSrv.Stop()
@@ -1159,6 +1178,7 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 	cfg, err := hub.ParseHubConfig(string(data))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: parse config: %v\n", err)
+		logStartupFailure("parse hub config", err)
 		return 1
 	}
 	cfg.ConfigPath = configPath
@@ -1182,6 +1202,10 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 				fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
 				if err := o.Reload(configPath); err != nil {
 					fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+					// A failed hub reload shuts the daemon down; mirror the
+					// reason onto slog (kmsg on the appliance) like the
+					// pre-serve failures, or the death is invisible on serial.
+					slogutil.Logger("hub").Error("config reload failed; shutting down", "err", err)
 					cancel()
 					return
 				}
@@ -1198,12 +1222,14 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 	// Start orchestrator
 	if err := o.Start(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "error: start: %v\n", err)
+		logStartupFailure("start orchestrator", err)
 		return 1
 	}
 
 	// Drop privileges after port binding.
 	if err := dropPrivileges(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
+		logStartupFailure("drop privileges", err)
 		o.Stop()
 		return 1
 	}

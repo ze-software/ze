@@ -5,7 +5,7 @@
 // PREVENTS: static routes silently going to the wrong data plane, or being
 // mistranslated (wrong action/table/paths) when programmed into VPP.
 
-//go:build linux
+//go:build linux && ze_vpp
 
 package static
 

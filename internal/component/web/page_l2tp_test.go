@@ -1,3 +1,5 @@
+//go:build ze_l2tp
+
 package web
 
 import (

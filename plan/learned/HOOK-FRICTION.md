@@ -584,6 +584,28 @@ a reproduction.
 
 ---
 
+## Filed 2026-07-23 (feature-gate-12 session): verify runner refused its own documented invocation
+
+### F14: `verify_run.go` dry-run guard vs `ZE_VERIFY_LOG=` make override (FIXED at source)
+
+**Friction:** `make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-gate12.log` -- the
+exact invocation `ai/rules/bash-output.md` and the `pipe-tail` Bash hook print
+as the sanctioned form -- exited 2 with the "refusing to run under make -n"
+message. GNU make 3.81 (the macOS system make) writes a command-line variable
+override into MAKEFLAGS as the FIRST word with no `--` separator
+(`MAKEFLAGS="ZE_VERIFY_LOG=tmp/ze-verify-gate12.log"`, captured), and
+`makeDryRun` (scripts/status/verify_run.go:111) read that word as concatenated
+short flags: `ContainsAny(field, "ntq")` matched the 't' in "tmp".
+
+**Pattern:** the guard's negative-side test table was built from GNU make 4.x
+captures (` -- FOO=bar`); the 3.81 shape was never captured, and the tooling's
+own recommended invocation was the collision.
+
+**Fix (same session):** a flags word never contains '=', so `makeDryRun` now
+skips '='-bearing first words; two captured-MAKEFLAGS rows added to
+`TestMakeDryRunDetectsDashN` (the bare-3.81-override false positive and `-n`
+still detected ahead of an override).
+
 ## Filed 2026-07-22 (plan-review session): two frictions
 
 ### F11: `validate-spec.sh` RFC-existence check is dead code (regex typo)
@@ -593,8 +615,8 @@ greps with the pattern `'\rfc/short/rfc[0-9]+\.md'`. The leading `\r` is a
 carriage-return escape in grep -E, so the pattern can never match a literal
 `rfc/short/...` path; `RFC_REFS` is always empty and the check silently
 approves every spec. Found during the 2026-07-22 plan-folder review:
-`plan/spec-ike-post-quantum.md` references `rfc/short/rfc9370.md` and
-`rfc/short/rfc4304.md`, neither of which exists, and the hook said nothing.
+`plan/spec-ike-post-quantum.md` references `rfc/short/rfc9370.md` and <!-- doc-links: ignore (the finding IS that this path does not exist) -->
+`rfc/short/rfc4304.md`, neither of which exists, and the hook said nothing. <!-- doc-links: ignore (same: deliberately nonexistent) -->
 
 **Pattern:** a fail-open guard (`ai/rules/fail-closed-guards.md`): the check
 that cannot fire looks identical to the check that found nothing.

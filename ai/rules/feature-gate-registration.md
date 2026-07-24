@@ -11,7 +11,15 @@ for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
 `ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, REST API `ze_rest`, gRPC
 API `ze_grpc`, Prometheus exporter `ze_telemetry`, routing protocols `ze_isis` /
 `ze_ldp` / `ze_ospf` / `ze_rsvpte`, first-hop redundancy `ze_vrrp`, BGP `ze_bgp`,
-...).
+BMP `ze_bmp`, MRT `ze_mrt`, and since feature-gate-12 the remaining service and
+protocol surface: BFD `ze_bfd`, IKEv2/IPsec `ze_ike`, the L2TP/PPPoE BNG
+`ze_l2tp`, RADIUS `ze_radius`, TACACS+ `ze_tacacs`, the VPP dataplane `ze_vpp`,
+flow export `ze_flowexport`, DDoS `ze_ddos`, anomaly `ze_anomaly`, AS112
+`ze_as112`, GeoDNS `ze_geodns`, DHCP server `ze_dhcpserver`, netboot `ze_pxe`
+(tftpserver + imageserver), NTP `ze_ntp`, traffic accounting `ze_trafficusage`,
+policy routing `ze_policyroute`, CoS `ze_cos`, CoPP `ze_copp`, MPLS operational
+surface `ze_mpls`, ExaBGP bridge `ze_exabgp`). The manifest is the inventory;
+this list is illustrative.
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the
@@ -219,24 +227,62 @@ Two traps that only appear at this scale:
   main` root can never be imported back, so the edge is always safe there. After
   deleting an always-on import, ask what that package's `init()` was providing.
 
-**Dependent gate (a feature that requires another gate -- `ze_bmp`).** A gated
-package that lives INSIDE another gate's package tree AND imports it is a
-DEPENDENT feature: it can only be built when the parent gate is on. `ze_bmp`
-(BMP; `internal/component/bgp/plugins/bmp`) imports `bgp/message` / `bgp/types`
-and monitors the BGP RIB, so it exists only in a `ze_bgp` build. The generator
-detects the nesting (`plugin_imports.go parentTagOf`: the longest OTHER gated
-package that is a path-prefix of the child's) and emits the child's group file
-with a COMPOUND constraint -- `all_ze_bmp.go` carries `//go:build ze_bgp &&
-ze_bmp`. That is what makes `-tags ze_bmp` WITHOUT `ze_bgp` drop BMP entirely
-instead of dragging the whole engine back in through BMP's blank import (prove it
-with an `nm` build of `ze_core,ze_bmp` that links zero `internal/component/bgp`
-symbols). The dependency is DERIVED from the package path, so the manifest line is
-the ordinary `ze_bmp <pkg>` (no new column) and every other manifest consumer is
+**Dependent gate (a feature that requires another gate -- `ze_bmp`,
+`ze_radius`).** A gated package that lives INSIDE another gate's package tree
+AND imports it is a DEPENDENT piece: it can only be built when the parent gate
+is on. `ze_bmp` (BMP; `internal/component/bgp/plugins/bmp`) imports
+`bgp/message` / `bgp/types` and monitors the BGP RIB, so it exists only in a
+`ze_bgp` build. The generator detects the nesting PER PACKAGE
+(`plugin_imports.go parentTagOfImport`: the longest gated package of another
+tag that is a path-prefix of the import) and emits a COMPOUND constraint --
+`all_ze_bmp.go` carries `//go:build ze_bgp && ze_bmp`. That is what makes
+`-tags ze_bmp` WITHOUT `ze_bgp` drop BMP entirely instead of dragging the
+whole engine back in through BMP's blank import (prove it with an `nm` build of
+`ze_core,ze_bmp` that links zero `internal/component/bgp` symbols). The
+dependency is DERIVED from the package path, so the manifest line is the
+ordinary `ze_bmp <pkg>` (no new column) and every other manifest consumer is
 unaffected; `dep_audit`'s existing subtree-prefix same-feature skip already treats
 a bmp->bgp import as intra-`ze_bgp`-family (bmp lives under `internal/component/bgp`).
 Tag the present build-tag test `//go:build ze_bgp && ze_bmp` to match the group
 file, so it never runs in a nonsensical `ze_bmp`-without-`ze_bgp` build
 (feature-gate-11).
+
+A tag may MIX independent and dependent packages (feature-gate-12): `ze_radius`
+gates `internal/component/radius` (RADIUS system auth, usable alone) AND
+`internal/component/l2tp/plugins/authradius` (needs the BNG). The generator
+splits such a tag's group by per-package constraint: `all_ze_radius.go` carries
+the plain tag with the independent imports, and `all_ze_radius_ze_l2tp.go`
+carries `//go:build ze_l2tp && ze_radius` with the nested subset -- so a
+radius-without-l2tp build keeps its schema and an l2tp-with-local-auth build
+links zero radius symbols. A tag whose packages ALL share one constraint keeps
+the single historic `all_<tag>.go` file.
+
+**What stays UNGATED on purpose: shared contract leaves.** When other features
+consume a nil-able seam or value types a gated feature exposes, that contract
+package stays OFF the manifest and always-on, and only the machinery gates:
+`bfd/api` (the `SetService`/`GetService` seam BGP/OSPF/static nil-check, plus
+`bfd/packet` for its State/Diag re-exports) and `ike/dataplane` (the XFRM
+programming seam OSPF's RFC 4552 authentication also uses). Every consumer of
+such a seam MUST already handle nil/absent -- verify each call site before
+choosing this shape, and make the absent-build nm needles NAME the gated
+sub-packages instead of using the subtree prefix.
+
+**Dependent FILES inside another feature (`ze_l2tp` consumers).** When a
+feature of plugin A only exists because feature B exists, tag A's files with
+B's tag and give them a counterpart: the cos dynamic RADIUS-CoS handler is
+`//go:build ze_l2tp` with a no-op stub (no BNG session events, nothing to
+react to), the diag l2tp capture branches live in `capture_l2tp.go` /
+`capture_raw_l2tp.go` with stubs answering "l2tp is not included in this
+build", and the web VPN/L2TP pages have not-in-this-build stub renderers so
+the workbench routes stay valid. A stub must ANSWER HONESTLY (name the missing
+feature), never silently no-op a user-visible request.
+
+**Subsystem-builder seam (`ze_l2tp` hub construction).** When the hub
+CONSTRUCTS a feature (parses params, `eng.RegisterSubsystem`) rather than
+blank-importing it, use a hub-local nil-able hook (`bng_infra.go`
+`bngRegister`, filled by the gated `register_l2tp.go` init) -- the ssh/gnmi
+seam shape carrying only generic values (config trees, engine handle, portal
+entries) across the boundary.
 
 ## Banned
 

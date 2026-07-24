@@ -595,40 +595,51 @@ func taggedFileName(tag string) string {
 	return b.String()
 }
 
-// parentTagOf returns the tag of the longest OTHER gated package that is a
-// path-prefix of any package gated by `tag`, or "" if none. A gated package
-// nested inside another gate's package tree is a DEPENDENT feature: it is only
+// parentTagOfImport returns the tag of the longest gated package of ANOTHER
+// tag that is a path-prefix of importPath, or "" if none. A gated package
+// nested inside another gate's package tree is a DEPENDENT piece: it is only
 // ever compiled when the parent gate is on (it imports the parent's packages),
-// so its generated blank-import file must AND the parent tag -- otherwise a
-// build requesting the child tag without the parent would drag the parent's
-// whole subtree back in via the blank import. Example: ze_bmp lives at
-// internal/component/bgp/plugins/bmp, under ze_bgp's internal/component/bgp, so
-// all_ze_bmp.go is guarded //go:build ze_bgp && ze_bmp (feature-gate-11). No
-// existing gate is cross-tag-nested, so this changes only dependent gates.
-func parentTagOf(tag string) string {
+// so its blank import must AND the parent tag -- otherwise a build requesting
+// the child tag without the parent would drag the parent's whole subtree back
+// in. Example: ze_bmp lives at internal/component/bgp/plugins/bmp, under
+// ze_bgp's internal/component/bgp, so its import is guarded
+// //go:build ze_bgp && ze_bmp (feature-gate-11).
+//
+// The parent is computed PER PACKAGE, not per tag: a tag may mix independent
+// and dependent packages (ze_radius gates internal/component/radius, usable
+// alone, AND l2tp/plugins/authradius, which needs ze_l2tp), and only the
+// nested subset takes the compound constraint (feature-gate-12).
+func parentTagOfImport(importPath, tag string) string {
 	best, bestTag := "", ""
-	for suffix, t := range featureTags {
-		if t != tag {
+	for pSuffix, pTag := range featureTags {
+		if pTag == tag {
 			continue
 		}
-		for pSuffix, pTag := range featureTags {
-			if pTag == tag {
-				continue
-			}
-			// pSuffix is a path-prefix of suffix at a '/' boundary.
-			if len(suffix) > len(pSuffix) && strings.HasPrefix(suffix, pSuffix) &&
-				suffix[len(pSuffix)] == '/' && len(pSuffix) > len(best) {
-				best, bestTag = pSuffix, pTag
-			}
+		// pSuffix is a path-prefix of importPath at a '/' boundary, matched at
+		// a path boundary on the left too (importPath is module-qualified).
+		idx := strings.Index(importPath, pSuffix)
+		if idx < 0 {
+			continue
+		}
+		if idx > 0 && importPath[idx-1] != '/' {
+			continue
+		}
+		rest := importPath[idx+len(pSuffix):]
+		if rest != "" && rest[0] != '/' {
+			continue
+		}
+		if len(pSuffix) > len(best) {
+			best, bestTag = pSuffix, pTag
 		}
 	}
 	return bestTag
 }
 
-// buildConstraint returns the //go:build expression gating a tag's group file:
-// the tag alone, or "<parent> && <tag>" for a dependent gate (see parentTagOf).
-func buildConstraint(tag string) string {
-	parent := parentTagOf(tag)
+// constraintForImport returns the //go:build expression gating one import of a
+// tag's group: the tag alone, or "<parent> && <tag>" for a dependent package
+// (see parentTagOfImport).
+func constraintForImport(importPath, tag string) string {
+	parent := parentTagOfImport(importPath, tag)
 	if parent == "" {
 		return tag
 	}
@@ -637,6 +648,29 @@ func buildConstraint(tag string) string {
 	b.WriteString(" && ")
 	b.WriteString(tag)
 	return b.String()
+}
+
+// constraintGroups splits a tag's imports by their per-import constraint,
+// returning the constraint expressions in deterministic order (plain tag
+// first, then sorted compounds). A tag whose packages all share one constraint
+// yields a single group -- the pre-feature-gate-12 behavior (ze_bmp keeps its
+// one ze_bgp && ze_bmp file).
+func constraintGroups(tag string, imports []string) (order []string, byConstraint map[string][]string) {
+	byConstraint = make(map[string][]string)
+	for _, imp := range imports {
+		c := constraintForImport(imp, tag)
+		byConstraint[c] = append(byConstraint[c], imp)
+	}
+	for c := range byConstraint {
+		order = append(order, c)
+	}
+	sort.Slice(order, func(i, j int) bool {
+		if (order[i] == tag) != (order[j] == tag) {
+			return order[i] == tag // plain tag group first
+		}
+		return order[i] < order[j]
+	})
+	return order, byConstraint
 }
 
 // writeTaggedGo writes a //go:build <constraint> file blank-importing the gated
@@ -680,47 +714,72 @@ func writeTaggedGo(w *bufio.Writer, tag, constraint string, imports []string) er
 	return w.Flush()
 }
 
-// generateTaggedFiles writes one all_<tag>.go per build tag and removes any
+// taggedGroupFileName names one constraint group's file. The tag's first
+// (plain, or sole) group keeps the historic all_<tag>.go name; a dependent
+// subset of a MIXED tag gets all_<tag>_<parent>.go (e.g.
+// all_ze_radius_ze_l2tp.go for authradius under ze_l2tp).
+func taggedGroupFileName(tag, constraint string, sole bool) string {
+	if sole || constraint == tag {
+		return taggedFileName(tag)
+	}
+	parent, _, _ := strings.Cut(constraint, " && ")
+	var b strings.Builder
+	b.WriteString("all_")
+	b.WriteString(tag)
+	b.WriteString("_")
+	b.WriteString(parent)
+	b.WriteString(".go")
+	return b.String()
+}
+
+// generateTaggedFiles writes one all_<tag>.go per build tag (plus an
+// all_<tag>_<parent>.go per dependent subset of a mixed tag) and removes any
 // previously-generated tag file that is no longer needed.
 func generateTaggedFiles(dir string, byTag map[string][]string) error {
 	expected := make(map[string]bool, len(byTag))
 	for tag, imports := range byTag {
 		sort.Strings(imports)
-		name := taggedFileName(tag)
-		expected[name] = true
-		f, err := os.Create(filepath.Join(dir, name))
-		if err != nil {
-			return err
-		}
-		if err := writeTaggedGo(bufio.NewWriter(f), tag, buildConstraint(tag), imports); err != nil {
-			f.Close() //nolint:errcheck // best-effort on error path
-			return err
-		}
-		if err := f.Close(); err != nil {
-			return err
+		order, groups := constraintGroups(tag, imports)
+		for _, constraint := range order {
+			name := taggedGroupFileName(tag, constraint, len(order) == 1)
+			expected[name] = true
+			f, err := os.Create(filepath.Join(dir, name))
+			if err != nil {
+				return err
+			}
+			if err := writeTaggedGo(bufio.NewWriter(f), tag, constraint, groups[constraint]); err != nil {
+				f.Close() //nolint:errcheck // best-effort on error path
+				return err
+			}
+			if err := f.Close(); err != nil {
+				return err
+			}
 		}
 	}
 	return removeStaleTaggedFiles(dir, expected)
 }
 
-// checkTaggedFiles verifies every all_<tag>.go matches what would be generated
-// and that no stale generated tag file remains.
+// checkTaggedFiles verifies every generated tag-group file matches what would
+// be generated and that no stale generated tag file remains.
 func checkTaggedFiles(dir string, byTag map[string][]string) error {
 	expected := make(map[string]bool, len(byTag))
 	for tag, imports := range byTag {
 		sort.Strings(imports)
-		name := taggedFileName(tag)
-		expected[name] = true
-		var buf bytes.Buffer
-		if err := writeTaggedGo(bufio.NewWriter(&buf), tag, buildConstraint(tag), imports); err != nil {
-			return err
-		}
-		got, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			return fmt.Errorf("%s missing; run make generate", name)
-		}
-		if !bytes.Equal(got, buf.Bytes()) {
-			return fmt.Errorf("%s is stale; run make generate", name)
+		order, groups := constraintGroups(tag, imports)
+		for _, constraint := range order {
+			name := taggedGroupFileName(tag, constraint, len(order) == 1)
+			expected[name] = true
+			var buf bytes.Buffer
+			if err := writeTaggedGo(bufio.NewWriter(&buf), tag, constraint, groups[constraint]); err != nil {
+				return err
+			}
+			got, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				return fmt.Errorf("%s missing; run make generate", name)
+			}
+			if !bytes.Equal(got, buf.Bytes()) {
+				return fmt.Errorf("%s is stale; run make generate", name)
+			}
 		}
 	}
 	return checkNoStaleTaggedFiles(dir, expected)

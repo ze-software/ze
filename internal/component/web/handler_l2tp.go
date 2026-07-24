@@ -2,6 +2,8 @@
 // Related: handler_admin.go -- CommandDispatcher type reused for disconnect
 // Related: sse.go -- heartbeat/flusher pattern reused for CQM SSE
 
+//go:build ze_l2tp
+
 package web
 
 import (

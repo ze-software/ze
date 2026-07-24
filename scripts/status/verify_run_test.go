@@ -1170,6 +1170,15 @@ func TestMakeDryRunDetectsDashN(t *testing.T) {
 		// short-flag position that means no-execute.
 		{"w", false, "make -w has no n/t/q"},
 		{" -j8 --jobserver-auth=3,4 -- TARGET=not-a-flag", false, "n/t/q in a variable value must not match"},
+		// GNU make 3.81 (the macOS system make) writes a command-line variable
+		// override as the FIRST MAKEFLAGS word with no `--` separator and no
+		// leading space (captured: `make ze-verify ZE_VERIFY_LOG=tmp/x.log` ->
+		// MAKEFLAGS="ZE_VERIFY_LOG=tmp/ze-verify-gate12.log"). A flags word can
+		// never contain '=', so an override word must not be read as flags --
+		// without that, the 't' in "tmp" refused the exact invocation the
+		// bash-output rule recommends (feature-gate-12 session, 2026-07-23).
+		{"ZE_VERIFY_LOG=tmp/ze-verify-gate12.log", false, "GNU make 3.81 bare variable override; 't'/'q' in the value must not match"},
+		{"n ZE_VERIFY_LOG=tmp/x.log", true, "real -n still detected ahead of a 3.81-style override"},
 	} {
 		if got := makeDryRun(tc.makeflags); got != tc.want {
 			t.Errorf("makeDryRun(%q) = %v, want %v (%s)", tc.makeflags, got, tc.want, tc.why)
@@ -1285,9 +1294,11 @@ func TestCodeQLBuildUsesShippedTags(t *testing.T) {
 	}
 	// Drift guard: the shipped bin/ze / bin/ze-appliance builds add the default-on
 	// service feature set $(ZE_FEATURES) (feature-gates.txt). A static workflow
-	// cannot expand a Makefile variable, so the tokens are duplicated in codeql.yml;
-	// this asserts none has fallen behind feature-gates.txt (adding a service tag
-	// there without teaching CodeQL to build it would silently exclude it from SAST).
+	// cannot expand a Makefile variable, so codeql.yml's tag lists are GENERATED
+	// from feature-gates.txt by scripts/codegen/feature_tags.go (make generate);
+	// this asserts none has fallen behind the manifest -- a regenerate skipped, or
+	// a tag added without regenerating, would silently exclude the gated code from
+	// SAST (adding a service tag without teaching CodeQL to build it).
 	for _, tag := range shippedFeatureTags(t) {
 		if !strings.Contains(body, tag) {
 			t.Errorf("codeql.yml build omits shipped feature tag %q (feature-gates.txt): its feature-gated code would be excluded from CodeQL analysis", tag)

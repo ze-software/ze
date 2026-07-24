@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3058 files
+Total: 298 design docs, 3092 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -79,23 +79,38 @@ Total: 298 design docs, 3058 files
 | File | Topic |
 |------|-------|
 | `cmd/ze/dispatch_bgp.go` | ze_bgp dispatch-root CLI gating |
+| `cmd/ze/dispatch_exabgp.go` | ze_exabgp dispatch-root CLI gating |
 | `cmd/ze/dispatch_isis.go` | ze_isis dispatch-root CLI gating |
+| `cmd/ze/dispatch_l2tp.go` | ze_l2tp dispatch-root CLI gating |
 | `cmd/ze/dispatch_ospf.go` | ze_ospf dispatch-root CLI gating |
+| `cmd/ze/dispatch_tacacs.go` | ze_tacacs dispatch-root CLI gating |
 | `cmd/ze/hub/api_infra.go` | compile-out-able services (feature-gate) |
 | `cmd/ze/hub/bgp_decode_link_test.go` | ze_bgp decoder seam link for hub tests |
 | `cmd/ze/hub/bgp_decode_nolink_test.go` | ze_bgp-absent decoder seam state for hub tests |
+| `cmd/ze/hub/bng_infra.go` | ze_l2tp BNG construction seam |
+| `cmd/ze/hub/build_tag_bfd_absent_test.go` | ze_bfd absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_bfd_present_test.go` | ze_bfd present (compile-out) validation |
 | `cmd/ze/hub/build_tag_bgp_absent_test.go` | ze_bgp absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_bgp_present_test.go` | ze_bgp present build validation |
 | `cmd/ze/hub/build_tag_bgp_probe_test.go` | shared ze_bgp present/absent probe config |
 | `cmd/ze/hub/build_tag_bmp_absent_test.go` | ze_bmp absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_bmp_present_test.go` | ze_bmp present (compile-out) validation |
 | `cmd/ze/hub/build_tag_gate11_absent_test.go` | ze_bmp/ze_mrt symbol-drop + dependent-gate proof |
+| `cmd/ze/hub/build_tag_gate12_absent_test.go` | spec-feature-gate-12 symbol-drop proof |
+| `cmd/ze/hub/build_tag_gate12_group_a_absent_test.go` | spec-feature-gate-12 Group A absent validation |
+| `cmd/ze/hub/build_tag_gate12_group_a_present_test.go` | spec-feature-gate-12 Group A present validation |
+| `cmd/ze/hub/build_tag_gate12_group_b_absent_test.go` | spec-feature-gate-12 Group B absent validation |
+| `cmd/ze/hub/build_tag_gate12_group_b_present_test.go` | spec-feature-gate-12 Group B present validation |
 | `cmd/ze/hub/build_tag_gnmi_absent_test.go` | ze_gnmi absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_gnmi_present_test.go` | ze_gnmi present build validation |
 | `cmd/ze/hub/build_tag_grpc_absent_test.go` | ze_grpc absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_grpc_present_test.go` | ze_grpc present build validation |
+| `cmd/ze/hub/build_tag_ike_absent_test.go` | ze_ike absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_ike_present_test.go` | ze_ike present (compile-out) validation |
 | `cmd/ze/hub/build_tag_isis_absent_test.go` | ze_isis absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_isis_present_test.go` | ze_isis present build validation |
+| `cmd/ze/hub/build_tag_l2tp_absent_test.go` | ze_l2tp/ze_radius absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_l2tp_present_test.go` | ze_l2tp/ze_radius present (compile-out) validation |
 | `cmd/ze/hub/build_tag_ldp_absent_test.go` | ze_ldp absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_ldp_present_test.go` | ze_ldp present build validation |
 | `cmd/ze/hub/build_tag_lg_absent_test.go` | ze_lg absent (compile-out) validation |
@@ -104,6 +119,8 @@ Total: 298 design docs, 3058 files
 | `cmd/ze/hub/build_tag_mcp_present_test.go` | ze_mcp present build validation |
 | `cmd/ze/hub/build_tag_mrt_absent_test.go` | ze_mrt absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_mrt_present_test.go` | ze_mrt present (compile-out) validation |
+| `cmd/ze/hub/build_tag_ntp_absent_test.go` | ze_ntp absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_ntp_present_test.go` | ze_ntp present (compile-out) validation |
 | `cmd/ze/hub/build_tag_ospf_absent_test.go` | ze_ospf absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_ospf_present_test.go` | ze_ospf present build validation |
 | `cmd/ze/hub/build_tag_protocols_absent_test.go` | protocols absent symbol-drop proof |
@@ -115,6 +132,8 @@ Total: 298 design docs, 3058 files
 | `cmd/ze/hub/build_tag_ssh_present_test.go` | ze_ssh present build validation |
 | `cmd/ze/hub/build_tag_telemetry_absent_test.go` | ze_telemetry absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_telemetry_present_test.go` | ze_telemetry present build validation |
+| `cmd/ze/hub/build_tag_vpp_absent_test.go` | ze_vpp absent (compile-out) validation |
+| `cmd/ze/hub/build_tag_vpp_present_test.go` | ze_vpp present (compile-out) validation |
 | `cmd/ze/hub/build_tag_vrrp_absent_test.go` | ze_vrrp absent (compile-out) validation |
 | `cmd/ze/hub/build_tag_vrrp_present_test.go` | ze_vrrp present build validation |
 | `cmd/ze/hub/build_tag_web_absent_test.go` | ze_web absent (compile-out) validation |
@@ -123,6 +142,8 @@ Total: 298 design docs, 3058 files
 | `cmd/ze/hub/gnmi_infra.go` | ze_gnmi compile-out seam |
 | `cmd/ze/hub/register_gnmi.go` | ze_gnmi compile-out seam |
 | `cmd/ze/hub/register_grpc.go` | compile-out-able services (feature-gate) |
+| `cmd/ze/hub/register_ike.go` | ze_ike hub registration gating |
+| `cmd/ze/hub/register_l2tp.go` | ze_l2tp hub registration gating |
 | `cmd/ze/hub/register_lg.go` | compile-out-able services (feature-gate) |
 | `cmd/ze/hub/register_mcp.go` | compile-out-able services (feature-gate) |
 | `cmd/ze/hub/register_rest.go` | compile-out-able services (feature-gate) |
@@ -140,8 +161,20 @@ Total: 298 design docs, 3058 files
 | `cmd/ze/hub/service_rest_test.go` | ze_rest-gated REST seam test |
 | `cmd/ze/hub/service_web.go` | compile-out-able web service |
 | `cmd/ze/hub/web_infra.go` | ze_web compile-out seam |
+| `internal/component/aaa/all/all_ze_radius.go` | ze_radius AAA composition root gating |
+| `internal/component/aaa/all/all_ze_tacacs.go` | ze_tacacs AAA composition root gating |
 | `internal/component/config/infra/bgp.go` | inversion-of-control seams for the gated BGP engine |
+| `internal/component/config/yang/cli/tree_bfd.go` | ze_bfd partition of the analysis-tree blank imports |
 | `internal/component/config/yang/cli/tree_bgp.go` | ze_bgp partition of the analysis-tree blank imports |
+| `internal/component/ike/dataplane/register_vpp.go` | ze_vpp partition of the dataplane registry |
+| `internal/component/web/page_l2tp_off.go` | ze_l2tp-off L2TP page stub |
+| `internal/component/web/page_vpn_ipsec_off.go` | ze_ike-off VPN page stub |
+| `internal/plugins/cos/handler_off.go` | ze_l2tp-off dynamic-CoS stub |
+| `internal/plugins/diag/cmd/capture_l2tp.go` | ze_l2tp partition of the capture display |
+| `internal/plugins/diag/cmd/capture_l2tp_off.go` | ze_l2tp-off capture stub |
+| `internal/plugins/diag/cmd/capture_raw_l2tp.go` | ze_l2tp partition of the raw-capture display |
+| `internal/plugins/diag/cmd/capture_raw_l2tp_off.go` | ze_l2tp-off raw-capture stub |
+| `internal/plugins/static/backend_vpp_off_linux.go` | ze_vpp-off static backend stub |
 | `scripts/codegen/feature_tags.go` | the three static consumers are GENERATED, not hand-maintained |
 
 ## `ai/rules/no-sprintf-alloc.md`
@@ -1590,16 +1623,16 @@ Total: 298 design docs, 3058 files
 | `internal/component/web/handler_config_transfer.go` | Config download/upload endpoints |
 | `internal/component/web/handler_config_walk.go` | Schema and config tree walking |
 | `internal/component/web/handler_portal.go` | Portal frame for embedded services |
-| `internal/component/web/handler_tools.go` | V2 workbench related-tool execution |
-| `internal/component/web/handler_workbench.go` | V2 workbench shell handler |
+| `internal/component/web/handler_tools.go` | workbench related-tool execution |
+| `internal/component/web/handler_workbench.go` | workbench shell handler |
 | `internal/component/web/i18n.go` | web UI internationalization |
 | `internal/component/web/rbac.go` | role-based access control |
-| `internal/component/web/related_resolver.go` | V2 workbench related-tool resolver |
+| `internal/component/web/related_resolver.go` | workbench related-tool resolver |
 | `internal/component/web/render.go` | Template rendering |
 | `internal/component/web/server.go` | Web server infrastructure |
 | `internal/component/web/sse.go` | Server-Sent Events for live updates |
 | `internal/component/web/ui_mode.go` | UI mode selection |
-| `internal/component/web/workbench_enrich.go` | V2 workbench data enrichment |
+| `internal/component/web/workbench_enrich.go` | workbench data enrichment |
 | `internal/core/selfcert/selfcert.go` | self-signed TLS certificate helpers |
 | `internal/graph/graph.go` | shared AS path topology graph data model |
 | `internal/graph/layout.go` | parameterized layered graph layout |
@@ -2936,9 +2969,12 @@ Total: 298 design docs, 3058 files
 
 ## `plan/learned/691-web-7-system-services.md`
 
-- `internal/component/web/page_l2tp.go` -- L2TP workbench pages
-- `internal/component/web/page_services.go` -- Services section pages
-- `internal/component/web/page_system.go` -- System section pages
+| File | Topic |
+|------|-------|
+| `internal/component/web/page_l2tp.go` | L2TP workbench pages |
+| `internal/component/web/page_services.go` | Services section pages |
+| `internal/component/web/page_system.go` | System section pages |
+| `internal/component/web/page_workbench_generic.go` | generic system/service workbench dispatch |
 
 ## `plan/learned/692-web-8-tools-logs.md`
 
@@ -3438,7 +3474,7 @@ Total: 298 design docs, 3058 files
 | File | Topic |
 |------|-------|
 | `cmd/ze/ze_core_autoinit.go` | gokrazy first-boot auto-init fallback |
-| `internal/appliance/diskverify.go` | V3 build-side inject verify |
+| `internal/appliance/diskverify.go` | build-side inject verify |
 | `internal/install/disk/cmdline.go` | kernel cmdline parsing for on-device installer |
 | `internal/install/disk/detect.go` | disk detection for on-device installer |
 | `internal/install/disk/download.go` | download with retry and integrity check |

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -61,13 +60,7 @@ func HandleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 
 func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) { //nolint:dupl // start/stop symmetry is intentional
 	started := []string{}
-	if protocol == "" || protocol == capL2TP {
-		svc := l2tp.LookupService()
-		if svc != nil {
-			svc.EnableRawCapture()
-			started = append(started, capL2TP)
-		}
-	}
+	started = captureRawL2TPStart(started, protocol)
 	if protocol == "" || protocol == capBGP {
 		if ctx != nil && ctx.Reactor() != nil {
 			if rcp, ok := ctx.Reactor().(plugin.BGPRawCaptureProvider); ok {
@@ -82,24 +75,19 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 			started = append(started, capBFD)
 		}
 	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"action":  "start",
-			"started": started,
-		},
-	}, nil
+	data := plugin.Map{
+		"action":  "start",
+		"started": started,
+	}
+	if note := captureRawL2TPNote(protocol); note != "" {
+		data["l2tp"] = note
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
 func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) { //nolint:dupl // start/stop symmetry is intentional
 	stopped := []string{}
-	if protocol == "" || protocol == capL2TP {
-		svc := l2tp.LookupService()
-		if svc != nil {
-			svc.DisableRawCapture()
-			stopped = append(stopped, capL2TP)
-		}
-	}
+	stopped = captureRawL2TPStop(stopped, protocol)
 	if protocol == "" || protocol == capBGP {
 		if ctx != nil && ctx.Reactor() != nil {
 			if rcp, ok := ctx.Reactor().(plugin.BGPRawCaptureProvider); ok {
@@ -114,41 +102,22 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 			stopped = append(stopped, capBFD)
 		}
 	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"action":  "stop",
-			"stopped": stopped,
-		},
-	}, nil
+	data := plugin.Map{
+		"action":  "stop",
+		"stopped": stopped,
+	}
+	if note := captureRawL2TPNote(protocol); note != "" {
+		data["l2tp"] = note
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
 func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, limit int) (*plugin.Response, error) {
 	result := map[string]any{}
 
-	if protocol == "" || protocol == capL2TP {
-		svc := l2tp.LookupService()
-		if svc == nil {
-			result["l2tp"] = msgSubsystemNotRunning
-		} else {
-			entries := svc.RawCaptureSnapshot(limit)
-			switch {
-			case entries == nil:
-				result["l2tp"] = "raw capture not enabled (use capture-raw start l2tp)"
-			case format == fmtPcap:
-				pcapData, err := exportL2TPPcap(entries)
-				if err != nil {
-					result["l2tp-error"] = err.Error()
-				} else {
-					result["l2tp-pcap"] = base64.StdEncoding.EncodeToString(pcapData)
-					result["l2tp-packets"] = len(entries)
-				}
-			default:
-				result["l2tp"] = rawEntriesToJSON(entries)
-				result["l2tp-count"] = len(entries)
-			}
-		}
-	}
+	// The l2tp branch lives in capture_raw_l2tp.go (//go:build ze_l2tp)
+	// with a not-in-this-build stub counterpart.
+	captureRawL2TPDump(result, protocol, format, limit)
 
 	if protocol == "" || protocol == capBGP {
 		if ctx != nil && ctx.Reactor() != nil {
@@ -219,22 +188,6 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
-func rawEntriesToJSON(entries []l2tp.RawCaptureEntry) []map[string]any {
-	rows := make([]map[string]any, 0, len(entries))
-	for _, e := range entries {
-		dir := "in"
-		if e.Direction == 1 {
-			dir = "out"
-		}
-		rows = append(rows, map[string]any{
-			"timestamp": e.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"direction": dir,
-			"bytes":     len(e.Data),
-		})
-	}
-	return rows
-}
-
 func exportBGPPcap(entries []plugin.BGPRawCaptureEntry) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := writePcapHeader(&buf, 4096, LinkTypeRaw); err != nil {
@@ -244,20 +197,6 @@ func exportBGPPcap(entries []plugin.BGPRawCaptureEntry) ([]byte, error) {
 		e := &entries[i]
 		ts, _ := time.Parse("2006-01-02T15:04:05Z07:00", e.Timestamp)
 		if err := writePcapPacket(&buf, ts, e.Data); err != nil {
-			return nil, err
-		}
-	}
-	return buf.Bytes(), nil
-}
-
-func exportL2TPPcap(entries []l2tp.RawCaptureEntry) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := writePcapHeader(&buf, 1500, LinkTypeRaw); err != nil {
-		return nil, err
-	}
-	for i := len(entries) - 1; i >= 0; i-- {
-		e := &entries[i]
-		if err := writePcapPacket(&buf, e.Timestamp, e.Data); err != nil {
 			return nil, err
 		}
 	}

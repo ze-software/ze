@@ -29,6 +29,26 @@ run:
     - ze_ospf
     - ze_rsvpte
     - ze_vrrp
+    - ze_ntp
+    - ze_flowexport
+    - ze_ddos
+    - ze_anomaly
+    - ze_as112
+    - ze_geodns
+    - ze_dhcpserver
+    - ze_pxe
+    - ze_trafficusage
+    - ze_policyroute
+    - ze_cos
+    - ze_copp
+    - ze_mpls
+    - ze_tacacs
+    - ze_exabgp
+    - ze_bfd
+    - ze_vpp
+    - ze_ike
+    - ze_l2tp
+    - ze_radius
     - ze_mrt
     - ze_bgp
     - ze_bmp

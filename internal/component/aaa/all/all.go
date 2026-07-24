@@ -9,8 +9,6 @@ package all
 import (
 	// Local bcrypt backend.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/authz"
-	// RADIUS (RFC 2865) backend.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/radius"
-	// TACACS+ (RFC 8907) backend.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs"
+	// RADIUS (RFC 2865) backend: gated behind ze_radius, see all_ze_radius.go.
+	// TACACS+ (RFC 8907) backend: gated behind ze_tacacs, see all_ze_tacacs.go.
 )

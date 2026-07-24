@@ -113,6 +113,15 @@ func makeDryRun(makeflags string) bool {
 	if len(fields) == 0 || strings.HasPrefix(fields[0], "-") {
 		return false
 	}
+	// A short-flags word never contains '='. GNU make 3.81 (the macOS system
+	// make) writes a command-line variable override as the FIRST word with no
+	// `--` separator (`make ze-verify ZE_VERIFY_LOG=tmp/x.log` ->
+	// MAKEFLAGS="ZE_VERIFY_LOG=tmp/x.log"); reading that as flags would refuse
+	// the run on the 't' in "tmp". Newer makes separate overrides with `--`,
+	// already handled by the leading-dash check above.
+	if strings.ContainsRune(fields[0], '=') {
+		return false
+	}
 	return strings.ContainsAny(fields[0], makeNoExecFlags)
 }
 

@@ -13,9 +13,10 @@
 #   - internal/test/runner TestBuildTags        tags for the functional-test ze binary
 #   - scripts/codegen/plugin_imports.go         featureTags: gates <pkg> and <pkg>/yang into all_<tag>.go
 #   - scripts/dev/dep_audit.py DISABLEABLE      no always-on import of <pkg>
-# Three consumers cannot read this manifest at runtime -- .golangci.yml build-tags,
-# gokrazy/ze/config.json GoBuildTags, and docs/guide/quickstart.md's `go install`
-# command -- so scripts/codegen/feature_tags.go GENERATES them from this file
+# Four consumers cannot read this manifest at runtime -- .golangci.yml build-tags,
+# gokrazy/ze/config.json GoBuildTags, docs/guide/quickstart.md's `go install`
+# command, and .github/workflows/codeql.yml's shipped-combo `go build` lines --
+# so scripts/codegen/feature_tags.go GENERATES them from this file
 # (`make generate`); do NOT hand-edit their tag lists. Drift is gated by the
 # scripts/codegen feature_tags --check test, `dep_audit.py --check` (golangci), and
 # the appliance gokrazy test. scripts/dev/stress-repro.py reads this file directly.
@@ -52,6 +53,165 @@ ze_ospf    internal/plugins/ospf/v3/transport
 ze_rsvpte  internal/plugins/rsvpte
 ze_vrrp    internal/plugins/vrrp
 ze_vrrp    internal/plugins/vrrp/transport
+
+# ze_ntp -- NTP client (system clock synchronization). Single self-registering
+# plugin, all.go-only composition root (registry CLIHandler, no dispatch
+# companion). The show-system NTP block reads it through the nil-safe
+# registry.GetNTPSyncInfo seam, so always-on code never imports the package.
+# ntp/events and ntp/yang are dropped transitively (spec-feature-gate-12).
+ze_ntp     internal/plugins/ntp
+
+# spec-feature-gate-12 Group A -- self-registering plugins whose ONLY
+# composition root is the generated all.go (no cmd/ze dispatch import, no
+# always-on functional importer). Gating is pure blank-import partitioning:
+# one line per dir all.go blank-imports (each auto-gates its /yang sibling;
+# X/cmd lines cover the X/cmd/yang command-schema imports).
+
+# ze_flowexport -- NetFlow v9 / IPFIX / sFlow flow export + its command schema.
+ze_flowexport  internal/plugins/flowexport
+ze_flowexport  internal/plugins/flowexport/ipfix
+ze_flowexport  internal/plugins/flowexport/netflow9
+ze_flowexport  internal/plugins/flowexport/sflow
+ze_flowexport  internal/plugins/flowexport-cmd
+
+# ze_ddos -- DDoS detection and mitigation (detect + flowspec/flowtriq/local/
+# observe responders; all augment the shared `ddos` config parent).
+ze_ddos    internal/plugins/ddos/detect
+ze_ddos    internal/plugins/ddos/flowspec
+ze_ddos    internal/plugins/ddos/flowspec/cmd
+ze_ddos    internal/plugins/ddos/flowtriq
+ze_ddos    internal/plugins/ddos/local
+ze_ddos    internal/plugins/ddos/local/cmd
+ze_ddos    internal/plugins/ddos/observe
+ze_ddos    internal/plugins/ddos/observe/cmd
+
+# ze_anomaly -- traffic anomaly detection (detect) + shaping responder (shape).
+ze_anomaly internal/plugins/anomaly/detect
+ze_anomaly internal/plugins/anomaly/detect/cmd
+ze_anomaly internal/plugins/anomaly/shape
+ze_anomaly internal/plugins/anomaly/shape/cmd
+
+# ze_as112 -- AS112 reverse-DNS sink server (RFC 7534).
+ze_as112   internal/plugins/as112
+
+# ze_geodns -- geo-aware authoritative DNS server.
+ze_geodns  internal/plugins/geodns
+
+# ze_dhcpserver -- DHCP server.
+ze_dhcpserver  internal/plugins/dhcpserver
+
+# ze_pxe -- netboot/install pair: TFTP server + HTTP image server (the PXE
+# provisioning services from the install spec family; shared tag by design).
+ze_pxe     internal/plugins/tftpserver
+ze_pxe     internal/plugins/imageserver
+
+# ze_trafficusage -- per-host traffic accounting (augments traffic { usage }).
+ze_trafficusage  internal/plugins/trafficusage
+
+# ze_policyroute -- policy-routing engine (`policy` config root).
+ze_policyroute   internal/plugins/policyroute
+
+# ze_cos -- class-of-service profiles (static config + dynamic RADIUS CoS).
+ze_cos     internal/plugins/cos
+
+# ze_copp -- control-plane policing.
+ze_copp    internal/plugins/copp
+
+# ze_mpls -- the MPLS show-forwarding component + `show mpls` command schema.
+# Closes the inconsistency where ldp/rsvpte are gated but the shared MPLS
+# operational surface was not. Kernel MPLS forwarding (fib/kernel) stays on.
+ze_mpls    internal/component/mpls
+ze_mpls    internal/plugins/mpls-cmd
+
+# spec-feature-gate-12 Group B -- gates with extra composition roots beyond the
+# generated all.go.
+
+# ze_tacacs -- TACACS+ (RFC 8907) AAA backend. THREE roots: plugin/all
+# (generated, the yang schema), aaa/all (hand-gated all_ze_tacacs.go sibling),
+# and the ze dispatch root (gated cmd/ze/dispatch_tacacs.go for tacacs/cli).
+# A tacacs-less build rejects `system { authentication { tacacs {} } }` as
+# unknown, so AAA can never silently fall through a configured-but-missing
+# method.
+ze_tacacs  internal/component/tacacs
+ze_tacacs  internal/component/tacacs/cli
+
+# ze_exabgp -- the ExaBGP compatibility bridge plugin and the `ze exabgp` root
+# command. Gates internal/plugins/exabgp (dispatch root, via gated
+# cmd/ze/dispatch_exabgp.go) and the in-process bridge plugin. The migration
+# tooling stays always-on: `ze config migrate` lives in component/config and
+# imports only the internal/exabgp/{topics,migration} library leaves, never
+# this plugin.
+ze_exabgp  internal/plugins/exabgp
+ze_exabgp  internal/plugins/exabgp/bridgeplugin
+
+# ze_bfd -- the BFD engine (RFC 5880/5881/5883): root plugin, engine, session,
+# transport, auth, cmd, schema. The CLIENT CONTRACT stays always-on by design:
+# internal/component/bfd/api is the nil-able seam (SetService/GetService)
+# BGP/OSPF/static consume, and it re-exports State/Diag from bfd/packet
+# (~500-line pure-stdlib codec), so api and packet are deliberately NOT listed
+# here. All consumers nil-check GetService and degrade gracefully (BGP and OSPF
+# log a warn, OSPF also has a doctor check; static logs info), so a bfd-less
+# build runs BGP/OSPF/static unchanged. The analysis-tree schema pin moved to
+# config/yang/cli/tree_bfd.go (//go:build ze_bfd).
+ze_bfd     internal/component/bfd
+ze_bfd     internal/component/bfd/cmd
+
+# ze_vpp -- the VPP dataplane: the shared GoVPP connector component and every
+# per-plugin VPP backend (fib, firewall, iface, traffic, static) plus the IKE
+# IPsec vpp backend (source-tagged files in ike/dataplane and plugins/static;
+# registry fallbacks keep netlink/kernel/xfrm behavior identical). Dropping the
+# tag unlinks vendored govpp (~46k LOC) for netlink-only deployments; a config
+# selecting a vpp backend or the `vpp {}` component root is rejected.
+ze_vpp     internal/component/vpp
+ze_vpp     internal/plugins/fib/vpp
+ze_vpp     internal/plugins/firewall/vpp
+ze_vpp     internal/plugins/iface/vpp
+ze_vpp     internal/plugins/traffic/vpp
+ze_vpp     internal/plugins/static/vpp
+
+# ze_ike -- the IKEv2/IPsec VPN control plane: engine, ipsec config plumbing,
+# command surface, schema (crypto/eap/wire/transport drop transitively with the
+# engine). internal/component/ike/dataplane deliberately stays UNGATED: it is
+# the shared kernel-XFRM programming seam OSPF also uses for RFC 4552
+# authentication (plugins/ospf/ipsec_install.go), independent of the IKE
+# daemon; its GoVPP file is ze_vpp-gated separately. The hub blank imports
+# moved to cmd/ze/hub/register_ike.go; the web SA page is source-tagged with a
+# not-in-this-build stub counterpart.
+ze_ike     internal/component/ike
+ze_ike     internal/component/ike/ipsec
+ze_ike     internal/component/ike/cmd
+ze_ike     internal/component/ike/engine
+
+# ze_l2tp -- the BNG: L2TP LNS, PPPoE server/client, subscriber management,
+# and the BNG-side plugins (local auth, address pool, shaper). The largest
+# remaining subtree. Hub construction moved behind the bngRegister seam
+# (cmd/ze/hub/bng_infra.go + register_l2tp.go); the `ze l2tp` CLI moved to the
+# gated dispatch companion; the web session pages, the diag l2tp captures, and
+# the cos dynamic RADIUS-CoS handler are source-tagged with not-in-this-build
+# or no-op counterparts (dynamic CoS is a BNG feature: no sessions, no
+# dynamic CoS). l2tp/events is listed so no always-on code quietly re-couples
+# to the session event contract.
+ze_l2tp    internal/component/l2tp
+ze_l2tp    internal/component/l2tp/cli
+ze_l2tp    internal/component/l2tp/cmd
+ze_l2tp    internal/component/l2tp/events
+ze_l2tp    internal/component/l2tp/pppoe
+ze_l2tp    internal/component/l2tp/pppoe/cmd
+ze_l2tp    internal/component/l2tp/pppoeclient
+ze_l2tp    internal/component/l2tp/subscriber
+ze_l2tp    internal/component/l2tp/subscriber/cmd
+ze_l2tp    internal/component/l2tp/plugins/authlocal
+ze_l2tp    internal/component/l2tp/plugins/pool
+ze_l2tp    internal/component/l2tp/plugins/shaper
+
+# ze_radius -- the RADIUS (RFC 2865) client library and AAA backend. Usable
+# without l2tp (system authentication via aaa/all's gated all_ze_radius.go
+# sibling). The l2tp RADIUS auth plugin is the DEPENDENT piece: authradius
+# lives under the ze_l2tp path, so the generator emits its group file with the
+# compound constraint `ze_l2tp && ze_radius` (parentTagOf path nesting, the
+# ze_bmp shape) -- an l2tp-with-local-auth build can drop RADIUS entirely.
+ze_radius  internal/component/radius
+ze_radius  internal/component/l2tp/plugins/authradius
 
 # ze_mrt -- MRT routing-information export (RFC 6396). A standalone top-level
 # plugin; nothing always-on imports it since its reactor bridges are

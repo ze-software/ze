@@ -6,6 +6,7 @@
 //   - .golangci.yml           `build-tags`   = ze_core + every gate tag (manifest order)
 //   - gokrazy/ze/config.json  `GoBuildTags`  = ze_core, ze_appliance + every gate tag (sorted)
 //   - docs/guide/quickstart.md `go install`  = ze_core, ze_distro + every gate tag (sorted)
+//   - .github/workflows/codeql.yml `go build` combos = the distro and appliance shipped tag sets
 //
 // feature-gates.txt is the single source of truth (ai/rules/feature-gate-registration.md).
 // The Makefile ZE_FEATURES, the test runner, the plugin_imports generator, and
@@ -67,6 +68,11 @@ func main() {
 		{filepath.Join(root, ".golangci.yml"), func(b []byte) ([]byte, error) { return rewriteGolangci(b, golangciTags) }},
 		{filepath.Join(root, "gokrazy", "ze", "config.json"), func(b []byte) ([]byte, error) { return rewriteGokrazy(b, gokrazyTags) }},
 		{filepath.Join(root, "docs", "guide", "quickstart.md"), func(b []byte) ([]byte, error) { return rewriteQuickstart(b, quickstartTags) }},
+		// codeql.yml builds the two shipped tag combos (distro + appliance);
+		// quickstartTags/gokrazyTags carry exactly those personality prefixes.
+		{filepath.Join(root, ".github", "workflows", "codeql.yml"), func(b []byte) ([]byte, error) {
+			return rewriteCodeQL(b, quickstartTags, gokrazyTags)
+		}},
 	}
 
 	stale := 0
@@ -90,11 +96,11 @@ func main() {
 		if stale > 0 {
 			os.Exit(1)
 		}
-		fmt.Fprintln(os.Stdout, "feature-tag lists are current (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md)")
+		fmt.Fprintln(os.Stdout, "feature-tag lists are current (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md, .github/workflows/codeql.yml)")
 		return
 	}
 	if stale == 0 {
-		fmt.Fprintln(os.Stdout, "feature-tag lists already current (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md)")
+		fmt.Fprintln(os.Stdout, "feature-tag lists already current (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md, .github/workflows/codeql.yml)")
 	}
 }
 
@@ -249,6 +255,48 @@ func rewriteGokrazy(content []byte, tags []string) ([]byte, error) {
 	b.WriteString(strings.Join(quoted, ", "))
 	b.WriteString("],")
 	lines[idx] = b.String()
+	return []byte(strings.Join(lines, "\n")), nil
+}
+
+// rewriteCodeQL replaces the tag lists inside codeql.yml's two shipped-combo
+// `go build -tags '...'` lines: the FIRST gets the distro combo, the SECOND
+// the appliance combo. The third build line (`ze_setup`) contains no gate tags
+// and is left untouched -- only lines whose quoted list starts with "ze_core "
+// are rewritten. Errors if the file does not contain exactly two such lines,
+// so a workflow restructure fails loudly instead of silently dropping CodeQL
+// coverage of the gated surface.
+func rewriteCodeQL(content []byte, distroTags, applianceTags []string) ([]byte, error) {
+	const marker = "go build -tags '"
+	lines := strings.Split(string(content), "\n")
+	combos := [][]string{distroTags, applianceTags}
+	found := 0
+	for i, line := range lines {
+		at := strings.Index(line, marker)
+		if at < 0 {
+			continue
+		}
+		quoteStart := at + len(marker)
+		rest := line[quoteStart:]
+		closeRel := strings.IndexByte(rest, '\'')
+		if closeRel < 0 {
+			return nil, fmt.Errorf("codeql.yml: unterminated -tags quote")
+		}
+		if !strings.HasPrefix(rest[:closeRel], "ze_core") {
+			continue // the ze_setup combo carries no gate tags
+		}
+		if found >= len(combos) {
+			return nil, fmt.Errorf("codeql.yml: more than two ze_core `go build -tags` lines; update rewriteCodeQL")
+		}
+		var b strings.Builder
+		b.WriteString(line[:quoteStart])
+		b.WriteString(strings.Join(combos[found], " "))
+		b.WriteString(line[quoteStart+closeRel:])
+		lines[i] = b.String()
+		found++
+	}
+	if found != len(combos) {
+		return nil, fmt.Errorf("codeql.yml: found %d ze_core `go build -tags` lines, want %d", found, len(combos))
+	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
 

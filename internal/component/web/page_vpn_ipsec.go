@@ -1,6 +1,9 @@
 // Design: plan/learned/745-ipsec-10-cli-diag.md -- VPN IPsec web page
 // Related: page_l2tp.go -- Table page pattern
 // Related: page_interfaces.go -- HTMX auto-refresh partial pattern
+// Related: page_vpn_ipsec_off.go -- ze_ike-off stub counterpart
+
+//go:build ze_ike
 
 package web
 

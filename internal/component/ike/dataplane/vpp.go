@@ -1,6 +1,8 @@
 // Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- VPP dataplane backend
 // RFC: rfc/short/rfc4303.md -- ESP SA parameters mapped to VPP ipsec_sa_v5_add_del
 
+//go:build ze_vpp
+
 package dataplane
 
 import (

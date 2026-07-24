@@ -5,7 +5,6 @@ package cmd
 import (
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -40,20 +39,10 @@ func HandleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin
 
 	result := map[string]any{}
 
-	if protocol == "" || protocol == capL2TP {
-		svc := l2tp.LookupService()
-		if svc != nil {
-			entries := svc.CaptureSnapshot(limit, tunnelIDFilter, peerFilter)
-			if entries != nil {
-				result["l2tp"] = entries
-				result["l2tp-count"] = len(entries)
-			} else {
-				result["l2tp"] = "capture not enabled"
-			}
-		} else if protocol == capL2TP {
-			result["l2tp"] = msgSubsystemNotRunning
-		}
-	}
+	// The l2tp branch lives in capture_l2tp.go (//go:build ze_l2tp) with a
+	// not-in-this-build stub counterpart, so this always-on dispatcher never
+	// imports the gated l2tp package.
+	captureL2TPInto(result, protocol, limit, tunnelIDFilter, peerFilter)
 
 	if protocol == "" || protocol == capBGP {
 		if ctx != nil && ctx.Reactor() != nil {

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1233 summaries
+Total: 1235 summaries
 
 ## 000-099
 
@@ -1307,3 +1307,5 @@ Total: 1233 summaries
 | 1259 | bgp-plugin-speaker | `plan/learned/1259-bgp-plugin-speaker.md` |
 | 1260 | website-wiki-content-migration | `plan/learned/1260-website-wiki-content-migration.md` |
 | 1261 | migrate-plugin-sleeps | `plan/learned/1261-migrate-plugin-sleeps.md` |
+| 1262 | gokrazy-builddir-tmp | `plan/learned/1262-gokrazy-builddir-tmp.md` |
+| 1263 | feature-gate-12: gate the remaining compile-out candidates | `plan/learned/1263-feature-gate-12-remaining.md` |

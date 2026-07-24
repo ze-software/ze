@@ -1,3 +1,5 @@
+//go:build ze_vpp
+
 package dataplane
 
 import (

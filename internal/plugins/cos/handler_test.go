@@ -1,6 +1,8 @@
 // Design: plan/spec-cos-dynamic.md -- CoS handler tests
 // VALIDATES: AC-2 through AC-9, AC-13 -- dynamic CoS event handling
 
+//go:build ze_l2tp
+
 package cos
 
 import (

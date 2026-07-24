@@ -1,5 +1,7 @@
 // Design: plan/spec-cos-dynamic.md -- test helpers for CoS handler tests
 
+//go:build ze_l2tp
+
 package cos
 
 import "codeberg.org/thomas-mangin/ze/internal/component/l2tp"

@@ -5,6 +5,8 @@
 // PREVENTS: an SA being programmed into VPP with the wrong address family, a
 // truncated prefix length, or an unknown cipher silently mapping to no algorithm.
 
+//go:build ze_vpp
+
 package dataplane
 
 import (

@@ -164,6 +164,22 @@ func parseSetWithMigration(schema *Schema, input string, hasMeta bool) (*Tree, e
 		}
 	}
 
+	// Fail closed on any field the lenient pass dropped. The pre-migration
+	// parse records each unknown field as a warning and PRUNES it from the tree
+	// (setparser.go walkAndSet/walkAndDelete/walkAndMarkInactive and the meta
+	// walk), so a tree-level migration -- which only rewrites data present in
+	// the tree -- can never heal the pruned field: a surviving warning is
+	// silent config loss, not a heal-able rename. (A field the schema knows
+	// makes the strict parse above succeed and return early, so reaching this
+	// point means the field is genuinely unknown to this build.) Without this
+	// check, a build with a feature compiled out (feature-gates.txt) would boot
+	// a committed set-meta config minus its gated blocks: tacacs/radius
+	// authentication silently degrading to local auth was the concrete
+	// fail-open this closes (feature-gate-12 review).
+	if ws := sp2.Warnings(); len(ws) > 0 {
+		return nil, fmt.Errorf("config contains fields unknown to this build (a feature compiled out of this binary, or a legacy field this schema no longer defines); refusing to load a config that would silently drop them: %s", textbuf.Join(ws, "; "))
+	}
+
 	return tree, nil
 }
 

@@ -37,9 +37,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysctl/cli"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/cli"
 
 	// Routing-protocol CLI registration is gated per protocol in this same
 	// dispatch composition root; see dispatch_isis.go / dispatch_ospf.go
@@ -60,7 +58,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/debug"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/diag"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/explain"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/host"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/init"
