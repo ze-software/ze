@@ -47,8 +47,8 @@
 #   ratchet is at its baseline).
 
 option=needs-linux
-option=env:var=ze.log.ddos-detect:value=info
-option=env:var=ze.log.ddos-observe:value=info
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.observe:value=info
 option=timeout:value=90s
 
 # ze-peer: accepts the BGP connection so peer1 comes up and launches the observer

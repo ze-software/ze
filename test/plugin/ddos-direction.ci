@@ -19,8 +19,8 @@
 #   observer plugin (ze_api handshake), same harness as ddos-bps-amplification.
 
 option=needs-linux
-option=env:var=ze.log.ddos-detect:value=info
-option=env:var=ze.log.ddos-local:value=info
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=90s
 
 stdin=peer:terminator=EOF_PEER

@@ -29,8 +29,8 @@
 #   to a dedicated veth created before the daemon starts.
 
 option=needs-linux
-option=env:var=ze.log.ddos-detect:value=info
-option=env:var=ze.log.ddos-local:value=info
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=40s
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY

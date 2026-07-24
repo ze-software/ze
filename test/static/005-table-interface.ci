@@ -108,7 +108,7 @@ static {
 EOF_CONF
 
 option=env:var=ze.log.static:value=info
-option=env:var=ze.log.routing-table:value=info
+option=env:var=ze.log.routing.table:value=info
 
 cmd=foreground:seq=1:exec=python3 setup.py
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp

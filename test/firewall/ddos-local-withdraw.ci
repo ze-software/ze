@@ -102,8 +102,8 @@ ddos {
 }
 EOF_CONF
 
-option=env:var=ze.log.ddos-local:value=info
-option=env:var=ze.log.ddos-fake:value=info
+option=env:var=ze.log.ddos.local:value=info
+option=env:var=ze.log.ddos.fake:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s

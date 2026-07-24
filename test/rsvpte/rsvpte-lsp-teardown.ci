@@ -130,7 +130,7 @@ bgp {
 }
 EOF_CONF
 
-option=env:var=ze.log.rsvp-te:value=info
+option=env:var=ze.log.rsvp.te:value=info
 
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
 expect=exit:code=0

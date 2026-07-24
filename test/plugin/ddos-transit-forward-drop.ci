@@ -38,8 +38,8 @@
 #   AC-10 mandate) stands alone in Phase A.
 
 option=needs-linux
-option=env:var=ze.log.ddos-detect:value=info
-option=env:var=ze.log.ddos-local:value=info
+option=env:var=ze.log.ddos.detect:value=info
+option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=120s
 
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
