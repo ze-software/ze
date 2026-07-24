@@ -308,7 +308,12 @@ ze-qemu-debug:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+# DUT daemon: MUST carry the same tags as internal/test/runner TestBuildTags
+# (runner.go:50) and the sibling QEMU DUT builds (ze-qemu-all-test,
+# ze-qemu-needs-linux-test, ze-netns-qemu-test). With zetest but no ze_setup
+# $(ZE_FEATURES), fakeddos's YANG imports ze-ddos-detect-conf (ze_ddos) and every
+# config load dies "no such module: ze-ddos-detect-conf". Do NOT strip.
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endif
 	python3 scripts/evidence/qemu-run.py \
@@ -329,7 +334,12 @@ ze-qemu-shell:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+# DUT daemon: MUST carry the same tags as internal/test/runner TestBuildTags
+# (runner.go:50) and the sibling QEMU DUT builds (ze-qemu-all-test,
+# ze-qemu-needs-linux-test, ze-netns-qemu-test). With zetest but no ze_setup
+# $(ZE_FEATURES), fakeddos's YANG imports ze-ddos-detect-conf (ze_ddos) and every
+# config load dies "no such module: ze-ddos-detect-conf". Do NOT strip.
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endif
 	python3 scripts/evidence/qemu-run.py \

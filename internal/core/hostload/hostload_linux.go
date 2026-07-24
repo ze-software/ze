@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/runner-architecture.md -- host load detection for contended-run classification
 
-package runner
+package hostload
 
 import (
 	"os"

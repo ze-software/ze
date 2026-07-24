@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1240 summaries
+Total: 1241 summaries
 
 ## 000-099
 
@@ -1314,3 +1314,4 @@ Total: 1240 summaries
 | 1266 | fixit-peer-verdict-and-forward-rail | `plan/learned/1266-fixit-peer-verdict-and-forward-rail.md` |
 | 1267 | netns-uid-drop-and-ddos-victim | `plan/learned/1267-netns-uid-drop-and-ddos-victim.md` |
 | 1268 | ordered-leaf-list-as-path-labels | `plan/learned/1268-ordered-leaf-list-as-path-labels.md` |
+| 1269 | hostload contention single source | `plan/learned/1269-hostload-contention-single-source.md` |

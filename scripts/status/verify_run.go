@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/hostload"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -1000,38 +1001,20 @@ func openControlledFile(path string) (*os.File, error) {
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 }
 
+// contendedWarning warns when the verify run is CPU-contended. It uses the same
+// hostload.Contended definition as the functional-test runner (single source of
+// truth), so the two surfaces cannot disagree: process concurrency ALONE is not
+// enough -- load must also exceed CPU count before the run is called contended.
 func contendedWarning() string {
-	zeCount := grepProcCount("ze-test")
-	goCount := grepProcCount("\\.test")
-	if zeCount <= 1 && goCount == 0 {
+	load := hostload.Snapshot()
+	if !load.Contended() {
 		return ""
 	}
 	var tb textbuf.Buffer
 	tb.Str("contended run detected: ")
-	tb.Int(int64(zeCount))
+	tb.Int(int64(load.ZeProcs))
 	tb.Str(" ze-test, ")
-	tb.Int(int64(goCount))
+	tb.Int(int64(load.GoTestProcs))
 	tb.Str(" go-test processes; results may include environmental failures")
 	return tb.String()
-}
-
-func grepProcCount(pattern string) int {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	var tb textbuf.Buffer
-	shellCmd := tb.Str("ps -eo comm | grep -c '").Str(pattern).Byte('\'').String()
-	cmd := exec.CommandContext(ctx, "sh", "-c", shellCmd) //nolint:gosec // pattern is a compile-time constant
-	out, err := cmd.Output()
-	if err != nil {
-		return 0
-	}
-	s := strings.TrimSpace(string(out))
-	n := 0
-	for _, b := range s {
-		if b < '0' || b > '9' {
-			break
-		}
-		n = n*10 + int(b-'0')
-	}
-	return n
 }

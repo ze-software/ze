@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3093 files
+Total: 298 design docs, 3095 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1560,9 +1560,13 @@ Total: 298 design docs, 3093 files
 
 ## `docs/architecture/testing/runner-architecture.md`
 
-- `internal/test/runner/hostload.go` -- host load detection for contended-run classification
-- `internal/test/runner/hostload_darwin.go` -- host load detection for contended-run classification
-- `internal/test/runner/hostload_linux.go` -- host load detection for contended-run classification
+| File | Topic |
+|------|-------|
+| `internal/core/hostload/hostload.go` | host load detection for contended-run classification |
+| `internal/core/hostload/hostload_darwin.go` | host load detection for contended-run classification |
+| `internal/core/hostload/hostload_linux.go` | host load detection for contended-run classification |
+| `internal/core/hostload/hostload_other.go` | host load detection for contended-run classification |
+| `internal/test/runner/hostload.go` | host load detection for contended-run classification |
 
 ## `docs/architecture/update-building.md`
 

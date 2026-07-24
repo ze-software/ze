@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 616 packages, 613 described, 3 TODO
+Total: 617 packages, 614 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -438,6 +438,7 @@ Total: 616 packages, 613 described, 3 TODO
 | `internal/core/gokrazyutil` | provides helpers for authenticating to gokrazy's HTTP management interface |  |
 | `internal/core/health` | registers named component health checks and aggregates them into a JSON status report |  |
 | `internal/core/helpfmt` | provides structured, color-aware help output for ze CLI commands |  |
+| `internal/core/hostload` | samples system load to classify whether a test run was CPU-contended |  |
 | `internal/core/identity` | resolves a stable machine identity and persists it to the blob store |  |
 | `internal/core/iface/events` | defines event constants for the interface component |  |
 | `internal/core/ipc` | routes and serializes plugin RPC method calls for the IPC wire protocol |  |
