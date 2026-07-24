@@ -7,7 +7,7 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 
-repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 cd "$repo"
 
 # The platform strings live only in run.py. Scope to the kernel-build source

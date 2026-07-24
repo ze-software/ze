@@ -10,7 +10,7 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 
-repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 cd "$repo"
 
 SYMS="CONFIG_SERIAL_8250_FINTEK CONFIG_DRM_SIMPLEDRM CONFIG_X86_SYSFB CONFIG_FB CONFIG_FB_EFI CONFIG_FRAMEBUFFER_CONSOLE"

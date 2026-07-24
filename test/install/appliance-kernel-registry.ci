@@ -6,7 +6,7 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 work=$PWD
-repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 cd "$repo"
 
 cleanup() {
@@ -14,7 +14,7 @@ cleanup() {
 	rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
 }
 trap cleanup EXIT
-mkdir -p "$work/fakebin" "$work/cache" tools/installer-kernel/build
+mkdir -p "$work/fakebin" "$work/cache" "$work/out"
 rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
 
 cat > tools/installer-kernel/fixture.config <<'EOF_CONFIG'
@@ -74,7 +74,7 @@ esac
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
 
-PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_DOCKER_LOG="$work/docker.log" \
+PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_KERNEL_TEST_OUTPUT_DIR="$work/out" ZE_DOCKER_LOG="$work/docker.log" \
 	ze appliance kernel --arch amd64 --profile fixture --builder docker >"$work/ok.out" 2>"$work/ok.err"
 grep -q 'kernel ready:' "$work/ok.out"
 case "$(cat "$work/docker.log")" in
@@ -82,19 +82,19 @@ case "$(cat "$work/docker.log")" in
 	*) cat "$work/docker.log" >&2; exit 1 ;;
 esac
 
-if PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_DOCKER_LOG="$work/docker.log" \
+if PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_KERNEL_TEST_OUTPUT_DIR="$work/out" ZE_DOCKER_LOG="$work/docker.log" \
 	ze appliance kernel --arch amd64 --profile missing --builder docker >"$work/missing.out" 2>&1; then
 	echo 'expected missing manifest failure' >&2; exit 1
 fi
 grep -q 'no require manifest' "$work/missing.out"
 
-if PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_DOCKER_LOG="$work/docker.log" ZE_FAKE_MODE=missing-qemu \
+if PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_KERNEL_TEST_OUTPUT_DIR="$work/out" ZE_DOCKER_LOG="$work/docker.log" ZE_FAKE_MODE=missing-qemu \
 	ze appliance kernel --arch amd64 --profile qemu --builder docker >"$work/qemu.out" 2>&1; then
 	echo 'expected qemu requirement failure' >&2; exit 1
 fi
 grep -q 'CONFIG_VIRTIO_BLK' "$work/qemu.out"
 
-if PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_DOCKER_LOG="$work/docker.log" ZE_FAKE_MODE=missing-floor \
+if PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" ZE_KERNEL_TEST_OUTPUT_DIR="$work/out" ZE_DOCKER_LOG="$work/docker.log" ZE_FAKE_MODE=missing-floor \
 	ze appliance kernel --arch amd64 --profile qemu --builder docker >"$work/floor.out" 2>&1; then
 	echo 'expected universal requirement failure' >&2; exit 1
 fi

@@ -9,7 +9,7 @@ tmpfs=run.sh:terminator=EOF_SH
 set -eu
 
 work=$PWD
-repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 cd "$repo"
 
 out="tmp/kernel/provenance-test"

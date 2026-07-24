@@ -16,7 +16,7 @@ set -eu
 
 work=$PWD
 ze_bin=$(command -v ze)
-repo=$(CDPATH= cd -- "$(dirname -- "$ze_bin")/.." && pwd)
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$ze_bin")/.." && pwd)}
 cd "$repo"
 
 # // test-relax: ZE_KERNEL_TEST_OUTPUT_DIR redirects the build to $work/out, so

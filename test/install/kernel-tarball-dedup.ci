@@ -8,7 +8,7 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 
-repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 cd "$repo"
 
 # The kernel CDN URL appears in exactly one SOURCE file (exclude compiled

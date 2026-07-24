@@ -232,7 +232,14 @@ ze-host:
 # tmp/kernel/build stays a materialized VIEW, so `rm -rf tmp` costs only a copy.
 ze-kernel: ze-host
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
-	@cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(KERNEL_ARCH) --print-cache-dir)"; \
+	@: "Dry-run guard: this recipe line embeds $$(MAKE), so GNU make executes it"; \
+	: "even under -n. Without this, a dry run (or a make -n inspection test) would"; \
+	: "run the real cache materialize/build/populate and, on a cold cache, fail the"; \
+	: "magic check on a not-yet-built vmlinuz. The staging lines below (268+) still"; \
+	: "print, so callers still see the out-of-tree assembly. The real (non -n) path"; \
+	: "is byte-identical -- the guard is unreachable unless -n is set."; \
+	case "$(firstword -$(MAKEFLAGS))" in *n*) echo "--- (dry-run) runtime kernel: materialize from durable cache on HIT, or build via run.py into $(KERNEL_BUILD_DIR) on MISS ---"; exit 0 ;; esac; \
+	cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(KERNEL_ARCH) --print-cache-dir)"; \
 	if [ -z "$$cache_dir" ]; then echo "error: could not resolve runtime kernel cache dir from ze-host"; exit 1; fi; \
 	if [ -f "$$cache_dir/vmlinuz" ] && [ -d "$$cache_dir/lib/modules" ]; then \
 		echo "--- Runtime kernel cache HIT: materializing from $$cache_dir (no ~30-min rebuild) ---"; \
