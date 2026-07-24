@@ -120,13 +120,15 @@ type Config struct {
 
 	// AllowSharedRouterID opts OUT of the default AS-wide BGP-Identifier
 	// uniqueness enforcement. Default false (the zero value) keeps the strict
-	// behavior: an OPEN whose BGP Identifier duplicates another established peer
+	// behavior: an OPEN whose BGP Identifier is already claimed by another peer
 	// in the same AS is rejected. Set true (config `bgp/session/allow-shared-router-id`)
 	// to accept it -- e.g. one anycast speaker (AS112) peering over both IPv4 and
 	// IPv6 with the same router-id. RFC 6286 Section 2.1 makes AS-wide uniqueness a
-	// SHOULD, so both are conformant; when true ze performs no router-id uniqueness
-	// check at all (it does not implement Section 2.3 collision detection). See
-	// routerid_unique.go / validateOpen.
+	// SHOULD, so both are conformant; when true ze performs no AS-wide router-id
+	// check at all. It does NOT relax RFC 6286 Section 2.2 (a zero identifier, or
+	// this speaker's own identifier from an internal peer), which is enforced
+	// unconditionally by Session.validateOpenIdentifier. See routerid_unique.go /
+	// validateOpen.
 	AllowSharedRouterID bool
 
 	// Plugins defines external plugin processes for API communication.
@@ -256,6 +258,7 @@ type Reactor struct {
 
 	peers           map[netip.AddrPort]*Peer // keyed by netip.AddrPort (zero-alloc lookup)
 	peerGeneration  atomic.Uint64            // incremented on peer add/remove; used by ForwardUpdatesDirect batch cache
+	routerIDs       routerIDClaims           // RFC 6286 Section 2.1 AS-wide BGP Identifier claims (own leaf mutex)
 	listener        *Listener                // deprecated: single listener for backward compat
 	listeners       map[string]*Listener     // keyed by "addr:port" (local endpoint)
 	signals         *SignalHandler

@@ -32,9 +32,14 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_SOURCE
 
 # --- obsn: non-LLGR RR-client, observes the reflected route then depreference ---
+# Both peers are RR clients in AS 65000, and ze-peer's default OPEN mirrors ze's router-id
+# with the last octet incremented, so without an explicit identifier BOTH would present
+# 1.2.3.5 -- two RR clients sharing a BGP Identifier, which ze rejects by default
+# (RFC 6286 Section 2.1) and which would also defeat RFC 4456 ORIGINATOR_ID loop detection.
 stdin=obsn:terminator=EOF_OBSN
 option=tcp_connections:value=1
 option=timeout:value=20s
+option=open:value=router-id:id=1.2.3.6
 # 1. Reflected route lands (NLRI 10.0.0.0/24). EORs and keepalives auto-skip.
 expect=bgp:conn=1:seq=1:contains=180A0000
 # 2. The LLGR readvertise depreferences it toward this non-LLGR peer: the
@@ -68,6 +73,9 @@ def main():
     # Wait until the source route is selected best (it is then reflected to the
     # obsn RR-client). More robust than a fixed sleep.
     for _ in range(60):
+        # poll interval; the loop breaks when `show bgp rib best` reports 10.0.0.0/24,
+        # and its else-branch runtime_fails after 15s, so this is the granularity of a
+        # deterministic wait, not a fixed delay.
         time.sleep(0.25)
         r = dispatch(api, 'show bgp rib best')
         if r.get('status') == 'done' and '10.0.0.0/24' in result_text_data(r):

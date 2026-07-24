@@ -27,8 +27,12 @@ module ze-bgp-conf {
 
         leaf router-id {
             type zt:ipv4-address;
+            ze:validate "nonzero-ipv4";
             mandatory true;
-            description "BGP Router ID (required)";
+            description "BGP Router ID (required). RFC 6286 Section 2.1 defines the BGP
+                         Identifier as a 4-octet, unsigned, NON-ZERO integer, so 0.0.0.0
+                         is rejected: a peer implementing RFC 6286 Section 2.2 answers an
+                         OPEN carrying it with Bad BGP Identifier.";
         }
 
         container multipath {
@@ -527,7 +531,9 @@ module ze-bgp-conf {
 
             leaf router-id {
                 type zt:ipv4-address;
-                description "Override router ID for this peer";
+                ze:validate "nonzero-ipv4";
+                description "Override router ID for this peer. RFC 6286 Section 2.1: the
+                             BGP Identifier is a 4-octet, unsigned, NON-ZERO integer.";
             }
 
             leaf route-reflector-client {

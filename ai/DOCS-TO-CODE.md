@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3095 files
+Total: 298 design docs, 3098 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -399,6 +399,7 @@ Total: 298 design docs, 3095 files
 |------|-------|
 | `examples/plugin/go/main.go` | example plugin |
 | `internal/component/bgp/cli/cmd_plugin.go` | plugin debug shell |
+| `internal/component/bgp/reactor/reactor_api_relay.go` | stored-route relay (egress-rail) |
 | `internal/component/cli/completer_plugin.go` | plugin SDK methods |
 | `internal/component/plugin/cli/main.go` | plugin CLI dispatch |
 | `internal/component/plugin/cli/test_cmd.go` | plugin CLI dispatch |
@@ -970,6 +971,7 @@ Total: 298 design docs, 3095 files
 | `internal/component/bgp/reactor/session_flow.go` | BGP session backpressure flow control |
 | `internal/component/bgp/reactor/session_handlers.go` | BGP message type handlers |
 | `internal/component/bgp/reactor/session_negotiate.go` | BGP capability negotiation |
+| `internal/component/bgp/reactor/session_open_validation.go` | BGP OPEN message validation |
 | `internal/component/bgp/reactor/session_prefix.go` | prefix limit enforcement (RFC 4486) |
 | `internal/component/bgp/reactor/session_read.go` | BGP message read loop |
 | `internal/component/bgp/reactor/session_validation.go` | RFC 7606 UPDATE validation |
@@ -1744,6 +1746,7 @@ Total: 298 design docs, 3095 files
 | `internal/component/bgp/message/routerefresh.go` | BGP message types |
 | `internal/component/bgp/message/update.go` | BGP message types |
 | `internal/component/bgp/message/update_split.go` | BGP message types |
+| `internal/component/bgp/reactor/relay_payload.go` | reconstructing a received-shape UPDATE |
 | `internal/component/bgp/wireu/errors.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/extract.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/mpwire.go` | wire UPDATE lazy parsing |

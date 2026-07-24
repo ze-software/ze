@@ -26,9 +26,14 @@ EOF_PEER1
 # ze-peer 2 (127.0.0.2) expectations
 # Same UPDATE but NEXT_HOP 127.0.0.2 -- the per-peer substitution this test exists
 # to prove. Byte-identical to peer1's apart from the NEXT_HOP attribute value.
+# Both peers are in AS 65533 and ze-peer's default OPEN mirrors ze's router-id with the
+# last octet incremented, so without an explicit identifier BOTH would present 1.2.3.5 --
+# two distinct routers of one AS sharing a BGP Identifier, which ze rejects by default
+# (RFC 6286 Section 2.1). This test models two separate neighbours, so give it its own.
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=open:value=router-id:id=1.2.3.6
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000240050400000064200A000001
 EOF_PEER2
 

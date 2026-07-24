@@ -228,6 +228,10 @@ func (p *Peer) runOnce() error {
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.negotiatedHoldTime.Store(0)
 		p.negotiatedKeepaliveTime.Store(0)
+		// RFC 6286 Section 2.1: give up the AS-wide BGP Identifier this session claimed in
+		// validateOpen, so another peer may use it once this session is over. Called outside
+		// p.mu (the claim registry is a leaf lock, and clearEncodingContexts below takes p.mu).
+		p.releaseRouterIDClaim()
 		p.clearEncodingContexts()
 		// Clear prefix-threshold warnings raised by this session from the report
 		// bus so they do not linger after the session ends. Must be called before
@@ -516,6 +520,9 @@ func (p *Peer) runOnce() error {
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
 	p.negotiated.Store(nil) // Clear negotiated capabilities
+	// RFC 6286 Section 2.1: a stopped peer holds no BGP Identifier. Safe under any caller's
+	// locks -- the claim registry never takes r.mu or p.mu.
+	p.releaseRouterIDClaim()
 	p.clearEncodingContexts()
 	p.ClearStats()
 	p.mu.Lock()

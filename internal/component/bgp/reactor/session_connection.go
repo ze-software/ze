@@ -163,10 +163,23 @@ func (s *Session) processOpen(open *message.Open) error {
 		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
 
+	// RFC 6286 Section 2.2: the collision-winner rail validates the identifier exactly as the
+	// handleOpen rail does -- an invalid identifier is invalid whichever connection survived.
+	if err := s.validateOpenIdentifier(open); err != nil {
+		return err
+	}
+
 	s.mu.Lock()
 	s.peerOpen = open
 	localOpen := s.localOpen
 	s.mu.Unlock()
+
+	// Run the peer OPEN validator (plugins such as RFC 9234 Role, plus the RFC 6286 Section 2.1
+	// AS-wide identifier claim). This rail used to skip it entirely, so a peer could bypass any
+	// per-peer OPEN policy by winning connection collision resolution.
+	if err := s.runOpenValidator(open); err != nil {
+		return err
+	}
 
 	// Parse capabilities once from both OPENs.
 	var localCaps []capability.Capability

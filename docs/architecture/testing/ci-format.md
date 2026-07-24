@@ -260,7 +260,18 @@ option=<type>:key=value[:key=value...]
 | `send-unknown-message` | Send unknown message type (255) after OPEN |
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |
+| `router-id` | Send an explicit BGP Identifier instead of the mirrored one |
 <!-- source: internal/test/peer/checker.go -- OPEN behavior handling -->
+
+### BGP Identifier Control (router-id)
+
+```
+option=open:value=router-id:id=<a.b.c.d>
+```
+
+Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value is ignored and the default mirror stands.
+
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/peer.go -- generateOpen -->
 
 ### Capability Control (drop-capability / add-capability)
 

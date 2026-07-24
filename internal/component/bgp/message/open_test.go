@@ -448,3 +448,63 @@ func TestOpenPackExtendedParams(t *testing.T) {
 	assert.Equal(t, o.BGPIdentifier, parsed.BGPIdentifier)
 	assert.Equal(t, largeParams, parsed.OptionalParams, "extended params round-trip")
 }
+
+// TestOpenValidateBGPIdentifier verifies RFC 6286 Section 2.2 OPEN error handling.
+//
+// RFC requirement: RFC6286-2.2-1 positive -- a zero BGP Identifier is rejected with
+// OPEN Message Error / Bad BGP Identifier, from an internal or an external peer.
+// RFC requirement: RFC6286-2.2-1 negative -- a non-zero identifier (including the
+// boundary values 1 and 0xFFFFFFFF) is NOT rejected by the zero rule.
+// RFC requirement: RFC6286-2.2-2 positive -- an identifier equal to the local BGP
+// Identifier from an INTERNAL peer is rejected with Bad BGP Identifier.
+// RFC requirement: RFC6286-2.2-2 negative -- the same identifier from an EXTERNAL
+// peer is accepted (Section 2.3 resolves that case at collision time), and an
+// identifier one below or one above the local one is accepted from an internal peer.
+//
+// VALIDATES: identifier 0 rejected regardless of peer type.
+// VALIDATES: identifier == local rejected only when the peer is internal.
+// VALIDATES: subcode is 2/3 (OPEN Message Error / Bad BGP Identifier).
+// PREVENTS: accepting an RFC-invalid BGP Identifier, which breaks ORIGINATOR_ID
+// loop detection and BGP Identifier tie-breaking downstream.
+func TestOpenValidateBGPIdentifier(t *testing.T) {
+	const localID uint32 = 0x01020304 // 1.2.3.4
+
+	tests := []struct {
+		name     string
+		bgpID    uint32
+		internal bool
+		wantErr  bool
+	}{
+		{"zero from internal peer", 0, true, true},
+		{"zero from external peer", 0, false, true},
+		{"local identifier from internal peer", localID, true, true},
+		{"local identifier from external peer", localID, false, false},
+		{"one below local, internal", localID - 1, true, false},
+		{"one above local, internal", localID + 1, true, false},
+		{"lowest valid identifier", 1, true, false},
+		{"highest valid identifier", 0xFFFFFFFF, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &Open{
+				Version:       4,
+				MyAS:          65001,
+				HoldTime:      90,
+				BGPIdentifier: tt.bgpID,
+			}
+
+			err := o.ValidateBGPIdentifier(localID, tt.internal)
+			if tt.wantErr {
+				require.Error(t, err)
+				var notif *Notification
+				require.True(t, errors.As(err, &notif), "expected *Notification error")
+				assert.Equal(t, NotifyOpenMessage, notif.ErrorCode)
+				assert.Equal(t, NotifyOpenBadBGPID, notif.ErrorSubcode)
+				assert.Empty(t, notif.Data, "RFC 4271 Section 6.2 defines no data for this subcode")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

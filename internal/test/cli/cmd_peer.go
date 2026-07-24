@@ -175,6 +175,9 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 		if len(fileConfig.CapabilityOverrides) > 0 {
 			config.CapabilityOverrides = fileConfig.CapabilityOverrides
 		}
+		if fileConfig.RouterID != nil {
+			config.RouterID = fileConfig.RouterID
+		}
 		if fileConfig.BindAddr != "" && config.BindAddr == "" {
 			config.BindAddr = fileConfig.BindAddr
 		}

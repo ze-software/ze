@@ -183,3 +183,4 @@ rfc4577	OSPF as the PE/CE Protocol for BGP/MPLS IP VPNs
 rfc5036	LDP Specification
 rfc8666	OSPFv3 Extensions for Segment Routing
 rfc8665	OSPF Extensions for Segment Routing
+rfc6286	Autonomous-System-Wide Unique BGP Identifier for BGP-4: three short protocol revisions to RFC 4271 that ze now implements end to end -- the Section 2.2 reception check on both OPEN rails, the Section 2.1 AS-wide identifier claim (and its operator opt-out), and the Section 2.3 collision tie-break.

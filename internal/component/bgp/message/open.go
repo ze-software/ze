@@ -246,6 +246,36 @@ func (o *Open) ValidateHoldTime() error {
 	return nil
 }
 
+// ValidateBGPIdentifier checks the BGP Identifier of a RECEIVED OPEN per RFC 6286.
+//
+// RFC 6286 Section 2.1: "The BGP Identifier is a 4-octet, unsigned, non-zero integer that
+// should be unique within an AS."
+//
+// RFC 6286 Section 2.2: "If the BGP Identifier field of the OPEN message is zero, or if it
+// is the same as the BGP Identifier of the local BGP speaker and the message is from an
+// internal peer, then the Error Subcode is set to 'Bad BGP Identifier'."
+//
+// The self-identifier half is gated on the peer being internal on purpose: an EXTERNAL peer
+// may legitimately carry the same identifier as this speaker (that is what AS-wide rather
+// than global uniqueness means), and RFC 6286 Section 2.3 -- not this validator -- resolves a
+// connection collision between two speakers that share one.
+//
+// localID is this speaker's BGP Identifier; internal reports whether the peer is in the same
+// AS as this speaker. Returns nil if valid, or a *Notification carrying OPEN Message Error /
+// Bad BGP Identifier. The Data field is empty: RFC 4271 Section 6.2 defines no data for this
+// subcode (unlike Unsupported Version and Unacceptable Hold Time, which echo the value).
+func (o *Open) ValidateBGPIdentifier(localID uint32, internal bool) error {
+	zero := o.BGPIdentifier == 0
+	selfFromInternal := internal && o.BGPIdentifier == localID
+	if !zero && !selfFromInternal {
+		return nil
+	}
+	return &Notification{
+		ErrorCode:    NotifyOpenMessage,
+		ErrorSubcode: NotifyOpenBadBGPID,
+	}
+}
+
 // String returns a human-readable representation.
 func (o *Open) String() string {
 	as := uint32(o.MyAS)

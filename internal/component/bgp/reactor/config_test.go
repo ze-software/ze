@@ -123,6 +123,19 @@ func TestParsePeerFromTreeInvalid(t *testing.T) {
 			wantErr: "invalid router-id",
 		},
 		{
+			// RFC requirement: RFC6286-2.1-1 positive -- a peer-level router-id of
+			// 0.0.0.0 is rejected at config parse: RFC 6286 Section 2.1 defines the BGP
+			// Identifier as a non-zero integer, and a peer implementing Section 2.2
+			// answers an OPEN carrying zero with Bad BGP Identifier.
+			name:     "zero_router_id_rejected",
+			peerName: "peer1",
+			tree: map[string]any{
+				"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "router-id": "0.0.0.0"},
+			},
+			wantErr: "RFC 6286 Section 2.1 requires a non-zero BGP Identifier",
+		},
+		{
 			name:     "invalid_local_ip",
 			peerName: "peer1",
 			tree: map[string]any{

@@ -120,11 +120,11 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	peerRouterID := routerID
 	if sessionMap != nil {
 		if v, ok := mapString(sessionMap, "router-id"); ok {
-			rid, err := netip.ParseAddr(v)
+			id, err := parseRouterID(v)
 			if err != nil {
-				return nil, fmt.Errorf("peer %s: invalid router-id: %w", name, err)
+				return nil, fmt.Errorf("peer %s: %w", name, err)
 			}
-			peerRouterID = ipToUint32(rid)
+			peerRouterID = id
 		}
 	}
 
@@ -487,11 +487,11 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 
 	var routerID uint32
 	if v, ok := mapString(bgpTree, "router-id"); ok {
-		rid, err := netip.ParseAddr(v)
+		id, err := parseRouterID(v)
 		if err != nil {
-			return nil, fmt.Errorf("bgp: invalid router-id: %w", err)
+			return nil, fmt.Errorf("bgp: %w", err)
 		}
-		routerID = ipToUint32(rid)
+		routerID = id
 	}
 
 	// Parse peers. Key is now peer name (not IP address).
@@ -949,6 +949,30 @@ func flexString(m map[string]any, key string) string {
 		return s
 	}
 	return ""
+}
+
+// parseRouterID converts a `router-id` leaf value into a BGP Identifier.
+//
+// RFC 6286 Section 2.1: "The BGP Identifier is a 4-octet, unsigned, non-zero integer."
+// A speaker configured with 0.0.0.0 has every OPEN it sends answered with Bad BGP
+// Identifier by any peer implementing Section 2.2 -- which is exactly what ze does on
+// receive (session_open_validation.go) -- so the config is rejected rather than run as
+// sessions that cannot come up.
+//
+// One helper for the global leaf and the per-peer override so the two cannot drift
+// apart. The returned error is unscoped: each caller wraps it with the config location
+// it read the leaf from.
+func parseRouterID(value string) (uint32, error) {
+	rid, err := netip.ParseAddr(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid router-id: %w", err)
+	}
+
+	id := ipToUint32(rid)
+	if id == 0 {
+		return 0, fmt.Errorf("invalid router-id %s: RFC 6286 Section 2.1 requires a non-zero BGP Identifier", value)
+	}
+	return id, nil
 }
 
 // ipToUint32 converts an IPv4 address to uint32.

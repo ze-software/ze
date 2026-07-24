@@ -1,0 +1,36 @@
+# Test: a router-id of 0.0.0.0 is rejected at config validation.
+#
+# VALIDATES: RFC 6286 Section 2.1 -- "The BGP Identifier is a 4-octet, unsigned,
+#            non-zero integer". Both the peer-level override (this test) and the
+#            global leaf go through one parser helper, so neither can carry a zero
+#            BGP Identifier into a session.
+# PREVENTS: shipping a speaker whose every OPEN is answered with Bad BGP Identifier
+#           by any peer implementing RFC 6286 Section 2.2 -- which is what ze itself
+#           does on reception (internal/component/bgp/reactor/session_open_validation.go).
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 0.0.0.0
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=router-id 0.0.0.0
+expect=stdout:contains=RFC 6286 Section 2.1

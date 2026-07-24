@@ -228,11 +228,17 @@ func TestCollisionBGPIDComparison(t *testing.T) {
 		wantCloseExisting bool
 	}{
 		{
-			name:              "local equals remote - local wins (tie goes to existing)",
+			// RFC 6286 Section 2.3 (which updates RFC 4271 Section 6.8) replaces the plain
+			// "tie goes to the existing connection" outcome for IDENTICAL identifiers: "the
+			// connection initiated by the BGP speaker with the larger AS number is
+			// preserved". setupOpenConfirmSession is local AS 65001 / peer AS 65002, so the
+			// remote has the larger AS and its (pending) connection wins. The AS-ordering
+			// cases both ways are covered by TestDetectCollisionEqualIdentifierPrefersLargerAS.
+			name:              "identical identifiers - larger AS (the remote here) wins per RFC 6286 2.3",
 			localID:           0x01020304,
 			remoteID:          0x01020304,
-			wantAccept:        false,
-			wantCloseExisting: false,
+			wantAccept:        true,
+			wantCloseExisting: true,
 		},
 		{
 			name:              "local higher by 1",
@@ -570,6 +576,102 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 			// Non-collision states should accept
 			assert.True(t, shouldAccept, "%s should accept", tt.name)
 			assert.False(t, shouldCloseExisting, "%s should not close existing", tt.name)
+		})
+	}
+}
+
+// openConfirmSessionWithAS creates an OpenConfirm session with caller-chosen AS numbers and
+// local BGP Identifier, for the RFC 6286 Section 2.3 equal-identifier collision cases.
+func openConfirmSessionWithAS(t *testing.T, localAS, peerAS, localID uint32) *Session {
+	t.Helper()
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), localAS, peerAS, localID)
+	settings.Connection = ConnectionPassive
+	session := NewSession(settings)
+
+	_ = session.Start()
+	client, server := net.Pipe()
+	t.Cleanup(func() {
+		_ = client.Close()
+		_ = server.Close()
+	})
+	collisionAcceptWithReader(t, session, server, client)
+
+	peerOpen := &message.Open{
+		Version: 4, MyAS: uint16(peerAS), HoldTime: 90, BGPIdentifier: localID + 1, //nolint:gosec // test AS numbers < 65536
+	}
+	openBytes := message.PackTo(peerOpen, nil)
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+	_ = session.ReadAndProcess()
+
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+	return session
+}
+
+// TestDetectCollisionEqualIdentifierPrefersLargerAS verifies RFC 6286 Section 2.3.
+//
+// RFC requirement: RFC6286-2.3-1 positive -- when the BGP Identifiers involved in a
+// connection collision are identical, DetectCollision preserves the connection initiated by
+// the speaker with the larger AS number: the remote-initiated (pending) connection when the
+// peer's AS is larger, the local-initiated (existing) one when this speaker's AS is larger.
+// RFC requirement: RFC6286-2.3-1 negative -- when the identifiers DIFFER the AS numbers are
+// not consulted at all: the RFC 4271 Section 6.8 identifier comparison decides, in both
+// directions, with the same AS pair that flips the outcome in the identical-identifier case.
+//
+// VALIDATES: peer AS > local AS -> pending accepted and existing closed.
+// VALIDATES: peer AS < local AS -> pending rejected, existing kept.
+// VALIDATES: the unequal-identifier RFC 4271 Section 6.8 comparison is unaffected.
+// PREVENTS: two speakers sharing an identifier (which RFC 6286 permits across an AS
+// boundary) deadlocking collision resolution by both keeping, or both closing, their
+// connection.
+func TestDetectCollisionEqualIdentifierPrefersLargerAS(t *testing.T) {
+	const localID uint32 = 0x01020304
+
+	tests := []struct {
+		name        string
+		localAS     uint32
+		peerAS      uint32
+		remoteID    uint32
+		wantAccept  bool
+		wantClose   bool
+		description string
+	}{
+		{
+			name:    "equal identifiers, larger remote AS wins",
+			localAS: 65001, peerAS: 65002, remoteID: localID,
+			wantAccept: true, wantClose: true,
+			description: "the remote initiated the pending connection and has the larger AS",
+		},
+		{
+			name:    "equal identifiers, larger local AS wins",
+			localAS: 65002, peerAS: 65001, remoteID: localID,
+			wantAccept: false, wantClose: false,
+			description: "this speaker has the larger AS, so its own connection is preserved",
+		},
+		{
+			name:    "unequal identifiers still follow RFC 4271 Section 6.8",
+			localAS: 65001, peerAS: 65002, remoteID: localID + 1,
+			wantAccept: true, wantClose: true,
+			description: "local identifier is lower, so the remote connection wins on identifier",
+		},
+		{
+			name:    "unequal identifiers, higher local identifier keeps existing",
+			localAS: 65001, peerAS: 65002, remoteID: localID - 1,
+			wantAccept: false, wantClose: false,
+			description: "local identifier is higher, AS numbers are not consulted",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			session := openConfirmSessionWithAS(t, tt.localAS, tt.peerAS, localID)
+
+			accept, closeExisting := session.DetectCollision(tt.remoteID)
+			assert.Equal(t, tt.wantAccept, accept, tt.description)
+			assert.Equal(t, tt.wantClose, closeExisting, tt.description)
 		})
 	}
 }

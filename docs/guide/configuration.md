@@ -70,15 +70,29 @@ bgp {
 }
 ```
 
-By default Ze enforces AS-wide BGP Identifier uniqueness: an OPEN whose router-id
-duplicates another established peer in the same AS is rejected with a Bad BGP
-Identifier NOTIFICATION (RFC 6286 Section 2.1 makes this only a SHOULD). Set
-`bgp { session { allow-shared-router-id true; } }` to accept the duplication when
-it is intentional, for example one anycast speaker (AS112) peering over both IPv4
-and IPv6 with the same router-id. When enabled, Ze performs no router-id
-uniqueness check at all.
+By default Ze enforces AS-wide BGP Identifier uniqueness: the first peer of an AS to
+present a router-id holds it, and a second peer of the same AS presenting the same
+router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1
+makes this only a SHOULD). The identifier is claimed while the peer's OPEN is
+validated and released when its session ends, so which peer wins does not depend on
+which one establishes first. Set `bgp { session { allow-shared-router-id true; } }`
+to accept the duplication when it is intentional, for example one anycast speaker
+(AS112) peering over both IPv4 and IPv6 with the same router-id. When enabled, Ze
+performs no AS-wide router-id uniqueness check at all.
 
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — allow-shared-router-id; internal/component/bgp/reactor/peer.go — validateOpen -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — allow-shared-router-id; internal/component/bgp/reactor/routerid_unique.go — routerIDClaims; internal/component/bgp/reactor/peer.go — validateOpen -->
+
+`allow-shared-router-id` does not relax RFC 6286 Section 2.2, which Ze always
+enforces on reception: an OPEN whose BGP Identifier is `0.0.0.0`, or whose BGP
+Identifier is Ze's own router-id when the peer is in the same AS (an internal peer),
+is answered with OPEN Message Error / Bad BGP Identifier and the connection is
+closed. The same identifier from an *external* peer is accepted, as the RFC
+requires; if that leads to a connection collision, Section 2.3 preserves the
+connection initiated by the speaker with the larger AS number. Ze also refuses to
+start with its own `router-id 0.0.0.0`, since Section 2.1 defines the BGP Identifier
+as a non-zero integer and every conformant peer would reject such an OPEN.
+
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 
 ## OSPF
 

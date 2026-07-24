@@ -170,6 +170,7 @@ var (
 	ErrHoldTimerExpired     = errors.New("hold timer expired")
 	ErrInvalidMessage       = errors.New("invalid message")
 	ErrUnsupportedVersion   = errors.New("unsupported BGP version")
+	ErrBadBGPIdentifier     = errors.New("bad BGP identifier (RFC 6286 Section 2.2)")
 	ErrFamilyNotNegotiated  = errors.New("address family not negotiated")
 	ErrSessionTearingDown   = errors.New("session is tearing down")
 	ErrPrefixLimitExceeded  = errors.New("prefix limit exceeded")
@@ -645,6 +646,23 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 			// that already exists and accepts the BGP connection initiated by
 			// the remote system"
 			return true, true
+		}
+
+		if localID == remoteBGPID {
+			// RFC 6286 §2.3: "If the BGP Identifiers of the peers involved in the
+			// connection collision are identical, then the connection initiated by
+			// the BGP speaker with the larger AS number is preserved."
+			//
+			// Only reachable for an EXTERNAL peer: §2.2 (validateOpenIdentifier)
+			// already rejects an internal peer that presents this speaker's own
+			// identifier, which is the same restriction §2.3 states. The pending
+			// connection is the one the remote initiated (it arrived on our
+			// listener); the existing session is the one we initiated. So the
+			// remote's connection is preserved exactly when its AS is larger.
+			//
+			// Equal AS numbers cannot reach here (that is an internal peer), and
+			// keeping the existing connection is the safe residue either way.
+			return s.settings.PeerAS > s.settings.LocalAS, s.settings.PeerAS > s.settings.LocalAS
 		}
 		// RFC 4271 §6.8: "Otherwise, the local system closes the newly created
 		// BGP connection and continues to use the existing one"

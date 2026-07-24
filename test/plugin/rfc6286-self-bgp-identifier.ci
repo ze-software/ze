@@ -1,0 +1,52 @@
+# Test: RFC 6286 Section 2.2 -- an INTERNAL peer offering this speaker's own BGP Identifier
+#       is rejected
+# VALIDATES: ze sends NOTIFICATION OPEN Message Error (2) / Bad BGP Identifier (3) when an
+#            iBGP peer (same AS) presents ze's own router-id, and the session never
+#            establishes.
+# PREVENTS: an iBGP neighbour sharing ze's identifier, which breaks RFC 4456 ORIGINATOR_ID
+#           loop detection (a route reflector cannot tell the originator from itself).
+# NOTE: the same identifier from an EXTERNAL peer is legal and must NOT be rejected here --
+#       RFC 6286 Section 2.3 resolves that case at connection collision instead. The
+#       external half is covered by TestHandleOpenRejectsBadBGPIdentifier
+#       ("own identifier from external peer" -> accepted).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=10s
+# Present ze's OWN router-id (1.2.3.4) over an iBGP session.
+option=open:value=router-id:id=1.2.3.4
+# Expect NOTIFICATION: OPEN Message Error (code 2), Bad BGP Identifier (subcode 3)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030203
+EOF_PEER
+
+# ze bgp configuration -- iBGP (local AS == remote AS), router-id 1.2.3.4
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

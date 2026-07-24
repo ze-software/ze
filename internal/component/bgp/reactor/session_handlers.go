@@ -81,41 +81,26 @@ func (s *Session) handleOpen(body []byte) error {
 		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
 
+	// RFC 6286 Section 2.2: reject a zero BGP Identifier, or this speaker's own identifier
+	// from an internal peer, with OPEN Message Error / Bad BGP Identifier.
+	if err := s.validateOpenIdentifier(open); err != nil {
+		return err
+	}
+
 	s.mu.Lock()
 	s.peerOpen = open
 	s.mu.Unlock()
 
-	// Validate OPEN pair via plugins (e.g., RFC 9234 Role validation).
+	// Validate OPEN pair via the peer callback (plugins such as RFC 9234 Role, plus the
+	// RFC 6286 Section 2.1 AS-wide identifier claim).
 	// Called BEFORE negotiation — saves work if rejected.
+	if err := s.runOpenValidator(open); err != nil {
+		return err
+	}
+
 	s.mu.RLock()
 	localOpen := s.localOpen
 	s.mu.RUnlock()
-
-	if s.openValidator != nil && localOpen != nil {
-		// Use peer name for plugin lookup (plugins key by name from config).
-		peerID := s.settings.Name
-		if peerID == "" {
-			peerID = s.settings.Address.String()
-		}
-		if err := s.openValidator(peerID, localOpen, open); err != nil {
-			s.mu.RLock()
-			valConn := s.conn
-			s.mu.RUnlock()
-
-			// Check for OpenValidationError with specific NOTIFICATION codes.
-			var valErr interface{ NotifyCodes() (uint8, uint8) }
-			notifyCode := message.NotifyOpenMessage
-			notifySubcode := message.NotifyOpenRoleMismatch
-			if errors.As(err, &valErr) {
-				code, sub := valErr.NotifyCodes()
-				notifyCode = message.NotifyErrorCode(code)
-				notifySubcode = sub
-			}
-
-			s.logNotifyErr(valConn, notifyCode, notifySubcode, nil)
-			return fmt.Errorf("open validation failed: %w", err)
-		}
-	}
 
 	// Parse capabilities from both OPENs for negotiation.
 	var localCaps, peerCaps []capability.Capability

@@ -1,0 +1,47 @@
+# Test: RFC 6286 Section 2.2 -- an OPEN with a ZERO BGP Identifier is rejected
+# VALIDATES: ze sends NOTIFICATION OPEN Message Error (2) / Bad BGP Identifier (3) when a
+#            peer offers BGP Identifier 0.0.0.0, and the session never establishes.
+# PREVENTS: accepting an identifier RFC 6286 Section 2.1 defines as invalid ("a 4-octet,
+#           unsigned, non-zero integer"), which would poison ORIGINATOR_ID loop detection
+#           and BGP Identifier tie-breaking downstream.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=10s
+# Send BGP Identifier 0.0.0.0 instead of the mirrored ze identifier + 1.
+option=open:value=router-id:id=0.0.0.0
+# Expect NOTIFICATION: OPEN Message Error (code 2), Bad BGP Identifier (subcode 3)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030203
+EOF_PEER
+
+# ze bgp configuration -- eBGP peer, so only the zero rule can fire
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

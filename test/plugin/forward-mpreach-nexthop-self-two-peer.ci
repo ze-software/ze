@@ -29,9 +29,14 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 EOF_PEER1
 
 # ze-peer 2 (127.0.0.2): the per-session MP_REACH next-hop is 7f000002 (distinct).
+# Both peers are in AS 65533 and ze-peer's default OPEN mirrors ze's router-id with the
+# last octet incremented, so without an explicit identifier BOTH would present 1.2.3.5 --
+# two distinct routers of one AS sharing a BGP Identifier, which ze rejects by default
+# (RFC 6286 Section 2.1). They model two separate neighbours, so give this one its own.
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=open:value=router-id:id=1.2.3.6
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000020018E00101
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.2"}]}
 EOF_PEER2

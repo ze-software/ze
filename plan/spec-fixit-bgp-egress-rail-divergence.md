@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/7 |
+| Phase | 6/7 |
 | Updated | 2026-07-24 |
 
 > **Concurrency note (2026-07-24).** Two sessions worked this spec at once. Phase 1
@@ -19,7 +19,7 @@
 1. This spec file
 2. `plan/learned/1161-bgp-export-filter-applied-twice.md`, `plan/learned/1231-fixit-private-asn-leak.md`, `plan/learned/1245-fixit-bgp-concurrency-races.md`
 3. Reproduction captures: `tmp/stress-repro/bgp-plugin-{372,378,394}-*.log`
-4. Origin: split out of `plan/spec-fixit-load-dependent-functional-failures.md` (owner decision 2026-07-24 — the forward-rail fix is a spec-sized new primitive, not a redirect).
+4. Origin: split out of the load-dependent-functional-failures fixit, closed as `plan/learned/1270-fixit-load-dependent-functional-failures.md` (owner decision 2026-07-24 — the forward-rail fix is a spec-sized new primitive, not a redirect).
 
 ## Task
 
@@ -299,3 +299,39 @@ second time alongside the reactor forward.
 - [ ] `make ze-test` passes
 - [ ] Independent review clean
 - [ ] Learned summary written
+
+## Verification Evidence (2026-07-24, session 94f6df1c)
+
+### Acceptance Criteria
+
+| AC | Status | Fresh evidence |
+|----|--------|----------------|
+| AC-1 (372 AS_PATH) | **MET** | `ze-test bgp plugin --pattern remove-private-as-replace-peer` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 372" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-372-20260724-233009.log`). Previously `AS_PATH [65002 ...]` (`bgp-plugin-372-20260724-183402.log`). |
+| AC-2 (378 duplicate) | **MET** | `pass 1/1`; stress-repro 10 invocations, not reproduced (`bgp-plugin-378-20260724-233020.log`). |
+| AC-3 (394/395 OTC) | **MET** | both `pass 1/1`; 394 stress-repro 10 invocations, not reproduced (`bgp-plugin-394-20260724-233021.log`). |
+| AC-4 (351 multi-peer nexthop) | **BLOCKED -- not by this spec** | 351 fails with NOTIFICATION OPEN Message Error subcode 3 (Bad BGP Identifier) at OPEN time, before any UPDATE is exchanged. Cause: the concurrent RFC 6286 work in this tree (`internal/component/bgp/reactor/session_open_validation.go`, uncommitted) correctly rejects an iBGP OPEN whose BGP Identifier equals the local one; 351's fixture configures `local 65533 / remote 65533` with `router-id 1.2.3.4` on both peers (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci:148-155,174-181`) and `ze-peer` mirrors that identifier. Same signature in 223 and 254. Belongs to `plan/spec-fixit-rfc6286-bgp-identifier.md`, whose fixtures need distinct peer identifiers. |
+| AC-5 (dedupe) | **MET** | `TestReplayOwnerDedupe` (both directions: standalone still replays, owned stands down). Mutation-verified: removing `!r.replayOwned.Load()` turns it RED. |
+
+### Gates
+
+| Gate | Result |
+|------|--------|
+| `make ze-race-reactor` (`-race -count=20`) | **clean** -- 0 data races, `ok ... reactor 118.140s` |
+| `go vet ./internal/... ./pkg/...` | clean (only the pre-existing, deliberate `textbuf.go:161` noescape warning) |
+| `make ze-test-bgp` | green after dropping the OTC fallback (see Deviations) |
+| `make ze-test-plugins` | only `TestISISLSDBSync` red -- IS-IS LSDB, unrelated subsystem, untouched by this spec |
+| `ze-test bgp plugin --all` (495 tests) | 470 pass. **Zero** `relay-stored-route` errors anywhere. 3 failures (223/254/351) carry the RFC 6286 subcode-3 signature; the remaining 22 predate this work or belong to other in-flight sessions and need a clean-tree baseline to attribute. |
+
+### Deviations
+
+| What | Why |
+|------|-----|
+| Dropped the `OTCEgressFilter` `src-role` config fallback from this spec | Not required by any AC: removing it and re-running 394/395 keeps both green, because ingress stamps OTC into the WIRE bytes before storage and `checkOTCEgress` sees it on the reconstruction. Landing it would require editing `TestOTCEgressNoStampProvider`, which carries `RFC requirement: RFC9234-5-4 negative` and needs explicit user approval. Homed in `plan/deferrals/fixit-bgp-egress-rail-divergence.md` -> `plan/spec-fixit-otc-src-role-meta-fallback.md`. |
+| `plugin.Coordinator` gained `RelayStoredRoute`, and `ReactorLifecycle` now composes `ReactorRelayCoordinator` | Phase 1 left the Coordinator facade without the method, so `s.reactor.(plugin.ReactorRelayCoordinator)` failed at RUNTIME and every replay degraded to `relay-stored-route: no reactor available` (observed in the first 372 run). Composing the interface makes that a COMPILE error; doing so immediately surfaced 8 test mocks silently missing the method. |
+
+### Remaining before closure
+
+- [ ] AC-4 unblocked (needs the RFC 6286 fixtures updated by their own spec)
+- [ ] `make ze-verify`
+- [ ] Independent review gate (0 BLOCKER / 0 ISSUE)
+- [ ] Learned summary + two-commit closure

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,16 +43,54 @@ func TestRouterIDConflictError(t *testing.T) {
 	assert.True(t, errors.As(err, &valErr), "should satisfy NotifyCodes interface via errors.As")
 }
 
+// newClaimReactor builds a reactor with no plugin dispatcher, so validateOpen resolves to
+// the RFC 6286 Section 2.1 identifier claim and nothing else.
+func newClaimReactor(t *testing.T, allowShared bool) *Reactor {
+	t.Helper()
+	r := New(&Config{AllowSharedRouterID: allowShared})
+	r.eventDispatcher = nil
+	return r
+}
+
+// claimPeer creates a peer at addr in peerAS, attaches it to r, and runs the production
+// OPEN-validation path for a peer presenting bgpID. Returns the peer and validateOpen's error.
+func claimPeer(t *testing.T, r *Reactor, addr string, peerAS, bgpID uint32) (*Peer, error) {
+	t.Helper()
+
+	const localAS uint32 = 65001
+	const localRID uint32 = 0x01020301
+
+	settings := NewPeerSettings(netip.MustParseAddr(addr), localAS, peerAS, localRID)
+	peer := NewPeer(settings)
+	peer.SetReactor(r)
+
+	r.mu.Lock()
+	r.peers[settings.PeerKey()] = peer
+	r.mu.Unlock()
+
+	localOpen := &message.Open{Version: 4, MyAS: uint16(localAS), HoldTime: 90, BGPIdentifier: localRID}
+	remoteOpen := &message.Open{
+		Version:       4,
+		MyAS:          uint16(peerAS), //nolint:gosec // Test uses AS numbers < 65536
+		HoldTime:      90,
+		BGPIdentifier: bgpID,
+	}
+
+	err := peer.validateOpen(addr, localOpen, remoteOpen)
+	return peer, err
+}
+
 // TestValidateOpenAllowSharedRouterID verifies the bgp/session/allow-shared-router-id
 // opt-out gates the AS-wide uniqueness rejection in validateOpen.
 //
 // VALIDATES: default (AllowSharedRouterID=false) rejects a peer whose BGP Identifier
-// duplicates an established same-AS peer (a routerIDConflictError).
+// duplicates a same-AS peer that already claimed it (a routerIDConflictError).
 // VALIDATES: opt-in (AllowSharedRouterID=true) accepts it -- the AS112 v4+v6 case.
 // PREVENTS: the load-dependent check-then-act race being the only behavior; and a
 // zero-value reactor.Config silently DISABLING enforcement (fail-closed: false enforces).
 func TestValidateOpenAllowSharedRouterID(t *testing.T) {
-	// Established iBGP peer in AS 65001, router-id 1.2.3.4.
+	// An ESTABLISHED iBGP peer in AS 65001, router-id 1.2.3.4, is the realistic shape of
+	// the holder: it went through the full handshake before the second peer shows up.
 	dup, cleanup := makeEstablishedPeerWithID(t, "192.0.2.1", 65001, 0x01020304)
 	defer cleanup()
 
@@ -70,11 +109,15 @@ func TestValidateOpenAllowSharedRouterID(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			r := New(&Config{AllowSharedRouterID: c.allow})
-			// Isolate the gate under test: with no plugin validators the accept path
-			// must resolve to nil, so drop any dispatcher New() wired up.
-			r.eventDispatcher = nil
+			r := newClaimReactor(t, c.allow)
+			dup.SetReactor(r)
+			r.mu.Lock()
 			r.peers[dup.settings.PeerKey()] = dup
+			r.mu.Unlock()
+			// The holder claims its identifier the same way production does: through its
+			// own OPEN validation.
+			require.NoError(t, dup.validateOpen("192.0.2.1", localOpen, remoteOpen),
+				"the first peer to present the identifier must be accepted")
 
 			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65001, 65001, 0x01020301)
 			p := NewPeer(settings)
@@ -217,43 +260,41 @@ func makeOpenConfirmPeerWithID(t *testing.T, addr string, peerAS, remoteRID uint
 // are detected between iBGP peers in the same AS.
 //
 // VALIDATES: Two iBGP peers with the same remote BGP ID are detected as a conflict.
+// VALIDATES: The conflict names the peer that holds the identifier.
 // PREVENTS: Silent misconfiguration where iBGP peers share a router-ID,
 // breaking ORIGINATOR_ID loop detection.
 func TestRouterIDConflictIBGPDuplicate(t *testing.T) {
-	// Peer A: iBGP (local=65001, peer=65001), remote BGP ID = 1.2.3.4
-	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 0x01020304)
-	defer cleanupA()
+	r := newClaimReactor(t, false)
 
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-	}
+	// Peer A: iBGP (local=65001, peer=65001), remote BGP ID = 1.2.3.4
+	_, err := claimPeer(t, r, "192.0.2.1", 65001, 0x01020304)
+	require.NoError(t, err, "first peer claims the identifier")
 
 	// New peer in same iBGP AS with same router-ID → conflict.
-	addr, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x01020304)
-	assert.True(t, conflict, "should detect duplicate router-ID in iBGP AS")
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), addr)
+	_, err = claimPeer(t, r, "192.0.2.99", 65001, 0x01020304)
+	var conflictErr *routerIDConflictError
+	require.ErrorAs(t, err, &conflictErr, "should detect duplicate router-ID in iBGP AS")
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), conflictErr.conflictAddr)
 }
 
 // TestRouterIDConflictEBGPSameAS verifies that duplicate router-IDs are
 // detected between eBGP peers sharing the same remote AS.
 //
 // VALIDATES: Two peers in the same remote AS with the same BGP ID conflict.
+// VALIDATES: The conflict names the peer that holds the identifier.
 // PREVENTS: Two distinct routers in the same AS presenting identical router-IDs.
 func TestRouterIDConflictEBGPSameAS(t *testing.T) {
-	// Peer A: eBGP (local=65001, peer=65002), remote BGP ID = 5.6.7.8
-	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65002, 0x05060708)
-	defer cleanupA()
+	r := newClaimReactor(t, false)
 
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-	}
+	// Peer A: eBGP (local=65001, peer=65002), remote BGP ID = 5.6.7.8
+	_, err := claimPeer(t, r, "192.0.2.1", 65002, 0x05060708)
+	require.NoError(t, err, "first peer claims the identifier")
 
 	// New peer also in AS 65002 with same router-ID → conflict.
-	addr, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65002, 0x05060708)
-	assert.True(t, conflict, "should detect duplicate router-ID in same remote AS")
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), addr)
+	_, err = claimPeer(t, r, "192.0.2.99", 65002, 0x05060708)
+	var conflictErr *routerIDConflictError
+	require.ErrorAs(t, err, &conflictErr, "should detect duplicate router-ID in same remote AS")
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), conflictErr.conflictAddr)
 }
 
 // TestRouterIDConflictDifferentAS verifies that the same router-ID in
@@ -262,18 +303,21 @@ func TestRouterIDConflictEBGPSameAS(t *testing.T) {
 // VALIDATES: Router-IDs are scoped per-AS; different ASNs may reuse IDs.
 // PREVENTS: False positive conflict detection across AS boundaries.
 func TestRouterIDConflictDifferentAS(t *testing.T) {
-	// Peer A: in AS 65002, router-ID 1.2.3.4
-	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65002, 0x01020304)
-	defer cleanupA()
+	r := newClaimReactor(t, false)
 
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-	}
+	// Peer A: in AS 65002, router-ID 1.2.3.4
+	_, err := claimPeer(t, r, "192.0.2.1", 65002, 0x01020304)
+	require.NoError(t, err, "first peer claims the identifier")
 
 	// New peer in AS 65003 with same router-ID → no conflict (different AS).
-	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65003, 0x01020304)
-	assert.False(t, conflict, "different ASN should not conflict even with same router-ID")
+	_, err = claimPeer(t, r, "192.0.2.99", 65003, 0x01020304)
+	assert.NoError(t, err, "different ASN should not conflict even with same router-ID")
+
+	// Both peers hold the identifier, each under its own AS: uniqueness is AS-scoped.
+	_, heldIn65002 := r.routerIDs.holder(65002, 0x01020304)
+	assert.True(t, heldIn65002, "the AS 65002 claim survives")
+	_, heldIn65003 := r.routerIDs.holder(65003, 0x01020304)
+	assert.True(t, heldIn65003, "the AS 65003 claim coexists with it")
 }
 
 // TestRouterIDConflictDifferentRouterID verifies that peers in the same AS
@@ -282,109 +326,233 @@ func TestRouterIDConflictDifferentAS(t *testing.T) {
 // VALIDATES: Only duplicate router-IDs trigger conflict.
 // PREVENTS: Over-aggressive rejection of valid peer configurations.
 func TestRouterIDConflictDifferentRouterID(t *testing.T) {
-	// Peer A: in AS 65001, router-ID 1.2.3.4
-	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 0x01020304)
-	defer cleanupA()
+	r := newClaimReactor(t, false)
 
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-	}
+	// Peer A: in AS 65001, router-ID 1.2.3.4
+	_, err := claimPeer(t, r, "192.0.2.1", 65001, 0x01020304)
+	require.NoError(t, err, "first peer claims the identifier")
 
 	// New peer in same AS with different router-ID → no conflict.
-	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x05060708)
-	assert.False(t, conflict, "different router-ID in same AS should not conflict")
+	_, err = claimPeer(t, r, "192.0.2.99", 65001, 0x05060708)
+	assert.NoError(t, err, "different router-ID in same AS should not conflict")
 }
 
-// TestRouterIDConflictNotEstablished verifies that peers that haven't
-// reached ESTABLISHED state are not considered for conflict detection.
+// TestRouterIDConflictNotEstablished covers a peer whose session has NOT reached
+// ESTABLISHED (it stopped at OPENCONFIRM) but whose OPEN was validated.
 //
-// VALIDATES: Only ESTABLISHED sessions count for router-ID uniqueness.
-// PREVENTS: Premature rejection during concurrent connection setup.
+// The assertion is deliberately the opposite of what it was before RFC 6286 Section 2.1
+// enforcement moved from an established-peers scan to a claim taken during OPEN validation:
+// waiting for ESTABLISHED was the check-then-act race, because two peers presenting one
+// identifier at the same instant each saw the other as "not established yet" and BOTH were
+// accepted. The identifier is now held from OPEN validation onward.
+//
+// VALIDATES: A peer holds its identifier from OPEN validation, before ESTABLISHED.
+// PREVENTS: The load-dependent double-accept of a duplicate router-ID.
 func TestRouterIDConflictNotEstablished(t *testing.T) {
-	// Peer A: same AS, same router-ID, but only in OPENCONFIRM.
-	peerA, cleanupA := makeOpenConfirmPeerWithID(t,
-		"192.0.2.1", 65001, 0x01020304)
+	r := newClaimReactor(t, false)
+
+	// Peer A: same AS, same router-ID, only in OPENCONFIRM.
+	peerA, cleanupA := makeOpenConfirmPeerWithID(t, "192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-	}
+	peerA.SetReactor(r)
+	r.mu.Lock()
+	r.peers[peerA.settings.PeerKey()] = peerA
+	r.mu.Unlock()
 
-	// Same router-ID but peer not established → no conflict.
-	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x01020304)
-	assert.False(t, conflict, "non-ESTABLISHED peer should not trigger conflict")
+	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
+	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
+	require.NoError(t, peerA.validateOpen("192.0.2.1", localOpen, remoteOpen),
+		"the OPENCONFIRM peer claims the identifier at OPEN validation")
+	require.NotEqual(t, fsm.StateEstablished, peerA.SessionState(),
+		"the holder is deliberately NOT established")
+
+	// Same router-ID from another peer → conflict, even though the holder never established.
+	_, err := claimPeer(t, r, "192.0.2.99", 65001, 0x01020304)
+	var conflictErr *routerIDConflictError
+	require.ErrorAs(t, err, &conflictErr, "a not-yet-established holder must still block a duplicate")
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), conflictErr.conflictAddr)
 }
 
 // TestRouterIDConflictSelfExcluded verifies that a peer does not
 // conflict with itself.
 //
-// VALIDATES: excludeKey correctly skips the peer being checked.
-// PREVENTS: Self-conflict when checking after own OPEN is processed.
+// VALIDATES: The holder re-validating its own OPEN is granted the claim again.
+// PREVENTS: Self-conflict when a peer reconnects or re-runs OPEN validation.
 func TestRouterIDConflictSelfExcluded(t *testing.T) {
-	// Peer A: established with router-ID 1.2.3.4
-	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 0x01020304)
-	defer cleanupA()
+	r := newClaimReactor(t, false)
 
-	peerKey := peerA.settings.PeerKey()
-	peers := map[netip.AddrPort]*Peer{
-		peerKey: peerA,
-	}
+	// Peer A: claims router-ID 1.2.3.4
+	peerA, err := claimPeer(t, r, "192.0.2.1", 65001, 0x01020304)
+	require.NoError(t, err, "first claim granted")
 
-	// Check with own key → should be excluded, no conflict.
-	_, conflict := checkRouterIDConflict(peers, peerKey, 65001, 0x01020304)
-	assert.False(t, conflict, "peer should not conflict with itself")
+	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
+	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
+
+	// Re-validating the SAME peer must not conflict with its own claim.
+	err = peerA.validateOpen("192.0.2.1", localOpen, remoteOpen)
+	assert.NoError(t, err, "peer should not conflict with itself")
 }
 
-// TestRouterIDConflictNilSession verifies that peers without a session
-// (configured but not connected) are safely skipped.
+// TestRouterIDConflictNilSession verifies that peers which never validated an OPEN
+// (configured but not connected) hold nothing and cause no false conflict.
 //
-// VALIDATES: Nil sessions don't cause panics or false conflicts.
-// PREVENTS: Nil pointer dereference on unconnected peers.
+// VALIDATES: A peer without a session holds no identifier.
+// PREVENTS: Nil pointer dereference or a false conflict against an unconnected peer.
 func TestRouterIDConflictNilSession(t *testing.T) {
-	// Peer A: configured but no session yet.
+	r := newClaimReactor(t, false)
+
+	// Peer A: configured but no session yet, so it never claimed anything.
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01020301)
 	peerA := NewPeer(settings)
+	peerA.SetReactor(r)
+	r.mu.Lock()
+	r.peers[settings.PeerKey()] = peerA
+	r.mu.Unlock()
 
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-	}
+	_, held := r.routerIDs.holder(65001, 0x01020304)
+	assert.False(t, held, "an unconnected peer holds no identifier")
 
-	// Same AS and same router-ID but no session → no conflict.
-	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x01020304)
-	assert.False(t, conflict, "peer without session should not trigger conflict")
+	// Same AS and same router-ID but the configured peer never validated an OPEN → no conflict.
+	_, err := claimPeer(t, r, "192.0.2.99", 65001, 0x01020304)
+	assert.NoError(t, err, "peer without session should not trigger conflict")
 }
 
 // TestRouterIDConflictMultiplePeers verifies conflict detection across
 // multiple peers where only one conflicts.
 //
 // VALIDATES: Correct peer identified among several in the same AS.
-// PREVENTS: Off-by-one or early-exit bugs in peer iteration.
+// PREVENTS: Off-by-one or early-exit bugs in claim lookup.
 func TestRouterIDConflictMultiplePeers(t *testing.T) {
+	r := newClaimReactor(t, false)
+
 	// Peer A: AS 65002, router-ID 1.2.3.4 (different from check).
-	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65002, 0x01020304)
-	defer cleanupA()
+	_, err := claimPeer(t, r, "192.0.2.1", 65002, 0x01020304)
+	require.NoError(t, err)
 
 	// Peer B: AS 65003, router-ID 5.6.7.8 (different AS from check).
-	peerB, cleanupB := makeEstablishedPeerWithID(t,
-		"192.0.2.2", 65003, 0x05060708)
-	defer cleanupB()
+	_, err = claimPeer(t, r, "192.0.2.2", 65003, 0x05060708)
+	require.NoError(t, err)
 
 	// Peer C: AS 65002, router-ID 5.6.7.8 (THIS one conflicts).
-	peerC, cleanupC := makeEstablishedPeerWithID(t,
-		"192.0.2.3", 65002, 0x05060708)
-	defer cleanupC()
-
-	peers := map[netip.AddrPort]*Peer{
-		peerA.settings.PeerKey(): peerA,
-		peerB.settings.PeerKey(): peerB,
-		peerC.settings.PeerKey(): peerC,
-	}
+	_, err = claimPeer(t, r, "192.0.2.3", 65002, 0x05060708)
+	require.NoError(t, err)
 
 	// New peer in AS 65002 with router-ID 5.6.7.8 → conflicts with Peer C.
-	addr, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65002, 0x05060708)
-	assert.True(t, conflict, "should detect conflict with Peer C")
-	assert.Equal(t, netip.MustParseAddr("192.0.2.3"), addr, "should identify Peer C as conflicting")
+	_, err = claimPeer(t, r, "192.0.2.99", 65002, 0x05060708)
+	var conflictErr *routerIDConflictError
+	require.ErrorAs(t, err, &conflictErr, "should detect conflict with Peer C")
+	assert.Equal(t, netip.MustParseAddr("192.0.2.3"), conflictErr.conflictAddr,
+		"should identify Peer C as conflicting")
+}
+
+// TestRouterIDClaimConcurrentOnlyOneWins is the regression test for the load-dependent
+// check-then-act race (spec-fixit-load-dependent-functional-failures, failure 345).
+//
+// RFC requirement: RFC6286-2.1-2 positive -- the BGP Identifier is kept unique within an
+// AS: of N peers of one AS presenting one identifier simultaneously, exactly one is
+// accepted and every other is rejected with Bad BGP Identifier.
+//
+// VALIDATES: N peers of one AS presenting one BGP Identifier at the same instant produce
+// exactly ONE accepted peer; every other one is rejected with a routerIDConflictError.
+// VALIDATES: The registry names the winner as the holder afterwards.
+// PREVENTS: The scheduling-dependent outcome where none (or several) of the racing peers
+// is rejected because none had reached ESTABLISHED when the others validated their OPEN.
+func TestRouterIDClaimConcurrentOnlyOneWins(t *testing.T) {
+	const racers = 16
+	const peerAS uint32 = 65001
+	const sharedID uint32 = 0x01020304
+
+	r := newClaimReactor(t, false)
+
+	peers := make([]*Peer, racers)
+	for i := range peers {
+		settings := NewPeerSettings(netip.AddrFrom4([4]byte{192, 0, 2, byte(10 + i)}), 65001, peerAS, 0x01020301)
+		peers[i] = NewPeer(settings)
+		peers[i].SetReactor(r)
+	}
+
+	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
+	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: sharedID}
+
+	start := make(chan struct{})
+	results := make([]error, racers)
+	var wg sync.WaitGroup
+	for i, p := range peers {
+		wg.Go(func() {
+			<-start
+			results[i] = p.validateOpen(p.settings.Address.String(), localOpen, remoteOpen)
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	accepted := 0
+	for i, err := range results {
+		if err == nil {
+			accepted++
+			continue
+		}
+		var conflictErr *routerIDConflictError
+		require.ErrorAs(t, err, &conflictErr, "racer %d must be rejected with a router-id conflict", i)
+	}
+	assert.Equal(t, 1, accepted, "exactly one racer may hold the identifier")
+
+	holder, held := r.routerIDs.holder(peerAS, sharedID)
+	require.True(t, held, "the winner must hold the identifier in the registry")
+	assert.NotNil(t, holder)
+
+	// Nothing claimed a neighboring identifier: the racers contended for exactly one key.
+	_, strayHeld := r.routerIDs.holder(peerAS, sharedID+1)
+	assert.False(t, strayHeld, "no racer may claim an identifier nobody presented")
+}
+
+// TestRouterIDClaimReleasedOnTeardown verifies the claim does not outlive its session.
+//
+// VALIDATES: releaseRouterIDClaim frees the identifier for a different peer.
+// VALIDATES: The registry reports no holder once released.
+// PREVENTS: A leaked claim permanently rejecting a legitimate later peer -- the failure
+// mode that makes claim-at-OPEN safe only when every teardown path releases.
+func TestRouterIDClaimReleasedOnTeardown(t *testing.T) {
+	r := newClaimReactor(t, false)
+
+	holderPeer, err := claimPeer(t, r, "192.0.2.1", 65001, 0x01020304)
+	require.NoError(t, err, "first peer claims the identifier")
+
+	// While held, another peer is rejected.
+	_, err = claimPeer(t, r, "192.0.2.99", 65001, 0x01020304)
+	var conflictErr *routerIDConflictError
+	require.ErrorAs(t, err, &conflictErr, "the identifier is held")
+
+	// Teardown releases it.
+	holderPeer.releaseRouterIDClaim()
+	_, held := r.routerIDs.holder(65001, 0x01020304)
+	assert.False(t, held, "release must remove the registry entry")
+
+	// A different peer may now claim it.
+	_, err = claimPeer(t, r, "192.0.2.98", 65001, 0x01020304)
+	assert.NoError(t, err, "the identifier is available after release")
+}
+
+// TestRouterIDClaimKeyedByPeerNotSettings verifies the claim survives a settings change.
+//
+// VALIDATES: A dynamic peer whose settings are replaced after establishment still has its
+// claim released, because the registry keys ownership on the *Peer, not on its address/port.
+// PREVENTS: A leaked claim after resolveDynamicPeerSettings rewrites peer settings.
+func TestRouterIDClaimKeyedByPeerNotSettings(t *testing.T) {
+	r := newClaimReactor(t, false)
+
+	peer, err := claimPeer(t, r, "192.0.2.1", 65001, 0x01020304)
+	require.NoError(t, err)
+
+	// Simulate a dynamic peer publishing new settings after the claim was taken.
+	peer.mu.Lock()
+	replaced := *peer.settings
+	replaced.PeerAS = 65010
+	peer.settings = &replaced
+	peer.mu.Unlock()
+
+	peer.releaseRouterIDClaim()
+	_, held := r.routerIDs.holder(65001, 0x01020304)
+	assert.False(t, held, "release must find the claim even after settings changed")
 }

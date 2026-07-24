@@ -16,8 +16,8 @@ import (
 // TestDynamicPeerSettingsRace reproduces the unlocked mutation of a dynamic peer's
 // settings (reactor_dynamic.go resolveDynamicPeerSettings) racing a cross-goroutine
 // reader. On establishment the peer writes settings.PeerAS and the ImportFilters/
-// ExportFilters slice headers with no lock, while another peer's OPEN-validation
-// goroutine reads settings.PeerAS unlocked via checkRouterIDConflict (routerid_unique.go).
+// ExportFilters slice headers with no lock, while the OPEN-validation goroutine reads
+// settings.PeerAS to scope the RFC 6286 Section 2.1 identifier claim (peer.go claimPeerAS).
 // Under -race this is a data race on settings.PeerAS; the slice-header writes can tear a
 // multi-word read.
 //
@@ -45,8 +45,10 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 	r := &Reactor{peers: make(map[netip.AddrPort]*Peer)}
 	r.peers[settings.PeerKey()] = peer
 
-	// A different key so checkRouterIDConflict does not skip our peer as "self".
-	otherKey := netip.AddrPortFrom(netip.MustParseAddr("185.1.69.99"), 179)
+	// test-relax: the "other peer key" argument existed only for checkRouterIDConflict's
+	// self-exclusion. That scan is gone: the RFC 6286 Section 2.1 check is now a claim keyed
+	// on the peer itself, so the reader below reads THIS peer's PeerAS -- the same field, the
+	// same cross-goroutine race, one fewer indirection. No assertion is dropped.
 
 	// Resolve once synchronously so PeerAS == 65001 regardless of how the writer goroutine
 	// is scheduled. Without this the final assertion is scheduling-dependent: under -cpu=1,
@@ -71,10 +73,12 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 		}
 	})
 
-	// Reader: another peer's OPEN validation checks router-ID uniqueness, reading every
-	// peer's PeerAS (routerid_unique.go checkRouterIDConflict).
+	// Reader: OPEN validation scopes the RFC 6286 Section 2.1 identifier claim to the peer's
+	// AS, reading PeerAS through the p.mu-guarded accessor (peer.go claimPeerAS) while the
+	// writer above republishes it.
+	remoteOpen := &message.Open{MyAS: 65001, BGPIdentifier: 0x0a0b0c0d}
 	for range 4000 {
-		checkRouterIDConflict(r.peers, otherKey, 65001, 0x0a0b0c0d)
+		peer.claimPeerAS(remoteOpen)
 	}
 
 	close(stop)

@@ -6,9 +6,11 @@ package peer
 
 import (
 	"bufio"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -167,6 +169,15 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 					})
 				}
 			}
+		case "router-id":
+			// option=open:value=router-id:id=<a.b.c.d> -- send this BGP Identifier instead of
+			// the mirrored ze identifier + 1. Drives RFC 6286 Section 2.2 rejection tests.
+			if addr, err := netip.ParseAddr(kv["id"]); err == nil && addr.Is4() {
+				octets := addr.As4()
+				id := binary.BigEndian.Uint32(octets[:])
+				config.RouterID = &id
+			}
+
 		case "add-capability":
 			if codeStr := kv["code"]; codeStr != "" {
 				code, err := strconv.Atoi(codeStr)

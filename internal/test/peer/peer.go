@@ -135,6 +135,11 @@ type Config struct {
 	SendUnknownMessage bool
 	// CapabilityOverrides: capabilities to add/remove from mirrored OPEN response
 	CapabilityOverrides []CapabilityOverride
+	// RouterID overrides the BGP Identifier of the mirrored OPEN response
+	// (option=open:value=router-id:id=<a.b.c.d>). Nil keeps the default, which is ze's own
+	// identifier with the last octet incremented. Set it to drive an RFC-invalid identifier:
+	// 0.0.0.0 (RFC 6286 Section 2.2 zero), or ze's own router-id over an iBGP session.
+	RouterID *uint32
 	// ConnMap determines how accepted connections map to conn= numbers in .ci files.
 	// "router-id": sort each accepted batch by OPEN router-id.
 	// "remote-ip": sort each accepted batch by TCP source address.
@@ -671,6 +676,13 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 
 	if len(peerBody) > 8 {
 		open[19+8] = (peerBody[8] + 1) & 0xFF
+	}
+
+	// Explicit BGP Identifier override (option=open:value=router-id:id=...), for tests that
+	// need an identifier the mirror-and-increment default can never produce -- e.g. 0.0.0.0
+	// or ze's own identifier (RFC 6286 Section 2.2).
+	if p.config.RouterID != nil && len(peerBody) > 8 {
+		binary.BigEndian.PutUint32(open[19+5:], *p.config.RouterID)
 	}
 
 	if p.config.ASN > 0 && p.config.ASN <= 65535 {

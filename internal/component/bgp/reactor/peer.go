@@ -662,25 +662,25 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	// RFC 4456 Section 8: ORIGINATOR_ID carries the BGP Identifier of the originator.
 	p.remoteRouterID.Store(remote.BGPIdentifier)
 
-	// RFC 6286 Section 2.1: the BGP Identifier SHOULD be unique within an AS. Ze
-	// enforces that by default -- reject if another ESTABLISHED peer in the same
-	// ASN has the same router-ID -- but an operator can opt out
-	// (bgp/session/allow-shared-router-id) when the duplication is intentional, e.g.
-	// one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same
-	// router-id. Because uniqueness is only a SHOULD, NOT enforcing it is conformant;
-	// ze then performs no router-id check at all (it does not implement the
-	// Section 2.3 shared-identifier collision detection). Skipping the check also
-	// removes the load-dependent check-then-act race (it only fired when the other
-	// same-id peer reached Established first).
+	// RFC 6286 Section 2.1: the BGP Identifier SHOULD be unique within an AS. Ze enforces
+	// that by default by CLAIMING the identifier for this peer here, while its OPEN is
+	// validated -- so two peers of one AS presenting one identifier at the same instant race
+	// for a single registry entry and exactly one wins, whatever the scheduler does. An
+	// operator opts out with bgp/session/allow-shared-router-id when the duplication is
+	// intentional, e.g. one anycast speaker (AS112) peering over both IPv4 and IPv6 with the
+	// same router-id; because uniqueness is only a SHOULD, ze then performs no AS-wide
+	// identifier check at all and both behaviors are conformant.
+	//
+	// This is independent of RFC 6286 Section 2.2 (a zero identifier, or this speaker's OWN
+	// identifier from an internal peer), which Session.validateOpenIdentifier has already
+	// rejected on both OPEN rails and which the opt-out does NOT relax.
 	if !r.config.AllowSharedRouterID {
-		r.mu.RLock()
-		conflictAddr, conflict := checkRouterIDConflict(
-			r.peers, p.settings.PeerKey(), p.settings.PeerAS, remote.BGPIdentifier)
-		r.mu.RUnlock()
-		if conflict {
+		peerAS := p.claimPeerAS(remote)
+		conflictAddr, claimed := r.routerIDs.claim(p, p.settings.Address, peerAS, remote.BGPIdentifier)
+		if !claimed {
 			return &routerIDConflictError{
 				conflictAddr: conflictAddr,
-				peerAS:       p.settings.PeerAS,
+				peerAS:       peerAS,
 				bgpID:        remote.BGPIdentifier,
 			}
 		}
@@ -691,6 +691,41 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	}
 
 	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, local, remote)
+}
+
+// claimPeerAS returns the AS that scopes this peer's BGP Identifier claim.
+//
+// RFC 6286 Section 2.1 scopes identifier uniqueness to an AS, so the claim key needs the
+// peer's AS at OPEN time. A configured peer has it in its settings. A DYNAMIC peer does not:
+// resolveDynamicPeerSettings publishes the learned ASN at establishment, which is after this
+// runs, so its configured PeerAS is still the template value. Fall back to the AS the peer
+// advertises in its OPEN, computed the same way resolveDynamicPeerSettings computes it
+// (RFC 6793: the 4-byte ASN when present, else the two-octet My AS).
+//
+// Reads PeerAS through the p.mu-guarded accessor because resolveDynamicPeerSettings writes it
+// from the establishment goroutine.
+func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
+	if as := p.PeerAS(); as != 0 {
+		return as
+	}
+	if remote.ASN4 > 0 {
+		return remote.ASN4
+	}
+	return uint32(remote.MyAS)
+}
+
+// releaseRouterIDClaim drops the AS-wide BGP Identifier this peer holds (RFC 6286
+// Section 2.1). Called on every session teardown so the identifier becomes available to
+// another peer as soon as this one's session ends; a no-op when nothing is held.
+func (p *Peer) releaseRouterIDClaim() {
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
+
+	if r == nil {
+		return
+	}
+	r.routerIDs.release(p)
 }
 
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
