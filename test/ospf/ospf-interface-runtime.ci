@@ -45,7 +45,13 @@ def dispatch(api, command):
     return resp.get('result', {})
 
 
-def require_iface(rows, name, network_type=None, passive=None):
+def require_iface(rows, name, network_type=None, passive=None, state='down'):
+    # state is the RFC 2328 sec 9.1 interface-state-machine state, not link
+    # up/down. A passive interface is Down (iface.go Start(): cfg.Passive ->
+    # StateDown). A network-type loopback interface is Loopback, NOT Down: RFC
+    # 2328 sec 9.1 lists Loopback as a distinct state and the ISM assigns it
+    # (iface.go Start(): NetworkLoopback -> StateLoopback; ism.go: String() ->
+    # "loopback"). Asserting 'down' for lo0 pinned an RFC violation.
     by_name = {row.get('name'): row for row in rows if isinstance(row, dict)}
     row = by_name.get(name)
     if row is None:
@@ -56,8 +62,8 @@ def require_iface(rows, name, network_type=None, passive=None):
             f"want {network_type!r}")
     if passive is not None and bool(row.get('passive')) != passive:
         runtime_fail(f"{name}: passive = {row.get('passive')!r}, want {passive!r}")
-    if row.get('state') != 'down':
-        runtime_fail(f"{name}: state = {row.get('state')!r}, want 'down'")
+    if row.get('state') != state:
+        runtime_fail(f"{name}: state = {row.get('state')!r}, want {state!r}")
     return row
 
 
@@ -79,8 +85,8 @@ def main():
     if not isinstance(rows, list):
         runtime_fail(f"show ospf interface: expected list, got {rows!r}")
 
-    require_iface(rows, 'lo0', network_type='loopback', passive=False)
-    require_iface(rows, 'passive0', passive=True)
+    require_iface(rows, 'lo0', network_type='loopback', passive=False, state='loopback')
+    require_iface(rows, 'passive0', passive=True, state='down')
     print('OK: OSPF runtime interface table includes passive and loopback rows',
           file=sys.stderr)
 

@@ -106,16 +106,16 @@ ospf {
 bgp {
 	peer peer1 {
 		connection {
-			remote { ip 127.0.0.1 }
-			local { ip 127.0.0.1 accept false }
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
 		}
 		session {
-			asn { local 65000 remote 65000 }
+			asn { local 65000; remote 65000; }
 			router-id 10.0.0.1
 			family { ipv4/unicast { prefix { maximum 10000; } } }
-			capability { graceful-restart disable }
+			capability { graceful-restart disable; }
 		}
-		behavior { group-updates disable }
+		behavior { group-updates disable; }
 		process ospf-nbma { }
 	}
 }
