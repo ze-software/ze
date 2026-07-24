@@ -9,7 +9,6 @@ package firewallnft
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -210,33 +209,9 @@ func hasCounterExpr(exprs []expr.Any) bool {
 // map. The returned pointer carries the kernel-assigned ID (allocated
 // inside conn.AddSet) that expr.Lookup needs.
 func (b *backend) applySet(t *nftables.Table, s *firewall.Set) (*nftables.Set, error) {
-	keyType, err := lowerSetType(s.Type)
+	nftSet, elements, err := lowerSet(t, s)
 	if err != nil {
 		return nil, err
-	}
-	nftSet := &nftables.Set{
-		Name:     s.Name,
-		Table:    t,
-		KeyType:  keyType,
-		Interval: s.Flags&firewall.SetFlagInterval != 0,
-	}
-	var elements []nftables.SetElement
-	for _, e := range s.Elements {
-		key, err := encodeSetElementKey(s.Type, e.Value)
-		if err != nil {
-			return nil, fmt.Errorf("element %q: %w", e.Value, err)
-		}
-		el := nftables.SetElement{Key: key, IntervalEnd: e.IntervalEnd}
-		// Per-element timeout reaches the kernel as time.Duration.
-		// Zero stays zero (no timeout) so unset elements keep the
-		// prior behavior. The set itself must carry flags-timeout
-		// for the kernel to honor any per-element timeout; that
-		// flag is applied at set construction above via the Flags
-		// field on the parent firewall.Set.
-		if e.Timeout != 0 {
-			el.Timeout = time.Duration(e.Timeout) * time.Second
-		}
-		elements = append(elements, el)
 	}
 	if err := b.conn.AddSet(nftSet, elements); err != nil {
 		return nil, fmt.Errorf("add set: %w", err)

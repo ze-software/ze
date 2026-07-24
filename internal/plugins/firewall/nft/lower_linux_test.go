@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -47,6 +48,55 @@ func TestShouldDeleteTableScopesToDesiredOrApplied(t *testing.T) {
 	}
 	if b.shouldDeleteTable(&nftables.Table{Name: "external"}, desired) {
 		t.Fatal("non-ze table must not be touched")
+	}
+}
+
+// VALIDATES: fw-10 AC-13 -- an element `timeout` leaf reaches the kernel:
+// lowerSet maps SetFlagTimeout to nftables.Set.HasTimeout and converts each
+// element's uint32 seconds to time.Duration. The vendored library emits
+// NFTA_SET_ELEM_TIMEOUT only when the parent set has HasTimeout
+// (vendor/github.com/google/nftables/set.go SetAddElements), so a set
+// without the flag silently drops every element timeout.
+// PREVENTS: regression of the firewall 009-set-element-timeout failure where
+// applySet never set HasTimeout and elements were programmed timeout-less.
+func TestLowerSetTimeoutFlagAndElementTimeouts(t *testing.T) {
+	table := &nftables.Table{Name: "ze_t", Family: nftables.TableFamilyINet}
+	s := &firewall.Set{
+		Name:  "transient",
+		Type:  firewall.SetTypeIPv4,
+		Flags: firewall.SetFlagTimeout,
+		Elements: []firewall.SetElement{
+			{Value: "10.0.0.1", Timeout: 3600},
+			{Value: "10.0.0.2"},
+		},
+	}
+	nftSet, elements, err := lowerSet(table, s)
+	if err != nil {
+		t.Fatalf("lowerSet: %v", err)
+	}
+	if !nftSet.HasTimeout {
+		t.Error("SetFlagTimeout must lower to nftables.Set.HasTimeout=true; without it the library drops every element timeout")
+	}
+	if len(elements) != 2 {
+		t.Fatalf("lowerSet elements = %d, want 2", len(elements))
+	}
+	if got, want := elements[0].Timeout, time.Hour; got != want {
+		t.Errorf("element[0].Timeout = %v, want %v", got, want)
+	}
+	if elements[1].Timeout != 0 {
+		t.Errorf("element[1].Timeout = %v, want 0 (unset stays no-timeout)", elements[1].Timeout)
+	}
+
+	s.Flags = firewall.SetFlagInterval
+	nftSet, _, err = lowerSet(table, s)
+	if err != nil {
+		t.Fatalf("lowerSet(interval): %v", err)
+	}
+	if nftSet.HasTimeout {
+		t.Error("HasTimeout must be false without SetFlagTimeout")
+	}
+	if !nftSet.Interval {
+		t.Error("SetFlagInterval must still lower to Interval=true")
 	}
 }
 

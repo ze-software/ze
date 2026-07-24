@@ -34,6 +34,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -168,6 +169,40 @@ func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
 		return nftables.TypeIFName, nil
 	}
 	return nftables.SetDatatype{}, fmt.Errorf("unknown set type %d", st)
+}
+
+// lowerSet translates a ze Set into the nftables.Set plus its elements,
+// ready for conn.AddSet. SetFlagTimeout MUST lower to HasTimeout: the
+// library emits NFTA_SET_ELEM_TIMEOUT for an element only when the parent
+// set carries HasTimeout, so omitting it silently drops every per-element
+// timeout on the way to the kernel.
+func lowerSet(t *nftables.Table, s *firewall.Set) (*nftables.Set, []nftables.SetElement, error) {
+	keyType, err := lowerSetType(s.Type)
+	if err != nil {
+		return nil, nil, err
+	}
+	nftSet := &nftables.Set{
+		Name:       s.Name,
+		Table:      t,
+		KeyType:    keyType,
+		Interval:   s.Flags&firewall.SetFlagInterval != 0,
+		HasTimeout: s.Flags&firewall.SetFlagTimeout != 0,
+	}
+	var elements []nftables.SetElement
+	for _, e := range s.Elements {
+		key, err := encodeSetElementKey(s.Type, e.Value)
+		if err != nil {
+			return nil, nil, fmt.Errorf("element %q: %w", e.Value, err)
+		}
+		el := nftables.SetElement{Key: key, IntervalEnd: e.IntervalEnd}
+		// Zero stays zero (no timeout) so unset elements keep the
+		// prior behavior.
+		if e.Timeout != 0 {
+			el.Timeout = time.Duration(e.Timeout) * time.Second
+		}
+		elements = append(elements, el)
+	}
+	return nftSet, elements, nil
 }
 
 // lowerCtx carries the nftables Conn + parent Table to helpers that need to
