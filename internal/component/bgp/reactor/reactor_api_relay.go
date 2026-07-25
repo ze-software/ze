@@ -250,20 +250,21 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 			return a.forwardUpdateCore(update, updateID, matchingPeers, src.info)
 		}()
 
-		// A route the destination's egress policy suppressed is NOT a failure.
-		// forwardUpdateCore reports errNoEstablishedPeersToForwardTo whenever no
-		// destination was dispatched to, and with the single peer this call
-		// targets that is exactly what a correct suppression looks like -- RFC
-		// 7947 community policy, RFC 4456 reflection rules and the RFC 9234 role
-		// step all `continue` past the peer. Counting it as a drop made ONE
-		// correctly-suppressed route fail the whole replay, which is the common
-		// case on a route server and would leave bgp-rs skipping its delta
-		// convergence loop: strictly fewer routes delivered than before this
-		// guard existed.
+		// A route the destination's egress policy suppressed is NOT a failure:
+		// RFC 7947 community policy, RFC 4456 reflection rules and the RFC 9234
+		// role step all skip the peer, and counting that as a drop made ONE
+		// correctly-suppressed route fail the whole replay -- the common case on a
+		// route server, leaving bgp-rs to skip its delta convergence loop.
+		//
+		// It is matched by its OWN sentinel, not by "nothing was dispatched".
+		// forwardUpdateCore reaches zero dispatches for failures too (EBGP wire
+		// build, read-buffer exhaustion, body build, a stopped pool), and treating
+		// those as handled would hide exactly the load-dependent drops this spec
+		// exists to surface.
 		switch {
 		case fwdErr == nil:
 			relayed++
-		case errors.Is(fwdErr, errNoEstablishedPeersToForwardTo):
+		case errors.Is(fwdErr, errAllDestinationsSuppressed):
 			relayed++ // handled: egress policy decided this peer gets nothing
 			fwdLogger().Debug("relay-stored-route: suppressed for destination",
 				"source", route.SourcePeer, "destination", destination, "family", route.Family)
@@ -345,13 +346,9 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 	attrs := scratch.Buf[:attrLen]
 	nextHop := scratch.Buf[attrLen : attrLen+nhLen]
 	nlri := scratch.Buf[attrLen+nhLen : scratchLen]
-	if _, err := hex.Decode(attrs, []byte(route.AttrHex)); err != nil {
-		return nil, 0, errRelayHex
-	}
-	if _, err := hex.Decode(nextHop, []byte(route.NextHopHex)); err != nil {
-		return nil, 0, errRelayHex
-	}
-	if _, err := hex.Decode(nlri, []byte(route.NLRIHex)); err != nil {
+	if !decodeHexInto(attrs, route.AttrHex) ||
+		!decodeHexInto(nextHop, route.NextHopHex) ||
+		!decodeHexInto(nlri, route.NLRIHex) {
 		return nil, 0, errRelayHex
 	}
 

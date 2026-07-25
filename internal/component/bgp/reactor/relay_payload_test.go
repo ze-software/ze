@@ -170,6 +170,62 @@ func TestScanAttrBlockRejectsMalformed(t *testing.T) {
 	}
 }
 
+// TestDecodeHexIntoRejectsMalformed verifies the allocation-free hex decoder
+// accepts exactly what encoding/hex accepts, and rejects everything else whole.
+//
+// VALIDATES: spec S-5 -- stored-route hex crosses the plugin RPC boundary and is
+// untrusted, so a length or alphabet defect must reject the field rather than
+// leave a half-filled buffer to be re-emitted onto a peer's session.
+// PREVENTS: an odd-length field silently losing its last nibble (hex.DecodedLen
+// rounds down), and a partially-decoded buffer reaching the wire.
+func TestDecodeHexIntoRejectsMalformed(t *testing.T) {
+	t.Run("round-trips valid hex in both cases", func(t *testing.T) {
+		dst := make([]byte, 4)
+		require.True(t, decodeHexInto(dst, "0a0B0c0D"))
+		require.Equal(t, []byte{0x0a, 0x0b, 0x0c, 0x0d}, dst)
+	})
+
+	t.Run("empty decodes to empty", func(t *testing.T) {
+		require.True(t, decodeHexInto(nil, ""), "a zero-length field is valid")
+	})
+
+	cases := []struct {
+		name string
+		dst  int
+		s    string
+	}{
+		{"odd length", 2, "0a0"},
+		{"one byte short", 4, "0a0b0c"},
+		{"one byte long", 2, "0a0b0c"},
+		{"non-hex alphabet", 2, "0azz"},
+		{"leading space", 2, " a0b"},
+		{"unicode digit", 2, "0a0٠"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dst := make([]byte, tc.dst)
+			require.False(t, decodeHexInto(dst, tc.s), "malformed hex must be rejected whole")
+		})
+	}
+}
+
+// TestDecodeHexIntoDoesNotAllocate pins the reason this decoder exists.
+//
+// VALIDATES: ai/rules/memory-architecture.md -- the reconstruction path decodes
+// three fields per stored route, and hex.Decode(dst, []byte(s)) would allocate on
+// each string-to-slice conversion.
+// PREVENTS: a silent regression back to the allocating form.
+func TestDecodeHexIntoDoesNotAllocate(t *testing.T) {
+	dst := make([]byte, 28)
+	src := "4001010040020E02030000FBF00000FC000000FBF140030401010101"
+	allocs := testing.AllocsPerRun(100, func() {
+		if !decodeHexInto(dst, src) {
+			t.Fatal("fixture must decode")
+		}
+	})
+	require.Zero(t, allocs, "decoding a stored field must not allocate")
+}
+
 // hexByte renders a single byte as two hex digits for fixture assembly.
 func hexByte(n int) string {
 	const digits = "0123456789abcdef"

@@ -28,6 +28,18 @@ import (
 
 var errNoEstablishedPeersToForwardTo = errors.New("no established peers to forward to")
 
+// errAllDestinationsSuppressed reports that every destination was skipped by a
+// POLICY decision -- RFC 7947 community forwarding, RFC 4456 reflection rules, or
+// an egress filter step -- rather than by a failure to build or dispatch the wire.
+//
+// The two are indistinguishable from dispatchedCount alone, and conflating them
+// is not cosmetic: a caller that treats "nothing dispatched" as success in order
+// to tolerate suppression then also swallows read-buffer exhaustion and
+// wire-build failures, which are exactly the load-dependent drops worth
+// reporting. Callers that must tell them apart test for this sentinel; callers
+// that only care whether anything was sent can keep testing for the other.
+var errAllDestinationsSuppressed = errors.New("all destinations suppressed by egress policy")
+
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
 func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8) error {
@@ -409,6 +421,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 
 	var parseCache fwdParseCache
 	var dispatchedCount int
+	// Destinations skipped by a policy decision rather than by a failure. Only
+	// when EVERY matching peer was skipped this way is "nothing dispatched" a
+	// correct outcome rather than a drop -- see errAllDestinationsSuppressed.
+	var suppressedCount int
 
 	type pendingFwd struct {
 		item fwdItem
@@ -467,6 +483,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
 			}
 			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
+				suppressedCount++
 				continue
 			}
 		}
@@ -474,6 +491,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// RFC 4456: Route reflection forwarding rules.
 		if srcInfo.isIBGP && !facts.isEBGP {
 			if !srcInfo.isRRClient && !facts.rrClient {
+				suppressedCount++
 				continue
 			}
 		}
@@ -511,6 +529,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				}
 			}
 			if suppressed {
+				suppressedCount++
 				continue
 			}
 		}
@@ -687,6 +706,11 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	}
 
 	if dispatchedCount == 0 {
+		// Every destination skipped by policy is a correct outcome; anything else
+		// reaching zero is a drop the caller must be able to see.
+		if suppressedCount > 0 && suppressedCount == len(matchingPeers) {
+			return errAllDestinationsSuppressed
+		}
 		return errNoEstablishedPeersToForwardTo
 	}
 

@@ -33,13 +33,21 @@ func storedIPv4Route(sourcePeer string) rpc.StoredRoute {
 // plus a capturing forward pool, and returns the dispatch observation channel.
 func relayFixture(t *testing.T) (*reactorAPIAdapter, *RecentUpdateCache, *[]fwdItem, *sync.Mutex, chan struct{}) {
 	t.Helper()
+	return relayFixtureAS(t, 65001, 65002)
+}
+
+// relayFixtureAS is relayFixture with the peer AS numbers chosen by the caller,
+// so a test can build the IBGP-to-IBGP pair whose RFC 4456 reflection rules make
+// forwardUpdateCore suppress the destination.
+func relayFixtureAS(t *testing.T, srcAS, dstAS uint32) (*reactorAPIAdapter, *RecentUpdateCache, *[]fwdItem, *sync.Mutex, chan struct{}) {
+	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
+	src := makeRSPeer(t, "10.0.0.1", srcAS, ctx, ctxID)
 	src.recvCtxID = ctxID
-	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
+	dst := makeRSPeer(t, "10.0.0.2", dstAS, ctx, ctxID)
 
 	var dispatched []fwdItem
 	var mu sync.Mutex
@@ -113,6 +121,67 @@ func TestRelayStoredRouteForwardsThroughForwardRail(t *testing.T) {
 // TestRelayStoredRouteFailsClosedWithoutSource verifies a route whose source peer
 // is gone is NOT relayed.
 //
+// TestRelayStoredRouteCountsDispatchFailureAsIncomplete verifies a route that
+// reached no destination because dispatch FAILED is reported, not counted as a
+// successful relay.
+//
+// VALIDATES: the completeness guard distinguishes "egress policy suppressed this
+// route" from "we failed to send it". forwardUpdateCore returns one error for
+// both when nothing was dispatched (reactor_api_forward.go:689-691), so counting
+// that error as handled would make a read-pool exhaustion or a wire-build failure
+// indistinguishable from a policy decision.
+// PREVENTS: a silently dropped route on a peer-up replay under load being
+// reported as relayed, which is exactly the load-dependent class this spec exists
+// to fix, and would leave `relayed < eligible` unable to ever fire.
+func TestRelayStoredRouteCountsDispatchFailureAsIncomplete(t *testing.T) {
+	api, cache, dispatched, mu, _ := relayFixture(t)
+
+	// Drop the destination's forwarding facts. forwardUpdateCore skips a peer
+	// whose facts are nil (reactor_api_forward.go:456-459) -- the state a peer is
+	// in when its session tore down mid-forward. Nothing is dispatched, and the
+	// failure must NOT read as a suppression.
+	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
+	require.NotNil(t, dst, "fixture must expose the destination peer")
+	dst.fwdFacts.Store(nil)
+
+	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+	require.Error(t, err, "a route that reached no destination through failure must not report success")
+	assert.NotErrorIs(t, err, errAllDestinationsSuppressed,
+		"a dispatch failure must not be classified as an egress-policy suppression")
+
+	mu.Lock()
+	assert.Empty(t, *dispatched, "nothing was dispatched")
+	mu.Unlock()
+	require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
+		"the failed relay must still release its pooled buffer")
+}
+
+// TestRelayStoredRouteTreatsEgressSuppressionAsHandled verifies a route the
+// destination's policy legitimately suppresses is NOT reported as a failure.
+//
+// VALIDATES: spec Review Gate R2-1 -- with a single destination, a correct
+// suppression leaves nothing dispatched, and failing the whole replay for it
+// would deliver strictly fewer routes than before the completeness guard existed.
+// PREVENTS: one policy-suppressed route failing an entire peer-up replay and
+// making bgp-rs skip its delta-convergence loop.
+func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
+	// Both peers in the local AS: RFC 4456 forbids reflecting an IBGP-learned
+	// route to another IBGP peer when neither side is a route-reflector client
+	// (reactor_api_forward.go:474-479), so the destination is suppressed.
+	api, cache, dispatched, mu, _ := relayFixtureAS(t, 65000, 65000)
+
+	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+	require.NoError(t, err, "a correctly suppressed route is handled, not a failed relay")
+
+	mu.Lock()
+	assert.Empty(t, *dispatched, "a suppressed route reaches no peer")
+	mu.Unlock()
+	require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
+		"the suppressed relay must release its pooled buffer")
+}
+
 // VALIDATES: spec C-4 -- without the source peer the egress transform a live
 // forward would apply cannot be reproduced, so the relay must refuse.
 // PREVENTS: relaying under a zero-valued source, which would apply the wrong

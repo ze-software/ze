@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 6/7 |
-| Updated | 2026-07-24 |
+| Phase | 7/7 |
+| Updated | 2026-07-25 |
 
 > **Concurrency note (2026-07-24).** Two sessions worked this spec at once. Phase 1
 > (RPC/SDK/coordinator plumbing) and Phase 2 (`relay_payload.go` byte builders) were
@@ -310,7 +310,7 @@ second time alongside the reactor forward.
 | AC-2 (378 duplicate) | **MET** | `pass 1/1`; stress-repro 10 invocations, not reproduced (`bgp-plugin-378-20260724-233020.log`). |
 | AC-3 (394/395 OTC) | **MET** | both `pass 1/1`; 394 stress-repro 10 invocations, not reproduced (`bgp-plugin-394-20260724-233021.log`). |
 | AC-4 (351 multi-peer nexthop) | **MET, but NOT attributable to this spec** | `ze-test bgp plugin --pattern redistribute-l2tp-multi-peer-nexthop` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 351" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-351-20260725-000715.log`). **351 does not exercise the replay rail at all**: it launches `ze -` with no `--plugin` flags (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci:204`) and its `plugin {}` block loads only `l2tp-nexthop-test`, `redistribute-orchestrator` and `fakel2tp` (`:121-131`) -- neither `bgp-adj-rib-in` nor `bgp-rs` is present, so no peer-up replay exists in that test and `RelayStoredRoute` is never reached. Its load-dependent failure was the RFC 6286 duplicate BGP Identifier race, fixed by commit `e4076920c` (which gave the second ze-peer a distinct identifier, `+option=open:value=router-id:id=1.2.3.6`). 351 was mis-triaged into this spec's cluster; the egress-rail change neither caused nor fixed it. |
-| AC-5 (dedupe) | **MET** | `TestReplayOwnerDedupe` (both directions: standalone still replays, owned stands down). Mutation-verified: removing `!r.replayOwned.Load()` turns it RED. |
+| AC-5 (dedupe) | **PARTIAL** | The GATE is proven: `TestReplayOwnerDedupe` covers both directions (standalone still replays, owned stands down) and is mutation-verified (removing `!r.replayOwned.Load()` turns it RED). The AC's full text -- "both plugins loaded, peer-up: exactly one replay" -- is NOT proven, and a third review pass (2026-07-25) downgraded this row from MET. The test's own premise is that "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go:930`), which is exactly the ordering R2-4 shows is unenforced: `sendPostStartupToAll` does not wait before `StartPeers` (`plugin/server/startup.go:220-258`), so a peer establishing immediately can still be replayed twice, as `claimReplayOwnership` itself documents (`rs/server_handlers.go:146-152`). The test asserts the flag mechanism and therefore cannot fail when the race is lost. Deterministic ownership is homed in `plan/spec-fixit-stored-route-relay-hardening.md`. |
 
 ### Gates
 
@@ -414,3 +414,50 @@ one of those fixes INTRODUCED a blocker and that two others rested on false prem
 | `make ze-race-reactor` | 0 data races, `ok ... reactor 101.873s` |
 | `ze-test bgp plugin --all` | 491/495 (baseline `e4076920c` recorded the same), zero `relay-stored-route` errors |
 | 372 / 378 / 394 / 395 | pass; not reproduced under stress-repro |
+
+## Review Gate -- Run 3 (independent, fresh session, 2026-07-25)
+
+A third pass from a session that did not author the implementation, reviewing the LANDED
+code at `f0e4d8c4e` rather than a diff. Run 2's findings were re-verified against the
+producing functions rather than taken on trust; three of its records turned out to
+contradict the code they cite.
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| R3-1 | ISSUE | Run 2's own R2-1 fix reopened the fail-open on a different axis. `errors.Is(fwdErr, errNoEstablishedPeersToForwardTo)` counted as handled, but `forwardUpdateCore` returns that same error whenever `dispatchedCount == 0` (`reactor_api_forward.go:689-691`), which at least five NON-suppression branches reach with a single destination: EBGP wire build incl. read-pool exhaustion (`:542`), transcode buffer exhaustion (`:554`, `:578`), `buildFwdBody` failure (`:648`), and both dispatch attempts failing (`:678-685`). Several are silent. Under pool exhaustion -- the load condition this spec exists for -- a dropped route was counted as relayed and `relayed < eligible` could never fire. | **FIXED** at the owning layer: new sentinel `errAllDestinationsSuppressed` returned only when EVERY matching peer was skipped by policy; the relay now tests for it. Two tests, both mutation-verified (reverting to the old sentinel turns them RED). |
+| R3-2 | ISSUE | `plan/deferrals/fixit-bgp-egress-rail-divergence.md` claimed "the startup ORDERING race ... was made deterministic here (`sendPostStartupToAll` now waits before `StartPeers`)". The landed function does NOT wait (`plugin/server/startup.go:220-258`), and its own comment says so. R2-4 agrees. A future reader of the shard would believe the race is closed. | **FIXED**: row corrected to state the wait was tried and reverted (deadlock), with the correction dated. |
+| R3-3 | ISSUE | AC-5 was marked MET on `TestReplayOwnerDedupe`, whose own premise is "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go:930`) -- exactly the ordering R2-4 shows is unenforced. The test asserts the flag mechanism and cannot fail when the race is lost, so it does not prove the AC's text ("exactly one replay"). | **FIXED**: AC-5 downgraded to PARTIAL, with the gate-vs-AC distinction stated. |
+| R3-4 | ISSUE | `plan/known-failures/bgp-plugin-role-otc-export-unknown.md` sent the next investigator to `mods.IsWithdraw()`. `SetWithdraw` has exactly one producer (`gr/gr_egress.go:109`) and 398 loads neither `bgp-gr` nor `bgp-rs` (`role-otc-export-unknown.ci:145`), so that path cannot fire there. Its exculpatory evidence was also weak: "zero `relay-stored-route` log lines" rules out relay ERRORS, not relay involvement (a successful relay logs nothing; suppression logs at Debug, `reactor_api_relay.go:268`), and 398 DOES load adj-rib-in without bgp-rs, so the new rail runs in it by construction. | **FIXED**: candidate marked ruled-out with its reason, attribution softened to what the evidence supports. |
+| R3-5 | NOTE | The learned summary described replay ownership as claimed "on the first explicit `request bgp adj-rib-in replay`" -- the superseded latch design, not the shipped explicit `claim-replay` command. The summary is the artifact that survives the spec. | **FIXED**: rewritten to the shipped mechanism, keeping why the latch was dropped. |
+| R3-6 | NOTE | The summary recorded neither the ADD-PATH refusal (an accepted functional regression, R2-6) nor AC-5's unenforced race. | **FIXED**: both added under Consequences. |
+| R3-7 | NOTE | `hex.Decode(dst, []byte(route.AttrHex))` allocated three times per stored route, directly under a comment claiming the pooled scratch avoids per-route allocation. | **FIXED**: `decodeHexInto` (string input, zero-alloc, validates every nibble), with a rejection table and an `AllocsPerRun` test pinning the reason it exists. |
+
+### Verified correct by Run 3 (re-checked against producers, not taken from Run 2)
+
+- Buffer lifecycle is exactly-once. The pending flag blocks eviction between `Add` and
+  `RetainN` (`recent_cache.go:579`), the deferred `Release` survives a panic in
+  `forwardUpdateCore` (`reactor_api_relay.go:248-251`), and the scratch slices are copied
+  into `out.Buf` before `defer ReturnReadBuffer` fires.
+- `maxUpdateBodyLen = 65516` (`relay_payload.go:43`) does bound the 65535-byte extended
+  pool buffer (`session.go:83`, `header.go:24`).
+- `AddPath` and `AddPathFor` are the same function (`context.go:200-203`), so the add-path
+  guard reads what it intends.
+- Fail-closed source resolution costs nothing: peer-down purges the store
+  (`adj_rib_in/rib.go:556-559`).
+- No `.ci` or Go test asserts on the `no established peers to forward to` string, so
+  splitting the sentinel breaks no expectation.
+
+### Gates (Run 3)
+
+| Gate | Result |
+|------|--------|
+| `ze-lint-changed` | exit 0, 0 issues |
+| `ze-test-bgp` | exit 0 (`reactor` 7.976s; `adj_rib_in`, `rs`, `reactor/filter` ok) |
+| `ze-race-reactor` | exit 0, 0 data races, `ok ... reactor 101.515s` |
+| `ze-test bgp plugin 372 380 396 397` | `pass 4/4 100.0% 19.1s` (ids shifted from 378/394/395 as tests were added since the spec was written) |
+| New tests mutation-verified | reverting the relay to the old sentinel turns both RED ("An error is expected but got nil") |
+
+### Final status
+
+- [x] Run 3 findings all fixed or homed; 0 BLOCKER, 0 ISSUE outstanding
+- [x] AC-5 restated honestly as PARTIAL rather than closed over

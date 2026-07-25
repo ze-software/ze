@@ -45,6 +45,43 @@ const (
 	maxNextHopLen = 0xFF
 )
 
+// decodeHexInto decodes the hex string s into dst, returning false unless s is
+// well-formed hex that fills dst exactly.
+//
+// encoding/hex decodes from a []byte, so hex.Decode(dst, []byte(s)) converts and
+// therefore ALLOCATES once per field. A peer-up replay runs this three times per
+// stored route, which is the one place the reconstruction would allocate at all
+// (ai/rules/no-sprintf-alloc.md, ai/rules/memory-architecture.md). Stored routes
+// also arrive as hex across the plugin RPC boundary, so the input is untrusted:
+// every nibble is validated and a bad one rejects the whole field (spec S-5).
+func decodeHexInto(dst []byte, s string) bool {
+	if len(s) != len(dst)*2 {
+		return false
+	}
+	for i := range dst {
+		hi, hiOK := hexNibble(s[i*2])
+		lo, loOK := hexNibble(s[i*2+1])
+		if !hiOK || !loOK {
+			return false
+		}
+		dst[i] = hi<<4 | lo
+	}
+	return true
+}
+
+// hexNibble converts one hex digit to its value, accepting either case.
+func hexNibble(c byte) (byte, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0', true
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10, true
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10, true
+	}
+	return 0, false
+}
+
 // relayAttrSpan describes one path attribute located inside a raw attribute block.
 type relayAttrSpan struct {
 	code  attribute.AttributeCode

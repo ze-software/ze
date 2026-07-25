@@ -27,15 +27,21 @@ reproduced:
 | `ze-test bgp plugin --pattern role-otc-export-unknown`, 3 consecutive runs | pass, pass, pass |
 | `scripts/dev/stress-repro.py bgp --test "plugin 398" --iterations 10 --minutes 6 --any-failure` (32 burners / 16 cores) | "not reproduced in 10 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-398-20260725-004244.log`) |
 
-## What it is NOT
+## What is and is not ruled out
 
-It is not the egress-rail divergence that `spec-fixit-bgp-egress-rail-divergence` fixed, on
-the evidence available:
+**Not ruled out: the relay rail runs in this test.** 398 loads `ze.bgp-adj-rib-in` and does
+NOT load `bgp-rs` (`test/plugin/role-otc-export-unknown.ci:145`), so `replayOwned` stays
+false (`adj_rib_in/rib.go:579`) and peer-up self-replay goes through `RelayStoredRoute` by
+construction. An earlier revision of this file argued the relay was uninvolved because the
+495-test run contained zero `relay-stored-route` log lines; a third review pass (2026-07-25)
+corrected that. A SUCCESSFUL relay logs nothing at all and a suppressed one logs only at
+Debug (`reactor_api_relay.go:268`), so the absence of those lines rules out relay ERRORS,
+not relay involvement.
 
-- The whole 495-test run contains **zero** `relay-stored-route` log lines, so the relay path
-  emitted no error anywhere.
-- The four tests that DID carry that bug (372, 378, 394, 395) are green and non-reproducing
-  under the same stress reproducer.
+What does hold:
+
+- The four tests that carried the egress-rail bug (372, 378, 394, 395) are green and
+  non-reproducing under the same stress reproducer.
 - 398 was passing before that spec's changes and passes in isolation after them.
 
 The spurious-withdraw SHAPE resembles the original 394 capture, so the next occurrence is
@@ -43,8 +49,14 @@ worth capturing rather than dismissing.
 
 ## Next step for whoever sees it again
 
-Capture the full `tmp/stress-repro/` log and identify the withdraw's producer. Candidate
-starting points, none yet confirmed: the RFC 9494 announce-to-withdrawal conversion in
-`forwardUpdateCore` (`mods.IsWithdraw()`, `internal/component/bgp/reactor/reactor_api_forward.go`),
-and the peer-down withdrawal path. Do not assume it is the same defect as 394 without
-reading the producing function.
+Capture the full `tmp/stress-repro/` log and identify the withdraw's producer.
+
+**Ruled OUT as the producer, so do not start there:** the RFC 9494 announce-to-withdrawal
+conversion in `forwardUpdateCore`. `ModAccumulator.SetWithdraw` has exactly one producer,
+`bgp/plugins/gr/gr_egress.go:109`, and 398 loads neither `bgp-gr` nor any other plugin that
+reaches it, so `mods.IsWithdraw()` (`reactor_api_forward.go:607`) cannot be true in this
+test. An earlier revision named this path as the leading candidate.
+
+Unexamined candidates: the peer-down withdrawal path, and whatever else can emit a
+withdraw-only body to a destination with only `bgp-role` and `bgp-adj-rib-in` loaded. Read
+the producing function before attributing it to anything, including this spec's change.
