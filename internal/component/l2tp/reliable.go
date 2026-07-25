@@ -490,9 +490,13 @@ func (e *ReliableEngine) OnReceive(hdr MessageHeader, payload []byte, now time.T
 		e.nextRecvSeq++
 		e.needsZLB = true
 		delivered := []RecvEntry{entry}
-		// Drain any consecutive reorder-queued messages.
+		// Drain any consecutive reorder-queued messages. Each carries the
+		// Session ID from its OWN header (reorderEntry.sessionID): the FSM
+		// routes session-scoped messages on RecvEntry.SessionID, and Session
+		// ID 0 is reserved, so substituting 0 here would silently drop every
+		// gap-filled ICCN / ICRP / OCCN / OCRP / CDN / WEN / SLI.
 		for _, r := range e.reorder.popInOrder(e.nextRecvSeq) {
-			delivered = append(delivered, e.makeRecvEntry(r.ns, 0, r.payload))
+			delivered = append(delivered, e.makeRecvEntry(r.ns, r.sessionID, r.payload))
 			e.nextRecvSeq++
 		}
 		return ReceiveResult{Class: ClassDelivered, Delivered: delivered, NewSends: newSends, Acked: acked}
@@ -504,7 +508,7 @@ func (e *ReliableEngine) OnReceive(hdr MessageHeader, payload []byte, now time.T
 	}
 	// Out of order: hdr.Ns > nextRecvSeq in sequence terms.
 	// Try to queue; if beyond window, discard.
-	if e.reorder.store(hdr.Ns, e.nextRecvSeq, payload) {
+	if e.reorder.store(hdr.Ns, hdr.SessionID, e.nextRecvSeq, payload) {
 		return ReceiveResult{Class: ClassReorderQueued, NewSends: newSends, Acked: acked}
 	}
 	return ReceiveResult{Class: ClassDiscarded, NewSends: newSends, Acked: acked}

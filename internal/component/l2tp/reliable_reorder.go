@@ -5,11 +5,18 @@
 package l2tp
 
 // reorderEntry is one payload delivered from the reorder queue, with its
-// original Ns. The engine uses both the payload (for delivery) and the
-// Ns (to advance nextRecvSeq).
+// original Ns and Session ID. The engine uses the payload (for delivery),
+// the Ns (to advance nextRecvSeq) and the Session ID (so the FSM can
+// route a session-scoped message to the session its own header named).
+//
+// sessionID is load-bearing, not bookkeeping: the FSM dispatches on
+// RecvEntry.SessionID, and Session ID 0 is reserved and never allocated
+// (see allocateSessionID), so a queued entry that lost its Session ID is
+// delivered to a session that cannot exist and is silently dropped.
 type reorderEntry struct {
-	ns      uint16
-	payload []byte
+	ns        uint16
+	sessionID uint16
+	payload   []byte
 }
 
 // reorderQueue buffers control messages that arrived out of order --
@@ -28,7 +35,7 @@ type reorderEntry struct {
 // reactor goroutine and have exclusive access.
 type reorderQueue struct {
 	capacity uint16
-	entries  map[uint16][]byte
+	entries  map[uint16]reorderEntry
 }
 
 // newReorderQueue constructs a reorder queue with the given capacity.
@@ -40,7 +47,7 @@ type reorderQueue struct {
 func newReorderQueue(capacity uint16) *reorderQueue {
 	return &reorderQueue{
 		capacity: capacity,
-		entries:  make(map[uint16][]byte, capacity),
+		entries:  make(map[uint16]reorderEntry, capacity),
 	}
 }
 
@@ -49,8 +56,12 @@ func newReorderQueue(capacity uint16) *reorderQueue {
 //   - Ns is at or beyond nextRecvSeq + capacity (outside advertised window)
 //   - Ns is already buffered (duplicate of a reorder-queued message)
 //
+// sessionID is the Session ID from the buffered message's OWN header. It
+// MUST be carried through the queue: popInOrder hands it back so the
+// engine can deliver the message to the session the peer addressed.
+//
 // Payload is copied defensively -- the caller may reuse its buffer.
-func (q *reorderQueue) store(ns, nextRecvSeq uint16, payload []byte) bool {
+func (q *reorderQueue) store(ns, sessionID, nextRecvSeq uint16, payload []byte) bool {
 	offset := ns - nextRecvSeq
 	if offset == 0 || offset >= q.capacity {
 		return false
@@ -60,7 +71,7 @@ func (q *reorderQueue) store(ns, nextRecvSeq uint16, payload []byte) bool {
 	}
 	buf := make([]byte, len(payload))
 	copy(buf, payload)
-	q.entries[ns] = buf
+	q.entries[ns] = reorderEntry{ns: ns, sessionID: sessionID, payload: buf}
 	return true
 }
 
@@ -72,11 +83,11 @@ func (q *reorderQueue) popInOrder(nextRecvSeq uint16) []reorderEntry {
 	var out []reorderEntry
 	ns := nextRecvSeq
 	for {
-		payload, exists := q.entries[ns]
+		entry, exists := q.entries[ns]
 		if !exists {
 			break
 		}
-		out = append(out, reorderEntry{ns: ns, payload: payload})
+		out = append(out, entry)
 		delete(q.entries, ns)
 		ns++
 	}

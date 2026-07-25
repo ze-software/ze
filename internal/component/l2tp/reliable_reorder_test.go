@@ -16,12 +16,14 @@ func TestReorderQueueStoreAndPop(t *testing.T) {
 	// Store Ns=3 when nextRecvSeq=1. Offset = 2. Capacity is 4, so
 	// offsets 1..3 are reorder-buffered (offset 0 is in-order, handled by
 	// the caller directly; offsets >= capacity are beyond the window).
-	if !q.store(3, 1, []byte("msg3")) {
+	// The middle argument is the buffered message's own Session ID, which
+	// popInOrder must hand back unchanged.
+	if !q.store(3, 0x33, 1, []byte("msg3")) {
 		t.Fatalf("store(3, 1) returned false, expected true")
 	}
 
 	// Storing again at the same Ns returns false (already buffered).
-	if q.store(3, 1, []byte("dup")) {
+	if q.store(3, 0x33, 1, []byte("dup")) {
 		t.Fatalf("store(3, 1) duplicate returned true, expected false")
 	}
 
@@ -31,7 +33,7 @@ func TestReorderQueueStoreAndPop(t *testing.T) {
 	}
 
 	// Store Ns=2. Now queue has [_, 2, 3].
-	if !q.store(2, 1, []byte("msg2")) {
+	if !q.store(2, 0x22, 1, []byte("msg2")) {
 		t.Fatalf("store(2, 1) returned false")
 	}
 
@@ -46,6 +48,15 @@ func TestReorderQueueStoreAndPop(t *testing.T) {
 	if !bytes.Equal(got[1].payload, []byte("msg3")) || got[1].ns != 3 {
 		t.Errorf("got[1] = {%d, %q}, want {3, \"msg3\"}", got[1].ns, got[1].payload)
 	}
+	// Each entry keeps the Session ID it was stored with: the engine
+	// delivers on it, and Session ID 0 is reserved (never allocated), so a
+	// lost Session ID means a silently dropped session-scoped message.
+	if got[0].sessionID != 0x22 {
+		t.Errorf("got[0].sessionID = %#x, want 0x22", got[0].sessionID)
+	}
+	if got[1].sessionID != 0x33 {
+		t.Errorf("got[1].sessionID = %#x, want 0x33", got[1].sessionID)
+	}
 }
 
 // VALIDATES: AC-7 Ns beyond the advertised window is rejected. The ring
@@ -56,15 +67,15 @@ func TestReorderQueueBeyondCapacity(t *testing.T) {
 
 	// With nextRecvSeq=10, accepted offsets are 0..3 (i.e., Ns 10..13).
 	// Ns=14 is offset 4 -- exactly at capacity, must be rejected.
-	if q.store(14, 10, []byte("too-far")) {
+	if q.store(14, 0, 10, []byte("too-far")) {
 		t.Errorf("store(14, 10) with capacity 4 returned true, expected false")
 	}
-	if q.store(100, 10, []byte("way-too-far")) {
+	if q.store(100, 0, 10, []byte("way-too-far")) {
 		t.Errorf("store(100, 10) returned true, expected false")
 	}
 
 	// Ns=13 is offset 3 -- the last valid slot.
-	if !q.store(13, 10, []byte("last-slot")) {
+	if !q.store(13, 0, 10, []byte("last-slot")) {
 		t.Errorf("store(13, 10) at last slot returned false")
 	}
 }
@@ -76,10 +87,10 @@ func TestReorderQueueWraparound(t *testing.T) {
 	q := newReorderQueue(4)
 
 	// nextRecvSeq=65535. Valid Ns range: 65535, 0, 1, 2 (offsets 0..3).
-	if !q.store(0, 65535, []byte("ns0")) {
+	if !q.store(0, 0xF00D, 65535, []byte("ns0")) {
 		t.Fatalf("store(0, 65535) returned false")
 	}
-	if !q.store(2, 65535, []byte("ns2")) {
+	if !q.store(2, 0xBEEF, 65535, []byte("ns2")) {
 		t.Fatalf("store(2, 65535) returned false")
 	}
 
@@ -116,7 +127,7 @@ func TestReorderQueueDefensiveCopy(t *testing.T) {
 	q := newReorderQueue(4)
 
 	src := []byte("hello")
-	q.store(2, 1, src)
+	q.store(2, 0, 1, src)
 	src[0] = 'X' // mutate after store
 
 	// Pop with nextRecvSeq=2 (caller just handled Ns=1 in-order).
