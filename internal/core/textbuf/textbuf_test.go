@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"net/netip"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -286,15 +287,39 @@ func TestPoolTransfersHeapSliceOnString(t *testing.T) {
 	b2.Release()
 }
 
+// VALIDATES: Get keeps a recycled Buffer's grown backing array instead of
+// snapping it back to the 128-byte inline one (textbuf.go:132, the
+// `cap(b.b) > len(b.arr)` branch).
+// PREVENTS: that branch being dropped, which would re-grow -- and so re-allocate
+// -- on every pooled use of a buffer larger than inline.
+//
+// No t.Parallel, and GC disabled: observing what Get does to a RECYCLED buffer
+// requires Get to actually hand one back, and sync.Pool promises no such thing.
+// It is emptied at every GC, and an item parked in one P's private slot cannot
+// be stolen by another P. A single Release/Get pair asserted this and flaked in
+// full `ze-verify` runs under the parallel suite's memory pressure
+// (plan/known-failures/syncpool-capacity-identity-flakes.md).
+//
+// Retrying with GC off removes that environmental variable without weakening the
+// check: if Get stopped preserving capacity, EVERY iteration would come back at
+// inline size and this still fails.
 func TestPoolPreservesCapacityWithoutString(t *testing.T) {
-	// No t.Parallel: test assumes Get returns the buffer just Released,
-	// which is only true when no other goroutine calls Get concurrently.
-	b := Get()
-	b.Grow(300)
-	b.Release()
-	b2 := Get()
-	assert.GreaterOrEqual(t, cap(b2.b), 300)
-	b2.Release()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	const attempts = 100
+	preserved := 0
+	for range attempts {
+		b := Get()
+		b.Grow(300)
+		b.Release()
+		b2 := Get()
+		if cap(b2.b) >= 300 {
+			preserved++
+		}
+		b2.Release()
+	}
+	assert.Positive(t, preserved,
+		"no recycled Buffer kept its grown backing array in %d attempts: Get is resetting a >inline buffer to the inline array", attempts)
 }
 
 func TestReleaseNoopOnStackBuffer(t *testing.T) {

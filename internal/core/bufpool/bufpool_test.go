@@ -1,6 +1,9 @@
 package bufpool
 
-import "testing"
+import (
+	"runtime/debug"
+	"testing"
+)
 
 func TestGetReturnsFullCapacity(t *testing.T) {
 	p := New(4, 128, "test")
@@ -64,13 +67,44 @@ func TestPutDropsLargerBuffer(t *testing.T) {
 	}
 }
 
+// VALIDATES: Put hands the buffer back to the pool for reuse instead of
+// dropping it on the floor.
+// PREVENTS: Put silently becoming a no-op (or storing a copy), which would turn
+// every Get into a fresh allocation -- the pool still "works", just without
+// pooling anything, so no other test in this file would notice.
+//
+// A single Put/Get pair used to assert this and flaked in full `ze-verify` runs
+// (plan/known-failures/syncpool-capacity-identity-flakes.md). That assertion was
+// not about our code: sync.Pool explicitly does NOT promise Get returns what was
+// just Put. It is emptied at every GC, and an item parked in one P's private
+// slot cannot be stolen by another P, so under the memory pressure and
+// rescheduling of the parallel suite the marker legitimately went missing.
+//
+// GC off plus retries removes that environmental variable WITHOUT weakening what
+// is being checked: a fresh make([]byte) is always zeroed and every marker here
+// is non-zero, so if Put stopped pooling, zero iterations would see their
+// marker and this still fails.
 func TestGetReturnsSameBufferAfterPut(t *testing.T) {
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	p := New(0, 64, "test")
-	b := p.Get()
-	b[0] = 0xAB
-	p.Put(b)
-	b2 := p.Get()
-	if b2[0] != 0xAB {
-		t.Fatalf("expected same buffer back from pool (got b2[0]=%x, want 0xAB)", b2[0])
+	const attempts = 100
+	reused := 0
+	for i := range attempts {
+		// Distinct non-zero marker per iteration: a buffer still carrying an
+		// EARLIER iteration's marker must not read as this iteration's reuse.
+		// attempts < 255 keeps them unique.
+		mark := byte(i + 1)
+		b := p.Get()
+		b[0] = mark
+		p.Put(b)
+		b2 := p.Get()
+		if b2[0] == mark {
+			reused++
+		}
+		p.Put(b2)
+	}
+	if reused == 0 {
+		t.Fatalf("no Get in %d attempts returned a buffer Put had pooled; Put is not returning buffers to the pool", attempts)
 	}
 }
