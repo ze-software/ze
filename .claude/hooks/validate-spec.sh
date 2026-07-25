@@ -97,6 +97,21 @@ else
     fi
 fi
 
+# A `skeleton` spec is ALLOWED to carry template placeholders: that is the
+# documented shape of a deferral holder, which fills only `## Task` and leaves
+# the rest for the session that picks the work up
+# (ai/rules/deferral-tracking.md, "Creating the Deferral Spec"). Blocking those
+# edits made a correctly-authored skeleton un-editable, so the placeholder
+# guards below warn at `skeleton` and block from `design` onward, where the
+# author IS claiming the section is written.
+placeholder_problem() {
+    if [[ "$SPEC_STATUS" == "skeleton" ]]; then
+        WARNINGS+=("$1 (allowed while Status is skeleton)")
+    else
+        ERRORS+=("$1")
+    fi
+}
+
 # === REQUIRED SECTIONS ===
 REQUIRED_SECTIONS=(
     "## Task"
@@ -172,10 +187,15 @@ if [[ -n "$DATA_FLOW_SECTION" ]]; then
         ERRORS+=("Data Flow section missing '### Integration Points' subsection")
     fi
 
-    # Check Entry Point isn't just placeholder
+    # Check Entry Point isn't just placeholder.
+    # `\[Where data enters` is deliberately NOT anchored with a closing bracket:
+    # the template's own placeholder is `[Where data enters: wire bytes, ...]`,
+    # which the old `\[Where data enters\]` alternative never matched. The guard
+    # only ever fired through `[Format at entry]`, so editing that ONE line while
+    # leaving the other let a placeholder through (ai/rules/fail-closed-guards.md).
     ENTRY_CONTENT=$(echo "$DATA_FLOW_SECTION" | sed -n '/### Entry Point/,/### /p' | grep -v '^#' | head -5)
-    if echo "$ENTRY_CONTENT" | grep -qE '\[Where data enters\]|\[Format at entry\]'; then
-        ERRORS+=("Data Flow: Entry Point contains placeholder text. Document actual entry points!")
+    if echo "$ENTRY_CONTENT" | grep -qE '\[Where data enters|\[Format at entry\]'; then
+        placeholder_problem "Data Flow: Entry Point contains placeholder text. Document actual entry points!"
     fi
 
     # Check Transformation Path has actual stages (numbered list)
@@ -184,7 +204,7 @@ if [[ -n "$DATA_FLOW_SECTION" ]]; then
         WARNINGS+=("Data Flow: Transformation Path should have numbered stages (1. ... 2. ...)")
     fi
     if echo "$TRANSFORM_CONTENT" | grep -qE '\[Stage [0-9N]+'; then
-        ERRORS+=("Data Flow: Transformation Path contains placeholder text. Document actual stages!")
+        placeholder_problem "Data Flow: Transformation Path contains placeholder text. Document actual stages!"
     fi
 
     # Check Boundaries Crossed has table with content
@@ -221,7 +241,6 @@ REQUIRED_CHECKLIST=(
     "Tests written"
     "Tests FAIL"
     "Tests PASS"
-    "make ze-test"
 )
 
 for item in "${REQUIRED_CHECKLIST[@]}"; do
@@ -229,6 +248,24 @@ for item in "${REQUIRED_CHECKLIST[@]}"; do
         ERRORS+=("Missing checklist item: $item")
     fi
 done
+
+# === VERIFICATION COMMAND ===
+# ONE command names the pre-commit gate, and it is `make ze-verify`
+# (ai/rules/git-safety.md Step 1). This gate used to demand the literal string
+# `make ze-test`, which is `ze-lint ze-unit-test ze-functional-test
+# ze-exabgp-test ze-fuzz-test` (Makefile) -- the fuzz-inclusive target that the
+# commit rule does NOT use. The template shipped all three spellings at once.
+# Accept the legacy string so the 50 specs predating this change keep
+# validating, but warn, so new specs converge on the real gate.
+VERIFY_CMD='make ze-'"verify"
+LEGACY_CMD='make ze-'"test"
+if grep -q "$VERIFY_CMD" "$FILE_PATH"; then
+    :
+elif grep -q "$LEGACY_CMD" "$FILE_PATH"; then
+    WARNINGS+=("Checklist names '$LEGACY_CMD' (lint+unit+functional+exabgp+fuzz). The pre-commit gate is '$VERIFY_CMD' (ai/rules/git-safety.md) -- prefer it")
+else
+    ERRORS+=("Missing verification checklist item: '$VERIFY_CMD' (the pre-commit gate, ai/rules/git-safety.md)")
+fi
 
 # === RFC CONSTRAINT DOCS CHECK ===
 # If protocol work (references RFCs), should have RFC Documentation section
@@ -326,7 +363,7 @@ else
                 TEST_CELL=$(echo "$row" | awk -F'|' '{print $(NF-1)}' | sed 's/^[ \t]*//;s/[ \t]*$//')
             fi
             if [[ -z "$TEST_CELL" ]] || echo "$TEST_CELL" | grep -qiE 'deferred|TODO|TBD|\[test name|^\?\?\?$|^$'; then
-                ERRORS+=("Wiring Test: every row must have a concrete test name. Found deferred/empty: '$TEST_CELL'")
+                placeholder_problem "Wiring Test: every row must have a concrete test name. Found deferred/empty: '$TEST_CELL'"
                 break
             fi
             # Track if any test references a .ci file

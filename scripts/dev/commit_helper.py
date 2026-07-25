@@ -1133,18 +1133,38 @@ def claimed_spec(repo: Path) -> str:
     return res.stdout.strip() if res.returncode == 0 else ""
 
 
-def _pre_commit_verification_filled(spec_text: str) -> bool | None:
-    """Tri-state for the spec's '## Pre-Commit Verification' section.
+def _table_data_rows(lines: list[str]) -> int:
+    """Table DATA rows in `lines`.
 
-    Returns True (filled), False (present but empty), or None (section absent).
-    "Filled" = the section has at least one table DATA row. Each table ships as
-    header + separator only; data rows = pipe-rows - 2*(separator rows), since
-    every table contributes exactly one header and one separator.
+    Each table ships as header + separator only, so data rows =
+    pipe-rows - 2*(separator rows): every table contributes exactly one header
+    and one separator.
     """
-    lines = spec_text.splitlines()
+    pipe_rows = sum(1 for line in lines if line.strip().startswith("|"))
+    sep_rows = sum(1 for line in lines if re.match(r"^\|[\s:|-]+\|?\s*$", line.strip()))
+    return pipe_rows - 2 * sep_rows
+
+
+def pre_commit_verification_gaps(spec_text: str) -> list[str] | None:
+    """Evidence sub-tables of '## Pre-Commit Verification' left without a row.
+
+    Returns None when the section is absent, [] when every evidence table
+    carries at least one data row, else the names of the tables that do not.
+
+    Checked PER SUB-TABLE, not per section. Each `###` table is a separate
+    obligation (files exist / AC re-verified / wiring re-read / assumptions
+    resolved / docs verified), so a row in one is not evidence for another.
+    The old section-level rule accepted a single row anywhere, which is why
+    ~73% of `AC Verified` and ~75% of `Wiring Verified` tables reached closure
+    byte-identical to the template.
+
+    A section with no `###` sub-headings (the pre-2026-07 spec shape) keeps the
+    old floor -- one data row anywhere -- so widening the gate cannot
+    retroactively block a spec whose section never had sub-tables.
+    """
     section: list[str] = []
     in_section = False
-    for line in lines:
+    for line in spec_text.splitlines():
         if line.startswith("## Pre-Commit Verification"):
             in_section = True
             continue
@@ -1154,11 +1174,18 @@ def _pre_commit_verification_filled(spec_text: str) -> bool | None:
             section.append(line)
     if not in_section:
         return None
-    pipe_rows = sum(1 for line in section if line.strip().startswith("|"))
-    sep_rows = sum(
-        1 for line in section if re.match(r"^\|[\s:|-]+\|?\s*$", line.strip())
-    )
-    return (pipe_rows - 2 * sep_rows) > 0
+
+    subs: list[tuple[str, list[str]]] = []
+    for line in section:
+        if line.startswith("### "):
+            # Strip the parenthetical hint: "### Files Exist (ls)" -> "Files Exist".
+            subs.append((line[4:].split("(")[0].strip(), []))
+        elif subs:
+            subs[-1][1].append(line)
+
+    if not subs:
+        return [] if _table_data_rows(section) > 0 else ["Pre-Commit Verification"]
+    return [name for name, body in subs if _table_data_rows(body) <= 0]
 
 
 def spec_audit_problems(
@@ -1182,22 +1209,23 @@ def spec_audit_problems(
     spec_path = repo / "plan" / claimed
     if not spec_path.is_file():
         return []
-    filled = _pre_commit_verification_filled(
+    gaps = pre_commit_verification_gaps(
         spec_path.read_text(encoding="utf-8", errors="replace")
     )
-    if filled is None:
+    if gaps is None:
         return [
             f"spec {claimed} has no '## Pre-Commit Verification' section, but this"
             " commit adds its learned summary (closure).\n"
-            "  Add and fill it from plan/TEMPLATE.md before closing"
+            "  Add and fill it from plan/TEMPLATE-CLOSURE.md before closing"
             " (ai/rules/planning.md)."
         ]
-    if not filled:
+    if gaps:
         return [
-            f"spec {claimed} '## Pre-Commit Verification' has no evidence rows, but"
-            " this commit adds its learned summary (closure).\n"
-            "  Re-verify each file / AC / wiring independently and paste the"
-            " evidence before closing (TEMPLATE.md, ai/rules/planning.md)."
+            f"spec {claimed} '## Pre-Commit Verification' has no evidence rows in:"
+            f" {', '.join(gaps)}.\n"
+            "  This commit adds its learned summary (closure). Each table is a"
+            " separate obligation: re-verify independently and paste the evidence"
+            " for EVERY one (plan/TEMPLATE-CLOSURE.md, ai/rules/planning.md)."
         ]
     return []
 
@@ -1361,6 +1389,25 @@ def create(args: argparse.Namespace) -> int:
         # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
         # shipped red on main. See ai/rules/git-safety.md.
         gate_reds = structural_gate_reds(repo)
+        # ONE escape, owner-only, and deliberately NOT --unverified: keeping it a
+        # separate flag means the flaky-test path can never reach this branch by
+        # accident, and the reason has to be written down. Without any escape a
+        # green tree was the only route to any commit at all -- including one that
+        # touches no compiled code and cannot affect the red -- so the refusal was
+        # pushing sessions toward the real hole: widening --unverified or editing
+        # STRUCTURAL_GATES. The override is LOUD on purpose: a silent bypass would
+        # make a red tree indistinguishable from a green one in the transcript.
+        if gate_reds and (args.structural_red_ok or "").strip():
+            print(
+                "WARNING: committing over a RED structural gate: "
+                + ", ".join(gate_reds)
+                + "\n  Owner override: "
+                + args.structural_red_ok.strip()
+                + "\n  The tree is structurally red. Fix it, or confirm the red is"
+                " another session's and cannot be affected by this commit.",
+                file=sys.stderr,
+            )
+            gate_reds = []
         if gate_reds:
             raise UsageError(
                 "ze-verify has a DETERMINISTIC STRUCTURAL GATE red that "
@@ -1377,7 +1424,10 @@ def create(args: argparse.Namespace) -> int:
                 + "` alone does\n"
                 "  NOT. Re-run a full verify until green and this clears."
             )
-        if not args.unverified:
+        # --structural-red-ok acknowledges a strictly WORSE condition than
+        # --unverified (a red structural gate, not a flaky test), so it satisfies
+        # this check too rather than demanding both flags for one decision.
+        if not args.unverified and not (args.structural_red_ok or "").strip():
             raise UsageError(
                 "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
                 "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
@@ -1606,6 +1656,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="reason to allow a commit when ze-verify is not FRESH-green "
         "(owner override, or a flaky/environmental known-red logged in "
         "plan/known-failures/; deterministic structural gates are never eligible)",
+    )
+    create_cmd.add_argument(
+        "--structural-red-ok",
+        help="OWNER OVERRIDE ONLY: reason to allow a commit while a deterministic "
+        "structural gate is red in the verify record. Deliberately separate from "
+        "--unverified so the flaky-test path can never reach it. Use when the red "
+        "belongs to another session's in-flight work and this commit cannot affect "
+        "it; the reason is echoed with the red gate names",
     )
     create_cmd.add_argument(
         "--stale-index-ok",

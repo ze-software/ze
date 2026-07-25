@@ -9,7 +9,8 @@ long time by design); `ready` and `in-progress` specs are current work.
 | File | Purpose |
 |------|---------|
 | `spec-<name>.md` | One spec per work item, status in its header table |
-| `TEMPLATE.md` | Spec format: status taxonomy, checklists, Review Gate |
+| `TEMPLATE.md` | Design-time spec format: everything that must exist BEFORE code |
+| `TEMPLATE-CLOSURE.md` | Closure sections (audit, goal validation, review gate, pre-commit evidence), appended by `/ze-implement` at stage 11 |
 | `learned/` | Learned summaries of completed specs (`NNN-<name>.md`) plus the meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
 | `deferrals/` (sharded per source), `known-failures/` (sharded per failure) | Cross-spec tracking |
 
@@ -18,6 +19,12 @@ long time by design); `ready` and `in-progress` specs are current work.
 Statuses: `skeleton` -> `design` -> `ready` -> `in-progress` -> closed.
 `blocked` and `deferred` are parking states. The full workflow rules live in
 `ai/rules/planning.md`; the spec format lives in `plan/TEMPLATE.md`.
+
+`skeleton` is the one status allowed to carry template placeholders: a deferral
+holder fills `## Task` and leaves the rest for whoever picks the work up
+(`ai/rules/deferral-tracking.md`). From `design` onward the placeholder guards in
+`.claude/hooks/validate-spec.sh` block, because the author is then claiming those
+sections are written.
 
 A spec that passes its Review Gate is not done until it is **deleted** from
 `plan/`: closure is two commits (commit A: code + spec + learned summary;

@@ -1644,6 +1644,7 @@ BLOCKING only when the commit could plausibly affect build, tests, or generated 
 `make ze-verify` (timeout 240s).
 ### Structural Gates Are Never Known-Red (BLOCKING)
 The item-2 "log to `plan/known-failures/`" path is for **non-deterministic** failures only -- flaky or environmental TEST reds (load-sensitive races, GC-pressure pool flakes, host-specific listener probes).
+**The one escape is owner-only: `--structural-red-ok "<reason>"`.** It is a
 ### Thomas Owner Override: Commit Without Verify
 Thomas owns the repository and may explicitly override the `ze-verify` requirement for commit-script preparation.
 1. prepare a commit script, and
@@ -2054,12 +2055,15 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion.
 ## Pre-Commit Verification (BLOCKING)
 **Do NOT trust the audit.** After filling the audit, independently re-verify every item.
-This is a separate section in the spec (see `TEMPLATE.md`).
+This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended at `/ze-implement` stage 11).
 | Table | What to verify | How |
 |-------|---------------|-----|
 | Files Exist | Every file from "Files to Create" | `ls -la <path>` — paste output |
 | AC Verified | Every AC-N | grep, test output, or ls — NOT a copy from audit |
 | Wiring Verified | Every wiring test row | Read the .ci file, confirm it tests the claimed path |
+| Assumptions Resolved | Every A-N | `confirmed` or `broken` with evidence; `unvalidated` is not a final status |
+| Documentation Verified | Every Yes/No in the Documentation checklist | The edited claim checked against source, or the grep proving no update was needed |
+**EVERY table needs at least one evidence row.** `pre_commit_verification_gaps`
 **NOT acceptable:** "Already checked in audit", "should work", empty cells.
 ## Red Flags
 - AC-N with no test or evidence
@@ -3149,6 +3153,9 @@ Prefer writing a spec (`plan/spec-<task>.md`) over a plan file.
 ## Creating a Spec (BLOCKING)
 **Always start from `plan/TEMPLATE.md`.** Read the template, copy its full
 content, then fill in relevant sections and leave others as `(fill during design)` placeholders.
+**Two templates, one per lifecycle half.** `plan/TEMPLATE.md` is design-time:
+**Placeholders are legal only at `skeleton`.** A deferral holder fills `## Task`
+**One verification command.** The spec's Goal Gates name `make ze-verify`, the
 ## Pre-Implementation
 ## Implementation Plan Format
 Present BEFORE writing code.

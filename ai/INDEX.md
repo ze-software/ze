@@ -34,7 +34,8 @@ and gated fresh, so they never lie about the current code.
 | Provide or extend first-hop gateway redundancy (VRRP) | `docs/guide/vrrp.md` | RFC 9568/3768 in `internal/plugins/vrrp/` (self-contained plugin) with the per-group virtual-MAC macvlan in `internal/component/iface/macvlan.go`; extend within the self-contained `internal/plugins/vrrp/` plugin |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Prove an RFC MUST is enforced (tag a test, coverage gate) | `ai/skills/ze-rfc.md` | Tag the test `RFC requirement: <id> <polarity>` (both polarities); `make ze-rfc-check` gates coverage; ledger `ai/RFC-REQUIREMENTS.md` via `make ze-rfc-index`; audit with `/ze-rfc-audit` |
-| Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
+| Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` (design-time only; placeholders are legal at `skeleton`, blocked from `design` on) |
+| Close a spec (audit, goal validation, review gate, pre-commit evidence) | `ai/rules/implementation-audit.md` | `plan/TEMPLATE-CLOSURE.md`, appended by `/ze-implement` at stage 11; every Pre-Commit sub-table needs an evidence row |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
 | Compare Ze with other products | `ai/rules/comparison-honesty.md` | Cite every claim, link code or official feature docs, label uncertainty, and add hide-column controls for wide product matrices |

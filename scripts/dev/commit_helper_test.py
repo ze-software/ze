@@ -676,6 +676,83 @@ class TestStructuralGateRemediation(unittest.TestCase):
             ch.verify_status, ch.structural_gate_reds = saved
 
 
+class TestStructuralRedOwnerOverride(unittest.TestCase):
+    """The structural-gate refusal needs ONE escape, and only the owner may use it.
+
+    VALIDATES: `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red" --
+    a structural red is never flaky, so `--unverified` and a
+    `plan/known-failures/` shard must keep failing to bypass it. But the refusal
+    had no override at all, which made a green tree the only route to any commit,
+    including one that touches no compiled code. `--structural-red-ok "<reason>"`
+    is that route, kept separate from `--unverified` so it can never be reached by
+    the flaky-test path, and required to carry a reason.
+    PREVENTS: an agent silently widening `--unverified` (or editing
+    STRUCTURAL_GATES) to get past a red tree, which is the hole the refusal was
+    added to close.
+    """
+
+    def _run(self, extra: list[str]):
+        import contextlib
+        import io
+
+        saved = (ch.verify_status, ch.structural_gate_reds)
+        ch.verify_status = lambda repo: ("stale", "structural red")
+        ch.structural_gate_reds = lambda repo: ["ze-regen-check-readonly"]
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                _git(root, "init", "-q")
+                _git(root, "config", "user.email", "t@example.com")
+                _git(root, "config", "user.name", "t")
+                _git(root, "config", "commit.gpgsign", "false")
+                (root / "f.txt").write_text("hello\n")
+                err = io.StringIO()
+                out = io.StringIO()
+                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+                    rc = ch.main(
+                        [
+                            "--repo",
+                            str(root),
+                            "create",
+                            "--session",
+                            "abcd1234",
+                            "--subject",
+                            "fixture",
+                            "--file",
+                            "f.txt",
+                            "--lesson-not-needed",
+                            "fixture test for the structural-red owner override",
+                        ]
+                        + extra
+                    )
+                return rc, err.getvalue() + out.getvalue()
+        finally:
+            ch.verify_status, ch.structural_gate_reds = saved
+
+    def test_without_the_flag_it_still_refuses(self):
+        rc, msg = self._run([])
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("STRUCTURAL GATE", msg)
+
+    def test_unverified_alone_still_cannot_bypass(self):
+        rc, msg = self._run(["--unverified", "flaky ospf timeout elsewhere"])
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("STRUCTURAL GATE", msg)
+
+    def test_owner_override_allows_the_commit_and_names_the_red_gate(self):
+        rc, msg = self._run(
+            ["--structural-red-ok", "owner: docs-only commit, red is another session"]
+        )
+        self.assertEqual(rc, 0, msg)
+        # The override must be LOUD: silently proceeding would make a red tree
+        # indistinguishable from a green one in the session transcript.
+        self.assertIn("ze-regen-check-readonly", msg)
+
+    def test_override_requires_a_reason(self):
+        rc, msg = self._run(["--structural-red-ok", "   "])
+        self.assertEqual(rc, 2, msg)
+
+
 class TestStructuralGatesAreLiveStages(unittest.TestCase):
     """STRUCTURAL_GATES must only name stages `make ze-verify` actually runs.
 
@@ -957,6 +1034,86 @@ class TestDeferralSharding(unittest.TestCase):
             problems = ch.deferral_unassigned_problems(root)
             self.assertTrue(problems, "a nested unhomed row must be surfaced")
             self.assertIn("nested dropped", "\n".join(problems))
+
+
+PCV_HEADER = "## Pre-Commit Verification\n\n"
+PCV_TABLES = (
+    "### Files Exist (ls)\n"
+    "| File | Exists | Evidence |\n"
+    "|------|--------|----------|\n"
+    "{files}"
+    "\n### AC Verified (grep/test)\n"
+    "| AC ID | Claim | Fresh Evidence |\n"
+    "|-------|-------|----------------|\n"
+    "{ac}"
+    "\n### Wiring Verified (end-to-end)\n"
+    "| Entry Point | .ci File | Verified |\n"
+    "|-------------|----------|----------|\n"
+    "{wiring}"
+)
+
+
+def _pcv(files: str = "", ac: str = "", wiring: str = "") -> str:
+    return PCV_HEADER + PCV_TABLES.format(files=files, ac=ac, wiring=wiring)
+
+
+class TestPreCommitVerificationFilled(unittest.TestCase):
+    """The closure gate must check EVERY evidence sub-table, not the section.
+
+    VALIDATES: `ai/rules/implementation-audit.md` Pre-Commit Verification --
+    "For each item: run a command and paste the evidence". Each sub-table is a
+    separate obligation (files exist / AC re-verified / wiring re-read), so
+    evidence for one is not evidence for another.
+    PREVENTS: the measured failure mode -- one row in `Files Exist` satisfying
+    the gate while `AC Verified` and `Wiring Verified` stay empty. Across the
+    in-progress specs on 2026-07-25 that left ~73% of `AC Verified` and ~75% of
+    `Wiring Verified` byte-identical to the template at closure.
+    """
+
+    def test_absent_section_is_none(self):
+        self.assertIsNone(ch.pre_commit_verification_gaps("## Task\n\nbody\n"))
+
+    def test_every_subtable_filled_passes(self):
+        spec = _pcv(
+            files="| `a.go` | yes | ls output |\n",
+            ac="| AC-1 | parses | TestParse pass |\n",
+            wiring="| config | `test/parse/a.ci` | read, covers path |\n",
+        )
+        self.assertEqual(ch.pre_commit_verification_gaps(spec), [])
+
+    def test_one_filled_subtable_does_not_satisfy_the_others(self):
+        spec = _pcv(files="| `a.go` | yes | ls output |\n")
+        gaps = ch.pre_commit_verification_gaps(spec)
+        self.assertIn("AC Verified", " ".join(gaps))
+        self.assertIn("Wiring Verified", " ".join(gaps))
+        self.assertNotIn("Files Exist", " ".join(gaps))
+
+    def test_separator_only_table_is_not_evidence(self):
+        gaps = ch.pre_commit_verification_gaps(_pcv())
+        self.assertEqual(len(gaps), 3, gaps)
+
+    # A spec with no sub-headings (pre-2026-07 shape) keeps the old floor:
+    # at least one data row somewhere in the section. Widening the gate must not
+    # retroactively block a spec whose section never had sub-tables.
+    def test_flat_section_falls_back_to_section_level_rule(self):
+        flat = "## Pre-Commit Verification\n\n| File | Evidence |\n|---|---|\n"
+        self.assertTrue(ch.pre_commit_verification_gaps(flat))
+        flat_filled = flat + "| `a.go` | ls output |\n"
+        self.assertEqual(ch.pre_commit_verification_gaps(flat_filled), [])
+
+    def test_spec_audit_reports_the_unfilled_subtables_by_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "plan" / "learned").mkdir(parents=True)
+            (root / "plan" / "spec-demo.md").write_text(
+                _pcv(files="| `a.go` | yes | ls output |\n")
+            )
+            problems = ch.spec_audit_problems(
+                root, ("plan/learned/1200-demo.md",), "spec-demo.md"
+            )
+            self.assertTrue(problems)
+            self.assertIn("AC Verified", problems[0])
+            self.assertIn("Wiring Verified", problems[0])
 
 
 if __name__ == "__main__":

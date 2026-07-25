@@ -55,13 +55,23 @@ For each AC-N, quote the expected behavior from the AC table, then name the test
 ## Pre-Commit Verification (BLOCKING)
 
 **Do NOT trust the audit.** After filling the audit, independently re-verify every item.
-This is a separate section in the spec (see `TEMPLATE.md`). It requires FRESH evidence:
+This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended at
+`/ze-implement` stage 11). It requires FRESH evidence:
 
 | Table | What to verify | How |
 |-------|---------------|-----|
 | Files Exist | Every file from "Files to Create" | `ls -la <path>` — paste output |
 | AC Verified | Every AC-N | grep, test output, or ls — NOT a copy from audit |
 | Wiring Verified | Every wiring test row | Read the .ci file, confirm it tests the claimed path |
+| Assumptions Resolved | Every A-N | `confirmed` or `broken` with evidence; `unvalidated` is not a final status |
+| Documentation Verified | Every Yes/No in the Documentation checklist | The edited claim checked against source, or the grep proving no update was needed |
+
+**EVERY table needs at least one evidence row.** `pre_commit_verification_gaps`
+(`scripts/dev/commit_helper.py`) checks them one at a time and names the empty
+ones on the closure commit. Each table is a separate obligation: a row in
+`Files Exist` is not evidence for `AC Verified`. The old gate accepted a single
+row anywhere in the section, and ~73% of `AC Verified` and ~75% of
+`Wiring Verified` tables reached closure byte-identical to the template.
 
 **NOT acceptable:** "Already checked in audit", "should work", empty cells.
 

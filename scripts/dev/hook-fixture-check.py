@@ -429,6 +429,79 @@ def run_validate_spec(results: Results) -> None:
         f"rc={rc} err={err[:200]!r}",
     )
 
+    # --- verification command: ONE gate, `make ze-verify` -------------------
+    # The template used to ship three spellings at once and this hook demanded
+    # the fuzz-inclusive `ze-test` target, which is NOT the pre-commit gate
+    # (ai/rules/git-safety.md). `ze-verify` is clean; the legacy string still
+    # passes (50 specs predate the change) but warns; neither is an error.
+    _LEGACY_LINE = "- [ ] make ze-" + "test passes"
+    _VERIFY_LINE = "- [ ] `make ze-" + "verify` passes"
+
+    def _warn_count(stderr: str) -> int:
+        """Warnings are printed as a COUNT, not a list, so the two spellings are
+        told apart by the delta: the fixture carries unrelated warnings of its
+        own, which is why 'no warnings at all' is the wrong discriminator."""
+        m = re.search(r"Spec: (\d+) warnings", stderr)
+        return int(m.group(1)) if m else 0
+
+    rc_v, err_v = _run_validate_spec(script, base.replace(_LEGACY_LINE, _VERIFY_LINE))
+    rc_l, err_l = _run_validate_spec(script, base)
+    results.check(
+        "validate-spec-verify-command-accepted",
+        rc_v == 0 and _warn_count(err_v) == _warn_count(err_l) - 1,
+        f"rc={rc_v} verify_warns={_warn_count(err_v)} legacy_warns={_warn_count(err_l)}",
+    )
+    results.check(
+        "validate-spec-legacy-test-command-warns",
+        rc_l == 0 and _warn_count(err_l) > _warn_count(err_v),
+        f"rc={rc_l} err={err_l[:200]!r}",
+    )
+    rc, err = rc_l, err_l
+
+    rc, err = _run_validate_spec(script, base.replace(_LEGACY_LINE, "- [ ] it builds"))
+    results.check(
+        "validate-spec-no-verification-command-rejected",
+        rc == 2 and "verification checklist item" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # --- placeholder guards are status-aware --------------------------------
+    # A `skeleton` spec is the documented shape of a deferral holder: fill Task,
+    # leave the rest (ai/rules/deferral-tracking.md). Blocking its placeholders
+    # made a correctly-authored skeleton un-editable. From `design` onward the
+    # author IS claiming the section is written, so the same text must block.
+    _placeholder = base.replace(
+        "- CLI command foo enters through the y.go handler.",
+        "- [Where data enters: wire bytes, API command, config, plugin message]",
+    )
+    rc, err = _run_validate_spec(
+        script,
+        _placeholder.replace("| Status | in-progress |", "| Status | skeleton |"),
+    )
+    results.check(
+        "validate-spec-skeleton-placeholder-warns",
+        rc == 0 and "warning" in err.lower(),
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    rc, err = _run_validate_spec(
+        script, _placeholder.replace("| Status | in-progress |", "| Status | design |")
+    )
+    results.check(
+        "validate-spec-design-placeholder-blocks",
+        rc == 2 and "Entry Point contains placeholder" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # MUST-NOT-FIRE: the guard used to match ONLY `[Format at entry]`, so the
+    # template's real placeholder `[Where data enters: ...]` passed on its own.
+    # This fixture carries that text alone -- it must still be caught.
+    results.check(
+        "validate-spec-where-data-enters-alone-caught",
+        rc == 2 and "Entry Point contains placeholder" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
 
 # --------------------------------------------------------------------------- #
 # commit-gate: commit_helper.py creation-time gates in git fixtures

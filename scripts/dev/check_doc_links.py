@@ -86,6 +86,7 @@ MD_GLOBS = [
     ".claude/hooks/README.md",
     "plan/README.md",
     "plan/TEMPLATE.md",
+    "plan/TEMPLATE-CLOSURE.md",
     "plan/learned/RECURRING-PATTERNS.md",
     "plan/learned/HOOK-FRICTION.md",
     # DESIGN-HISTORY.md is deliberately absent: it is a historical

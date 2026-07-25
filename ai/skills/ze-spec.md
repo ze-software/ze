@@ -89,13 +89,21 @@ other research. A feature can be more than one type -- read every row that appli
 `ai/INDEX.md` (the "Build / extend" table) is the authoritative feature-type to
 pattern map; consult it if the type is unclear.
 
-**2. Copy both checklists from `plan/TEMPLATE.md` into the spec and answer every row**
-(Yes with file, or N/A with reason). These are the cross-cutting surfaces forgotten
-regardless of feature type:
+**2. Answer every row of both checklists in `plan/TEMPLATE.md`** with `Yes` (naming
+the file), `No`, or `N-A` (with a reason). Never leave the cell blank: an
+unanswered row is indistinguishable from a forgotten one, which is why 286
+Documentation rows and 138 Integration rows across the existing specs still carry
+an unanswered marker. These are the cross-cutting surfaces forgotten regardless of
+feature type:
 - **Integration Checklist** -- YANG schema + validation, CLI grammar, completion,
-  functional test, env var, **doctor check + diagnostic code**, Prometheus counters.
+  functional test, env var, **doctor check + diagnostic code**, Prometheus counters,
+  and the BGP family surface (answered in `ai/patterns/bgp-family.md`, not inline).
 - **Documentation Update Checklist** (17 rows) -- `docs/features.md`, command/API/plugin
   docs, source anchors.
+
+`plan/TEMPLATE.md` is design-time only. The closure sections live in
+`plan/TEMPLATE-CLOSURE.md` and are appended by `/ze-implement` at stage 11. Do not
+copy them into a new spec.
 
 **3. Discovery (BLOCKING):** answer the `ai/rules/discovery-updates.md` Mechanical
 Checklist in the spec -- where an agent looks first (`ai/INDEX.md` row), what rule

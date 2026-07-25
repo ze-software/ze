@@ -20,11 +20,22 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
 | 5. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
 | 6. Verify | (make targets) |
 | 7. Critical review | **Critical Review Checklist** (feature-specific checks) |
-| 11. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
+| 11. Deliverables review | **Deliverables Checklist**, then APPEND `plan/TEMPLATE-CLOSURE.md` and fill **Goal Validation** + **Implementation Summary** |
 | 12. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 14. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
-| 15. /ze-review gate | **Review Gate** section (run `/ze-review` over the full diff, record each run, loop to 0 BLOCKER/0 ISSUE) |
-| 16. Close + commit | Entire spec (extraction recipe), `plan/learned/METHODOLOGY.md` |
+| 15. /ze-review gate | **Review Gate** (closure section): record via `scripts/dev/review_gate.py`, loop to 0 BLOCKER/0 ISSUE |
+| 16. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Deferrals Resolved** (closure sections), `plan/learned/METHODOLOGY.md` |
+
+The spec carries only design-time sections until stage 11. The closure half lives
+in `plan/TEMPLATE-CLOSURE.md` and is appended when it is first needed, because
+sections copied at spec creation reach closure unfilled: measured across 161
+specs, the closure tables were byte-identical to the template in 65-75% of
+in-progress specs, while the sections authors added when they needed them were
+untouched in 0%.
+
+**Verification: inner loop vs gate.** Steps 6/9/13 use the fast targets to
+iterate. `make ze-verify` is the pre-commit GATE (`ai/rules/git-safety.md`) and
+is the only command the spec's Goal Gates name. Do not add a third spelling.
 
 ## Steps
 
@@ -78,6 +89,11 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
 9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. No cap on review passes -- each fix is new code that needs a fresh review. Stop only when a pass finds nothing.
 11. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
+    - **Append the closure sections FIRST (BLOCKING):** copy everything below the
+      horizontal rule in `plan/TEMPLATE-CLOSURE.md` to the end of the spec. Those
+      sections (Implementation Summary, Mistake Log, Implementation Audit, Goal
+      Validation, Deferrals Resolved, Review Gate, Pre-Commit Verification) are
+      what steps 11-16 fill. They are deliberately absent until now.
     - Run the verification method specified in the table
     - Paste evidence (grep output, test output, ls output)
     - If anything is missing or incomplete, go back to step 4 and implement it
@@ -116,7 +132,8 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
     - Write the doc updates, run `make ze-doc-test`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 15. **/ze-review gate (BLOCKING -- the final review before closure):** Steps 7-14 check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
     - Invoke `/ze-review` on the uncommitted changes. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
-    - Record every finding in the spec's **Review Gate** section: fill the `### Run 1 (initial)` table (Severity / Finding / Location / Action). Do NOT tick the `[ ]` Final-status markers -- they are template markers; the evidence is the pasted run.
+    - **Record the machine artifact, not just prose:** `python3 scripts/dev/review_gate.py record --spec <spec> ...`, then `check`. `commit_helper.py` runs that same `check` on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path and the `check` result in the Review Gate table.
+    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by) so the learned summary can carry them forward. NOTEs do not block: record and proceed.
     - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/diagnosis-before-fix.md`: write the root cause traced to `file:line`, take the `[source]` fix, and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
     - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
     - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask the user.
@@ -124,6 +141,15 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
 16. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**
     Precondition: the spec's **Review Gate** section (step 15) shows a final `/ze-review` run with
     0 BLOCKER and 0 ISSUE. Do not prepare the commit script until it does.
+
+    Two more closure sections gate the script, both checked by `commit_helper.py`:
+    - **Pre-Commit Verification:** EVERY sub-table needs at least one evidence row.
+      `pre_commit_verification_gaps` checks them one at a time and names the empty
+      ones, so a row in `Files Exist` is not evidence for `AC Verified`.
+    - **Deferrals Resolved:** account for every row in the shard named in the spec
+      metadata. `deferral_unassigned_problems` blocks on a live row with no
+      destination, and closure deletes the spec's own shard
+      (`ai/rules/deferral-tracking.md`).
     Running the commit script finishes the work. There is no step 17. The script is the
     final action. Everything below MUST be in that single script.
 

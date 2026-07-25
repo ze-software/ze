@@ -25,6 +25,25 @@ hook rejects files missing required section headers, and writing from scratch
 always misses some. One read of the template before the first Write avoids the
 rejected-then-rewrite cycle.
 
+**Two templates, one per lifecycle half.** `plan/TEMPLATE.md` is design-time:
+everything that must exist BEFORE code. The closure half lives in
+`plan/TEMPLATE-CLOSURE.md` and is appended by `/ze-implement` at stage 11. Do
+not copy the closure sections into a new spec: measured across 161 specs,
+sections copied at creation but used only at closure arrived there untouched in
+65-75% of in-progress specs, while the sections authors added when they needed
+them were untouched in 0%. Distance from use is what empties a section.
+
+**Placeholders are legal only at `skeleton`.** A deferral holder fills `## Task`
+and leaves the rest (`ai/rules/deferral-tracking.md`). From `design` onward the
+placeholder guards in `.claude/hooks/validate-spec.sh` block, because the status
+is a claim that those sections are written.
+
+**One verification command.** The spec's Goal Gates name `make ze-verify`, the
+pre-commit gate (`ai/rules/git-safety.md`). Fast targets are for the inner
+iteration loop and never appear as the gate. The template previously shipped
+three different spellings, one of which was the fuzz-inclusive `ze-test` target
+that the commit rule does not use.
+
 ## Pre-Implementation
 
 ```
