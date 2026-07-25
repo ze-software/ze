@@ -50,8 +50,11 @@ Plus two bookkeeping obligations this work inherits:
 
 4. Correct the mischaracterisation in `plan/learned/1255`, which calls item 1 a "fail-open".
    It is not one; leaving that wrong misdirects whoever picks it up.
-5. Run `scripts/dev/stress-repro.py reload` against the load-sensitive reload tests recorded in
-   `plan/known-failures/reload-transaction-tests-load-sensitive.md` and record the outcome.
+5. Run `scripts/dev/stress-repro.py reload` against the load-sensitive reload tests and record the
+   outcome. NOTE (2026-07-25): the shard this pointed at was resolved and archived to
+   `plan/known-failures/RESOLVED.md` ("fixed startup deadlines fail under CPU oversubscription") --
+   those deadlines now scale by `withParallelHeadroom`, so re-check whether this item still has a
+   subject before running it.
 
 ## Required Reading
 
@@ -253,7 +256,7 @@ Plus two bookkeeping obligations this work inherits:
 - `internal/component/ike/engine/register.go` - declare `DoctorChecks`
 - `internal/core/diagnostic/codes.go` - register `doctor-ipsec-iface`
 - `plan/learned/1255-fixit-codeql-security-triage.md` - correct the fail-open claim
-- `plan/known-failures/reload-transaction-tests-load-sensitive.md` - record the stress outcome
+- `plan/known-failures/RESOLVED.md` - record the stress outcome (the live shard was closed 2026-07-25)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -450,8 +453,8 @@ remote-access trust-anchor requirement, matching the existing comment at `ipsec/
   the capture.
 
 ### Documentation Updates
-- `plan/known-failures/reload-transaction-tests-load-sensitive.md`: stress-run results, the
-  disproved hypothesis, the test 34 fix, and the two reproducer defects.
+- `plan/known-failures/RESOLVED.md`: stress-run results, the disproved hypothesis, the test 34 fix,
+  and the two reproducer defects (the live shard was closed and archived there 2026-07-25).
 - No `docs/` change: the responder refusal and the doctor check add no user-facing config or CLI
   surface, and `grep docs/ -e 'source: internal/component/ike'` returns no anchor on the changed
   files.

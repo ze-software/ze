@@ -3375,6 +3375,15 @@ Stages 1-5 run per-phase.
 |-----------------|------|
 | `OnStarted(fn)` | Local setup only: start long-lived goroutines, register subscriptions, initialise per-plugin state. |
 | `OnAllPluginsReady(fn)` | Any `DispatchCommand` targeting another plugin's command at startup. The callback fires via the event loop once the dispatcher command registry is frozen, so cross-plugin dispatch is guaranteed to resolve. |
+## Exclusive Role Claims (BLOCKING for cross-plugin default overrides)
+When plugin A takes over a role that plugin B performs by default, B must learn that BEFORE it can receive its first runtime event.
+| Step | What |
+|------|------|
+| A declares | `Claims: []string{"<role-token>"}` in its `registry.Registration` |
+| Engine resolves | Unions the claims of the whole startup set and delivers them on every plugin's **Stage-2 configure** callback (`rpc.ConfigureInput.Claims`) |
+| B stands down | Reads `sdk.Plugin.ClaimActive("<role-token>")` from its `OnConfigure` handler |
+**Why not `OnAllPluginsReady`:** `sendPostStartupToAll` fans that callback out on
+**Fail closed:** an unclaimed or unresolvable role reads `false`, so B keeps doing
 ## Registration Fields
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
@@ -3392,6 +3401,7 @@ Stages 1-5 run per-phase.
 | `InProcessNLRIEncoder` | func | No | NLRI encode |
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
+| `Claims` | []string | No | Exclusive runtime roles this plugin takes over from another plugin's default behavior (e.g., ["bgp-peer-up-replay"]). See "Exclusive Role Claims" below. |
 | `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/doctor-checks.md`. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 ## Registration Metadata Feeds Generated Docs

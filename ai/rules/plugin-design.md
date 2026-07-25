@@ -184,6 +184,38 @@ plugins in later phases are loaded.
 
 `bgp-rpki` is the reference example: the `adj-rib-in enable-validation` dispatch lives in `OnAllPluginsReady` (`internal/component/bgp/plugins/rpki/rpki.go`). Putting it in `OnStarted` used to fail with "unknown command" whenever `bgp-adj-rib-in` loaded in Phase 2 while bgp-rpki auto-loaded in Phase 1.
 
+## Exclusive Role Claims (BLOCKING for cross-plugin default overrides)
+
+When plugin A takes over a role that plugin B performs by default, B must learn
+that BEFORE it can receive its first runtime event. **Declare it; never dispatch
+a command at `OnAllPluginsReady` to announce it.**
+
+| Step | What |
+|------|------|
+| A declares | `Claims: []string{"<role-token>"}` in its `registry.Registration` |
+| Engine resolves | Unions the claims of the whole startup set and delivers them on every plugin's **Stage-2 configure** callback (`rpc.ConfigureInput.Claims`) |
+| B stands down | Reads `sdk.Plugin.ClaimActive("<role-token>")` from its `OnConfigure` handler |
+
+Stage 2 is part of the sequential handshake, so it completes before Stage 5 ready
+and therefore before `SignalPluginStartupComplete` -> StartPeers. The token is
+opaque to the engine: A and B agree on the spelling, and B spells it itself rather
+than importing A's package, so deleting A leaves B building and self-serving.
+
+**Why not `OnAllPluginsReady`:** `sendPostStartupToAll` fans that callback out on
+detached goroutines immediately before peers start, and waiting there deadlocks
+(its doc comment records the attempt). A role resolved from it races the first
+session by 1-2 ms on an idle host, which inverts under load -- the duplicate
+peer-up replay in `plan/known-failures/bgp-plugin-rs-forward-duplicate-and-order.md`.
+
+**Fail closed:** an unclaimed or unresolvable role reads `false`, so B keeps doing
+the work. Never invert that -- standing down for an owner that never runs is worse
+than both running. If a claimant never reaches Running, the engine logs it
+(`verifyAdvertisedClaims`) but does not fail startup.
+
+Reference: `bgp-rs` claims `bgp-peer-up-replay`
+(`internal/component/bgp/plugins/rs/register.go`); `bgp-adj-rib-in` stands down in
+`internal/component/bgp/plugins/adj_rib_in/rib_claims.go`.
+
 ## Registration Fields
 
 | Field | Type | Required | Purpose |
@@ -202,6 +234,7 @@ plugins in later phases are loaded.
 | `InProcessNLRIEncoder` | func | No | NLRI encode |
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
+| `Claims` | []string | No | Exclusive runtime roles this plugin takes over from another plugin's default behavior (e.g., ["bgp-peer-up-replay"]). See "Exclusive Role Claims" below. |
 | `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/doctor-checks.md`. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 

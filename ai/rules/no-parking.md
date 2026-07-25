@@ -42,7 +42,8 @@ source (`ai/rules/no-fabrication.md`) -- and when it turns out to be wrong, say 
 the shard. On 2026-07-23 a shard's "the plugin connection closes before verify is
 dispatched" hypothesis was disproved by the first real stress run: the signature
 appeared nowhere in the capture, and the true cause was a test-harness race
-(`plan/known-failures/reload-transaction-tests-load-sensitive.md`).
+(archived in `plan/known-failures/RESOLVED.md`, "fixed startup deadlines fail
+under CPU oversubscription").
 
 ## The failure this rule exists to stop
 

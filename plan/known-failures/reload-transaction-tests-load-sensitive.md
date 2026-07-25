@@ -163,10 +163,52 @@ distinct defects, both found this way:
    Likely the same family as `iface-vlan-unit-address-reconcile.md` in this
    directory ("VLAN unit address change never applied on reload").
 
-### Finding 3 (daemon hangs when it cannot apply interface config) -- NOT reproduced
+### Finding 3 (daemon hangs when it cannot apply interface config) -- DISPROVEN 2026-07-25
 
-Not re-tested this session. A related but DIFFERENT darwin behaviour was
-observed while fixing the static suite: a config with an `interface` block on
-darwin fails fast and exits 1 ("interface: no backend configured and no OS
-default available"), it does not hang. The hang claim is specific to an
-unprivileged Linux daemon and remains unverified.
+**The daemon does NOT hang. The hang claim was wrong.** Reproduced in the QEMU
+Alpine VM (`scripts/evidence/qemu-run.py`, aarch64, kernel 6.12.13-0-virt) with
+an unprivileged user (`adduser -D zetest`, uid 1000, no CAP_NET_ADMIN) and a
+config carrying only `interface { dummy zdiag0 {} }`:
+
+    start   2026-07-25T19:37:07Z
+    exited  2026-07-25T19:37:07Z
+    VERDICT[unpriv-stdin]: EXITED rc=1 elapsed=0s => NO HANG
+
+Identical for both daemon entry points (`ze -` with the config on stdin, and
+`ze start <file>`). The control case -- the same binary and config as root --
+started normally and created `zdiag0`, so the only variable was privilege.
+
+Note `ze <config>` as a bare positional no longer exists: it was removed by
+spec-fixit-config-file-positional-grammar (`cmd/ze/ze_core_dispatch.go:402-404`)
+and now prints "unknown command". The original finding's repro line is stale.
+
+The failure is at **stage 2 (configure)**, not stage 3: `deliverConfigRPC failed`
+-> `plugin interface failed during startup at stage Config`. The plugin-side
+"stage 3 (declare-capabilities)" error is a consequence (the pipe is already
+closed), not the cause. Phase 1 of `runPluginStartup`
+(`internal/component/plugin/server/startup.go:101-108`) sets `startupErr`, and
+`cmd/ze/hub/main.go:1063` exits 1 -- the guard already fails CLOSED.
+
+**What was really wrong: the error dropped its cause.** `runPluginPhase`
+synthesized the phase error from `proc.Stage()` alone, so the operator got
+
+    error: config-path plugin startup failed: plugin interface failed during startup at stage Config
+
+naming no offending object, no reason and no corrective action, while the real
+cause was logged at Debug level and discarded. Fixed 2026-07-25:
+`Process.SetStartupError`/`StartupError` record the handshake cause,
+`startupFailureError` (`internal/component/plugin/server/startup_failure.go`)
+wraps it with `%w`, and `joinApplyErrors` (`internal/component/iface/register.go`)
+appends the CAP_NET_ADMIN remediation when the kernel refused for want of
+privilege. The same run now ends:
+
+    error: config-path plugin startup failed: plugin interface failed during startup at stage Config: rpc error: interface config: dummy zdiag0 create: iface: create dummy "zdiag0": operation not permitted (interface configuration needs CAP_NET_ADMIN: run ze as root, or grant the binary the capability with `setcap cap_net_admin+ep <path-to-ze>`)
+
+`ze doctor` already covered this before startup and still does:
+`[doctor-iface-macvlan] cannot create a probe macvlan device (requires
+CAP_NET_ADMIN)`, so no new doctor check was needed.
+
+This does not change the `caps=net-admin` markers: the TEST still hangs to the
+suite timeout, because its check peer waits for a BGP session the exited daemon
+will never open. The rule text in `ai/rules/qemu-testing.md` says exactly that
+and is correct; only its "stage-3 handshake" wording is off by one stage.
