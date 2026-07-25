@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3102 files
+Total: 298 design docs, 3105 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -207,9 +207,12 @@ Total: 298 design docs, 3102 files
 
 ## `ai/rules/zefs-persistence.md`
 
-- `internal/component/bfd/auth/persist.go` -- runtime state lives in the managed zefs
-- `internal/core/statestore/statestore.go` -- runtime state persists in the managed
-- `scripts/checks/direct_fs_persistence.go` -- runtime state belongs in the zefs store
+| File | Topic |
+|------|-------|
+| `cmd/ze/hub/statestore.go` | runtime state persists in the managed |
+| `internal/component/bfd/auth/persist.go` | runtime state lives in the managed zefs |
+| `internal/core/statestore/statestore.go` | runtime state persists in the managed |
+| `scripts/checks/direct_fs_persistence.go` | runtime state belongs in the zefs store |
 
 ## `docs/architecture/api/architecture.md`
 
@@ -2517,6 +2520,7 @@ Total: 298 design docs, 3102 files
 ## `plan/learned/1070-forked-route-install.md`
 
 - `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
+- `internal/component/sysrib/sysrib_forked_withdraw_test.go` -- forked route install via Loc-RIB RPC
 - `internal/core/rib/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
 
 ## `plan/learned/1072-ipsec-14-responder.md`
@@ -4088,6 +4092,7 @@ Total: 298 design docs, 3102 files
 | `internal/component/sysrib/nhresolver.go` | recursive next-hop resolution |
 | `internal/plugins/fib/kernel/nexthop_linux.go` | Linux netlink rich route programming |
 | `internal/plugins/fib/kernel/richroute.go` | rich route programming |
+| `internal/plugins/fib/kernel/richroute_lifecycle_test.go` | rich route programming |
 
 ## `plan/spec-fixit-appliance-evidence-config.md`
 

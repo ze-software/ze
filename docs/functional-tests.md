@@ -321,7 +321,19 @@ after a reload (the check `001`/`002` document as deferred). The chaos iface
 fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
 integration test (`//go:build integration && linux`) run via
 `make ze-integration-*`, plus the `test/chaos/iface-link-flap.ci` scenario.
-<!-- source: scripts/evidence/qemu-all-tests.sh -- fsuite traffic -->
+
+Suites that mutate **shared, un-namespaced kernel state run serial (`-p 1`)** in
+that script: `traffic` (qdiscs on `eth0`), `reload` and `managed` (shared config
+state), and `firewall` + `policy`. The QEMU run sets no `ZE_TEST_NETNS`, so unlike
+`make ze-netns-test` it gives each test no namespace of its own -- every daemon
+shares the VM's root netns. The `policy` suite writes one nft table name for all
+six tests (`ze_pr`) and allocates its fwmark from a fixed base, so parallel tests
+read each other's rules or collide on an identical `ip rule`; the `firewall` suite
+installs `policy drop` base chains at the input hook, which nftables applies to
+every other test's traffic. Do not raise the parallelism of these suites.
+<!-- source: scripts/evidence/qemu-all-tests.sh -- fsuite traffic, fsuite firewall, fsuite policy at -p 1 -->
+<!-- source: internal/plugins/policyroute/translate.go -- policyRoutingTable = "ze_pr" -->
+<!-- source: internal/plugins/policyroute/marks.go -- fwmarkBase deterministic per process -->
 <!-- source: test/traffic/022-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
 <!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
 
@@ -344,6 +356,16 @@ Requires Linux + `sudo` + `setcap` (libcap) + `nft` (nftables). The target
 `bin/ze-stripped`, then runs each suite under `sudo` with `ZE_TEST_NETNS=1
 ZE_TEST_UID=$(id -u) ZE_TEST_GID=$(id -g)`, and asserts the host `nft list tables`
 is byte-identical before and after (removing the caps afterward).
+
+A test that declares `option=netns-link` runs **only** in this mode. The option is
+a prerequisite, not a hint: the links it names (`eth0`, `eth1`, `nbma0`, `ptmp0`)
+are provisioned inside the throwaway namespace and must never be created on a real
+host, so off netns mode the test is SKIPped with a reason naming these targets.
+That covers the 8 `test/ospf`, 3 `test/ospfv3` and 1 `test/policy` tests listed in
+`scripts/evidence/netns_qemu.py`; they carry `needs-linux` as well but do not run
+under `make ze-qemu-needs-linux-test`, which sets no `ZE_TEST_NETNS`.
+
+<!-- source: internal/test/runner/caps.go -- applyNetnsLinkGate, skipReasonNetnsLink -->
 
 How the runner isolates each test (all gated on `ZE_TEST_NETNS`; the default path
 is byte-identical for every suite that passes today):
