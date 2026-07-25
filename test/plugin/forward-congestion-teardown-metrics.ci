@@ -45,6 +45,33 @@ def main():
     api.wait_for_registry()
     api.ready()
 
+    # Wait for peer1 to establish and for its initial sync (the EOR this test's
+    # ze-peer expects) to reach the wire, BEFORE asserting anything or shutting
+    # down. Without this barrier the peer's EOR expectation is unreachable by
+    # construction: every metric this test checks is a scalar counter registered
+    # at telemetry setup with value 0, so `show metrics values` is already
+    # non-empty when the plugin becomes ready -- which is BEFORE peers are even
+    # started (plugin/server/startup.go signalStartupComplete fans out
+    # post-startup, then calls SignalPluginStartupComplete -> StartPeers). The
+    # script could therefore complete and dispatch `request shutdown` in the
+    # window before the OPEN handshake, closing the session under the peer:
+    # observed on an idle host as `failed: connection closed before completion`
+    # with no "session established" line in the daemon log at all.
+    # PendingSync stays set from establishment (peer_run.go sendingInitialRoutes)
+    # until after the EOR is sent (peer_initial_sync.go), and the bgp-peer-sync
+    # quiescer blocks on exactly that, so this barrier cannot return early.
+    established = api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+        attempts=40,
+    )
+    if 'established' not in result_text_data(established).lower():
+        print('FAIL: peer1 never reached established state', file=sys.stderr)
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+    api.quiesce()
+
     # Poll for metrics -- under parallel load, BGP session establishment can
     # take longer than a fixed sleep allows.
     # // test-relax: range/sleep(0.5) poll -> dispatch_until until metrics values are populated

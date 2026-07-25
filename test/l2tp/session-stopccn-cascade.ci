@@ -204,6 +204,25 @@ EOF_CONF
 # (internal/component/l2tp/subsystem.go:198-200). This test establishes a tunnel,
 # so it reaches the data plane: without CAP_NET_ADMIN the genl tunnel create
 # returns EPERM and the asserted stderr never appears.
+#
+# The exact chain, verified 2026-07-25: on a Linux host where resolveGenlFamily
+# succeeds (kernel_linux.go:498-505) but the process lacks CAP_NET_ADMIN, each
+# ICCN sets kernelSetupNeeded (session_fsm.go:180), collectKernelEventsLocked
+# emits a setup event (reactor_kernel.go:33-61), the create fails EPERM, and
+# handleKernelError -> teardownSession -> removeSession deletes the session
+# (reactor_kernel.go:388-411, session_fsm.go:434-455, session.go:249). By the
+# time StopCCN lands the session map is empty, so clearSessions returns nil and
+# the "StopCCN clearing sessions" log is suppressed by the len(cleared) > 0
+# guard at tunnel_fsm.go:596. The capability is therefore a real requirement of
+# THIS assertion, not an incidental one.
+#
+# The same AC-9 behaviour is proven on every platform, in the always-run unit
+# suite and under -race, by TestSession_StopCCNCascadeThroughEngine
+# (internal/component/l2tp/session_stopccn_cascade_test.go): it drives the same
+# SCCRQ/SCCCN/ICRQ/ICCN x2/StopCCN sequence over real UDP through the reactor
+# and reliable engine, and asserts count=2 plus zero surviving sessions -- a
+# stronger assertion than this test's stderr substring. This .ci remains the
+# with-data-plane proof; the unit test is the portable one.
 option=needs-linux:caps=net-admin
 option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true

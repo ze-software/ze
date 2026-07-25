@@ -6,6 +6,12 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+# Hold the session open past this peer's own completion -- see the same option in
+# role-otc-export-unknown.ci for the full reasoning. Without it this peer closes
+# ~1ms after its UPDATE, bgp-adj-rib-in drops the peer's routes on session-down
+# (adj_rib_in/rib.go "delete(r.ribIn, peerAddr)"), and the observer's
+# total-routes poll below can never see the route.
+option=linger:value=true
 # Role capability: drop ze-peer's default (Provider mirror) then add Customer (0x03).
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
@@ -83,8 +89,11 @@ def main():
     data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 
-    if total < 0:  # architectural blocker: validation gate race
-        msg = f'adj-rib-in query failed, got total={total}'
+    # Fail CLOSED on zero, not just on a missing key: a present-but-zero total is
+    # exactly the "route never stored" outcome this observer exists to rule out
+    # (ai/rules/fail-closed-guards.md).
+    if total < 1:
+        msg = f'adj-rib-in never stored the multicast route, got total={total}'
         print(f'FAIL: {msg}', file=sys.stderr)
         sys.stderr.flush()
         runtime_fail(msg)

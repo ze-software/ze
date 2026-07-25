@@ -6,6 +6,23 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+# Hold the session open past this peer's own completion. Without it a check peer
+# closes the moment its script finishes (internal/test/peer/peer.go completed()),
+# and this peer's script IS finished as soon as it has sent its UPDATE and seen
+# ze's EOR -- measured at 1 ms after the UPDATE was dispatched. ze then correctly
+# treats that as session-down, and TWO things follow that break this test:
+#   1. bgp-adj-rib-in drops the peer's stored routes on down (adj_rib_in/rib.go,
+#      "delete(r.ribIn, peerAddr)"), so the observer's total-routes poll below
+#      could never see the route -- it burned its full 5s timeout on every run
+#      and the fail-open gate then let the test pass vacuously.
+#   2. bgp-rs (auto-loaded by the `bgp` config path, not just by an explicit
+#      `--plugin`) withdraws the down peer's routes to every other peer
+#      (rs/server_handlers.go handleStateDown -> sendBatchedWithdrawals), which
+#      races the announce the dest peer below is asserting and is the source of
+#      the rare spurious `WITHDRAWN: 10.0.0.0/24` recorded in
+#      plan/known-failures/bgp-plugin-role-otc-export-unknown.md.
+# Same lever as the 224 forward-overflow-two-tier fix (spec-fixit-peer-verdict-and-forward-rail).
+option=linger:value=true
 # No role capability added -- this peer is "unknown/untagged"
 # Send UPDATE: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
@@ -66,8 +83,15 @@ def main():
     data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 
-    if total < 0:  # validation gate race; architectural blocker on single-peer tests
-        msg = f'adj-rib-in query failed, got total={total}'
+    # Fail CLOSED on zero, not just on a missing key. `total < 0` could only fire
+    # when the key was absent, so a present-but-zero total -- which is what the
+    # source peer's early close produced on EVERY run before option=linger above
+    # -- fell straight through to the OK print, and the adj-rib-in half of this
+    # test asserted nothing at all. total >= 1 IS the assertion this observer
+    # exists to make (ai/rules/fail-closed-guards.md: a zero value must never be
+    # a valid-looking answer).
+    if total < 1:
+        msg = f'adj-rib-in never stored the route, got total={total}'
         print(f'FAIL: {msg}', file=sys.stderr)
         sys.stderr.flush()
         runtime_fail(msg)
