@@ -54,8 +54,10 @@ import (
 type result struct {
 	Findings     []grammar.Finding `json:"findings"`
 	FlagInYANG   []flagHit         `json:"flag-in-yang"`
+	DemoLaunch   []demoLaunchHit   `json:"demo-launch"`
 	Exempt       map[string]int    `json:"exempt-by-category"`
 	Checked      int               `json:"commands-checked"`
+	DemoScripts  int               `json:"demo-scripts-checked"`
 	RootsChecked int               `json:"roots-checked"`
 	RootExempt   int               `json:"root-namespace-exempt"`
 	PendingSplit int               `json:"pending-namespace-split"`
@@ -94,6 +96,30 @@ type flagHit struct {
 	File string `json:"file"`
 	Line int    `json:"line"`
 	Text string `json:"text"`
+}
+
+// demoLaunchHit is a `ze ...` invocation in a checked-in demo script whose
+// position-1 token is not a command the dispatcher accepts.
+type demoLaunchHit struct {
+	File  string `json:"file"`
+	Line  int    `json:"line"`
+	Token string `json:"token"`
+}
+
+// heredocOpen matches a heredoc redirect (`<<EOF`, `<<-'EOF'`, `<< "EOF"`) so
+// the demo scan can skip the prose body that follows.
+var heredocOpen = regexp.MustCompile(`<<-?\s*(["']?[A-Za-z_][A-Za-z0-9_]*["']?)`)
+
+// zeGlobalFlagWithValue lists the global flags that consume the following token,
+// so the scan does not mistake a flag VALUE for the command word. Mirrors the
+// value-consuming cases of zeFlags parsing in cmd/ze/ze_core_dispatch.go.
+var zeGlobalFlagWithValue = map[string]bool{
+	"--plugin":    true,
+	"--web":       true,
+	"--mcp":       true,
+	"--mcp-token": true,
+	"--pprof":     true,
+	"-f":          true,
 }
 
 func main() {
@@ -155,13 +181,24 @@ func run() result {
 		res.Findings = append(res.Findings, f)
 	}
 
+	// Feeder 5: the repo's own call sites. `-` is the stdin sentinel that
+	// survives in zeDispatch beside the verbs and roots.
+	accepted := map[string]bool{"-": true}
+	for verb := range tree.Children {
+		accepted[verb] = true
+	}
+	for _, name := range roots {
+		accepted[name] = true
+	}
+	res.DemoLaunch, res.DemoScripts = demoLaunchHits(accepted)
+
 	sort.Slice(res.Findings, func(i, j int) bool {
 		if res.Findings[i].Command != res.Findings[j].Command {
 			return res.Findings[i].Command < res.Findings[j].Command
 		}
 		return res.Findings[i].Rule < res.Findings[j].Rule
 	})
-	res.Valid = len(res.Findings) == 0 && len(res.FlagInYANG) == 0
+	res.Valid = len(res.Findings) == 0 && len(res.FlagInYANG) == 0 && len(res.DemoLaunch) == 0
 	return res
 }
 
@@ -240,6 +277,88 @@ func flagInYANG() []flagHit {
 		return hits[i].Line < hits[j].Line
 	})
 	return hits
+}
+
+// demoLaunchHits reports every `ze <token>` invocation in the checked-in demo
+// scripts whose token is not in `accepted`.
+//
+// Feeder 5 of the grammar gate. The other feeders check how commands are
+// DECLARED; this one checks the repo's own CALL SITES, because nothing else
+// does: `make ze-verify` never executes demos/terminal (they need Docker + VHS,
+// they run from mk/terminal-demo.mk at release time and from the website
+// workflow). When `ze <config-file>` was removed in favour of
+// `ze start <config-file>`, thirteen demo scripts kept the dead form and the
+// Deploy website job failed at "Generate terminal media" on every push for four
+// days before anyone read the log.
+func demoLaunchHits(accepted map[string]bool) ([]demoLaunchHit, int) {
+	files, _ := filepath.Glob("demos/terminal/*/*.sh")
+	top, _ := filepath.Glob("demos/terminal/*.sh")
+	files = append(files, top...)
+	sort.Strings(files)
+
+	var hits []demoLaunchHit
+	for _, path := range files {
+		fh, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		scanner := bufio.NewScanner(fh)
+		heredoc := "" // terminator while inside a heredoc body, "" otherwise
+		for line := 1; scanner.Scan(); line++ {
+			text := scanner.Text()
+			trimmed := strings.TrimSpace(text)
+			// Heredoc bodies are prose, not commands: cards.sh narrates "a fresh
+			// ZeFS database with ze init, list and validate ...". Tokenising that
+			// yields `init,` and a false positive.
+			if heredoc != "" {
+				if trimmed == heredoc {
+					heredoc = ""
+				}
+				continue
+			}
+			if m := heredocOpen.FindStringSubmatch(text); m != nil {
+				heredoc = strings.Trim(m[1], `"'`)
+				continue
+			}
+			if strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			fields := strings.Fields(text)
+			for i, f := range fields {
+				if f != "ze" {
+					continue
+				}
+				token := ""
+				for j := i + 1; j < len(fields); j++ {
+					w := fields[j]
+					if zeGlobalFlagWithValue[w] {
+						j++ // this flag's value, never the command word
+						continue
+					}
+					if strings.HasPrefix(w, "-") && w != "-" {
+						continue // value-less global flag
+					}
+					token = w
+					break
+				}
+				// No token (a bare `ze`), a shell redirect, or a variable the
+				// static scan cannot resolve: not a launch-form claim.
+				if token == "" || strings.HasPrefix(token, ">") || strings.HasPrefix(token, "$") {
+					continue
+				}
+				if accepted[token] {
+					continue
+				}
+				hits = append(hits, demoLaunchHit{File: path, Line: line, Token: token})
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "cli-grammar: read %s: %v\n", path, err)
+			os.Exit(2) // fail closed: an unread script is an unchecked call site
+		}
+		fh.Close() //nolint:errcheck // read-only scan
+	}
+	return hits, len(files)
 }
 
 // registeredRootNames returns the STRING-LITERAL first argument of every
@@ -381,9 +500,18 @@ func printResult(r result) {
 		fmt.Fprintln(os.Stdout)
 	}
 
+	if len(r.DemoLaunch) > 0 {
+		fmt.Fprintf(os.Stdout, "## Dead launch form in demo scripts (%d)\n\n", len(r.DemoLaunch))
+		for _, h := range r.DemoLaunch {
+			fmt.Fprintf(os.Stdout, "  %s:%d  `ze %s` -- %q is not a verb or a registered root\n", h.File, h.Line, h.Token, h.Token)
+		}
+		fmt.Fprintln(os.Stdout)
+	}
+
 	if r.Valid {
 		fmt.Fprintln(os.Stdout, "cli-grammar: OK")
 	} else {
-		fmt.Fprintf(os.Stdout, "cli-grammar: FAILED (%d grammar, %d flag-in-yang)\n", len(r.Findings), len(r.FlagInYANG))
+		fmt.Fprintf(os.Stdout, "cli-grammar: FAILED (%d grammar, %d flag-in-yang, %d demo-launch)\n",
+			len(r.Findings), len(r.FlagInYANG), len(r.DemoLaunch))
 	}
 }

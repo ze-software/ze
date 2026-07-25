@@ -291,7 +291,7 @@ ruleset is R1-R9 (verb-first, token form, no `--flag`, namespace discipline,
 keyword-before-value, action-before-identifier, config-tree-mutation stays in
 `set`/`delete`, string identifiers, compound-vs-namespace split), implemented once in
 `internal/component/command/grammar` and read from the canonical verb registry
-`internal/component/command` (`Verbs`). Four feeders enforce it:
+`internal/component/command` (`Verbs`). Five feeders enforce it:
 
 | Feeder | What it checks | Run |
 |--------|----------------|-----|
@@ -299,6 +299,7 @@ keyword-before-value, action-before-identifier, config-tree-mutation stays in
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
 | Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `make ze-cli-grammar-check` (same gate); `TestRootNamespaceGrammar` (unit) |
+| Demo call sites | Every `ze <token>` invocation in `demos/terminal/**/*.sh`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel. The other feeders check how commands are DECLARED; this one checks the repo's own CALL SITES, which no other gate reaches -- `make ze-verify` never executes the demos (Docker + VHS, run from `mk/terminal-demo.mk` at release time and by the website workflow), so a removed launch form rots there silently: `ze <config-file>` stayed in thirteen demo scripts and failed the Deploy website job on every push for four days | `make ze-cli-grammar-check` (same gate); `TestCLIGrammarGateStatic` (unit) |
 
 Feeder 3 is an **in-process** guard, not a daemon-boot audit: built-ins are 100%
 YANG-derived (a handler with no YANG path is skipped, `LoadBuiltinsWithAliases`) so
