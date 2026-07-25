@@ -43,6 +43,8 @@ they account for over 50 appearances in the corpus.
 | `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
 | `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Active | [F11](#f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
 | `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Active | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
+| `commit_helper.py create` leaks a `ze` daemon and stalls | 6+ (2026-07-26) | Active | [F15](#f15-commit_helperpy-create-leaks-a-ze-daemon-and-stalls-forever) |
+| `GOCACHE` relocation is make-scoped (disk exhaustion) | 1 (2026-07-26) | Active | [F16](#f16-gocache-relocation-is-make-scoped-so-the-recommended-workflow-bypasses-it) |
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Active | [F9](#f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
@@ -605,6 +607,73 @@ own recommended invocation was the collision.
 skips '='-bearing first words; two captured-MAKEFLAGS rows added to
 `TestMakeDryRunDetectsDashN` (the bare-3.81-override false positive and `-n`
 still detected ahead of an override).
+
+## Filed 2026-07-26 (QEMU-rot sweep): two frictions
+
+### F15: `commit_helper.py create` leaks a `ze` daemon and stalls forever
+
+**Friction:** generating a 6-commit script took over an hour and repeatedly
+appeared hung. Each `commit_helper.py create` invocation left a `ze -` child
+running: `pgrep -P <script pid>` showed `ze -` alive for 18+ minutes, and the
+generating shell never advanced past it. Killing that child let generation
+resume immediately, then the next `create` stalled the same way. A separate
+orphan (`ze start ze-bgp.conf`, ppid 1) was found still running after 1h01m from
+an earlier functional run.
+
+The mechanism: a gate spawns `ze` with stdin at EOF. `ze -` reads its config
+from stdin (`cmd/ze/ze_core_dispatch.go:404`), gets an empty config, and starts a
+daemon -- which by design never exits. `commit_helper.py` itself never invokes
+`ze` (`grep` for `bin/ze`/`ZE_BIN` in it returns nothing), so the call is inside a
+gate it shells out to; the log line `warning: running without root; privileged
+operations (port 179, raw sockets, FIB) will fail` is the daemon announcing
+itself.
+
+**Pattern:** a fail-open subprocess contract. Nothing bounds the child, and an
+empty config is indistinguishable from a valid one, so "no config" degrades into
+"run forever" instead of erroring. Compare `ai/rules/fail-closed-guards.md`: a
+check that cannot complete must say so, not hang.
+
+**Workaround used:** wrap the generation in a loop that reaps any `ze -` older
+than 60s. Do NOT hand-write the commit script to dodge it -- the gates it runs
+(verify-status, discovery-index, deferral homing) are the point.
+
+**Proposed fix:** give the gate's `ze` invocation a bounded context/timeout and a
+real config path, or have `ze -` refuse an empty stdin config rather than
+starting an empty daemon. Either removes the hang; the second is the fail-closed
+one.
+
+### F16: `GOCACHE` relocation is make-scoped, so the recommended workflow bypasses it
+
+**Friction:** a session filled the disk (ENOSPC, 927G volume) largely via
+`~/Library/Caches/go-build`, despite the repo relocating the Go build cache.
+Every Bash tool call then failed, because the tool could not create its own
+output file -- an unrecoverable state from inside the session.
+
+`Makefile:17` sets `export GOCACHE := $(CURDIR)/cache/go-cache`, with `cache/`
+symlinked to `~/.cache/ze` (`scripts/dev/ensure-links.py:59-64`). Make `export`
+only reaches processes make spawns. A `go` command run directly inherits nothing
+and falls back to Go's platform default, `os.UserCacheDir()/go-build` =
+`~/Library/Caches/go-build` on macOS. `GOLANGCI_LINT_CACHE` (`Makefile:18`) has
+the same scope, and the post-edit format hook runs `golangci-lint` directly.
+
+**Pattern:** two rules pull in opposite directions. `ai/rules/bash-output.md`
+says prefer `make`, but also that a bare `go test` lies without the feature tags
+-- so agents run `go test -tags "ze_core <36 tags>" ./...` directly, dozens of
+times, and every distinct tag set / `GOOS` / `-race` combination is a separate
+cache key. Cross-compiling for `linux/arm64` and `linux/amd64` multiplies it
+again. The tag guidance is right; it just silently opts out of the cache
+relocation the Makefile arranges.
+
+**Proposed fix:** export `GOCACHE` at the shell level (profile or `.envrc`) so it
+covers direct invocations, and state in `ai/rules/bash-output.md` that a direct
+`go test` must carry `GOCACHE=$(pwd)/cache/go-cache` alongside the tags. `go
+clean -cache` is the safe recovery; nothing but rebuild time is lost.
+
+**Related, same area:** `Makefile:22-24` states the `tmp/go.mod` sentinel is
+obsolete because `go list` skips a *symlinked* `tmp/`. That holds only after the
+opt-in `make ze-migrate-scratch`. In a checkout where `tmp/` is still a real
+directory (`ensure-links.py` reports `SKIP tmp: a real path exists here`), the
+sentinel is load-bearing and deleting it lets `go list ./...` walk the caches.
 
 ## Filed 2026-07-22 (plan-review session): two frictions
 

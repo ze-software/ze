@@ -2978,7 +2978,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC6549-2-1` | MUST | 2 | `internal/plugins/ospf/instance_test.go:412` | `internal/plugins/ospf/instance_test.go:425` |  |
+| `RFC6549-2-1` | MUST | 2 | `internal/plugins/ospf/instance_test.go:457` | `internal/plugins/ospf/instance_test.go:470` |  |
 | `RFC6549-3-1` | MAY | 3 | -- | -- |  |
 | `RFC6549-5-1` | SHOULD | 5 | -- | -- |  |
 | `RFC6549-6-1` | SHOULD | 6 | -- | -- |  |
