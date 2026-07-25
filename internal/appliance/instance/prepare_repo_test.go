@@ -163,8 +163,14 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 		t.Skip("checked-in gokrazy instance not found; not a full checkout")
 	}
 	modcache := filepath.Join(root, "gokrazy", "modcache")
-	if _, err := os.Stat(modcache); err != nil {
-		t.Skip("gokrazy/modcache not populated; run make ze-gokrazy-deps")
+	// Probe the DOWNLOAD cache, not the modcache directory. Only the vendored
+	// gokrazy init sources under gokrazy/modcache are tracked (60 files); the
+	// download cache that makes `go list` resolve offline is gitignored. A fresh
+	// checkout therefore has the directory but resolves nothing, so every module
+	// lost its baseline and the zero-comparison guard below reddened CI on every
+	// push instead of reporting an absent prerequisite.
+	if _, err := os.Stat(filepath.Join(modcache, "cache", "download")); err != nil {
+		t.Skip("gokrazy/modcache download cache not populated; run make ze-gokrazy-deps")
 	}
 	srcBuildDir := filepath.Join(root, "gokrazy", Name, buildDirName)
 
