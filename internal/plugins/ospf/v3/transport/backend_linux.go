@@ -106,7 +106,12 @@ func interfaceLinkLocal(name string) (netip.Addr, error) {
 	if tentative.IsValid() {
 		return tentative, nil
 	}
-	return netip.Addr{}, ErrNoLinkLocal
+	// Name the subject: every other error in this function does, and without it a
+	// multi-interface config gives no clue which link has no fe80:: source (a
+	// loopback never will; an IPv6-disabled link never will; a link still in DAD
+	// will shortly). %w keeps errors.Is(err, ErrNoLinkLocal) working for the
+	// rescan/pending path.
+	return netip.Addr{}, fmt.Errorf("ospfv3/transport: interface %s: %w", name, ErrNoLinkLocal)
 }
 
 func (linuxBackend) OpenInterface(name string, recordDrop DropRecorder) (InterfaceHandle, error) {

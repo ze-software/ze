@@ -656,7 +656,19 @@ func (e *engine) openInterfaces() error {
 	}
 	for _, ic := range enrolled {
 		if err := e.openConfiguredInterface(ic); err != nil {
-			return err
+			// A per-interface open failure is retryable, never fatal to the engine.
+			// The transport leaves the interface enabled-but-not-open and its
+			// RescanInterfaces re-attempts it (v3 transport.go "HandleLinkUp" doc,
+			// v2 the same), and the reconcile path in this file already logs and
+			// continues on the very same call. Returning the error here made this
+			// the lone escalating call site, and the escalation was total: one
+			// interface that cannot open (a loopback, an IPv6-disabled link, or
+			// IPv6 DAD not finished) propagated through v6EngineSet.start /
+			// instanceManager.start to the plugin's post-startup callback, which
+			// exits the WHOLE ospf plugin -- every instance and every address
+			// family -- over one link. Log the subject and keep the others.
+			e.log.Warn("ospf: interface open failed", "interface", ic.Name, "err", err)
+			continue
 		}
 	}
 	// Create the LDP-sync machines for any enabled ldp-sync interface now open, so a

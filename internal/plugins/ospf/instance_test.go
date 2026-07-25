@@ -23,12 +23,23 @@ type fakeBackend struct {
 	mu      sync.Mutex
 	nextIdx int
 	opened  []string
+	// attempted records every OpenInterface call, including the ones failFor
+	// rejects, so a test can tell "never tried" from "tried and failed".
+	attempted []string
+	// failFor makes OpenInterface fail for the named interfaces, modeling a link
+	// the kernel cannot give a usable source address (a loopback has no IPv6
+	// link-local, an IPv6-disabled link has none, a link in DAD not yet).
+	failFor map[string]error
 	handles map[string]*fakeHandle
 }
 
 func (b *fakeBackend) OpenInterface(name string, _ transport.DropRecorder) (transport.InterfaceHandle, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.attempted = append(b.attempted, name)
+	if err, bad := b.failFor[name]; bad {
+		return nil, err
+	}
 	if b.handles == nil {
 		b.handles = make(map[string]*fakeHandle)
 	}
@@ -122,6 +133,40 @@ func TestOSPFPassiveAndLoopbackRecordsDoNotOpenTransport(t *testing.T) {
 	}
 	if got := snapshotByName(t, eng.interfaceSnapshot(), "lo").State; got != "loopback" {
 		t.Fatalf("loopback state = %s, want loopback", got)
+	}
+}
+
+// VALIDATES: an interface the backend cannot open leaves the engine STARTED --
+// openInterfaces logs that interface and keeps going, and every other enrolled
+// interface is open. The failing link is attempted (not silently skipped) so the
+// transport can retry it from RescanInterfaces.
+// PREVENTS: the ospfv3-vlink QEMU failure. `interface lo` under `address-family
+// ipv6` can never have an IPv6 link-local, so its open failed; openInterfaces
+// returned that error, v6EngineSet.start propagated it, and the plugin's
+// post-startup callback exited the WHOLE ospf plugin ("internal plugin exited
+// with non-zero code plugin=ospf code=1"), after which every `show ospf`
+// answered "plugin process not running". One unopenable link must never take
+// down every instance and address family.
+func TestOpenInterfacesSurvivesOneFailingInterface(t *testing.T) {
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"},"lo":{"area":"0"}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	fb := &fakeBackend{failFor: map[string]error{"lo": errNoSourceAddress}}
+	eng := newEngine(transport.New(fb))
+	eng.setConfig(cfg)
+	if err := eng.openInterfaces(); err != nil {
+		t.Fatalf("openInterfaces = %v, want nil: one unopenable interface must not fail engine start", err)
+	}
+	defer eng.shutdown()
+	if !eng.transport.InterfaceOpen("eth0") {
+		t.Error("eth0 is not open: a sibling interface's failure stopped the enrolment loop")
+	}
+	if eng.transport.InterfaceOpen("lo") {
+		t.Error("lo reported open although the backend refused it")
+	}
+	if !slices.Contains(fb.attempted, "lo") {
+		t.Errorf("backend attempts = %v, want an attempt for lo: it must stay pending for RescanInterfaces to retry", fb.attempted)
 	}
 }
 

@@ -473,7 +473,12 @@ var (
 	ErrNoBackend          = errors.New("ospfv3/transport: no backend")
 	ErrInterfaceNotOpen   = errors.New("ospfv3/transport: interface not open")
 	ErrInvalidDestination = errors.New("ospfv3/transport: invalid destination")
-	ErrNoLinkLocal        = errors.New("ospfv3/transport: interface has no usable link-local source")
+	// ErrNoLinkLocal is always wrapped with the interface name by its producer
+	// (interfaceLinkLocal), so the sentinel itself carries only the condition.
+	// Unwrapped it named no subject, and the ospfv3-vlink QEMU failure logged
+	// "opening ipv6 interfaces: ... has no usable link-local source" with no way
+	// to tell WHICH of the configured interfaces had none (ai/rules/error-messages.md).
+	ErrNoLinkLocal = errors.New("no usable link-local source")
 )
 
 // SendPacket finalizes the IPv6 upper-layer checksum (unless a signer owns it) and
