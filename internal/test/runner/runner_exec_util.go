@@ -143,7 +143,8 @@ func (r *Runner) parallelFactor() int {
 // readiness wait / retry-count / per-request budgets (runner_exec.go,
 // await_stderr.go, runner_validate.go). Those gates are what a contended run
 // blows first while the widened outer budget still has room -- the flaky-under-load
-// class in plan/known-failures/reload-transaction-tests-load-sensitive.md.
+// class archived in plan/known-failures/RESOLVED.md ("fixed startup deadlines
+// fail under CPU oversubscription", resolved 2026-07-25 by this helper).
 func (r *Runner) withParallelHeadroom(timeout time.Duration) time.Duration {
 	return timeout * time.Duration(r.parallelFactor())
 }

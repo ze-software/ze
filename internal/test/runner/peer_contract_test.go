@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,7 +170,7 @@ func TestIsZePeerExec(t *testing.T) {
 //
 // VALIDATES: F3 — "peer never bound" is a first-class, self-explaining failure.
 func TestPeerBindFailure_NamesNoTestDataCause(t *testing.T) {
-	err := peerBindFailure("no test data available to test against\n", "")
+	err := peerBindFailure(5*time.Second, "no test data available to test against\n", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "exited without binding")
 	assert.Contains(t, err.Error(), "expect=json")
@@ -177,11 +178,18 @@ func TestPeerBindFailure_NamesNoTestDataCause(t *testing.T) {
 }
 
 // TestPeerBindFailure_GenericWhenCauseUnknown verifies the fallback still
-// reports both streams for an unrecognized bind failure (e.g. port in use).
+// reports both streams for an unrecognized bind failure (e.g. port in use), and
+// that it names the deadline the caller actually enforced.
+//
+// VALIDATES: the reported budget is the caller's, not the authored 5s base.
+// PREVENTS: a parallel run (which widens the bind budget by
+// ParallelTimeoutHeadroom) reporting "within 5s" for a limit it never applied,
+// sending the reader hunting for a 5s timeout that was not in force.
 func TestPeerBindFailure_GenericWhenCauseUnknown(t *testing.T) {
-	err := peerBindFailure("listen: address already in use", "")
+	err := peerBindFailure(15*time.Second, "listen: address already in use", "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "did not start listening within 5s")
+	assert.Contains(t, err.Error(), "did not start listening within 15s")
+	assert.NotContains(t, err.Error(), "within 5s")
 	assert.Contains(t, err.Error(), "address already in use")
 }
 

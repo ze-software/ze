@@ -87,11 +87,52 @@ func (p *Peer) runConnMap(ctx context.Context) Result {
 	}
 }
 
+// acceptConnMapBatch accepts batchSize connections and completes the OPEN
+// handshake on each concurrently.
+//
+// Accepted sockets are registered with a watcher that closes them when ctx is
+// canceled. Without it a connection that is accepted but never sends an OPEN
+// blocks doOpenHandshake forever: its ReadMessage (peer.go:348) sets no
+// deadline, and the ln.Close() on cancel in runConnMap only stops NEW accepts.
+// The batch then hangs until the runner's outer timeout kills the test, which
+// reports a bare timeout and names neither the stuck connection nor the fact
+// that a handshake was the thing waiting. Closing the accepted sockets turns
+// that silent hang into a named error.
 func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSize int) ([]connWithID, Result, bool) {
 	conns := make([]connWithID, batchSize)
 	var wg sync.WaitGroup
 	var acceptErr error
 	var errOnce sync.Once
+
+	// Sockets accepted so far. The watcher below reads this while the accept
+	// loop appends to it, so it is mutex-guarded.
+	var mu sync.Mutex
+	accepted := make([]net.Conn, 0, batchSize)
+	handedOff := false
+
+	// handedOff is the real interlock, not batchDone. Closing batchDone at return
+	// does NOT stop the watcher from closing connections we are handing back: the
+	// deferred close runs at return, leaving a window after wg.Wait(), and even
+	// once it is closed a select whose ctx.Done() is also ready picks uniformly at
+	// random (Go spec). Losing that draw would close the very conns returned to
+	// processConnBatch, which then fails on "use of closed network connection" --
+	// a spurious write failure from the code meant to REMOVE spurious failures.
+	// The flag is checked under the same mutex the closes take.
+	batchDone := make(chan struct{})
+	defer close(batchDone)
+	go func() {
+		select {
+		case <-ctx.Done():
+			mu.Lock()
+			if !handedOff {
+				for _, c := range accepted {
+					c.Close() //nolint:errcheck // unblocking a stuck handshake on cancel
+				}
+			}
+			mu.Unlock()
+		case <-batchDone:
+		}
+	}()
 
 	for i := range batchSize {
 		conn, err := ln.Accept()
@@ -108,14 +149,22 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 				p.printf("set nodelay: %v\n", err)
 			}
 		}
+		mu.Lock()
+		accepted = append(accepted, conn)
+		mu.Unlock()
 
 		wg.Add(1)
 		go func(idx int, c net.Conn) {
 			defer wg.Done()
-			p.printf("\nnew connection from %s\n", c.RemoteAddr())
+			remote := c.RemoteAddr()
+			p.printf("\nnew connection from %s\n", remote)
 			_, _, rid, hErr := p.doOpenHandshake(c)
 			if hErr != nil {
-				errOnce.Do(func() { acceptErr = hErr })
+				// Name the connection: with a batch of N a bare "read OPEN"
+				// says nothing about which peer failed to hand over its OPEN.
+				errOnce.Do(func() {
+					acceptErr = fmt.Errorf("open handshake on batch slot %d (remote %s): %w", idx+1, remote, hErr)
+				})
 				c.Close() //nolint:errcheck // cleanup on handshake failure
 				return
 			}
@@ -130,8 +179,19 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 
 	if acceptErr != nil {
 		closeConnBatch(conns)
+		if ctx.Err() != nil {
+			// Canceling closed the sockets underneath the handshake, so the
+			// I/O error is the teardown's own doing, not a peer failure. Match
+			// the accept loop above and let the runner decide the verdict.
+			return nil, Result{Success: true}, true
+		}
 		return nil, Result{Success: false, Error: acceptErr}, true
 	}
+
+	// From here the batch belongs to the caller; the watcher must not touch it.
+	mu.Lock()
+	handedOff = true
+	mu.Unlock()
 	return conns, Result{}, false
 }
 

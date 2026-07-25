@@ -21,6 +21,7 @@ package runner
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/peer"
@@ -157,7 +158,11 @@ func isSelfValidated(rec *Record, hasCheckPeer bool) bool {
 // "listening on" readiness token. It names the "no test data" case explicitly:
 // that is the one cause an author can fix from the .ci file alone, and leaving it
 // buried in a stderr dump is what let it hide.
-func peerBindFailure(stderr, stdout string) error {
+// timeout is the deadline actually enforced by the caller, not the authored 5s
+// base: a parallel run widens it by ParallelTimeoutHeadroom, and an error that
+// names a budget the run did not use sends the reader hunting for a 5s limit
+// that was never applied.
+func peerBindFailure(timeout time.Duration, stderr, stdout string) error {
 	if strings.Contains(stderr, peerNoTestDataMessage) {
 		return fmt.Errorf("ze-peer exited without binding: %q. Its peer block declares no "+
 			"ze-peer-consumed expectation (expect=bgp:, or action=send/notification/rewrite/"+
@@ -166,7 +171,7 @@ func peerBindFailure(stderr, stdout string) error {
 			"runner and does NOT reach ze-peer",
 			peerNoTestDataMessage)
 	}
-	return fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", stderr, stdout)
+	return fmt.Errorf("peer did not start listening within %s (stderr=%q, stdout=%q)", timeout, stderr, stdout)
 }
 
 // validatePeerBlocks rejects a record whose check-mode ze-peer would exit before
