@@ -33,12 +33,21 @@ const cmdAdjRIBInReplay = "request bgp adj-rib-in replay"
 
 // cmdAdjRIBInClaimReplay takes ownership of peer-up replay from bgp-adj-rib-in.
 //
-// Both plugins used to replay on peer-up. This one marks a peer Replaying and
-// withholds it from forward targets until its replay finishes, so its replay
-// never races the live forward; adj-rib-in's self-replay has no such gate, and
-// with both running a route learned just before establishment went out twice.
-// Claiming at startup -- before any session can establish -- rather than
-// implicitly on the first replay is what covers the FIRST peer too.
+// Both plugins used to replay on peer-up, and with both running a route learned
+// just before establishment went out twice. Claiming at startup -- rather than
+// implicitly on the first replay -- is what covers the FIRST peer too.
+//
+// What this claim does NOT do, despite an earlier version of this comment (and
+// plan/learned/1271) saying otherwise: it does not gate the live forward. A peer
+// marked Replaying IS still a selectForwardTargets destination (server_forward.go
+// selects on peer.Up alone; TestReplayingPeerIncludedInForwardTargets pins that,
+// and plan/learned/630-rs-fastpath-3-passthrough.md records the decision -- BGP
+// UPDATE duplicates are idempotent and excluding replaying peers loses routes).
+// So the ONLY thing standing between a peer and a doubled replay is this claim
+// landing before that peer establishes -- and it is not ordered to (see
+// claimReplayOwnership below, and plugin/server/startup.go sendPostStartupToAll,
+// which fans out on detached goroutines and then starts peers). Measured margin
+// on an idle darwin host: 1-2 ms, 6/6 runs of test/plugin/rfc7606-relay-one-field.
 const cmdAdjRIBInClaimReplay = "request bgp adj-rib-in claim-replay"
 
 // isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
@@ -190,9 +199,11 @@ func (rs *RouteServer) claimReplayOwnership() {
 // A convergent delta replay loop then covers routes that adj-rib-in may not
 // have stored yet at full-replay time (race between event delivery and replay).
 func (rs *RouteServer) handleStateUp(peerAddr string) {
-	// Mark peer as replaying — excluded from selectForwardTargets until complete.
-	// Increment generation so stale goroutines from a previous session (rapid
-	// reconnect) don't prematurely clear Replaying for the new session.
+	// Mark peer as replaying. This does NOT withhold it from selectForwardTargets
+	// (see cmdAdjRIBInClaimReplay above) -- the flag exists only so the replay
+	// goroutine's generation bookkeeping can tell sessions apart. Increment the
+	// generation so stale goroutines from a previous session (rapid reconnect)
+	// don't prematurely clear Replaying for the new session.
 	rs.mu.Lock()
 	var gen uint64
 	if rs.peers[peerAddr] != nil {

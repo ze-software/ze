@@ -314,7 +314,14 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 //
 // A peer plugin (bgp-rs) calls this ONCE at startup to take ownership of peer-up
 // replay. While owned, this plugin does not self-replay -- the owner drives
-// replay explicitly per peer and gates the concurrent forward while it runs.
+// replay explicitly per peer.
+//
+// The owner does NOT gate the concurrent forward while its replay runs, contrary
+// to what this comment claimed before: bgp-rs selects forward targets on peer.Up
+// alone (rs/server_forward.go selectForwardTargets), by the deliberate decision in
+// plan/learned/630-rs-fastpath-3-passthrough.md. So this claim landing before the
+// first session establishes is the ONLY thing preventing a doubled replay, and it
+// is not ordered against peer startup -- see the race note below.
 //
 // The claim is issued from the owner's OnAllPluginsReady, which is NOT ordered
 // against session establishment (see claimReplayOwnership in

@@ -7,10 +7,16 @@ import "github.com/ze-software/ze/internal/core/family"
 
 // PeerState tracks the state of a BGP peer.
 type PeerState struct {
-	Address      string                 // Peer IP address
-	ASN          uint32                 // Peer AS number
-	Up           bool                   // Session is established
-	Replaying    bool                   // True during RIB replay (excluded from selectForwardTargets)
+	Address string // Peer IP address
+	ASN     uint32 // Peer AS number
+	Up      bool   // Session is established
+	// Replaying is true from handleStateUp until replayForPeer finishes. It is NOT
+	// consulted by selectForwardTargets: a replaying peer IS a live-forward target
+	// on purpose, because excluding it loses routes when peers connect together
+	// (TestReplayingPeerIncludedInForwardTargets, plan/learned/630-rs-fastpath-3-passthrough.md).
+	// Its only readers are the replay goroutine's own generation bookkeeping.
+	Replaying bool // In-flight RIB replay; see note above
+
 	ReplayGen    uint64                 // Incremented on each handleStateUp, guards stale goroutines
 	Capabilities map[string]bool        // Negotiated capabilities (e.g., "route-refresh": true)
 	Families     map[family.Family]bool // Supported AFI/SAFI

@@ -234,6 +234,21 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 		return
 	}
 
+	// RFC 4271 Section 6.1 / RFC 8654 Section 4: an OPEN is never an extended
+	// message, so its Length MUST be <= 4096. ParseHeader deliberately enforces
+	// only the LOWER bound (header.go: "For upper bound validation, use
+	// ValidateLengthWithMax"), so without this the wire's 16-bit Length -- up to
+	// 65535 -- indexes the 4096-byte buf below and panics the reactor with
+	// "slice bounds out of range ... with capacity 4096". Reachable from any host
+	// that can open a colliding TCP connection to a configured peer address,
+	// before any capability negotiation. The two sibling read paths already guard
+	// exactly this way (session_read.go, session_coalesce.go); this one did not.
+	if err := hdr.ValidateLengthWithMax(false); err != nil {
+		peer.ClearPendingConnection()
+		r.rejectConnectionCollision(conn)
+		return
+	}
+
 	// Read OPEN body
 	_, err = io.ReadFull(conn, buf[message.HeaderLen:hdr.Length])
 	if err != nil {
