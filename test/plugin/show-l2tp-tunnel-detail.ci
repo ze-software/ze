@@ -207,6 +207,30 @@ def main():
     with open('peer.exit', 'w') as f:
         f.write('ok')
 
+    # This test's peer block asserts ze sends its End-of-RIB
+    # (expect=bgp:conn=1:seq=1:hex=...0017020000 0000), but every assertion above
+    # is about L2TP and completes long before the BGP session does. Shutting down
+    # here closed the session before ze wrote that EOR, so the peer saw
+    # "connection closed before completion" -- deterministically, not only under
+    # load. Gate the shutdown on eor-sent, the same barrier
+    # test/plugin/bgp-summary-route-counts.ci uses for this exact race.
+    def _eor_sent(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            summary = result_json_data(r, {}).get('summary', {})
+        except json.JSONDecodeError:
+            return False
+        for p in summary.get('peers', []):
+            if p.get('address') == '127.0.0.1' and p.get('eor-sent', 0) >= 1:
+                return True
+        return False
+
+    # // test-relax: dispatch_until poll, not a blind sleep -- the EOR write is an
+    # async engine state with no outbound-quiesce barrier to wait on.
+    if not _eor_sent(api.dispatch_until('show bgp summary', _eor_sent, attempts=100, delay=0.1)):
+        runtime_fail('ze never sent its BGP End-of-RIB before shutdown')
+
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
