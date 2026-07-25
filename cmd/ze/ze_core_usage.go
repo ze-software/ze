@@ -68,13 +68,14 @@ func zeUsage() {
 		Command:  "ze",
 		Software: "ze Software",
 		Usage: []string{
-			"ze [--plugin <name>]... <config>   Start with config file",
-			"ze <verb> <command> [options]      Execute command (same grammar as ze cli)",
+			"ze start [--plugin <name>]... <config>  Start with config file",
+			"ze [--plugin <name>]... -               Start with config on stdin",
+			"ze <verb> <command> [options]           Execute command (same grammar as ze cli)",
 		},
 		Sections: sections,
 		Examples: []string{
-			"ze config.conf                       Start with config",
-			"ze --plugin ze.hostname config.conf  Start with hostname plugin",
+			"ze start config.conf                 Start with config",
+			"ze --plugin ze.hostname -            Start with hostname plugin, config on stdin",
 			"ze --plugins                         List available plugins",
 			"ze help ai                           AI reference (commands, RPCs, MCP tools)",
 			"ze help ai api                       Daemon API endpoints (ze-show:*, ...)",

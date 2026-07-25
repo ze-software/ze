@@ -86,7 +86,7 @@ Ze will evolve to a Hub-based architecture where all subsystems are separate pro
 - Language flexibility for plugin authors
 
 ```
-ze config.conf
+ze start config.conf
       │
       ▼
 ┌─────────────────────────────────────────────────────────────────────────┐

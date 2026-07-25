@@ -81,7 +81,7 @@ strings do not carry or override identity metadata.
 
 ```bash
 # Start Ze with a config file
-ze config.conf
+ze start config.conf
 
 # The hub process:
 # 1. Parses the config file
