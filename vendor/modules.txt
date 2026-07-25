@@ -5,10 +5,10 @@ charm.land/bubbles/v2/internal/runeutil
 charm.land/bubbles/v2/key
 charm.land/bubbles/v2/textinput
 charm.land/bubbles/v2/viewport
-# charm.land/bubbletea/v2 v2.0.7
+# charm.land/bubbletea/v2 v2.0.8
 ## explicit; go 1.25.0
 charm.land/bubbletea/v2
-# charm.land/lipgloss/v2 v2.0.4
+# charm.land/lipgloss/v2 v2.0.5
 ## explicit; go 1.25.0
 charm.land/lipgloss/v2
 # charm.land/log/v2 v2.0.0
@@ -46,7 +46,7 @@ github.com/charmbracelet/keygen
 # github.com/charmbracelet/ssh v0.0.0-20250826160808-ebfa259c7309
 ## explicit; go 1.23.0
 github.com/charmbracelet/ssh
-# github.com/charmbracelet/ultraviolet v0.0.0-20260525132238-948f4557a654
+# github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7
 ## explicit; go 1.25.0
 github.com/charmbracelet/ultraviolet
 # github.com/charmbracelet/x/ansi v0.11.7
@@ -195,7 +195,7 @@ github.com/insomniacslk/dhcp/rfc1035label
 # github.com/josharian/native v1.1.0
 ## explicit; go 1.13
 github.com/josharian/native
-# github.com/klauspost/compress v1.19.0
+# github.com/klauspost/compress v1.19.1
 ## explicit; go 1.24
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
@@ -220,8 +220,8 @@ github.com/mattn/go-runewidth
 # github.com/mdlayher/genetlink v1.4.0
 ## explicit; go 1.25.0
 github.com/mdlayher/genetlink
-# github.com/mdlayher/netlink v1.9.0
-## explicit; go 1.24.0
+# github.com/mdlayher/netlink v1.11.2
+## explicit; go 1.25.0
 github.com/mdlayher/netlink
 github.com/mdlayher/netlink/nlenc
 github.com/mdlayher/netlink/nltest
@@ -264,7 +264,7 @@ github.com/pierrec/lz4/v4/internal/xxh32
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/prometheus/client_golang v1.24.0
+# github.com/prometheus/client_golang v1.24.1
 ## explicit; go 1.25.0
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
@@ -276,7 +276,7 @@ github.com/prometheus/client_golang/prometheus/promhttp/internal
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.70.0
+# github.com/prometheus/common v0.70.1
 ## explicit; go 1.25.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
@@ -424,7 +424,7 @@ golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57
+# golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959
 ## explicit; go 1.25.0
 golang.org/x/telemetry/counter
 golang.org/x/telemetry/internal/counter
@@ -439,7 +439,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.47.0
+# golang.org/x/tools v0.48.0
 ## explicit; go 1.25.0
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/ast/astutil
@@ -458,6 +458,7 @@ golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/imports
+golang.org/x/tools/internal/modindex
 golang.org/x/tools/internal/packagesinternal
 golang.org/x/tools/internal/pkgbits
 golang.org/x/tools/internal/stdlib

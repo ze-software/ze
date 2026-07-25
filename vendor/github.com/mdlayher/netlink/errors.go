@@ -20,6 +20,10 @@ var (
 
 var errNotSupported = errors.New("operation not supported")
 
+// errMessageTruncated is returned when a received message was truncated
+// because the receive buffer was too small.
+var errMessageTruncated = errors.New("message truncated")
+
 // notSupported provides a concise constructor for "not supported" errors.
 func notSupported(op string) error {
 	return newOpError(op, errNotSupported)
@@ -95,11 +99,11 @@ func (e *OpError) Error() string {
 	}
 
 	var sb strings.Builder
-	_, _ = sb.WriteString(fmt.Sprintf("netlink %s: %v", e.Op, e.Err))
+	_, _ = fmt.Fprintf(&sb, "netlink %s: %v", e.Op, e.Err)
 
 	if e.Message != "" || e.Offset != 0 {
-		_, _ = sb.WriteString(fmt.Sprintf(", offset: %d, message: %q",
-			e.Offset, e.Message))
+		_, _ = fmt.Fprintf(&sb, ", offset: %d, message: %q",
+			e.Offset, e.Message)
 	}
 
 	return sb.String()
@@ -120,7 +124,8 @@ type timeout interface {
 
 // Timeout reports whether the error was caused by an I/O timeout.
 func (e *OpError) Timeout() bool {
-	if ne, ok := e.Err.(*os.SyscallError); ok {
+	ne := &os.SyscallError{}
+	if errors.As(e.Err, &ne) {
 		t, ok := ne.Err.(timeout)
 		return ok && t.Timeout()
 	}
@@ -134,7 +139,8 @@ type temporary interface {
 
 // Temporary reports whether an operation may succeed if retried.
 func (e *OpError) Temporary() bool {
-	if ne, ok := e.Err.(*os.SyscallError); ok {
+	ne := &os.SyscallError{}
+	if errors.As(e.Err, &ne) {
 		t, ok := ne.Err.(temporary)
 		return ok && t.Temporary()
 	}
