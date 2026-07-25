@@ -52,7 +52,7 @@ wrong root cause (a "macOS socket-stack quirk", a "broken listener-conflict
 validator"), and one had been "re-confirmed" six days later by repeating the same
 flawed invocation. Reproducing a symptom is not attributing a cause.
 
-**Status 2026-07-25: 13 live shards swept, 9 cleared, 4 left open.** Resolved and archived to
+**Status 2026-07-25: 13 live shards swept, 11 cleared, 2 left open.** Resolved and archived to
 `RESOLVED.md`: `static-show-obsolete-next-hop-syntax` (fixed, and four more
 defects in the same suite with it), `ci-suites-quick-exit-ze-unasserted` (149
 commands armed across 52 files), `syncpool-capacity-identity-flakes` (both tests
@@ -71,14 +71,38 @@ against the kernel directly rather than inferred),
 disconnect, and its gate `if total < 0` could never fire), and `rsvpte-lsp-setup`
 (stale, closed on a third independent sweep).
 
-Four remain open, and are open for different reasons:
-`bgp-plugin-dest-peer-teardown-cluster` -- 2 of 4 members fixed, the other 2 not
-individually reproduced; `bgp-plugin-rs-forward-duplicate-and-order` -- mechanism
-confirmed and the claim margin measured, but the fix is startup-ordering work
-already homed in `plan/spec-fixit-stored-route-relay-hardening.md`;
-`reload-config-apply-ordering-rotation` -- never reproduced;
-`reload-transaction-tests-load-sensitive` -- kept only for its finding 3, the
-unprivileged-daemon hang, which remains unverified.
+A second pass the same day cleared two more.
+`bgp-plugin-dest-peer-teardown-cluster` closed once its last two members had
+producer-level reasons rather than green runs: 85 was STALE (its fail-open
+observer had been replaced by the event-driven `run_rs_observer` in `4b52d74a6`
+two days after the shard was written), and 97 `bmp-locrib` had a genuine
+fail-open -- a 15s marker deadline that fell through to `request shutdown` whether
+or not the marker appeared, plus a 0.3s sleep standing in for a barrier -- now
+replaced with the established+`quiesce()` and `wait_until`+`runtime_fail` fences
+and mutation-verified. `reload-transaction-tests-load-sensitive` closed because
+its headline issue (fixed startup deadlines under CPU starvation) was already
+fixed at source by `withParallelHeadroom`
+(`internal/test/runner/runner_exec_util.go:147`), and because its finding 3 --
+"the daemon hangs when it cannot apply interface config" -- was DISPROVEN in QEMU:
+the daemon exits rc=1 in under a second as an unprivileged user. The real defect
+there was an error that dropped its cause, now fixed.
+
+Two remain open, for different reasons:
+
+- `bgp-plugin-rs-forward-duplicate-and-order` -- the startup-ordering race it
+  described IS fixed (the ownership decision is now declarative, delivered on
+  Stage-2 configure; the margin went from 1-2 ms to 430-849 ms, mutation-verified).
+  **Both symptoms nevertheless still reproduce**, and the capture disproves the
+  entry's own causal claim for test 254: self-replay was off 849 ms before the
+  first session existed and the duplicate still occurred. Remaining work is owned
+  by `plan/spec-fixit-stored-route-relay-hardening.md`. A separate defect surfaced
+  in the same capture -- a receiver session established and closed 1 ms apart under
+  load -- and is recorded in the shard.
+- `reload-config-apply-ordering-rotation` -- still never reproduced. Two fail-open
+  defects in the mapped-batch path it exercises were fixed (a stuck OPEN handshake
+  wedged the whole batch until the outer timeout with no diagnosis; a batch
+  handshake failure did not name which connection failed), but neither explains
+  the recorded `mismatch` symptom and the shard says so.
 
 The sweep also found bugs that were NOT tracked here, which is the other reason
 to run the suite rather than read about it: `make ze-unit-test` was red on every
@@ -86,8 +110,8 @@ darwin host (`ze-installer-unit-test` cross-compiled a linux test binary and the
 tried to exec it); the test runner put the wrong `ze` on a child's PATH (under a
 session the binary is `ze-<id>`, so a bare `ze` lookup found whatever stale
 `bin/ze` existed -- a DARWIN binary when driving QEMU); and interface address
-changes could not be applied by reload at all (see
-`reload-transaction-tests-load-sensitive.md`, "Update 2026-07-25").
+changes could not be applied by reload at all (see the "fixed startup deadlines"
+entry in `RESOLVED.md`).
 
 **Status 2026-07-15: 1 open entry (`rsvpte-lsp-setup`, genuinely
 non-deterministic). Of the other three: 2 disproven as tags artifacts (7 tests,

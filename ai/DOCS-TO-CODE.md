@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3099 files
+Total: 298 design docs, 3102 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -399,6 +399,7 @@ Total: 298 design docs, 3099 files
 |------|-------|
 | `examples/plugin/go/main.go` | example plugin |
 | `internal/component/bgp/cli/cmd_plugin.go` | plugin debug shell |
+| `internal/component/bgp/plugins/adj_rib_in/rib_claims.go` | Stage 2 configure, exclusive-role claims |
 | `internal/component/bgp/reactor/reactor_api_relay.go` | stored-route relay (egress-rail) |
 | `internal/component/cli/completer_plugin.go` | plugin SDK methods |
 | `internal/component/plugin/cli/main.go` | plugin CLI dispatch |
@@ -439,7 +440,9 @@ Total: 298 design docs, 3099 files
 | `internal/component/plugin/server/session.go` | plugin process management |
 | `internal/component/plugin/server/startup.go` | 5-stage plugin startup protocol |
 | `internal/component/plugin/server/startup_autoload.go` | plugin auto-loading |
+| `internal/component/plugin/server/startup_claims.go` | Stage 1 declaration, Stage 2 configure |
 | `internal/component/plugin/server/startup_driver.go` | 5-stage plugin startup protocol |
+| `internal/component/plugin/server/startup_failure.go` | 5-stage plugin startup protocol |
 | `internal/component/plugin/server/subscribe.go` | plugin process management |
 | `internal/component/plugin/server/subsystem.go` | plugin process management |
 | `internal/component/plugin/server/system.go` | plugin process management |

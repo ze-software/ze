@@ -9,6 +9,109 @@ resolved.
 
 ## Struck-through (resolved in place, were not yet under `## Resolved`)
 
+### ~~`ze-test bgp plugin` dest-peer-teardown cluster (85, 97, 222, 398)~~ -- RESOLVED 2026-07-25: all four members addressed, and the shard was already stale for one
+
+222 `forward-congestion-teardown-metrics` and 398 `role-otc-unicast-scope` were
+fixed on 2026-07-25 (`52ad2f71b`); see the sibling entries for the observer
+readiness gate and the missing `option=linger`. The remaining two:
+
+**85 `bgp-rs-asn4-transcode` -- the shard was already stale for this member.**
+Its fail-open observer had been replaced by the event-driven
+`ze_api.run_rs_observer` in `4b52d74a6` (2026-07-24), two days AFTER the shard
+was written on 2026-07-22, by unrelated work. That helper subscribes and blocks
+on each peer's EOR event and fails closed, which is exactly the lever that fixed
+222. So this member has a producer-level reason to have stopped reproducing; the
+shard simply outlived its own subject. Another stale shard in this sweep -- re-run
+a shard's own reproduction before believing it.
+
+**97 `bmp-locrib` -- a genuine fail-open, now fixed.** Unlike 85 this file had
+not changed since 2026-07-15, before the shard was written. Its shutdown observer
+gated on a `.collector-done` marker written by the BMP collector, but:
+
+- the wait was a 15s deadline that FELL THROUGH to `request shutdown` whether or
+  not the marker ever appeared, so a run that never validated the behaviour under
+  test shut ze down anyway -- surfacing as the peer's `connection closed before
+  completion`, which is this shard's recorded symptom reported as a symptom
+  rather than a cause; and
+- it bridged to the peer's only expectation (ze's End-of-RIB) with
+  `time.sleep(0.3)`, a sleep rather than a barrier, even though the collector's
+  marker says nothing about whether the peer has been served its EOR.
+
+Replaced with a single fail-closed `wait_until` + `runtime_fail` on the marker.
+Mutation-verified -- with the marker made unreachable the test reports
+`ZE-OBSERVER-FAIL: bmp collector never wrote .collector-done: Loc-RIB route
+monitoring was never validated` instead of stopping ze and blaming the peer. 3/3
+green afterwards, and faster without the sleep.
+
+**An establishment barrier was tried here first and does not work; independent
+review caught it and the record is corrected rather than left standing.** The
+first attempt copied the established+`quiesce()` fence from
+`api-rib-clear-out.ci`, and it was vacuous twice over: the predicate substring
+`'established'` is satisfied by the KEY `connections-established` that every peer
+row carries (`internal/component/bgp/plugins/cmd/peer/peer.go:238`), so it
+returned before any session existed, and `quiesce()` then also returned at once
+because `PendingSync` is false for an idle peer. Rewriting it to parse the real
+`state` field made the test FAIL, which is what exposed the deeper point: this
+test's check peer has no `option=linger`, so it exits the instant it receives
+ze's EOR and the whole exchange is over ~4 ms after startup. The state such a
+barrier waits for is already gone before an external observer can poll it. The
+marker is the only fence actually available here, and it is a sound proxy: it is
+written only after a validated Loc-RIB PDU, which requires the peer's UPDATE to
+have been installed, which is after ze put the peer's EOR on the wire.
+
+Neither 85 nor 97 reproduced this session, including in a deliberately contended
+full-suite run (load 13.47 on 16 cores with two agents building). For a
+load-sensitive cluster that is data, not proof, which is why each member was
+closed on a producer-level reason rather than on green runs.
+
+### ~~`ze-test bgp reload` -- fixed startup deadlines fail under CPU oversubscription~~ -- RESOLVED 2026-07-25: every finding closed, and finding 3's hang was disproven
+
+The headline issue -- reload tests failing on FIXED startup deadlines under
+deliberate CPU starvation (`peer did not start listening within 5s`) -- is fixed
+at source. Those inner readiness gates now scale by the same parallel headroom as
+the outer per-test budget: `withParallelHeadroom`
+(`internal/test/runner/runner_exec_util.go:147`) is applied to both ze-peer bind
+barriers (`runner_exec.go:148`, `:904`), both daemon.ready waits, the
+`await=stderr` fence (`await_stderr.go:87`), and the HTTP readiness
+wait/retry-count/per-request budgets (`runner_validate.go:508`, `:573`, `:722`).
+Its doc comment names this shard as the class it closes. In 2026-07-23 this was
+blocked only because a concurrent session held those files.
+
+Found while closing it: `peerBindFailure`
+(`internal/test/runner/peer_contract.go:160`) still hardcoded "within 5s" in its
+message, so a parallel run reported a budget it had never applied. It now takes
+the enforced deadline; its generic test asserts the widened value and rejects
+"within 5s", mutation-verified against a reverted producer.
+
+Finding 1 (`await=stderr` never `Wait()`s the peer): already fixed by
+`drainPeers`. Finding 2 (eight vacuous reload tests): fixed, and it uncovered two
+real product defects -- the netlink monitor dropping address events for
+pre-existing links, and the same-subnet secondary flush -- both fixed and archived
+separately.
+
+**Finding 3 (the daemon hangs when it cannot apply interface config) is
+DISPROVEN.** Reproduced in the QEMU Alpine VM as an unprivileged user (uid 1000,
+no CAP_NET_ADMIN) with a config carrying only `interface { dummy zdiag0 {} }`:
+the daemon EXITS rc=1 in under a second, by both entry points, while the same
+binary and config as root started normally and created the device. The guard
+already fails CLOSED. What was really wrong is that the error dropped its cause:
+`runPluginPhase` synthesized the phase error from `proc.Stage()` alone while the
+real reason was logged at Debug and discarded, so an operator got "plugin
+interface failed during startup at stage Config" -- no offending object, no
+reason, no corrective action. Fixed: `Process.SetStartupError` records the
+handshake cause, `startupFailureError`
+(`internal/component/plugin/server/startup_failure.go`) wraps it, and
+`joinApplyErrors` (`internal/component/iface/register.go`) appends the
+CAP_NET_ADMIN remediation.
+
+Two stale details in the original finding, corrected: the failure is at stage 2
+(configure), not stage 3 -- the plugin-side stage-3 error is a consequence of the
+already-closed pipe -- and `ze <config>` as a bare positional no longer exists
+(`cmd/ze/ze_core_dispatch.go:402-404`). `ai/rules/qemu-testing.md` carried the
+same stage-3 wording and the same implication that the DAEMON hangs; it now says
+the TEST hangs, which is what actually happens (the check peer goes on waiting
+for a session the exited daemon will never open).
+
 ### ~~`l2tp` functional suite `session-stopccn-cascade`~~ -- RESOLVED 2026-07-25: original diagnosis refuted, test is correct as marked
 
 The shard blamed the answering-side reliable-receive path: "ze's receive window
