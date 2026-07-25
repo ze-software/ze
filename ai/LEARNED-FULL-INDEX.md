@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1242 summaries
+Total: 1243 summaries
 
 ## 000-099
 
@@ -1316,3 +1316,4 @@ Total: 1242 summaries
 | 1268 | ordered-leaf-list-as-path-labels | `plan/learned/1268-ordered-leaf-list-as-path-labels.md` |
 | 1269 | hostload contention single source | `plan/learned/1269-hostload-contention-single-source.md` |
 | 1270 | fixit-load-dependent-functional-failures | `plan/learned/1270-fixit-load-dependent-functional-failures.md` |
+| 1271 | fixit-bgp-egress-rail-divergence | `plan/learned/1271-fixit-bgp-egress-rail-divergence.md` |
