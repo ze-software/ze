@@ -6,6 +6,7 @@
 package ifacenetlink
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -17,8 +18,41 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
+// linkListRetries is how many times listLinks re-issues an interrupted dump.
+// Three is enough for a table that is merely churning; a table changing faster
+// than that for three consecutive dumps is a real condition worth reporting.
+const linkListRetries = 3
+
+// listLinks dumps the link table, retrying while the kernel reports the dump was
+// interrupted.
+//
+// NLM_F_DUMP_INTR (netlink.ErrDumpInterrupted, "results may be incomplete or
+// inconsistent") is not a failure: it means the link table CHANGED while the
+// kernel was walking it, so the snapshot may be torn. The correct response is to
+// dump again -- the vendored netlink even keeps EINTR compatibility for it
+// (vendor/github.com/vishvananda/netlink/nl/nl_linux.go:48-66).
+//
+// Treating it as fatal was operator-visible: the caller in
+// internal/component/iface/config_apply.go:875 turns it into a config-apply
+// error, which aborts the interface plugin at its Config stage and takes the
+// whole daemon down. Ze's own target workloads churn the link table constantly
+// (PPPoE/L2TP session interfaces, tunnels), so a boot or reload could fail purely
+// because a session came up at the wrong microsecond. Observed in the QEMU reload
+// suite, where concurrent tests create and delete devices in one netns.
+func listLinks() ([]netlink.Link, error) {
+	var links []netlink.Link
+	var err error
+	for attempt := 0; attempt <= linkListRetries; attempt++ {
+		links, err = netlink.LinkList()
+		if !errors.Is(err, netlink.ErrDumpInterrupted) {
+			return links, err
+		}
+	}
+	return nil, fmt.Errorf("link table still changing after %d dumps: %w", linkListRetries+1, err)
+}
+
 func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
-	links, err := netlink.LinkList()
+	links, err := listLinks()
 	if err != nil {
 		return nil, fmt.Errorf("iface: list interfaces: %w", err)
 	}

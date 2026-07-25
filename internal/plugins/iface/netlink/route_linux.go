@@ -63,7 +63,7 @@ func (b *netlinkBackend) ListKernelRoutes(filterPrefix string, limit int) ([]ifa
 	}
 
 	// Build index->name map for device resolution.
-	links, lerr := netlink.LinkList()
+	links, lerr := listLinks()
 	if lerr != nil {
 		return nil, fmt.Errorf("iface: link list: %w", lerr)
 	}

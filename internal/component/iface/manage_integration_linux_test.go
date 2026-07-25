@@ -143,6 +143,64 @@ func TestIntegrationRemoveAddress(t *testing.T) {
 	})
 }
 
+func TestIntegrationRemoveAddressKeepsSameSubnetSibling(t *testing.T) {
+	// VALIDATES: removing one address of a subnet leaves the other addresses of
+	// that subnet on the interface, whichever of them the kernel made primary.
+	// PREVENTS: a make-before-break same-subnet renumber (add 10.99.0.2/24,
+	// then remove 10.99.0.1/24) emptying the interface, because Linux deletes
+	// every secondary of a subnet along with its primary unless
+	// net.ipv4.conf.<dev>.promote_secondaries is 1.
+	//
+	// This is the kernel behavior behind the SIGHUP reload that reported
+	// success and left the interface with no address at all, and behind
+	// TestIntegrationApplyConfigVLANUnitAddressReconcile.
+	withNetNS(t, func() {
+		createDummyForTest(t, "test0")
+
+		// 10.99.0.1/24 becomes the subnet's PRIMARY; 10.99.0.2/24 is added
+		// afterwards and the kernel marks it IFA_F_SECONDARY.
+		if err := AddAddress("test0", "10.99.0.1/24"); err != nil {
+			t.Fatalf("AddAddress old: %v", err)
+		}
+		if err := AddAddress("test0", "10.99.0.2/24"); err != nil {
+			t.Fatalf("AddAddress new: %v", err)
+		}
+		requireAddress(t, "test0", "10.99.0.1/24")
+		requireAddress(t, "test0", "10.99.0.2/24")
+
+		if err := RemoveAddress("test0", "10.99.0.1/24"); err != nil {
+			t.Fatalf("RemoveAddress primary: %v", err)
+		}
+
+		requireNoAddress(t, "test0", "10.99.0.1/24")
+		requireAddress(t, "test0", "10.99.0.2/24")
+	})
+}
+
+func TestIntegrationRemoveAddressKeepsOtherSubnets(t *testing.T) {
+	// VALIDATES: removing an address does not disturb addresses in other
+	// subnets on the same interface.
+	// PREVENTS: an over-broad promote_secondaries/flush fix removing more than
+	// the requested address.
+	withNetNS(t, func() {
+		createDummyForTest(t, "test0")
+
+		for _, cidr := range []string{"10.99.0.1/24", "10.99.1.1/24", "fd00::1/64"} {
+			if err := AddAddress("test0", cidr); err != nil {
+				t.Fatalf("AddAddress %s: %v", cidr, err)
+			}
+		}
+
+		if err := RemoveAddress("test0", "10.99.0.1/24"); err != nil {
+			t.Fatalf("RemoveAddress: %v", err)
+		}
+
+		requireNoAddress(t, "test0", "10.99.0.1/24")
+		requireAddress(t, "test0", "10.99.1.1/24")
+		requireAddress(t, "test0", "fd00::1/64")
+	})
+}
+
 func TestIntegrationSetMTU(t *testing.T) {
 	// VALIDATES: SetMTU changes the interface MTU to the requested value.
 	// PREVENTS: MTU not actually applied by the kernel.

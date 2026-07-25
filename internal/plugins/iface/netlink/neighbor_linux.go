@@ -38,7 +38,7 @@ func (b *netlinkBackend) ListNeighbors(family int) ([]iface.NeighborInfo, error)
 
 	// Build an index->name map once so each neighbor's device can be
 	// reported by name instead of an opaque ifindex.
-	links, lerr := netlink.LinkList()
+	links, lerr := listLinks()
 	if lerr != nil {
 		return nil, fmt.Errorf("iface: link list: %w", lerr)
 	}

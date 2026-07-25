@@ -84,8 +84,51 @@ func (m *monitor) start() error {
 		return fmt.Errorf("iface monitor: neigh subscribe: %w", err)
 	}
 
+	m.seedLinkNames()
+
 	go m.run(linkCh, addrCh, neighCh)
 	return nil
+}
+
+// seedLinkNames fills the index->name cache with the links that ALREADY exist.
+//
+// LinkSubscribe delivers only CHANGES, so without this the cache starts empty
+// and stays empty for every interface that predates the monitor. handleAddrUpdate
+// resolves an address event's interface through that cache and returns early on a
+// miss (see "unknown link index for addr event"), so every address event on such
+// an interface was silently dropped.
+//
+// That is not a cosmetic gap. The interface component starts its monitor AFTER
+// boot-time applyConfig has already created the configured interfaces
+// (internal/component/iface/register.go:430 logs "interface config applied", the
+// monitor starts after it), so the dropped set was exactly the operator's own
+// interfaces. The config-transaction settlement waiter for an address add blocks
+// on that `interface/addr-added` event (internal/component/iface/operation.go:57-65,
+// 5s timeout), so a SIGHUP reload changing an interface address always timed out
+// and rolled back: the address could not be changed by reload at all. Reproduced
+// in QEMU before this fix as
+//
+//	config apply partial failure: operation interface-add-address-zdiag0-10.77.0.2_24
+//	settlement timeout waiting for interface/addr-added 10.77.0.2 after 5s
+//
+// Seeded AFTER the subscriptions are live so a link appearing between the two is
+// still delivered by the subscription; a duplicate Store is harmless.
+//
+// `m.known` is deliberately NOT seeded here: it gates the `created` event, and
+// this restores address events only, without changing create/down semantics.
+func (m *monitor) seedLinkNames() {
+	links, err := listLinks()
+	if err != nil {
+		loggerPtr.Load().Warn("iface monitor: seed link cache failed; address events for pre-existing interfaces will be dropped", "error", err)
+		return
+	}
+	for _, l := range links {
+		attrs := l.Attrs()
+		if attrs == nil {
+			continue
+		}
+		m.linkNames.Store(attrs.Index, attrs.Name)
+	}
 }
 
 func (m *monitor) stop() {

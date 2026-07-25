@@ -1,5 +1,7 @@
 // Design: docs/features/interfaces.md -- Interface management via netlink
 // Overview: ifacenetlink.go -- package hub
+// Related: addr_primary.go -- IPv4 primary/secondary policy applied before AddrDel
+// Related: addr_primary_linux.go -- the netlink remover RemoveAddress drives
 
 //go:build linux
 
@@ -231,10 +233,16 @@ func (b *netlinkBackend) RemoveAddress(ifaceName, cidr string) error {
 	if err != nil {
 		return fmt.Errorf("iface: remove address on %q: not found: %w", ifaceName, err)
 	}
-	if err := netlink.AddrDel(link, addr); err != nil {
-		return fmt.Errorf("iface: remove address %q on %q: %w", cidr, ifaceName, err)
+	target, ok := toDeviceAddress(addr)
+	if !ok {
+		return fmt.Errorf("iface: remove address %q on %q: address is not representable", cidr, ifaceName)
 	}
-	return nil
+	// Deleting a PRIMARY IPv4 address makes the kernel delete every secondary
+	// in the same subnet with it. Ze's reconcilers add the new address before
+	// removing the old one, so a same-subnet renumber would otherwise take the
+	// new address down too and leave the interface bare. removeAddressGuarded
+	// performs the delete only after making that impossible -- addr_primary.go.
+	return removeAddressGuarded(&netlinkAddrRemover{link: link, addr: addr}, ifaceName, target)
 }
 
 // AddAddressP2P installs a point-to-point address pair on ifaceName:
