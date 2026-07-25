@@ -331,9 +331,11 @@ func filterByWindow(flows []flowRecord, windowSec int, now time.Time) []flowReco
 }
 
 // characterizeTarget asks trafficusage for the attacked interface and returns its
-// dominant destination as a host prefix. ok is false when no dispatch is wired,
-// the source is absent/errors, or it reports no destination -- the caller then
-// emits the generic-flood fallback.
+// dominant destination as a host prefix. When that interface reports no
+// destination it widens the same pick to every monitored interface (see
+// characterizeTargetBoxWide for why the attacked one can legitimately have none).
+// ok is false when no dispatch is wired, the source is absent/errors, or neither
+// scope reports a destination -- the caller then emits the generic-flood fallback.
 func (d *detector) characterizeTarget(ctx context.Context, ifaceName string) (netip.Prefix, bool) {
 	if d.dispatch == nil {
 		return netip.Prefix{}, false
@@ -350,7 +352,54 @@ func (d *detector) characterizeTarget(ctx context.Context, ifaceName string) (ne
 		})
 		return netip.Prefix{}, false
 	}
-	return parseTopDestination(data)
+	if victim, ok := parseTopDestination(data); ok {
+		return victim, true
+	}
+	return d.characterizeTargetBoxWide(ctx, ifaceName)
+}
+
+// characterizeTargetBoxWide re-runs the victim pick over EVERY monitored
+// interface, and is consulted only when the attacked interface itself reported no
+// destination.
+//
+// Why the attacked interface can have none, on any forwarding topology:
+// the detector attributes an attack to the interface with the highest RECEIVE
+// delta -- applyRates ranks maxPpsIface/maxBpsIface purely on Stats.RxPackets /
+// Stats.RxBytes (detector.go:200-226). But trafficusage's `egress-ips` holds the
+// destination addresses of packets LEAVING an interface: its TCX egress program
+// keys ipDstOff (daddr) into tu_ip_out, while its ingress program keys ipSrcOff
+// (saddr) into tu_ip_in (trafficusage/program_linux.go:88-97). So for a flood that
+// arrives on A and is forwarded out B, the victim is the destination of packets
+// INGRESSING A -- an address trafficusage does not record for A at all -- and A's
+// egress-ips cannot contain it. It is B's egress-ips that holds the victim.
+// Loopback masks this entirely, because `lo` is both A and B for its own traffic,
+// which is why every loopback ddos test resolves a victim and the transit one
+// (test/plugin/ddos-transit-forward-drop.ci) never did: its flood arrives on the
+// veth peer zdd0p, which nothing egresses.
+//
+// Widening the scope, rather than teaching trafficusage to record daddr on
+// ingress, keeps this strictly additive: a topology whose attacked interface DOES
+// report a destination never reaches here, so its victim pick is byte-identical to
+// before. The cost is that a box-wide pick is less precisely attributed than a
+// per-link one, which is why it is a fallback and not the primary.
+//
+// A victim is still not guaranteed: when nothing resolves, applyMitigation's
+// unresolved-victim guard (ddos/local/responder.go) refuses to install any drop,
+// so the failure mode remains "no mitigation", never a match-all blackhole.
+func (d *detector) characterizeTargetBoxWide(ctx context.Context, ifaceName string) (netip.Prefix, bool) {
+	status, data, err := d.dispatch(ctx, "show traffic usage")
+	if err != nil || status != statusDone {
+		logger().Debug("ddos-detect: box-wide victim lookup unavailable; keeping the coarse target",
+			"command", "show traffic usage", "attacked-interface", ifaceName, "status", status, "error", err)
+		return netip.Prefix{}, false
+	}
+	victim, ok := parseTopDestinationAcrossInterfaces(data)
+	if !ok {
+		return netip.Prefix{}, false
+	}
+	logger().Info("ddos-detect: victim resolved box-wide; the attacked interface records no egress destination (forwarded attack)",
+		"attacked-interface", ifaceName, "victim", victim)
+	return victim, true
 }
 
 // queryRecentFlows asks flowexport for recent flows (filtered to victim when it is
@@ -379,25 +428,81 @@ func (d *detector) queryRecentFlows(ctx context.Context, victim netip.Prefix) ([
 }
 
 // parseTopDestination picks the highest-byte destination from a
-// "show traffic-usage name <iface>" response and returns it as a host prefix
-// (/32 for IPv4, /128 for IPv6). trafficusage records destinations in egress-ips
-// and is IPv4-only today; IPv6 targets arrive from the flowexport tap. Malformed
-// or empty input yields ok=false (caller falls back).
+// "show traffic usage name <iface>" response (the single-interface OBJECT shape)
+// and returns it as a host prefix (/32 for IPv4, /128 for IPv6). trafficusage
+// records destinations in egress-ips and is IPv4-only today; IPv6 targets arrive
+// from the flowexport tap. Malformed or empty input yields ok=false, and the
+// caller then widens the same pick box-wide via
+// parseTopDestinationAcrossInterfaces (the array shape).
 func parseTopDestination(data json.RawMessage) (netip.Prefix, bool) {
-	var resp struct {
-		EgressIPs []struct {
-			IP    string `json:"ip"`
-			Bytes uint64 `json:"bytes"`
-		} `json:"egress-ips"`
-	}
+	var resp trafficUsageInterface
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return netip.Prefix{}, false
 	}
+	return bestDestination(resp.EgressIPs)
+}
 
+// trafficUsageInterface is the subset of one `show traffic usage` interface entry
+// the victim pick needs. The command answers with this object when given
+// `name <iface>` and with an ARRAY of them when given no argument
+// (internal/plugins/trafficusage/show.go:37-49).
+type trafficUsageInterface struct {
+	EgressIPs []egressIPEntry `json:"egress-ips"`
+}
+
+// egressIPEntry is one `egress-ips` row: a destination address and the bytes
+// trafficusage charged to it.
+type egressIPEntry struct {
+	IP    string `json:"ip"`
+	Bytes uint64 `json:"bytes"`
+}
+
+// parseTopDestinationAcrossInterfaces picks the highest-byte destination over
+// EVERY interface in an argument-less `show traffic usage` response (a JSON array
+// of interface objects). Same heuristic as parseTopDestination, widened from one
+// interface to the box.
+//
+// Known limitation, stated rather than silently handled: entries are compared
+// individually, not summed per address, so a victim whose traffic is split across
+// two egress interfaces (ECMP) could lose to an unsplit destination with a higher
+// single-interface total. Summing would change the tie/ordering semantics the
+// per-interface pick has always used, and this path exists to widen the scope of
+// that pick, not to replace it.
+func parseTopDestinationAcrossInterfaces(data json.RawMessage) (netip.Prefix, bool) {
+	var resp []trafficUsageInterface
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return netip.Prefix{}, false
+	}
+	var best netip.Prefix
+	var bestBytes uint64
+	found := false
+	for i := range resp {
+		prefix, bytes, ok := bestDestinationBytes(resp[i].EgressIPs)
+		if !ok {
+			continue
+		}
+		if !found || bytes > bestBytes {
+			found, best, bestBytes = true, prefix, bytes
+		}
+	}
+	return best, found
+}
+
+// bestDestination returns the highest-byte entry as a host prefix (/32 for IPv4,
+// /128 for IPv6). An empty set, or one whose only entries are blank or malformed,
+// yields ok=false so the caller falls back.
+func bestDestination(entries []egressIPEntry) (netip.Prefix, bool) {
+	prefix, _, ok := bestDestinationBytes(entries)
+	return prefix, ok
+}
+
+// bestDestinationBytes is bestDestination plus the winning byte count, so a
+// caller comparing across interfaces can rank the per-interface winners.
+func bestDestinationBytes(entries []egressIPEntry) (netip.Prefix, uint64, bool) {
 	var bestIP string
 	var bestBytes uint64
 	found := false
-	for _, e := range resp.EgressIPs {
+	for _, e := range entries {
 		if e.IP == "" {
 			continue
 		}
@@ -408,14 +513,14 @@ func parseTopDestination(data json.RawMessage) (netip.Prefix, bool) {
 		}
 	}
 	if !found {
-		return netip.Prefix{}, false
+		return netip.Prefix{}, 0, false
 	}
 
 	addr, err := netip.ParseAddr(bestIP)
 	if err != nil {
-		return netip.Prefix{}, false
+		return netip.Prefix{}, 0, false
 	}
-	return netip.PrefixFrom(addr, addr.BitLen()), true
+	return netip.PrefixFrom(addr, addr.BitLen()), bestBytes, true
 }
 
 // parseFlowRecords decodes the `show flow recent` JSON list. Malformed rows are

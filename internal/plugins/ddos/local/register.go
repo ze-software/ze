@@ -1,6 +1,7 @@
 package local
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -13,6 +14,12 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+// errApplyWithoutVerify rejects a config-apply that arrives without the
+// config-verify that stages the candidate. The message names the stale-config
+// consequence, because that is what the operator actually experiences: a reload
+// that reports success and changes nothing.
+var errApplyWithoutVerify = errors.New("ddos-local config apply: no verified config staged (config-apply arrived without config-verify); refusing to report success over the previous config")
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
@@ -132,7 +139,18 @@ func runEngine(conn net.Conn) int {
 		cfg := pendingCfg
 		pendingCfg = nil
 		if cfg == nil {
-			return nil
+			// Fail closed. The reload transaction drives verify and apply over the
+			// SAME participant set -- runTxCoordinator builds both from `affected`
+			// (plugin/server/reload_tx.go:40-45) -- so reaching apply without the
+			// config OnConfigVerify stages here is a protocol violation, not a
+			// normal state. Returning nil accepted the transaction while silently
+			// keeping the PREVIOUS responder, so `ddos { local { forward-mitigation
+			// false } }` could be reloaded, the daemon would print "sighup reload
+			// complete", and the old value kept mitigating -- with nothing logged at
+			// any level to say so. Reject instead, so the reload fails loudly and
+			// rolls back rather than reporting success over stale config.
+			// See ai/rules/fail-closed-guards.md.
+			return errApplyWithoutVerify
 		}
 		unsubscribe()
 		bus, err := loadBus()
@@ -142,6 +160,13 @@ func runEngine(conn net.Conn) int {
 		resp = newResponder(cfg, bus)
 		activeResponder.Store(resp)
 		subscribe(bus, resp)
+		// Mirrors the "configured" line OnConfigure emits. Without it a reload that
+		// reached the responder and one that never did looked identical in the log,
+		// which is what made the forward-mitigation reload failure undiagnosable
+		// from a QEMU run (ai/rules/error-messages.md -- one stable phrase per
+		// outcome).
+		log.Info("ddos-local: reconfigured", "response-level", cfg.ResponseLevel,
+			"forward-mitigation", cfg.ForwardMitigation)
 		return nil
 	})
 

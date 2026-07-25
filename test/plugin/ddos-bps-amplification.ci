@@ -75,7 +75,14 @@ import time
 
 from ze_api import API, result_text_data, runtime_fail
 
-VICTIM = "127.0.0.2"
+# Loopback victim allocation for the ddos plugin-suite tests. They share ONE
+# network namespace (the QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a
+# victim address and its sink port must be unique per test or the second test to
+# bind dies EADDRINUSE:
+#   127.0.0.2 ddos-detect-characterize   127.0.0.5 ddos-bps-amplification (this)
+#   127.0.0.3 ddos-direction             127.0.0.6 ddos-incident-confidence
+#   127.0.0.4 ddos-detect-mitigate       127.0.0.7 ddos-policy
+VICTIM = "127.0.0.5"
 DPORT = 9999
 # 16 KB payloads: on loopback (MTU 65536) each is a single datagram, so bandwidth
 # climbs fast while the packet rate stays a few thousand pps -- under the 50000-pps
@@ -144,6 +151,16 @@ def main():
     except OSError:
         pass
 
+    # Sink bound on the victim port so the kernel delivers the flood to a socket
+    # instead of answering every datagram with an ICMP port-unreachable. On the
+    # shared loopback that backscatter is charged to trafficusage's egress-ips for
+    # 127.0.0.1 and corrupts the victim attribution of every OTHER ddos test in the
+    # namespace (learned/1267). Same pattern as ddos-direction / ddos-policy /
+    # ddos-incident-confidence. Unread packets drop silently once the buffer fills.
+    sink = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sink.bind((VICTIM, DPORT))
+    sink.setblocking(False)
+
     detected = False
     sent = 0
     active = 0
@@ -166,6 +183,7 @@ def main():
     finally:
         state = dump_state(api)
         sock.close()
+        sink.close()
 
     if not detected:
         runtime_fail(

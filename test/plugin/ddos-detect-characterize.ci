@@ -56,15 +56,18 @@ victim = "127.0.0.2"
 # Source port 11211 (memcached) is in the classifier's reflection table and is
 # non-privileged, so no root is needed to bind it and it is unlikely to be in use.
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(("127.0.0.1", 11211))
+# The source ADDRESS is per-test: ddos-incident-confidence also binds :11211 and
+# the ddos plugin-suite tests share ONE network namespace (`bgp plugin -p 4`, no
+# ZE_TEST_NETNS), so a shared source socket makes the second binder die EADDRINUSE.
+sock.bind(("127.0.1.2", 11211))
 payload = b"x" * 64
 
 # Bind the victim port so the flood lands on an OPEN port. Without a listener the
 # kernel answers each UDP to the closed 127.0.0.2:9999 with an ICMP port-unreachable
-# back to 127.0.0.1 -- a loopback-only artifact (attacker and victim share the box).
-# Those ICMP replies EGRESS toward 127.0.0.1 and, carrying the quoted datagram, are
+# back to 127.0.1.2 -- a loopback-only artifact (attacker and victim share the box).
+# Those ICMP replies EGRESS toward 127.0.1.2 and, carrying the quoted datagram, are
 # larger per packet than the forward flood, so trafficusage's by-destination-bytes
-# victim pick (parseTopDestination) latches onto 127.0.0.1 (the source) instead of
+# victim pick (parseTopDestination) latches onto 127.0.1.2 (the source) instead of
 # 127.0.0.2, and characterization can never narrow to a victim it is not tracking.
 # On a real transit box forwarding a flood the victim egress dominates and there is
 # no such confound; the bound socket models that. It only receives (buffer fills and
@@ -86,7 +89,7 @@ def blast(n):
 
 
 # 1. Pre-warm: low rate (below the 1000 pps absolute-floor, so no trigger) that
-#    establishes the 127.0.0.1:11211 -> 127.0.0.2 conntrack flow and lets at least
+#    establishes the 127.0.1.2:11211 -> 127.0.0.2 conntrack flow and lets at least
 #    one conntrack dump (active-timeout=1s) land it in the recent-flow ring.
 for _ in range(3):
     blast(50)

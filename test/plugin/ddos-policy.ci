@@ -10,7 +10,7 @@
 #
 # STATUS: option=needs-linux. Runs the full daemon path on the QEMU Alpine VM via an
 #   in-daemon observer plugin (ze_api handshake), same harness as ddos-bps-amplification.
-#   The loopback victim 127.0.0.2 is box-owned (RTN_LOCAL, direction local); the policy
+#   The loopback victim 127.0.0.7 is box-owned (RTN_LOCAL, direction local); the policy
 #   under test exempts it from mitigation regardless of direction.
 
 option=needs-linux
@@ -37,7 +37,13 @@ import time
 
 from ze_api import API, result_text_data, runtime_fail
 
-VICTIM = "127.0.0.2"
+# Unique per test: the ddos plugin-suite tests share ONE network namespace (the
+# QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a victim/sink pair
+# reused by a sibling test makes the second binder die EADDRINUSE -- which is
+# exactly how this test failed once ddos-detect-characterize also bound
+# 127.0.0.2:9999. Allocation table in ddos-bps-amplification.ci. MUST match the
+# `rule <victim>/32` in the detect policy block below.
+VICTIM = "127.0.0.7"
 DPORT = 9999
 PAYLOAD = b"x" * 64
 
@@ -144,7 +150,7 @@ ddos {
 		characterize-enable false
 		policy {
 			default-action deny
-			rule 127.0.0.2/32 {
+			rule 127.0.0.7/32 {
 				action allow
 				match destination
 				scope mitigation

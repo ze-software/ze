@@ -261,3 +261,80 @@ func TestClearedDeactivates(t *testing.T) {
 		t.Error("should be inactive after clear")
 	}
 }
+
+// TestLocalRefusesUnresolvedVictim pins the fail-closed guard on an attack whose
+// victim never resolved (trafficusage reported no destination, so AttackDetected
+// carries the zero VectorTuple).
+//
+// VALIDATES: an unresolved victim installs NO nft table at all, on either hook.
+// PREVENTS:  the blackhole regression observed in QEMU on
+//
+//	test/plugin/ddos-transit-forward-drop.ci -- familyFromPrefix reported the zero
+//	prefix as ip6 and buildDropTerm emitted no matches, so the responder programmed
+//	`table ip6 ze_ddos-local { chain forward { ... counter drop } }`: an
+//	unconditional drop of ALL forwarded traffic, logged as "drop rule installed".
+func TestLocalRefusesUnresolvedVictim(t *testing.T) {
+	origReg := registerTables
+	origApply := applyAll
+	var registered []firewall.Table
+	var applyCalls int
+	registerTables = func(_ string, tables []firewall.Table) { registered = tables }
+	applyAll = func() error { applyCalls++; return nil }
+	defer func() { registerTables = origReg; applyAll = origApply }()
+
+	cases := []struct {
+		name      string
+		cfg       *Config
+		direction ddosevent.Direction
+	}{
+		// Remote + forward-mitigation is the transit path that produced the ip6
+		// blackhole; local is the INPUT-hook equivalent.
+		{"remote-forward-hook", &Config{ResponseLevel: "enforce", ForwardMitigation: true}, ddosevent.DirectionRemote},
+		{"local-input-hook", &Config{ResponseLevel: "enforce"}, ddosevent.DirectionLocal},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			registered, applyCalls = nil, 0
+			r := newResponder(tc.cfg, nil)
+			r.onDetected(&ddosevent.AttackDetected{
+				Interface: "zdd0p",
+				Target:    ddosevent.VectorTuple{}, // victim unresolved
+				Family:    ddosevent.FamilyGenericFlood,
+				Direction: tc.direction,
+				PeakRxPps: 500000,
+			})
+			if r.active {
+				t.Error("unresolved victim must not activate mitigation")
+			}
+			if registered != nil || applyCalls != 0 {
+				t.Errorf("unresolved victim must register no table and never apply: tables=%v applyCalls=%d", registered, applyCalls)
+			}
+		})
+	}
+
+	// The characterized phase must not replace a good narrow rule with a blackhole
+	// when a later characterization loses the victim.
+	registered, applyCalls = nil, 0
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+	r := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	r.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim, Proto: 17}, Direction: ddosevent.DirectionLocal,
+	})
+	if !r.active {
+		t.Fatal("resolved victim should install a drop")
+	}
+	good := registered
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{}, Direction: ddosevent.DirectionLocal,
+	})
+	if !r.active {
+		t.Error("an unresolved characterization must leave the existing drop in place")
+	}
+	if len(registered) != len(good) || firstChainHook(registered) != firewall.HookInput {
+		t.Errorf("existing narrow drop must survive an unresolved characterization, got %v", registered)
+	}
+	if len(registered) > 0 && len(registered[0].Chains) > 0 &&
+		len(registered[0].Chains[0].Terms) > 0 && len(registered[0].Chains[0].Terms[0].Matches) == 0 {
+		t.Error("registered term has no matches: that renders as an unconditional drop")
+	}
+}

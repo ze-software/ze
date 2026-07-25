@@ -14,6 +14,13 @@ var protoName = map[uint8]string{
 	58: "icmpv6",
 }
 
+// buildDropTerm renders the vector as one nftables drop term. Every field is
+// optional and contributes a match only when set.
+//
+// Caller MUST pass a vector with a valid DstPrefix. A vector whose fields are all
+// zero yields a term with NO matches, which nftables renders as an unconditional
+// `counter drop` on a base hook -- a blackhole, not a mitigation. The single caller
+// (responder.applyMitigation) rejects an invalid DstPrefix before reaching here.
 func buildDropTerm(name string, v ddosevent.VectorTuple) firewall.Term {
 	var matches []firewall.Match
 	if v.DstPrefix.IsValid() {

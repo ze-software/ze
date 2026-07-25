@@ -66,10 +66,16 @@ import time
 
 from ze_api import API, result_text_data, runtime_fail
 
-VICTIM = "127.0.0.2"
+# Unique per test: the ddos plugin-suite tests share ONE network namespace (the
+# QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a victim/sink pair
+# reused by a sibling test makes the second binder die EADDRINUSE. Allocation
+# table in ddos-bps-amplification.ci.
+VICTIM = "127.0.0.6"
 DPORT = 9999
 # Source port 11211 (memcached) is in the classifier's reflection table and is
-# non-privileged, so no root is needed to bind it.
+# non-privileged, so no root is needed to bind it. The source ADDRESS is per-test
+# for the same reason as VICTIM: ddos-detect-characterize also binds :11211.
+SADDR = "127.0.1.6"
 SPORT = 11211
 PAYLOAD = b"x" * 64
 
@@ -94,7 +100,7 @@ def dump_state(api):
         f"ddos-incidents={result_text_data(dispatch(api, 'show ddos incidents'))} "
         f"traffic-usage-lo={result_text_data(dispatch(api, 'show traffic usage name lo'))} "
         f"flow-recent-all={result_text_data(dispatch(api, 'show flow recent'))} "
-        f"flow-recent-victim={result_text_data(dispatch(api, 'show flow recent dst 127.0.0.2'))}"
+        f"flow-recent-victim={result_text_data(dispatch(api, f'show flow recent dst {VICTIM}'))}"
     )
 
 
@@ -135,14 +141,14 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", SPORT))
+    sock.bind((SADDR, SPORT))
 
     # Sink bound on the victim port so the kernel delivers the flood to a socket and
     # does NOT emit an ICMP port-unreachable per packet. Without it, those
     # unreachables (victim -> source) egress to the SOURCE and, on loopback,
     # out-total the flood itself (each ICMP carries the original datagram), so the
     # detector's egress-ips victim attribution lands on the reflection source
-    # (127.0.0.1) instead of the target (127.0.0.2), and characterization then
+    # (SADDR) instead of the target (VICTIM), and characterization then
     # queries the wrong destination. A real multi-interface router never sees this
     # backscatter on the victim-facing interface. Binding alone suppresses the ICMP;
     # unread packets are silently dropped when the buffer fills.
@@ -155,7 +161,7 @@ def main():
     state = "(not captured)"
     try:
         # Pre-warm: low rate (below the 1000-pps floor, so no trigger) to establish
-        # the 127.0.0.1:11211 -> 127.0.0.2 conntrack flow and let a dump land it in
+        # the SADDR:11211 -> VICTIM conntrack flow and let a dump land it in
         # the recent-flow ring before the flood. read_line paces without a sleep.
         for _ in range(3):
             sent += blast(sock, 50)

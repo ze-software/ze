@@ -117,6 +117,20 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		return
 	}
 
+	// Fail closed on an unresolved victim. Two things are derived from the victim
+	// prefix and both degrade silently without it: familyFromPrefix GUESSES ip6 for
+	// the zero prefix (netip.Addr{}.Is4() is false), and buildDropTerm emits NO
+	// match at all for a zero VectorTuple. Together they render an unconditional
+	// `counter drop` on a base hook in a guessed address family -- a blackhole for
+	// every packet that hook sees, not a mitigation. An attack whose victim never
+	// resolved must therefore install NOTHING and say so, leaving any drop a prior
+	// phase already installed untouched. See ai/rules/fail-closed-guards.md.
+	if !target.DstPrefix.IsValid() {
+		logger().Error("ddos-local: victim prefix unresolved, refusing to install a drop (an unscoped rule would blackhole the hook)",
+			"phase", phase, "direction", direction, "hook", hookChainName(hook), "family", family)
+		return
+	}
+
 	term := buildDropTerm("ddos-drop", target)
 	table := firewall.Table{
 		Name:   tableName,
@@ -201,6 +215,11 @@ func (r *responder) status() (active bool, target ddosevent.VectorTuple) {
 	return r.active, r.target
 }
 
+// familyFromPrefix maps the victim prefix to the nft table's address family.
+//
+// Caller MUST pass a valid prefix: the zero netip.Prefix answers Is4() false and
+// would be reported as ip6, silently placing an IPv4 mitigation in an IPv6 table.
+// applyMitigation's unresolved-victim guard is what makes that unreachable.
 func familyFromPrefix(p netip.Prefix) firewall.TableFamily {
 	if p.Addr().Is4() {
 		return firewall.FamilyIP

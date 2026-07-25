@@ -62,11 +62,25 @@ with open("daemon.pid") as f:
 
 # Flood a loopback destination so the detector's RxPps for `lo` exceeds the
 # 1000 pps floor and trafficusage records the victim as the dominant destination.
-# 127.0.0.4 is distinct from ddos-policy.ci (127.0.0.2) and ddos-direction.ci
-# (127.0.0.3) so parallel runs do not resolve the same victim (spec:168-169).
+# The address is unique per test: the ddos plugin-suite tests share ONE network
+# namespace (the QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a reused
+# victim/sink pair makes the second binder die EADDRINUSE and a reused victim makes
+# two detectors resolve the same target. Allocation table in
+# ddos-bps-amplification.ci.
 target = "127.0.0.4"
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 payload = b"x" * 64
+
+# Sink bound on the victim port so the kernel delivers the flood to a socket rather
+# than answering each datagram with an ICMP port-unreachable. Those unreachables
+# egress toward the SOURCE (127.0.0.1) carrying the quoted datagram, so
+# trafficusage's by-destination-bytes victim pick (parseTopDestination) latches onto
+# 127.0.0.1 instead of the target -- the loopback-only confound learned/1267
+# documents and ddos-detect-characterize / ddos-direction / ddos-policy already
+# guard against. Unread packets drop silently once the buffer fills.
+sink = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sink.bind((target, 9999))
+sink.setblocking(False)
 
 # Mutable state shared with the wait_until predicate: the flood is sustained
 # across collect ticks (one burst per poll) while we watch for the nft drop.

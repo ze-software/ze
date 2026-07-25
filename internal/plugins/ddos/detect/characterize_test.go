@@ -95,6 +95,133 @@ func TestCharacterizeTargetFallbackOnError(t *testing.T) {
 	}
 }
 
+// transitUsage models test/plugin/ddos-transit-forward-drop.ci's topology in the
+// shape `show traffic usage` (no argument) answers with: an ARRAY of interface
+// objects. The flood arrives on the veth peer zdd0p and is forwarded out zdd0, so
+// only zdd0 has an egress destination; zdd0p records the SOURCE it saw ingressing
+// (trafficusage/program_linux.go:88-97) and carries no egress-ips at all.
+const transitUsage = `[` +
+	`{"interface":"zdd0p","ingress-ips":[{"ip":"203.0.113.1","bytes":90000}]},` +
+	`{"interface":"zdd0","egress-ips":[{"ip":"203.0.113.9","bytes":90000},{"ip":"203.0.113.4","bytes":10}]}` +
+	`]`
+
+// VALIDATES: when the ATTACKED interface reports a destination, the box-wide
+// fallback is never consulted and the resolved victim is byte-identical to the
+// pre-fallback behavior -- exactly one dispatch, the per-interface one.
+// PREVENTS: the fallback silently widening the victim pick for topologies that
+// already resolve one (every loopback deployment and test), which would let a
+// busier unrelated destination outrank the real victim on the attacked link.
+func TestCharacterizeTargetPrefersAttackedInterface(t *testing.T) {
+	var cmds []string
+	d := newDetector(DefaultConfig(), newDTestBus(), func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		cmds = append(cmds, cmd)
+		// The attacked interface resolves; the box-wide view would pick a
+		// DIFFERENT, busier address, so consulting it would be observable.
+		if cmd == "show traffic usage name lo" {
+			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"127.0.0.4","bytes":5000}]}`), nil
+		}
+		return statusDone, json.RawMessage(`[{"interface":"eth0","egress-ips":[{"ip":"198.51.100.1","bytes":999999}]}]`), nil
+	})
+
+	prefix, ok := d.characterizeTarget(context.Background(), "lo")
+	if !ok {
+		t.Fatal("expected ok=true from the attacked interface")
+	}
+	if prefix.String() != "127.0.0.4/32" {
+		t.Errorf("victim: got %s want 127.0.0.4/32 (the attacked interface's own destination)", prefix)
+	}
+	if len(cmds) != 1 || cmds[0] != "show traffic usage name lo" {
+		t.Errorf("expected exactly one per-interface dispatch, got %q", cmds)
+	}
+}
+
+// VALIDATES: when the attacked interface reports NO destination, the victim is
+// resolved box-wide from the interface the attack is forwarded OUT of.
+// PREVENTS: the forwarded-attack blind spot -- the detector attributes to the
+// top-RECEIVE interface (detector.go:200-226) while egress-ips holds destinations
+// of packets LEAVING an interface (trafficusage/program_linux.go:88-97), so on an
+// in-A/out-B path the victim can never be in A's egress-ips. Before the fallback
+// this left AttackDetected with an empty target on every transit topology, which
+// is how ddos-transit-forward-drop.ci failed in QEMU.
+func TestCharacterizeTargetBoxWideFallbackResolvesForwardedVictim(t *testing.T) {
+	var cmds []string
+	d := newDetector(DefaultConfig(), newDTestBus(), func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		cmds = append(cmds, cmd)
+		// zdd0p is monitored and answers cleanly -- it simply has no egress
+		// destination, which is the whole defect. Not an error path.
+		if cmd == "show traffic usage name zdd0p" {
+			return statusDone, json.RawMessage(`{"interface":"zdd0p","ingress-ips":[{"ip":"203.0.113.1","bytes":90000}]}`), nil
+		}
+		return statusDone, json.RawMessage(transitUsage), nil
+	})
+
+	prefix, ok := d.characterizeTarget(context.Background(), "zdd0p")
+	if !ok {
+		t.Fatal("expected the box-wide fallback to resolve the forwarded victim")
+	}
+	if prefix.String() != "203.0.113.9/32" {
+		t.Errorf("victim: got %s want 203.0.113.9/32 (top destination on the egress interface)", prefix)
+	}
+	if len(cmds) != 2 || cmds[1] != "show traffic usage" {
+		t.Errorf("expected the per-interface query then the box-wide one, got %q", cmds)
+	}
+}
+
+// VALIDATES: neither scope reporting a destination still yields ok=false.
+// PREVENTS: the fallback inventing a victim from an empty box, which would defeat
+// applyMitigation's unresolved-victim guard and reintroduce a bogus drop.
+func TestCharacterizeTargetBoxWideFallbackStillFails(t *testing.T) {
+	d := newDetector(DefaultConfig(), newDTestBus(), func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		if cmd == "show traffic usage" {
+			return statusDone, json.RawMessage(`[{"interface":"zdd0p","ingress-ips":[{"ip":"203.0.113.1","bytes":1}]}]`), nil
+		}
+		return statusDone, json.RawMessage(`{"interface":"zdd0p"}`), nil
+	})
+	if prefix, ok := d.characterizeTarget(context.Background(), "zdd0p"); ok {
+		t.Errorf("expected ok=false when no interface reports a destination, got %s", prefix)
+	}
+}
+
+// VALIDATES: parseTopDestinationAcrossInterfaces ranks destinations across every
+// interface in the argument-less array response and rejects malformed/empty input.
+// PREVENTS: the array shape (show.go returns a Slice with no argument, a Map with
+// `name`) being parsed as the object shape and silently yielding no victim.
+func TestParseTopDestinationAcrossInterfaces(t *testing.T) {
+	cases := []struct {
+		name string
+		data string
+		want string // prefix string; "" means expect ok=false
+	}{
+		{"forwarded victim", transitUsage, "203.0.113.9/32"},
+		{"ranks across interfaces", `[{"egress-ips":[{"ip":"203.0.113.5","bytes":10}]},{"egress-ips":[{"ip":"203.0.113.6","bytes":9000}]}]`, "203.0.113.6/32"},
+		{"order independent", `[{"egress-ips":[{"ip":"203.0.113.6","bytes":9000}]},{"egress-ips":[{"ip":"203.0.113.5","bytes":10}]}]`, "203.0.113.6/32"},
+		{"skips interfaces with none", `[{"interface":"a"},{"egress-ips":[{"ip":"198.51.100.7","bytes":1}]}]`, "198.51.100.7/32"},
+		{"empty array", `[]`, ""},
+		{"no egress anywhere", `[{"interface":"a"},{"interface":"b","ingress-ips":[{"ip":"10.0.0.1","bytes":9}]}]`, ""},
+		{"object shape rejected", `{"egress-ips":[{"ip":"203.0.113.5","bytes":9000}]}`, ""},
+		{"malformed json", `not json`, ""},
+		{"bad ip", `[{"egress-ips":[{"ip":"not-an-ip","bytes":5}]}]`, ""},
+		{"blank ip skipped", `[{"egress-ips":[{"ip":"","bytes":9999},{"ip":"203.0.113.8","bytes":3}]}]`, "203.0.113.8/32"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := parseTopDestinationAcrossInterfaces(json.RawMessage(tc.data))
+			if tc.want == "" {
+				if ok {
+					t.Fatalf("expected ok=false, got %v", got)
+				}
+				return
+			}
+			if !ok {
+				t.Fatalf("expected ok=true with %s", tc.want)
+			}
+			if got.String() != tc.want {
+				t.Errorf("got %s want %s", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCharacterizeTargetFallbackOnNonDone(t *testing.T) {
 	d := newDetector(DefaultConfig(), newDTestBus(), func(_ context.Context, _ string) (string, json.RawMessage, error) {
 		return "error", nil, nil

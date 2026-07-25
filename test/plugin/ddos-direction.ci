@@ -41,7 +41,11 @@ import time
 
 from ze_api import API, result_text_data, runtime_fail
 
-VICTIM = "127.0.0.3"  # distinct from ddos-policy.ci (127.0.0.2) so parallel runs do not collide
+# Unique per test: the ddos plugin-suite tests share ONE network namespace (the
+# QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a victim/sink pair reused
+# by a sibling makes the second binder die EADDRINUSE and two detectors resolve the
+# same target. Allocation table in ddos-bps-amplification.ci.
+VICTIM = "127.0.0.3"
 DPORT = 9999
 PAYLOAD = b"x" * 64
 
