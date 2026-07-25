@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 const injectUsage = `ze-analyze inject -- inject MRT routes into a BGP session

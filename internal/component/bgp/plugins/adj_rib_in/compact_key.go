@@ -5,7 +5,7 @@ package adj_rib_in
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // compactRouteKey is a value-type map key for ribIn seqmap entries.

@@ -3,7 +3,7 @@ package pppoe_test
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 )
 
 func TestPADILimiterAllows(t *testing.T) {

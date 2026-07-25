@@ -23,9 +23,9 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // sentPDU records one transmitted PDU for assertions.

@@ -13,8 +13,8 @@ import (
 	"maps"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Family is an alias for family.Family. Use family.Family directly in new code.

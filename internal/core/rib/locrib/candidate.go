@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // Path is one route option for a single (family, prefix), contributed by one

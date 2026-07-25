@@ -13,10 +13,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"golang.org/x/term"
 
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var stdinIsTerminal = func() bool {

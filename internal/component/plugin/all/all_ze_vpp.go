@@ -7,13 +7,13 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/vpp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
+	_ "github.com/ze-software/ze/internal/component/vpp"
+	_ "github.com/ze-software/ze/internal/component/vpp/yang"
+	_ "github.com/ze-software/ze/internal/plugins/fib/vpp"
+	_ "github.com/ze-software/ze/internal/plugins/fib/vpp/yang"
+	_ "github.com/ze-software/ze/internal/plugins/firewall/vpp"
+	_ "github.com/ze-software/ze/internal/plugins/iface/vpp"
+	_ "github.com/ze-software/ze/internal/plugins/iface/vpp/yang"
+	_ "github.com/ze-software/ze/internal/plugins/traffic/vpp"
 )
 

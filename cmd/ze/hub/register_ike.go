@@ -12,6 +12,6 @@
 package hub
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/engine"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
+	_ "github.com/ze-software/ze/internal/component/ike/engine"
+	_ "github.com/ze-software/ze/internal/component/ike/ipsec"
 )

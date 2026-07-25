@@ -6,9 +6,9 @@ package attribute
 import (
 	"fmt"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Origin represents the ORIGIN path attribute.

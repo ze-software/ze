@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/memguard"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // ribForwardHandle implements locrib.ForwardHandle and locrib.ForwardBytes

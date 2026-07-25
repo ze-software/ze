@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // maxTTL is the largest TTL permitted by RFC 2181 section 8 (2^31 - 1): the

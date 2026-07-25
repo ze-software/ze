@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 func newBackend() (firewall.Backend, error) {

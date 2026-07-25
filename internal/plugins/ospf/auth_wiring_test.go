@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 )
 
 // authFailRegistry counts ze_ospf_auth_failures_total increments so a test can assert the

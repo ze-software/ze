@@ -6,9 +6,9 @@ import (
 	"os"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/suggest"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func writeStderr(s string) {

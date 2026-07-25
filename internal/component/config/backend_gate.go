@@ -24,7 +24,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ValidateBackendFeatures walks the parsed JSON config tree under

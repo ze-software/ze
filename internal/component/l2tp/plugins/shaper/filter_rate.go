@@ -5,7 +5,7 @@ package l2tpshaper
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 // parseFilterRate extracts download and upload rates from a RADIUS

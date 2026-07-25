@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 const networkLSAFixedLen = 4
 

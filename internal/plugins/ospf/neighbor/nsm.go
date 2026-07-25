@@ -7,7 +7,7 @@ package neighbor
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // RFC 2328 Section 10.4: point-to-point and point-to-multipoint neighbors always become

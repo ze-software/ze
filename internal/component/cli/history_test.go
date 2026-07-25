@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // helper: create a temp zefs store and a History backed by it.

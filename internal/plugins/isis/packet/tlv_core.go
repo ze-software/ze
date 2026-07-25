@@ -8,7 +8,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // NLPID values carried in TLV 129 (Protocols Supported, RFC 1195 / RFC 5308).
 const (

@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/version"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/version"
 )
 
 // contextKey is an unexported type used for context keys in this package,

@@ -3,8 +3,8 @@
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func registerRoot(name string, handler func([]string) int, desc string) {

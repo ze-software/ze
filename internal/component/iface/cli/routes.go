@@ -11,8 +11,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // defaultRouteLimit bounds the offline `ze interface routes` dump. The

@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // CSS class constants for pin state.

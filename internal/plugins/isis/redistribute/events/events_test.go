@@ -14,8 +14,8 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/plugins/isis/spf"
 )
 
 // TestISISProducerRegistered asserts the four-part producer wiring (spec AC-11):

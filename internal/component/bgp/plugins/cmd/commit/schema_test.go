@@ -2,5 +2,5 @@ package commit
 
 import (
 	// Trigger YANG schema registration needed by dispatch tests.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/commit/yang"
 )

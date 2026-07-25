@@ -11,7 +11,7 @@ One file: `<owner>/yang/register_debug.go`. That is the entire contract.
 // internal/component/<owner>/yang/register_debug.go
 package yang
 
-import debugyang "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
+import debugyang "github.com/ze-software/ze/internal/component/debug/yang"
 
 func init() {
     debugyang.RegisterModule(debugyang.Module{

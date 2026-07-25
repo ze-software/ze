@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errPathIsEmpty = errors.New("path is empty")

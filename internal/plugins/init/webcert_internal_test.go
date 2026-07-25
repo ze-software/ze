@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: `ze init --web-cert/--web-cert-name` generates and stores TLS

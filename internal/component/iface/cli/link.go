@@ -9,10 +9,10 @@ import (
 	"os"
 	"strconv"
 
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	ifacecmd "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
+	ifacecmd "github.com/ze-software/ze/internal/component/iface/cmd"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errInterfaceNameMustNotBeEmpty = errors.New("interface name must not be empty")

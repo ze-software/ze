@@ -21,10 +21,10 @@ package hub
 import (
 	"testing"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	_ "github.com/ze-software/ze/internal/component/bgp/config"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestBuildTag_BGP_Present(t *testing.T) {

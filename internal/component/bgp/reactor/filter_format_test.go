@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestIsCIDRFamily covers every SAFI constant defined in

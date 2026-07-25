@@ -12,7 +12,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 type vppBackend struct {

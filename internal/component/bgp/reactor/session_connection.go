@@ -16,11 +16,11 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // socketRecvBufSize is the SO_RCVBUF size for BGP sessions (256KB).

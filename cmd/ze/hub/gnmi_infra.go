@@ -8,9 +8,9 @@
 package hub
 
 import (
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // resolveGNMIListeners resolves the gNMI enable flag, effective listen address,

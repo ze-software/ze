@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
 // v3SendBackend is an in-memory ospfv3 transport backend that records what was transmitted.

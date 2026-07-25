@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: F8 -- the refresh loop must NOT locally re-stamp a transit/egress

@@ -10,5 +10,5 @@ package cli
 // tree.go is always-on, so the import gets a source build tag instead, exactly
 // like the BGP partition in tree_bgp.go (spec-feature-gate-12).
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"
+	_ "github.com/ze-software/ze/internal/component/bfd/cmd"
 )

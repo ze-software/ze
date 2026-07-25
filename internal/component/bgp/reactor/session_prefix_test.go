@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // ipv4UKey is the uint32 family key for ipv4/unicast used in test assertions.

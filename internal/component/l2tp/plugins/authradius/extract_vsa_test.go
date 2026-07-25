@@ -3,7 +3,7 @@ package l2tpauthradius
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 func buildVSAAttr(t *testing.T, vendorID uint32, vendorType uint8, value []byte) radius.Attr {

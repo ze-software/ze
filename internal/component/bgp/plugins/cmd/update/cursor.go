@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 var (

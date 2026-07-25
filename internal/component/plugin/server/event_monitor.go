@@ -13,9 +13,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/stringsx"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

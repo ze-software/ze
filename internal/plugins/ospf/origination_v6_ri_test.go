@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // newV6RIEngine builds a fully-initialized OSPFv3 engine (ri metrics + trackers + lsdb) for

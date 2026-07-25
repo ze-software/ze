@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 //go:embed data/*.md

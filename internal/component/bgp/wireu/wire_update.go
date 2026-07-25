@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/source"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/source"
 )
 
 // WireUpdate holds UPDATE message payload bytes for zero-copy lazy parsing.

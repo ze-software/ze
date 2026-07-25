@@ -6,8 +6,8 @@ package bgpconfig
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // NOTE: The update{} nlri form (ipv4/flow ...) is parsed by the bgp-nlri-flowspec

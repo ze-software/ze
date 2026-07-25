@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 var (

@@ -8,13 +8,13 @@ package server
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // EventDispatcher bridges the reactor to plugin event delivery.

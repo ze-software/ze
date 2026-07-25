@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
+	"github.com/ze-software/ze/internal/component/traffic"
+	_ "github.com/ze-software/ze/internal/plugins/traffic/vpp"
 )
 
 // sentinelFactory is a non-nil factory used as the duplicate-registration

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
+	"github.com/ze-software/ze/internal/core/memguard"
 )
 
 // VALIDATES: AC-7 -- ReleaseBatch zeroes a filled entry's per-entry value

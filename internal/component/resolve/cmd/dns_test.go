@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/resolve"
+	"github.com/ze-software/ze/internal/component/resolve/dns"
 )
 
 func withTestResolver(t *testing.T, fn func()) {

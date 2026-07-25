@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // mockConsumer records all events it receives.

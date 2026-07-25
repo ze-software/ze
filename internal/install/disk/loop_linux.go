@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const loopMaxDev = 8

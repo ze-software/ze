@@ -15,8 +15,8 @@ import (
 	"encoding/hex"
 	"sort"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // extSubTLVRow is one decoded sub-TLV: its type, value length (padding excluded), and either a

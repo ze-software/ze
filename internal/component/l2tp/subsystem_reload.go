@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

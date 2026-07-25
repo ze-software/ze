@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // radiusAuth holds the RADIUS client and implements the auth handler.

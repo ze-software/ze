@@ -3,7 +3,7 @@ package rib
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestFormatFamily pins formatFamily to the family registry's canonical names.

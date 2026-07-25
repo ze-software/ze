@@ -14,8 +14,8 @@ package ospf
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // TE kind labels for the ze_ospf_te_* metric series.

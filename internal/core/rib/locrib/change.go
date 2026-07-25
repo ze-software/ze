@@ -10,7 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ChangeKind classifies the effect of a RIB mutation on the best path for a

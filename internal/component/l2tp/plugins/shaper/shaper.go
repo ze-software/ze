@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var errNoTrafficBackendLoadedConfigureTraffic = errors.New("no traffic backend loaded; configure traffic-control or wait for it to start")

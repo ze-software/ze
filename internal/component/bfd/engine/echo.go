@@ -23,9 +23,9 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
 )
 
 // echoTickLocked fires per-session echo TX deadlines and drives

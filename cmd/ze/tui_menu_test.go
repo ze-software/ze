@@ -11,8 +11,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func testLevels() []menuLevel {

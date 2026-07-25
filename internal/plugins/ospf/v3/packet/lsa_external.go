@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // AS-External / NSSA flag bits (RFC 5340 §A.4.7). They occupy the low three bits
 // of the first body octet, which shares the leading 32-bit word with the 24-bit

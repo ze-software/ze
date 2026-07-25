@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // Reconfigurable is implemented by any server that supports live listener migration.

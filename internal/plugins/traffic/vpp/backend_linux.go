@@ -15,8 +15,8 @@ import (
 
 	"go.fd.io/govpp/binapi/interface_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	"github.com/ze-software/ze/internal/component/traffic"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 var errVppComponentNotInitialized = errors.New("vpp component not initialized")

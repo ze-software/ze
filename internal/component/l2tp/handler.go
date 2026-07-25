@@ -6,7 +6,7 @@ package l2tp
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // AuthResult carries the auth handler's decision back to the drain

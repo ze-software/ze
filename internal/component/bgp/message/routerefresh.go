@@ -12,7 +12,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // RouteRefreshSubtype represents the message subtype for ROUTE-REFRESH.

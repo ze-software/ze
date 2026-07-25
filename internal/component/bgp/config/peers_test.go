@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // buildMinimalPeer creates a minimal peer tree with the new container structure.

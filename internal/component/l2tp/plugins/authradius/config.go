@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // radiusConfig holds parsed RADIUS server configuration.

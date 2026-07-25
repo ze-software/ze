@@ -8,7 +8,7 @@ package server
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // EngineEventHandler is invoked when a stream event matches an engine

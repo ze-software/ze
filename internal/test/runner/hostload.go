@@ -2,7 +2,7 @@
 
 package runner
 
-import "codeberg.org/thomas-mangin/ze/internal/core/hostload"
+import "github.com/ze-software/ze/internal/core/hostload"
 
 const (
 	// FailTypeNearTimeout classifies a failure where the test consumed >80%

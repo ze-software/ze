@@ -6,7 +6,7 @@ package engine
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 )
 
 // rekeyKind distinguishes a Child SA rekey (CREATE_CHILD_SA with REKEY_SA on an

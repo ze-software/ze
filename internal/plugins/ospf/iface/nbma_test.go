@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // dstSender records the unicast destination of every SendPacket so a test can assert

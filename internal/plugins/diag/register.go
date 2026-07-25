@@ -8,7 +8,7 @@
 package diag
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 func init() {

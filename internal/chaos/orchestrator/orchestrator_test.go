@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/validation"
 )
 
 func TestEstablishedStateSetAndSnapshot(t *testing.T) {

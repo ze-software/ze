@@ -8,10 +8,10 @@ import (
 	"net"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
 )
 
 // newInitiatorSA creates a new SA for the initiator side.

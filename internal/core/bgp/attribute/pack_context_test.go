@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // Test contexts for WriteToWithContext tests.

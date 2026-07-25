@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 // fakeDispatcher records the commands the responder would send to the engine.

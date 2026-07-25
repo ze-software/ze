@@ -21,8 +21,8 @@ import (
 	"maps"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // pnMembers builds a member System ID list from final octets.

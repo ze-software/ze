@@ -26,17 +26,17 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	ldpyang "codeberg.org/thomas-mangin/ze/internal/plugins/ldp/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	ldpyang "github.com/ze-software/ze/internal/plugins/ldp/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

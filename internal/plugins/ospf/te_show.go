@@ -12,8 +12,8 @@ package ospf
 import (
 	"net/netip"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // teDatabaseView is the `show ospf te-database` payload: the router addresses and links of

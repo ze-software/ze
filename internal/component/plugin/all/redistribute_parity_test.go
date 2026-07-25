@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 func TestEveryRedistributeProducerHasSource(t *testing.T) {

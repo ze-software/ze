@@ -5,8 +5,8 @@ package filter_irr
 import (
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/resolve/irr"
 )
 
 const (

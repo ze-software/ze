@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/perf"
-	"codeberg.org/thomas-mangin/ze/internal/perf/report"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/perf"
+	"github.com/ze-software/ze/internal/perf/report"
 )
 
 func cmdReport(args []string) int {

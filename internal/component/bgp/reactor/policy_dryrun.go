@@ -11,12 +11,12 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // TracePolicyFilterChain runs a chain of named filters on an update text and

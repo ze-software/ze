@@ -5,7 +5,7 @@ package migration
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // hasStaticBlocks returns true if any peer, neighbor, template.group, or template.match has a static block.

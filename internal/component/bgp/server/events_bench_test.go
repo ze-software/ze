@@ -4,16 +4,16 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/component/bgp/format"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // benchUpdateData holds the immutable parts of a benchmark UPDATE so

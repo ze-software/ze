@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/version"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/migration"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/version"
 )
 
 func evolveTestSetup(t *testing.T) func() {

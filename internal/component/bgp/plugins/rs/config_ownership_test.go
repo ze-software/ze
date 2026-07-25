@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	rsyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs/yang"
-	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
+	rsyang "github.com/ze-software/ze/internal/component/bgp/plugins/rs/yang"
+	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
 )
 
 // TestRSConfigOwnedByPlugin asserts the route-server per-peer config leaves are

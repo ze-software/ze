@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func TestRestarterSuppressesSelfLSAsV4(t *testing.T) { testRestarterSuppresses(t, false) }

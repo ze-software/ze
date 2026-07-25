@@ -16,8 +16,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"codeberg.org/thomas-mangin/ze/internal/appliance/instance"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/appliance/instance"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // hugepageKernelArgs returns the kernel cmdline tokens that reserve hugepages at

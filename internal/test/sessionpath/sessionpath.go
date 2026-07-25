@@ -25,7 +25,7 @@ import (
 	"regexp"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -176,7 +176,7 @@ func DefaultScratchRoot() string {
 // sentinel and reports tmp/ as the checkout root, making the scratch root
 // tmp/tmp/s/<id>: a real directory, returned with no error, and outside
 // everything SessionEnd removes.
-const moduleDirective = "module codeberg.org/thomas-mangin/ze"
+const moduleDirective = "module github.com/ze-software/ze"
 
 // repoRoot walks up from the working directory to the ze checkout root.
 // Mirrors internal/test/cli.FindBaseDir, which cannot be reused here without an

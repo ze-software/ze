@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	zeweb "github.com/ze-software/ze/internal/component/web"
 )
 
 // wodCaller is the fixed caller identity these web-only dispatcher tests pass.

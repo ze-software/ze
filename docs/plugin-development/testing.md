@@ -13,8 +13,8 @@ import (
     "net"
     "testing"
 
-    "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-    "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+    "github.com/ze-software/ze/pkg/plugin/rpc"
+    "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func newTestPair(t *testing.T) (*sdk.Plugin, *rpc.MuxConn) {

@@ -29,7 +29,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // digestFunc abstracts over crypto/sha1.Sum and crypto/md5.Sum. The

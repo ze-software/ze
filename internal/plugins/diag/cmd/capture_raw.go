@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // BFDRawCaptureProvider is satisfied by the BFD plugin when it supports

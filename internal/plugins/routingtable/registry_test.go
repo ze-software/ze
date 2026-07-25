@@ -3,7 +3,7 @@ package routingtable
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestResolveDefault(t *testing.T) {

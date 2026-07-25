@@ -81,7 +81,7 @@ var Ze<Name>ConfYANG string
 ```go
 package schema
 
-import "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+import "github.com/ze-software/ze/internal/component/config/yang"
 
 func init() {
     yang.RegisterModule("ze-<name>-conf.yang", Ze<Name>ConfYANG)

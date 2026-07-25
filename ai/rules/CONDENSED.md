@@ -168,7 +168,7 @@ Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFL
 **A defect.** Either of these means a build resolved over the network instead of
 | What you find | What it means |
 |---------------|---------------|
-| `codeberg.org/thomas-mangin/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
+| `github.com/ze-software/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
 | A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's **kernel** |
 **Never `rm -rf gokrazy/modcache`.** 60 tracked files live inside it (the gokrazy
 ## Do not just dismiss

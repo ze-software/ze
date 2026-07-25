@@ -12,9 +12,9 @@ import (
 	"net/http"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // CommandResultData holds the data for rendering a command result card.

@@ -13,7 +13,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // TestRFC5286LoopFreeInequality1 pins the RFC 5286 Section 3.1 Inequality 1 loop-free

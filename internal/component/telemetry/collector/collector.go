@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // Collector reads OS metrics from procfs/sysfs and updates Prometheus gauges.

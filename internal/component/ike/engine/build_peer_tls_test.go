@@ -3,8 +3,8 @@ package engine
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: buildPeerTLSConfig, the second runtime enforcement point named in

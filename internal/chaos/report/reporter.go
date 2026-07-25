@@ -5,7 +5,7 @@ package report
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // Consumer is an event sink for reporting. Each consumer receives every event

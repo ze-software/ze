@@ -4,8 +4,8 @@
 package process
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 func init() {

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // TestGraceLSAConsumerRegistered (AC-1): registerGraceConsumer stores the Opaque-Type-3

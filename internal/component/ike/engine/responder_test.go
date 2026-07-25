@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	ikecrypto "codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	ikecrypto "github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: review Finding 1 (BLOCKER). reapStaleHandshake tears down a half-open

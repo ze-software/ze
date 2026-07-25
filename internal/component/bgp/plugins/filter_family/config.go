@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Action values for a family-filter instance (YANG enumeration).

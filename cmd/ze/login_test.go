@@ -14,9 +14,9 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	_ "codeberg.org/thomas-mangin/ze/internal/core/paths"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/env"
+	_ "github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func setConfigDir(t *testing.T, dir string) {

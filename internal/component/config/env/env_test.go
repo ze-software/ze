@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
+	coreenv "github.com/ze-software/ze/internal/core/env"
 )
 
 // TestGet verifies environment variable lookup with dot/underscore equivalence.

@@ -7,7 +7,7 @@ package monitor
 import (
 	"encoding/json"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const maxDisplayPrefixes = 5

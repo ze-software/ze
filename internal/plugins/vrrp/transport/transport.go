@@ -23,10 +23,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
 const (

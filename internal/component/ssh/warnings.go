@@ -3,7 +3,7 @@
 
 package ssh
 
-import "codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+import "github.com/ze-software/ze/internal/component/cli/contract"
 
 // LoginWarningsFunc returns login warnings to display when an SSH session starts.
 // Returns nil when no warnings exist.

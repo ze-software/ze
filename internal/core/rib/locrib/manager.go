@@ -14,8 +14,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // RIB is the unified Loc-RIB. It holds one familyShards per address family;

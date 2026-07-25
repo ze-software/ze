@@ -8,7 +8,7 @@ import (
 	"slices"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // localAddrs tracks local interface addresses for hook selection.

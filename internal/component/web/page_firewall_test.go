@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // storeTestFirewallState stores test firewall tables in the global applied state

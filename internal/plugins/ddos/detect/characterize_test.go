@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 // frec builds a flowRecord (destined to the victim) for classifier tests.

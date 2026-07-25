@@ -13,8 +13,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // dashboardPollInterval is how often the dashboard refreshes data.

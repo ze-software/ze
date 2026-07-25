@@ -6,11 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	// Trigger all plugin init() registrations for integration tests.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
 // buildTestWireToPath creates a WireMethod->path map from the shared YANG loader.

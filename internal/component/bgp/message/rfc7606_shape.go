@@ -6,7 +6,7 @@
 package message
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // NLRIBearingFieldCount counts how many of the four fields named by RFC 7606

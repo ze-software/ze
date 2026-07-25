@@ -5,7 +5,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // The Fletcher checksum (ISO 8473 annex C, referenced by ISO/IEC 10589 clause
 // 7.3.11) maintains two running sums over the data octets:

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var loggerPtr atomic.Pointer[slog.Logger]

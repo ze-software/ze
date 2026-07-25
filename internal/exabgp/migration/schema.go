@@ -7,8 +7,8 @@ import (
 	"errors"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // ErrSchemaLoad is returned when the ExaBGP schema fails to load.

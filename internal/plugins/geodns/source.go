@@ -4,7 +4,7 @@
 
 package geodns
 
-import "codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+import "github.com/ze-software/ze/internal/core/dnsserver"
 
 // buildMatcher maps each source entry's host-set name to the core matcher's
 // generic label, then builds the shared longest-prefix matcher.

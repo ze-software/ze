@@ -24,21 +24,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/source"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/memguard"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/source"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // sessionLoggerRef holds the session subsystem logger provider (lazy initialization).

@@ -8,11 +8,11 @@ package cos
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 type cosMetrics struct {

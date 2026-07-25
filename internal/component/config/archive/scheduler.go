@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	iconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+	iconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/system"
 )
 
 const (

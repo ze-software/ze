@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func cmdTextPlugin(_ []string) int {

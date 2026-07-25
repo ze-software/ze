@@ -3,8 +3,8 @@
 package kernelevents
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 const Namespace = "kernel"

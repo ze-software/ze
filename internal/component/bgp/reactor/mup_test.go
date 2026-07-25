@@ -4,8 +4,8 @@ import (
 	"net/netip"
 	"testing"
 
-	mup "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/mup"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
+	mup "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mup"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 )
 
 // TestParseRD verifies Route Distinguisher parsing.

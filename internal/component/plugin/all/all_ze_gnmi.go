@@ -7,8 +7,8 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/gnmi-cmd/yang"
+	_ "github.com/ze-software/ze/internal/component/gnmi"
+	_ "github.com/ze-software/ze/internal/component/gnmi/yang"
+	_ "github.com/ze-software/ze/internal/plugins/gnmi-cmd/yang"
 )
 

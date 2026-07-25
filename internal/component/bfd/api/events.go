@@ -13,7 +13,7 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // State and Diag are re-exported from bfd/packet so that consumers

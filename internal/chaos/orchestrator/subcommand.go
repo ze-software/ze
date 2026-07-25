@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/replay"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/chaos/replay"
+	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/shrink"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RunReplay opens an event log file and replays it through the validation model.

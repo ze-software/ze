@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // seedStore writes the given entries to a fresh zefs file and returns its path.

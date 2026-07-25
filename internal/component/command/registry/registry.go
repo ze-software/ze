@@ -31,7 +31,7 @@ import (
 	"sort"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errRegisterLocalEmptyPath = errors.New("registry.RegisterLocal: empty path")

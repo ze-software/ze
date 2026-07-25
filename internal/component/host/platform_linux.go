@@ -9,8 +9,8 @@ import (
 	"strings"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/gokrazyutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/gokrazyutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // DetectPlatform identifies the runtime platform and probes capabilities.

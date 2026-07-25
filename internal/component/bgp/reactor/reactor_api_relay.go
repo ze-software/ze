@@ -21,14 +21,14 @@ import (
 	"errors"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/source"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/source"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Relay reconstruction failures. Each names the specific defect so a malformed

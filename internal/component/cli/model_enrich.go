@@ -5,8 +5,8 @@
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // enrichAddr applies the | resolve and | origin data-transform pipes to a

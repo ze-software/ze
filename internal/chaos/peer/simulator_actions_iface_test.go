@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/engine"
 )
 
 // TestIfaceFaultNoOpWithoutIface verifies the netns-scoped interface fault

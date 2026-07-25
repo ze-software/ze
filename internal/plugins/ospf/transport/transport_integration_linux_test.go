@@ -14,11 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/iface"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
 )
 
 func TestOSPFTransportRawSocketCap(t *testing.T) {

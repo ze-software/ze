@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ip_types"

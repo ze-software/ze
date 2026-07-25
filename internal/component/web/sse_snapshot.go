@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // sseHeartbeat is the SSE comment line that keeps an idle connection alive.

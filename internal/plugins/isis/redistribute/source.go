@@ -24,14 +24,14 @@ import (
 	"log/slog"
 	"sync"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
-	isisredistevents "codeberg.org/thomas-mangin/ze/internal/plugins/isis/redistribute/events"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	isisredistevents "github.com/ze-software/ze/internal/plugins/isis/redistribute/events"
+	"github.com/ze-software/ze/internal/plugins/isis/spf"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/pkg/ze"
 
 	"net/netip"
 )

@@ -17,7 +17,7 @@ import (
 	"errors"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // MS-CHAPv2 packet codes. Section 4 inherits the CHAP framing from

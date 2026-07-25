@@ -12,9 +12,9 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // cmdModuleSuffix identifies YANG command tree modules by naming convention.

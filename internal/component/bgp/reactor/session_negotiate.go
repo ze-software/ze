@@ -9,9 +9,9 @@ import (
 	"net"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // negotiateWith performs capability negotiation using pre-parsed capabilities.

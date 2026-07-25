@@ -3,7 +3,7 @@
 package pool
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 )
 
 // Per-attribute-type pools for fine-grained deduplication.

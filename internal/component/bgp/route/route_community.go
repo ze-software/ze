@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 var (

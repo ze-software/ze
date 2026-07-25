@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // newPeerWithMetrics creates a Peer wired to a spy metrics registry.

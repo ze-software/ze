@@ -16,9 +16,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
-	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/sessionpath"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 var (

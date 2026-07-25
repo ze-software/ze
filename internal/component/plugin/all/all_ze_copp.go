@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/copp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/copp/yang"
+	_ "github.com/ze-software/ze/internal/plugins/copp"
+	_ "github.com/ze-software/ze/internal/plugins/copp/yang"
 )
 

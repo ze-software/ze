@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 func TestPolicyToFirewallTable(t *testing.T) {

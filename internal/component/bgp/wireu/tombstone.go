@@ -6,7 +6,7 @@ package wireu
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // Tombstone reason codes per draft-mangin-idr-attr-tombstone-00 Section 4.4.

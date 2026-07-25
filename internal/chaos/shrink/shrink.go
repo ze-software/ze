@@ -8,8 +8,8 @@ import (
 	"io"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/validation"
 )
 
 var (

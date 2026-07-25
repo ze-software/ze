@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // bgpMarkerHex is the 16-byte all-ones marker every BGP message begins with

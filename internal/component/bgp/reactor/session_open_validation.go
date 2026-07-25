@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // validateOpenIdentifier enforces RFC 6286 Section 2.2 on a received OPEN.

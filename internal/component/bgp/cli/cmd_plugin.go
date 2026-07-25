@@ -13,10 +13,10 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // cmdPlugin dispatches plugin subcommands.

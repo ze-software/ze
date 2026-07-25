@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func cmdArchiveWithStorage(_ storage.Storage, args []string) int {

@@ -8,7 +8,7 @@ package rib
 import (
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 )
 
 // extractAdminDistanceConfig extracts the bgp/admin-distance container

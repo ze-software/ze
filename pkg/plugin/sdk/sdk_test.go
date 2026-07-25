@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // engineSide wraps a MuxConn for the engine's perspective on a single connection.

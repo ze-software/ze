@@ -13,9 +13,9 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // fakeIRR starts a TCP whois server answering "!a4<name>" / "!a6<name>" queries

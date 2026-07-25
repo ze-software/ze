@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 )
 
 func markProcessRunning(t *testing.T, proc *process.Process) {

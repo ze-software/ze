@@ -3,8 +3,8 @@ package l2tp_test
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 func TestRegisterAuthHandler(t *testing.T) {

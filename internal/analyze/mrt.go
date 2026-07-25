@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 // MRT types (RFC 6396).

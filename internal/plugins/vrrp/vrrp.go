@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
 )
 
 // loggerPtr is the package logger, disabled until the engine configures it.

@@ -13,10 +13,10 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // gaugeSample is one labeled value applied to a GaugeVec on a metric refresh.

@@ -16,16 +16,16 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	hostinv "codeberg.org/thomas-mangin/ze/internal/component/host"
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/resolve"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
+	"github.com/ze-software/ze/internal/component/config"
+	hostinv "github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
 // SupportManifest is the top-level metadata written to manifest.json.

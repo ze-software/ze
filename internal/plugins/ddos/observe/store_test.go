@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 // VALIDATES: AC-9 -- the confidence from AttackCharacterized is recorded onto the

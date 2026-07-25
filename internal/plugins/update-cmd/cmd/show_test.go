@@ -3,10 +3,10 @@ package cmd
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/host"
 )
 
 func TestShowSystemUpdateBackendField(t *testing.T) {

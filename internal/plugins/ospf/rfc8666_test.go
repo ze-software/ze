@@ -14,11 +14,11 @@ import (
 	"net/netip"
 	"testing"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 )
 
 // rfc8666Fixture is the shared IPv6 SR install fixture: one loopback FEC advertised by

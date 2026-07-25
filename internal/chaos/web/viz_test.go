@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // TestRouteMatrixRecordAndGet verifies basic record/retrieve for route matrix.

@@ -36,9 +36,9 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/stringsx"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Env var registrations for logging.

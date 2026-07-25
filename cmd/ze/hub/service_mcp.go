@@ -31,8 +31,8 @@ import (
 	"sync"
 	"time"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zemcp "github.com/ze-software/ze/internal/component/mcp"
 )
 
 // mcpService adapts *MCPServerHandle to the Service interface (the handle

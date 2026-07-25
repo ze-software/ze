@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/metrics"
 
-	registry "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	registry "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestMetricsShowWithRegistry verifies handler returns Prometheus text when registry available.

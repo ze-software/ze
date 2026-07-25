@@ -10,7 +10,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
 // addrPayloadFor unmarshals the JSON payload of the first addr-added event in

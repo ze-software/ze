@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // VALIDATES: AC-2 -- AppendSentMessage emits `"message":{"type":"sent"` in

@@ -16,7 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // discardLoggerForTest returns a logger that drops every record.

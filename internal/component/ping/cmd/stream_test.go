@@ -30,8 +30,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 var testEpoch = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

@@ -2,7 +2,7 @@ package cli
 
 import (
 	// Trigger plugin init() registrations needed by config tests.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
 	// Fill the infra BGP seams (resolver, peer validator) this package's
 	// commands use for bgp{} handling. In the real ze binary the gated CLI
@@ -11,5 +11,5 @@ import (
 	// and the edge would be an import cycle in test. Test files carry no
 	// compile-out obligation, so naming it here is legal and keeps these tests
 	// exercising the same code path the shipped binary takes.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	_ "github.com/ze-software/ze/internal/component/bgp/config"
 )

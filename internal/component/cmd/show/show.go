@@ -16,13 +16,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // argCount is the CLI argument keyword that takes a positive integer

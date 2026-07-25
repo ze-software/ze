@@ -17,8 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 )
 
 var errSysctlEmptyKey = errors.New("sysctl: empty key")

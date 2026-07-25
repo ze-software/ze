@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // VALIDATES: AC-12 -- show aaa accounting exposes TACACS+ accounting drop count.

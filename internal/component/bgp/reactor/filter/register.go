@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

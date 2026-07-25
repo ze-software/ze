@@ -14,9 +14,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // --- Integration test: prove redistribution works through real SDK RPCs ---

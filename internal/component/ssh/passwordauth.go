@@ -6,8 +6,8 @@ package ssh
 import (
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/core/redact"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 // loggedCommand sanitizes an SSH exec command for the operational log. It

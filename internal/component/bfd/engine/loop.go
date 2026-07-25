@@ -8,10 +8,10 @@
 package engine
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // engineLog is the lazy logger for the BFD engine express-loop. Send

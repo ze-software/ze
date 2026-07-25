@@ -13,12 +13,12 @@ import (
 	"net"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ribOutKey is a value-type map key for ribOut entries: zero-allocation

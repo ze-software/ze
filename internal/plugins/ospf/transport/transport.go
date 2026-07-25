@@ -11,11 +11,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/wire"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/plugins/ospf/wire"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const (

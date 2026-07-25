@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/show/yang"
+	_ "github.com/ze-software/ze/internal/component/gnmi/yang"
 )
 
 func TestGNMISchemaRegistered(t *testing.T) {

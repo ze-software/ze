@@ -19,7 +19,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // withTunnelNetNS sets up a fresh named netns and runs fn with the netlink

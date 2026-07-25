@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospfredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // recordingInjector records the prefixes injected/withdrawn, standing in for the OSPFv2

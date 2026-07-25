@@ -17,16 +17,16 @@ package hub
 import (
 	"context"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/command"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/resolve"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // Service is one optional daemon service built through the construction

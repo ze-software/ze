@@ -6,7 +6,7 @@ package web
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // ActiveSetEntry tracks a peer's presence in the active set.

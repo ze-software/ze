@@ -11,8 +11,8 @@ package config
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // KeyDefault is the key used for anonymous list entries (e.g., "api { ... }").

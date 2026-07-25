@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 func TestClientOpenIncident(t *testing.T) {

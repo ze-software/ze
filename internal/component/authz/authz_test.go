@@ -3,8 +3,8 @@ package authz
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/aaa"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // VALIDATES: Profile evaluation returns correct action for matching entries.

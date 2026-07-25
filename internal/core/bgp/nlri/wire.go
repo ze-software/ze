@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errMalformedNlriAddpathFlagSetBut = errors.New("malformed NLRI: addpath flag set but data < 4 bytes")

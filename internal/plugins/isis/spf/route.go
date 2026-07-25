@@ -22,7 +22,7 @@ import (
 	"net/netip"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // NextHop is one resolved equal-cost next-hop for an installed prefix: the IP

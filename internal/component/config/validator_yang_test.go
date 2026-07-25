@@ -8,17 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Blank imports trigger init() registration of YANG modules.
 	// bgp/schema already imported in reader_test.go (same package).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
 
 	// isis provides a leaf with a pure `length` restriction (hostname,
 	// `type string { length "1..255" }`), which TestValidateTree_LengthViolation
 	// uses to exercise the validator's length branch. The bgp schema has none.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/yang"
+	_ "github.com/ze-software/ze/internal/plugins/isis/yang"
 )
 
 // newTestLoader creates a resolved YANG loader with all registered modules.

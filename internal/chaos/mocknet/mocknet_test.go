@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // TestConnPairReadWrite verifies net.Pipe pair: write on one end, read on other.

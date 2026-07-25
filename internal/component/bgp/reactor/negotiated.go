@@ -6,8 +6,8 @@ package reactor
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // NegotiatedCapabilities tracks what was negotiated (not how to encode).

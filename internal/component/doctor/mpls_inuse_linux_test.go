@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // VALIDATES: F15 -- the MPLS-module warning only fires when MPLS forwarding is

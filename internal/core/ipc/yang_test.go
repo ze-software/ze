@@ -6,13 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Blank imports trigger init() registration of YANG modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
+	_ "github.com/ze-software/ze/internal/core/ipc/yang"
 )
 
 // loadAllAPIModules loads core + all API YANG modules for testing.

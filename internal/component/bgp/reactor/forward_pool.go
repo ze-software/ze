@@ -29,11 +29,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // fwdLogger returns the lazy logger for forward pool warnings.

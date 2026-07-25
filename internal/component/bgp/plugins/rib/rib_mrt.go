@@ -6,10 +6,10 @@ import (
 	"encoding/binary"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 var activeManager atomic.Pointer[RIBManager]

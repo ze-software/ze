@@ -8,7 +8,7 @@ package as112
 import (
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RFC 7534 Section 3.5: "$TTL 1W" / "1W ; refresh" / "1M ; retry" / "1W ; expire"

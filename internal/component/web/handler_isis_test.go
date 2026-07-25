@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // fakeDispatch returns a canned JSON payload for a given command and records the

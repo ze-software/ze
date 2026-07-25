@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxGraphNodes caps the number of nodes in the topology graph.

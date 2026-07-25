@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"sync"
 
-	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
+	"github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // CodecRPCHandlers returns the map of BGP codec RPC method handlers.

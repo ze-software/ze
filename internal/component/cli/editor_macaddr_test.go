@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 
 	// Register the iface YANG so the editor schema knows "interface ethernet".
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang"
+	_ "github.com/ze-software/ze/internal/component/iface/yang"
 )
 
 // TestWriteThroughInterfaceAddressRoundTrip pins the fix for the corrupt change-file

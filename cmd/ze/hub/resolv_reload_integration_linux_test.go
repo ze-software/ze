@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/cli"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
 // TestSessionCommitReloadWritesResolvConf is the AC-9 daemon-effect chain on

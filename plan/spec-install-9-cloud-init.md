@@ -46,10 +46,10 @@ edits has changed shape in five ways an implementer must re-plan around:
    origin/main fast-forward to 822029463, which touched `cmd_build.go`.)
 4. **No new gokrazy builddir is needed.** `cmd/ze-cloud-init` would live in this
    same Go module, already covered by
-   `gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/` — the cloud variant is a
+   `gokrazy/ze/builddir/github.com/ze-software/ze/` — the cloud variant is a
    `Packages` change to a generated `gokrazy/ze/config.json` variant, not a new
    instance dir. The planned file
-   `gokrazy/ze-cloud-init/builddir/codeberg.org/thomas-mangin/ze/go.mod` is
+   `gokrazy/ze-cloud-init/builddir/github.com/ze-software/ze/go.mod` is
    obsolete as specified.
 5. **The pushed-config slot the design targets already exists.** Ze reads
    `/perm/ze/config-pushed.conf` at boot: `cmd/ze/pushed_config.go:20`
@@ -385,7 +385,7 @@ N/A (not protocol work). Cloud provider interop validated manually on real cloud
 - `internal/cloudinit/aws_test.go` - AWS-specific tests with mock IMDS
 - `internal/cloudinit/gcp_test.go` - GCP-specific tests with mock IMDS
 - `internal/cloudinit/provision_test.go` - provisioning logic tests
-- ~~`gokrazy/ze-cloud-init/builddir/codeberg.org/thomas-mangin/ze/go.mod` - gokrazy builddir for ze-cloud-init~~ (moved 2026-07-22 re-map: obsolete -- `cmd/ze-cloud-init` is in this module, already covered by the existing `gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/`; the cloud variant only adds the package to a generated `gokrazy/ze/config.json` variant's `Packages`)
+- ~~`gokrazy/ze-cloud-init/builddir/github.com/ze-software/ze/go.mod` - gokrazy builddir for ze-cloud-init~~ (moved 2026-07-22 re-map: obsolete -- `cmd/ze-cloud-init` is in this module, already covered by the existing `gokrazy/ze/builddir/github.com/ze-software/ze/`; the cloud variant only adds the package to a generated `gokrazy/ze/config.json` variant's `Packages`)
 - `test/install/cloud-init-*.ci` - functional tests
 
 ## Implementation Steps

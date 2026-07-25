@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})

@@ -22,8 +22,8 @@ import (
 	"bytes"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // Candidate is one participant in a DIS election on a circuit at a level: a

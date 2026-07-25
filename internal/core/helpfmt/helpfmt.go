@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Role styles -- map UI roles to palette colors. Change here to restyle globally.

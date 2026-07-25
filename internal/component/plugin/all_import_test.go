@@ -2,5 +2,5 @@ package plugin_test
 
 import (
 	// Trigger plugin init() registrations needed by inprocess tests.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )

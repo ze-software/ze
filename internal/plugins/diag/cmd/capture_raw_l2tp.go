@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"encoding/base64"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp"
 )
 
 func rawEntriesToJSON(entries []l2tp.RawCaptureEntry) []map[string]any {

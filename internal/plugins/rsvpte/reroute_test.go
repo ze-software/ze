@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: AC-7 -- make-before-break signals a new LSP (new LSP_ID, SE-style)

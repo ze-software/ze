@@ -6,11 +6,11 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestPeerSessionSentPathRace reproduces the unlocked double-read of peer.session on the

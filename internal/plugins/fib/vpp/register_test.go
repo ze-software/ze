@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestFibVPPRegistered(t *testing.T) {

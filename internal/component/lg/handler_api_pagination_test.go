@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // manyRouteDispatch returns a dispatcher whose "show bgp rib best" reply carries

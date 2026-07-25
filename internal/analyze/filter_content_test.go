@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 func TestFormatASPath_Sequence(t *testing.T) {

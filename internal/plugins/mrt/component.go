@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	mrtfmt "github.com/ze-software/ze/internal/mrt"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Component writes MRT dump files by subscribing to BGP events.

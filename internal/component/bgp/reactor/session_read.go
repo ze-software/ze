@@ -17,13 +17,13 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ReadAndProcess reads and processes a single message.

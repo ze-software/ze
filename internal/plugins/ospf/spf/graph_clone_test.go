@@ -11,8 +11,8 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // twoRouterLANGraph builds Y(1.1.1.1) <-p2p-> X(2.2.2.2), Y also owning a stub,

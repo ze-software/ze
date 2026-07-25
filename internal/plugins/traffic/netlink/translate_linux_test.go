@@ -9,7 +9,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 func TestTranslateFilterDSCPHasSelector(t *testing.T) {

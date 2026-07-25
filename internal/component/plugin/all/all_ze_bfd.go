@@ -7,8 +7,8 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang"
+	_ "github.com/ze-software/ze/internal/component/bfd"
+	_ "github.com/ze-software/ze/internal/component/bfd/cmd"
+	_ "github.com/ze-software/ze/internal/component/bfd/yang"
 )
 

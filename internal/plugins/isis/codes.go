@@ -14,7 +14,7 @@
 
 package isis
 
-import "codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 // isisDiagnosticCodes is the explanation metadata for the IS-IS config-sanity
 // codes this component owns, so `ze explain <code>` can describe them.

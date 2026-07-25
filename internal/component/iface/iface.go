@@ -16,7 +16,7 @@
 // two-layer model: physical interface + logical units.
 package iface
 
-import "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+import "github.com/ze-software/ze/internal/component/plugin"
 
 // Bus topic constants for interface events.
 // Topics are hierarchical strings matching the Bus prefix subscription model.

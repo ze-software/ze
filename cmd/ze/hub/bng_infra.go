@@ -11,8 +11,8 @@
 package hub
 
 import (
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/engine"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/engine"
 )
 
 // bngRegister extracts the l2tp (from the load-result tree) and pppoe (from

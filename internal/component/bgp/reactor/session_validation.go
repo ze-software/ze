@@ -12,15 +12,15 @@ import (
 	"net"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.

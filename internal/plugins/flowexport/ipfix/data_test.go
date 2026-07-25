@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 func TestIPFIXDataSet(t *testing.T) {

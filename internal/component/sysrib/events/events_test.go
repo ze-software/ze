@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 )
 
 func TestBestChangeEntryJSON_BackwardsCompatible(t *testing.T) {

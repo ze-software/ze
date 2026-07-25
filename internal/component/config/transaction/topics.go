@@ -14,8 +14,8 @@ import (
 	"fmt"
 	"strings"
 
-	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errPluginNameMustNotBeEmpty = errors.New("plugin name must not be empty")

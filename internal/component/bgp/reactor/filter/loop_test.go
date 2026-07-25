@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // VALIDATES: RFC 4271 Section 9 (AS loop), RFC 4456 Section 8 (originator-ID and cluster-list loops).

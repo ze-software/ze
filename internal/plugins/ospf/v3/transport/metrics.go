@@ -2,7 +2,7 @@
 
 package transport
 
-import "codeberg.org/thomas-mangin/ze/internal/core/metrics"
+import "github.com/ze-software/ze/internal/core/metrics"
 
 // transportMetrics holds the OSPF transport Prometheus series. OSPFv3 is "our
 // OSPF" for the operator, so it REUSES the OSPFv2 ze_ospf_ series rather than a

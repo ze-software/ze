@@ -26,7 +26,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 const pxeVendorClass = "PXEClient:Arch:00000:UNDI:002001"

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"github.com/ze-software/ze/internal/core/stringsx"
 )
 
 var (

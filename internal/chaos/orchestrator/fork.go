@@ -10,8 +10,8 @@ import (
 	"os/exec"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ZeChild represents a forked child process (Ze or external daemon).

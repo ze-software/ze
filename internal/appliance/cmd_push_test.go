@@ -19,7 +19,7 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // updaterMux builds an HTTP handler that speaks the gokrazy updater protocol.

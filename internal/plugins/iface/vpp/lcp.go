@@ -24,7 +24,7 @@ import (
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/lcp"
 
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 // lcpMaxHostName is the longest Linux interface name (IFNAMSIZ-1). The lcp

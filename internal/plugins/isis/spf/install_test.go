@@ -17,9 +17,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // lookupPaths returns the Loc-RIB PathGroup paths for a prefix (IPv4 unicast).

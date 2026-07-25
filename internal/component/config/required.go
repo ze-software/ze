@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RequiredViolation reports a missing ze:required field on a list entry.

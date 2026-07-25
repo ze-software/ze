@@ -13,11 +13,11 @@ import (
 	"maps"
 	"net/netip"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	packet "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // lsidToUint32 is the inverse of v6SummaryLSID: it reads the arbitrary 32-bit LSA ID from a

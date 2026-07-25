@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var acctGetStats = iface.GetStats

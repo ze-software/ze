@@ -6,7 +6,7 @@ package packet
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // PacketType is the 1-octet OSPFv3 packet type field (RFC 5340 §A.3.1).

@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
-	hostinv "codeberg.org/thomas-mangin/ze/internal/component/host"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	hostinv "github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RunShow implements `show host [section]` as the offline fallback. Output is

@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/hostload"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/hostload"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -776,7 +776,7 @@ func exabgpRerun(nicks []string) string {
 }
 
 func importPathToPattern(pkg string) string {
-	const module = "codeberg.org/thomas-mangin/ze"
+	const module = "github.com/ze-software/ze"
 	if pkg == module {
 		return "."
 	}

@@ -8,14 +8,14 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/bgp/grmarker"
+	"github.com/ze-software/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/core/slogutil"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 var errBgpCoordinatorMissingBgpStore = errors.New("bgp: coordinator missing bgp.store")

@@ -4,8 +4,8 @@
 package cmd
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // handleMonitorTraceroute is the RPC handler for `monitor traceroute`

@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 type testBus struct {

@@ -22,10 +22,10 @@ import (
 
 	// Blank imports trigger init() registrations for all RPCs.
 	// Uses plugin/all to match the runtime import set exactly.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // CommandInfo holds metadata for a single command.

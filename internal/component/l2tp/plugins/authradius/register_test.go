@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/radius"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

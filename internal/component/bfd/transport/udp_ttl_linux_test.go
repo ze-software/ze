@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/api"
 )
 
 // VALIDATES: RFC 5881 Section 5 -- a UDP socket with IP_TTL=255 applied

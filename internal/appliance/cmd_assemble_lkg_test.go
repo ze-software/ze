@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func TestAssembleWritesLastKnownGood(t *testing.T) {

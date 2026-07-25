@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // Type aliases: the AAA interface layer lives in internal/component/aaa.

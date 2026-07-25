@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	zepb "codeberg.org/thomas-mangin/ze/api/proto"
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 func TestExecuteRequestRoundTrip(t *testing.T) {

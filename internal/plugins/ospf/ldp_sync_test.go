@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 )
 
 // --- deterministic timer + bus fakes -------------------------------------------------

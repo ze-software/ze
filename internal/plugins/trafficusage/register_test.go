@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestTrafficUsageRegistration(t *testing.T) {

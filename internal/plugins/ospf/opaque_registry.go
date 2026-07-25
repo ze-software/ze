@@ -15,7 +15,7 @@ import (
 	"errors"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // OpaqueScope is the RFC 5250 §3 flooding scope of an opaque LSA. Its underlying value is

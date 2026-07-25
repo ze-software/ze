@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // resolver maps a logical interface name to a kernel device and serves value

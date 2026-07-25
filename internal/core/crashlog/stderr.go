@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var panicPattern = regexp.MustCompile(`^goroutine \d+ \[running\]:`)

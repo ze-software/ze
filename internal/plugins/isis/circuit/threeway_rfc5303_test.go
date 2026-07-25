@@ -8,9 +8,9 @@ package circuit
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // RFC requirement: RFC5303-3.1-4 positive -- "Any system that supports this

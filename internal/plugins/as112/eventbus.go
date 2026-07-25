@@ -5,7 +5,7 @@ package as112
 import (
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // eventBusPtr holds the hub-owned EventBus injected via the ConfigureEventBus

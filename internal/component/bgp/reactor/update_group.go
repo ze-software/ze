@@ -10,8 +10,8 @@ package reactor
 import (
 	"sync"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // GroupKey identifies an update group. Peers with the same GroupKey receive

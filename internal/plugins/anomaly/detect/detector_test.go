@@ -11,7 +11,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/trafficfeature"
+	"github.com/ze-software/ze/internal/component/trafficfeature"
 )
 
 func snapOf(entries ...trafficfeature.FeatureEntry) *trafficfeature.Snapshot {

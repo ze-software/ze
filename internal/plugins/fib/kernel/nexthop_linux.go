@@ -11,7 +11,7 @@ import (
 	"net"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/component/sysrib/events"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"

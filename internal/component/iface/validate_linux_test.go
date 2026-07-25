@@ -9,8 +9,8 @@ import (
 	// Trigger YANG module registration so the reserved-keyword loader
 	// has a populated command tree. Without these imports the YANG
 	// loader has no -cmd modules and the reserved-name check is a no-op.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/clear/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/show/yang"
 )
 
 // TestValidateIfaceName_ReservedKeywords verifies that CLI reserved

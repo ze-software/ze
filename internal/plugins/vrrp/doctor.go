@@ -13,8 +13,8 @@ package vrrp
 import (
 	"encoding/json"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 const (

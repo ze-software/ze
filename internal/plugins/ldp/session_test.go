@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: AC-4 -- Address messages accumulate the peer's interface addresses

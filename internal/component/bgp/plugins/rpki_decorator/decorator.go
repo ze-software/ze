@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // loggerPtr is the package-level logger, disabled by default.

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // withStore registers a fresh temp database.zefs as the shared store for the test

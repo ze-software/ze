@@ -2,7 +2,7 @@
 
 package peer
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // String returns a kebab-case human-readable name for the event type.
 // Unknown values return "unknown-N" to prevent panics in logging paths.

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // VALIDATES: AC-19 -- Increasing RX/TX error counters raise iface-errors warning.

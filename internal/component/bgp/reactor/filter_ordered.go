@@ -12,9 +12,9 @@ import (
 	"sort"
 	"unsafe"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // policyChainStepName is the ordering name of the reactor-bound per-peer policy

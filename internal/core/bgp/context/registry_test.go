@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestRegistryRegister_NewContext verifies that Register returns a new ID.

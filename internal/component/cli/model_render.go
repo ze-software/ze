@@ -13,7 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/muesli/reflow/ansi"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // sanitizeForDisplay strips or escapes non-printable characters and ANSI escape

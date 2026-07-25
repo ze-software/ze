@@ -8,5 +8,5 @@
 package raw
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/yang" // init() registers YANG module
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw/yang" // init() registers YANG module
 )

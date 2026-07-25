@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // TestLoadReactor verifies loading config into a Reactor.

@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/rsvpte"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/rsvpte/yang"
+	_ "github.com/ze-software/ze/internal/plugins/rsvpte"
+	_ "github.com/ze-software/ze/internal/plugins/rsvpte/yang"
 )
 

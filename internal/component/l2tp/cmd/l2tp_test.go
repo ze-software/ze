@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	l2tppkg "codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	l2tppkg "github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // fakeService is a minimal l2tppkg.Service for unit-testing handlers

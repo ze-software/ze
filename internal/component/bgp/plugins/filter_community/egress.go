@@ -7,7 +7,7 @@
 package filter_community
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // applyEgressFilter accumulates community strip/tag ops into the ModAccumulator

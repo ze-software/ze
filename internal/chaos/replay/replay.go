@@ -14,9 +14,9 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/report"
+	"github.com/ze-software/ze/internal/chaos/validation"
 )
 
 // logHeader is the parsed header line of an event log.

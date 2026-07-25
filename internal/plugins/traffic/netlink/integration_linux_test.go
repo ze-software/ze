@@ -11,7 +11,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 func withTrafficNetNS(t *testing.T, fn func()) {

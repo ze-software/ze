@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // RFC requirement: RFC2328-13-1 negative -- an LSA whose covered region is corrupted fails the

@@ -8,11 +8,11 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/stretchr/testify/assert"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 
 	"go.fd.io/govpp/binapi/fib_types"
 	"go.fd.io/govpp/binapi/ip_types"

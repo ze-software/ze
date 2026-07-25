@@ -18,7 +18,7 @@ package transport
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/api"
 )
 
 // Inbound is a single received BFD packet handed to the engine.

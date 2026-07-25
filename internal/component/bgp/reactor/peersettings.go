@@ -9,10 +9,10 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // NextHopMode values for PeerSettings.NextHopMode.

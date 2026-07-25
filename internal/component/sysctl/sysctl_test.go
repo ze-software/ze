@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 )
 
 // marshalJSON encodes a handler result the way the SDK does (a single

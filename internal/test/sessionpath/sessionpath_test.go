@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // setSession points the resolver at id for the duration of one test.

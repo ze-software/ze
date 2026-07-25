@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"

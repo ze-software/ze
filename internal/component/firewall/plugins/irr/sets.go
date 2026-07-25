@@ -5,9 +5,9 @@ package irr
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (

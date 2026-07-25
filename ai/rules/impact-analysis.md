@@ -86,5 +86,5 @@ grep -rn "path/to/leaf" internal/ --include="*.go"
 grep -rn "plugin-name" internal/ pkg/ cmd/ test/ docs/ plan/ .claude/
 
 # Who imports this package?
-grep -rn "codeberg.org/thomas-mangin/ze/internal/component/foo" internal/ cmd/ --include="*.go"
+grep -rn "github.com/ze-software/ze/internal/component/foo" internal/ cmd/ --include="*.go"
 ```

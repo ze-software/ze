@@ -10,7 +10,7 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // CustomValidator provides both validation and completion for a ze:validate function.

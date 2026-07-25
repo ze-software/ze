@@ -7,9 +7,9 @@ import (
 	"context"
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func activeBackend() (system.UpdateBackend, *plugin.Response) {

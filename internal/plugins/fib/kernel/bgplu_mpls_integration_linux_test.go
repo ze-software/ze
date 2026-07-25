@@ -19,7 +19,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"

@@ -502,7 +502,7 @@ func assertAliases(file *ast.File) map[string]bool {
 // never by substring.
 //
 // `strings.Contains(path, "/is")` matched
-// `codeberg.org/thomas-mangin/ze/internal/plugins/isis/...`, so in every ISIS
+// `github.com/ze-software/ze/internal/plugins/isis/...`, so in every ISIS
 // test file the packages `types`, `packet`, `lsdb`, `spf`, `circuit`, ... were
 // all registered as assertion aliases and any call on them credited the test.
 // 143 live tests took that path and two genuinely inert ones hid behind it.

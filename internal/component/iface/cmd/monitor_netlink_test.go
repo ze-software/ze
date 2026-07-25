@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func TestNetlinkMonitor_Wiring(t *testing.T) {

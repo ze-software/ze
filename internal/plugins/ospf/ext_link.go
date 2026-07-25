@@ -15,8 +15,8 @@
 package ospf
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // extLinkOnOriginate is the RFC 5250 sec 3 pull-model OnOriginate for Opaque Type 8. Each

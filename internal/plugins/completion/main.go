@@ -15,7 +15,7 @@ import (
 	"io"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // Run executes the completion subcommand with the given arguments.

@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/test/peer"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/peer"
 )
 
 var errModeInjectRequiresInjectPrefixInject = errors.New("--mode inject requires --inject-prefix, --inject-count (>0), --inject-nexthop, --inject-asn (>0)")

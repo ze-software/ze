@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 var errMcpOauthAsMetadataEmptyIssuer = errors.New("mcp oauth: AS metadata: empty issuer")

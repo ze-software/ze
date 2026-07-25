@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bufpool"
+	"github.com/ze-software/ze/internal/core/bufpool"
 )
 
 // Pool sizing for the reliable engine's send/rtms queues. A TACACS+-style

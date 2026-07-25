@@ -6,7 +6,7 @@
 package context
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
 // FromNegotiatedRecv creates a receive EncodingContext from capability negotiation.

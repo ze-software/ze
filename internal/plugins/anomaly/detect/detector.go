@@ -15,11 +15,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/trafficfeature"
-	"codeberg.org/thomas-mangin/ze/internal/core/anomalyevent"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/stats"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/trafficfeature"
+	"github.com/ze-software/ze/internal/core/anomalyevent"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/stats"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const (

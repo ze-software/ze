@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/paths"
 )
 
 // ExtractSSHConfig extracts SSH server configuration from the parsed config tree.

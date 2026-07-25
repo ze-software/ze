@@ -11,8 +11,8 @@ import (
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // seedZefs writes a store with a super-admin entry so credential resolution gets

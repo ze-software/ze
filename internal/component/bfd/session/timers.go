@@ -13,7 +13,7 @@ package session
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // DetectionInterval returns the current detection time as a Go duration.

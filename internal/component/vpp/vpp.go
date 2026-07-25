@@ -19,9 +19,9 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	vppevents "codeberg.org/thomas-mangin/ze/internal/core/vpp/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // loggerPtr is the package-level logger, disabled by default.

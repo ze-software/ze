@@ -6,7 +6,7 @@ package sysrib
 import (
 	"slices"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
 // Intra-protocol equal-cost sibling next-hops (IS-IS ECMP, umbrella A-2) used

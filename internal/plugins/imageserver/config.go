@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
+	"github.com/ze-software/ze/internal/core/rescueauth"
 )
 
 const defaultListenPort = 80

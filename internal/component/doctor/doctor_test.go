@@ -26,20 +26,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
-	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	plugindoctor "codeberg.org/thomas-mangin/ze/internal/component/plugin/doctor"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
-	"codeberg.org/thomas-mangin/ze/internal/core/resolve"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/host"
+	zeplugin "github.com/ze-software/ze/internal/component/plugin"
+	plugindoctor "github.com/ze-software/ze/internal/component/plugin/doctor"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/zefs"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
 func TestMain(m *testing.M) {

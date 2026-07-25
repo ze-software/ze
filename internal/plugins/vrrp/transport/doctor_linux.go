@@ -12,7 +12,7 @@ package transport
 import (
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
 // rawSocketAvailable reports whether a raw proto-112 IP socket can be opened.

@@ -3,8 +3,8 @@
 package disk
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/install"
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+	"github.com/ze-software/ze/cmd/ze/install"
+	"github.com/ze-software/ze/internal/core/subdispatch"
 )
 
 func init() {

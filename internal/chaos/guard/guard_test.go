@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/route"
 )
 
 // TestGuardAllowsChaosOnFreshPeer verifies that all chaos actions are

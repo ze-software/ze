@@ -13,12 +13,12 @@ import (
 	"strings"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
-	"codeberg.org/thomas-mangin/ze/internal/exabgp/migration"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/suggest"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/internal/exabgp/migration"
 )
 
 const (

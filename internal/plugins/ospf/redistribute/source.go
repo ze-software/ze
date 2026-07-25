@@ -20,12 +20,12 @@ import (
 	"net/netip"
 	"sync"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	ospfredistevents "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/redistribute/events"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	ospfredistevents "github.com/ze-software/ze/internal/plugins/ospf/redistribute/events"
+	"github.com/ze-software/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var sourcesOnce sync.Once

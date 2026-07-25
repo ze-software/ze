@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // editorAdapter wraps *cli.Editor to satisfy contract.Editor.

@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // RFC requirement: RFC2328-C.3-1 positive -- an interface output cost of 1 (the smallest positive value) is accepted, as is an unset cost that the engine defaults later (validateConfig, config.go:886-889).

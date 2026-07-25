@@ -12,7 +12,7 @@ package spf
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ExplainCandidate is one candidate path considered for a prefix.

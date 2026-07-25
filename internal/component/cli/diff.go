@@ -7,7 +7,7 @@ package cli
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // diffMarker represents the change status of a line in a diff gutter.

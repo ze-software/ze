@@ -4,7 +4,7 @@ package packet
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // VALIDATES: AC-2 -- L1 and L2 PSNP round-trip the source ID and the TLV 9

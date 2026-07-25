@@ -11,9 +11,9 @@ import (
 	"net/netip"
 	"testing"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // opaqueLSAForTest builds a decoded opaque LSA (types 9/10/11) with the O-bit set.

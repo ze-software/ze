@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/naming"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/naming"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

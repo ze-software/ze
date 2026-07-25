@@ -12,9 +12,9 @@ cross-vendor migration surface. For what ze ships today, see
 [website Command Equivalents page](https://ze-software.net/command-equivalents/).
 Code-tree readers can inspect the maintained data and generator on the
 `gh-pages` branch:
-[`data/command-equivalents.json`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/data/command-equivalents.json)
+[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/gh-pages/data/command-equivalents.json)
 and
-[`tools/render-command-equivalents.py`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/tools/render-command-equivalents.py).
+[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/gh-pages/tools/render-command-equivalents.py).
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 

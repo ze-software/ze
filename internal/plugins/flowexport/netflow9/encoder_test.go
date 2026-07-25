@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // RFC requirement: RFC3954-x-3 positive -- header integer fields (version, count, sysUpTime, unixSecs, seq, sourceID) decode big-endian to their asymmetric written values (encoder.go:17-24); a little-endian write would fail these BigEndian reads.

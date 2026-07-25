@@ -8,12 +8,12 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const protocolName = "bgp"

@@ -6,8 +6,8 @@ package server
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/command"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 )
 
 // EnsureStep describes one ancestor resource that must exist before a

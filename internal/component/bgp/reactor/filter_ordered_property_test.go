@@ -21,7 +21,7 @@ import (
 	"testing"
 	"testing/quick"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // opSpec is one generated attribute modification.

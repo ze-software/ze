@@ -12,8 +12,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
 type fakeDP struct {

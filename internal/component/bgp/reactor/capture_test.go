@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 var testStart = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

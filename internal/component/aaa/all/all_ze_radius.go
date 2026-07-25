@@ -14,5 +14,5 @@ package all
 
 import (
 	// RADIUS (RFC 2865) backend.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/radius"
+	_ "github.com/ze-software/ze/internal/component/radius"
 )

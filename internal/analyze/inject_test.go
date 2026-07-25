@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 func TestBuildUpdateFromRIB(t *testing.T) {

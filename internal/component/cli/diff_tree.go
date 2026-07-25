@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Boolean string constants used in config presence/flex nodes.

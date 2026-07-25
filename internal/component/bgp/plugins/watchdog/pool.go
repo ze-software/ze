@@ -9,7 +9,7 @@ import (
 	"errors"
 	"sync"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
 )
 
 // PoolSet manages named watchdog route pools.

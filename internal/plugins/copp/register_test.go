@@ -3,7 +3,7 @@ package copp
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestCoppRegistration(t *testing.T) {

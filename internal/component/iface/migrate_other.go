@@ -9,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var errInterfaceMigrationIsOnlySupportedOn = errors.New("interface migration is only supported on Linux")

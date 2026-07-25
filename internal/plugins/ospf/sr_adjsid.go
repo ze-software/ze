@@ -12,9 +12,9 @@ package ospf
 import (
 	"net/netip"
 
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // srAdjKey identifies one adjacency for Adj-SID tracking.

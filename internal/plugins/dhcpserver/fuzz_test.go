@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // FuzzDHCPHandle feeds arbitrary bytes into the two receive-path consumers of a

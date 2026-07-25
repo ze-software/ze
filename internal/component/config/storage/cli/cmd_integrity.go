@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func cmdCheck(storePath string, _ []string) int {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
 )
 
 func TestEVPNEncodeRouteLength(t *testing.T) {

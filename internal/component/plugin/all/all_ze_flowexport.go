@@ -7,11 +7,11 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport-cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/ipfix"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/netflow9"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/sflow"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/yang"
+	_ "github.com/ze-software/ze/internal/plugins/flowexport"
+	_ "github.com/ze-software/ze/internal/plugins/flowexport-cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/flowexport/ipfix"
+	_ "github.com/ze-software/ze/internal/plugins/flowexport/netflow9"
+	_ "github.com/ze-software/ze/internal/plugins/flowexport/sflow"
+	_ "github.com/ze-software/ze/internal/plugins/flowexport/yang"
 )
 

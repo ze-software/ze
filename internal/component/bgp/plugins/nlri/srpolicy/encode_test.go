@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestSRPolicyRouteEncoderRegistered verifies both SR-Policy families expose the

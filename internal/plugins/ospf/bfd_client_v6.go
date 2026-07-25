@@ -13,7 +13,7 @@ package ospf
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/api"
 )
 
 // bfdRequestForNeighborV6 builds the IPv6 (OSPFv3) single-hop request. RFC 5881 sec 6: the

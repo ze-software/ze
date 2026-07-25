@@ -3,10 +3,10 @@
 package ospf
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	ospfiface "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/iface"
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/events"
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const Namespace = "ospf"

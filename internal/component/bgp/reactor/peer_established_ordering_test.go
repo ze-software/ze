@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 )
 
 // TestPeerEstablishedTeardownOrdering pins AC-1 at the reactor's establish/teardown boundary:

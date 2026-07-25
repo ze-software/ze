@@ -10,7 +10,7 @@
 
 package transport
 
-import "codeberg.org/thomas-mangin/ze/internal/core/metrics"
+import "github.com/ze-software/ze/internal/core/metrics"
 
 // transportMetrics holds the five transport-owned series. It is swapped
 // atomically by SetMetrics, so per-instance counters read it through an

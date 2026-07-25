@@ -20,9 +20,9 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	isisredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/isis/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/core/metrics"
+	isisredistribute "github.com/ze-software/ze/internal/plugins/isis/redistribute"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
 )
 
 // recordingRegistry captures the name and label set of every metric registered

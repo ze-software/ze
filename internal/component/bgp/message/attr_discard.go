@@ -9,7 +9,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // ATTR_TOMBSTONE path attribute implementation.

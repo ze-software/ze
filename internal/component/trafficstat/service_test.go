@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/observation"
 )
 
 func waitForSnapshot(t *testing.T, svc *Service, check func(*Snapshot) bool) *Snapshot {

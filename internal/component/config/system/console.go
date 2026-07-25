@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // ConsoleDeviceEntry holds config for one serial console device.

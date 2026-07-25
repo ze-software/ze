@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // TestIfaceUnitAddressPathIsOSPortable verifies that the per-unit ipv4/ipv6

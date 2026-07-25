@@ -500,7 +500,7 @@ $ go test ./internal/component/bgp/reactor/ -run 'TestPeerSettingsEqual' -count=
     --- FAIL: .../NextHopMode            (next-hop rewriting)
     --- FAIL: .../MD5Key                 (RFC 2385 TCP-MD5 key rotation — security)
     --- FAIL: .../LinkLocal              (RFC 2545 Section 3 MP_REACH next-hop)
-FAIL	codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor	0.433s
+FAIL	github.com/ze-software/ze/internal/component/bgp/reactor	0.433s
 ```
 `TestPeerSettingsEqualIdenticalIsEqual` PASSED here, establishing the no-over-trigger baseline
 BEFORE the fix (R-2).
@@ -513,10 +513,10 @@ $ go test ./internal/component/bgp/reactor/ -run 'TestPeerSettingsEqual' -count=
 --- PASS: TestPeerSettingsEqualDetectsEachSignificantField (0.00s)   [11/11 subtests]
 --- PASS: TestPeerSettingsEqual (0.00s)                 <- PRE-EXISTING, still green
 --- PASS: TestPeerSettingsEqualCapabilityChange (0.00s) <- PRE-EXISTING, still green
-ok  	codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor	0.489s
+ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.489s
 
 $ go test ./internal/component/bgp/reactor/ -count=1
-ok  	codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor	3.889s   <- whole package, no regressions
+ok  	github.com/ze-software/ze/internal/component/bgp/reactor	3.889s   <- whole package, no regressions
 ```
 
 ### A2 finding: the omission is far larger than the audit first reported

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/api"
 )
 
 // VALIDATES: SO_BINDTODEVICE on the loopback device succeeds and binds

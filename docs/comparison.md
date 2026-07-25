@@ -7,7 +7,7 @@ A feature comparison of open-source BGP daemon implementations.
 > and is provided for informational purposes only. All listed projects are under active
 > development and their capabilities change over time. Verify current features against each
 > project's own documentation before making decisions. Corrections and updates are welcome
-> via the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
+> via the [issue tracker](https://github.com/ze-software/ze/issues).
 
 Last updated: 2026-07-08
 

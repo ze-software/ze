@@ -10,7 +10,7 @@ package ospf
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 )
 
 type packetHandler func(transport.RawPacket, Header)

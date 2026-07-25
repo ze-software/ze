@@ -8,7 +8,7 @@ package nlri
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // WirePrefixToKey converts NLRI wire prefix bytes [prefix-len][prefix-bytes...]

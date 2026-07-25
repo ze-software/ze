@@ -13,14 +13,14 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	cmdregistry "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
+	"github.com/ze-software/ze/internal/component/aihelp"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	cmdregistry "github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // printAIHelp outputs a machine-friendly reference generated from code.

@@ -18,8 +18,8 @@ import (
 
 	"github.com/gokrazy/tools/gok"
 
-	"codeberg.org/thomas-mangin/ze/internal/appliance/instance"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/appliance/instance"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errNoPartitionsFoundInGpt = errors.New("no partitions found in GPT")

@@ -3,9 +3,9 @@ package bfd
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // resetMetrics clears the package-level metrics pointer so tests do

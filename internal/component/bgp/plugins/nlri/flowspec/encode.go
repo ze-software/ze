@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/route"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 )
 
 var errMissingFlowspecCommand = errors.New("missing FlowSpec command")

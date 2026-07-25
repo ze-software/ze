@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/as112"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/as112/yang"
+	_ "github.com/ze-software/ze/internal/plugins/as112"
+	_ "github.com/ze-software/ze/internal/plugins/as112/yang"
 )
 

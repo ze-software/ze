@@ -4,7 +4,7 @@
 
 package web
 
-import "codeberg.org/thomas-mangin/ze/internal/component/host"
+import "github.com/ze-software/ze/internal/component/host"
 
 func totalSystemMemory() uint64 {
 	d := &host.Detector{}

@@ -22,7 +22,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 var errPasswordsDoNotMatch = errors.New("passwords do not match")

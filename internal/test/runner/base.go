@@ -5,7 +5,7 @@ package runner
 import (
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // BaseTest provides common fields for all test types.

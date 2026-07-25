@@ -7,8 +7,8 @@ package bgp
 import (
 	"encoding/hex"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // FormatAnnounceCommand builds an announce command with full attributes.

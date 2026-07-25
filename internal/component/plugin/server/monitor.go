@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // MonitorClient represents an active monitor session.

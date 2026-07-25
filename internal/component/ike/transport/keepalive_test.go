@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // RFC requirement: RFC3948-4-1 positive -- Run emits a 1-byte 0xFF NAT-keepalive on the wire

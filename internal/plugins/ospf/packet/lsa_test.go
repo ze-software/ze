@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // VALIDATES: spec-ospf-ext-7 A-1 -- the OSPFv2 Router-LSA round-trips the V-bit and a

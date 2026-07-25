@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/api"
 )
 
 // Snapshot returns a read-only copy of every live session's observable

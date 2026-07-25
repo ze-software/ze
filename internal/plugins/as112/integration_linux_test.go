@@ -20,7 +20,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // bindLoopback53 starts a real as112 server bound to 127.0.0.1:53 (the

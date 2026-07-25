@@ -13,7 +13,7 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // rfc5880Secret is the shared key used by every test below. It is longer than

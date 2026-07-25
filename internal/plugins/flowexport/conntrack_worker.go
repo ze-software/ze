@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/conntrack"
+	"github.com/ze-software/ze/internal/plugins/flowexport/conntrack"
 )
 
 const (

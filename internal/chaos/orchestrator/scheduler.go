@@ -9,11 +9,11 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/guard"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/web"
 )
 
 const reconnectBackoff = 2 * time.Second

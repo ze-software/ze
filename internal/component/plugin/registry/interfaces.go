@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // PluginServerAccessor provides the methods that plugins need from the Server

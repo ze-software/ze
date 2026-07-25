@@ -8,11 +8,11 @@ import (
 	"net/netip"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/core/routewatch"
-	kernelevents "codeberg.org/thomas-mangin/ze/internal/plugins/kernel/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/routewatch"
+	kernelevents "github.com/ze-software/ze/internal/plugins/kernel/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const (

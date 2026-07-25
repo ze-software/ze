@@ -7,7 +7,7 @@ package support
 import (
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/paths"
 )
 
 type diskUsage struct {

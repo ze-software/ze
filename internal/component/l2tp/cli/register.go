@@ -5,7 +5,7 @@
 // with internal/component/l2tp, not under cmd/ze.
 package cli
 
-import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+import "github.com/ze-software/ze/internal/component/command/registry"
 
 func init() {
 	registry.MustRegisterRootHandler("l2tp", func(_ *registry.RuntimeContext, args []string) int {

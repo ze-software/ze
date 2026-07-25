@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // acceptOnlyBaselinePath is the repo-relative path of the accept-only ratchet
@@ -281,7 +281,7 @@ func writeAcceptOnlyBaseline(repoRoot string) error {
 	b.Str("# new line to silence the lint.\n")
 	b.Str("#\n")
 	b.Str("# Regenerate: ZE_WRITE_ACCEPT_ONLY_BASELINE=1 go test -run TestRegenerateAcceptOnlyBaseline \\\n")
-	b.Str("#   codeberg.org/thomas-mangin/ze/internal/test/runner\n")
+	b.Str("#   github.com/ze-software/ze/internal/test/runner\n")
 	b.Str("#\n")
 	b.Str("# merge=union in .gitattributes keeps both sides of concurrent edits.\n")
 	for _, p := range paths {

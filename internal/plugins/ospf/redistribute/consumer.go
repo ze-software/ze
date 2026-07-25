@@ -20,9 +20,9 @@ import (
 	"net/netip"
 	"sync"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // ConsumerName is the single OSPF redistribution consumer name. It MUST equal the

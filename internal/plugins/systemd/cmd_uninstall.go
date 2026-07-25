@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 func (rt *serviceRuntime) cmdUninstall(args []string) int {

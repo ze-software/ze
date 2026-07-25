@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: daemonRunning positively identifies a ze daemon by its

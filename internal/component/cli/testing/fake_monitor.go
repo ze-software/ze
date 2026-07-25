@@ -14,7 +14,7 @@ import (
 	"errors"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 var errNoFakeRecord = errors.New("no fake record")

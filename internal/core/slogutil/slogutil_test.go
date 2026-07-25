@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // resetEnvCache resets the env cache so tests using t.Setenv get fresh lookups.

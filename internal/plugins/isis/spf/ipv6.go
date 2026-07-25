@@ -18,7 +18,7 @@ import (
 	"net/netip"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // MaxV6PathMetric is RFC 5308 sec 2 MAX_V6_PATH_METRIC. A TLV 236 prefix

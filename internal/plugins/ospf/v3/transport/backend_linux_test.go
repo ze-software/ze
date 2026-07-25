@@ -13,7 +13,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 func withFakeResolver(t *testing.T, bind func(string) (iface.Binding, error), addrs func(string) ([]iface.AddrInfo, error)) {

@@ -4,7 +4,7 @@ An honest assessment of when Ze is the right tool and when it is not.
 
 > Ze is pre-release software. This page reflects the current state of development
 > and will be updated as features mature. Last updated: 2026-05-29. Corrections
-> welcome via the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
+> welcome via the [issue tracker](https://github.com/ze-software/ze/issues).
 
 ## When to use Ze
 

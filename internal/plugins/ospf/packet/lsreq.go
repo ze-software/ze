@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 // LSRequestEntry and LSReq are shared via the types leaf (one type across the engine,
 // neighbor FSM, and both wire codecs); only the wire encode/decode below is v2-specific.

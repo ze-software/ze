@@ -6,7 +6,7 @@
 package cmd
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp"
 )
 
 // captureL2TPInto fills the l2tp section of `show capture`: the moved l2tp

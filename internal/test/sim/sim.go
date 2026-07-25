@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // FakeClock is a Clock implementation with controllable time for testing.

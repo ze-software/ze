@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func TestCheckMachineIDIntegration(t *testing.T) {

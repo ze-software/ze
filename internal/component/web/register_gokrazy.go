@@ -11,8 +11,8 @@ package web
 import (
 	"net/http"
 
-	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	zegokrazy "github.com/ze-software/ze/internal/component/gokrazy"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func init() {

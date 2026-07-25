@@ -13,7 +13,7 @@ import (
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 type fakeOps struct {

@@ -13,7 +13,7 @@ package ospf
 import (
 	"net/netip"
 
-	ifcomp "codeberg.org/thomas-mangin/ze/internal/component/iface"
+	ifcomp "github.com/ze-software/ze/internal/component/iface"
 )
 
 const (

@@ -12,15 +12,15 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/stringsx"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const Name = "fakefib"

@@ -341,7 +341,7 @@ All callers import `internal/component/command/registry` directly.
 // internal/component/<owner>/cli/register.go
 package cli
 
-import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+import "github.com/ze-software/ze/internal/component/command/registry"
 
 func init() {
     // 1. Root command: handler + metadata. The registry dispatches it.
@@ -363,7 +363,7 @@ func init() {
 
 The owner package needs its `init()` linked into the binary: until the Phase 7
 generated command-provider aggregator lands, add a blank import to
-`cmd/ze/main.go` (`_ "codeberg.org/thomas-mangin/ze/internal/component/<owner>/cli"`).
+`cmd/ze/main.go` (`_ "github.com/ze-software/ze/internal/component/<owner>/cli"`).
 
 ### Commands with subcommands: `subdispatch.Dispatcher`
 
@@ -385,7 +385,7 @@ blank import only:
 ```go
 //go:build ze_analyze
 package main
-import _ "codeberg.org/thomas-mangin/ze/internal/analyze"
+import _ "github.com/ze-software/ze/internal/analyze"
 ```
 
 See `ai/patterns/registration.md` "Binary Personality Registration" section.

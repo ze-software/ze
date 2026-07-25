@@ -19,18 +19,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/archive"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // fallbackConfigName is used when meta/instance/name is not set.

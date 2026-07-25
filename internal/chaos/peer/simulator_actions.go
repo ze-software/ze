@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // defaultSlowReadDelay is the read delay applied when ActionSlowRead toggles

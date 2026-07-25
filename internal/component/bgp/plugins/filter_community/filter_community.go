@@ -15,10 +15,10 @@ import (
 	"net"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errFilterCommunityInvalidBgpConfigJson = errors.New("filter-community: invalid bgp config JSON")

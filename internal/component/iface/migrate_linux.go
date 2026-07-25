@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // validateMigrateConfig checks that all required fields are set and the

@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // TestRestarterExitViaProductionOnFullPath (FIX 1, AC-12): an active restarter with two

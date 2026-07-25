@@ -6,7 +6,7 @@ package env
 import (
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PortDefault resolves an integer port flag's default value and builds a

@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // setupGRTestRIB creates a RIBManager with routes for two peers, each with two families.

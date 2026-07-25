@@ -19,10 +19,10 @@ import (
 	"slices"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/circuit"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/circuit"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // launchCircuitGoroutine builds the adjacency circuit for an opened interface and

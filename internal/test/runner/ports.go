@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PortRange holds a range of ports for testing.

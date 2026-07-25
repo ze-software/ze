@@ -31,7 +31,7 @@ internal/component/vpp/events/events.go
 
 ```go
 // iface can import sysctl/events without importing sysctl itself
-import sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
+import sysctlevents "github.com/ze-software/ze/internal/plugins/sysctl/events"
 
 eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, payload)
 ```
@@ -57,8 +57,8 @@ Each component's register.go imports its own events sub-package:
 ```go
 // plugins/sysctl/register.go
 import (
-    "codeberg.org/thomas-mangin/ze/internal/core/events"
-    sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
+    "github.com/ze-software/ze/internal/core/events"
+    sysctlevents "github.com/ze-software/ze/internal/plugins/sysctl/events"
 )
 
 func init() {

@@ -25,7 +25,7 @@ performed by the Python tool `scripts/dev/migrate_module.py`, not hand edits.
 - Verified registration invariance by set-diffing `all.go`'s blank imports before/after
   (normalising the 5 moved prefixes back to component): 0 dropped. This set-diff, not
   the tool's conservative RPC guard, is the real behaviour-preserving proof.
-- Re-sorted imports with `goimports -local codeberg.org/thomas-mangin/ze` after the
+- Re-sorted imports with `goimports -local github.com/ze-software/ze` after the
   move: the string rewrite changed alphabetical order (`component` < `plugins`), which
   `go build` ignores but the `goimports` golangci formatter enforces.
 - Fixed stale path references in EVERY non-prose surface (`.go` comments, `.sh`, `.mk`,

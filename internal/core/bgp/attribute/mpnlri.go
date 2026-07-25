@@ -9,8 +9,8 @@ import (
 	"errors"
 	"net/netip"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // Errors for MP NLRI parsing.

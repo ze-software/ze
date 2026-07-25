@@ -9,10 +9,10 @@ package rib
 import (
 	"encoding/hex"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // communityList wraps a typed community slice for lazy JSON marshaling.

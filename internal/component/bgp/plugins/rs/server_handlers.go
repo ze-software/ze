@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // errUnknownCommandMarker is the engine's ErrUnknownCommand text ("unknown

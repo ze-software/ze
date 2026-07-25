@@ -20,8 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
 type serveManifest struct {

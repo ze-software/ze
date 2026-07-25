@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // newDeadServerAcct returns an accounting manager whose RADIUS client points at a

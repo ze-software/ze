@@ -3,8 +3,8 @@ package hub
 import (
 	"strconv"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 )
 
 func preparePKIConfig(tree map[string]any) (*zepki.PKIConfig, error) {

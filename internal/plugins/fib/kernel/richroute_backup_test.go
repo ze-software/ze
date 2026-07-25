@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
 func TestRichRouteBackupNextHop(t *testing.T) {

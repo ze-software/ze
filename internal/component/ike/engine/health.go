@@ -2,7 +2,7 @@
 
 package engine
 
-import "codeberg.org/thomas-mangin/ze/internal/core/health"
+import "github.com/ze-software/ze/internal/core/health"
 
 // RegisterHealthCheck registers the IPsec health check with the default registry.
 func RegisterHealthCheck() {

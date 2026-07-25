@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // The NSSA-LSA (Type 0x2007) body is byte-identical to the AS-External-LSA (Type
 // 0x4005) body (RFC 5340 §A.4.8): the two differ only in LS Type and flooding

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // TestRenderPeerCell verifies renderPeerCell produces correct HTML with status color class.

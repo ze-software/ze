@@ -6,11 +6,11 @@ package storage
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/store"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication. Each route

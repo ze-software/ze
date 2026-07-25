@@ -26,9 +26,9 @@
 package isisredistevents
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/plugins/isis/spf"
 )
 
 // Namespace is the IS-IS redistribute protocol/source name -- the SINGLE name

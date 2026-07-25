@@ -14,10 +14,10 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // fakeSender captures sent PDUs so tests can inspect the encoded IIH.

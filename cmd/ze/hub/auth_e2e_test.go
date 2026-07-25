@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/authz"
+	zeweb "github.com/ze-software/ze/internal/component/web"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 func bcryptHash(t *testing.T, pw string) string {

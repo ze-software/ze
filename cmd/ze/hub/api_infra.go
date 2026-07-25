@@ -24,13 +24,13 @@ package hub
 import (
 	"context"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/authz"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // apiBuildInputs carries the generic inputs the API seam needs. No

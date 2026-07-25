@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/config/redistribute"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // recordingBus is a minimal ze.EventBus that records all emitted events.

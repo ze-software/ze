@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/yang"
+	gryang "github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	// Blank import triggers init() registration of all plugin YANG modules.
 	// Needed by TestArraySyntax et al. for the "plugin" top-level keyword.
 )

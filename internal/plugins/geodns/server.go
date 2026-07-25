@@ -15,8 +15,8 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // computeSerial produces the 32-bit SOA serial for a config generation.

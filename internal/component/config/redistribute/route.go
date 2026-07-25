@@ -6,8 +6,8 @@ package redistribute
 import (
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // RedistRoute represents a route flowing through the redistribution engine.

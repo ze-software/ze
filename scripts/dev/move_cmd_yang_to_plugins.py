@@ -34,7 +34,7 @@ def find_project_root():
 
 ROOT = find_project_root()
 INTERNAL = ROOT / "internal"
-MODULE = "codeberg.org/thomas-mangin/ze"
+MODULE = "github.com/ze-software/ze"
 
 # Subsystems to KEEP in component/ (intrinsic to component).
 KEEP_IN_COMPONENT = {

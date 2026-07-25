@@ -26,7 +26,7 @@ import (
 	"errors"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Errors for INET parsing.

@@ -8,7 +8,7 @@ package netflow9
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 func newNetflow9FlowEncoder(cfg flowexport.CollectorConfig, startTime time.Time) flowexport.FlowRecordEncoder {

@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/core/subdispatch"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 var recordDispatcher = newRecordDispatcher()

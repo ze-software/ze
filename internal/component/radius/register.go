@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func init() {

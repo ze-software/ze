@@ -5,15 +5,15 @@ import (
 	"net"
 	"strings"
 
-	bgpredist "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Compile-time contract: the BGP redistribute consumer satisfies the generic

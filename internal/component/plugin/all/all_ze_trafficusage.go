@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage/yang"
+	_ "github.com/ze-software/ze/internal/plugins/trafficusage"
+	_ "github.com/ze-software/ze/internal/plugins/trafficusage/yang"
 )
 

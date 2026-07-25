@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // handleVizRouteMatrixCell serves the detail popup for a single matrix cell.

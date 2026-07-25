@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // fakeIfaceSub is an injectable stand-in for iface.Subscribe so the event path

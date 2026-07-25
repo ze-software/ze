@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/radius"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
 const maxFramedRoutesPerSession = 64

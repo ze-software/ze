@@ -15,12 +15,12 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	debugyang "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/duration"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	debugyang "github.com/ze-software/ze/internal/component/debug/yang"
+	"github.com/ze-software/ze/internal/core/duration"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.debug.store", Type: "string", Description: "Override debug profile store path (default: <config-dir>/debug.zefs)"})

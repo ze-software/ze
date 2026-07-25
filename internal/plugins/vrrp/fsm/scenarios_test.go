@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // Conformance-style scenario tests: full event scripts over two cooperating FSM

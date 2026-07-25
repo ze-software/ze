@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // CounterEncoder implements flowexport.ProtocolEncoder for sFlow v5 counter samples.

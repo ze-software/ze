@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 
 	mdns "github.com/miekg/dns"
 )

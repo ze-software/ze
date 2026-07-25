@@ -28,12 +28,12 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/pkg/fleet"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	zePlugin "github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestFleetManyClientsPerf provisions N client configs on one hub and drives N

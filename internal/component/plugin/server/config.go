@@ -5,8 +5,8 @@
 package server
 
 import (
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // ServerConfig holds API server configuration.

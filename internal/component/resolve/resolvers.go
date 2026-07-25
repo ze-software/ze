@@ -9,10 +9,10 @@
 package resolve
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/internal/component/resolve/cymru"
+	"github.com/ze-software/ze/internal/component/resolve/dns"
+	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
 )
 
 // Resolvers holds all resolution service instances. Created once at hub startup

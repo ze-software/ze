@@ -10,9 +10,9 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
-	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/suggest"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 )
 
 // Run executes the sysctl subcommand. Returns exit code.

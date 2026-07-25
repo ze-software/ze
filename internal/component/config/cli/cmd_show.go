@@ -10,11 +10,11 @@ import (
 	"io"
 	"os"
 
-	editor "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	editor "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // openShowEditor builds the read-only editor for `ze config show`, reading the

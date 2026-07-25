@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // fileMeta tracks per-key modification metadata for blob storage.

@@ -6,8 +6,8 @@ package config
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ExtractRedistributeRules extracts redistribution import rules from a config tree.

@@ -3,7 +3,7 @@ package flowexport
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/health"
 )
 
 func TestFlowExportHealthNotConfigured(t *testing.T) {

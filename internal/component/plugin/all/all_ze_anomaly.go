@@ -7,11 +7,11 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/detect"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/detect/cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/detect/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/shape"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/shape/cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/shape/yang"
+	_ "github.com/ze-software/ze/internal/plugins/anomaly/detect"
+	_ "github.com/ze-software/ze/internal/plugins/anomaly/detect/cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/anomaly/detect/yang"
+	_ "github.com/ze-software/ze/internal/plugins/anomaly/shape"
+	_ "github.com/ze-software/ze/internal/plugins/anomaly/shape/cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/anomaly/shape/yang"
 )
 

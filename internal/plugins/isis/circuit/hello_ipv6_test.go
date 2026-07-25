@@ -11,7 +11,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
 )
 
 // dualStackLAN returns a LAN circuit with IPv6 advertised and a link-local addr.

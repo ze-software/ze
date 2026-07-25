@@ -8,7 +8,7 @@
 
 package ospf
 
-import ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
+import ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 
 // spfExplainView is the AF-tagged SPF-explain payload.
 type spfExplainView struct {

@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/component/command"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 var errAtMostOneOfJsonYaml = errors.New("at most one of --json, --yaml, --config may be set")

@@ -14,15 +14,15 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/callsink"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var errL2tpSubsystemAlreadyStarted = errors.New("l2tp: subsystem already started")

@@ -146,7 +146,7 @@ and populates subcommands. The root handler delegates to `Dispatch()`.
 // internal/<feature>/dispatch.go
 package feature
 
-import "codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+import "github.com/ze-software/ze/internal/core/subdispatch"
 
 var dispatcher = subdispatch.New("<feature>", "<one-line summary>")
 
@@ -161,7 +161,7 @@ func Dispatch(args []string) int { return dispatcher.Dispatch(args) }
 // internal/<feature>/register.go
 package feature
 
-import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+import "github.com/ze-software/ze/internal/component/command/registry"
 
 func init() {
     populateSubcommands()
@@ -195,7 +195,7 @@ blank import.
 
 package main
 
-import _ "codeberg.org/thomas-mangin/ze/internal/<feature>"
+import _ "github.com/ze-software/ze/internal/<feature>"
 ```
 
 The blank import triggers the feature package's `init()`, which registers the root

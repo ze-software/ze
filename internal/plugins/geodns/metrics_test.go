@@ -5,7 +5,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // VALIDATES: query-type metric labels are bounded — known types map to their

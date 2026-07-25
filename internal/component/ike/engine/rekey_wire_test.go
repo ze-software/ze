@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // espSAPayload builds a minimal wire SA payload carrying a single ESP SPI, as a

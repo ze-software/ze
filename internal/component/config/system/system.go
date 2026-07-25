@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/host"
 )
 
 // SystemConfig holds system-wide identity configuration.

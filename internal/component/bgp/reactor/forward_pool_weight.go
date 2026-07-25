@@ -8,7 +8,7 @@ import (
 	"math"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // Pool sizing constants. Intentionally easy to change for future configuration.

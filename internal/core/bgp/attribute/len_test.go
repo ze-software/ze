@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 const ctxNameNil = "nil"

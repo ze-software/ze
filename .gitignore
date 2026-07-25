@@ -101,4 +101,4 @@ internal/appliance/build/
 # the root module moved). The other gokrazy/ze/builddir go.sum files stay
 # tracked: they pin upstream gokrazy, serial-busybox and rtr7/kernel
 # dependencies that appear nowhere else.
-gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/go.sum
+gokrazy/ze/builddir/github.com/ze-software/ze/go.sum

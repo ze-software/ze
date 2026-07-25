@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
 type instanceCounters struct {

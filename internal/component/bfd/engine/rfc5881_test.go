@@ -13,11 +13,11 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/session"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/session"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // peerMyDiscr is the discriminator the synthetic peer stamps as its

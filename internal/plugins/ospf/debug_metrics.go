@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // debugMetricsSet holds the ext-14 debug metric series (both address families).

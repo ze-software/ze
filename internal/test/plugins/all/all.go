@@ -13,14 +13,14 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeas112"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeas112/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeddos"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeddos/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeenrich"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakefib"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeas112"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeas112/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeddos"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeddos/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeenrich"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakefib"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakel2tp"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakel2tp/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist/yang"
 )

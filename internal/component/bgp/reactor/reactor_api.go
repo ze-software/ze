@@ -15,16 +15,16 @@ import (
 	"slices"
 	"time"
 
-	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // addPathSendDirection is the ADD-PATH direction value for families where we send path-IDs.

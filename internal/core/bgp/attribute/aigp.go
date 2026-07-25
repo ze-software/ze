@@ -7,8 +7,8 @@ import (
 	"encoding/binary"
 	"strconv"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // AIGP TLV type codes (RFC 7311 Section 3).

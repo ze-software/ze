@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ConfigureHandler handles Stage 2 config delivery. Return nil to accept, error to reject.

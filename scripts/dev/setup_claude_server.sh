@@ -7,7 +7,7 @@ set -euo pipefail
 # --- Configuration ---
 GO_VERSION="1.26.0"
 NODE_MAJOR=22
-ZE_REPO="https://codeberg.org/thomas-mangin/ze.git"
+ZE_REPO="https://github.com/ze-software/ze.git"
 TARGET_USER="${1:-thomas}"
 TARGET_HOME="/home/${TARGET_USER}"
 SSH_KEY_DIR="${2:-}"  # local path to SSH key directory (contains id_ed25519 + id_ed25519.pub)
@@ -157,7 +157,7 @@ if ! grep -q 'cd.*ze/main' "$BASHRC" 2>/dev/null; then
     cat >> "$BASHRC" << 'AUTOCD'
 
 # Land in ze dev repo on login
-cd ~/Code/codeberg.org/thomas-mangin/ze/main 2>/dev/null
+cd ~/Code/github.com/ze-software/ze/main 2>/dev/null
 AUTOCD
     echo "Added auto-cd to .bashrc"
 else
@@ -189,7 +189,7 @@ fi
 # --- 7. Clone ze repo ---
 echo ""
 echo "--- Repository setup ---"
-ZE_DIR="${TARGET_HOME}/Code/codeberg.org/thomas-mangin/ze/main"
+ZE_DIR="${TARGET_HOME}/Code/github.com/ze-software/ze/main"
 
 if [[ -d "$ZE_DIR/.git" ]]; then
     echo "ze repo already cloned at $ZE_DIR"
@@ -202,8 +202,8 @@ else
         echo "Cloned successfully"
     else
         echo ""
-        echo "CLONE FAILED — add SSH key to Codeberg first, then run:"
-        echo "  git clone git@codeberg.org:thomas-mangin/ze.git $ZE_DIR"
+        echo "CLONE FAILED — add SSH key to GitHub first, then run:"
+        echo "  git clone git@github.com:ze-software/ze.git $ZE_DIR"
     fi
 fi
 

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 )
 
 // VALIDATES: Peer Send methods return ErrNotConnected when no session is active.

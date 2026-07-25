@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 var doctorLookPathFn = exec.LookPath

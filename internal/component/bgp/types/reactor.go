@@ -5,9 +5,9 @@ package types
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // BGPReactor defines BGP-specific reactor operations.

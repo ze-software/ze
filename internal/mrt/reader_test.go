@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/cliio"
 )
 
 func mrtRecord() []byte {

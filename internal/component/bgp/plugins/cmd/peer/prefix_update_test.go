@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
 )
 
 type fakePDBClient struct {

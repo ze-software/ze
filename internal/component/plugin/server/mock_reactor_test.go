@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ErrPeerNotFound is a test error matching reactor.ErrPeerNotFound.

@@ -25,9 +25,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/component/iface"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
 )
 
 const (

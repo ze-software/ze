@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
+	"github.com/ze-software/ze/internal/core/routingtable"
 )
 
 var (

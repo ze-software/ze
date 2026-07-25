@@ -10,12 +10,12 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authlocal/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/plugins/authlocal/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var authInstance = newLocalAuth()

@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // DefaultDebounce is the SPF debounce window: an LSDB change marks the level

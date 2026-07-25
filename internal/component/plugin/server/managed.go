@@ -8,7 +8,7 @@ import (
 	"errors"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/fleet"
 )
 
 // ErrClientConfigNotFound is returned when no config exists for a client name.

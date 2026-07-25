@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // resolvedKey is one usable key with its decoded secret and the AuType its algorithm

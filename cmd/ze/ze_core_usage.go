@@ -9,12 +9,12 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func zeUsage() {

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 )
 
 // TestSelectBestExplain_Empty verifies nil candidates yields nil explanation.

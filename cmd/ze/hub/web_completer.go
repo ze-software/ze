@@ -6,8 +6,8 @@
 package hub
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // pluginAwareCommandCompleter serves operational completions from an immutable

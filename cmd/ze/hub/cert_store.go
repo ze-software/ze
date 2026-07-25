@@ -3,8 +3,8 @@
 package hub
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // blobCertStore implements selfcert.CertStore backed by zefs blob storage.

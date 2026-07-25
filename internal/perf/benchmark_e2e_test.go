@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/perf"
-	"codeberg.org/thomas-mangin/ze/internal/perf/report"
+	"github.com/ze-software/ze/internal/perf"
+	"github.com/ze-software/ze/internal/perf/report"
 )
 
 // VALIDATES: "Full pipeline: RunBenchmark -> Result -> Markdown/HTML/NDJSON round-trip."

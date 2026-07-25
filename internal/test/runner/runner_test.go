@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
+	"github.com/ze-software/ze/internal/test/syslog"
 )
 
 // TestValidateLoggingExpectStderr verifies expect=stderr pattern matching.

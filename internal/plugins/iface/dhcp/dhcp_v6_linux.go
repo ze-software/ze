@@ -11,7 +11,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/dhcpv6/nclient6"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // runV6 is the long-lived DHCPv6 worker. It performs SARR (Solicit-Advertise-

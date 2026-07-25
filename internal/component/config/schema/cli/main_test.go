@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // captureStdout runs fn and returns whatever it wrote to os.Stdout.

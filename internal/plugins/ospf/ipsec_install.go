@@ -39,10 +39,10 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
 // ipsecReqIDBase namespaces the per-interface XFRM reqid (base + ifindex) so the OSPF

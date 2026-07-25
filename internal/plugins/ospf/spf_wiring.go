@@ -10,10 +10,10 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/routeinstall"
-	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/routeinstall"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func (e *engine) initSPF() {

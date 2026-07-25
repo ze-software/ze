@@ -59,7 +59,7 @@ sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
 Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.
 
 ```bash
-git clone https://codeberg.org/thomas-mangin/ze.git
+git clone https://github.com/ze-software/ze.git
 cd ze
 make ze-setup CHECK=1 || true
 ```

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
+	zegnmi "github.com/ze-software/ze/internal/component/gnmi"
 )
 
 func TestGNMIReloadNotify(t *testing.T) {

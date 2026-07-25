@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // testUsers returns a slice of UserConfig with a known bcrypt hash for "testpass".

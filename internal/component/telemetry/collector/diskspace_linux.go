@@ -10,8 +10,8 @@ import (
 	"strings"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 type diskSpaceCollector struct {

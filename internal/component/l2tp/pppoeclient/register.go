@@ -1,6 +1,6 @@
 package pppoeclient
 
-import "codeberg.org/thomas-mangin/ze/internal/component/iface"
+import "github.com/ze-software/ze/internal/component/iface"
 
 func init() {
 	iface.SetPPPoEDialer(&Dialer{})

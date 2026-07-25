@@ -11,5 +11,5 @@
 package main
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/cli"
+	_ "github.com/ze-software/ze/internal/plugins/isis/cli"
 )

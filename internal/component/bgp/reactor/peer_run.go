@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 )
 
 // run is the main peer loop.

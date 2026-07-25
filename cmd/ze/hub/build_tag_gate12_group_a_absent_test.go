@@ -17,9 +17,9 @@ import (
 	"strings"
 	"testing"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func TestBuildTag_Gate12GroupA_Absent(t *testing.T) {

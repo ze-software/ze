@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // CSNP fixed-header layout after the common header (ISO/IEC 10589 clause 9.10):
 // PDU Length (2) + Source ID (7) + Start LSP ID (8) + End LSP ID (8). A CSNP

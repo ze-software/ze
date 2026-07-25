@@ -7,8 +7,8 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // IsEndOfRIBAnyFamily reports whether the UPDATE is an End-of-RIB marker for any

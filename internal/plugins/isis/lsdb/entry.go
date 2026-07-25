@@ -19,8 +19,8 @@ package lsdb
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // CircuitID is a stable, small per-circuit identifier the LSDB uses to index the

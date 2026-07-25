@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // TestConfigFixPlanJSON verifies the full cmdFix path: reads a config file,

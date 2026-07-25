@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var errPeerNotInReloadConfig = errors.New("peer not found in reload config")

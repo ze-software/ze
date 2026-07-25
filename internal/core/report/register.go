@@ -3,7 +3,7 @@
 
 package report
 
-import "codeberg.org/thomas-mangin/ze/internal/core/health"
+import "github.com/ze-software/ze/internal/core/health"
 
 func init() {
 	// The bus itself has no failure mode beyond being linked in; a healthy

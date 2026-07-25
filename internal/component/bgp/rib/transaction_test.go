@@ -4,8 +4,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestMultipleIndependentTransactions verifies concurrent transactions don't interfere.

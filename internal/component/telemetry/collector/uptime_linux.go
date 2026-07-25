@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 var errMalformedProcUptime = errors.New("malformed /proc/uptime")

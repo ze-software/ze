@@ -20,12 +20,12 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/test/runner"
-	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
-	"codeberg.org/thomas-mangin/ze/internal/test/trace"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	webtesting "github.com/ze-software/ze/internal/component/web/testing"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
+	"github.com/ze-software/ze/internal/test/sessionpath"
+	"github.com/ze-software/ze/internal/test/trace"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const (

@@ -33,15 +33,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/grammar"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/command/grammar"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	// Trigger every builtin RPC init() registration, matching the composition
 	// root the running daemon assembles (mirrors all_import_test.go).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
 // TestRuntimeBuiltinSurfaceGrammar validates that every builtin command the daemon

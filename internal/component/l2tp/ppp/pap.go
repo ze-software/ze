@@ -15,7 +15,7 @@ import (
 	"errors"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PAP packet codes from RFC 1334 Section 2.1. Unlike CHAP there are

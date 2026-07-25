@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute/yang"
+	_ "github.com/ze-software/ze/internal/plugins/policyroute"
+	_ "github.com/ze-software/ze/internal/plugins/policyroute/yang"
 )
 

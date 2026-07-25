@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // frefs builds a FilterRef chain from canonical strings, treating an

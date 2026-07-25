@@ -16,7 +16,7 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // fakeIfaceBackend is a minimal iface.Backend serving GetInterface from an

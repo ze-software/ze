@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
-	ntpyang "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
+	ntpyang "github.com/ze-software/ze/internal/plugins/ntp/yang"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // eventBusMu guards eventBusRef.

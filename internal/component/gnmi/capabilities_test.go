@@ -6,7 +6,7 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
-	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func TestCapabilitiesResponse(t *testing.T) {

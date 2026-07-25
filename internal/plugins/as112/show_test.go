@@ -3,7 +3,7 @@ package as112
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // VALIDATES: AC-8 -- show as112 reports the same state the server reads.

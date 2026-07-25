@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	ikecrypto "codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	ikecrypto "github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // hasPayload reports whether a parsed payload chain contains a payload of the given type.

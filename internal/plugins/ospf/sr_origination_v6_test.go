@@ -11,11 +11,11 @@ import (
 	"net/netip"
 	"testing"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // RFC requirement: RFC8666-8.4.1-1 negative -- the withdrawal is conditional on the

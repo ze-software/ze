@@ -5,8 +5,8 @@
 package ospf
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // processSummaryView is the `show ospf` payload.

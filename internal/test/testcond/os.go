@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RequireOS skips the test unless the current OS matches one of the given names.

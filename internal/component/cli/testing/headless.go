@@ -9,7 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli"
 )
 
 // HeadlessModel wraps the editor Model for headless testing.

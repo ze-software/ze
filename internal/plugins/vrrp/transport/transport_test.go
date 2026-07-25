@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
 // fakeHandle records sent frames and simulates the backend readLoop goroutine so

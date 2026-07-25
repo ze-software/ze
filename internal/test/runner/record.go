@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/test/trace"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/trace"
 )
 
 // NetnsLinkSpec is one interface a test asks the runner to provision inside its

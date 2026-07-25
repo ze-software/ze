@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // aclTagMaxLen is VPP's string[64] limit on ACL tags. The backend uses

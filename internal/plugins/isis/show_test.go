@@ -15,11 +15,11 @@ package isis
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/spf"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // TestISISShowHostnameRender: the local node's configured hostname appears in

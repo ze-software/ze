@@ -8,7 +8,7 @@ import (
 	"context"
 	"log/slog"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // observeForwardHandles registers a cheap OnChange subscriber on loc

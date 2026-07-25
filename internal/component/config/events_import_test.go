@@ -1,4 +1,4 @@
 package config
 
 // Import bgp/plugin to trigger bgp namespace registration via init().
-import _ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
+import _ "github.com/ze-software/ze/internal/component/bgp/plugin"

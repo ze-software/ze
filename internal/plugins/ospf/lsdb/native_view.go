@@ -11,7 +11,7 @@
 package lsdb
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // NativeLSAView is one stored LSA (identity + a copy of its body) matched by native LS

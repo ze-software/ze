@@ -47,7 +47,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 		// runGokBuild defers cleanup of the prepared dir, so what gok can see must
 		// be observed HERE, not after the call returns.
 		if len(args) > 1 {
-			_, err := os.Stat(filepath.Join(args[1], "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", "go.mod"))
+			_, err := os.Stat(filepath.Join(args[1], "ze", "builddir", "github.com", "ze-software", "ze", "go.mod"))
 			pinsVisibleToGok = err == nil
 		}
 		return nil
@@ -140,7 +140,7 @@ func TestGokrazyConfigMatchesApplianceBuildTags(t *testing.T) {
 	if !ok {
 		t.Fatal("PackageConfig missing")
 	}
-	zePkg, ok := pkgConfig["codeberg.org/thomas-mangin/ze/cmd/ze"].(map[string]any)
+	zePkg, ok := pkgConfig["github.com/ze-software/ze/cmd/ze"].(map[string]any)
 	if !ok {
 		t.Fatal("ze package config missing")
 	}

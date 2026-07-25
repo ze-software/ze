@@ -5,13 +5,13 @@ package peer
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
+	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // SenderConfig holds the parameters for building UPDATE messages.

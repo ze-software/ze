@@ -5,9 +5,9 @@
 package main
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/connect"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/local"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/systemd"
+	_ "github.com/ze-software/ze/cmd/ze/install"
+	_ "github.com/ze-software/ze/cmd/ze/uninstall"
+	_ "github.com/ze-software/ze/internal/plugins/connect"
+	_ "github.com/ze-software/ze/internal/plugins/local"
+	_ "github.com/ze-software/ze/internal/plugins/systemd"
 )

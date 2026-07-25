@@ -11,5 +11,5 @@
 package main
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cli"
+	_ "github.com/ze-software/ze/internal/component/l2tp/cli"
 )

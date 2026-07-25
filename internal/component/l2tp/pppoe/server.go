@@ -12,8 +12,8 @@ import (
 	"net"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 // InterfaceServer owns the PPPoE state for one access interface.

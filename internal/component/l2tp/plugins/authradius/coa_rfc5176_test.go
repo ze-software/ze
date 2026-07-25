@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // RFC requirement: RFC5176-3.3-1 negative -- a Disconnect-Request carrying no

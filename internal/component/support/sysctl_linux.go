@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/internal/core/sysctl"
 )
 
 func collectSysctlInfo() (any, error) {

@@ -12,10 +12,10 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/core/suggest"
 )
 
 // Exit codes for signal command.

@@ -9,15 +9,15 @@ import (
 	"os"
 	"slices"
 
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/suggest"
 
 	// Register the netlink backend so ifacepkg.LoadBackend("netlink")
 	// below resolves. Without this blank import, every subcommand that
 	// calls into the backend (show, create, delete, unit, addr, migrate)
 	// fails with "iface: no backend loaded".
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 )
 
 // ifaceCommands lists the user-facing subcommand names, kept in sync

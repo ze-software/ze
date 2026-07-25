@@ -8,8 +8,8 @@ import (
 	"net/netip"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // EVPNParams contains parameters for building EVPN route UPDATEs.

@@ -9,7 +9,7 @@ package bfd
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // rfc5880AuthFields builds the `auth { ... }` field map the config parser

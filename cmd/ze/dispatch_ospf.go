@@ -11,6 +11,6 @@
 package main
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
+	_ "github.com/ze-software/ze/internal/plugins/ospf/cli"
+	_ "github.com/ze-software/ze/internal/plugins/ospf/transport"
 )

@@ -2,7 +2,7 @@
 
 package install
 
-import "codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+import "github.com/ze-software/ze/internal/core/subdispatch"
 
 var dispatcher = subdispatch.New("install", "Install ze binary, systemd service, or provision remote devices")
 

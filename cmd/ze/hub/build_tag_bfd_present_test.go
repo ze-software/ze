@@ -15,7 +15,7 @@ package hub
 import (
 	"testing"
 
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestBuildTag_BFD_Present(t *testing.T) {

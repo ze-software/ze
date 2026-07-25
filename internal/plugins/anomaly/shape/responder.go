@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/core/anomalyevent"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/anomalyevent"
 )
 
 const owner = "anomaly-shape"

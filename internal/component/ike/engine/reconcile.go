@@ -8,10 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // PeerSession manages a single IKE peer's goroutine lifecycle.

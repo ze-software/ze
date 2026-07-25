@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // ErrNilTree is returned when a nil tree is passed to a function that requires a tree.

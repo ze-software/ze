@@ -5,9 +5,9 @@ package format
 import (
 	"encoding/json"
 
-	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // FormatDecodeUpdateJSON formats a FilterResult as ze-bgp JSON for the decode-update RPC.

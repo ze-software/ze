@@ -4,11 +4,11 @@ import (
 	"log/slog"
 	"os"
 
-	rpkiyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	rpkiyang "github.com/ze-software/ze/internal/component/bgp/plugins/rpki/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {

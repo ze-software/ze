@@ -16,11 +16,11 @@ package isis
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // Flooding cadence constants (ISO/IEC 10589 clause 7.3; the guide's recommended

@@ -65,23 +65,23 @@ var dirAllowlist = []string{
 // entry ONLY after confirming the write does not persist runtime state.
 var fileAllowlist = map[string]string{
 	// --- kernel / device control interfaces (must stay raw) ---
-	"internal/plugins/iface/netlink/bridge_linux.go": "sysfs bridge stp_state write",
-	"internal/plugins/ntp/clock_linux.go":            "writes the /dev/rtc0 hardware clock",
-	"internal/component/host/tuning_linux.go":        "sysfs cpu governor + procfs IRQ affinity",
-	"internal/component/iface/offload_linux.go":      "sysfs/ethtool offload knobs",
-	"internal/component/sysctl/backend_linux.go":     "/proc/sys sysctl writes",
-	"internal/plugins/vrrp/dataplane_linux.go":       "/proc/sys/net/ipv4/conf arp_ignore/arp_filter/rp_filter knobs for the virtual-MAC dataplane; procfs scalars, no runtime state",
+	"internal/plugins/iface/netlink/bridge_linux.go":                 "sysfs bridge stp_state write",
+	"internal/plugins/ntp/clock_linux.go":                            "writes the /dev/rtc0 hardware clock",
+	"internal/component/host/tuning_linux.go":                        "sysfs cpu governor + procfs IRQ affinity",
+	"internal/component/iface/offload_linux.go":                      "sysfs/ethtool offload knobs",
+	"internal/component/sysctl/backend_linux.go":                     "/proc/sys sysctl writes",
+	"internal/plugins/vrrp/dataplane_linux.go":                       "/proc/sys/net/ipv4/conf arp_ignore/arp_filter/rp_filter knobs for the virtual-MAC dataplane; procfs scalars, no runtime state",
 	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go": "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
-	"internal/component/vpp/dpdk.go":                 "sysfs PCI/VFIO/hugepage knobs",
-	"internal/component/l2tp/ppp/devppp_linux.go":    "opens the /dev/ppp kernel device",
-	"internal/component/cli/client/main.go":          "opens /dev/tty (operator terminal)",
-	"cmd/ze/ze_core_autoinit.go":                     "writes /dev/kmsg + creates the /perm/ze store dir (zefs bootstrap)",
+	"internal/component/vpp/dpdk.go":                                 "sysfs PCI/VFIO/hugepage knobs",
+	"internal/component/l2tp/ppp/devppp_linux.go":                    "opens the /dev/ppp kernel device",
+	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
+	"cmd/ze/ze_core_autoinit.go":                                     "writes /dev/kmsg + creates the /perm/ze store dir (zefs bootstrap)",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
 	"internal/plugins/imageserver/register.go": "temp zefs DB served over HTTP (MkdirTemp lifecycle)",
 	"internal/plugins/imageserver/handler.go":  "temp database.zefs built for the HTTP response",
-	"cmd/ze/hub/pidfile.go":                     "runtime pidfile",
-	"cmd/ze/hub/service_ssh.go":                 "ephemeral ssh listen-address handoff file",
-	"cmd/ze/hub/main.go":                        "test-readiness signal file (path from env)",
+	"cmd/ze/hub/pidfile.go":                    "runtime pidfile",
+	"cmd/ze/hub/service_ssh.go":                "ephemeral ssh listen-address handoff file",
+	"cmd/ze/hub/main.go":                       "test-readiness signal file (path from env)",
 	// --- artifacts produced for external consumers (not our state) ---
 	"internal/plugins/iface/dhcp/resolv_linux.go":      "system resolv.conf for libc/other daemons",
 	"internal/plugins/systemd/main.go":                 "systemd unit file consumed by systemd",
@@ -428,7 +428,7 @@ func save(path, tmp string, data []byte) error {
 const goodFixture = `package p
 import (
 	"os"
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 func save(key string, data []byte) (bool, error) { return statestore.Put(key, data) }
 func load(path string) ([]byte, error) { return os.ReadFile(path) }

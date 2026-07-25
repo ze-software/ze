@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/perf"
+	"github.com/ze-software/ze/internal/perf"
 )
 
 func threeResults() []perf.Result {

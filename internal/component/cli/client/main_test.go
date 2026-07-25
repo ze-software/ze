@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	unicli "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // captureOutput captures stdout or stderr during a function call.

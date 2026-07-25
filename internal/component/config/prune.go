@@ -5,7 +5,7 @@
 package config
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PruneUnchanged removes from tree every node that serializes identically in

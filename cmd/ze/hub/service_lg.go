@@ -22,10 +22,10 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/lg"
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/lg"
+	"github.com/ze-software/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // lgService adapts *lg.LGServer to the Service interface (it already satisfies

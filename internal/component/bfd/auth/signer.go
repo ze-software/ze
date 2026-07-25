@@ -13,7 +13,7 @@ package auth
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // Errors surfaced by the auth package. Wrapping is done at the call

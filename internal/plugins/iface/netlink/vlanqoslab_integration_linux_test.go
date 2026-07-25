@@ -17,7 +17,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // ── netns + veth helpers ────────────────────────────────────────────────────

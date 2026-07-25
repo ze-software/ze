@@ -12,12 +12,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var logger = slogutil.Logger("chaos.peer")

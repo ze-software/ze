@@ -9,11 +9,11 @@ import (
 	"os"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	tftpyang "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	tftpyang "github.com/ze-software/ze/internal/plugins/tftpserver/yang"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const configRootService = "service"

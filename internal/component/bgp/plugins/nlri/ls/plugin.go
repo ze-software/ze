@@ -16,9 +16,9 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errNoValidBgpLsNlrisDecoded = errors.New("no valid BGP-LS NLRIs decoded")

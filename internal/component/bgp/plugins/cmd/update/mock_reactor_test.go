@@ -4,14 +4,14 @@ import (
 	"context"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // mockReactor implements plugin.ReactorLifecycle for handler tests.

@@ -14,10 +14,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/engine"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/engine"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // bfdMetrics is the set of Prometheus metrics the BFD plugin publishes.

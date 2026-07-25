@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/core/metrics"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // ---- fake BFD engine (mirrors internal/component/bgp/reactor.fakeBFDService) ----

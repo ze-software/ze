@@ -3,11 +3,11 @@ package clear
 import (
 	"testing"
 
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/cmd"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
+	_ "github.com/ze-software/ze/internal/component/iface/cmd"
+	_ "github.com/ze-software/ze/internal/component/ike/cmd"
+	_ "github.com/ze-software/ze/internal/component/resolve/cmd"
 )
 
 func TestAllClearCommandsHaveRegisteredRPC(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // notificationErrorNames maps NOTIFICATION error codes to names (RFC 4271 Section 4.5).

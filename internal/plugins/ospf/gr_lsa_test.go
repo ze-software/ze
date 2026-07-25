@@ -9,7 +9,7 @@ package ospf
 import (
 	"testing"
 
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // TestGraceLSAv4BodyBuild (AC-3): the body always carries the type-1 Grace Period and type-2

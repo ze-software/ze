@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // MacvlanMode selects the macvlan delivery mode. The zero value is bridge, so

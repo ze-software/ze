@@ -12,7 +12,7 @@ package rsvpte
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // prependRRO returns a new RRO with this node's IPv4 address recorded at the

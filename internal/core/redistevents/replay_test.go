@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 
 	"github.com/stretchr/testify/assert"
 )

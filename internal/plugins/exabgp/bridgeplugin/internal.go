@@ -20,10 +20,10 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // familyDecls builds the Stage-1 family declarations. Config is not available

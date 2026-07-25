@@ -7,8 +7,8 @@ import (
 	"errors"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // AcceptConnection accepts an incoming TCP connection for this peer.

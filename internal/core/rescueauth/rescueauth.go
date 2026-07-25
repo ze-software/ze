@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The rescue credential travels on the installer kernel cmdline

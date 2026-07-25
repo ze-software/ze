@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // DynamicGroupConfig holds the configuration for a dynamic peer group.

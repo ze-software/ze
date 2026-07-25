@@ -13,10 +13,10 @@ import (
 	"slices"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	as112events "codeberg.org/thomas-mangin/ze/internal/plugins/as112/events"
+	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	as112events "github.com/ze-software/ze/internal/plugins/as112/events"
 )
 
 // The four fixed AS112 COVERING prefixes BGP announces (RFC 7534 Section 3.4

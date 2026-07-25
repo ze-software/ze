@@ -8,5 +8,5 @@
 package metrics
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/yang" // init() registers YANG module
+	_ "github.com/ze-software/ze/internal/component/cmd/metrics/yang" // init() registers YANG module
 )

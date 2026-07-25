@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/scripts/status/specbucket"
+	"github.com/ze-software/ze/scripts/status/specbucket"
 )
 
 type spec struct {

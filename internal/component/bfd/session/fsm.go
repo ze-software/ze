@@ -11,7 +11,7 @@ package session
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // Errors returned by Receive.

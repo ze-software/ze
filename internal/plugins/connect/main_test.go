@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	zeconnect "codeberg.org/thomas-mangin/ze/internal/plugins/connect"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	zeconnect "github.com/ze-software/ze/internal/plugins/connect"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func seedDB(t *testing.T) string {

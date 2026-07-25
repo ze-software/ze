@@ -3,8 +3,8 @@
 package events
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 const Namespace = "subscriber"

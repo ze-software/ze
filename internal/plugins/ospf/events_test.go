@@ -7,7 +7,7 @@ package ospf
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 func TestOSPFEventNamespace(t *testing.T) {

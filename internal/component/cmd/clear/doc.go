@@ -14,5 +14,5 @@
 package clear
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang" // init() registers the clear YANG verb tree
+	_ "github.com/ze-software/ze/internal/component/cmd/clear/yang" // init() registers the clear YANG verb tree
 )

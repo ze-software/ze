@@ -30,7 +30,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // loggerFn is the function-value type stored in loggerPtr. Wrapping in a

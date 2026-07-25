@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // newTestLeaseClock returns a sim.FakeClock: an Add-driven clock whose AfterFunc

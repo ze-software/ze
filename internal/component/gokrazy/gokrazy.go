@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/gokrazyutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/gokrazyutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // Handler returns an http.Handler that reverse-proxies to the gokrazy

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/test/peer"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/test/peer"
 )
 
 // runPeerTest runs a testpeer with the given config and connects a session.

@@ -29,9 +29,9 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/component/iface"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
 const (

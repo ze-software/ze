@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // grPeerCap holds the GR capability data extracted from a peer's OPEN message.

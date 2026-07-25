@@ -23,13 +23,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errPluginNotInitialized = errors.New("plugin not initialized")

@@ -2,7 +2,7 @@
 
 package server
 
-import "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+import "github.com/ze-software/ze/internal/component/plugin/registry"
 
 func init() {
 	registry.AddRPCHandlers(CodecRPCHandlers())

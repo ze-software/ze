@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/grpc/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/rest/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/yang"
+	_ "github.com/ze-software/ze/internal/component/api/grpc/yang"
+	_ "github.com/ze-software/ze/internal/component/api/rest/yang"
+	_ "github.com/ze-software/ze/internal/component/api/yang"
 )
 
 // VALIDATES: ze-api-conf YANG module loads into environment.api-server.

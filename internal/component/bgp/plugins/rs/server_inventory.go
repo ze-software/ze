@@ -8,10 +8,10 @@ import (
 	"net/netip"
 	"sync"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // nlriRecord is a compact representation of one NLRI extracted from a wire

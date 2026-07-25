@@ -4,7 +4,7 @@
 
 package cos
 
-import "codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+import "github.com/ze-software/ze/internal/component/l2tp"
 
 func storeMetadataForTest(tunnelID, sessionID uint16, cosProfile string) {
 	l2tp.StoreSessionMetadata(tunnelID, sessionID, &l2tp.AuthMetadata{

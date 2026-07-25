@@ -2,7 +2,7 @@
 // Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 
-import "codeberg.org/thomas-mangin/ze/internal/component/iface"
+import "github.com/ze-software/ze/internal/component/iface"
 
 // ipManager defines the interface for IP address management on network interfaces.
 // Production uses iface.AddAddress/RemoveAddress; tests inject a mock.

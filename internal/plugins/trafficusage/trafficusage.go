@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // Name is the registered plugin name (hyphen form). The Go package is trafficusage.

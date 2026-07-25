@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
-	"codeberg.org/thomas-mangin/ze/internal/core/identity"
+	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/core/identity"
 )
 
 // BackendName identifies the active system update backend in status output.

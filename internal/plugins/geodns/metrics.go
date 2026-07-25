@@ -7,7 +7,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // latencyBuckets are exponential ms buckets (0.1ms .. ~205ms), matching the

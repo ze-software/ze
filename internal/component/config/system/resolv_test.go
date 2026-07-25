@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/config/system"
 )
 
 // TestWriteResolvConf_Empty verifies no error when servers list is empty.

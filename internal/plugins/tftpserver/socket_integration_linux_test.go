@@ -33,7 +33,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // makeTestFile writes n deterministic bytes into dir/name and returns the

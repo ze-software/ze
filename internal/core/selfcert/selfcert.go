@@ -16,7 +16,7 @@ import (
 	"net"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // CertStore abstracts certificate persistence.

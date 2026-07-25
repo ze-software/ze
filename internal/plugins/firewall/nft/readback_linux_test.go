@@ -8,7 +8,7 @@ import (
 	"github.com/google/nftables"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // VALIDATES: P0 -- every valid (hook, family) pair that the forward

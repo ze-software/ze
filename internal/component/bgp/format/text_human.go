@@ -7,13 +7,13 @@ import (
 	"encoding/hex"
 	"strconv"
 
-	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // appendFilterResultText appends FilterResult as text to buf.

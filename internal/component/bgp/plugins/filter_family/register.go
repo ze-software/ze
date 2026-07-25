@@ -1,8 +1,8 @@
 package filter_family
 
 import (
-	ffyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_family/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	ffyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_family/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

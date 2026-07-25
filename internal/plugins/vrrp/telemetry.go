@@ -11,11 +11,11 @@ import (
 	"net/netip"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/fsm"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Namespace is this plugin's eventbus namespace.

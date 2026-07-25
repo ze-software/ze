@@ -22,11 +22,11 @@ ZE_GROUP_PLUGINS = ./internal/plugins/...
 ZE_GROUP_CONFIG  = ./internal/component/config/...
 ZE_GROUP_CLI     = ./internal/component/cli/...
 ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
-	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/bgp' \
-	| grep -v '^codeberg.org/thomas-mangin/ze/internal/core' \
-	| grep -v '^codeberg.org/thomas-mangin/ze/internal/plugins' \
-	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/config' \
-	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/cli')
+	| grep -v '^github.com/ze-software/ze/internal/component/bgp' \
+	| grep -v '^github.com/ze-software/ze/internal/core' \
+	| grep -v '^github.com/ze-software/ze/internal/plugins' \
+	| grep -v '^github.com/ze-software/ze/internal/component/config' \
+	| grep -v '^github.com/ze-software/ze/internal/component/cli')
 
 # Run ze unit tests with race detector (default-on features plus bare-core compile-out checks).
 ze-unit-test: ze-installer-unit-test

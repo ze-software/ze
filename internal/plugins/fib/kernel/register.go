@@ -8,17 +8,17 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/events"
-	fibyang "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/yang"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	fibevents "github.com/ze-software/ze/internal/plugins/fib/kernel/events"
+	fibyang "github.com/ze-software/ze/internal/plugins/fib/kernel/yang"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 type fibConfig struct {

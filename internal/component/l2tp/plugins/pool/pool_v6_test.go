@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp"
 )
 
 func TestIPv6PrefixPoolAllocate(t *testing.T) {

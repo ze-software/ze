@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // PluginConn provides typed RPC communication over a plugin connection.

@@ -5,8 +5,8 @@ package grpc
 import (
 	"encoding/json"
 
-	zepb "codeberg.org/thomas-mangin/ze/api/proto"
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/component/api"
 )
 
 func fromProtoExecuteRequest(pb *zepb.CommandRequest, caller api.CallerIdentity) (*api.ExecuteRequest, error) {

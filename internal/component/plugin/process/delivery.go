@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Env var registration for delivery timeout.

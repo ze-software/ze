@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	pool "github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 )
 
 var (

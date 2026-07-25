@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/secret"
 )
 
 // makeESPTree builds a config tree with vpn { ipsec { esp-group <name> { ... } } }.

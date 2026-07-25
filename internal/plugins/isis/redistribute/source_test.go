@@ -16,11 +16,11 @@ import (
 	"net/netip"
 	"testing"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	"github.com/ze-software/ze/internal/plugins/isis/spf"
 )
 
 // captureBus is a minimal EventBus stand-in that records emitted batches as

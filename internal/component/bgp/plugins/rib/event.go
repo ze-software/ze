@@ -6,7 +6,7 @@
 package rib
 
 import (
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
 )
 
 // Type aliases — these are the same types, not wrappers.

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/authz"
 )
 
 // newHashUserServer returns a Server with a single user whose bcrypt hash is

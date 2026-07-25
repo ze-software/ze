@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/orchestrator"
+	"github.com/ze-software/ze/internal/chaos/orchestrator"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

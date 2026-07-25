@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	rpc "github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // reloadTimeout is the maximum time to wait for a daemon reload response.

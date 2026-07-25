@@ -8,7 +8,7 @@ package ls
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // NodeDescriptor contains node identification information.

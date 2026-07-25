@@ -17,8 +17,8 @@ import (
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	staticvpp "codeberg.org/thomas-mangin/ze/internal/plugins/static/vpp"
+	"github.com/ze-software/ze/internal/component/iface"
+	staticvpp "github.com/ze-software/ze/internal/plugins/static/vpp"
 )
 
 // fakeChannel is a minimal api.Channel capturing the last request.

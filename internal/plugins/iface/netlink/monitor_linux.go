@@ -19,9 +19,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

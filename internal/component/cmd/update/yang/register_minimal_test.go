@@ -5,7 +5,7 @@ package yang
 import (
 	"testing"
 
-	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func TestMinimalBuildRegistersUpdateSchema(t *testing.T) {

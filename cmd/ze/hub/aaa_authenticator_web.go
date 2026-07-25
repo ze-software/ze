@@ -7,7 +7,7 @@
 package hub
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // liveAAABundleAuthenticator authenticates against the live AAA bundle's chain

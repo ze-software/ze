@@ -17,8 +17,8 @@ import (
 	"slices"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // CircuitKind is the medium of the circuit the FSM runs on. The LAN and P2P

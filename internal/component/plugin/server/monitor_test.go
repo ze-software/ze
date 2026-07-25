@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // =============================================================================

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // VALIDATES: local backend Name + Priority.

@@ -3,8 +3,8 @@
 package transaction
 
 import (
-	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
-	coreevents "codeberg.org/thomas-mangin/ze/internal/core/events"
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	coreevents "github.com/ze-software/ze/internal/core/events"
 )
 
 func init() {

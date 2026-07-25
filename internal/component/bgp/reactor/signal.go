@@ -11,7 +11,7 @@ import (
 	"sync"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
+	"github.com/ze-software/ze/internal/core/syncutil"
 )
 
 // SignalCallback is called when a signal is received.

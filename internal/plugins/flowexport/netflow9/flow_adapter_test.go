@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // recvDatagrams reads up to n datagrams from pc with a short deadline.

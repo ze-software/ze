@@ -9,10 +9,10 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/ls"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // decodeUpdateMessage decodes a BGP UPDATE message and returns Ze format.

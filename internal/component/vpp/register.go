@@ -9,15 +9,15 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	vppyang "codeberg.org/thomas-mangin/ze/internal/component/vpp/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	vppevents "codeberg.org/thomas-mangin/ze/internal/core/vpp/events"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	vppyang "github.com/ze-software/ze/internal/component/vpp/yang"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // defaultVPPBinary is the default path to the VPP executable.

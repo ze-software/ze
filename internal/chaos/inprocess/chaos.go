@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/mocknet"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/guard"
+	"github.com/ze-software/ze/internal/chaos/mocknet"
+	"github.com/ze-software/ze/internal/chaos/route"
 )
 
 // establishedState tracks which peers are in Established state.

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli"
 )
 
 // TestETSessionOption verifies that option=session activates a session on the headless model.

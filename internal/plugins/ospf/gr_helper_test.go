@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // TestHelperEntryAllChecksPass (AC-16): entry allowed when every RFC 3623 sec 3.1 check passes.

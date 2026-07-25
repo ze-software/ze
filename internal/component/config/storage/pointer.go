@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // ErrCandidateExists is returned when a new candidate would overwrite one already staged.

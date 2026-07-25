@@ -11,8 +11,8 @@ import (
 	"net"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 func TestRFC2865SubscriberAccessRequestUserName(t *testing.T) {

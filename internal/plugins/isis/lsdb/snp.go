@@ -18,8 +18,8 @@ package lsdb
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // maxLSPEntriesPerSNP is the number of TLV 9 (LSP Entries) records that fit one

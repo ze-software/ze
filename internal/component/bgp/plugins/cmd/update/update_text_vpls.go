@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/route"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // VPLS NLRI keywords for text parsing.

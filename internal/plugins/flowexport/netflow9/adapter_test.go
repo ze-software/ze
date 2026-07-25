@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // TestNetflow9EncodeChunksManyInterfaces verifies counter records chunk across

@@ -14,7 +14,7 @@ import (
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // dumpAllInterfaces issues SwInterfaceDump with no filter and collects every

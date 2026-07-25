@@ -22,16 +22,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	"codeberg.org/thomas-mangin/ze/internal/core/replay"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/metrics"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // fibMetrics holds Prometheus metrics for the fib-kernel plugin.

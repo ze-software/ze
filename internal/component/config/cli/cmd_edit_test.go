@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // TestPromptCreateConfigYes verifies that answering "y" creates the file.

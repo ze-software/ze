@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // recordingGaugeRegistry records the last value Set on each GaugeVec series ("name|labels"),

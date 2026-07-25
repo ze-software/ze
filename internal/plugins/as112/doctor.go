@@ -14,10 +14,10 @@ import (
 	"strconv"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // checkAS112ListenCapability reads the as112 enabled and address-family

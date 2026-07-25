@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func benchPipelinePlugin(b *testing.B) (*RPKIPlugin, *atomic.Int64, func()) {

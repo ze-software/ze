@@ -16,7 +16,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // CHAP packet codes from RFC 1994 Section 4. The authenticator drives

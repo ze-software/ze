@@ -21,10 +21,10 @@ package isis
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/circuit"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/circuit"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // disDampWindow is the DIS-election damping window (umbrella R-1): a candidate

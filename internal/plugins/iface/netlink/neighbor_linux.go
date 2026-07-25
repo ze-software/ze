@@ -12,7 +12,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // ListNeighbors returns the full kernel neighbor cache (RTM_GETNEIGH).

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // --- Weight tracker: WorstPeerRatio ---

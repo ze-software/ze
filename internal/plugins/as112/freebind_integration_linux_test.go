@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // VALIDATES: AC-11 -- newServerManager wires Options{Freebind: true} through

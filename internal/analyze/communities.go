@@ -16,7 +16,7 @@ import (
 	"slices"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // commAnalysis holds all community analysis state.

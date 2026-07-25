@@ -2,7 +2,7 @@
 // Related: wire.go -- LDP message types used in events
 package ldp
 
-import "codeberg.org/thomas-mangin/ze/internal/core/events"
+import "github.com/ze-software/ze/internal/core/events"
 
 const Namespace = "ldp"
 

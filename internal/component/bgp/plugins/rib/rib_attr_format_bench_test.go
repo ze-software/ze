@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // BenchmarkEnrichRouteCommunities measures the allocation cost of enriching

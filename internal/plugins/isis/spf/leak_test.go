@@ -17,7 +17,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // leakNode builds a one-node Result + Graph for `level`: the root plus a reachable

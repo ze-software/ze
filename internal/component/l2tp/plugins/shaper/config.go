@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 // shaperConfig holds parsed shaper settings from YANG JSON.

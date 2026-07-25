@@ -35,34 +35,34 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
-	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
+	"github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/ze"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/syncutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errServerNotReady = errors.New("server not ready")

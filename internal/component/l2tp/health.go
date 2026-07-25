@@ -4,7 +4,7 @@
 
 package l2tp
 
-import "codeberg.org/thomas-mangin/ze/internal/core/health"
+import "github.com/ze-software/ze/internal/core/health"
 
 // checkHealth reports degraded while the l2tp subsystem is not running.
 // Registered from register.go so deleting this component removes its

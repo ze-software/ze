@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: AC-1. skSend*/skRecv* select the SK_* key by sa.IsInitiator: the IKE

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
+	"github.com/ze-software/ze/internal/core/rescueauth"
 )
 
 func validateIPv4(s string) error {

@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 func TestOSPFSubDispatch(t *testing.T) {

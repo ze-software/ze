@@ -24,10 +24,10 @@ import (
 	"strings"
 	"time"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func main() {

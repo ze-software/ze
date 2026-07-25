@@ -13,14 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib_types"

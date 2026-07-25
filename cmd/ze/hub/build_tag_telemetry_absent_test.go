@@ -17,8 +17,8 @@ import (
 	"strings"
 	"testing"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 func TestBuildTag_Telemetry_Absent(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // saveTime persists t as RFC3339 text into the shared zefs store under the NTP

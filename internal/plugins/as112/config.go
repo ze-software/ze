@@ -9,8 +9,8 @@ import (
 	"net/netip"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // maxHostnameLen is the DNS label length limit (spec Boundary Tests table).

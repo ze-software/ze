@@ -17,10 +17,10 @@ import (
 	"errors"
 	"fmt"
 
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The three plugin-initiated stage methods of the 5-stage startup handshake.

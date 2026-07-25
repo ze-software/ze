@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang" // Register BGP YANG for editor tests.
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang" // Required by ze-bgp-conf.yang.
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/component/authz"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang" // Register BGP YANG for editor tests.
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	_ "github.com/ze-software/ze/internal/component/hub/yang" // Required by ze-bgp-conf.yang.
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // buildTestSchemaAndTree constructs a schema and tree resembling a BGP config

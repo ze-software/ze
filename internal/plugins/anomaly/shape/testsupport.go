@@ -2,9 +2,9 @@
 package shape
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/core/anomalyevent"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/anomalyevent"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // SubscribeForTest constructs an armed responder, mocks the firewall backend so

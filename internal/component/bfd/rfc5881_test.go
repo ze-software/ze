@@ -11,8 +11,8 @@ package bfd
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
 )
 
 // RFC requirement: RFC5881-4-1 positive -- BFD Control packets MUST be

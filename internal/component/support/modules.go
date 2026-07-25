@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ModuleCollector gathers data for a single support module.

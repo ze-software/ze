@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 
 	// Blank import registers the ipv4/flow family + in-process NLRI encoder so the
 	// registry-seam path in handleAnnounceFlowspec (encodeFlowspecNLRI) resolves.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // captureReactor is a minimal BGPReactor fake: it embeds the interface (so the

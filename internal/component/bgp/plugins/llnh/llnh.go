@@ -18,10 +18,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/llnh/yang"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // llnhCapCode is the capability code for link-local next-hop.

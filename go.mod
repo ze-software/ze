@@ -1,4 +1,4 @@
-module codeberg.org/thomas-mangin/ze
+module github.com/ze-software/ze
 
 go 1.26
 

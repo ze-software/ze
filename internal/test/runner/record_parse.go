@@ -19,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/test/ci"
-	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/ci"
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 var (

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/vpp"
+	"github.com/ze-software/ze/internal/component/firewall"
+	_ "github.com/ze-software/ze/internal/plugins/firewall/vpp"
 )
 
 func sentinelFactory() (firewall.Backend, error) {

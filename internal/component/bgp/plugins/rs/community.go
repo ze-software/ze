@@ -3,7 +3,7 @@
 
 package rs
 
-import "codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+import "github.com/ze-software/ze/internal/component/bgp/wireu"
 
 // CommunityPolicy is an alias for the shared wire-level community policy type.
 type CommunityPolicy = wireu.CommunityPolicy

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 var errMissingVplsOperation = errors.New("missing operation keyword (add/del/eor) for family l2vpn/vpls")

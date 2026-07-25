@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 func TestRegisterPrefixSubTLVDispatched(t *testing.T) {

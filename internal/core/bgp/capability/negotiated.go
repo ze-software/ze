@@ -7,7 +7,7 @@ import (
 	"maps"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RFC 5492: Capabilities Advertisement with BGP-4

@@ -14,10 +14,10 @@ package ospf
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // v6ReceivedPrefixSID is one Prefix-SID parsed from a received Extended prefix LSA, with

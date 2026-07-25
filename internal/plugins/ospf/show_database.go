@@ -4,7 +4,7 @@
 
 package ospf
 
-import ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
+import ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 
 // dbSubviewType maps a `show ospf database <type>` command to the LSASnapshot.Type
 // string it filters to (types.LSType.String()).

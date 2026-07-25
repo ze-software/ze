@@ -17,19 +17,19 @@ import (
 
 	"golang.org/x/term"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
-	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
-	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/guard"
+	chaosmcp "github.com/ze-software/ze/internal/chaos/mcp"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/report"
+	"github.com/ze-software/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/watchdog"
+	"github.com/ze-software/ze/internal/chaos/web"
+	zemcp "github.com/ze-software/ze/internal/component/mcp"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ErrMcpRequiresWeb is returned when --mcp is set without --web.

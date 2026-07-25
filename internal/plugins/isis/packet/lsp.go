@@ -6,7 +6,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // LSP fixed-header layout after the common header (ISO/IEC 10589 clause 9.8):
 //

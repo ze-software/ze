@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Shard count bounds match locrib's. Below 1 makes no sense; above 64 is

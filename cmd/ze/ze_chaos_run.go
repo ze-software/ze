@@ -4,4 +4,4 @@
 
 package main
 
-import _ "codeberg.org/thomas-mangin/ze/internal/chaos/orchestrator"
+import _ "github.com/ze-software/ze/internal/chaos/orchestrator"

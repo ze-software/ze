@@ -4,8 +4,8 @@
 package migration
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/exabgp/topics"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/exabgp/topics"
 )
 
 // hasBGPListenLeaf detects the ExaBGP legacy `bgp { listen "..." }` leaf.

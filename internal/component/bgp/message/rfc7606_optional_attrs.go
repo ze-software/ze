@@ -5,7 +5,7 @@
 package message
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RFC 7606 validation for three optional attributes that previously had no validator:

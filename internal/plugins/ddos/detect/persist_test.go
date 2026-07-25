@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func makeSamples(n int, v float64) []float64 {

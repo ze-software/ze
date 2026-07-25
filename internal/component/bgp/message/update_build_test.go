@@ -8,9 +8,9 @@ import (
 	"testing"
 	"unsafe"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // sliceAliasesAny reports whether s is a sub-slice of ANY buffer in backings

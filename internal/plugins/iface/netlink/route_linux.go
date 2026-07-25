@@ -17,8 +17,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // Well-known Linux rtm_protocol values that map to readable names. Any

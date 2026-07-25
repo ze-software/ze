@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 func sendCoAPacket(t *testing.T, addr string, code uint8, secret []byte, attrs []radius.Attr) *radius.Packet {

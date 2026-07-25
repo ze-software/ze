@@ -7,7 +7,7 @@
 
 package vpp
 
-import "codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 func init() {
 	_ = diagnostic.RegisterDoctorCheck(vppHugepagesDoctorCheck())

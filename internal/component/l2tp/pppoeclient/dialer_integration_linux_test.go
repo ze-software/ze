@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 func isPermErr(err error) bool {

@@ -13,7 +13,7 @@ import (
 
 	"go.fd.io/govpp/binapi/vxlan"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // vxlanMaxVNI is the largest valid 24-bit VXLAN Network Identifier.

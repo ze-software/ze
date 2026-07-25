@@ -18,8 +18,8 @@ import (
 	"go.fd.io/govpp/binapi/ipip"
 	"go.fd.io/govpp/binapi/tunnel_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // CreateTunnel dispatches on the tunnel kind. VPP supports the v4-underlay

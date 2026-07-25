@@ -11,7 +11,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/engine"
 )
 
 // withChaosNetNS runs fn inside a fresh named network namespace so interface

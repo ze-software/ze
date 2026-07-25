@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // TacacsAuthenticator implements aaa.Authenticator using a TACACS+ client.

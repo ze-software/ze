@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 var errMalformedProcSysFsFileNr = errors.New("malformed /proc/sys/fs/file-nr")

@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/transaction"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // mockReloadReactor implements the GetConfigTree/SetConfigTree subset of ReactorLifecycle.

@@ -7,12 +7,12 @@
 package cli
 
 import (
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 
 	// init() registers the show bgp decode/encode YANG module (ze-bgp-tools-cmd).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	_ "github.com/ze-software/ze/internal/component/bgp/cli/yang"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // bgpCommands lists the bare user-facing subcommand names, kept in sync with

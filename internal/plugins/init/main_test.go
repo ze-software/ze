@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	zeinit "codeberg.org/thomas-mangin/ze/internal/plugins/init"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	zeinit "github.com/ze-software/ze/internal/plugins/init"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: ze init with piped stdin creates zefs database with SSH credentials

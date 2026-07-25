@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/pkg/ze"
 
 	"github.com/stretchr/testify/require"
 )

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	ospfiface "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/iface"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // mtuRecorder captures the InterfaceMTU an interface reports for its neighbors. The event is

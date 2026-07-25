@@ -5,7 +5,7 @@ package hub
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // VALIDATES: a Response with Status=="done" (the common success case) never

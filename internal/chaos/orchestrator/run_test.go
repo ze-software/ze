@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/scenario"
 )
 
 // TestRunConfigRangeConflict proves the wiring: RunOrchestrator validates the

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 const deactivateTestConfig = `bgp {

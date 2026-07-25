@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // No "l2tp:" prefix: the subsystem Start wraps this with fmt.Errorf("l2tp: %w"),

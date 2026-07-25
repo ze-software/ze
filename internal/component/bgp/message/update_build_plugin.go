@@ -6,8 +6,8 @@ package message
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // PluginParams contains parameters for building a generic plugin route UPDATE.

@@ -15,8 +15,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const pingDrainInterval = 50 * time.Millisecond

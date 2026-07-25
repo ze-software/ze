@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func TestParseRSVPTEConfigRealShape(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 func openAuditLog(configPath string) (*audit.Log, error) {

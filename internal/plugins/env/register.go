@@ -1,6 +1,6 @@
 package env
 
-import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+import "github.com/ze-software/ze/internal/component/command/registry"
 
 func init() {
 	registry.MustRegisterRootHandler("env", func(_ *registry.RuntimeContext, args []string) int {

@@ -5,7 +5,7 @@ package irr
 import (
 	"path/filepath"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/paths"
 )
 
 func cacheStorePath() string {

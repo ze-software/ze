@@ -5,12 +5,12 @@ package cmd
 import (
 	"os"
 
-	iconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	iconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/archive"
+	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {

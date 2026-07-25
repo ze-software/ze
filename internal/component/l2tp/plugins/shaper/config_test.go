@@ -3,7 +3,7 @@ package l2tpshaper
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 // VALIDATES: AC-8 -- TBF qdisc type parsed from config.

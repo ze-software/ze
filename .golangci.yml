@@ -116,10 +116,10 @@ linters:
         - "(*strings.Builder).WriteByte"
         - "(*strings.Builder).WriteRune"
         - "(*strings.Builder).WriteString"
-        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).Write"
-        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).WriteByte"
-        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).WriteRune"
-        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).WriteString"
+        - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).Write"
+        - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).WriteByte"
+        - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).WriteRune"
+        - "(*github.com/ze-software/ze/internal/core/textbuf.Buffer).WriteString"
 
     govet:
       disable:
@@ -197,7 +197,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - codeberg.org/thomas-mangin/ze
+        - github.com/ze-software/ze
 
 issues:
   max-issues-per-linter: 50

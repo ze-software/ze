@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
 )
 
 // These tests exercise the REAL telemetry path (recordTransition / clearMetrics /

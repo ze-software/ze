@@ -13,9 +13,9 @@ import (
 	"os"
 	"runtime"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // nfConntrackAvailable reports whether the kernel conntrack table is available to

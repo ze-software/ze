@@ -6,13 +6,13 @@ import (
 	"os"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	policyrouteyang "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute/yang"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	policyrouteyang "github.com/ze-software/ze/internal/plugins/policyroute/yang"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const configRoot = "policy"

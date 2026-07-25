@@ -9,14 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // withNetNS creates an ephemeral network namespace, switches into it,

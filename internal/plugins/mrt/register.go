@@ -9,11 +9,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	mrtyang "codeberg.org/thomas-mangin/ze/internal/plugins/mrt/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	mrtyang "github.com/ze-software/ze/internal/plugins/mrt/yang"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const configRoot = "mrt"

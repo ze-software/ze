@@ -11,7 +11,7 @@ package web
 import (
 	"html/template"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // snapshotPageHTML renders the live-view shell: a heading, a <pre id="<dataID>"> showing

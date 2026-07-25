@@ -17,8 +17,8 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/component/iface"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
 // recordingBus records every DHCP lease event emitted by the client.

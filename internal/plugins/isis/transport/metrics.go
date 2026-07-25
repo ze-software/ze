@@ -8,7 +8,7 @@
 
 package transport
 
-import "codeberg.org/thomas-mangin/ze/internal/core/metrics"
+import "github.com/ze-software/ze/internal/core/metrics"
 
 // transportMetrics holds the four transport-owned series.
 type transportMetrics struct {

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // VALIDATES: All event type constants match their plugin package source values.

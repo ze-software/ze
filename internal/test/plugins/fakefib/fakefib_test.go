@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
 func TestParseRouteType(t *testing.T) {

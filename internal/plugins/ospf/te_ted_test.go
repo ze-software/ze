@@ -11,8 +11,8 @@ package ospf
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const teCfgJSON = `{"ospf":{"router-id":"1.1.1.1","opaque":true,"areas":{"area":{"0":{"area-id":"0"}}}}}`

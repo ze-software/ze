@@ -9,10 +9,10 @@ package ospf
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Transport is the engine's view of the per-address-family raw transport. It is

@@ -2,7 +2,7 @@
 
 package portname
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // Info holds the resolved service name for a port and, when applicable,
 // an amplification-vector label for known reflection ports.

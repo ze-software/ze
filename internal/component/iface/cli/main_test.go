@@ -3,9 +3,9 @@ package cli
 import (
 	"testing"
 
-	zeIface "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
-	"codeberg.org/thomas-mangin/ze/internal/test/testcond"
+	zeIface "github.com/ze-software/ze/internal/component/iface"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
+	"github.com/ze-software/ze/internal/test/testcond"
 )
 
 func init() {

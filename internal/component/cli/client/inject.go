@@ -5,7 +5,7 @@ package client
 import (
 	"strings"
 
-	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
+	cmd "github.com/ze-software/ze/internal/component/command"
 )
 
 // commandEntry matches the anonymous struct used in buildRuntimeTree and

@@ -7,8 +7,8 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/cmd"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/yang"
+	_ "github.com/ze-software/ze/internal/component/ike/cmd"
+	_ "github.com/ze-software/ze/internal/component/ike/ipsec/yang"
+	_ "github.com/ze-software/ze/internal/component/ike/yang"
 )
 

@@ -8,7 +8,7 @@ package radius
 import (
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 const (

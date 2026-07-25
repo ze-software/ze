@@ -9,7 +9,7 @@ package lsdb
 import (
 	"testing"
 
-	types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	types "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func TestGraceLSALinkScopeRouting(t *testing.T) {

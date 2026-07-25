@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 // singleClassHTB returns a minimal accept-case config: HTB with exactly

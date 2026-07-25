@@ -5,7 +5,7 @@ package netflow9
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // HeaderSize is the fixed size of a NetFlow v9 export packet header.

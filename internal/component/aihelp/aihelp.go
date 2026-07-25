@@ -18,13 +18,13 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	cmdregistry "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command"
+	cmdregistry "github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // CLICommand describes a top-level `ze <command>` subcommand. The json tags make

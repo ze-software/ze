@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 type filterOpts struct {

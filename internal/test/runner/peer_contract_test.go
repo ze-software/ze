@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/peer"
+	"github.com/ze-software/ze/internal/test/peer"
 )
 
 // peerContractCI builds a .ci file with the given peer block body and ze-peer

@@ -8,8 +8,8 @@ package host
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // HostMetrics holds the Prometheus gauges and gauge-vecs for host

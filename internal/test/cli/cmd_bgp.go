@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/test/peer"
-	"codeberg.org/thomas-mangin/ze/internal/test/runner"
-	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/peer"
+	"github.com/ze-software/ze/internal/test/runner"
+	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
 var errPeerCheckFailed = errors.New("peer check failed")

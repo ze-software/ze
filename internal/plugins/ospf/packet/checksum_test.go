@@ -5,7 +5,7 @@ package packet
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // VALIDATES: AC-3 - packet checksum is backfilled and verifies over packet minus auth field.

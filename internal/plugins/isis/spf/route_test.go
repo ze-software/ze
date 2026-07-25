@@ -16,7 +16,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // oneNodeResult builds a single-level Result with the root and one reachable

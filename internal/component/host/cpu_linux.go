@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // DetectCPU reads /proc/cpuinfo and /sys/devices/system/cpu/cpu*/ under

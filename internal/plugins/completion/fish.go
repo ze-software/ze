@@ -4,7 +4,7 @@
 
 package completion
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // fishScript returns the fish completion script for ze.
 // Top-level commands are derived from the command registry at generation time.

@@ -13,7 +13,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

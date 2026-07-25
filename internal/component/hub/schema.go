@@ -8,8 +8,8 @@ import (
 	"sort"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/config"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 var errUnknownConfigState = errors.New("unknown config state")

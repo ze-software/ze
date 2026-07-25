@@ -7,12 +7,12 @@ import (
 	"os"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	flowspecyang "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/flowspec/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	flowspecyang "github.com/ze-software/ze/internal/plugins/ddos/flowspec/yang"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var eventBusPtr atomic.Pointer[ze.EventBus]

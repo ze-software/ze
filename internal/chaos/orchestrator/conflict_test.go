@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/scenario"
 )
 
 func TestValidateConfigRangeConflicts_MetricsInsideBGP(t *testing.T) {

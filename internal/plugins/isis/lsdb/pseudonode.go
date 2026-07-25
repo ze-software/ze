@@ -26,8 +26,8 @@
 package lsdb
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // PseudonodeInfo is the input to a pseudo-node LSP origination: the identity of

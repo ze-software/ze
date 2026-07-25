@@ -11,12 +11,12 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/cli"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zeconfigcmd "github.com/ze-software/ze/internal/component/config/cli"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 var errServerNotReady = errors.New("server not ready")

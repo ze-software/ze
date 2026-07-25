@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // HubConfig holds hub orchestrator configuration.

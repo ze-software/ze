@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // RFC requirement: RFC2328-13-4 positive -- when the database copy is MaxAge with LS sequence number MaxSequenceNumber, a received older instance is discarded silently: the database copy is not sent back and no acknowledgment is generated (ReceiveUpdate Older branch, flooding.go:231-238).

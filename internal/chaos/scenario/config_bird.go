@@ -2,7 +2,7 @@
 
 package scenario
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // zeFamilyToBIRDChannel maps Ze family strings to BIRD 2 channel names.
 var zeFamilyToBIRDChannel = map[string]string{

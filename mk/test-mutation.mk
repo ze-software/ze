@@ -82,7 +82,7 @@ ze-mutation-pkg:
 	pkgs=""; \
 	for p in $(PKG); do \
 		case "$$p" in \
-		*...) pkgs="$$pkgs $$(go list $$p 2>/dev/null | sed 's|^codeberg.org/thomas-mangin/ze/|./|')";; \
+		*...) pkgs="$$pkgs $$(go list $$p 2>/dev/null | sed 's|^github.com/ze-software/ze/|./|')";; \
 		*) pkgs="$$pkgs $$p";; \
 		esac; \
 	done; \

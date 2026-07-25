@@ -5,8 +5,8 @@
 package server
 
 import (
-	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ConfigEventGateway adapts Server to the

@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/plugin"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // VALIDATES: API execute wiring preserves request context and remote address into dispatcher context.

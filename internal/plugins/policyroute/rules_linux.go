@@ -5,7 +5,7 @@ package policyroute
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/core/rtproto"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"

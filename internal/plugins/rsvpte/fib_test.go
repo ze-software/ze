@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // captureBus records Emit calls so a test can assert the (namespace, eventType,

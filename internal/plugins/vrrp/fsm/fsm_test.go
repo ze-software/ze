@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 var (
@@ -794,7 +794,7 @@ func TestFSMPackagePurity(t *testing.T) {
 	allowed := map[string]bool{
 		"time":      true,
 		"net/netip": true,
-		"codeberg.org/thomas-mangin/ze/internal/core/clock": true,
+		"github.com/ze-software/ze/internal/core/clock": true,
 	}
 	// Package restrictions are enforced by the import allowlist above; these
 	// tokens catch behavioral escapes the allowlist cannot (goroutines and

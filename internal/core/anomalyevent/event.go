@@ -11,7 +11,7 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // Namespace is the anomaly domain's event namespace, distinct from ddosevent's

@@ -7,7 +7,7 @@ package fibkernel
 import (
 	"net/netip"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
 // RichRoute carries all attributes needed for full FIB programming.

@@ -237,7 +237,7 @@ import (
     "os"
     "os/signal"
 
-    "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+    "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 //go:embed acme-monitor.yang

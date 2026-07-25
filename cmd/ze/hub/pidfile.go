@@ -16,8 +16,8 @@ import (
 	"os/user"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // writePIDFile creates the PID file named by ze.pid.file with the current PID.

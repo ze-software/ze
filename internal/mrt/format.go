@@ -5,7 +5,7 @@ package mrt
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // FormatASPath renders parsed AS-path segments as a space-separated string.

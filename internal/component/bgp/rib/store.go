@@ -5,9 +5,9 @@ package rib
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/store"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/component/bgp/store"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 )
 
 // RouteStore provides global deduplication for routes and their components.

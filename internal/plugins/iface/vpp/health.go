@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/health"
 )
 
 const vppSocketPath = "/run/vpp/api.sock"

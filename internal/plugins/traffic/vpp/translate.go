@@ -19,8 +19,8 @@ import (
 	"go.fd.io/govpp/binapi/policer"
 	"go.fd.io/govpp/binapi/policer_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // policerNamePrefix is the "ze/"-namespace all backend-managed policer names

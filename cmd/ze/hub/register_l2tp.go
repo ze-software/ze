@@ -13,11 +13,11 @@ package hub
 import (
 	"fmt"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/engine"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoeclient"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/engine"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
+	_ "github.com/ze-software/ze/internal/component/l2tp/pppoeclient"
 )
 
 func init() {

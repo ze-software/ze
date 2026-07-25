@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Blank import: ze-plugin-conf imports ze-hub-conf.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
 )
 
 // TestSchema_ZePluginModule verifies ze-plugin-conf.yang content.

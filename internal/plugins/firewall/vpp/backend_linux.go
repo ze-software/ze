@@ -23,8 +23,8 @@ import (
 	govpppolicer "go.fd.io/govpp/binapi/policer"
 	"go.fd.io/govpp/binapi/policer_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	"github.com/ze-software/ze/internal/component/firewall"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 var errVppComponentNotInitialized = errors.New("vpp component not initialized")

@@ -7,7 +7,7 @@ package web
 import (
 	"html/template"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // renderSystemPageContent dispatches system sub-pages. The path slice has the

@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // VALIDATES: AC-12 -- TLV 232 (IPv6 Interface Address) round-trips a list of

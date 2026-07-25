@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
+	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/plugins/flowexport/enrich"
 )
 
 type stubFlowRecordEncoder struct {

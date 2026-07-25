@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // marshalData encodes a handler's data return the way the SDK does (a single

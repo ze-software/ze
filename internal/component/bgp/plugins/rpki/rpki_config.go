@@ -6,7 +6,7 @@ import (
 	"errors"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 )
 
 var errRpkiInvalidBgpConfigJson = errors.New("rpki: invalid BGP config JSON")

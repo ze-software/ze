@@ -9,8 +9,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // recordingStrategy wraps the v4 strategy and records which seam methods the

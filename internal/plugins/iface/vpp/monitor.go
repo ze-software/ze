@@ -15,9 +15,9 @@ import (
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var errIfacevppStartmonitorRequiresNonNilEvent = errors.New("ifacevpp: StartMonitor requires non-nil event bus")

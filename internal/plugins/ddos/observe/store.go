@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 type incident struct {

@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/config"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const boolTrue = "true"

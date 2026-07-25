@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
 )
 
 // TestFormatInterfaceDetail verifies the detail formatter renders the os-name

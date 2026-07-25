@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

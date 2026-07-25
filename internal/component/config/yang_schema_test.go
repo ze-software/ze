@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	// Blank imports trigger init() registration of YANG modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/softver/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 )
 
 func TestYANGSchemaLoads(t *testing.T) {

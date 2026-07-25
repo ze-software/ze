@@ -10,9 +10,9 @@ import (
 	"os"
 	"text/tabwriter"
 
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // cmdShow lists interfaces or shows details for a specific one.

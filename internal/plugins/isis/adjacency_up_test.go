@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
 )
 
 // wire is a shared in-memory L2 segment: a frame sent by one attached circuit is

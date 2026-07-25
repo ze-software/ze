@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver/yang"
+	_ "github.com/ze-software/ze/internal/plugins/dhcpserver"
+	_ "github.com/ze-software/ze/internal/plugins/dhcpserver/yang"
 )
 

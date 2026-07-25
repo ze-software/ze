@@ -471,10 +471,10 @@ L2TP runtime plugins are wired via blank imports in
 plugins:
 
 ```go
-_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authlocal"
-_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authradius"
-_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/pool"
-_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/shaper"
+_ "github.com/ze-software/ze/internal/component/l2tp/plugins/authlocal"
+_ "github.com/ze-software/ze/internal/component/l2tp/plugins/authradius"
+_ "github.com/ze-software/ze/internal/component/l2tp/plugins/pool"
+_ "github.com/ze-software/ze/internal/component/l2tp/plugins/shaper"
 ```
 
 ### 6.6 Config transaction integration

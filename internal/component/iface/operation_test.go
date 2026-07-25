@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	tx "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	tx "github.com/ze-software/ze/internal/component/config/transaction"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // TestIfaceOperationDecomposerAddressAddRemove verifies that iface owns

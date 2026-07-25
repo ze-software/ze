@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // aaaBundle holds the live AAA bundle.

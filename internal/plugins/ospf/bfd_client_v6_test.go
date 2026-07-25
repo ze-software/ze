@@ -11,10 +11,10 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const bfdTestPeerLL = "fe80::2%eth0"

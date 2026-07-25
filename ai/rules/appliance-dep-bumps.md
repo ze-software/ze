@@ -41,7 +41,7 @@ modcache go.sum hashes.
    (filesystem `rm`, never `git rm`), then `make ze-gokrazy-deps` (runs
    `go mod download all` per builddir; the deleted sums regenerate from the new build
    list, pruning the old version string). Do NOT hand-edit hashes.
-   One of the eight is **untracked**: `gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/go.sum`
+   One of the eight is **untracked**: `gokrazy/ze/builddir/github.com/ze-software/ze/go.sum`
    is gitignored (see `.gitignore`), because that module is only
    `replace ze => <repo root>` and every line of its sum is already in the root
    `go.sum`. Regenerate it like the rest; expect no diff. The other seven are
@@ -106,7 +106,7 @@ through the pins, and the version it built is not the version this repo chose:
 
 | What you find | What it means |
 |---------------|---------------|
-| `codeberg.org/thomas-mangin/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
+| `github.com/ze-software/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
 | A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's **kernel** |
 
 Both were live between 2026-07-18 and 2026-07-22: the derived (hugepage) parent

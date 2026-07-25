@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/clear/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/show/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	_ "github.com/ze-software/ze/internal/component/l2tp/yang"
 )
 
 // TestSchema_ZeL2TPModule verifies ze-l2tp-conf.yang loads and has the

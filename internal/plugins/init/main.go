@@ -19,18 +19,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/selfcert"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/pkg/zefs"
 
 	// Register the netlink backend so iface.LoadBackend("netlink")
 	// below resolves. Without this blank import, DiscoverInterfaces
 	// returns "no backend loaded" and every detected interface
 	// (ethernet, dummy, veth, bridge, tunnel, wireguard) is silently
 	// dropped from the initial ze.conf.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 )
 
 // Key aliases for readability (from zefs key registry).

@@ -27,7 +27,7 @@ package statestore
 import (
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // current holds the process-wide shared store (the config system's handle), or

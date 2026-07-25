@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // forward is the seam the daemon-forwarding verbs dispatch through. It is a

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // VALIDATES: Loop.Snapshot returns an empty slice when no sessions

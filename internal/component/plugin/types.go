@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Encoding constants for process output formatting.

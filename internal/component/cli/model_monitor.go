@@ -9,11 +9,11 @@ import (
 
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/cli/contract"
 
 	tea "charm.land/bubbletea/v2"
 
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // MonitorSession represents an active monitor streaming session inside the TUI.

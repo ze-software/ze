@@ -5,8 +5,8 @@
 package support
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	impl "codeberg.org/thomas-mangin/ze/internal/component/support"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	impl "github.com/ze-software/ze/internal/component/support"
 )
 
 func init() {

@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // FlowSpecParams contains parameters for building a FlowSpec route UPDATE.

@@ -14,15 +14,15 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos"
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
-	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/chaos"
+	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/privilege"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var errNoConfigReceived = errors.New("no config received")

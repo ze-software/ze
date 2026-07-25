@@ -9,7 +9,7 @@
 package wireu
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // hasNonMappableASN reports whether the path carries an ASN above 65535 in a

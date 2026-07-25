@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/authz"
 )
 
 // fakeAuthorizer implements aaa.Authorizer for RBAC tests: edit access is

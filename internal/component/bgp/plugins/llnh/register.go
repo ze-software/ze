@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	llnhyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	llnhyang "github.com/ze-software/ze/internal/component/bgp/plugins/llnh/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {

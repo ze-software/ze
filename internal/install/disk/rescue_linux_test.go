@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
+	"github.com/ze-software/ze/internal/core/rescueauth"
 )
 
 // VALIDATES: AC-2/AC-3 -- the installer's own rescue gate accepts the

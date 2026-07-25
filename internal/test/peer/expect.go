@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/test/ci"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/test/ci"
 )
 
 // Consumes reports whether ze-peer consumes the directive `action=lineType`,

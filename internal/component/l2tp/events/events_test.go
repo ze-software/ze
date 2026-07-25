@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // VALIDATES: AC-1 prerequisite -- typed handle exists with the expected

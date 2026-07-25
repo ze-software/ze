@@ -6,9 +6,9 @@ import (
 	"runtime"
 	"testing"
 
-	ribstore "codeberg.org/thomas-mangin/ze/internal/core/rib/store"
+	ribstore "github.com/ze-software/ze/internal/core/rib/store"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // BenchmarkBestPathRecordHeapFootprint measures the steady-state heap cost of

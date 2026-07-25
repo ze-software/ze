@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // cr builds a ConfigRouteRequest for the SR-Policy parser, which only uses the

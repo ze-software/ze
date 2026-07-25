@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // graceExtension mirrors the fixed 10 s grace window the reactor's grace branch

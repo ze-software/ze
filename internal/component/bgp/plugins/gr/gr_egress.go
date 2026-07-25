@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // Attribute type codes used in modification operations.

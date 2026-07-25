@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // controlBytes writes a minimal BFD Control packet into buf and

@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/bmp"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/bmp/yang"
 )
 

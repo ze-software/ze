@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errLoadmoduleNotImplementedOnThisPlatform = errors.New("loadModule not implemented on this platform")

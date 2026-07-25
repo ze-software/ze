@@ -20,7 +20,7 @@ package spf
 import (
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // MaxPathMetric is RFC 5305 / RFC 5308 MAX_PATH_METRIC. A prefix advertised with

@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // dbDescFixedLen is the 12-octet fixed prefix before the LSA header list. RFC
 // 5340 §A.3.3 reorders the fields versus OSPFv2, widens Options to 24 bits, and

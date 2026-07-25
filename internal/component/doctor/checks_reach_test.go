@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // TestReachProbeTimeout verifies the doctorProbeTimeoutEnv override only ever

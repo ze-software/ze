@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errSshAuthSockNotSetStart = errors.New("SSH_AUTH_SOCK not set (start ssh-agent or use eval $(ssh-agent))")

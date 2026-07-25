@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
 // VALIDATES: AC-1 -- valid profile with ingress + egress maps parses and registers.

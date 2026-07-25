@@ -8,7 +8,7 @@ import (
 	"io"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // FormatDocCommand writes documentation for a specific command.

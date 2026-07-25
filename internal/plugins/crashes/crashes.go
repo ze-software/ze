@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/crashlog"
 )
 
 func RunShow(args []string) int {

@@ -23,11 +23,11 @@ import (
 
 	"github.com/beevik/ntp"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
-	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/events"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // countGraceLSAs returns how many of the given LSAs are Opaque Type 3 Grace-LSAs.

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/managed"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/managed"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, configPath string, reload func() error, recorder audit.Recorder) {

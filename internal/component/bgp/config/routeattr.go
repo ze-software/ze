@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/parse"
+	"github.com/ze-software/ze/internal/core/parse"
 )
 
 var errRawAttributeNeedsAtLeastCode = errors.New("raw attribute needs at least code and flags")

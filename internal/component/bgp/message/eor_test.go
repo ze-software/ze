@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestBuildEOR_IPv4Unicast verifies IPv4 unicast EOR is an empty UPDATE.

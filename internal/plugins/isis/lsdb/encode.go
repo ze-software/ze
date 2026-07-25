@@ -17,8 +17,8 @@ package lsdb
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // protocolNLPIDs returns the TLV 129 (Protocols Supported) value: one NLPID

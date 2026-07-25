@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // Intra-Area-Prefix-LSA body field offsets (RFC 5340 §A.4.10, body-relative).
 const (

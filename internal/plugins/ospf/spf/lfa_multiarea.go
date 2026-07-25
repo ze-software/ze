@@ -7,7 +7,7 @@
 
 package spf
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 // suppressLFA reports whether an LFA MUST be suppressed for a route of the given
 // type in the given area (RFC 5286 Section 6.3). Intra-area routes are always

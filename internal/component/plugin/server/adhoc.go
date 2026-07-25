@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"io"
 
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // HandleAdHocPluginSession runs the 5-stage plugin handshake and runtime

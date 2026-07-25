@@ -6,10 +6,10 @@
 // under internal/component and internal/plugins can offer suggestions without
 // importing anything beneath cmd/ze. This shim re-exports the API at the old
 // import path so existing cmd/ze callers keep compiling; new code should import
-// codeberg.org/thomas-mangin/ze/internal/core/suggest directly.
+// github.com/ze-software/ze/internal/core/suggest directly.
 package suggest
 
-import core "codeberg.org/thomas-mangin/ze/internal/core/suggest"
+import core "github.com/ze-software/ze/internal/core/suggest"
 
 // Command returns the closest match from candidates for the given input, or ""
 // if no candidate is close enough.

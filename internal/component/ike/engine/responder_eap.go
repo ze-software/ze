@@ -10,11 +10,11 @@ import (
 	"log/slog"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/component/ike/eap"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/component/pki"
 )
 
 // eapMethodConfig builds the EAP method configuration (server side) from the peer's

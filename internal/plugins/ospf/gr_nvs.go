@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // grRestartFactKeyPrefix is the zefs blob key prefix for a GR restart-fact. The full key

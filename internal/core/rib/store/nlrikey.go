@@ -7,7 +7,7 @@ package store
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // NLRIToPrefix converts NLRI wire bytes to a netip.Prefix for use as BART trie key.

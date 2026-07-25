@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
 func TestListenAddrIsNonLoopback(t *testing.T) {

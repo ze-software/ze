@@ -6,8 +6,8 @@ package l2tp
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
 // PoolStats carries the current state of the IP address pool for

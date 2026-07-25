@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
+	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 )
 
 // TestZeTestWebAuth verifies the harness decides the web-server auth mode from a

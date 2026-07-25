@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 func TestAuthDrainCallsHandler(t *testing.T) {

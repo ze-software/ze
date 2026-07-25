@@ -8,7 +8,7 @@
 
 package message
 
-import "codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+import "github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 // RFC 4271 Section 4.4 - KEEPALIVE Message Format
 //

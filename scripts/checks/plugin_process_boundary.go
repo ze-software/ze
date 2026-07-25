@@ -80,13 +80,13 @@ type dangerousCall struct {
 }
 
 var dangerousCalls = []dangerousCall{
-	{"codeberg.org/thomas-mangin/ze/internal/component/iface", "RegisterOwnedAddresses"},
-	{"codeberg.org/thomas-mangin/ze/internal/component/iface", "UnregisterOwnedAddresses"},
-	{"codeberg.org/thomas-mangin/ze/internal/component/iface", "GetBackend"},
-	{"codeberg.org/thomas-mangin/ze/internal/component/iface", "SubscribeCollectNotify"},
-	{"codeberg.org/thomas-mangin/ze/internal/component/iface", "UnsubscribeCollectNotify"},
-	{"codeberg.org/thomas-mangin/ze/internal/component/trafficstat", "EnsureGlobal"},
-	{"codeberg.org/thomas-mangin/ze/internal/component/trafficstat", "Global"},
+	{"github.com/ze-software/ze/internal/component/iface", "RegisterOwnedAddresses"},
+	{"github.com/ze-software/ze/internal/component/iface", "UnregisterOwnedAddresses"},
+	{"github.com/ze-software/ze/internal/component/iface", "GetBackend"},
+	{"github.com/ze-software/ze/internal/component/iface", "SubscribeCollectNotify"},
+	{"github.com/ze-software/ze/internal/component/iface", "UnsubscribeCollectNotify"},
+	{"github.com/ze-software/ze/internal/component/trafficstat", "EnsureGlobal"},
+	{"github.com/ze-software/ze/internal/component/trafficstat", "Global"},
 }
 
 // watchedImportPaths is the deduplicated set of import paths dangerousCalls
@@ -443,7 +443,7 @@ func runSelftest() int {
 		}
 	}
 
-	const ifacePkg = "codeberg.org/thomas-mangin/ze/internal/component/iface"
+	const ifacePkg = "github.com/ze-software/ze/internal/component/iface"
 
 	// Unguarded, default import name -- must be flagged.
 	write("internal/plugins/plain/register.go", `package plain

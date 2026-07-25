@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // Helper to build packed attribute bytes.

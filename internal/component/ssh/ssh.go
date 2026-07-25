@@ -29,15 +29,15 @@ import (
 	"github.com/charmbracelet/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/paths"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

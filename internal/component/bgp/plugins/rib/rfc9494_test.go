@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // llgrStaleCommunity is LLGR_STALE (0xFFFF0006) in wire form.

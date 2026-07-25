@@ -16,7 +16,7 @@
 package env
 
 import (
-	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
+	coreenv "github.com/ze-software/ze/internal/core/env"
 )
 
 // Env var prefix registration for ze.bgp.* variables accessed via this package.

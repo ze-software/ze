@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
 )
 
 // parseSegmentRouting resolves a `segment-routing` container into sr.SRConfig. It

@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/runner"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 func cmdVpp(args []string) int {

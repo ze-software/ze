@@ -6,7 +6,7 @@ import (
 
 	"go.fd.io/govpp/binapi/policer_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 func TestRateToKbpsRounding(t *testing.T) {

@@ -16,7 +16,7 @@
 
 package spf
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 // AFPrefixStrategy is the address-family-specific half of SPF: graph adjacency
 // decode (BuildGraph) and prefix attachment (intra-area, inter-area, external).

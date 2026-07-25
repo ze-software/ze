@@ -3,14 +3,14 @@ package infra_test
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/config"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
 // TestExtractAuthzConfig verifies that authorization profiles are correctly

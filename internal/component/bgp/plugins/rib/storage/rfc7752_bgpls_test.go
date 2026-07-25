@@ -14,7 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // bgpLSNodeNLRI builds a Node NLRI (type 1) for protocol IS-IS L2 with the

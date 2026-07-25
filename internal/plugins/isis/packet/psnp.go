@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // PSNP fixed-header layout after the common header (ISO/IEC 10589 clause 9.11):
 // PDU Length (2) + Source ID (7). A PSNP carries no Fletcher checksum and no

@@ -22,13 +22,13 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang" // register ze-l2tp-api.yang
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	_ "github.com/ze-software/ze/internal/component/l2tp/yang" // register ze-l2tp-api.yang
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

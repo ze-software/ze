@@ -15,7 +15,7 @@ import (
 	"go.fd.io/govpp/binapi/acl_types"
 	"go.fd.io/govpp/binapi/ip_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 var protoNumbers = map[string]ip_types.IPProto{

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // forwarderSessionConfig is the SessionConfig used by the forwarder's OPEN message.

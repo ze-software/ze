@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/transport"
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/plugins/vrrp/transport"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // fakeDeps records what the worker asked the outside world to do.

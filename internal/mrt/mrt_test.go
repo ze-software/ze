@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 func TestCommonHeaderRoundTrip(t *testing.T) {

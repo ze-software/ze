@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ldp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ldp/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ldp"
+	_ "github.com/ze-software/ze/internal/plugins/ldp/yang"
 )
 

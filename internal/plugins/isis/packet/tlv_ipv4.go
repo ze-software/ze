@@ -7,7 +7,7 @@ package packet
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // IPv4AddrLen is the length of one IPv4 address (TLV 132 entry).

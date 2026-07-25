@@ -28,8 +28,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // endpoint is one parsed "address:port" listen entry for the metrics server.

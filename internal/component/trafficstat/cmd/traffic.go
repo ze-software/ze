@@ -8,11 +8,11 @@ import (
 	"io"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
-	"codeberg.org/thomas-mangin/ze/internal/core/portname"
-	"codeberg.org/thomas-mangin/ze/internal/core/stats"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/trafficstat"
+	"github.com/ze-software/ze/internal/core/portname"
+	"github.com/ze-software/ze/internal/core/stats"
 )
 
 func init() {

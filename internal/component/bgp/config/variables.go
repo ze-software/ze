@@ -6,7 +6,7 @@ package bgpconfig
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ResolveVariables replaces $remote_as, $local_as, and $remote_ip in string

@@ -6,7 +6,7 @@ package fakeenrich
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/show"
+	"github.com/ze-software/ze/internal/core/show"
 )
 
 func TestFakeEnrichRegistered(t *testing.T) {

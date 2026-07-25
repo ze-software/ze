@@ -9,8 +9,8 @@ package detect
 import (
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 type detectMetrics struct {

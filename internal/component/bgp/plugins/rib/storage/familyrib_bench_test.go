@@ -4,9 +4,9 @@ import (
 	"net/netip"
 	"testing"
 
-	pool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
+	pool "github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/store"
 )
 
 func benchSetupRIB(b *testing.B, n int) (*FamilyRIB, [][]byte) {

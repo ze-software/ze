@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
+	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/plugins/flowexport/enrich"
 )
 
 // ProtocolEncoder encodes counter snapshots into wire-format datagrams

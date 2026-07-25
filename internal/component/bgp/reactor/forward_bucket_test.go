@@ -3,7 +3,7 @@ package reactor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // makeTestBody builds a minimal UPDATE body: [wdLen=0][attrLen][attrs][nlri].

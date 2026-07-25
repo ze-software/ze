@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"os"
 
-	tcpkg "codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	tccmd "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	tcpkg "github.com/ze-software/ze/internal/component/traffic"
+	tccmd "github.com/ze-software/ze/internal/component/traffic/cmd"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 
 	// Register the tc backend so tcpkg.LoadBackend("tc") resolves.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
+	_ "github.com/ze-software/ze/internal/plugins/traffic/netlink"
 )
 
 // Run executes the traffic control subcommand. Returns exit code.

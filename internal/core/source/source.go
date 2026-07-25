@@ -7,7 +7,7 @@ package source
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // SourceID is a self-describing identifier for a message source.

@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	mcpui "codeberg.org/thomas-mangin/ze/internal/component/mcp/ui"
+	mcpui "github.com/ze-software/ze/internal/component/mcp/ui"
 )
 
 const uiScheme = "ui://"

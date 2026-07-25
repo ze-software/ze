@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/health"
 )
 
 func TestIPsecHealthCheck_NoEngine(t *testing.T) {

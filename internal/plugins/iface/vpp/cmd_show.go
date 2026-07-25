@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 const maxTraceCount = 10000

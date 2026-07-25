@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // TestVirtualClockImplementsClock verifies compile-time interface conformance.

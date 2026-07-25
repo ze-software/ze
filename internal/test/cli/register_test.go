@@ -7,7 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 // coveredByBigRunner reports whether test/<name> is walked by one of the "big"

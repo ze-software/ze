@@ -4,7 +4,7 @@ package packet
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // lspEntriesTLV builds an opaque TLV 9 carrying the given entries for a

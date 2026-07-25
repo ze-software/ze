@@ -11,14 +11,14 @@ import (
 
 	"github.com/beevik/ntp"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
+	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 )
 
 // newTimeStore registers an empty database.zefs as the process-wide statestore so

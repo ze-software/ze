@@ -8,8 +8,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 )
 
 func TestSetNaming(t *testing.T) {

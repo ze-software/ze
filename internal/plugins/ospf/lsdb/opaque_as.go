@@ -10,8 +10,8 @@
 package lsdb
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // OpaqueDelivery is one newer opaque LSA the LSDB hands to the engine after install.

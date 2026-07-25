@@ -16,9 +16,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // RFC 9234 Section 4.1: BGP Role Capability (Code 9, Length 1).

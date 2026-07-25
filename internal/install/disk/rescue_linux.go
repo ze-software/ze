@@ -16,8 +16,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/rescueauth"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var retryMu sync.Mutex

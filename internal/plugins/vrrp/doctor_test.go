@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // TestDoctorSilentWithoutVRRP proves the check says nothing when interfaces are

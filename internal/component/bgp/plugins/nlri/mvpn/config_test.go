@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestMVPNConfigRouteParserRegistered verifies the MVPN plugin registers a config

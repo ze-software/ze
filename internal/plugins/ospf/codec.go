@@ -13,8 +13,8 @@ import (
 	"errors"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // ErrNot* are returned by the body decoders when the payload decodes to a packet of the

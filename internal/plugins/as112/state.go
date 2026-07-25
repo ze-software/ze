@@ -5,7 +5,7 @@ package as112
 import (
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // as112State is the immutable snapshot the engine publishes on each config

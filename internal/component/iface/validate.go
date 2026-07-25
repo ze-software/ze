@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/naming"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/naming"
 )
 
 // Interface name length limits (Linux kernel IFNAMSIZ = 16, including

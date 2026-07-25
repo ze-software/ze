@@ -12,7 +12,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // TestBuildVxlanLink verifies AC-3 (A-5): the netlink half of the new vxlan

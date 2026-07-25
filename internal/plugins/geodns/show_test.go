@@ -3,7 +3,7 @@ package geodns
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // VALIDATES: `show geodns` reports status fields from the published snapshot

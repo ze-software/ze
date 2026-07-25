@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/observation"
 )
 
 func featureOf(snap *Snapshot, addr netip.Addr) (FeatureEntry, bool) {

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/observation"
 )
 
 func bpsOf(list []TalkerEntry, addr netip.Addr) float64 {

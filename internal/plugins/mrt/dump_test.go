@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	mrtfmt "github.com/ze-software/ze/internal/mrt"
 )
 
 func TestRibSubtype(t *testing.T) {

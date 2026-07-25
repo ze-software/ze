@@ -12,7 +12,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 const (

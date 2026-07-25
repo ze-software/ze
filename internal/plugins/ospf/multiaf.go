@@ -11,8 +11,8 @@
 package ospf
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // dropReasonAFBit labels a Hello dropped because a non-default OSPFv3 address family

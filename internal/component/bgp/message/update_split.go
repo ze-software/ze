@@ -14,9 +14,9 @@ import (
 	"fmt"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Errors for UPDATE splitting and bounds checking.

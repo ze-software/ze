@@ -13,7 +13,7 @@ import (
 	"go.fd.io/govpp/binapi/ip_neighbor"
 	"go.fd.io/govpp/binapi/ip_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // allNeighborSwIfIndex is the VPP sentinel meaning "match every interface"

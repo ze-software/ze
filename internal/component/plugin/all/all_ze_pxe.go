@@ -7,9 +7,9 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/yang"
+	_ "github.com/ze-software/ze/internal/plugins/imageserver"
+	_ "github.com/ze-software/ze/internal/plugins/imageserver/yang"
+	_ "github.com/ze-software/ze/internal/plugins/tftpserver"
+	_ "github.com/ze-software/ze/internal/plugins/tftpserver/yang"
 )
 

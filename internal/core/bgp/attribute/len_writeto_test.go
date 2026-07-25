@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // TestLenMatchesWriteTo verifies Len() returns exact bytes WriteTo will use.

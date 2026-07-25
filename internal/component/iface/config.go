@@ -16,8 +16,8 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cos"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var (

@@ -19,7 +19,7 @@ import (
 	"net"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // localFECs returns the FECs this LSR originates: the LSR-ID as a host route

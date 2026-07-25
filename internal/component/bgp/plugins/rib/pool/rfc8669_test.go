@@ -14,7 +14,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 )
 
 // TestRFC8669NLRILabelIsTheOutboundLabel follows the label of a received labeled-unicast

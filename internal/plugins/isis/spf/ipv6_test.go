@@ -16,9 +16,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // stubResolverV6 resolves every neighbor to a deterministic fe80:: link-local

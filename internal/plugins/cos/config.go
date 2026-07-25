@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strconv"
 
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
 // parseAndRegisterProfiles parses class-of-service ieee-802.1p profiles

@@ -4,7 +4,7 @@
 package bgpconfig
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/config/infra"
 )
 
 // LoginWarning is the banner-warning shape produced by collectPrefixWarnings.

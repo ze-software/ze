@@ -13,7 +13,7 @@ import (
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/ip_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // familyIPv4 / familyIPv6 are the canonical family strings emitted in

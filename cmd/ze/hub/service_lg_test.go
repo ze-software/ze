@@ -11,7 +11,7 @@ import (
 	"context"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 func TestParseASNForDecorator(t *testing.T) {

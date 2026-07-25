@@ -3,8 +3,8 @@ package wireu
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // benchPayload builds a realistic IPv4 UPDATE payload for benchmarking.

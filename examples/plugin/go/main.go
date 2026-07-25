@@ -25,7 +25,7 @@ import (
 	"net/url"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin"
+	"github.com/ze-software/ze/pkg/plugin"
 )
 
 // YANG schema for the monitor plugin.

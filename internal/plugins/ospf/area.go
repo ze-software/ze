@@ -2,7 +2,7 @@
 // Related: config.go -- areaConfig and interfaceConfig inputs
 package ospf
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 type area struct {
 	id         types.AreaID

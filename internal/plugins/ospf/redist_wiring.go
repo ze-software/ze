@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"net/netip"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	ospfredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 var errEngineNotReady = errors.New("ospf: engine not ready for external origination")

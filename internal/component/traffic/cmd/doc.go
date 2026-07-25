@@ -3,4 +3,4 @@
 
 package cmd
 
-import _ "codeberg.org/thomas-mangin/ze/internal/component/traffic/yang"
+import _ "github.com/ze-software/ze/internal/component/traffic/yang"

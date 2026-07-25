@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 const (

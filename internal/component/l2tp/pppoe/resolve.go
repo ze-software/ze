@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // resolveInterface looks up a logical interface name through the shared iface

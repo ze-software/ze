@@ -2,7 +2,7 @@
 
 package cli
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // pluginFlags collects multiple --plugin flag values.
 type pluginFlags []string

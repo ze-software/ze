@@ -3,8 +3,8 @@ package reactor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // buildAttrsWireFixture constructs a representative parsed-attributes fixture

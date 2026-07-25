@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/show"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/show"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const (

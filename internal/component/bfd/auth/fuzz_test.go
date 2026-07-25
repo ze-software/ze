@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // FuzzAuthDigest feeds random bytes into Verifier.Verify across all four

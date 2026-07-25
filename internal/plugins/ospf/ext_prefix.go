@@ -19,8 +19,8 @@ import (
 	"net/netip"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // extPrefixAdvert is one prefix this router advertises an Extended Prefix TLV for, with its

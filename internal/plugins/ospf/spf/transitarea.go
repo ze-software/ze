@@ -14,8 +14,8 @@ package spf
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // VirtualLinkRequest identifies a configured virtual link for transit-area resolution: the

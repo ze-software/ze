@@ -11,7 +11,7 @@ package cli
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 func TestNestedTrafficAnomalySchemaPaths(t *testing.T) {

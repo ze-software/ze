@@ -3,7 +3,7 @@
 package yang
 
 import (
-	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func init() {

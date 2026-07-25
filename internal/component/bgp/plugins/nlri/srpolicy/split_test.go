@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri/nlrisplit"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 func TestSRPolicySplitIPv4Single(t *testing.T) {

@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp/bridgeplugin"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp/bridgeplugin/yang"
+	_ "github.com/ze-software/ze/internal/plugins/exabgp/bridgeplugin"
+	_ "github.com/ze-software/ze/internal/plugins/exabgp/bridgeplugin/yang"
 )
 

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // EmitConfig produces Ze config syntax for a slice of DiscoveredInterfaces.

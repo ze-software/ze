@@ -22,11 +22,11 @@ import (
 	"net/netip"
 	"strings"
 
-	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
+	_ "github.com/ze-software/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
 )
 
 // errBFDServiceUnavailable is returned when a show command runs while

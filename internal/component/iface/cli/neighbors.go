@@ -11,8 +11,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // cmdNeighbors lists the kernel neighbor table (IPv4 ARP + IPv6 ND).

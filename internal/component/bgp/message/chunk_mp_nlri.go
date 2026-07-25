@@ -9,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/iter"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/iter"
 )
 
 var errMalformedNlri = errors.New("malformed NLRI")

@@ -12,8 +12,8 @@ import (
 
 	interfaces "go.fd.io/govpp/binapi/interface"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	"github.com/ze-software/ze/internal/component/iface"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 func TestHandleVPPTraceStart_InvalidNodeName(t *testing.T) {

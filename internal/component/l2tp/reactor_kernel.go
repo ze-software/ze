@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/netip"
 
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // collectKernelEventsLocked scans the tunnel for sessions that need

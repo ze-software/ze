@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Operation wire/value types are shared with the public plugin RPC package so

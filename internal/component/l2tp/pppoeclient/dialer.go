@@ -11,9 +11,9 @@ import (
 	"runtime"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 )
 
 const discoveryTimeout = 10 * time.Second

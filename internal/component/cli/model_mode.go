@@ -11,8 +11,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errNoDaemonConnectionOperationalModeRequires = errors.New("no daemon connection (operational mode requires a running daemon)")

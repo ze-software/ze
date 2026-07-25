@@ -100,9 +100,9 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 
 	failureText := readFile(t, root, failuresLogPath)
 	for _, want := range []string{
-		"Group: package:codeberg.org/thomas-mangin/ze/internal/example/alpha",
+		"Group: package:github.com/ze-software/ze/internal/example/alpha",
 		"Rerun: go test ./internal/example/alpha -run '^TestAlpha$'",
-		"Group: package:codeberg.org/thomas-mangin/ze/internal/example/beta",
+		"Group: package:github.com/ze-software/ze/internal/example/beta",
 		"Stage: plugin",
 		"Rerun: ze-test bgp plugin 1 2",
 		"Group: subcheck:ze-doc-test",
@@ -155,7 +155,7 @@ func TestVerifyRunMixedFailureFixture(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("expected failure exit, got %d", code)
 	}
-	for _, want := range []string{"package:codeberg.org/thomas-mangin/ze/internal/example/alpha", "plugin:timeout:bfd", "subcheck:ze-doc-test", "exabgp:failed"} {
+	for _, want := range []string{"package:github.com/ze-software/ze/internal/example/alpha", "plugin:timeout:bfd", "subcheck:ze-doc-test", "exabgp:failed"} {
 		mustReadFileContains(t, root, failuresLogPath, want)
 	}
 }
@@ -249,13 +249,13 @@ func TestVerifyRunCapsInlineMembersAndExcerptLines(t *testing.T) {
 }
 
 func TestGoTestFailuresGroupByPackage(t *testing.T) {
-	text := `# codeberg.org/thomas-mangin/ze/internal/example/build
+	text := `# github.com/ze-software/ze/internal/example/build
 internal/example/build/bad.go:3:2: undefined: nope
-FAIL	codeberg.org/thomas-mangin/ze/internal/example/build [build failed]
+FAIL	github.com/ze-software/ze/internal/example/build [build failed]
 --- FAIL: TestOne (0.00s)
     one_test.go:10: no
 FAIL
-FAIL	codeberg.org/thomas-mangin/ze/internal/example/one	0.01s
+FAIL	github.com/ze-software/ze/internal/example/one	0.01s
 `
 	groups := classifyGoTest(stage{Name: "ze-unit-test-cached"}, "tmp/verify/unit.log", text)
 	if len(groups) != 2 {
@@ -264,7 +264,7 @@ FAIL	codeberg.org/thomas-mangin/ze/internal/example/one	0.01s
 	if groups[0].Kind != "build" || groups[0].Rerun != "go test ./internal/example/build" {
 		t.Fatalf("unexpected build group: %+v", groups[0])
 	}
-	if groups[1].GroupID != "package:codeberg.org/thomas-mangin/ze/internal/example/one" || groups[1].Rerun != "go test ./internal/example/one -run '^TestOne$'" {
+	if groups[1].GroupID != "package:github.com/ze-software/ze/internal/example/one" || groups[1].Rerun != "go test ./internal/example/one -run '^TestOne$'" {
 		t.Fatalf("unexpected test group: %+v", groups[1])
 	}
 }

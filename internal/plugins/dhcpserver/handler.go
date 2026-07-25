@@ -7,7 +7,7 @@ import (
 	"net"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // RFC 2131 Section 2: DHCP message op codes.

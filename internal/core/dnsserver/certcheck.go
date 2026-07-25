@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // certExpiryWarnWindow is how far ahead of NotAfter a certificate is flagged as

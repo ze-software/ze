@@ -6,11 +6,11 @@ import (
 	"context"
 	"maps"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	zePlugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var managedServerLog = slogutil.LazyLogger("hub.managed-server")

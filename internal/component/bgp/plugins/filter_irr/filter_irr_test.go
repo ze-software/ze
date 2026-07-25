@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: AC-5 -- concurrent filter evaluation during refresh sees consistent state.

@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/config"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // getUnclaimedFamilyPlugins returns plugins to auto-load for configured families

@@ -19,7 +19,7 @@ package reactor
 import (
 	"log/slog"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 )
 
 // exportFilterForBody runs the destination peer's export filter chain on the wire

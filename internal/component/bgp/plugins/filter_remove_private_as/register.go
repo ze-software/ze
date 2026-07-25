@@ -1,8 +1,8 @@
 package filter_remove_private_as
 
 import (
-	frpayang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_remove_private_as/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	frpayang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_remove_private_as/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

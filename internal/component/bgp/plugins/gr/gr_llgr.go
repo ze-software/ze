@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/family"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // llgrFamily represents an AFI/SAFI entry in the LLGR capability.

@@ -11,7 +11,7 @@ package peer
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/engine"
 )
 
 func executeIfaceLinkFlap(action engine.ChaosAction, emit func(Event)) ChaosResult {

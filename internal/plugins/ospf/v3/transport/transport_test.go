@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // ospfv3Packet builds a minimal valid OSPFv3 common header (version 3, the given

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
-	"codeberg.org/thomas-mangin/ze/internal/component/pki"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/pki"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // parseIPsecSections finds the "vpn" config section and parses the IPsec config.

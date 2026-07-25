@@ -3,8 +3,8 @@ package doctor
 import (
 	"testing"
 
-	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	zeplugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func TestCheckPluginBinaries_MissingBinary(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: bootstrapConfigFromTemplate makes a build-time template the

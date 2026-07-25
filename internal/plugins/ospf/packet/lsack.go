@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 // LSAck is the Link State Acknowledgment packet body. The struct is shared via the types
 // leaf (one type across the engine, neighbor FSM, and both wire codecs).

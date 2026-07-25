@@ -12,7 +12,7 @@ package hub
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 func TestBuildTag_Telemetry_Present(t *testing.T) {

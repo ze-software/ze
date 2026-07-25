@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // roleCap creates a ValidateOpenCapability for Role (code 9) with given hex value.

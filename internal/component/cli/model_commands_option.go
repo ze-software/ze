@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errUsageOption = errors.New("usage: option <author|date|source|changes|all|none|errors> [enable|disable|hints|hide]")

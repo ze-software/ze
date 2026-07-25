@@ -23,7 +23,7 @@ package isisredistribute
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 )
 
 // DefaultRedistMetric is the FIXED default 32-bit prefix metric (RFC 5305 sec 4,

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // cutEdgeSource: root 1.1.1.1's ONLY link is the transit to the LAN pseudonode

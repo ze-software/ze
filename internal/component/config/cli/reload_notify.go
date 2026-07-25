@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 
-	editor "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	editor "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/core/cliio"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // loadReloadCredentials and execReloadCommand indirect over the SSH client so a

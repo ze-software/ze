@@ -6,10 +6,10 @@
 // under internal/component and internal/plugins can reach the daemon without
 // importing anything beneath cmd/ze. This shim re-exports the API at the old
 // import path so existing cmd/ze callers keep compiling; new code should import
-// codeberg.org/thomas-mangin/ze/internal/core/ssh/client directly.
+// github.com/ze-software/ze/internal/core/ssh/client directly.
 package client
 
-import core "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+import core "github.com/ze-software/ze/internal/core/ssh/client"
 
 // Re-exported types. Aliases preserve ProtocolSession's methods and keep
 // Credentials assignable across the shim boundary.

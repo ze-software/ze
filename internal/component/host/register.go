@@ -2,7 +2,7 @@
 
 package host
 
-import "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+import "github.com/ze-software/ze/internal/component/plugin/registry"
 
 func init() {
 	names := make([]string, 0, len(platformTypeNames))

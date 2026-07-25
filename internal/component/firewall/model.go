@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/naming"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/naming"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"codeberg.org/thomas-mangin/ze/internal/perf"
+	"github.com/ze-software/ze/internal/perf"
 )
 
 // PrintHuman writes a human-readable benchmark summary to w.

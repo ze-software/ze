@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // routeDisplayLimit caps the number of routes shown in the web UI to prevent

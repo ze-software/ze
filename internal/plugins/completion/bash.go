@@ -4,7 +4,7 @@
 
 package completion
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // bashScript returns the bash completion script for ze.
 //

@@ -3,7 +3,7 @@
 
 package rs
 
-import "codeberg.org/thomas-mangin/ze/internal/core/family"
+import "github.com/ze-software/ze/internal/core/family"
 
 // PeerState tracks the state of a BGP peer.
 type PeerState struct {

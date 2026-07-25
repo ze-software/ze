@@ -8,8 +8,8 @@ package lg
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/graph"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/graph"
 )
 
 // Graph is a type alias for the shared graph data model.

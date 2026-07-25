@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/engine"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/engine"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // recorder tracks the order of subsystem lifecycle calls.

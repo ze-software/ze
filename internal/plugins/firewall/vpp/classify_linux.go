@@ -11,7 +11,7 @@ import (
 
 	"go.fd.io/govpp/binapi/interface_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 const classifyMatchVectors = 3 // 48 bytes covers IPv4 header (20) + L4 ports (4) + padding

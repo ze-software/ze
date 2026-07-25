@@ -18,5 +18,5 @@ package cmd
 import (
 	// Blank import registers this module's YANG command schema (show ping,
 	// monitor ping, resolve ping) via container merge onto the central verbs.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ping-cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ping-cmd/yang"
 )

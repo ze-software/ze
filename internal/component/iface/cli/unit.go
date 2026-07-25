@@ -7,8 +7,8 @@ import (
 	"os"
 	"strconv"
 
-	mgr "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	mgr "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // cmdUnit manages logical units (VLAN subinterfaces) on an interface.

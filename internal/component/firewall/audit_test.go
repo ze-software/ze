@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // VALIDATES: AC-15 -- ze_* tables in kernel but not in config produce

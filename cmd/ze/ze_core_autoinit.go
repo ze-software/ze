@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	internalresolve "codeberg.org/thomas-mangin/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/paths"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 )
 
 // gokrazyAutoInit creates the config directory and blob storage when

@@ -5,7 +5,7 @@ package pool
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 )
 
 // Labels stores MPLS label stacks as pooled byte slices. Each label is

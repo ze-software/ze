@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/store"
 
 	"net/netip"
 )

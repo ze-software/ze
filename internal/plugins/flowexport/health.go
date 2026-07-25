@@ -4,7 +4,7 @@
 
 package flowexport
 
-import "codeberg.org/thomas-mangin/ze/internal/core/health"
+import "github.com/ze-software/ze/internal/core/health"
 
 // RegisterHealthCheck registers the flow-export health check with the default
 // registry. Flow export is outbound, connectionless UDP, so true collector

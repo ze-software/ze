@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 type mplsSwapRec struct {

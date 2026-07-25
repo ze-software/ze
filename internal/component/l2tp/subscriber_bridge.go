@@ -7,12 +7,12 @@ import (
 	"log/slog"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
-	subevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 type subscriberBridge struct {

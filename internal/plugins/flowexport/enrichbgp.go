@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/plugins/flowexport/enrich"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // bgpEnrichBuilder subscribes to BGP RIB best-path changes and maintains

@@ -8,8 +8,8 @@
 package filter_family
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // dirImport is the RPC FilterUpdateInput.Direction value for received UPDATEs.

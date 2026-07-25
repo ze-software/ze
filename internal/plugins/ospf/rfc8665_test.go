@@ -16,11 +16,11 @@ import (
 	"net/netip"
 	"testing"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // srRITypes returns the RI TLV types registered for one flooding scope.

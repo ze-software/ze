@@ -7,8 +7,8 @@ package command
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/envcatalog"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/envcatalog"
 )
 
 // WireValueHints attaches ValueHints callbacks to known nodes in a command tree.

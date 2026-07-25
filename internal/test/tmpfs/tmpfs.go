@@ -31,7 +31,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
+	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
 var (

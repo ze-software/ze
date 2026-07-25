@@ -8,7 +8,7 @@ package isis
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 func TestISISEventNamespace(t *testing.T) {

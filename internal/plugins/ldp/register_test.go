@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: spec-ospf-ext-11 AC-11, A-4, R-4 -- a discovered adjacency (and hence

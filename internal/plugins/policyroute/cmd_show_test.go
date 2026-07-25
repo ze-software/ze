@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // VALIDATES: the `show policy routes` proxy RPC is registered with its plugin

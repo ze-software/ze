@@ -11,7 +11,7 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // State is the VRRP instance state. RFC 9568 renamed Master to "Active Router";

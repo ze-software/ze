@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 func TestInstallerSetsBackupPath(t *testing.T) {

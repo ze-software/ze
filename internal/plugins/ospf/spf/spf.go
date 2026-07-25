@@ -10,8 +10,8 @@ import (
 	"slices"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // LSInfinity is the RFC 2328 unreachable OSPF cost ceiling. A path cost at or

@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/perf"
+	"github.com/ze-software/ze/internal/perf"
 )
 
 const regressionMarker = " **!!**"

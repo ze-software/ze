@@ -5,8 +5,8 @@
 package rs
 
 import (
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // processForward handles a forwarding work item in a worker goroutine.

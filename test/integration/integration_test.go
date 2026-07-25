@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
 )
 
 // testTimeout is the maximum time for test operations.

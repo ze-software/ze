@@ -3,7 +3,7 @@ package appliance
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 func TestApplianceRootRegistered(t *testing.T) {

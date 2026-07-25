@@ -3,12 +3,12 @@ package role
 import (
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	roleyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	roleyang "github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {

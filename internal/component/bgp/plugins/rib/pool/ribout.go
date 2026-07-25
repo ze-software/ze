@@ -3,7 +3,7 @@
 package pool
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 )
 
 // RibOut pools wire attribute bytes for Adj-RIB-Out deduplication.

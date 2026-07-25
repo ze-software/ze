@@ -7,7 +7,7 @@ package web
 import (
 	"html/template"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // familyEntry holds one address family configuration row across a peer or group.

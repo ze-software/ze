@@ -45,7 +45,7 @@ import (
 // nm line, ABSENT when none does.
 var gate11SymbolGroups = map[string][]string{
 	"msgtype":      {"internal/core/bgp/msgtype."},
-	"internal-mrt": {"codeberg.org/thomas-mangin/ze/internal/mrt."},
+	"internal-mrt": {"github.com/ze-software/ze/internal/mrt."},
 	"bmp":          {"internal/component/bgp/plugins/bmp"},
 	"mrt-plugin":   {"internal/plugins/mrt.", "internal/plugins/mrt/"},
 	"bgp-engine":   {"internal/component/bgp/reactor.", "internal/component/bgp/message."},

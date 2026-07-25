@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 )
 
 var (

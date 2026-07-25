@@ -10,7 +10,7 @@ import (
 	"io"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // FormatCollisionsText writes collision groups as human-readable text.

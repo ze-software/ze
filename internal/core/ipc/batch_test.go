@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	rpc "github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestBatchRoundTrip verifies write batch frame -> read with FrameReader -> parse events.

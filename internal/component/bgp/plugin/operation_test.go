@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	tx "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
+	tx "github.com/ze-software/ze/internal/component/config/transaction"
 )
 
 // TestBGPOperationDecomposerPeerLocalAddressChange verifies that BGP owns

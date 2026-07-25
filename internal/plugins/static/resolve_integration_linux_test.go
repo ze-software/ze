@@ -19,8 +19,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
+	"github.com/ze-software/ze/internal/component/iface"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
 )
 
 func TestResolveNexthopIndexUsesResolver(t *testing.T) {

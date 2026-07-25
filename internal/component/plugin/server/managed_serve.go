@@ -22,12 +22,12 @@ import (
 	"sync"
 	"time"
 
-	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/fleet"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var managedLogger = slogutil.LazyLogger("hub.managed-server")

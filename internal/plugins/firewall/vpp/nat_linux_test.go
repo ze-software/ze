@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // TestBuildDNATMappingProtocol checks the DNAT static mapping carries the IANA

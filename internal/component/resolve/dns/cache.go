@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // cacheKey identifies a cached DNS query by name and record type.

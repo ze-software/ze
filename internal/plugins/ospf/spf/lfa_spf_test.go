@@ -10,7 +10,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // attachTopo builds the backbone-area graph rooted at S (1.1.1.1), runs SPF +

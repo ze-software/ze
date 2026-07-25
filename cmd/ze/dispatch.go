@@ -12,11 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
+	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
 // binarySetup is called before dispatch to perform personality-specific

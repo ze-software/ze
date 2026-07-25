@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/transport"
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/plugins/vrrp/transport"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // fakePlatform records the transport + iface calls the manager makes.

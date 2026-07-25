@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // helloFixedLen is the 20-octet fixed prefix before the neighbor list. RFC 5340
 // §A.3.2 replaces the OSPFv2 network mask with a 32-bit Interface ID, widens

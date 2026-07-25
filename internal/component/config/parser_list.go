@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // parseList parses a YANG list in three forms:

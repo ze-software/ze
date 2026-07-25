@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	fatimg "codeberg.org/thomas-mangin/ze/internal/thirdparty/fat"
+	fatimg "github.com/ze-software/ze/internal/thirdparty/fat"
 )
 
 const isoTestApplianceName = "lab"

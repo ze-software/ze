@@ -3,7 +3,7 @@
 
 package spf
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 // Area-type policy strings (mirrors the lsdb AreaType* constants and the config enum).
 const (

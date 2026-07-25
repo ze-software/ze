@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: configured filter returns a modify directive when AS_PATH contains private ASNs.

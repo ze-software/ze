@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // tagEntry is a tracked on-demand announcement in the tag registry.

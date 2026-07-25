@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // FlowSpec action names.

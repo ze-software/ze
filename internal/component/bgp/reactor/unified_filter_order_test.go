@@ -8,7 +8,7 @@ package reactor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 func probeIngress(_ filterapi.PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) {

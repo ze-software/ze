@@ -19,9 +19,9 @@ import (
 
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
 )
 
 func TestWaitForInterfaceFoundResolves(t *testing.T) {

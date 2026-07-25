@@ -9,13 +9,13 @@ import (
 	// Blank imports trigger init() registration of service YANG modules so
 	// YANGSchema() picks up environment/{api-server,web,mcp,looking-glass}
 	// used by these tests.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/grpc/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/rest/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/web/yang"
+	_ "github.com/ze-software/ze/internal/component/api/grpc/yang"
+	_ "github.com/ze-software/ze/internal/component/api/rest/yang"
+	_ "github.com/ze-software/ze/internal/component/api/yang"
+	_ "github.com/ze-software/ze/internal/component/gnmi/yang"
+	_ "github.com/ze-software/ze/internal/component/lg/yang"
+	_ "github.com/ze-software/ze/internal/component/mcp/yang"
+	_ "github.com/ze-software/ze/internal/component/web/yang"
 )
 
 // TestExtractAPIConfig_RESTSingleServer verifies a single named list entry

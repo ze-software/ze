@@ -4,7 +4,7 @@ package rpki
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // actionString maps an action constant back to its config keyword.

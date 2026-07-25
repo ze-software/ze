@@ -12,7 +12,7 @@
 // only the type vocabulary is shared.
 package msgtype
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // MessageType is the RFC 4271 Section 4.1 Type field: a 1-octet unsigned
 // integer indicating the message type.

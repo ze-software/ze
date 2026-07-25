@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // modBufPool provides reusable buffers for the progressive build.

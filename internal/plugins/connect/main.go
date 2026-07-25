@@ -13,9 +13,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const (

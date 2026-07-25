@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
 // VALIDATES: AC-3 -- with no operator cert/key files, LoadTLSMaterial falls back

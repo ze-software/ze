@@ -7,7 +7,7 @@
 package tacacs
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // tacacsBackend is the AAA backend for TACACS+ (RFC 8907).

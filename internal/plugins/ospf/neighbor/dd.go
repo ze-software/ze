@@ -6,8 +6,8 @@ package neighbor
 import (
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const maxDDHeaders = (packet.MaxPacketLen - packet.CommonHeaderLen - 8) / types.LSAHeaderLen

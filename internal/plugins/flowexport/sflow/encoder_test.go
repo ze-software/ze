@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // RFC requirement: SFLOW-V5-x-1 positive -- the datagram's first field decodes big-endian to 5, the compile-time Version constant WriteDatagramHeader writes (encoder.go:14,40).

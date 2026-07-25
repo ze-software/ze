@@ -7,8 +7,8 @@
 package ospf
 
 import (
-	ospfiface "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/iface"
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
 
 // grV4Body builds the RFC 3623 sec A IPv4 Grace-LSA body for one interface: the mandatory

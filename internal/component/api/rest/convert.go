@@ -5,7 +5,7 @@ package rest
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/api"
 )
 
 func fromRESTExecuteRequest(caller api.CallerIdentity, command string, params map[string]any) (*api.ExecuteRequest, error) {

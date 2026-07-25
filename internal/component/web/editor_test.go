@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang" // Register BGP YANG for write-through tests.
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang" // Required by ze-bgp-conf.yang (imports ze-hub-conf).
+	_ "github.com/ze-software/ze/internal/component/bgp/yang" // Register BGP YANG for write-through tests.
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	_ "github.com/ze-software/ze/internal/component/hub/yang" // Required by ze-bgp-conf.yang (imports ze-hub-conf).
 )
 
 // validWebConfig is a YANG-parseable BGP config for EditorManager tests.

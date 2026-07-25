@@ -29,10 +29,10 @@ import (
 	"go.fd.io/govpp/binapi/vxlan"
 	"go.fd.io/govpp/binapi/wireguard"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // progChannel is a programmable api.Channel fake shared by the tunnel,

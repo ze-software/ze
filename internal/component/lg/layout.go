@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"html/template"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/graph"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/graph"
 )
 
 // Layout is a type alias for the shared layout type.

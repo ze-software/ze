@@ -230,7 +230,7 @@ def _rebuild_move_path(
 # -- Format 1: Slash paths in quoted strings ----------------------------------
 
 # Matches YANG-style slash paths in quotes (lowercase segments with hyphens).
-# Excludes Go import paths (contain dots like codeberg.org), file paths (contain
+# Excludes Go import paths (contain dots like github.com), file paths (contain
 # dots like .md/.go), and URLs (contain ://).
 RE_QUOTED_SLASH_PATH = re.compile(
     r'(?<=["\'])([a-z][\w-]*/[a-z][\w/-]*[a-z\d])(?=["\'])'

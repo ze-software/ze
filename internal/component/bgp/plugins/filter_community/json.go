@@ -5,7 +5,7 @@ package filter_community
 import (
 	"encoding/hex"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 func appendCommunitiesJSON(buf []byte, attr attribute.Attribute) []byte {

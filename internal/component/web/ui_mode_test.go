@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	// Side-effect import: registers ze.web.ui-mode.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	_ "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui-mode env var set,

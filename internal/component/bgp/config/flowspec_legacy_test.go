@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestFlowSpecConfigToPlugin verifies that the legacy flow{} reader reconstructs

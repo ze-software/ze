@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // Default timer values per RFC 4271 Section 10.

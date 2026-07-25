@@ -14,7 +14,7 @@ package runner
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // zeDefaultConfigName is the filename the first ze daemon's config is written

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // extractVSACoSProfile scans Vendor-Specific attributes for a CoS

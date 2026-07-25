@@ -15,7 +15,7 @@ package mplsfib
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // Namespace is the event namespace for MPLS forwarding entries.

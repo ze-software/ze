@@ -14,8 +14,8 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var errProfileNameCannotBeEmpty = errors.New("profile name cannot be empty")

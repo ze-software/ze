@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 func TestResolveOSPFInterfaceUsesIfaceResolverOSName(t *testing.T) {

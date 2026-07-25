@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // lsReqEntryLen is the 12-octet request entry. RFC 5340 §A.3.4 carries the
 // genuinely 16-bit LS Type in the low half of a 32-bit slot: the leading two

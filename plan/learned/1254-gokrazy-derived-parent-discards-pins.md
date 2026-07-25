@@ -5,7 +5,7 @@
 `gokrazy/modcache/` had grown to 2.1 GB. 1.23 GB of it was nine extracted copies
 of **ze itself**, at nine consecutive pseudo-versions, one per commit pushed
 between 18 and 22 July, each fetched from the module proxy with its zip. That
-should be impossible: `gokrazy/ze/builddir/codeberg.org/thomas-mangin/ze/go.mod`
+should be impossible: `gokrazy/ze/builddir/github.com/ze-software/ze/go.mod`
 replaces ze with the working tree, so no build that reads the builddir can reach
 the proxy for ze.
 
@@ -54,7 +54,7 @@ unpinned Linux kernel.
   at 811 MB, only the pinned kernel present. The same A/B failed on 2026-07-22
   before the fix.
 - `gokrazy/modcache` stops growing by ~140 MB per pushed commit.
-- Cache growth regains diagnostic value: a `codeberg.org/thomas-mangin/ze@...`
+- Cache growth regains diagnostic value: a `github.com/ze-software/ze@...`
   directory, or an off-pin copy of a pinned module, now means some path is
   preparing an instance without the builddir. `ai/rules/appliance-dep-bumps.md`
   records how to read the cache and why `rm -rf gokrazy/modcache` is never the

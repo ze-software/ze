@@ -9,9 +9,9 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
-	staticvpp "codeberg.org/thomas-mangin/ze/internal/plugins/static/vpp"
+	"github.com/ze-software/ze/internal/component/iface"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
+	staticvpp "github.com/ze-software/ze/internal/plugins/static/vpp"
 )
 
 // vppStaticBackend programs static routes into the VPP data plane through the

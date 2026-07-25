@@ -10,9 +10,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	staticevents "codeberg.org/thomas-mangin/ze/internal/plugins/static/events"
+	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
 )
 
 type nhState struct {

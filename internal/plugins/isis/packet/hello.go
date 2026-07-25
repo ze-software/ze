@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // CircuitType is the 1-octet circuit type field in an IIH (ISO/IEC 10589 clause
 // 9.5): the low two bits select the level(s) the sender uses on this circuit.

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 func TestMockRADIUSConcurrent(t *testing.T) {

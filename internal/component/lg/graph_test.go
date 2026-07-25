@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/graph"
+	"github.com/ze-software/ze/internal/graph"
 )
 
 func TestBuildGraphSinglePath(t *testing.T) {

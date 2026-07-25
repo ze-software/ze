@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 )
 
 // buildDiscFrame builds a raw discovery frame for testing. Session ID

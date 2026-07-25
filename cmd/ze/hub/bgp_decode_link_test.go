@@ -15,7 +15,7 @@ package hub
 // bgpDecodeLinked lets the same tests assert the opposite in a !ze_bgp build:
 // there the seam stays nil and the command must fall through to the dispatcher.
 
-import _ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
+import _ "github.com/ze-software/ze/internal/component/bgp/cli"
 
 // bgpDecodeLinked reports whether this build has a BGP hex-packet decoder.
 const bgpDecodeLinked = true

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // VALIDATES: AC-2 - Hello fixed fields and neighbor list round-trip.

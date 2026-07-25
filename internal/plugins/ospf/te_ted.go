@@ -17,8 +17,8 @@ import (
 	"sort"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // defaultTEDMax bounds the TED so a flood of distinct TE LSAs cannot grow it without limit

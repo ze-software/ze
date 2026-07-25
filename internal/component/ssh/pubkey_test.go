@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/authz"
 )
 
 func generateEd25519Key(t *testing.T) (gossh.PublicKey, string) {

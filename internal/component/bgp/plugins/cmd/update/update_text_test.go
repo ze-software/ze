@@ -9,28 +9,28 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/bgp/route"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled" // blank import: registers InProcessNLRIDecoder
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/srpolicy"
-	vplspkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
-	vpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
+	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled" // blank import: registers InProcessNLRIDecoder
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/srpolicy"
+	vplspkg "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpls"
+	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
+	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // testExtractOrigin extracts Origin from Wire for testing.

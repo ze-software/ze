@@ -14,7 +14,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // chapReplyFrame builds a PPP frame carrying a CHAP Success (code 3) or Failure

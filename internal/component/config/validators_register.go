@@ -3,7 +3,7 @@
 
 package config
 
-import "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+import "github.com/ze-software/ze/internal/component/config/yang"
 
 // RegisterValidators registers all custom validators into the given registry.
 // Called during startup after YANG modules are loaded.

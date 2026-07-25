@@ -13,10 +13,10 @@ import (
 	"os"
 	"strings"
 
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // words outputs tab-separated "word\tdescription" pairs for shell completion.

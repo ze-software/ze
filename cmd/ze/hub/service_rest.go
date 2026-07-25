@@ -22,8 +22,8 @@ import (
 	"os"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/api/rest"
 )
 
 // restBuildImpl is the ze_rest implementation of the restBuild seam hook. It

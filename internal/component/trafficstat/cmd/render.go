@@ -11,8 +11,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/trafficstat"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

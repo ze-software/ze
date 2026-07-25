@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // fakeConfigProvider is a minimal ze.ConfigProvider satisfying the

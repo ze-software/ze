@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // resetEnvCache clears the env registry cache before a test run and re-clears

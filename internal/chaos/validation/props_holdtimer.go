@@ -5,8 +5,8 @@ package validation
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // HoldTimerEnforcement checks that when a hold-timer-expiry chaos event

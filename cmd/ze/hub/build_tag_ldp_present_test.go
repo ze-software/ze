@@ -12,7 +12,7 @@ package hub
 import (
 	"testing"
 
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestBuildTag_LDP_Present(t *testing.T) {

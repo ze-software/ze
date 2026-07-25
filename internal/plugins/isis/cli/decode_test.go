@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // buildLSPHex encodes a minimal L2 LSP and returns its lowercase hex, for the

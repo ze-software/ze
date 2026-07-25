@@ -14,11 +14,11 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // sortedKeys returns the keys of a map[string]*gyang.Entry in sorted order.

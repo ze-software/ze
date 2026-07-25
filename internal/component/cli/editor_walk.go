@@ -7,7 +7,7 @@ package cli
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // walkOrCreateIn is like walkOrCreate but operates on an arbitrary tree (not e.tree).

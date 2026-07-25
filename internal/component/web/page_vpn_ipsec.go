@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/engine"
+	"github.com/ze-software/ze/internal/component/ike/engine"
 )
 
 func buildIPsecSATableData() WorkbenchTableData {

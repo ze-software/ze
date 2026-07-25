@@ -5,8 +5,8 @@
 package rib
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/graph"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/graph"
 )
 
 // graphTerminal drains the upstream pipeline, extracts AS paths from RouteItems,

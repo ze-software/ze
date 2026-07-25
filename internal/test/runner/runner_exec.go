@@ -21,11 +21,11 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
-	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
-	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
-	"codeberg.org/thomas-mangin/ze/internal/test/trace"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/sessionpath"
+	"github.com/ze-software/ze/internal/test/syslog"
+	"github.com/ze-software/ze/internal/test/tmpfs"
+	"github.com/ze-software/ze/internal/test/trace"
 )
 
 // runTest executes a single test.

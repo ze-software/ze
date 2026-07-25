@@ -21,10 +21,10 @@ package ospf
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/core/metrics"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const (

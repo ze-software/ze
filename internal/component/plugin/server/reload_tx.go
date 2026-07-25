@@ -13,9 +13,9 @@ import (
 	"slices"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/transaction"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // bgpParticipantName is the plugin name whose apply must run last, matching

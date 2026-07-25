@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // VALIDATES: AC-13 -- TLV 6 (IS Neighbors) round-trips one or more 6-octet SNPA

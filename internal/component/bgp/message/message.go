@@ -11,9 +11,9 @@
 package message
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // EncodingContext is an alias for bgpctx.EncodingContext.

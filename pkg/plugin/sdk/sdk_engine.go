@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // UpdateRoute injects a route update to matching peers via the engine.

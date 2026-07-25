@@ -11,7 +11,7 @@
 
 package sdk
 
-import "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+import "github.com/ze-software/ze/pkg/plugin/rpc"
 
 // Registration is the SDK name for the declare-registration input (Stage 1).
 type Registration = rpc.DeclareRegistrationInput

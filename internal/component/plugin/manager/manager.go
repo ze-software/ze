@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"sync"
 
-	parent "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	parent "github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

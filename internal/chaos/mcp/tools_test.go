@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
+	"github.com/ze-software/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/web"
 )
 
 func newTestProvider() *Provider {

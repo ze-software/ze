@@ -102,13 +102,13 @@ func TestDeriveConfigJSONNoExtraArgs(t *testing.T) {
 // zeModRelative is the shape of the checked-in ze builddir module: it replaces
 // ze with a path six levels up, which is the repository root only at the
 // builddir's original depth.
-const zeModRelative = `module gokrazy/build/codeberg.org/thomas-mangin/ze
+const zeModRelative = `module gokrazy/build/github.com/ze-software/ze
 
 go 1.26
 
-require codeberg.org/thomas-mangin/ze v0.0.0
+require github.com/ze-software/ze v0.0.0
 
-replace codeberg.org/thomas-mangin/ze => ../../../../../../
+replace github.com/ze-software/ze => ../../../../../../
 `
 
 // gokrazyMod is a builddir module with no filesystem-path replace; it must be
@@ -127,7 +127,7 @@ func writePreparedParentFixture(t *testing.T, origConfig []byte) (root, srcParen
 	t.Helper()
 	root = t.TempDir()
 	srcParent = filepath.Join(root, "gokrazy")
-	zeMod := filepath.Join(srcParent, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze")
+	zeMod := filepath.Join(srcParent, "ze", "builddir", "github.com", "ze-software", "ze")
 	gokMod := filepath.Join(srcParent, "ze", "builddir", "github.com", "gokrazy", "gokrazy")
 	for _, d := range []string{zeMod, gokMod} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
@@ -188,9 +188,9 @@ func TestPrepare(t *testing.T) {
 	}
 
 	// builddir travels with the instance: every module and its sum.
-	preparedZeMod := filepath.Join(parent, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", "go.mod")
+	preparedZeMod := filepath.Join(parent, "ze", "builddir", "github.com", "ze-software", "ze", "go.mod")
 	preparedGokMod := filepath.Join(parent, "ze", "builddir", "github.com", "gokrazy", "gokrazy", "go.mod")
-	preparedZeSum := filepath.Join(parent, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", "go.sum")
+	preparedZeSum := filepath.Join(parent, "ze", "builddir", "github.com", "ze-software", "ze", "go.sum")
 	for _, p := range []string{preparedZeMod, preparedGokMod, preparedZeSum} {
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("builddir entry missing from prepared instance: %v", err)
@@ -222,7 +222,7 @@ func TestPrepare(t *testing.T) {
 		t.Errorf("replace target = %q (resolved %q, %v), want the repo root %q (resolved %q, %v)",
 			got, gotResolved, gotErr, root, wantResolved, wantErr)
 	}
-	if len(f.Require) != 1 || f.Require[0].Mod.Path != "codeberg.org/thomas-mangin/ze" {
+	if len(f.Require) != 1 || f.Require[0].Mod.Path != "github.com/ze-software/ze" {
 		t.Errorf("prepared ze go.mod lost its require:\n%s", preparedData)
 	}
 
@@ -243,7 +243,7 @@ func TestPrepare(t *testing.T) {
 	if !bytes.Equal(after, origConfig) {
 		t.Errorf("source config.json was modified:\n%s", after)
 	}
-	srcMod, err := os.ReadFile(filepath.Join(srcInstance, "builddir", "codeberg.org", "thomas-mangin", "ze", "go.mod"))
+	srcMod, err := os.ReadFile(filepath.Join(srcInstance, "builddir", "github.com", "ze-software", "ze", "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -536,7 +536,7 @@ func TestPrepareAcceptsSymlinkedBuildDir(t *testing.T) {
 	}
 	defer cleanup()
 
-	zeMod := filepath.Join(prepared, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", GoModName)
+	zeMod := filepath.Join(prepared, "ze", "builddir", "github.com", "ze-software", "ze", GoModName)
 	data, err := os.ReadFile(zeMod)
 	if err != nil {
 		t.Fatalf("prepared instance is missing the ze module: %v", err)

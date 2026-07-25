@@ -7,18 +7,18 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/detect"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/detect/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/flowspec"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/flowspec/cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/flowspec/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/flowtriq"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/flowtriq/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/local"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/local/cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/local/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/observe"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/observe/cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/observe/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/detect"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/detect/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/flowspec"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/flowspec/cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/flowspec/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/flowtriq"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/flowtriq/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/local"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/local/cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/local/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/observe"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/observe/cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ddos/observe/yang"
 )
 

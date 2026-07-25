@@ -6,9 +6,9 @@ package bgpconfig
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // extractBGPInlinePlugins extracts inline plugin configs from BGP peer process bindings.

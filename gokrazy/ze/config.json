@@ -5,8 +5,8 @@
         "GOOS=linux"
     ],
     "Packages": [
-        "codeberg.org/thomas-mangin/ze/cmd/ze-serial-shell",
-        "codeberg.org/thomas-mangin/ze/cmd/ze"
+        "github.com/ze-software/ze/cmd/ze-serial-shell",
+        "github.com/ze-software/ze/cmd/ze"
     ],
     "GokrazyPackages": [
         "github.com/gokrazy/gokrazy/cmd/randomd",
@@ -18,7 +18,7 @@
                 "/etc/machine-id": "8c41122ccef146da873e644db09cde89\n"
             }
         },
-        "codeberg.org/thomas-mangin/ze/cmd/ze": {
+        "github.com/ze-software/ze/cmd/ze": {
             "CommandLineFlags": [
                 "start"
             ],

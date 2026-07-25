@@ -12,7 +12,7 @@ import (
 	"sort"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/gokrazyutil"
+	"github.com/ze-software/ze/internal/core/gokrazyutil"
 )
 
 const (

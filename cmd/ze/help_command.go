@@ -19,13 +19,13 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // commandArg describes a typed argument for a command.

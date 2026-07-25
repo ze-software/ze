@@ -1,8 +1,8 @@
 package filter_community_match
 
 import (
-	cmyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community_match/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	cmyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community_match/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

@@ -15,7 +15,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
 // requireXFRM skips unless the kernel XFRM stack is usable (CAP_NET_ADMIN).

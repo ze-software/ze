@@ -5,7 +5,7 @@
 // behavior (churn, withdrawals) as opposed to chaos (session disruption).
 package route
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // ActionType identifies the kind of route dynamics event.
 type ActionType int

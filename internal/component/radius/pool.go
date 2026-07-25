@@ -2,7 +2,7 @@
 
 package radius
 
-import "codeberg.org/thomas-mangin/ze/internal/core/bufpool"
+import "github.com/ze-software/ze/internal/core/bufpool"
 
 const (
 	poolBufSize = MaxPacketLen // 4096

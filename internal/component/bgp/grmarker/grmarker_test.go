@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // newTestStore creates a temporary zefs store for testing.

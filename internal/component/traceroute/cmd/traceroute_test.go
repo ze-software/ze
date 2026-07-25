@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/probe"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/probe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -14,7 +14,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // CreateMacvlanDevice creates a bridge-mode macvlan netdev on spec.Parent

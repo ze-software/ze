@@ -7,13 +7,13 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/shaper/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp/plugins/shaper/yang"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {

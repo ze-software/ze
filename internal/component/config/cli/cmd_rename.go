@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // cmdRenameWithStorage renames a config entry in blob storage.

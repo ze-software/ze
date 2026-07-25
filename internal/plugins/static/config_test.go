@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
+	"github.com/ze-software/ze/internal/core/routingtable"
 )
 
 func defReg() *routingtable.Registry { return routingtable.New(nil) }

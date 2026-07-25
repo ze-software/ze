@@ -11,7 +11,7 @@ import (
 
 	"github.com/gaissmai/bart"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Store is a generic prefix-keyed store backed by a BART trie. Keys are

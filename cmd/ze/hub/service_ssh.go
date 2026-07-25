@@ -18,14 +18,14 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/config/infra"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
-	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	zessh "github.com/ze-software/ze/internal/component/ssh"
+	coreenv "github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errNoCommandProvided = errors.New("no command provided")

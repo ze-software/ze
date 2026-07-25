@@ -7,6 +7,6 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/yang"
+	_ "github.com/ze-software/ze/internal/component/mcp/yang"
 )
 

@@ -4,7 +4,7 @@
 // under internal/component and internal/plugins can render help without
 // importing anything beneath cmd/ze. This shim re-exports the API at the old
 // import path so existing cmd/ze callers keep compiling; new code should import
-// codeberg.org/thomas-mangin/ze/internal/core/helpfmt directly.
+// github.com/ze-software/ze/internal/core/helpfmt directly.
 //
 // Design: docs/architecture/core-design.md — CLI help formatting
 package helpfmt
@@ -12,7 +12,7 @@ package helpfmt
 import (
 	"io"
 
-	core "codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	core "github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // Re-exported types. Aliases preserve the Page methods (Write, WriteTo).

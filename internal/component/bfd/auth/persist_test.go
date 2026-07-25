@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // newStore creates an empty database.zefs and registers it as the

@@ -11,8 +11,8 @@ package ospf
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func TestStringsToRouterIDs(t *testing.T) {

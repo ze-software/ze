@@ -1,8 +1,8 @@
 package filter_modify
 
 import (
-	fmyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_modify/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	fmyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_modify/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const identityUnknown = "unknown"

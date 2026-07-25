@@ -25,12 +25,12 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/api"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	yangloader "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var (

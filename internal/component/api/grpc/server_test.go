@@ -17,11 +17,11 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 
-	zepb "codeberg.org/thomas-mangin/ze/api/proto"
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // testEngine creates an APIEngine with fake implementations.

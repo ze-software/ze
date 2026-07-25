@@ -5,7 +5,7 @@ package ipfix
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // MessageHeaderSize is the fixed IPFIX message header size.

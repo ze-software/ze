@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // writeInstanceFixture lays out a checked-in gokrazy tree
@@ -17,7 +17,7 @@ func writeInstanceFixture(t *testing.T) (root, parent string) {
 	t.Helper()
 	root = t.TempDir()
 	parent = filepath.Join(root, "gokrazy")
-	mod := filepath.Join(parent, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze")
+	mod := filepath.Join(parent, "ze", "builddir", "github.com", "ze-software", "ze")
 	if err := os.MkdirAll(mod, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func writeInstanceFixture(t *testing.T) (root, parent string) {
 			t.Fatal(err)
 		}
 	}
-	write(filepath.Join(mod, "go.mod"), "module gokrazy/build/codeberg.org/thomas-mangin/ze\n\ngo 1.26\n")
+	write(filepath.Join(mod, "go.mod"), "module gokrazy/build/github.com/ze-software/ze\n\ngo 1.26\n")
 	write(filepath.Join(parent, "ze", "config.json"), `{"Hostname":"ze"}`)
 	return root, parent
 }
@@ -82,7 +82,7 @@ func TestZeGokPreparesParentDir(t *testing.T) {
 			if !strings.HasPrefix(prepared, wantTmp+string(filepath.Separator)) {
 				t.Errorf("prepared parent %q is not under project tmp %q", prepared, wantTmp)
 			}
-			if _, err := os.Stat(filepath.Join(prepared, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", "go.mod")); err != nil {
+			if _, err := os.Stat(filepath.Join(prepared, "ze", "builddir", "github.com", "ze-software", "ze", "go.mod")); err != nil {
 				t.Errorf("prepared instance lost the builddir pins: %v", err)
 			}
 

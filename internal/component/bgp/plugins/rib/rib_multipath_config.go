@@ -7,7 +7,7 @@ package rib
 import (
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 )
 
 // maxMultipathPaths is the YANG-enforced upper bound on bgp/multipath/maximum-paths.

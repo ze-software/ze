@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/fleet"
 )
 
 // Handler processes managed config RPCs on the client side.

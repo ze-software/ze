@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // DashboardConfig configures the live terminal dashboard.

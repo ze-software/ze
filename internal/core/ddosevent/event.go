@@ -5,7 +5,7 @@ package ddosevent
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 const Namespace = "ddos-detect"

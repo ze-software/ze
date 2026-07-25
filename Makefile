@@ -88,8 +88,11 @@ ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
 
 # Packages
+# The module path, as declared by go.mod. Rename it with
+# `python3 scripts/dev/rename_module_path.py --to <new> --apply`.
+ZE_MODULE = github.com/ze-software/ze
 # Exclude the root module package: it only contains build-tagged tooling imports.
-ZE_PACKAGES = $$(go list ./... | grep -v '^codeberg.org/thomas-mangin/ze$$')
+ZE_PACKAGES = $$(go list ./... | grep -v '^github.com/ze-software/ze$$')
 
 # Default target
 .DEFAULT_GOAL := help
@@ -121,6 +124,26 @@ generate:
 	@go run scripts/codegen/plugin_imports.go
 	@go run scripts/codegen/feature_tags.go
 	@python3 scripts/dev/fuzz-targets.py
+
+# Regenerate api/proto/*.pb.go from api/proto/ze.proto. Deliberately NOT part of
+# `generate`: it needs protoc on PATH, while the .pb.go files are checked in so a
+# normal build never calls it. The two codegen plugins are built from vendor/, so
+# their versions are pinned by go.mod; only the `protoc vN` header comment
+# reflects the locally installed protoc.
+#
+# Needed after any change to the module path: the embedded rawDesc carries
+# go_package as a LENGTH-PREFIXED field, so a textual rewrite of a
+# different-length path compiles and decodes to garbage. rename_module_path.py
+# refuses .pb.go for exactly this reason and points here.
+ze-proto-gen:
+	@command -v protoc >/dev/null || { echo "protoc not found -- install it (brew install protobuf)"; exit 1; }
+	@go build -mod=vendor -o bin/protoc-gen-go google.golang.org/protobuf/cmd/protoc-gen-go
+	@go build -mod=vendor -o bin/protoc-gen-go-grpc google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	@PATH="$(CURDIR)/bin:$$PATH" protoc \
+		--go_out=. --go_opt=module=$(ZE_MODULE) \
+		--go-grpc_out=. --go-grpc_opt=module=$(ZE_MODULE) \
+		api/proto/ze.proto
+	@echo "Regenerated api/proto/ze.pb.go api/proto/ze_grpc.pb.go"
 
 ze-plugin-imports-check:
 	@go run scripts/codegen/plugin_imports.go --check
@@ -856,6 +879,10 @@ help-dev:
 	@echo "  Spec management:"
 	@echo "    ze-spec-status           Spec inventory with progress status"
 	@echo "    ze-spec-status-json      Same as JSON"
+	@echo ""
+	@echo "  Module / protobuf:"
+	@echo "    ze-proto-gen             Regenerate api/proto/*.pb.go from ze.proto (needs protoc)"
+	@echo "    (rename the module path)  python3 scripts/dev/rename_module_path.py --to <module> --apply"
 	@echo ""
 	@echo "  Code:"
 	@echo "    fmt                      Format code (gofmt + goimports)"

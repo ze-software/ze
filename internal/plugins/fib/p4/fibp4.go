@@ -13,12 +13,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/replay"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // loggerPtr is the package-level logger, disabled by default.

@@ -23,7 +23,7 @@ import (
 
 	"github.com/gokrazy/updater"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze appliance build <name>` first")

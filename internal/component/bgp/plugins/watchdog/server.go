@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
 )
 
 // watchdogServer manages watchdog route pools and command dispatch.

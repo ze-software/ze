@@ -19,6 +19,6 @@
 package main
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	_ "github.com/ze-software/ze/internal/component/bgp/cli"
+	_ "github.com/ze-software/ze/internal/component/bgp/config"
 )

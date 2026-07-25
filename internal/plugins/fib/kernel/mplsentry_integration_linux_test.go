@@ -19,7 +19,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 const mplsPlatformLabels = "/proc/sys/net/mpls/platform_labels"

@@ -32,11 +32,11 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 var logger = slogutil.LazyLogger("resolve.irr.store")

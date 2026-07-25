@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Blank import triggers init() registration of BGP YANG modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 )
 
 // TestSchemaInfo_HandlerMap verifies handler map construction from SchemaInfo slice.

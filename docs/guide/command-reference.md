@@ -7,7 +7,7 @@ and **runtime commands** sent to the running daemon via SSH.
 This page explains the command model. For a live, searchable list of every
 command with its description, run `ze help command` (or `ze help command --json`
 for machine-readable output). The wiki's auto-generated
-[command-catalog](https://codeberg.org/thomas-mangin/ze/wiki/command-catalog)
+[command-catalog](https://github.com/ze-software/ze/wiki/command-catalog)
 is produced from this JSON.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
@@ -17,9 +17,9 @@ It joins `ze help command --json` with the curated vendor mapping in the
 website branch, so Ze command additions appear as unmapped rows until a vendor
 equivalent is added. For code-tree readers, the maintained data and generator
 are in the repository on the `gh-pages` branch:
-[`data/command-equivalents.json`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/data/command-equivalents.json)
+[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/gh-pages/data/command-equivalents.json)
 and
-[`tools/render-command-equivalents.py`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/tools/render-command-equivalents.py).
+[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/gh-pages/tools/render-command-equivalents.py).
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 

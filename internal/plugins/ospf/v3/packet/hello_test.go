@@ -8,7 +8,7 @@ package packet
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 func sampleHello(t *testing.T) Hello {

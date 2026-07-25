@@ -11,8 +11,8 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/nclient4"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // runV4 is the long-lived DHCPv4 worker. It performs DORA (Discover-Offer-

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 // TestRelaySink_UnmatchedServiceTerminatesLocally -- AC-3.

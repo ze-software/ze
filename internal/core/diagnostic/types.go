@@ -4,7 +4,7 @@
 // explanations for Ze's agent-facing tooling surface.
 package diagnostic
 
-import "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+import "github.com/ze-software/ze/internal/component/plugin"
 
 // SchemaVersion is the current diagnostic JSON contract version.
 const SchemaVersion = 1

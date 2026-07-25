@@ -25,7 +25,7 @@ Full list: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gocriti
 ## testpeer Library
 
 ```go
-import "codeberg.org/thomas-mangin/ze/internal/test/peer"
+import "github.com/ze-software/ze/internal/test/peer"
 peer, _ := peer.New(&peer.Config{Port: 1790, Sink: true, Output: &bytes.Buffer{}})
 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 defer cancel()

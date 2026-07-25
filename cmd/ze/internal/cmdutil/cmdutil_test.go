@@ -5,8 +5,8 @@ package cmdutil
 import (
 	"testing"
 
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 // VALIDATES: ExtractOutputFormat removes trailing format keyword.

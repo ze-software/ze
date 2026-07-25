@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // EnvEntry describes a Ze environment variable for documentation/help output.

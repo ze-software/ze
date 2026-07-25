@@ -5,7 +5,7 @@ package packet
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // VALIDATES: AC-1 - Packet.ToJSON renders a decoded Hello with the packet type token, the

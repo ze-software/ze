@@ -3,7 +3,7 @@ package iface
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // gateSection wraps interface config JSON as the single ConfigSection the

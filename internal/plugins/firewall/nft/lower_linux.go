@@ -40,7 +40,7 @@ import (
 	"github.com/google/nftables/expr"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 var (

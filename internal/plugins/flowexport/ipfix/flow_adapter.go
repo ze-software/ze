@@ -8,7 +8,7 @@ package ipfix
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 func newIPFIXFlowEncoder(cfg flowexport.CollectorConfig, _ time.Time) flowexport.FlowRecordEncoder {

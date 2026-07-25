@@ -3,7 +3,7 @@
 // Related: register.go -- OnExecuteCommand renders these snapshots for the show commands.
 package ospf
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 func (e *engine) neighborSnapshot() []any {
 	if e.neighbors == nil {

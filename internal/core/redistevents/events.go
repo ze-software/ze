@@ -31,8 +31,8 @@ package redistevents
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/replay"
 )
 
 // EventType is the canonical event-type string under each protocol's

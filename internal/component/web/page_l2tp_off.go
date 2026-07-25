@@ -8,7 +8,7 @@ package web
 import (
 	"html/template"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // renderL2TPPageContent is the ze_l2tp-off counterpart of the BNG workbench

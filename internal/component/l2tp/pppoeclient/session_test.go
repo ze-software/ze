@@ -13,7 +13,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // RFC requirement: RFC1994-4.1-4 positive -- on receiving a Challenge the peer

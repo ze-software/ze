@@ -5,8 +5,8 @@ package guard
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/route"
 )
 
 // peerState tracks per-peer conditions used for action compatibility checks.

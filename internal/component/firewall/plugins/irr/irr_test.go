@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 )
 
 func TestRefreshLoopDisabledByDefault(t *testing.T) {

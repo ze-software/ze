@@ -7,7 +7,7 @@
 // large RIBs where many routes share common attributes (e.g., AS_PATH, communities).
 package attrpool
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // Handle is an opaque reference to data stored in a Pool.
 // Handles are stable across compaction operations.

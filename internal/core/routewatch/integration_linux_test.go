@@ -18,7 +18,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 func withNetNS(t *testing.T, fn func()) {

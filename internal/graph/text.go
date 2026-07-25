@@ -7,7 +7,7 @@ package graph
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RenderText renders the graph as Unicode box-drawing art on a character grid.

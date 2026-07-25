@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
-	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/component/resolve/cymru"
+	resolveDNS "github.com/ze-software/ze/internal/component/resolve/dns"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 func cmdCymru(args []string) int {

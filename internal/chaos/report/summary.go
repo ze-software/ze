@@ -8,7 +8,7 @@ import (
 	"io"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxPrefixesShown limits prefix lists in failure output to avoid noise.

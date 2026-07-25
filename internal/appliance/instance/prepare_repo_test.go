@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // repoRoot walks up from the test's working directory to the module root (the

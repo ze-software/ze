@@ -7,7 +7,7 @@
 package ifacenetlink
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // netlinkBackend implements iface.Backend using Linux netlink.

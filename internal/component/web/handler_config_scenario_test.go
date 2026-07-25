@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang"
+	_ "github.com/ze-software/ze/internal/component/firewall/yang"
+	_ "github.com/ze-software/ze/internal/component/iface/yang"
 )
 
 func TestScenario_BGPPeerCreateAndCommit(t *testing.T) {

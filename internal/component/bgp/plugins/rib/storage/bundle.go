@@ -5,8 +5,8 @@ package storage
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 )
 
 // Bundle groups the 12 non-AS_PATH attribute handles into a single shared

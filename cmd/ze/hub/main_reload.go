@@ -10,13 +10,13 @@ import (
 	"os"
 	"time"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/engine"
-	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/engine"
+	zepki "github.com/ze-software/ze/internal/component/pki"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,

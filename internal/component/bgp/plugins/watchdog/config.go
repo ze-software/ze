@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"strings"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	routepkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
+	routepkg "github.com/ze-software/ze/internal/component/bgp/route"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // parseConfig extracts per-peer watchdog route pools from a BGP config JSON tree.

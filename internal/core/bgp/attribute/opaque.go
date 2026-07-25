@@ -3,8 +3,8 @@
 package attribute
 
 import (
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // OpaqueAttribute represents an unknown or unrecognized BGP path attribute.

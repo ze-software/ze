@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
 )
 
 // ownedOutcome reports state changes the maintainSA loop must apply after a

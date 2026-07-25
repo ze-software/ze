@@ -11,12 +11,12 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/suggest"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const defaultBlobName = "database.zefs"

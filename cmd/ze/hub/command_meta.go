@@ -18,9 +18,9 @@ import (
 	"strings"
 	"sync"
 
-	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	yangloader "github.com/ze-software/ze/internal/component/config/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // commandMeta is the neutral, always-on description of one registered command.

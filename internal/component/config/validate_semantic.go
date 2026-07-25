@@ -2,7 +2,7 @@
 
 package config
 
-import "codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 // ValidateSemantics runs side-effect-free semantic validators on a parsed tree.
 // It surfaces MCP, plugin, and hub configuration errors as diagnostics without

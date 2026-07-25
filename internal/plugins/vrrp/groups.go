@@ -23,7 +23,7 @@ import (
 	"sort"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // configRoot is the config section this plugin consumes. It is the iface

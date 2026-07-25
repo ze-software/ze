@@ -7,5 +7,5 @@
 package show
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang" // init() registers YANG module
+	_ "github.com/ze-software/ze/internal/component/cmd/show/yang" // init() registers YANG module
 )

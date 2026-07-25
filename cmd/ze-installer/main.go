@@ -4,7 +4,7 @@
 
 package main
 
-import "codeberg.org/thomas-mangin/ze/internal/install/disk"
+import "github.com/ze-software/ze/internal/install/disk"
 
 func main() {
 	disk.RunInitrd()

@@ -15,7 +15,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 const mplsImplicitNull = 3

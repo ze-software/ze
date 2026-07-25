@@ -13,5 +13,5 @@
 package main
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp"
+	_ "github.com/ze-software/ze/internal/plugins/exabgp"
 )

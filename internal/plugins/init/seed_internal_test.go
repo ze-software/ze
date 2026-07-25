@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: `ze init --seed` does not bake this host's interface discovery

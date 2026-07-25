@@ -11,9 +11,9 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/api"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func TestGNMIGetWiring(t *testing.T) {

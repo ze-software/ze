@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const defaultPeeringDBURL = "https://www.peeringdb.com"

@@ -6,7 +6,7 @@ package packet
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // IPv6AddrLen is the length of one IPv6 address (TLV 232 entry).

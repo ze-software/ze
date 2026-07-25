@@ -6,7 +6,7 @@ package ospf
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
 )
 
 func TestSRDoctorReportsOverlap(t *testing.T) {

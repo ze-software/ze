@@ -17,8 +17,8 @@ import (
 	"strings"
 	"unicode"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
 )
 
 // maxStdinBytes caps the hex input. A single IS-IS PDU is bounded by the link

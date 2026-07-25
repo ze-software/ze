@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	as112yang "codeberg.org/thomas-mangin/ze/internal/plugins/as112/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	as112yang "github.com/ze-software/ze/internal/plugins/as112/yang"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // apply and setServing are test-only producer entry points that pin servingFn to

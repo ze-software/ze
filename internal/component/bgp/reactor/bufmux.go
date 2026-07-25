@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // BufHandle is a buffer obtained from a BufMux. The ID and idx fields route

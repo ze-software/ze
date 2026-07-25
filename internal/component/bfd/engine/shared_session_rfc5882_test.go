@@ -10,9 +10,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // RFC requirement: RFC5882-4.4-1 positive -- "If more than one control protocol

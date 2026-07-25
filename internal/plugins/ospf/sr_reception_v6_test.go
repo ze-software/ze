@@ -11,10 +11,10 @@ import (
 	"net/netip"
 	"testing"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 )
 
 func newTestInstallerV6(bus *srCaptureBus) *srInstaller {

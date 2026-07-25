@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strconv"
 
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
-	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // applySysctl emits per-interface sysctl defaults on the EventBus.

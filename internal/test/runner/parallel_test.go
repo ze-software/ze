@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // setVerifyMode enables verify mode for a test and resets the env cache so

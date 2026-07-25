@@ -14,7 +14,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // enterTestNetns locks the calling goroutine to its OS thread, switches it into

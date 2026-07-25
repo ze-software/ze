@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const stateUnknown = "unknown"

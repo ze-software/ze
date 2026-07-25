@@ -5,7 +5,7 @@
 package config
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // parseFreeform parses a freeform block: `name { word word; word word; }`

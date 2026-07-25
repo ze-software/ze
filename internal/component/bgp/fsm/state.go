@@ -8,7 +8,7 @@
 // specified in Section 8.2.2.
 package fsm
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // State represents the BGP FSM state.
 // Values are bit flags for efficient comparison and logging.

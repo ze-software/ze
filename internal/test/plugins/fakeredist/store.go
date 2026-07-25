@@ -12,8 +12,8 @@ import (
 	"net/netip"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // storeKey identifies a tracked route by family and prefix. Both fields are

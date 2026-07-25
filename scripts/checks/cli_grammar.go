@@ -34,21 +34,21 @@ import (
 
 	// Blank imports trigger init() registrations for every command surface.
 	// Mirrors scripts/docvalid/commands.go so BuildCommandTree sees all modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/commit/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/monitor/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/rib/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/grammar"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/grammar"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 type result struct {

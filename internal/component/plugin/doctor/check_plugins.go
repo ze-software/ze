@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	zeplugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func checkPlugins(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {

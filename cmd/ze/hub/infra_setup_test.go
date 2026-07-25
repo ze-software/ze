@@ -5,16 +5,16 @@ package hub
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/authz"
+	_ "github.com/ze-software/ze/internal/component/authz"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	zessh "github.com/ze-software/ze/internal/component/ssh"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // TestInfraSetupWiresSessionModelFactory verifies that infraSetup sets the SSH

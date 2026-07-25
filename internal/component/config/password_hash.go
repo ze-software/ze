@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/redact"
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 // IsBcryptHash reports whether s is a syntactically valid bcrypt hash.

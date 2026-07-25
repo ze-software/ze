@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // loggerPtr is the package-level logger. Defaults to the "traffic.vpp"

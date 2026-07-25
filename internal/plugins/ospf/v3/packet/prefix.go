@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // prefixHeaderLen is the fixed 4-octet prefix header in the repeating-entry
 // carriage form: PrefixLength(1) + PrefixOptions(1) + 16-bit field(2).

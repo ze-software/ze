@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 type mockBackend struct {

@@ -10,8 +10,8 @@ package as112events
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // Namespace is the redistribute source/protocol name for as112. It MUST match

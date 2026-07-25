@@ -16,12 +16,12 @@ package ospf
 import (
 	"net/netip"
 
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // v6Strategy implements spf.AFPrefixStrategy for OSPFv3. It holds the engine so it

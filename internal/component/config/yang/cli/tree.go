@@ -12,21 +12,21 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // trigger init() registration for all schemas
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	_ "github.com/ze-software/ze/internal/component/plugin/all" // trigger init() registration for all schemas
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	// Blank imports trigger init() registration for RPC handlers.
 	// These packages call pluginserver.RegisterRPCs in init() but are not
 	// included in plugin/all due to import cycles (see plugin_imports.go rpcDirs).
 	// The BGP ones live in tree_bgp.go behind //go:build ze_bgp, the BFD one
 	// in tree_bfd.go behind //go:build ze_bfd.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
+	_ "github.com/ze-software/ze/internal/component/cli"
+	_ "github.com/ze-software/ze/internal/component/cmd/delete"
+	_ "github.com/ze-software/ze/internal/component/cmd/metrics"
+	_ "github.com/ze-software/ze/internal/component/cmd/show"
+	_ "github.com/ze-software/ze/internal/component/cmd/subscribe"
 )
 
 // AnalysisNode is a node in the unified analysis tree.

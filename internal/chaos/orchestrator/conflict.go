@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // ValidateChaosListenerConflicts checks for overlapping ip:port bindings among

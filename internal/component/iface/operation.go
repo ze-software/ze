@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	tx "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	tx "github.com/ze-software/ze/internal/component/config/transaction"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func init() {

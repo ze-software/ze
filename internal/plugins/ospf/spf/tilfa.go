@@ -13,7 +13,7 @@ package spf
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // buildTILFA computes a TI-LFA SR repair backup protecting the primary next-hop

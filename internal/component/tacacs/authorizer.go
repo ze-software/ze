@@ -13,7 +13,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // splitTacacsArgs splits a legacy command string into TACACS+ convention arguments.

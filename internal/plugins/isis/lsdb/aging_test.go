@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
 )
 
 // fakeClock is a settable clock for deterministic aging tests.

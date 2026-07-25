@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"strings"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/route"
 )
 
 var errMissingRouteCommand = errors.New("missing route command")

@@ -36,9 +36,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // callbackHandler is the uniform signature for all runtime callback handlers.

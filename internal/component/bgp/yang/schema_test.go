@@ -6,12 +6,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Blank imports trigger init() registration of YANG modules.
 	// bgp/schema registers automatically (same package).
 	// hub/schema needed because ze-bgp-conf imports ze-hub-conf.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
 )
 
 // TestSchema_ZeBgpModule verifies ze-bgp-conf.yang content.

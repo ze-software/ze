@@ -16,7 +16,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/engine"
 )
 
 // executeIfaceLinkFlap brings the configured interface down then up (Cycles

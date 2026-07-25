@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	editortesting "codeberg.org/thomas-mangin/ze/internal/component/cli/testing"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
-	"codeberg.org/thomas-mangin/ze/internal/test/runner"
-	"codeberg.org/thomas-mangin/ze/internal/test/trace"
+	editortesting "github.com/ze-software/ze/internal/component/cli/testing"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
+	"github.com/ze-software/ze/internal/test/runner"
+	"github.com/ze-software/ze/internal/test/trace"
 )
 
 func cmdEditor(args []string) int {

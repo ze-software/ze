@@ -7,8 +7,8 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/yang"
+	_ "github.com/ze-software/ze/internal/plugins/isis"
+	_ "github.com/ze-software/ze/internal/plugins/isis/transport"
+	_ "github.com/ze-software/ze/internal/plugins/isis/yang"
 )
 

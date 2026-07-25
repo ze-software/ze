@@ -1,8 +1,8 @@
 package filter_aspath
 
 import (
-	fayang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	fayang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_aspath/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

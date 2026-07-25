@@ -10,8 +10,8 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func treeFunc(t *zeconfig.Tree) func() *zeconfig.Tree { return func() *zeconfig.Tree { return t } }

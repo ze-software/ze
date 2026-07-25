@@ -1,17 +1,20 @@
 {
   "audited": "2026-07-22",
-  "reaudit_note": "2026-07-22 re-stamp. Staleness was triggered by a mechanical package-qualifier rename across four of the tagged files, not by any change to what they assert: MessageType and the Type* codes moved from internal/component/bgp/message to the always-on leaf internal/core/bgp/msgtype, the route-action enum from internal/component/bgp/types to internal/core/bgp/routeaction, and internal/component/bgp/plugins/rib/events to internal/core/bgp/ribevents, so MRT/sysrib/FIB keep compiling when the BGP engine is compiled out (//go:build ze_bgp). Scope, measured rather than assumed: 20 files carry rfc7606 tags and only 4 changed in 254772452..HEAD -- plugins/adj_rib_in/rib_test.go, plugins/rib/rib_structured_test.go, reactor/session_rfc7606_structural_test.go, reactor/session_test.go. Every hunk in them is a requalification, an import line, or the 9-line rfc-test-change-approved header; normalizing the diff under the rename leaves ZERO unmatched assertion deletions (the unmatched ADDITIONS are that header and the imports -- an earlier version of this note wrongly claimed the add/delete multisets cancel outright, and wrongly said 18 files). The moved constants keep their values (msgtype.Type* 1..5 and routeaction 0..4 match the originals). No RFC-requirement tag was added, removed, moved to another function, or re-pointed anywhere in that range. No requirement TEXT changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are byte-identical since the audit, and the requirement_sha of every verdict below is unchanged -- only the tagged-file fingerprints were refreshed, which stale on ANY edit because tagged_unit_shas hashes the whole enclosing file and keys on file:line (every key shifted exactly +9, the height of the inserted header). The verdicts still describe exactly what they judged. Independently re-derived by a second reviewer, 2026-07-22.",
+  "reaudit_history": [
+    "2026-07-22 re-stamp. Staleness was triggered by a mechanical package-qualifier rename across four of the tagged files, not by any change to what they assert: MessageType and the Type* codes moved from internal/component/bgp/message to the always-on leaf internal/core/bgp/msgtype, the route-action enum from internal/component/bgp/types to internal/core/bgp/routeaction, and internal/component/bgp/plugins/rib/events to internal/core/bgp/ribevents, so MRT/sysrib/FIB keep compiling when the BGP engine is compiled out (//go:build ze_bgp). Scope, measured rather than assumed: 20 files carry rfc7606 tags and only 4 changed in 254772452..HEAD -- plugins/adj_rib_in/rib_test.go, plugins/rib/rib_structured_test.go, reactor/session_rfc7606_structural_test.go, reactor/session_test.go. Every hunk in them is a requalification, an import line, or the 9-line rfc-test-change-approved header; normalizing the diff under the rename leaves ZERO unmatched assertion deletions (the unmatched ADDITIONS are that header and the imports -- an earlier version of this note wrongly claimed the add/delete multisets cancel outright, and wrongly said 18 files). The moved constants keep their values (msgtype.Type* 1..5 and routeaction 0..4 match the originals). No RFC-requirement tag was added, removed, moved to another function, or re-pointed anywhere in that range. No requirement TEXT changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are byte-identical since the audit, and the requirement_sha of every verdict below is unchanged -- only the tagged-file fingerprints were refreshed, which stale on ANY edit because tagged_unit_shas hashes the whole enclosing file and keys on file:line (every key shifted exactly +9, the height of the inserted header). The verdicts still describe exactly what they judged. Independently re-derived by a second reviewer, 2026-07-22."
+  ],
+  "reaudit_note": "Mechanical re-stamp by scripts/dev/rename_module_path.py: the module path moved from codeberg.org/thomas-mangin/ze to github.com/ze-software/ze. tagged_unit_shas fingerprints the whole enclosing file, so rewriting an import line stales a verdict about assertions the rename never touched. Every verdict re-stamped below was re-sealed ONLY after proving, per file, that its normalised content at HEAD with codeberg.org/thomas-mangin/ze replaced by github.com/ze-software/ze is identical to its content now, and that the requirement text is byte-identical to what was judged. A verdict failing either proof was refused and left stale. The proof is the code in rename_only_since_head(), not this note.",
   "requirements": {
     "RFC7606-2-1": {
       "note": "TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at 'a withdrawal-shaped message was dispatched'. Assertions are exact and fail on the old suppression bug. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
       "requirement_sha": "c65534ae9acc686f",
       "tests": {
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:21": "2af6ebd31e22d882",
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:57": "2af6ebd31e22d882",
-        "internal/component/bgp/plugins/rib/rib_structured_test.go:166": "01e3f4da8778b515",
-        "internal/component/bgp/plugins/rib/rib_structured_test.go:92": "01e3f4da8778b515",
-        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:286": "316c82a36bed8358",
-        "internal/component/bgp/reactor/session_test.go:1939": "94b1421f97c87436"
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:21": "7c9db156f2c132bf",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:57": "7c9db156f2c132bf",
+        "internal/component/bgp/plugins/rib/rib_structured_test.go:166": "e4156c72be83208f",
+        "internal/component/bgp/plugins/rib/rib_structured_test.go:92": "e4156c72be83208f",
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:286": "ea265ef1edea04d3",
+        "internal/component/bgp/reactor/session_test.go:1939": "7c9ced72a0347576"
       },
       "verdict": "enforced"
     },
@@ -21,7 +24,7 @@
       "tests": {
         "internal/component/bgp/message/attr_discard_test.go:255": "e631404e10fbee92",
         "internal/component/bgp/message/attr_discard_test.go:336": "e631404e10fbee92",
-        "internal/component/bgp/reactor/session_test.go:2020": "94b1421f97c87436"
+        "internal/component/bgp/reactor/session_test.go:2020": "7c9ced72a0347576"
       },
       "verdict": "enforced"
     },
@@ -38,8 +41,8 @@
       "note": "now proven at the Adj-RIB-In itself, not by a dispatch-shape proxy shared with 2-1. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute (adj_rib_in/rib_test.go): a valid announce leaves 10.0.0.0/8 in ribIn (Len 1, the positive); feeding the message.SynthesizeWithdraw output for a malformed re-announce of the same prefix removes it (Len 0, the negative), observed directly on r.ribIn via removeStructuredNLRIs. The proxy 2-5 tags on the reactor session tests were removed; the reactor still proves 2-1 (dispatched as a withdrawal). 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-07-25 re-stamp: stale again for the same structural reason -- spec-fixit-bgp-egress-rail-divergence edited OTHER tests in rib_test.go (replay now carries the source peer; the update-hex command form is gone), and tagged_unit_shas fingerprints the whole enclosing file. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute is byte-identical, and so is every line of the path it exercises: git diff on rib.go shows handleReceivedStructured, installStructuredNLRIs and removeStructuredNLRIs unmodified (the only diff match is a context line). rfc/short/rfc7606.md is byte-identical, so requirement_sha is unchanged. Re-judged against rfc/full/rfc7606.txt:243-254 rather than the summary: the obligation is that contained routes be removed from the Adj-RIB-In, and the test asserts ribIn Len 1->0 -- RIB state, not a dispatch-shape proxy -- with exact equality on both halves, and the two buffers differ only in the ORIGIN length octet with identical NLRI, so the removal is measured against the key that was installed. Narrowness noted and unchanged: it covers the IPv4-unicast body-NLRI encoding, not the MP_UNREACH_NLRI parenthetical, which is a separate branch. Verdict stands.",
       "requirement_sha": "a8534d7b2f2b4ae6",
       "tests": {
-        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:267": "87cd9f223ee0bc41",
-        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:268": "87cd9f223ee0bc41"
+        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:267": "243e4d3d61ad1cdc",
+        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:268": "243e4d3d61ad1cdc"
       },
       "verdict": "enforced"
     },
@@ -56,8 +59,8 @@
       "note": "test/plugin/rfc7606-reset.ci:7 drives a real session and matches the NOTIFICATION on the wire (hex ...0015030301 => code 3 UPDATE Message Error, subcode 1), so the Error Code obligation is observed directly, not proxied. Positive TestSessionRFC7606ValidUpdateSendsNoNotification (session_rfc7606_structural_test.go:218) uses a read deadline to assert NO notification on a valid UPDATE. The extra session_validate_test.go:64 tag only checks action==SessionReset (weaker) but the .ci carries the wire enforcement. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
       "requirement_sha": "4454cc3553ff70e3",
       "tests": {
-        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:228": "316c82a36bed8358",
-        "internal/component/bgp/reactor/session_validate_test.go:148": "91176690e714bcd5",
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:228": "ea265ef1edea04d3",
+        "internal/component/bgp/reactor/session_validate_test.go:148": "585bd61281a6de6a",
         "test/plugin/rfc7606-reset.ci:7": "42adb6e162649323"
       },
       "verdict": "enforced"
@@ -66,8 +69,8 @@
       "note": "TestSessionRFC7606SectionLengthConflictNotification (session_rfc7606_structural_test.go:153) declares Total Attr Length=0xFF over a shorter body and reads the NOTIFICATION off the wire: require.Equal notifBody[1]==NotifyUpdateMalformedAttr (subcode 1) plus callbackCount==0. Positive TestEnforceRFC7606_SectionLengthsExactlyFitAccepted (:114) pins the exact-fit boundary with explicit arithmetic asserts so an off-by-one is caught. Exact subcode assertion fails on non-compliance. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
       "requirement_sha": "5a357365f42c317e",
       "tests": {
-        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:124": "316c82a36bed8358",
-        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:163": "316c82a36bed8358"
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:124": "ea265ef1edea04d3",
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:163": "ea265ef1edea04d3"
       },
       "verdict": "enforced"
     },
@@ -123,7 +126,7 @@
         "internal/component/bgp/message/rfc7606_test.go:214": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:2256": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:702": "0b8739c630bb26fe",
-        "internal/component/bgp/reactor/session_test.go:1787": "94b1421f97c87436"
+        "internal/component/bgp/reactor/session_test.go:1787": "7c9ced72a0347576"
       },
       "verdict": "enforced"
     },
@@ -156,8 +159,8 @@
       "note": "Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err \u2014 proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (session_rfc7606_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
       "requirement_sha": "55678935f22b8a58",
       "tests": {
-        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:82": "316c82a36bed8358",
-        "internal/component/bgp/reactor/session_validate_test.go:172": "91176690e714bcd5"
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:82": "ea265ef1edea04d3",
+        "internal/component/bgp/reactor/session_validate_test.go:172": "585bd61281a6de6a"
       },
       "verdict": "enforced"
     },
@@ -172,7 +175,7 @@
         "internal/component/bgp/message/rfc7606_test.go:874": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:903": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:937": "0b8739c630bb26fe",
-        "internal/component/bgp/reactor/session_validate_test.go:201": "91176690e714bcd5",
+        "internal/component/bgp/reactor/session_validate_test.go:201": "585bd61281a6de6a",
         "test/plugin/rfc7606-reset.ci:9": "42adb6e162649323"
       },
       "verdict": "enforced"
@@ -209,9 +212,9 @@
         "internal/component/bgp/message/rfc7606_shape_test.go:119": "fa86c1039b6eb8a0",
         "internal/component/bgp/message/rfc7606_shape_test.go:151": "fa86c1039b6eb8a0",
         "internal/component/bgp/message/rfc7606_shape_test.go:55": "fa86c1039b6eb8a0",
-        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:116": "56d842189aabefe8",
-        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:156": "56d842189aabefe8",
-        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:51": "56d842189aabefe8",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:116": "8ced9787fcd9c372",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:156": "8ced9787fcd9c372",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:51": "8ced9787fcd9c372",
         "internal/component/bgp/wireu/shape_rfc7606_test.go:23": "416a192d23139e4d",
         "internal/component/bgp/wireu/shape_rfc7606_test.go:58": "416a192d23139e4d",
         "internal/component/bgp/wireu/split_eor_test.go:32": "af6e6610cb544b99"
@@ -244,7 +247,7 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:54": "669936946251c215",
         "internal/component/bgp/message/rfc7606_test.go:848": "0b8739c630bb26fe",
-        "internal/component/bgp/reactor/session_validate_test.go:199": "91176690e714bcd5"
+        "internal/component/bgp/reactor/session_validate_test.go:199": "585bd61281a6de6a"
       },
       "verdict": "enforced"
     },
@@ -253,7 +256,7 @@
       "requirement_sha": "819cbde516294c61",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:75": "669936946251c215",
-        "internal/component/bgp/reactor/session_validate_test.go:170": "91176690e714bcd5"
+        "internal/component/bgp/reactor/session_validate_test.go:170": "585bd61281a6de6a"
       },
       "verdict": "enforced"
     },
@@ -263,7 +266,7 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:97": "669936946251c215",
         "internal/component/bgp/message/rfc7606_test.go:901": "0b8739c630bb26fe",
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:293": "2af6ebd31e22d882"
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:293": "7c9db156f2c132bf"
       },
       "verdict": "enforced"
     },
@@ -271,8 +274,8 @@
       "note": "MP last-NLRI overrun is enforced by validateMPNLRIField in the main loop (ADD-PATH aware). Negative (TestRFC7606MPReachNLRIOverrunsAttribute) uses a valid 16-octet next hop so 7.11 passes and the only defect is a /128 NLRI with 2 octets; asserts 'overrun'. Positive fits exactly. Isolated from the 7.11 NHLen=0 path the old test passed through. TestRFC7606MPReachAddPathValidNotReset guards that a valid ADD-PATH UPDATE is not misread.",
       "requirement_sha": "44aa8a53d9f190c4",
       "tests": {
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:225": "2af6ebd31e22d882",
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:294": "2af6ebd31e22d882"
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:225": "7c9db156f2c132bf",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:294": "7c9db156f2c132bf"
       },
       "verdict": "enforced"
     },
@@ -280,8 +283,8 @@
       "note": "validateAttributeFlags now checks MP_REACH/MP_UNREACH flags per RFC 4760 (optional, non-transitive) and returns SessionReset. Negative (TestRFC7606MPReachFlagsInconsistentWithRFC4760) uses a valid next hop and NLRI with flags 0x40; flipping to 0x80 yields None, proving isolation; asserts 'RFC 4760'.",
       "requirement_sha": "556e09a90586094a",
       "tests": {
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:261": "2af6ebd31e22d882",
-        "internal/component/bgp/message/rfc7606_withdraw_test.go:295": "2af6ebd31e22d882"
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:261": "7c9db156f2c132bf",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:295": "7c9db156f2c132bf"
       },
       "verdict": "enforced"
     },
@@ -304,10 +307,10 @@
       "note": "IMPLEMENTED 2026-07-20. Session.rfc7606Diagnostics (reactor/session_validation.go) logs the NLRI involved (withdrawn and announced IPv4 prefixes, decoded ADD-PATH-aware) and the entire UPDATE body as hex, wired into all three RFC 7606 outcomes: attribute-discard, treat-as-withdraw (logged BEFORE SynthesizeWithdraw rewrites the body, so the dump is what the peer sent) and session-reset. TestRFC7606DiagnosticsListNLRIAndUpdate asserts the prefix and the raw ORIGIN bytes appear; TestRFC7606DiagnosticsCoverSessionReset covers the reset path; TestIPv4PrefixListTolerance pins the decoder on malformed input. The negative is TestRFC7606DiagnosticsCostsNothingWhenDisabled, which asserts zero allocations when the level is off -- that is what pins the Enabled() guard, since slog evaluates arguments eagerly and without the guard a peer could make ze hex-encode every malformed UPDATE it sends. TestRFC7606DiagnosticsSilentWhenDebugDisabled sits alongside it but only shows no line is emitted; a level-filtering handler drops the line with or without the guard, so it does NOT pin it. Note the requirement's 'must' is lowercase in the RFC and so outside RFC 2119; kept at MUST level as a ze policy choice.",
       "requirement_sha": "324d3c47a4278c86",
       "tests": {
-        "internal/component/bgp/reactor/session_rfc7606_diag_cost_test.go:26": "e26137a4b79152cb",
-        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:103": "4d69dc20dace1c6c",
-        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:59": "4d69dc20dace1c6c",
-        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:85": "4d69dc20dace1c6c"
+        "internal/component/bgp/reactor/session_rfc7606_diag_cost_test.go:26": "cf28baddb4c03fa0",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:103": "714bbc754d5d3f6f",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:59": "714bbc754d5d3f6f",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:85": "714bbc754d5d3f6f"
       },
       "verdict": "enforced"
     },
@@ -454,7 +457,7 @@
         "internal/component/bgp/message/attr_discard_test.go:407": "e631404e10fbee92",
         "internal/component/bgp/message/rfc7606_test.go:1004": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:983": "0b8739c630bb26fe",
-        "internal/component/bgp/reactor/session_test.go:2021": "94b1421f97c87436"
+        "internal/component/bgp/reactor/session_test.go:2021": "7c9ced72a0347576"
       },
       "verdict": "enforced"
     },

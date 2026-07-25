@@ -10,8 +10,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	"codeberg.org/thomas-mangin/ze/internal/core/dscp"
+	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/dscp"
 )
 
 const (

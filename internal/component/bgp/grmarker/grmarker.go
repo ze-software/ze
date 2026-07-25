@@ -12,8 +12,8 @@ import (
 	"io/fs"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // Store is the minimal interface for reading/writing the GR marker.

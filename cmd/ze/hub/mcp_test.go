@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	zemcp "github.com/ze-software/ze/internal/component/mcp"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 func mockMCPDispatch() zemcp.CommandDispatcher {

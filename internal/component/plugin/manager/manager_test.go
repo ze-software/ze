@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	plugin "github.com/ze-software/ze/internal/component/plugin/manager"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // stubBus implements ze.EventBus for testing (PluginManager stores but

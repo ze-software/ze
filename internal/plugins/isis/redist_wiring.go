@@ -20,9 +20,9 @@ package isis
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
-	isisredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/isis/redistribute"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	isisredistribute "github.com/ze-software/ze/internal/plugins/isis/redistribute"
 )
 
 // ---- LSPInjector implementation (consumer write seam) ----

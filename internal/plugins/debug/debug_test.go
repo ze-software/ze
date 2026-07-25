@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	debugyang "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	debugyang "github.com/ze-software/ze/internal/component/debug/yang"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func setupTestDebugStore(t *testing.T) func() {

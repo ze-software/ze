@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func TestShowBMPRPCRegistration(t *testing.T) {

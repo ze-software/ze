@@ -11,7 +11,7 @@
 # new line to silence the lint.
 #
 # Regenerate: ZE_WRITE_ACCEPT_ONLY_BASELINE=1 go test -run TestRegenerateAcceptOnlyBaseline \
-#   codeberg.org/thomas-mangin/ze/internal/test/runner
+#   github.com/ze-software/ze/internal/test/runner
 #
 # merge=union in .gitattributes keeps both sides of concurrent edits.
 test/appliance/appliance-list.ci

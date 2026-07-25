@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/core/show"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/show"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const (

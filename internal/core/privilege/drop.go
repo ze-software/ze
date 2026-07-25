@@ -13,7 +13,7 @@ import (
 	"os/user"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 var errEmptyUser = errors.New("empty user")

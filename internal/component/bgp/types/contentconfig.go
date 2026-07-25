@@ -3,7 +3,7 @@
 package types
 
 import (
-	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
 )
 
 // ContentConfig controls HOW messages are formatted (encoding + format).

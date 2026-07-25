@@ -2,7 +2,7 @@
 
 package engine
 
-import "codeberg.org/thomas-mangin/ze/internal/core/metrics"
+import "github.com/ze-software/ze/internal/core/metrics"
 
 // IPsecMetrics holds Prometheus metric handles for the IPsec subsystem.
 type IPsecMetrics struct {

@@ -7,8 +7,8 @@ package role
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // peerRoleConfig holds per-peer role configuration.

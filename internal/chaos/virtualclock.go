@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // VirtualClock implements clock.Clock with a timer min-heap and Advance-driven firing.

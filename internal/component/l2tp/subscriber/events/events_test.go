@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 type testBus struct {

@@ -7,7 +7,7 @@ package packet
 import (
 	"encoding/hex"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // JSONView is a JSON-serializable rendering of a decoded OSPFv2 packet. It is a

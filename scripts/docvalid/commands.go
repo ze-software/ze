@@ -24,50 +24,50 @@ import (
 	"strconv"
 	"strings"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
 	// BGP cmd plugin YANG packages (not in all.go -- triggered via reactor.go at runtime).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/commit/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/monitor/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/rib/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang"
 
 	// BGP cmd handler packages (register RPCs via init()).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/commit"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/monitor"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/rib"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/handler"
 
 	// General cmd handler packages (register RPCs via init()).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/monitor"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
+	_ "github.com/ze-software/ze/internal/component/cmd/delete"
+	_ "github.com/ze-software/ze/internal/component/cmd/log"
+	_ "github.com/ze-software/ze/internal/component/cmd/meta"
+	_ "github.com/ze-software/ze/internal/component/cmd/metrics"
+	_ "github.com/ze-software/ze/internal/component/cmd/monitor"
+	_ "github.com/ze-software/ze/internal/component/cmd/set"
+	_ "github.com/ze-software/ze/internal/component/cmd/show"
+	_ "github.com/ze-software/ze/internal/component/cmd/subscribe"
+	_ "github.com/ze-software/ze/internal/component/cmd/update"
 
 	// Interface RPC handler package (register RPCs via init()).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
+	_ "github.com/ze-software/ze/internal/component/iface/cmd"
 
 	// Resolve RPC handler package (DNS, IRR, PeeringDB, Cymru lookups).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
+	_ "github.com/ze-software/ze/internal/component/resolve/cmd"
 
 	// Editor mode RPCs.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
+	_ "github.com/ze-software/ze/internal/component/cli"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )

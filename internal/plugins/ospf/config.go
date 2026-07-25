@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const (

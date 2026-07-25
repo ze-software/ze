@@ -3,7 +3,7 @@ package reactor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/selector"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

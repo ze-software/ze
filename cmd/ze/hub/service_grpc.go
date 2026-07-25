@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
+	apigrpc "github.com/ze-software/ze/internal/component/api/grpc"
 )
 
 // grpcBuildImpl is the ze_grpc implementation of the grpcBuild seam hook. It

@@ -16,8 +16,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/iface"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestBuildTag_VPP_Present(t *testing.T) {

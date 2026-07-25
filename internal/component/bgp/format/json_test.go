@@ -8,22 +8,22 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
-	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled"
-	vpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
+	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
+	labeled "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled"
+	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // getBGPPayload extracts the bgp payload from ze-bgp JSON format.

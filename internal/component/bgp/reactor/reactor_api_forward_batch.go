@@ -9,8 +9,8 @@ import (
 	"net/netip"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 var maxForwardDestinations = env.GetInt("ze.fwd.dest.cap", 4096)

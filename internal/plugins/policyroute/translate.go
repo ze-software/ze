@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 const policyRoutingTable = "ze_pr"

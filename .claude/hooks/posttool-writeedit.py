@@ -81,7 +81,7 @@ def c_auto_lint(ctx):
                 [
                     "goimports",
                     "-local",
-                    "codeberg.org/thomas-mangin/ze",
+                    "github.com/ze-software/ze",
                     "-format-only",
                     "-w",
                     fp,

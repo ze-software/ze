@@ -10,7 +10,7 @@ import (
 	"os"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Provider implements ze.ConfigProvider.

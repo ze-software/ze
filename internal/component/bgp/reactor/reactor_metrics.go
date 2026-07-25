@@ -7,8 +7,8 @@ package reactor
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // metricsUpdateIntervalDefault is how often periodic metrics are refreshed.

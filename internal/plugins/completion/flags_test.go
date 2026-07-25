@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 // TestFlagInventoryCompletion verifies `ze completion flags <path>` emits the

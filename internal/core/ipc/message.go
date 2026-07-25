@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
-	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	rpc "github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // MapResponse converts the current plugin Response fields to an IPC wire message.

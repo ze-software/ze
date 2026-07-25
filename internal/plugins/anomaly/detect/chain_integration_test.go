@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/trafficfeature"
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/anomaly/shape"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/trafficfeature"
+	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/plugins/anomaly/shape"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // chainTestBus is a synchronous in-process ze.EventBus (mirrors ddosevent's

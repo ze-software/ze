@@ -5,7 +5,7 @@ package flowspec
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 type flowspecMatch struct {

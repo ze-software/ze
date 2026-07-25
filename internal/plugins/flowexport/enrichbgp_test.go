@@ -4,8 +4,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/ribevents"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/plugins/flowexport/enrich"
 )
 
 // TestBGPEnrichBuilderApplyAndRebuild verifies that best-change batches fold

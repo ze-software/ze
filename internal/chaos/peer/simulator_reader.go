@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // readLoop reads BGP messages from conn and emits route events.

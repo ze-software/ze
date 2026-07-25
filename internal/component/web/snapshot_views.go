@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // viewSpec describes one read-only live view (neighbor or database) of a protocol.

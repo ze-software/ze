@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	ospfredistevents "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/redistribute/events"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	ospfredistevents "github.com/ze-software/ze/internal/plugins/ospf/redistribute/events"
+	"github.com/ze-software/ze/internal/plugins/ospf/spf"
 )
 
 func TestOSPFRegisterSource(t *testing.T) {

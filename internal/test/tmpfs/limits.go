@@ -3,7 +3,7 @@
 package tmpfs
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/env"
+	"github.com/ze-software/ze/internal/component/config/env"
 )
 
 // Default limits for Tmpfs parsing (overridable via ze.ci.* or ze.ci_* env vars).

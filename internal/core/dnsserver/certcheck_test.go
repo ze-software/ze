@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
 func writeCertPair(t *testing.T, validity time.Duration) (certFile, keyFile string) {

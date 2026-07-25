@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"os"
 
-	fwpkg "codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	fwcmd "codeberg.org/thomas-mangin/ze/internal/component/firewall/cmd"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	fwpkg "github.com/ze-software/ze/internal/component/firewall"
+	fwcmd "github.com/ze-software/ze/internal/component/firewall/cmd"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 
 	// Register the nft backend so fwpkg.LoadBackend("nft") resolves.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/nft"
+	_ "github.com/ze-software/ze/internal/plugins/firewall/nft"
 )
 
 // Run executes the firewall subcommand. Returns exit code.

@@ -10,7 +10,7 @@
 package ospf
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // ospfDebugDoctorCode is the explanation metadata for the ext-14 debug-enabled code.

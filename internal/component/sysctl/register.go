@@ -10,15 +10,15 @@ import (
 	"os"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
-	sysctlyang "codeberg.org/thomas-mangin/ze/internal/component/sysctl/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	sysctlyang "github.com/ze-software/ze/internal/component/sysctl/yang"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (

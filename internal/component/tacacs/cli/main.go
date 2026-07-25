@@ -18,10 +18,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	tacacspkg "codeberg.org/thomas-mangin/ze/internal/component/tacacs"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	tacacspkg "github.com/ze-software/ze/internal/component/tacacs"
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // Run dispatches `ze tacacs <sub> [args]`. Returns an exit code.

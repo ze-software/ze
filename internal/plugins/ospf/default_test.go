@@ -17,10 +17,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
-	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 )
 
 var testDefaultRoute = netip.MustParsePrefix("0.0.0.0/0")

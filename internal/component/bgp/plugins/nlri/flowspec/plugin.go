@@ -20,10 +20,10 @@ import (
 	"log/slog"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errNoValidFlowspecDecoded = errors.New("no valid FlowSpec decoded")

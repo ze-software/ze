@@ -18,8 +18,8 @@ package hub
 import (
 	"testing"
 
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // gate12GroupAPlugins maps each Group A build tag to the plugin-registry names

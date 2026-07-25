@@ -13,7 +13,7 @@ package auth
 import (
 	"crypto/md5" //nolint:gosec // RFC 5880 §6.7.3 mandates MD5; not used for general cryptographic integrity
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // md5Sum is a digestFunc adapter over stdlib md5.Sum.

@@ -6,7 +6,7 @@ package web
 import (
 	"net/http"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // webCommandConfigEdit is the representative command the route gate authorizes

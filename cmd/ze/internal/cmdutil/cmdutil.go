@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/cmd/ze/internal/suggest"
+	cli "github.com/ze-software/ze/internal/component/cli/client"
+	cmd "github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // LocalHandler is a function that handles a command locally (in-process),

@@ -13,20 +13,20 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/config/infra"
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
-	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
-	traceroutecmd "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd"
+	zessh "github.com/ze-software/ze/internal/component/ssh"
+	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // newSessionEditor builds the storage-backed editor for one SSH session:

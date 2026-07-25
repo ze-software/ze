@@ -12,7 +12,7 @@ import (
 
 	"github.com/prometheus/procfs"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 type conntrackCollector struct {

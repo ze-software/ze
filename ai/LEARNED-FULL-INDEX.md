@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1243 summaries
+Total: 1244 summaries
 
 ## 000-099
 
@@ -1317,3 +1317,4 @@ Total: 1243 summaries
 | 1269 | hostload contention single source | `plan/learned/1269-hostload-contention-single-source.md` |
 | 1270 | fixit-load-dependent-functional-failures | `plan/learned/1270-fixit-load-dependent-functional-failures.md` |
 | 1271 | fixit-bgp-egress-rail-divergence | `plan/learned/1271-fixit-bgp-egress-rail-divergence.md` |
+| 1272 | Renaming the module path (codeberg.org -> github.com) | `plan/learned/1272-module-path-rename.md` |

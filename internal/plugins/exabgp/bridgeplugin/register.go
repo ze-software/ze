@@ -16,10 +16,10 @@ import (
 	"os"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	bridgeyang "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp/bridgeplugin/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	bridgeyang "github.com/ze-software/ze/internal/plugins/exabgp/bridgeplugin/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // errRunRequired is returned when the exabgp.bridge container is committed

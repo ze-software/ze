@@ -19,8 +19,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Errors for attribute parsing and validation.

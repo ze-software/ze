@@ -10,7 +10,7 @@ import (
 	"github.com/google/nftables"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 func withNftNetNS(t *testing.T, fn func()) {

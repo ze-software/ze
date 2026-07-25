@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
 func TestBuildTermFromVector(t *testing.T) {

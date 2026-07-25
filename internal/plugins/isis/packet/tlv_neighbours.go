@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // SNPALen is the length of a Subnetwork Point of Attachment address (a 48-bit
 // IEEE 802 MAC) carried in TLV 6.

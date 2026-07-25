@@ -21,7 +21,7 @@ from typing import Callable
 
 LOCAL_ADDR = "10.100.0.1"
 PEER_ADDR = "10.100.0.2"
-ZE_PACKAGE = "codeberg.org/thomas-mangin/ze/cmd/ze"
+ZE_PACKAGE = "github.com/ze-software/ze/cmd/ze"
 PROOF_ZE_ENV = [
     "ze.l2tp.ncp.enable-ipv6cp=false",
     "ze.l2tp.ncp.ip-timeout=15s",

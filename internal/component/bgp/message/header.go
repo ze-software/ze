@@ -8,7 +8,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // RFC 4271 Section 4.1 - BGP message header constants.

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var errAlreadyStarted = errors.New("already started")

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // ruleEntry holds translated firewall terms and their hook assignment.

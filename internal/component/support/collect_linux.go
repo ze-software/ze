@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/nftables"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/procfs"
+	"github.com/ze-software/ze/internal/core/procfs"
 )
 
 func collectDmesgInfo(since time.Time) (any, error) {

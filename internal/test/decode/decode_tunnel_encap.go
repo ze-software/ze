@@ -3,8 +3,8 @@
 package decode
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // decodeTunnelEncap decodes Tunnel Encapsulation attribute (code 23, RFC 9012)

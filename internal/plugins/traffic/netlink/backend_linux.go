@@ -15,9 +15,9 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
 var errNoRootQdiscFound = errors.New("no root qdisc found")

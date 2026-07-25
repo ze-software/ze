@@ -16,8 +16,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/family"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // newTestRouteServer creates a RouteServer with closed SDK connections for unit testing.

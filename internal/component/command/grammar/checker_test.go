@@ -10,7 +10,7 @@ package grammar
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // ruleOf returns true if any finding cites the given rule.

@@ -22,9 +22,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
+	"github.com/ze-software/ze/internal/component/iface"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
+	"github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 )
 
 // ospfv3SampleHello is a minimal 24-byte OSPFv3 Hello (version 3, type 1,

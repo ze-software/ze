@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // NextHopGraph represents an internal forwarding topology as routers and forwarding links.

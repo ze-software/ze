@@ -16,7 +16,7 @@ import (
 	"strings"
 	"unicode"
 
-	l2tpwire "codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	l2tpwire "github.com/ze-software/ze/internal/component/l2tp"
 )
 
 // maxStdinBytes caps the size of the hex input read from stdin. A realistic

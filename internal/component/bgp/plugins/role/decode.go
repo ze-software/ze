@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errEmptyRoleCapability = errors.New("empty Role capability")

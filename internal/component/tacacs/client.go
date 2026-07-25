@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bufpool"
+	"github.com/ze-software/ze/internal/core/bufpool"
 )
 
 // TACACS+ pool sizing. A TACACS+ packet is at most 12 (header) + 65535

@@ -6,16 +6,16 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	vppevents "codeberg.org/thomas-mangin/ze/internal/core/vpp/events"
-	fibvppyang "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/yang"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	vppcomp "github.com/ze-software/ze/internal/component/vpp"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
+	fibvppyang "github.com/ze-software/ze/internal/plugins/fib/vpp/yang"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {

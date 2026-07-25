@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: verifyCoSConfig parses profiles and registers them.

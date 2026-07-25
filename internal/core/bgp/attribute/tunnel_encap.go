@@ -16,7 +16,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 const tunnelTLVHeaderLen = 4 // type(2) + length(2)

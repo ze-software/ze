@@ -8,8 +8,8 @@ package spf
 import (
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // VertexKind identifies the two transit vertex kinds RFC 2328 Section 16.1 uses.

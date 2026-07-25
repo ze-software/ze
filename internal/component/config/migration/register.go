@@ -2,7 +2,7 @@
 
 package migration
 
-import "codeberg.org/thomas-mangin/ze/internal/component/config"
+import "github.com/ze-software/ze/internal/component/config"
 
 func init() {
 	config.RegisterMigrateFunc(func(tree *config.Tree) ([]string, error) {

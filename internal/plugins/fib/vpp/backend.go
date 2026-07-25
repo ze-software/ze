@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib_types"

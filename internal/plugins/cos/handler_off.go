@@ -6,8 +6,8 @@
 package cos
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Dynamic per-subscriber CoS is a BNG feature: it reacts to L2TP session

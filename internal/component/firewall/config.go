@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dscp"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/dscp"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

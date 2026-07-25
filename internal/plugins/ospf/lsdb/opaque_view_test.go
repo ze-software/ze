@@ -10,7 +10,7 @@ package lsdb
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // originateOpaqueTriple installs one opaque LSA at each scope: Type 10 (area, opaque

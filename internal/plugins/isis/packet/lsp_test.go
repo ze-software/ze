@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // ext135TLV builds an opaque TLV 135 carrying one prefix for an LSP body test.

@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/component/config/redistribute"
 )
 
 var l2tpSourcesOnce sync.Once

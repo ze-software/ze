@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func grTestConfig() gracefulRestartConfig {

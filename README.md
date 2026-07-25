@@ -76,7 +76,7 @@ You own the config, the plugins, and the hardware. No per-instance licensing, no
 ## Quick Start
 
 ```bash
-git clone https://codeberg.org/thomas-mangin/ze.git && cd ze
+git clone https://github.com/ze-software/ze.git && cd ze
 make build              # produces bin/ze
 bin/ze init             # set up SSH credentials (once)
 bin/ze config import router.conf  # or: ze config edit
@@ -131,7 +131,7 @@ Contributions are welcome if they follow the [contribution process](CONTRIBUTING
 | | |
 |-|-|
 | **Official repo** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
-| **Development** | [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) |
+| **Development** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
 | **Issues** | [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues) |
 | **Discord** | [discord.gg/T8s7CjPDne](https://discord.gg/T8s7CjPDne) |
 | **ExaBGP** | [github.com/Exa-Networks/exabgp](https://github.com/Exa-Networks/exabgp) |

@@ -4,7 +4,7 @@
 
 package nlrisplit
 
-import "codeberg.org/thomas-mangin/ze/internal/core/family"
+import "github.com/ze-software/ze/internal/core/family"
 
 func init() {
 	for _, fam := range []family.Family{

@@ -29,8 +29,8 @@ package reactor
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // bfdClient holds the per-peer BFD session state. Zero value is safe

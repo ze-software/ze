@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/resolve"
 
 	// Blank import triggers YANG schema registration.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/yang"
+	_ "github.com/ze-software/ze/internal/component/resolve/yang"
 )
 
 // resolvers holds the shared resolver instances. Set once at hub startup

@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/seqmap"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestEnableValidation verifies enable-validation command sets the flag.

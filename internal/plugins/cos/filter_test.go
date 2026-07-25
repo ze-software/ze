@@ -6,7 +6,7 @@ package cos
 import (
 	"testing"
 
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
 func TestParseCoSFilterID(t *testing.T) {

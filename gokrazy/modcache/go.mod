@@ -1,4 +1,4 @@
-module codeberg.org/thomas-mangin/ze/gokrazy/modcache
+module github.com/ze-software/ze/gokrazy/modcache
 
 // This file exists solely to exclude gokrazy/modcache/ from the parent
 // module's package scan.  The @version directory names inside the module

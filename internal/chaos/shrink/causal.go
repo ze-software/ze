@@ -7,7 +7,7 @@
 package shrink
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/peer"
 )
 
 // RemoveWithDependents returns a copy of events with the event at removeIdx

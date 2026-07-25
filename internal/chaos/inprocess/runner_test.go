@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
-	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // register YANG schemas + plugins
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/shrink"
+	"github.com/ze-software/ze/internal/chaos/validation"
+	_ "github.com/ze-software/ze/internal/component/plugin/all" // register YANG schemas + plugins
 )
 
 // eventTypeCounts returns a map of event type → count for determinism comparison.

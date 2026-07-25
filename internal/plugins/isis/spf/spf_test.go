@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // stubResolver resolves every neighbor to a fixed next-hop on "eth0" so SPF

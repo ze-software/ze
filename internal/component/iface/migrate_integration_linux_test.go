@@ -11,7 +11,7 @@ import (
 
 	"github.com/vishvananda/netns"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 )
 
 func TestIntegrationMigrateFullCycle(t *testing.T) {

@@ -21,5 +21,5 @@ import (
 	// Blank import registers this module's YANG command schema (show
 	// traceroute, show probe-round, monitor traceroute, resolve traceroute) via
 	// container merge onto the central verbs.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traceroute-cmd/yang"
+	_ "github.com/ze-software/ze/internal/plugins/traceroute-cmd/yang"
 )

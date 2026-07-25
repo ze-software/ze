@@ -11,10 +11,10 @@ import (
 	"slices"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	ospfneighbor "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/neighbor"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
+	"github.com/ze-software/ze/internal/core/metrics"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 )
 
 // dropReasonInstanceMismatch labels a transport drop for a packet whose Instance ID did

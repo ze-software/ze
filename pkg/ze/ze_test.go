@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // mockEventBus is a minimal EventBus implementation for interface

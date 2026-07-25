@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Register ze-redistribute-conf so ValidateTreeAllModules finds the section
 	// (the live binary registers it via the generated all.go blank import).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute/yang"
+	_ "github.com/ze-software/ze/internal/component/config/redistribute/yang"
 )
 
 func TestRedistributeImportKeyValidated(t *testing.T) {

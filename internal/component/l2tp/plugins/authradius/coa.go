@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
-	subevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/traffic"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // coaListener handles RADIUS CoA-Request and Disconnect-Request packets

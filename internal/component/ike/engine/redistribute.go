@@ -7,10 +7,10 @@ import (
 	"net/netip"
 	"sync"
 
-	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var redistOnce sync.Once

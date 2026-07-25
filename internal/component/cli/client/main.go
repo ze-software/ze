@@ -19,26 +19,26 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 
-	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	unicli "github.com/ze-software/ze/internal/component/cli"
+	cmd "github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
+	"github.com/ze-software/ze/internal/component/plugin"
 
 	// plugin/all is GENERATED (scripts/codegen/plugin_imports.go) and blank-
 	// imports every schema, RPC command, and plugin package -- including the
 	// verb/cmd packages this file used to enumerate by hand. Never re-add
 	// per-package blank imports here; regenerate with `make generate`.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	traceroutecmd "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
-	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
+	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/pkg/zefs"
 
 	tea "charm.land/bubbletea/v2"
 )

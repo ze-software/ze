@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rescueauth"
+	"github.com/ze-software/ze/internal/core/rescueauth"
 )
 
 func TestProvisionStaging(t *testing.T) {

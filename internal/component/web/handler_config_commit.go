@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // HandleConfigChanges returns a GET handler for /config/changes that returns

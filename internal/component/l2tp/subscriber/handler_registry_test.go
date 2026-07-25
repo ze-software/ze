@@ -5,7 +5,7 @@ package subscriber
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 func TestAuthHandlerRegistration(t *testing.T) {

@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authradius"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authradius/yang"
+	_ "github.com/ze-software/ze/internal/component/l2tp/plugins/authradius"
+	_ "github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
 )
 

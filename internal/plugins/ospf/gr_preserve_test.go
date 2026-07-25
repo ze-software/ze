@@ -10,7 +10,7 @@ import (
 	"net/netip"
 	"testing"
 
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // TestLSAIDPrefixCorrespondencePreserved (AC-10, A-12, R-7): a redistributed IPv6 prefix's

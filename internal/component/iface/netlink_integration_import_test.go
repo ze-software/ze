@@ -2,4 +2,4 @@
 
 package iface_test
 
-import _ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
+import _ "github.com/ze-software/ze/internal/plugins/iface/netlink"

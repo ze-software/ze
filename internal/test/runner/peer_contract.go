@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/test/peer"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/peer"
 )
 
 // peerNoTestDataMessage is the stderr ze-peer emits in check mode with no

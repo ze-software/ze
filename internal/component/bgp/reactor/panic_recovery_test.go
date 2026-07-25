@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // panicDialer is a Dialer that panics on DialContext, simulating

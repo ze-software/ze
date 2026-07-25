@@ -13,9 +13,9 @@ package cli
 // partitioning. They get a source build tag instead -- one of the three
 // non-test files budgeted for it in spec-feature-gate-10-bgp.
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/rib"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/handler"
 )

@@ -9,7 +9,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // TestBuildMacvlanLink verifies the pure spec -> netlink.Macvlan translation:

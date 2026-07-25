@@ -1,8 +1,8 @@
 package filter_aspath_length
 
 import (
-	falyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath_length/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	falyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_aspath_length/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

@@ -2,7 +2,7 @@
 
 ## Objective
 
-Rename the binary from `zebgp` to `ze` with `bgp` as a subcommand, update the Go module path from `codeberg.org/thomas-mangin/zebgp` to `codeberg.org/thomas-mangin/ze`, and update env var prefixes from `zebgp.*` to `ze.bgp.*`.
+Rename the binary from `zebgp` to `ze` with `bgp` as a subcommand, update the Go module path from `github.com/ze-software/zebgp` to `github.com/ze-software/ze`, and update env var prefixes from `zebgp.*` to `ze.bgp.*`.
 
 ## Decisions
 

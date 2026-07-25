@@ -22,10 +22,10 @@ import (
 	"net/netip"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/session"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/session"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var (

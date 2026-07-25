@@ -13,7 +13,7 @@ import (
 	"net/netip"
 	"sort"
 
-	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 )
 
 // v6ApplyAreaTypePolicy mirrors spf.applyAreaTypePolicy for the OSPFv3 inter-area set

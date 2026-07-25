@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Module holds a debug YANG module registered via init().

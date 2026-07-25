@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/clear/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/show/yang"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	_ "github.com/ze-software/ze/internal/component/l2tp/yang"
 )
 
 // TestConfig_MissingBlockReturnsZero ensures absence of any l2tp config

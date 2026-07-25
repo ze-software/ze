@@ -17,8 +17,8 @@ import (
 	"strconv"
 	"strings"
 
-	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (

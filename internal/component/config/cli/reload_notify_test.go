@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/cliio"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // TestReloadOptInGate validates the --reload option's actual behavior: whether

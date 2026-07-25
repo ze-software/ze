@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_remove_private_as"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_remove_private_as"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // VALIDATES: remove-private-as filter refs resolve through FilterTypes registration.

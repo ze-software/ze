@@ -10,8 +10,8 @@ package events
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // Namespace is the event namespace for L2TP route-change events.

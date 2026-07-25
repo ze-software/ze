@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func assembleTestAppliance(t *testing.T, name string, passphrase []byte) string {

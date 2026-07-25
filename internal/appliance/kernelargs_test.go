@@ -72,7 +72,7 @@ func TestKernelArgsHugepages(t *testing.T) {
 func writeGokrazyFixture(t *testing.T) (root string) {
 	t.Helper()
 	root = t.TempDir()
-	mod := filepath.Join(root, "gokrazy", "ze", "builddir", "codeberg.org", "thomas-mangin", "ze")
+	mod := filepath.Join(root, "gokrazy", "ze", "builddir", "github.com", "ze-software", "ze")
 	if err := os.MkdirAll(mod, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func writeGokrazyFixture(t *testing.T) (root string) {
 			t.Fatal(err)
 		}
 	}
-	write(filepath.Join(mod, "go.mod"), "module gokrazy/build/codeberg.org/thomas-mangin/ze\n\ngo 1.26\n")
+	write(filepath.Join(mod, "go.mod"), "module gokrazy/build/github.com/ze-software/ze\n\ngo 1.26\n")
 	write(filepath.Join(root, "gokrazy", "ze", "config.json"), `{"Hostname":"ze"}`)
 	t.Chdir(root)
 	return root
@@ -122,7 +122,7 @@ func TestResolveBuildParentDirAlwaysPrepares(t *testing.T) {
 			}
 
 			// The pins travel with it, whether or not kernel args were patched in.
-			if _, err := os.Stat(filepath.Join(parent, "ze", "builddir", "codeberg.org", "thomas-mangin", "ze", "go.mod")); err != nil {
+			if _, err := os.Stat(filepath.Join(parent, "ze", "builddir", "github.com", "ze-software", "ze", "go.mod")); err != nil {
 				t.Errorf("prepared instance lost the builddir pins: %v", err)
 			}
 

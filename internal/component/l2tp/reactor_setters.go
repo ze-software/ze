@@ -7,8 +7,8 @@ package l2tp
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // setSharedSecret updates the per-reactor tunnel-default shared secret.

@@ -11,7 +11,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/cliio"
 )
 
 func bgp4mpRecord() []byte {

@@ -6,7 +6,7 @@ package mcp
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 func recordMCPAuthFailure(recorder audit.Recorder, authHeader, remoteAddr string) {

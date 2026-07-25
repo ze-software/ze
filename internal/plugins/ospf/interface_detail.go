@@ -10,8 +10,8 @@
 package ospf
 
 import (
-	ospfiface "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/iface"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // interfaceDetailView is one interface's full state plus derived counts / AF identity.

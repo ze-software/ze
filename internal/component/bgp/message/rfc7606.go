@@ -8,8 +8,8 @@ import (
 	"encoding/binary"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RFC7606Action represents the error handling action per RFC 7606.

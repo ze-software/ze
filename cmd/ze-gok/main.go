@@ -11,9 +11,9 @@ import (
 
 	"github.com/gokrazy/tools/gok"
 
-	"codeberg.org/thomas-mangin/ze/internal/appliance/instance"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/appliance/instance"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.debug", Type: "bool", Description: "Print ze-gok debug output (resolved GOMODCACHE path)"})

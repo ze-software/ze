@@ -7,7 +7,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // MP_UNREACH_NLRI is Optional, non-transitive (RFC 4760 Section 4): flags 0x80.

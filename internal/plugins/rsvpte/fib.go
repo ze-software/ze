@@ -12,8 +12,8 @@ import (
 	"log/slog"
 	"net/netip"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // mplsSourceRSVPTE tags MPLS forwarding entries emitted by RSVP-TE for

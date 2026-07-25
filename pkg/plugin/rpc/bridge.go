@@ -11,7 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // structuredEventPool eliminates per-event heap allocation of StructuredEvent

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/sim"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 var rawTestStart = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

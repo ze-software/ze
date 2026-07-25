@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 )
 
 // workerKey identifies a per-source-peer worker goroutine.

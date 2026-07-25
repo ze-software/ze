@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"os"
 
-	firryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_irr/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	firryang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_irr/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 func init() {

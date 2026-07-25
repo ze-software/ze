@@ -9,7 +9,7 @@ package fibvpp
 import (
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // fibVPPMetrics holds Prometheus metrics for the fib-vpp plugin.

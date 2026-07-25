@@ -18,7 +18,7 @@ import (
 
 	"go.fd.io/govpp/binapi/interface_types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/component/traffic"
 )
 
 // noTable is VPP's sentinel for "no classify table" in a

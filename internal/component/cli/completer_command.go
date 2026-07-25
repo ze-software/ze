@@ -6,7 +6,7 @@
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // CommandNode is an alias for command.Node. Use command.Node directly in new code.

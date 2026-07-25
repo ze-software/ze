@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 )
 
 var (

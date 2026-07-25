@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zeconfigcmd "github.com/ze-software/ze/internal/component/config/cli"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	zeweb "github.com/ze-software/ze/internal/component/web"
 )
 
 // TestWebCommitHangRepro is the regression test for the web-only commit hang:

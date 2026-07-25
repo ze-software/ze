@@ -5,7 +5,7 @@ package config
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PathSep is the separator used in YANG/config paths (e.g., "bgp/peer/timer").

@@ -7,8 +7,8 @@ package firewall
 import (
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/report"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const reportSourceFirewall = "firewall"

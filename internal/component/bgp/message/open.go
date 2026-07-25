@@ -12,9 +12,9 @@ import (
 	"encoding/binary"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // AS_TRANS is the 2-byte AS used when the real AS is 4 bytes (RFC 6793).

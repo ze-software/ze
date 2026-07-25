@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
 // LoadTLSMaterial builds the tls.Config the DoT/DoH listeners serve. When the

@@ -8,7 +8,7 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/api"
 )
 
 func TestTypedValueToString(t *testing.T) {

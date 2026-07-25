@@ -5,7 +5,7 @@ package analyze
 import (
 	"regexp"
 
-	"codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 // matchMessageContent parses the BGP message in an MRT BGP4MP record and checks

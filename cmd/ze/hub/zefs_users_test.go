@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // writeZefsCreds builds a zefs database with local power-user credentials and,

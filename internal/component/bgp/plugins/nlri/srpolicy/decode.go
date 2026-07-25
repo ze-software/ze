@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // DecodeNLRIHex decodes SR-Policy NLRI from hex bytes, returning a JSON-friendly map.

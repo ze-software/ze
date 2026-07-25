@@ -7,7 +7,7 @@ package l2tp
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 var errRelayNoListener = errors.New("l2tp: relay configured but no L2TP listener is running")

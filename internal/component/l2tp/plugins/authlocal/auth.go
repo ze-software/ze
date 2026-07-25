@@ -9,8 +9,8 @@ import (
 	"crypto/subtle"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // userEntry holds a configured user's credentials.

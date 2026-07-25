@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/mrt"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/mrt/yang"
+	_ "github.com/ze-software/ze/internal/plugins/mrt"
+	_ "github.com/ze-software/ze/internal/plugins/mrt/yang"
 )
 

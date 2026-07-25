@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/auth"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/auth"
+	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
 // rfc5880LocalEchoTxUs is the local echo transmit target used by the

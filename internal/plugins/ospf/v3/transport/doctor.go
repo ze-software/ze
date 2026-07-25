@@ -4,8 +4,8 @@
 package transport
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // rawSocketProbe is the platform raw-IPv6-socket open probe; tests override it.

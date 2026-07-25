@@ -15,9 +15,9 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errShutdownMessageContainsInvalidUtf8 = errors.New("shutdown message contains invalid UTF-8")

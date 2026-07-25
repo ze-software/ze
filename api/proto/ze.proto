@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ze.api.v1;
 
-option go_package = "codeberg.org/thomas-mangin/ze/api/proto;zepb";
+option go_package = "github.com/ze-software/ze/api/proto;zepb";
 
 // ZeService provides generic command execution and discovery.
 service ZeService {

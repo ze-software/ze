@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
-	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	resolveDNS "github.com/ze-software/ze/internal/component/resolve/dns"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var dnsOperations = []string{"a", "aaaa", "txt", "ptr"}

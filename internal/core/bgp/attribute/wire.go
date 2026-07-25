@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sync"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 var errNilEncodingContext = errors.New("nil encoding context")

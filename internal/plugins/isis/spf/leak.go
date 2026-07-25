@@ -24,7 +24,7 @@ import (
 	"net/netip"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // LeakedPrefix is one prefix an L1L2 router re-originates into a level after

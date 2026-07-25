@@ -1,8 +1,8 @@
 --- FAIL: TestAlpha (0.01s)
     alpha_test.go:12: broken
 FAIL
-FAIL	codeberg.org/thomas-mangin/ze/internal/example/alpha	0.02s
+FAIL	github.com/ze-software/ze/internal/example/alpha	0.02s
 --- FAIL: TestBeta (0.01s)
     beta_test.go:8: broken
 FAIL
-FAIL	codeberg.org/thomas-mangin/ze/internal/example/beta	0.02s
+FAIL	github.com/ze-software/ze/internal/example/beta	0.02s

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/selfcert"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

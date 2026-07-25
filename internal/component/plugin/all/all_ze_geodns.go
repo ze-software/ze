@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/geodns"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/geodns/yang"
+	_ "github.com/ze-software/ze/internal/plugins/geodns"
+	_ "github.com/ze-software/ze/internal/plugins/geodns/yang"
 )
 

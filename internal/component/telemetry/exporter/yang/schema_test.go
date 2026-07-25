@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 
 	// Blank import triggers init() registration of the telemetry YANG module.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/exporter/yang"
+	_ "github.com/ze-software/ze/internal/component/telemetry/exporter/yang"
 )
 
 // TestSchema_ZeTelemetryModule verifies ze-telemetry-conf.yang content.

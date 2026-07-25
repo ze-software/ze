@@ -7,6 +7,6 @@
 package web
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/clear/yang"
+	_ "github.com/ze-software/ze/internal/component/cmd/show/yang"
 )

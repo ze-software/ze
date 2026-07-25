@@ -5,9 +5,9 @@ package cli
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
-	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/subdispatch"
+	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
 func init() {

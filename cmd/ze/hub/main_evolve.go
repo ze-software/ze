@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"time"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/migration"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // evolveOutcome holds the result of applyEvolutions.

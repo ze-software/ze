@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
 // configRoot is the top-level YANG container the plugin subscribes to.

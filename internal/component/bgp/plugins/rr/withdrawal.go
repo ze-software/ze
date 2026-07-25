@@ -12,12 +12,12 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // withdrawalInfo stores the minimum information needed to send a withdrawal

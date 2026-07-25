@@ -10,7 +10,7 @@ package plugin
 import (
 	"testing"
 
-	parent "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	parent "github.com/ze-software/ze/internal/component/plugin"
 )
 
 func TestEnsureAcceptorExplicitHubConfigWithoutExternals(t *testing.T) {

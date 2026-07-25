@@ -46,7 +46,7 @@ func checkFileForProtoImport(t *testing.T, path string) {
 	if err != nil {
 		return
 	}
-	if strings.Contains(string(data), `"codeberg.org/thomas-mangin/ze/api/proto"`) {
+	if strings.Contains(string(data), `"github.com/ze-software/ze/api/proto"`) {
 		t.Errorf("proto import leaked outside grpc/: %s", path)
 	}
 	if strings.Contains(string(data), `zepb "`) {

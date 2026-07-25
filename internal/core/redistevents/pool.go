@@ -17,7 +17,7 @@ package redistevents
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
+	"github.com/ze-software/ze/internal/core/memguard"
 )
 
 // EntriesCap is the seeded capacity for a fresh batch's Entries slice. Sized

@@ -18,7 +18,6 @@ package main
 
 import (
 	"bufio"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -29,9 +28,11 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/stringsx"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func main() {

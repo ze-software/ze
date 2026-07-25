@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func mustMarshal(t *testing.T, name string, v any) {

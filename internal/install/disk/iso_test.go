@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func TestLocalImageToDiskVerifiesChecksum(t *testing.T) {

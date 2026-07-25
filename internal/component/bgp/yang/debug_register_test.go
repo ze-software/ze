@@ -6,7 +6,7 @@ package yang
 import (
 	"testing"
 
-	debugyang "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
+	debugyang "github.com/ze-software/ze/internal/component/debug/yang"
 )
 
 func TestBGPDebugFlagsRegistered(t *testing.T) {

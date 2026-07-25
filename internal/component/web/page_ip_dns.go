@@ -9,7 +9,7 @@ import (
 	"html/template"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // DNSFormData holds the DNS resolver configuration for the form.

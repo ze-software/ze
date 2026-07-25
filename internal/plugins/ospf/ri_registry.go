@@ -17,8 +17,8 @@ import (
 	"sort"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // riTLVBuildFunc builds the RI TLVs a downstream consumer wants appended to the RI LSA for

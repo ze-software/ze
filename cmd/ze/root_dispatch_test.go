@@ -5,8 +5,8 @@ package main
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/aihelp"
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
 // These tests register sentinel root names rather than calling

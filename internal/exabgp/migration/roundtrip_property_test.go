@@ -21,14 +21,14 @@ import (
 	"testing"
 	"testing/quick"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 	// Blank imports register the YANG modules config.YANGSchema() must resolve
 	// to re-parse the migrated output: ze-bgp-conf provides the top-level `bgp`
 	// block, and it imports ze-hub-conf (registered by hub/yang). The generator
 	// never emits GR/route-refresh, so no RIB plugin is injected and no other
 	// module is needed.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
 )
 
 // neighborSpec is one generated ExaBGP neighbor. IPs are index-derived at

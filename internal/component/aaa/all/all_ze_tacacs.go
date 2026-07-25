@@ -15,5 +15,5 @@ package all
 
 import (
 	// TACACS+ (RFC 8907) backend.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs"
+	_ "github.com/ze-software/ze/internal/component/tacacs"
 )

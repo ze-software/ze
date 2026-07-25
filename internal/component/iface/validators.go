@@ -4,7 +4,7 @@
 package iface
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func init() {

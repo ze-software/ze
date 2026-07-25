@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
 )
 
 // countingBackend hands out countingCircuits with a distinct ifindex per

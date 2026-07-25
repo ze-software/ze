@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // csnpCIHex and psnpCIHex are the EXACT CSNP/PSNP fixtures used by

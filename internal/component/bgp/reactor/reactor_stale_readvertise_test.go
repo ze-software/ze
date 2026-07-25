@@ -5,18 +5,18 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 
 	// filter_community registers the code-8 (COMMUNITIES) AttrModHandler in its
 	// init(); linked here so the staleModify case's community add actually
 	// transforms the body (as it does in the full binary).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

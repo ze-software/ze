@@ -5,7 +5,7 @@ package filter_irr
 import (
 	"path/filepath"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/paths"
 )
 
 // cacheStorePath returns the zefs file the shared PrefixStore persists to.

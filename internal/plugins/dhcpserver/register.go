@@ -11,10 +11,10 @@ import (
 	"slices"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	dhcpyang "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	dhcpyang "github.com/ze-software/ze/internal/plugins/dhcpserver/yang"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const configRootService = "service"

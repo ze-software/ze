@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // cmdLsWithStorage lists config files from both blob storage and filesystem.

@@ -10,7 +10,7 @@ import (
 
 	"github.com/charmbracelet/ssh"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/authz"
 )
 
 var errMissingTypeOrKeyData = errors.New("missing type or key data")

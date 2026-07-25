@@ -2,7 +2,7 @@
 
 package routingtable
 
-import rt "codeberg.org/thomas-mangin/ze/internal/core/routingtable"
+import rt "github.com/ze-software/ze/internal/core/routingtable"
 
 // Registry, New, ValidateTableID, GetRegistry, SetRegistry are re-exported
 // from internal/core/routingtable so consumers that already import this

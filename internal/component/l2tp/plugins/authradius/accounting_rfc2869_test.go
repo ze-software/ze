@@ -14,8 +14,8 @@ package l2tpauthradius
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // RFC requirement: RFC2869-x-2 negative -- an Accounting-Start carries no Gigawords

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 var (

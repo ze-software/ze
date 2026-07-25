@@ -12,7 +12,7 @@ package api
 import (
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // SessionState is a point-in-time copy of one BFD session's identity,

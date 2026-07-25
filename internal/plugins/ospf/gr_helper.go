@@ -10,9 +10,9 @@ import (
 	"net/netip"
 	"time"
 
-	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
-	ospfpacket "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
-	ospftypes "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospftypes "github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // helperEntry is the set of RFC 3623 sec 3.1 helper-entry checks, extracted so the decision is

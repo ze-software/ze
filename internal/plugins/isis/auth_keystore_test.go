@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
 )
 
 // VALIDATES: TestISISAuthKeyStore (TDD plan) -- per-level (area/domain) and

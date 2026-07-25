@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/core/rtproto"
 
 	"github.com/vishvananda/netlink"
 )

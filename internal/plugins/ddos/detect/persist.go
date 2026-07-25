@@ -10,8 +10,8 @@ package detect
 import (
 	"encoding/json"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // baselineStateVersion guards the on-disk format; bump it on any incompatible

@@ -5,7 +5,7 @@ package netflow9
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport"
 )
 
 // FlowSetHeaderSize is the size of a FlowSet header (ID + Length).

@@ -16,7 +16,7 @@ import (
 	"errors"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ErrUnsupported is returned by Split when no splitter is registered for

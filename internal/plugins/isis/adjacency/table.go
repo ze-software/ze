@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // DefaultGracePeriod is how long a Down adjacency is retained before deletion,

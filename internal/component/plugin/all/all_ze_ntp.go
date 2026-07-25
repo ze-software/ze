@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/yang"
+	_ "github.com/ze-software/ze/internal/plugins/ntp"
+	_ "github.com/ze-software/ze/internal/plugins/ntp/yang"
 )
 

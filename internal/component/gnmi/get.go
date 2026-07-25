@@ -14,7 +14,7 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
 // Get reads config state from the running tree and returns it as TypedValue.

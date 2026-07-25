@@ -14,7 +14,7 @@ import (
 	"github.com/google/nftables"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // readTables walks every ze_* table in the kernel and reconstructs the

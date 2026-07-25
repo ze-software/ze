@@ -20,7 +20,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // wireguardModuleAvailable reports whether the running kernel has the

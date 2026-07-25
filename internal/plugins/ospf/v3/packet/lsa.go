@@ -3,7 +3,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 
 // LSA header field offsets (RFC 5340 §A.4.2.1). There is NO Options byte in the
 // OSPFv3 LSA header: the OSPFv2 Options@2 + 8-bit Type@3 become a single 16-bit

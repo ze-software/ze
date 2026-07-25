@@ -14,9 +14,9 @@ import (
 	"net/netip"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	ospfredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/redistribute"
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
+	"github.com/ze-software/ze/internal/core/metrics"
+	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
+	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
 // v6EngineSet manages the per-AF OSPFv3 engine instances. Guarded by mu; the plugin config

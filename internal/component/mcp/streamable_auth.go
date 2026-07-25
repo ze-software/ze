@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/net/idna"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // buildAuthForMode dispatches across modes. AuthOAuth triggers the one-off

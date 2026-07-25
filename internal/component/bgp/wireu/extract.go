@@ -7,8 +7,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ExtractRawAttributes returns the raw path attribute bytes from an UPDATE.

@@ -3,13 +3,13 @@
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/test/mock/cymru"
-	"codeberg.org/thomas-mangin/ze/internal/test/mock/irr"
-	"codeberg.org/thomas-mangin/ze/internal/test/mock/peeringdb"
-	radiusmock "codeberg.org/thomas-mangin/ze/internal/test/mock/radius"
-	"codeberg.org/thomas-mangin/ze/internal/test/mock/rpki"
-	"codeberg.org/thomas-mangin/ze/internal/test/mock/rtr"
-	"codeberg.org/thomas-mangin/ze/internal/test/mock/tacacs"
+	"github.com/ze-software/ze/internal/test/mock/cymru"
+	"github.com/ze-software/ze/internal/test/mock/irr"
+	"github.com/ze-software/ze/internal/test/mock/peeringdb"
+	radiusmock "github.com/ze-software/ze/internal/test/mock/radius"
+	"github.com/ze-software/ze/internal/test/mock/rpki"
+	"github.com/ze-software/ze/internal/test/mock/rtr"
+	"github.com/ze-software/ze/internal/test/mock/tacacs"
 )
 
 func init() {

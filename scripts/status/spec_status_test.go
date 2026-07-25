@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/scripts/status/specbucket"
+	"github.com/ze-software/ze/scripts/status/specbucket"
 )
 
 // TestSpecStatusBacklogSplit validates the committed-backlog vs idea-capture

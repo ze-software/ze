@@ -16,8 +16,8 @@ import (
 	"context"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // PluginDef defines a plugin to be forked by the hub.

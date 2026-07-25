@@ -7,7 +7,7 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/mpls"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/mpls-cmd/yang"
+	_ "github.com/ze-software/ze/internal/component/mpls"
+	_ "github.com/ze-software/ze/internal/plugins/mpls-cmd/yang"
 )
 

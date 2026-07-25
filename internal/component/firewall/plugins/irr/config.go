@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func readUint(v any) (uint64, bool) {

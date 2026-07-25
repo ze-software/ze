@@ -5,8 +5,8 @@ package hub
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 func hasCompletion(comps []cli.Completion, text string) bool {

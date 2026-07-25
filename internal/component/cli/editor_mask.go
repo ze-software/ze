@@ -3,7 +3,7 @@
 
 package cli
 
-import "codeberg.org/thomas-mangin/ze/internal/component/config"
+import "github.com/ze-software/ze/internal/component/config"
 
 // DisplayContentAtPath mirrors ContentAtPath but masks ze:bcrypt leaf values for
 // display. It MUST NOT be used on the validation or persistence path:

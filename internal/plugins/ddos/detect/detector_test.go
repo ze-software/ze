@@ -4,10 +4,10 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
-	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/trafficstat"
+	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 type dtestBus struct {

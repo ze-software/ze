@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/pppoe/yang" // register ze-pppoe-api.yang
+	_ "github.com/ze-software/ze/internal/component/l2tp/pppoe/yang" // register ze-pppoe-api.yang
 )
 
 var (

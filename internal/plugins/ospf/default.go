@@ -8,10 +8,10 @@ import (
 	"log/slog"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
-	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // defaultV4Prefix is 0.0.0.0/0, the IPv4 default route advertised by

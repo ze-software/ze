@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
+	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
 // fakeV6Backend is an in-memory ospfv3 transport backend (no raw IPv6 sockets) so a v6 engine

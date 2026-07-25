@@ -14,7 +14,7 @@ package fibkernel
 import (
 	"net/netip"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 // mplsBackend programs AF_MPLS swap/pop entries (in-label keyed). Implemented by

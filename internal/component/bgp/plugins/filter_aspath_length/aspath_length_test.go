@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: AC-9 -- as-path-length max rejects long paths.

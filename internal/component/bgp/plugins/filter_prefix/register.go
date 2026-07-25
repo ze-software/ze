@@ -1,8 +1,8 @@
 package filter_prefix
 
 import (
-	fpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	fpyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {

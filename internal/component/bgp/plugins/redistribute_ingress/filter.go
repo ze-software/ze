@@ -5,9 +5,9 @@ package redistributeingress
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // IngressFilter is the redistribution ingress filter registered with the BGP filter pipeline (filterapi).

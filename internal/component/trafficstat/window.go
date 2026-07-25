@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/observation"
-	"codeberg.org/thomas-mangin/ze/internal/core/stats"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/stats"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // evictIdleTicks is the number of consecutive zero-rate ticks after which a

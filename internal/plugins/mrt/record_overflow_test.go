@@ -10,10 +10,10 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
+	"github.com/ze-software/ze/internal/component/plugin"
+	mrtfmt "github.com/ze-software/ze/internal/mrt"
 )
 
 func TestOnBGPMessageMaxSizeExtendedMessageNoOverflow(t *testing.T) {

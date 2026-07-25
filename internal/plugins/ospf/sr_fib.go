@@ -13,9 +13,9 @@ import (
 	"net/netip"
 	"sync"
 
-	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // mpls-fib Source tags owned by OSPF SR. Values 1 (RSVP-TE) and 2 (LDP) are

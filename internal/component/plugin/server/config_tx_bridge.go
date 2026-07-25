@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/component/config/transaction"
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // configTxBridge translates the transaction orchestrator's per-plugin stream

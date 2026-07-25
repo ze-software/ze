@@ -13,8 +13,8 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ownAnycastAddrs are the four fixed anycast host addresses this plugin

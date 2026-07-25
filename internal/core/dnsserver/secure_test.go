@@ -19,7 +19,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
 // testTLSPair returns a server tls.Config (self-signed, valid for 127.0.0.1) and

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).

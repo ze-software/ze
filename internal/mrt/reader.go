@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/cliio"
 )
 
 // Handler receives decoded MRT records. Set callbacks for the record types

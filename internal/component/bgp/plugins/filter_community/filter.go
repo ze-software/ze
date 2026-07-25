@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // applyIngressFilter applies community strip then tag for a peer's ingress config.

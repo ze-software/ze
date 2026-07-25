@@ -11,7 +11,7 @@ import (
 	"time"
 	"unsafe"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
+	"github.com/ze-software/ze/internal/core/memguard"
 )
 
 // ErrPoolShutdown is returned when operations are attempted on a shutdown pool.

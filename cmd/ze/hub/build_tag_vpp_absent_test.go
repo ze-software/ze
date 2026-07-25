@@ -19,9 +19,9 @@ import (
 	"strings"
 	"testing"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	pluginreg "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/iface"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func TestBuildTag_VPP_Absent(t *testing.T) {

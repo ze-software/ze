@@ -6,7 +6,7 @@ package packet
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // PDUType is the 1-octet PDU type field of the IS-IS common header. Only the

@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // v6NHSeam is a test NextHopSource that resolves each neighbor to an IPv6

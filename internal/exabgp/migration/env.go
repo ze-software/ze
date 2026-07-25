@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/exabgp/topics"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/exabgp/topics"
 )
 
 // sectionLog is the section name for ExaBGP logging config.

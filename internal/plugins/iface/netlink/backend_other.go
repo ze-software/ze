@@ -10,8 +10,8 @@ import (
 	"net/netip"
 	"runtime"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // stubBackend implements iface.Backend on non-Linux platforms.

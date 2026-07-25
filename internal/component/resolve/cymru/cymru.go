@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/resolve/cache"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // defaultCacheTTL is the cache duration for Cymru results.

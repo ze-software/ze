@@ -9,7 +9,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
 const monitorEventTimeout = 5 * time.Second

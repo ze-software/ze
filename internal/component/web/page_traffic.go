@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // TrafficRow holds one row of the traffic monitoring table.

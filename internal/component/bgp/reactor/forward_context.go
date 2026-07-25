@@ -3,8 +3,8 @@ package reactor
 import (
 	"maps"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // fwdContextIDWithASN4 returns a context ID matching the same wire NLRI framing

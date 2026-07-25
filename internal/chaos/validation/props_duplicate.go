@@ -5,8 +5,8 @@ package validation
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // NoDuplicateRoutes checks that no peer announces the same prefix twice

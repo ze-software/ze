@@ -5,7 +5,7 @@ package mrt
 import (
 	"log/slog"
 
-	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
+	mrtfmt "github.com/ze-software/ze/internal/mrt"
 )
 
 const asyncWriterChanSize = 4096

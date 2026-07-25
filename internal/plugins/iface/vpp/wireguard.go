@@ -28,7 +28,7 @@ import (
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/wireguard"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // CreateWireguardDevice is a deliberate no-op on VPP: wireguard_interface_create

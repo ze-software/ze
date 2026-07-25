@@ -7,7 +7,7 @@ package ospf
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func TestDebugEnabledDoctorWarning(t *testing.T) {

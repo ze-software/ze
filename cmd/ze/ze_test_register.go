@@ -4,4 +4,4 @@
 
 package main
 
-import _ "codeberg.org/thomas-mangin/ze/internal/test/cli"
+import _ "github.com/ze-software/ze/internal/test/cli"

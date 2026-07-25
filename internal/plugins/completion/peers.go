@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strconv"
 
-	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // peers outputs tab-separated "selector\tdescription" pairs for peer completion.

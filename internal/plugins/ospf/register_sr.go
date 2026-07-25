@@ -11,7 +11,7 @@ package ospf
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
+	"github.com/ze-software/ze/internal/plugins/ospf/sr"
 )
 
 // registerSRConsumer registers the SR TLV builders. Wired from wireV4Engine.

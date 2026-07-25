@@ -15,7 +15,7 @@ import (
 	"slices"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/host"
 )
 
 func testConfig() UpdateCheckConfig {

@@ -5,12 +5,12 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	trafficusageyang "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage/yang"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	trafficusageyang "github.com/ze-software/ze/internal/plugins/trafficusage/yang"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func init() {

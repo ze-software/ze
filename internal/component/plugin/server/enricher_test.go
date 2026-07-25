@@ -7,8 +7,8 @@ package server
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/show"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/internal/core/show"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestProxyEnricherRegistersOnStartup(t *testing.T) {

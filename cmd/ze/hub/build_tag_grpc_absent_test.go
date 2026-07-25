@@ -17,7 +17,7 @@ import (
 	"strings"
 	"testing"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
 func TestBuildTag_GRPC_Absent(t *testing.T) {

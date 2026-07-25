@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
+	unicli "github.com/ze-software/ze/internal/component/cli"
 )
 
 // openTranscriptFile creates the transcript directory and file if transcript

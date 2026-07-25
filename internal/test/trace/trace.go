@@ -7,7 +7,7 @@ import (
 	"io"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // StepResult records the outcome of a single test step.

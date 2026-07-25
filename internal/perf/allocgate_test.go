@@ -18,14 +18,14 @@ import (
 // hot-path benchmarks, all within their ceilings (0/0/0/5 vs 0/0/0/6).
 const sampleBenchOutput = `goos: linux
 goarch: amd64
-pkg: codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor
+pkg: github.com/ze-software/ze/internal/component/bgp/reactor
 cpu: AMD EPYC 7351 16-Core Processor
 BenchmarkForwardDirect-4              	    3000	      4466 ns/op	     477 B/op	       5 allocs/op
 BenchmarkBufMuxGetReturn-4            	    3000	       105.3 ns/op	     175 B/op	       0 allocs/op
 BenchmarkFwdPoolTryDispatch-4         	    3000	       270.3 ns/op	     192 B/op	       0 allocs/op
 BenchmarkEBGPWireCacheHitParallel-4   	    3000	        36.41 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok  	codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor	0.081s
+ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.081s
 `
 
 // TestAllocGateCeiling verifies AC-1: benchmark output within every registered
@@ -88,7 +88,7 @@ func TestAllocGateBoundary(t *testing.T) {
 // benchmark lines) is a violation, never a silent pass.
 func TestAllocGateMissingFailsClosed(t *testing.T) {
 	// Build-failure-like output: no Benchmark lines at all.
-	buildFailure := "# codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor\n./x.go:1:1: undefined: foo\nFAIL\n"
+	buildFailure := "# github.com/ze-software/ze/internal/component/bgp/reactor\n./x.go:1:1: undefined: foo\nFAIL\n"
 	viol := CheckAllocCeilings(buildFailure, AllocCeilings)
 	if len(viol) != len(AllocCeilings) {
 		t.Fatalf("expected all %d registered benchmarks flagged missing, got %d: %+v", len(AllocCeilings), len(viol), viol)

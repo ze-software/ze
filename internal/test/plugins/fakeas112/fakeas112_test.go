@@ -6,7 +6,7 @@ package fakeas112
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 func TestParseFamily(t *testing.T) {

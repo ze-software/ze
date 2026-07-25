@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // writeThroughSetMember implements the write-through protocol for adding one

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
-	"codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
+	"github.com/ze-software/ze/internal/component/resolve/cymru"
+	"github.com/ze-software/ze/internal/component/resolve/dns"
 )
 
 // VALIDATES: AC-12 -- Resolvers struct holds single DNS instance shared by all consumers.

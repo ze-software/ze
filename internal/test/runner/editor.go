@@ -2,7 +2,7 @@
 
 package runner
 
-import "codeberg.org/thomas-mangin/ze/internal/test/trace"
+import "github.com/ze-software/ze/internal/test/trace"
 
 // EditorTest holds a single editor test case.
 type EditorTest struct {

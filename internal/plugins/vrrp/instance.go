@@ -20,11 +20,11 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/packet"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vrrp/transport"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/plugins/vrrp/transport"
 )
 
 // eventQueueDepth bounds the per-instance event queue. A VRRP instance handles

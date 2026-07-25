@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/term"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 const newPassphraseKey = "ze.appliance.new.passphrase" //nolint:gosec // env var key name

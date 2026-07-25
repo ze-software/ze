@@ -38,7 +38,7 @@ def find_project_root():
 
 ROOT = find_project_root()
 INTERNAL = ROOT / "internal"
-MODULE = "codeberg.org/thomas-mangin/ze"
+MODULE = "github.com/ze-software/ze"
 
 # config/schema/cli is a separate CLI command ("ze schema"), not a YANG dir.
 SKIP_DIRS = {INTERNAL / "component" / "config" / "schema"}

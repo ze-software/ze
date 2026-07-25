@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
+	cmd "github.com/ze-software/ze/internal/component/command"
 )
 
 // TestInjectPluginCommands verifies that plugin commands are added to the

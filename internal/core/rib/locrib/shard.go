@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/store"
 )
 
 // Shard count bounds. Below 1 makes no sense; above 64 is wasted memory on

@@ -13,7 +13,7 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // zeTablePrefix is the ownership prefix for ze-managed tables in the kernel.

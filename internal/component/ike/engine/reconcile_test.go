@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 )
 
 func testIPsecConfig(peers ...ipsec.SiteToSitePeer) *ipsec.IPsecConfig {

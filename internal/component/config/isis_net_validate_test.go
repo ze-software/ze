@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	// Register ze-isis-conf so ValidateTreeAllModules can find the isis section
 	// (the live binary registers it via the generated all.go blank import).
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/yang"
+	_ "github.com/ze-software/ze/internal/plugins/isis/yang"
 )
 
 func TestISISNetLeafListCustomValidatorApplied(t *testing.T) {

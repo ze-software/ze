@@ -288,7 +288,7 @@ gokrazy/
   ze/
     config.json           # gokrazy instance config (what to build, how to start)
     builddir/
-      codeberg.org/thomas-mangin/ze/
+      github.com/ze-software/ze/
         go.mod            # ze dependency pins + relative replace directive
         go.sum
       github.com/rtr7/kernel/

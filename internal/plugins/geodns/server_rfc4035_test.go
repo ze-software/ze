@@ -12,7 +12,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // rfc4035Writer is a dns.ResponseWriter capturing the single reply the

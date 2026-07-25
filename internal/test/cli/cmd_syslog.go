@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
+	"github.com/ze-software/ze/internal/test/syslog"
 )
 
 func cmdSyslog(args []string) int {

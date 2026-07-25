@@ -4,7 +4,7 @@
 
 package packet
 
-import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
 // PacketChecksum computes the OSPFv2 packet checksum over buf with bytes 12..13
 // already zeroed and bytes 16..23 excluded from coverage. The auth exclusion is

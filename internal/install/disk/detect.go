@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // diskNameFromPath strips /dev/ prefix and partition suffix to get the

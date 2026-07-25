@@ -6,8 +6,8 @@ package cmd
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func TestHandleDebugState(t *testing.T) {

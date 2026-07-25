@@ -19,8 +19,8 @@ import (
 	"os"
 	"strings"
 
-	radius "codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	radius "github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 type mockUser struct {

@@ -5,7 +5,7 @@ package static
 import (
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 var eventBusPtr atomic.Pointer[ze.EventBus]

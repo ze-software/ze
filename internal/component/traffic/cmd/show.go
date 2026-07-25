@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // FormatQoS formats an InterfaceQoS for human-readable CLI output.

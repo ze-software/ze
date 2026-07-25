@@ -27,16 +27,16 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/engine"
-	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
-	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	diagCmd "codeberg.org/thomas-mangin/ze/internal/plugins/diag/cmd"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/engine"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
+	zePlugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	diagCmd "github.com/ze-software/ze/internal/plugins/diag/cmd"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // pluginLogger is the package-level logger. Set via UseLogger from

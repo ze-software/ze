@@ -1,5 +1,5 @@
 package pki
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/pki/yang"
+	_ "github.com/ze-software/ze/internal/component/pki/yang"
 )

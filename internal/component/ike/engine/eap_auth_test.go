@@ -5,7 +5,7 @@ package engine
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 )
 
 func TestAuthFromMSK(t *testing.T) {

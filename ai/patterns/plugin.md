@@ -39,9 +39,9 @@ import (
     "fmt"
     "os"
 
-    "codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-    "codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
-    "codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+    "github.com/ze-software/ze/internal/core/slogutil"
+    "github.com/ze-software/ze/internal/component/plugin/cli"
+    "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 func init() {
@@ -91,8 +91,8 @@ import (
     "net"
     "sync/atomic"
 
-    "codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-    sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+    "github.com/ze-software/ze/internal/core/slogutil"
+    sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // loggerPtr is the package-level logger, disabled by default.

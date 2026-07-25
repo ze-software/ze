@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	configtx "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	configtx "github.com/ze-software/ze/internal/component/config/transaction"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const configRootBGP = "bgp"

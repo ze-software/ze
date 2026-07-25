@@ -5,7 +5,7 @@ package cos
 import (
 	"sort"
 
-	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
 func enrichSubscriberDetail(base map[string]any) {

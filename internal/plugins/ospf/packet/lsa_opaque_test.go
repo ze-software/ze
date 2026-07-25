@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // TestOpaqueLinkStateIDSplit pins AC-7 / R-4: the Opaque Type is the high byte and the

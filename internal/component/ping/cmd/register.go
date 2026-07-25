@@ -16,9 +16,9 @@ import (
 	"os/signal"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {

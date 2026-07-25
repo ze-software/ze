@@ -1,4 +1,4 @@
-# codeberg.org/thomas-mangin/ze/scripts/evidence/install
+# github.com/ze-software/ze/scripts/evidence/install
 scripts/evidence/install/check.go:12:2: fmt.Printf format %s has arg value of wrong type int
-# codeberg.org/thomas-mangin/ze/scripts/evidence/runtime
+# github.com/ze-software/ze/scripts/evidence/runtime
 scripts/evidence/runtime/scan.go:41:3: unreachable code

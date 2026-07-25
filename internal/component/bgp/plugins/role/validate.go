@@ -6,8 +6,8 @@ package role
 import (
 	"encoding/hex"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // RFC 9234 Section 4.2, Table 2: Valid local→remote role pairs.
