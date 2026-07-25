@@ -80,6 +80,15 @@ traffic {
 EOF_CONF
 
 option=env:var=ze.log.traffic:value=info
+# The tc backend refuses to replace a root qdisc it cannot restore after a crash:
+# ensureSnapshot bails with errSnapshotPersistUnavailable when no runtime-state
+# store is registered (internal/plugins/traffic/netlink/backend_linux.go). ze only
+# opens a state-only database.zefs when a config dir is pinned, so pin it at the
+# per-test tmpfs dir -- isolated per test, no shared store to contend on. Config
+# stays on the filesystem (the runner forces ze.storage.blob=false for daemon
+# launches), which is what this test wants: the qdisc assertions read the kernel,
+# not the store.
+option=env:var=ze.config.dir:value=.
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s

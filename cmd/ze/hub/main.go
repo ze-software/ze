@@ -45,7 +45,6 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/reboot"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 )
@@ -126,10 +125,22 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		// test suite) must not create or contend on a database.zefs there. When no
 		// config dir is pinned, statestore stays a best-effort no-op, exactly as
 		// the pre-migration loose-file path was non-fatal on a read-only disk.
-		if stateStore, err := internalresolve.Storage(); err == nil {
-			if bs, ok := storage.BlobStoreFrom(stateStore); ok {
-				statestore.SetStore(bs)
-			}
+		//
+		// The store is opened DIRECTLY (zefs.Open/Create), NOT through
+		// internalresolve.Storage(): that helper answers "where does my CONFIG
+		// live" and returns a filesystem backend whenever ze.storage.blob=false,
+		// which silently defeated this branch and dropped ALL runtime state --
+		// including the tc original-qdisc snapshot, whose absence makes the
+		// traffic backend refuse to program a qdisc at all
+		// (internal/plugins/traffic/netlink/backend_linux.go errSnapshotPersistUnavailable).
+		// ze.storage.blob selects the CONFIG backend; it must not decide whether
+		// runtime state survives a restart. Opening directly also skips
+		// storage.NewBlob's config migration, so this store stays state-only and
+		// never shadows the on-disk config a SIGHUP reload re-reads.
+		if bs, err := openStateOnlyStore(env.Get("ze.config.dir")); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: runtime state persistence unavailable: %v\n", err)
+		} else {
+			statestore.SetStore(bs)
 		}
 	}
 
