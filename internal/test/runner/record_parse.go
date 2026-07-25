@@ -2,6 +2,7 @@
 // Overview: record.go — Record type definitions and methods
 // Related: record_collection.go — Tests container and querying
 // Related: accept_only.go — accept-only (weak) predicate over the parsed Records
+// Related: caps.go — needs-linux capability probe and the netns-link skip gate
 
 package runner
 
@@ -230,6 +231,12 @@ generateDecoded:
 		}
 	}
 
+	// option=netns-link declares a prerequisite the runner can only satisfy under
+	// the per-test netns launch mode, so a test that declared one is skipped here
+	// when that mode is off (see applyNetnsLinkGate for why). Applied after all
+	// options are parsed so it does not depend on their order in the .ci file.
+	applyNetnsLinkGate(r)
+
 	// ZE_QEMU_LINUX_ONLY mode (the `ze-qemu-needs-linux-test` tight loop) runs
 	// ONLY tests marked option=needs-linux: every other test is skipped so the
 	// QEMU VM spends its time on the Linux-only surface, not re-running tests
@@ -453,6 +460,9 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			spec.Address = p
 		}
 		r.NetnsLinks = append(r.NetnsLinks, spec)
+		// The skip gate for this option is applied once, after every option is
+		// parsed (see parseAndAdd), so it does not depend on the order the .ci
+		// file lists its options in.
 
 	case "skip-env":
 		varName := kv["var"]

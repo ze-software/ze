@@ -35,6 +35,21 @@ func netnsModeActive() bool {
 	return runtime.GOOS == "linux" && os.Getenv("ZE_TEST_NETNS") != ""
 }
 
+// netnsActive is the seam the parse-time netns-link skip gate reads (see
+// applyNetnsLinkGate in caps.go). The EXECUTION path deliberately keeps calling
+// netnsModeActive() directly (runner_exec.go), so flipping this seam changes
+// which tests are gated, never what a running test actually gets. It
+// is a package var, not a direct call, so a unit test can drive BOTH polarities
+// of the gate on any host: netnsModeActive() is false on every non-Linux dev
+// box, so asserting only the host's real answer would leave the "runs under
+// netns mode" branch vacuous exactly where these tests are authored.
+//
+// Deliberate, precedented exception to the "no global mutable state" rule in
+// ai/rules/go-standards.md: it is a test seam, never written in production
+// (only netnsModeActive's result is read), and it mirrors hasNetAdmin in
+// caps.go and interfaceByName in internal/component/ike/engine/doctor.go.
+var netnsActive = netnsModeActive
+
 // copyTestScripts copies the Python test-support modules (test/scripts/*.py,
 // notably ze_api.py) from baseDir into dstDir. In netns launch mode ze runs as a
 // normal user and forks observer plugins as that user; PYTHONPATH points at
