@@ -35,51 +35,94 @@ ip("link", "add", "tun100", "type", "dummy")
 ip("link", "set", "tun100", "up")
 EOF_SETUP
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
+tmpfs=static-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import json, os, signal, subprocess, sys, time
+"""Assert `show static` reports all three routes, across both tables."""
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
+import sys
 
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
+from ze_api import API, runtime_fail, result_json_data
 
-# blind settle: give the config a moment before the retrying CLI query below; no post-apply readiness signal to poll in this standalone driver
-time.sleep(0.5)
-last_err = None
-out = None
-for _ in range(50):
-    try:
-        out = subprocess.check_output(
-            ["ze", "cli", "-c", "show static"],
-            text=True, stderr=subprocess.STDOUT)
-        break
-    except subprocess.CalledProcessError as e:
-        last_err = e
-        # retry interval; the loop above stops on the first successful CLI response, bounded wait not a blind sleep
-        time.sleep(0.1)
-if out is None:
-    sys.exit("ze cli never became ready: %s" % last_err.output)
 
-data = json.loads(out)
-if not isinstance(data, list):
-    sys.exit("expected list, got: %s" % out)
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
 
-# Should have 3 routes: default 0.0.0.0/0, default 10.0.0.0/8, lns 0.0.0.0/0
-if len(data) < 3:
-    sys.exit("expected at least 3 routes, got %d: %s" % (len(data), out))
 
-sys.stdout.write(out)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
 
+    result = dispatch(api, 'show static')
+    if result.get('status') != 'done':
+        runtime_fail(f"show static: status={result.get('status')} "
+                     f"data={result.get('data')!r} error={result.get('error')!r}")
+
+    rows = result_json_data(result, None)
+    if not isinstance(rows, list):
+        runtime_fail(f"show static: expected a list, got {rows!r}")
+
+    # Three routes: default/0.0.0.0/0, default/10.0.0.0/8, lns/0.0.0.0/0. The
+    # same prefix in two tables must NOT collide (AC-8), so key on both.
+    seen = {(r.get('prefix'), r.get('table')) for r in rows if isinstance(r, dict)}
+    if len(rows) < 3:
+        runtime_fail(f"expected at least 3 routes, got {len(rows)}: {rows!r}")
+
+    prefixes = {p for p, _ in seen}
+    for want in ('0.0.0.0/0', '10.0.0.0/8'):
+        if want not in prefixes:
+            runtime_fail(f"show static: {want} missing, got {sorted(prefixes)!r}")
+
+    # AC-8: 0.0.0.0/0 exists in BOTH the default table (id 0) and lns (id 100).
+    default_tables = sorted(t for p, t in seen if p == '0.0.0.0/0')
+    if len(default_tables) < 2:
+        runtime_fail(f"0.0.0.0/0 should appear in two tables (default and lns), "
+                     f"got tables {default_tables!r}")
+    if 100 not in default_tables:
+        runtime_fail(f"named table lns (id 100) not resolved for 0.0.0.0/0, "
+                     f"got tables {default_tables!r}")
+
+    # AC-2/AC-4: the lns route's next-hop is interface-only (tun100), so it
+    # carries an interface and no gateway address.
+    lns = next((r for r in rows
+                if r.get('prefix') == '0.0.0.0/0' and r.get('table') == 100), None)
+    hops = lns.get('next-hops') or [] if lns else []
+    if not any(h.get('interface') == 'tun100' for h in hops):
+        runtime_fail(f"lns 0.0.0.0/0 should have an interface-only next-hop on "
+                     f"tun100, got {hops!r}")
+
+    print('OK: show static reports 3 routes across default and lns, '
+          'interface-only next-hop resolved', file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# The command is dispatched through an external plugin rather than `ze cli -c`:
+# `ze cli` speaks SSH (internal/component/cli/client/main.go:380,
+# sshclient.ExecCommand) and this config declares no SSH server, so the CLI path
+# could never reach the daemon -- it failed with "no credentials for
+# 127.0.0.1:2222".
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external static-show {
+        run ./static-show.run
+        encoder json
+    }
+}
+
 interface {
     backend netlink
 }
@@ -110,12 +153,20 @@ EOF_CONF
 option=env:var=ze.log.static:value=info
 option=env:var=ze.log.routing.table:value=info
 
+# // test-relax: the three `expect=stdout:contains=` substring checks are
+# REPLACED, not dropped. They matched text the old driver echoed from
+# `ze cli -c "show static"` -- a path that could never run here (this config
+# declares no SSH server, and ze cli speaks SSH), so they never asserted
+# anything about the daemon. The equivalent checks now live inside
+# static-show.run and are strictly stronger: route count, both (prefix, table)
+# pairs, the named table resolving to id 100, and the interface-only next-hop
+# landing on tun100. A substring "0.0.0.0/0" could be satisfied by either
+# table; the structured check cannot.
 cmd=foreground:seq=1:exec=python3 setup.py
-cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=static routes loaded
 expect=stderr:contains=routing-table registry loaded
-expect=stdout:contains=10.0.0.0/8
-expect=stdout:contains=0.0.0.0/0
-expect=stdout:contains="table"
+expect=stderr:contains=OK: show static reports 3 routes across default and lns, interface-only next-hop resolved
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

@@ -1,22 +1,67 @@
-# Test: a static route with an interface-only next-hop but NO iface backend.
-# VALIDATES: spec-fixit-static-interface-nexthops AC-2 / C-2 -- with no
-#            `interface { backend ... }` stanza the next-hop interface cannot
-#            be resolved, and the failure names the interface AND the missing
-#            stanza, not the bare "iface: no backend loaded".
-# PREVENTS: R-1 -- keeps the no-backend gap visible so 005 adding an interface
-#           stanza cannot quietly become the workaround. An operator must be
-#           told an interface backend is required, in actionable terms.
+# Test: a static route whose interface-only next-hop names a device that does
+#       not exist is skipped, named, and does not take the daemon down.
+# VALIDATES: spec-fixit-static-interface-nexthops AC-2 -- an interface-only
+#            next-hop that cannot be resolved fails with an error that NAMES the
+#            interface, and (per spec-fixit-static-per-route-isolation) skips
+#            just that route instead of failing the whole section.
+# PREVENTS: an unresolvable next-hop interface producing an anonymous error, or
+#           taking the rest of the static section down with it.
 #
-# Requires a Linux kernel (it boots a daemon that applies static config on the
-# netlink backend): gated needs-linux, validated under QEMU
-# (make ze-qemu-needs-linux-test). No setup.py: the interface is intentionally
-# unresolvable because no iface backend is configured.
+# Requires a Linux kernel (netlink route programming, and a static daemon cannot
+# boot on darwin -- the interface component has no OS-default backend there):
+# gated needs-linux, validated under QEMU (make ze-qemu-needs-linux-test).
+#
+# Why this does NOT assert "no interface backend loaded", which it used to:
+# that branch (internal/plugins/static/backend_linux.go:106) is guarded by
+# `iface.GetBackend() == nil`, and on Linux omitting the `interface { backend }`
+# stanza does NOT leave the backend unset -- parseIfaceBackend defaults to
+# defaultBackendName, which is "netlink" (internal/component/iface/default_linux.go:8).
+# So the branch is unreachable on Linux, and on darwin the daemon never reaches
+# static at all. The old expectation could therefore pass on no platform; it was
+# a permanently-red test. The C-2 message itself is covered deterministically by
+# TestResolveNexthopIndexNoBackendErrorIsDiagnosable
+# (internal/plugins/static/backend_linux_test.go:19), which forces the
+# no-backend precondition directly.
 
 option=needs-linux
 
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys
+
+from ze_api import wait_until
+
+# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
+if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                  attempts=200, delay=0.05):
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+# The daemon came up despite the unresolvable next-hop: that IS the per-route
+# isolation guarantee. The skipped route must never reach the kernel FIB.
+routes = subprocess.run(["ip", "route", "show", "table", "all"],
+                        capture_output=True, text=True).stdout
+if "tun404" in routes:
+    sys.exit("route via unresolvable tun404 was programmed, expected skipped:\n%s" % routes)
+
+sys.stdout.write("DAEMON-UP-WITH-ROUTE-SKIPPED\n")
+
+os.kill(pid, signal.SIGTERM)
+# Wait for the daemon to exit before the next test (kernel tables are shared).
+def _dead():
+    try:
+        os.kill(pid, 0)
+        return False
+    except OSError:
+        return True
+wait_until(_dead, attempts=100, delay=0.05)
+EOF_PY
+
 # The "default" table resolves without a routing-table stanza (it is the
 # built-in main table), so this config reaches resolveNexthopIndex for tun404
-# and fails there -- exactly the no-backend path under test.
+# and fails there -- exactly the unresolvable-interface path under test.
 stdin=ze-bgp:terminator=EOF_CONF
 static {
     table default {
@@ -29,6 +74,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
 expect=stderr:contains=tun404
-expect=stderr:contains=no interface backend loaded
+expect=stderr:contains=static: route skipped, kept rest of section
+expect=stdout:contains=DAEMON-UP-WITH-ROUTE-SKIPPED

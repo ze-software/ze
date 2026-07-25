@@ -2,63 +2,121 @@
 # VALIDATES: spec-static-routes AC-11 -- static show CLI displays
 #            prefix, next-hops with weight, action, metric, tag.
 # PREVENTS: show command returns empty or malformed JSON.
+#
+# Requires a Linux kernel: the daemon auto-loads the interface component for a
+# config-path plugin, and off Linux it aborts startup with "interface: no
+# backend configured and no OS default available" (netlink is linux-only), so
+# no static daemon can boot natively on darwin. Gated needs-linux and validated
+# under QEMU (make ze-qemu-needs-linux-test). setup.py creates a dummy interface
+# carrying the next-hop subnet so the gateways resolve in the bare VM.
+#
+# The command is dispatched through an external plugin rather than `ze cli -c`:
+# `ze cli` speaks SSH (internal/component/cli/client/main.go:380,
+# sshclient.ExecCommand) and this config declares no SSH server, so the CLI path
+# could never reach the daemon.
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
+option=needs-linux
+
+tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3
-import json, os, signal, subprocess, sys, time
+# Create a dummy interface carrying the 10.0.0.0/24 next-hop subnet so the
+# route's gateways resolve. Idempotent: "exists" errors are ignored so
+# repeat/parallel runs are safe.
+import subprocess
+def ip(*args):
+    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
+ip("link", "add", "zens4", "type", "dummy")
+ip("addr", "add", "10.0.0.100/24", "dev", "zens4")
+ip("link", "set", "zens4", "up")
+EOF_SETUP
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
+tmpfs=static-show.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show static` reports both routes with their next-hops and metadata."""
 
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
+import sys
 
-# blind settle: give the config a moment before the retrying CLI query below; no post-apply readiness signal to poll in this standalone driver
-time.sleep(0.5)
-last_err = None
-out = None
-for _ in range(50):
-    try:
-        out = subprocess.check_output(
-            ["ze", "cli", "-c", "show static"],
-            text=True, stderr=subprocess.STDOUT)
-        break
-    except subprocess.CalledProcessError as e:
-        last_err = e
-        # retry interval; the loop above stops on the first successful CLI response, bounded wait not a blind sleep
-        time.sleep(0.1)
-if out is None:
-    sys.exit("ze cli never became ready: %s" % last_err.output)
+from ze_api import API, runtime_fail, result_json_data
 
-# Verify JSON is parseable
-try:
-    data = json.loads(out)
-except json.JSONDecodeError as e:
-    sys.exit("invalid JSON from static show: %s\noutput: %s" % (e, out))
 
-# Verify structure
-if not isinstance(data, list) or len(data) == 0:
-    sys.exit("expected non-empty list, got: %s" % out)
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
 
-# Print for expect matching
-sys.stdout.write(out)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    result = dispatch(api, 'show static')
+    if result.get('status') != 'done':
+        runtime_fail(f"show static: status={result.get('status')} "
+                     f"data={result.get('data')!r} error={result.get('error')!r}")
+
+    rows = result_json_data(result, None)
+    if not isinstance(rows, list) or not rows:
+        runtime_fail(f"show static: expected a non-empty list, got {rows!r}")
+
+    by_prefix = {r.get('prefix'): r for r in rows if isinstance(r, dict)}
+
+    # Forward route: metric, tag and the weighted ECMP next-hops.
+    default = by_prefix.get('0.0.0.0/0')
+    if default is None:
+        runtime_fail(f"show static: 0.0.0.0/0 missing, got {sorted(by_prefix)!r}")
+    if default.get('metric') != 100:
+        runtime_fail(f"0.0.0.0/0 metric = {default.get('metric')!r}, want 100")
+    if default.get('tag') != 42:
+        runtime_fail(f"0.0.0.0/0 tag = {default.get('tag')!r}, want 42")
+    weights = {nh.get('address'): nh.get('weight')
+               for nh in default.get('next-hops') or []}
+    if weights != {'10.0.0.1': 3, '10.0.0.2': 1}:
+        runtime_fail(f"0.0.0.0/0 next-hop weights = {weights!r}, "
+                     f"want {{'10.0.0.1': 3, '10.0.0.2': 1}}")
+
+    # Discard route: the blackhole action is reported.
+    blackhole = by_prefix.get('192.0.2.0/24')
+    if blackhole is None:
+        runtime_fail(f"show static: 192.0.2.0/24 missing, got {sorted(by_prefix)!r}")
+    if blackhole.get('action') != 'blackhole':
+        runtime_fail(f"192.0.2.0/24 action = {blackhole.get('action')!r}, want blackhole")
+
+    print('OK: show static reports both routes with weights, metric and tag',
+          file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external static-show {
+        run ./static-show.run
+        encoder json
+    }
+}
+
 static {
     table default {
         route 0.0.0.0/0 {
             description "default with weighted ECMP"
             metric 100
             tag 42
-            next-hop 10.0.0.1 { weight 3; }
-            next-hop 10.0.0.2 { weight 1; }
+            next {
+                hop 10.0.0.1 { weight 3; }
+                hop 10.0.0.2 { weight 1; }
+            }
         }
         route 192.0.2.0/24 {
             blackhole { }
@@ -69,11 +127,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=1:exec=python3 setup.py
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-expect=stdout:contains="prefix"
-expect=stdout:contains="weight"
-expect=stdout:contains=0.0.0.0/0
-expect=stdout:contains=192.0.2.0/24
-expect=stdout:contains=blackhole
+expect=stderr:contains=OK: show static reports both routes with weights, metric and tag
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
