@@ -541,9 +541,38 @@ to a third independent subagent with one instruction: REFUTE the claim that
 | `ze-test bgp plugin 460 372 380 396 397` | `pass 5/5 100.0%` |
 | Both new gates | mutation-verified in both directions |
 
+## Review Gate -- Run 6 (independent completeness check, 2026-07-25)
+
+Rounds 4 and 5 had each found a producer the previous round's enumeration missed,
+so round 6 was given ONE question: is the enumeration now complete, or is there a
+sixth? It found one, and it is structural rather than a missed line.
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| R6-1 | ISSUE | **The in-process egress half has no failure channel.** `filterapi.EgressFilterFunc` returns a bare `bool` (`filterapi/filterapi.go:92`), so `safeEgressFilter` can only report the one failure it causes itself (a recovered panic). Already live in one filter: `OTCEgressFilter` rejects on the destination's role not being in the source's export set (`role/otc.go:412-419`), reading a map whose empty value means BOTH "advertised no role" (decision) and "never recorded" (failure). A validate-open RPC timeout (`bgp/server/validate.go:175-177`), a plugin conn not yet up, a missing process manager, or a plugin respawn nulling the map (`role/role.go:61`) all produce the second. Consequence: with a source configured `role { export ... }` and a destination whose role went unrecorded, every stored route is suppressed and counted as handled. | **HOMED, NOT FIXED** in `plan/spec-fixit-stored-route-relay-hardening.md`. Pre-existing and separable; the fix needs a signature change across three filter plugins AND role-recording semantics that separate "no role" from "not recorded". Recorded here rather than closed over: this spec's mechanism cannot see a failure the filter has no way to report. |
+| R6-2 | NOTE | Two non-decision ACCEPTS in `runEgressPolicyChainASN4` (`filter_ordered.go:289`, `:302-308`): a raw override of 1..3 bytes is discarded by `decodeFilterRawOverride`, and a `buildModifiedPayload` failure on a malformed payload is discarded, both falling through to `accept: true` -- so the route goes out UNMODIFIED and indistinguishable from "the filter accepted it as-is". Same family, opposite polarity, and the RFC 6996 private-ASN leak class this file exists to prevent. | **HOMED** in the same spec. |
+
+### Confirmed complete by Run 6
+
+Every producer with a failure channel is now correctly classified. The reviewer
+enumerated and checked each: all six `PolicyResponse` exits, both
+`PolicyChainResult` exits, all three `egressStepResult` producers, the RFC 7947
+community suppression (`ParseCommunityPolicy` fails OPEN on malformed input, so it
+cannot fabricate a suppression), the RFC 4456 reflection skip (both inputs
+settings-derived), `checkOTCEgress`'s wire-bytes rule (fails open on malformed
+attributes), and every uncounted `continue` in `forwardUpdateCore`. The arithmetic
+can only err toward "drop", never toward "handled". `LLGREgressFilter` and the
+community egress filter never return false at all, so role is the only in-process
+filter that can reach R6-1 today. All three Run 5 tests gate what they claim.
+
 ### Final status
 
 - [x] Run 3 findings all fixed or homed
 - [x] Run 4 (independent) BLOCKER fixed, ISSUEs fixed or homed
 - [x] Run 5 (independent refutation) BLOCKER fixed, ISSUEs fixed or homed
+- [x] Run 6 (independent completeness check) 0 BLOCKER; both findings homed
 - [x] AC-5 restated honestly as PARTIAL rather than closed over
+- [ ] **NOT closed.** Closure is the owner's call: AC-5 is PARTIAL and R6-1 leaves
+      one class of drop still invisible. Every AC-1..AC-4 goal is met and every
+      finding is either fixed or homed, but this spec does not get to claim a
+      clean sweep.
