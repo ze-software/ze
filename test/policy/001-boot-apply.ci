@@ -1,17 +1,29 @@
 # Test: Policy routing table programmed at boot.
 # VALIDATES: spec-policy-routing AC-1 -- ze boots with a policy route config;
-#            the plugin creates ze_pr nftables table (type route, hook
+#            the plugin creates ze_pr nftables table (type filter, hook
 #            prerouting) with interface wildcard match prepended to rules.
 # PREVENTS: config parsed but never reaches nftables backend.
 #
 # Requires CAP_NET_ADMIN.
 #
-# ENVIRONMENT (not a code bug, applies to the whole test/policy/ suite): the
-# policy-route table (nft type route, hook prerouting) needs nftables features
-# the Alpine QEMU minimal kernel lacks -- it fails `nft flush: operation not
-# supported`, reproduced identically with ze as root (so not a netns/Fix-B
-# issue). The policy suite runs on a full-kernel host via `make ze-netns-test`,
-# not in QEMU. See plan/learned/1112.
+# ISOLATION (applies to the whole test/policy/ suite): every test here writes the
+# SAME global kernel objects. All of them share one nft table name, `inet ze_pr`
+# (translate.go policyRoutingTable), and each daemon DELETES it on shutdown. They
+# also share the global ip-rule table, and the fwmark is allocated deterministically
+# from a fixed base (marks.go fwmarkBase = 0x50000), so any two tests using
+# `table 100` build the byte-identical `mark 0x50000 table 100` rule.
+#
+# The suite therefore assumes ONE daemon at a time. `make ze-netns-test` gives
+# each test its own netns and runs -p 1; scripts/evidence/qemu-all-tests.sh has
+# no netns, so it runs this suite -p 1. Do NOT raise the parallelism: concurrent
+# tests read each other's ze_pr rules, lose the ip-rule add with EEXIST, or find
+# ze_pr already deleted by a peer's shutdown. All six failed that way on
+# 2026-07-25 when the QEMU run used -p 4.
+#
+# The older note here claimed the Alpine QEMU kernel could not load this table at
+# all (`nft flush: operation not supported`, plan/learned/1112). That was the
+# `type route` + hook prerouting combination the kernel rejects with EOPNOTSUPP;
+# b54540f25 made it a filter chain (translate.go) and the table now loads in QEMU.
 
 option=needs-linux:caps=net-admin
 
@@ -34,6 +46,25 @@ with open("daemon.pid") as f:
 time.sleep(0.5)
 out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
 sys.stdout.write(out)
+
+# Re-emit the RULE lines under a marker so the verdict expectations below can
+# assert on an actual rule and never on the base-chain declaration. That line,
+#     type filter hook prerouting priority mangle; policy accept;
+# ALWAYS contains the word "accept" for every possible policy config, because
+# translate.go hardcodes `Policy: firewall.PolicyAccept` on the ze_pr base chain
+# (internal/plugins/policyroute/translate.go:51, lowered at
+# internal/plugins/firewall/nft/lower_linux.go:148). A bare
+# `expect=stdout:contains=accept` therefore matched the chain policy and could
+# never fail -- it passed whether or not the accept rule was ever programmed.
+# The same trap made test/policy/006-reload unpassable in the opposite direction.
+# Matching "RULE ...accept" is also independent of WHERE nft renders the verdict
+# on the line, which a line-anchored regex would not be.
+for _line in out.splitlines():
+    _s = _line.strip()
+    if not _s or _s in ("{", "}") or _s.startswith(("table ", "chain ", "type ")):
+        continue
+    sys.stdout.write("RULE " + _s + "\n")
+
 os.kill(pid, signal.SIGTERM)
 EOF_PY
 
@@ -82,5 +113,5 @@ expect=exit:code=0
 expect=stderr:contains=policy routes applied
 expect=stdout:contains=table inet ze_pr
 expect=stdout:contains=iifname "l2tp*"
-expect=stdout:contains=accept
-expect=stdout:contains=drop
+expect=stdout:pattern=RULE .*accept
+expect=stdout:pattern=RULE .*drop

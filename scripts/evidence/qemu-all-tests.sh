@@ -130,8 +130,32 @@ fsuite ui "$ZE_TEST_BIN" ui --all -p "$PARALLEL"
 fsuite editor "$ZE_TEST_BIN" editor
 fsuite managed "$ZE_TEST_BIN" managed --all -p 1
 fsuite l2tp "$ZE_TEST_BIN" l2tp --all -p "$PARALLEL"
-fsuite firewall "$ZE_TEST_BIN" firewall --all -p "$PARALLEL"
-fsuite policy "$ZE_TEST_BIN" policy --all -p "$PARALLEL"
+# Serial (-p 1): firewall and policy are ZE_NETNS_SUITES members
+# (mk/test-integration.mk) -- they are written for the per-test network namespace
+# that `make ze-netns-test` gives them (ZE_TEST_NETNS=1, itself -p 1). The QEMU
+# run has no netns isolation, so every test here shares ONE root namespace and
+# concurrent tests collide on global kernel objects:
+#   - the single `inet ze_pr` nft table (every policy test writes the same table,
+#     and each daemon deletes it on shutdown -- policy 1/3/4/6 read another
+#     test's rules or find the table already gone),
+#   - the global ip-rule table (marks.go fwmarkBase makes the mark deterministic,
+#     so policy 2 and 3 build the identical `mark 0x50000 table 100` rule and the
+#     loser gets EEXIST),
+#   - the global nft input hook. nftables evaluates EVERY base chain registered
+#     at a hook and a drop in any one of them is final, so one test's chain
+#     silently filters another test's traffic. firewall 1/2/10/12/13 install
+#     `policy drop` input chains that accept only their own narrow match, and
+#     flush-crash/flush-persist deliberately LEAVE such a chain in the kernel
+#     (that persistence IS their assertion). Together they dropped firewall 4's
+#     loopback `ze cli` -> SSH:2222 connection for its full 30s retry window, no
+#     matter what firewall 4's own table accepted. The two flush tests now reap
+#     their table on exit, so serial order is enough; do not rely on 004 sorting
+#     before them.
+#   - the fixed SSH port 2222 (firewall 4).
+# Same reason reload/managed/traffic are serial below. Serializing restores the
+# one-daemon-at-a-time assumption these suites are written against.
+fsuite firewall "$ZE_TEST_BIN" firewall --all -p 1
+fsuite policy "$ZE_TEST_BIN" policy --all -p 1
 fsuite install "$ZE_TEST_BIN" install --all -p "$PARALLEL"
 fsuite appliance "$ZE_TEST_BIN" appliance --all -p "$PARALLEL"
 # IGP/MPLS suites: gated natively too, but test/ospf and test/ospfv3 contain

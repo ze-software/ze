@@ -15,12 +15,25 @@ tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 """Verify the ze table is still present AFTER a clean SIGTERM when
 flush-on-shutdown is false."""
+import atexit
 import os
 import signal
 import subprocess
 import sys
 
 from ze_api import wait_until
+
+# The table this test proves survives an orderly stop is a REAL `policy drop` base
+# chain at hook input, and flush-on-shutdown=false means ze deliberately does not
+# remove it. Under `make ze-netns-test` the per-test netns is destroyed at teardown
+# so the leak is invisible; in a shared namespace (the QEMU VM,
+# scripts/evidence/qemu-all-tests.sh) it would outlive this test and drop every
+# later packet that is not tcp dport 22 -- for the rest of the VM run, across every
+# suite that follows. Reap it on ANY exit path. This runs after the AFTER_SHUTDOWN
+# assertion below, so the persistence check is unaffected: the test still proves the
+# opt-out was honoured, it just no longer leaves a landmine for the next suite.
+atexit.register(lambda: subprocess.call(
+    ["nft", "delete", "table", "inet", "ze_fwpersist"], stderr=subprocess.DEVNULL))
 
 # // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
 if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
