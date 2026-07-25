@@ -44,3 +44,39 @@ rather than looping `make ze-verify`, and check whether the teardown is the same
 mechanism as shard `bgp-plugin-forward-overflow-two-tier.md` (which documents a
 deterministic instance of the same symptom with `ZE_FWD_CHAN_SIZE=2`). If one
 root cause explains all six, collapse these three shards into a single spec.
+
+
+---
+
+## Update 2026-07-25: mechanism confirmed, two of four members fixed
+
+**222 `forward-congestion-teardown-metrics` -- FIXED (`52ad2f71b`).** Reproduced on
+an IDLE host, so this member was never really load-only. The observer's readiness
+predicate (`show metrics values` non-empty) is satisfied at plugin-ready time,
+which is BEFORE peers start -- the test's own comment admits the counters are
+"always registered, value 0 at startup". Measured: `bgp peers started` at
+18:41:33.386, observer `OK` at .388, and no `session established` line at all. So
+`request shutdown` could close the session mid-OPEN, which is the shard's
+`connection closed before completion`. Fixed with the established+`quiesce()`
+barrier already used by `test/plugin/api-rib-clear-out.ci:36-52`, whose comment
+names this exact failure. A/B on an idle host: baseline 1 failure in 8, with the
+barrier 0 in 8, and with the barrier the daemon reaches `session established` and
+`sent EOR` before shutdown.
+
+**398 `role-otc-unicast-scope` -- FIXED (`52ad2f71b`).** Same family, different
+lever: its source check peer closed ~1 ms after sending its UPDATE, because a check
+peer without `option=linger` exits as soon as its script completes. See the
+`bgp-plugin-role-otc-export-unknown` entry in `RESOLVED.md` for the full producer
+chain.
+
+**85 `bgp-rs-asn4-transcode` and 97 `bmp-locrib` -- NOT addressed.** They were not
+individually reproduced this session. The full `plugin` suite has since run
+495/495 twice, which is data and not proof for a load-sensitive cluster. If either
+recurs, check the same two levers first -- an observer whose readiness predicate is
+satisfiable before peers start, and a source peer without `option=linger` -- before
+looking for anything new.
+
+Correction to this shard's own triage note: it proposed `option=linger` as the
+likely lever for the whole cluster, citing the 224 fix. That was right for 398 and
+WRONG for 222, whose source peers need no linger; there the defect was the observer
+shutdown gate. Do not assume one lever fits the cluster.

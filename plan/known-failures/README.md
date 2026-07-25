@@ -52,7 +52,7 @@ wrong root cause (a "macOS socket-stack quirk", a "broken listener-conflict
 validator"), and one had been "re-confirmed" six days later by repeating the same
 flawed invocation. Reproducing a symptom is not attributing a cause.
 
-**Status 2026-07-25: 13 live shards swept, 5 cleared.** Resolved and archived to
+**Status 2026-07-25: 13 live shards swept, 9 cleared, 4 left open.** Resolved and archived to
 `RESOLVED.md`: `static-show-obsolete-next-hop-syntax` (fixed, and four more
 defects in the same suite with it), `ci-suites-quick-exit-ze-unasserted` (149
 commands armed across 52 files), `syncpool-capacity-identity-flakes` (both tests
@@ -61,6 +61,24 @@ asserted a guarantee `sync.Pool` does not make), plus two that were simply STALE
 after the shard was written) and `bgp-plugin-show-l2tp-tunnel-detail` (passes).
 Two stale shards out of thirteen is the reason to re-run a shard's own
 reproduction before believing it.
+
+Four more cleared once their fixes landed: `l2tp-session-stopccn-cascade` (its
+receive-window diagnosis had no producer; the real cause is the missing
+CAP_NET_ADMIN its own marker already declared),
+`iface-vlan-unit-address-reconcile` (a Linux same-subnet secondary flush, checked
+against the kernel directly rather than inferred),
+`bgp-plugin-role-otc-export-unknown` (the test had let its own source peer
+disconnect, and its gate `if total < 0` could never fire), and `rsvpte-lsp-setup`
+(stale, closed on a third independent sweep).
+
+Four remain open, and are open for different reasons:
+`bgp-plugin-dest-peer-teardown-cluster` -- 2 of 4 members fixed, the other 2 not
+individually reproduced; `bgp-plugin-rs-forward-duplicate-and-order` -- mechanism
+confirmed and the claim margin measured, but the fix is startup-ordering work
+already homed in `plan/spec-fixit-stored-route-relay-hardening.md`;
+`reload-config-apply-ordering-rotation` -- never reproduced;
+`reload-transaction-tests-load-sensitive` -- kept only for its finding 3, the
+unprivileged-daemon hang, which remains unverified.
 
 The sweep also found bugs that were NOT tracked here, which is the other reason
 to run the suite rather than read about it: `make ze-unit-test` was red on every

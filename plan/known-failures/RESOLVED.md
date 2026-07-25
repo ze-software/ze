@@ -9,6 +9,93 @@ resolved.
 
 ## Struck-through (resolved in place, were not yet under `## Resolved`)
 
+### ~~`l2tp` functional suite `session-stopccn-cascade`~~ -- RESOLVED 2026-07-25: original diagnosis refuted, test is correct as marked
+
+The shard blamed the answering-side reliable-receive path: "ze's receive window
+does not advance past the second session's rapid-fire ICRQ". That has no producer.
+`OnReceive` classifies purely on `hdr.Ns == e.nextRecvSeq` and advances on every
+in-order delivery (`internal/component/l2tp/reliable.go:487-499`); there is no
+window gating on the receive path at all -- `e.win` governs only the send side. The
+`.ci` peer sends strictly increasing Ns 0..6, so the reorder queue is never touched.
+
+The real cause is the missing CAP_NET_ADMIN, which the test's own
+`option=needs-linux:caps=net-admin` marker already states: the genl tunnel create
+returns EPERM, `handleKernelError` tears the sessions down
+(`reactor_kernel.go:388-411` -> `session_fsm.go:434-455`), so `clearSessions`
+returns nil and the asserted log at `tunnel_fsm.go:596` is suppressed. The marker
+is correct and was kept.
+
+The investigation did find a separate REAL bug, now fixed (`baf45d6bd`):
+`reorderEntry` carried only (ns, payload), so gap-fill delivery hard-coded
+SessionID 0 -- a reserved id that is never allocated -- and every reorder-queued
+ICCN/ICRP/OCCN/OCRP/CDN/WEN/SLI was dropped as "unknown SID". Coverage no longer
+depends on the privileged `.ci`: `TestSession_StopCCNCascadeThroughEngine` drives
+the same sequence over real UDP through the reactor, mutation-verified against a
+no-op `clearSessions`.
+
+### ~~`internal/component/iface` `TestIntegrationApplyConfigVLANUnitAddressReconcile`~~ -- RESOLVED 2026-07-25: Linux same-subnet secondary flush
+
+Root cause is the kernel, not the reconcile logic. `10.60.200.1/24` ->
+`10.60.200.2/24` is a renumber INSIDE one subnet, and the reconcile is
+make-before-break: `config_apply.go:898` adds the new address, which Linux marks
+`IFA_F_SECONDARY`, then `:916` removes the old one -- and `__inet_del_ifa` deletes
+every same-subnet secondary along with the primary unless
+`net.ipv4.conf.<dev>.promote_secondaries` is 1. Both `RemoveAddress` calls return
+nil, which is exactly why `applyConfig` reported no errors while the address was
+gone.
+
+Verified directly in the QEMU VM, independent of ze: the sibling shows as
+`secondary`, deleting the primary leaves `ip -4 addr show` EMPTY, and with
+`promote_secondaries=1` the sibling survives and is promoted.
+
+Fixed in `b8fdfeb5b`: `RemoveAddress` enables the knob before a cascading delete
+and REJECTS the removal naming the endangered addresses if it cannot. The test now
+passes in QEMU (`--- PASS: TestIntegrationApplyConfigVLANUnitAddressReconcile`),
+alongside two new integration tests for the sibling-preserved and other-subnet
+cases.
+
+### ~~`bgp plugin` `role-otc-export-unknown` -- rare spurious withdraw~~ -- RESOLVED 2026-07-25: the test let its own source peer disconnect
+
+The daemon was right. Without `option=linger` a check peer closes the moment its
+script completes, ~1 ms after sending its UPDATE; `adj_rib_in/rib.go:573-576` then
+deletes its RIB on session-down, and `bgp-rs` `handleStateDown` ->
+`sendBatchedWithdrawals` (`rs/server_handlers.go:90-149`) emits
+`del prefix 10.0.0.0/24` to the destination peer -- byte-for-byte the captured
+frame `001B:02:0004180A00000000`.
+
+Two earlier revisions of this shard reasoned from false premises and both were
+corrected: the RFC 9494 conversion in `forwardUpdateCore` was correctly ruled out,
+but the "unexamined candidate: the peer-down withdrawal path" it named was right
+and had been wrongly dismissed on the belief that `bgp-rs` was not loaded. It is:
+a `bgp {}` config auto-loads ~20 BGP plugins before the `.ci`'s own stanzas, so a
+plugin set must be read from the daemon's `startup tiers computed` line, never
+from the `.ci`.
+
+The test also asserted nothing: its gate was `if total < 0`, which can never fire,
+so `total-routes == 0` passed silently on every run. Fixed in `52ad2f71b`:
+`option=linger` on the source peer and the gate tightened to `total < 1`,
+mutation-verified by removing linger (both go red). Sibling
+`role-otc-unicast-scope` had the same two defects and the same fix. Confirmed by a
+full `plugin` suite run at 495/495.
+
+### ~~`rsvpte-lsp-setup` -- load-only `slice bounds` panic~~ -- RESOLVED 2026-07-25: stale, closed on a third independent sweep
+
+The 2026-07-13 UPDATE already disproved the cap-512 diagnosis. A third independent
+repo-wide sweep (2026-07-25) reconfirms it: all 15 cap-512 sites enumerated, none
+can be resliced past 512 -- the two format scratches keep their `n > cap(raw)`
+guards and the rest are append-only, ioctl-fixed, or guarded upstream;
+`internal/core/textbuf` is clean. With 0 reproductions in 160 prior runs and the
+2026-07-04 crash predating the plugin-startup/RPC-dispatch refactors (`1eb89f509`,
+`3404c4396`, `8f3203ef5`) that rewrote that exact area, it is either already fixed
+or was a truncated 2-line aggregator stack misattributing another suite's crash.
+
+The sweep did find a real, remotely-triggerable panic elsewhere, now fixed
+(`457ec9ee8`): `handlePendingCollision` read `buf[HeaderLen:hdr.Length]` into a
+4096-byte buffer using the raw wire Length, with no `ValidateLengthWithMax` --
+unlike both sibling read paths. Any host able to open a colliding TCP connection
+to a configured peer address could panic the reactor before capability
+negotiation.
+
 ### ~~`ze-test bgp plugin 458 show-l2tp-tunnel-detail` -- deterministic on darwin~~ -- RESOLVED 2026-07-25: no longer reproduces
 
 Re-run on darwin with the current tree: `ze-test bgp plugin --pattern
