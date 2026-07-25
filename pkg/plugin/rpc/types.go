@@ -64,6 +64,14 @@ type DeclareRegistrationInput struct {
 	Filters                []FilterDecl          `json:"filters,omitempty"`
 	DoctorChecks           []DoctorCheckDecl     `json:"doctor-checks,omitempty"`
 	Enrichers              []EnricherDecl        `json:"enrichers,omitempty"`
+	// Claims are exclusive runtime roles this plugin takes over from another
+	// plugin's default behavior (e.g. "bgp-peer-up-replay"). The engine unions
+	// the claims of every plugin in the startup set and delivers the result to
+	// every plugin in ConfigureInput.Claims (Stage 2), so a plugin can stand
+	// its own default down BEFORE it can receive any runtime event. Tokens are
+	// opaque to the engine: the claiming plugin and the standing-down plugin
+	// agree on the spelling. Same shape as EventTypes/SendTypes.
+	Claims []string `json:"claims,omitempty"`
 }
 
 // EnricherDecl declares a show enricher the plugin provides.
@@ -217,6 +225,22 @@ type ConfigSection struct {
 // ConfigureInput is the input for ze-plugin-callback:configure (Stage 2).
 type ConfigureInput struct {
 	Sections []ConfigSection `json:"sections"`
+
+	// Claims is the union of the exclusive runtime roles claimed by the plugins
+	// in this daemon's startup set (see DeclareRegistrationInput.Claims). It is
+	// delivered on the Stage-2 configure callback -- part of the sequential
+	// startup handshake -- which is strictly before Stage 5 (ready) and
+	// therefore strictly before the reactor starts peers. A plugin whose
+	// default behavior another plugin has claimed can stand that default down
+	// here with no timing window against session establishment.
+	//
+	// An empty or absent list means "nothing is claimed": every plugin keeps
+	// its own default. That is the fail-closed direction (see
+	// ai/rules/fail-closed-guards.md) -- for peer-up replay, running both the
+	// owner's replay and the default self-replay produces a duplicate BGP
+	// UPDATE, which is idempotent at the receiver, whereas standing down for an
+	// owner that never runs loses routes outright.
+	Claims []string `json:"claims,omitempty"`
 }
 
 // DeclareCapabilitiesInput is the input for ze-plugin-engine:declare-capabilities (Stage 3).

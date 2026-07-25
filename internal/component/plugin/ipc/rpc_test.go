@@ -102,7 +102,7 @@ func TestRPCConfigure(t *testing.T) {
 	// Engine sends configure via engine conn (callback write side)
 	done := make(chan error, 1)
 	go func() {
-		done <- engineConn.SendConfigure(context.Background(), sections)
+		done <- engineConn.SendConfigure(context.Background(), sections, nil)
 	}()
 
 	// Plugin receives via engine conn (callback read side)
@@ -119,6 +119,41 @@ func TestRPCConfigure(t *testing.T) {
 	// Plugin sends response
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
 
+	require.NoError(t, <-done)
+}
+
+// TestRPCConfigureCarriesClaims verifies that the exclusive-role claim set
+// rides the Stage-2 configure callback.
+//
+// VALIDATES: SendConfigure puts the claims on the wire, in the same message as
+// the config sections. Stage 2 is part of the sequential startup handshake, so
+// this is what makes a role decision ordered before the engine starts peers.
+// PREVENTS: the claim set silently not reaching the plugin, which would leave
+// bgp-adj-rib-in self-replaying alongside bgp-rs and announcing a route twice
+// (test/plugin/rfc7606-relay-one-field, test/plugin/llgr-readvertise-multipeer).
+func TestRPCConfigureCarriesClaims(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendConfigure(context.Background(),
+			[]rpc.ConfigSection{{Root: "bgp", Data: `{}`}},
+			[]string{"bgp-peer-up-replay"})
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:configure", req.Method)
+
+	var input rpc.ConfigureInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, []string{"bgp-peer-up-replay"}, input.Claims,
+		"the claim set must arrive with the Stage-2 configure callback")
+	assert.Equal(t, 1, len(input.Sections), "claims must not displace the config sections")
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
 	require.NoError(t, <-done)
 }
 
@@ -500,7 +535,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 	// Stage 2: engine sends configure
 	require.NoError(t, engineConn.SendConfigure(ctx, []rpc.ConfigSection{
 		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
-	}))
+	}, nil))
 
 	// Stage 3: engine reads declare-capabilities
 	req, err = engineConn.ReadRequest(ctx)

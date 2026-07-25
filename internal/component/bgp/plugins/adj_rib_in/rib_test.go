@@ -958,6 +958,58 @@ func TestReplayOwnerDedupe(t *testing.T) {
 		assert.Empty(t, *dest, "the very first peer-up after a claim must not self-replay")
 	})
 
+	// The DECLARATIVE path: the engine delivers the claim on the Stage-2
+	// configure callback, which completes before this plugin sends Stage 5 ready
+	// and therefore before the engine starts peers. This is what makes the very
+	// first peer-up safe without any dispatch having to arrive in time.
+	t.Run("startup claim stands self-replay down", func(t *testing.T) {
+		r, dest := newWithRoute(t)
+
+		r.applyStartupClaims(func(role string) bool { return role == claimPeerUpReplay })
+		require.Empty(t, *dest, "applying a startup claim does not itself replay")
+
+		r.handleState(upEvent)
+		assert.Empty(t, *dest,
+			"a role claimed at Stage 2 must stop self-replay for the FIRST peer-up")
+		assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.2")],
+			"standing down from replay must not stop tracking peer state")
+	})
+
+	// Fail-closed: an unclaimed role, or no claim source at all, must leave
+	// self-replay ON. Standing down for an owner that does not exist loses
+	// routes; self-replaying alongside an owner only duplicates an idempotent
+	// UPDATE.
+	t.Run("unclaimed role leaves self-replay on", func(t *testing.T) {
+		for name, claimActive := range map[string]func(string) bool{
+			"no claim source":  nil,
+			"nothing claimed":  func(string) bool { return false },
+			"unrelated claims": func(role string) bool { return role == "some-other-role" },
+		} {
+			t.Run(name, func(t *testing.T) {
+				r, dest := newWithRoute(t)
+				r.applyStartupClaims(claimActive)
+				r.handleState(upEvent)
+				assert.Equal(t, []string{"10.0.0.2"}, *dest,
+					"without a claim for this role, peer-up must still replay")
+			})
+		}
+	})
+
+	// The late-join corrective must not undo the declarative claim, and the two
+	// overlapping must stay idempotent.
+	t.Run("startup claim and late-join corrective are idempotent", func(t *testing.T) {
+		r, dest := newWithRoute(t)
+
+		r.applyStartupClaims(func(string) bool { return true })
+		status, _, err := r.claimReplayCommand()
+		require.NoError(t, err)
+		require.Equal(t, statusDone, status)
+		r.applyStartupClaims(func(string) bool { return true })
+
+		r.handleState(upEvent)
+		assert.Empty(t, *dest, "overlapping claim paths must not re-enable self-replay")
+	})
+
 	// An operator running the diagnostic replay verb must NOT silently disable
 	// peer-up replay for the rest of the process lifetime.
 	t.Run("operator replay does not latch ownership", func(t *testing.T) {

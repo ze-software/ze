@@ -90,6 +90,13 @@ type Server struct {
 	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
 	loadedPluginsMu sync.Mutex      // protects loadedPlugins
 
+	// advertisedClaims records every exclusive-role token the engine told a
+	// plugin was claimed (Stage-2 configure), mapped to the claimants it was
+	// derived from. Read back in signalStartupComplete to prove each claimant
+	// actually reached Running -- see startup_claims.go.
+	advertisedClaims   map[string]map[string]bool
+	advertisedClaimsMu sync.Mutex
+
 	startupDone     chan struct{} // closed when signalStartupComplete runs
 	startupDoneOnce sync.Once
 	startupErr      error // non-nil when a config-path plugin fails during startup

@@ -74,6 +74,12 @@ type PluginRegistration struct {
 	WantsValidateOpen      bool // Plugin wants to validate OPEN message pairs (validate-open callback)
 	Done                   bool // True when "registration done" received
 
+	// Claims are exclusive runtime roles this plugin takes over from another
+	// plugin's default behavior, declared in Stage 1. The engine unions them
+	// across the startup set and delivers the union on the Stage-2 configure
+	// callback. See registry.Registration.Claims.
+	Claims []string
+
 	// YANG schema declarations (Hub Architecture)
 	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
 

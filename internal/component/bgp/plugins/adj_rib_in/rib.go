@@ -123,17 +123,32 @@ type AdjRIBInManager struct {
 	// Used in tests to verify peer-up triggers replay without an engine.
 	routeRelayer func(destination string, routes []rpc.StoredRoute)
 
-	// replayOwned is set when another plugin has claimed peer-up replay (bgp-rs,
-	// via "request bgp adj-rib-in claim-replay" at startup). While set, this
-	// plugin does NOT self-replay on peer-up.
+	// replayOwned is set when another plugin owns peer-up replay (bgp-rs). While
+	// set, this plugin does NOT self-replay on peer-up.
 	//
-	// Both used to fire. bgp-rs marks a peer Replaying and withholds it from
-	// forward targets until its replay finishes, so the rs-driven replay never
-	// races the live forward. This plugin's self-replay has no such gate, so with
-	// both running a route learned just before a peer established went out twice:
-	// once from the ungated self-replay and once from the forward path. Standing
-	// down here leaves exactly one replay owner. With bgp-rs absent nothing claims
-	// ownership, the flag stays false, and self-replay remains the only path.
+	// Both used to fire. bgp-rs does NOT withhold a replaying peer from its
+	// forward targets (rs/server_forward.go selectForwardTargets keys on peer.Up
+	// alone -- a deliberate decision, plan/learned/630-rs-fastpath-3-passthrough.md),
+	// so with both running, a route learned just before a peer established went
+	// out twice: once from this plugin's self-replay and once from bgp-rs.
+	// Standing down leaves exactly one replay owner.
+	//
+	// It is set from TWO places, and only the first is ordered:
+	//
+	//  1. applyStartupClaims, from the Stage-2 configure callback. The engine
+	//     delivers the set of exclusive roles claimed by the plugins in the
+	//     startup set, and Stage 2 completes before this plugin sends Stage 5
+	//     ready -- so before the engine starts peers. This is the path that
+	//     makes the FIRST peer-up safe; it has no timing window.
+	//  2. claimReplayCommand, dispatched by a bgp-rs that joined after this
+	//     plugin was configured (mid-life auto-load or respawn). A late-join
+	//     corrective only.
+	//
+	// With bgp-rs absent nothing claims the role, the flag stays false, and
+	// self-replay remains the only path. That is also the fail-closed answer
+	// when ownership cannot be determined at all: a duplicate BGP UPDATE is
+	// idempotent at the receiver, whereas standing down for an owner that never
+	// replays loses routes outright (ai/rules/fail-closed-guards.md).
 	replayOwned atomic.Bool
 }
 
@@ -189,6 +204,14 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return r.handleCommand(command, args, peer)
+	})
+
+	// Stage 2. Resolve peer-up replay ownership here -- strictly before the
+	// engine starts peers -- rather than from a runtime callback that races
+	// session establishment. See applyStartupClaims.
+	p.OnConfigure(func([]sdk.ConfigSection) error {
+		r.applyStartupClaims(p.ClaimActive)
+		return nil
 	})
 
 	// Start the timeout scanner for pending validation routes (fail-open).

@@ -793,17 +793,54 @@ func runEngine(conn net.Conn) int {
 	return 0
 }
 
-// joinApplyErrors logs each error at Warn level and returns a short summary
-// for the status line. Detailed errors are visible via log output.
+// permissionRemediation is appended to an interface apply failure that the
+// kernel refused for want of privilege, so the returned error carries the
+// corrective action and not just the syscall text (ai/rules/error-messages.md:
+// an error must say what failed, why, and what to do next).
+//
+// Interface work is netlink RTM_NEWLINK/RTM_NEWADDR, which the kernel gates on
+// CAP_NET_ADMIN. An unprivileged ze therefore fails EVERY interface operation
+// and aborts startup, so the operator needs the capability named at the point
+// of failure -- the pre-flight "running without root" warning
+// (internal/core/privilege/check_linux.go) scrolls past long before this and
+// does not survive into the error at all.
+const permissionRemediation = " (interface configuration needs CAP_NET_ADMIN: run ze as root, or grant the binary the capability with `setcap cap_net_admin+ep <path-to-ze>`)"
+
+// lacksPrivilege reports whether any apply error was the kernel refusing the
+// operation for want of privilege. netlink returns EPERM, and some paths EACCES;
+// syscall.Errno.Is maps both to os.ErrPermission, so this needs no build tag and
+// no errno spelling of its own.
+func lacksPrivilege(errs []error) bool {
+	for _, e := range errs {
+		if errors.Is(e, os.ErrPermission) {
+			return true
+		}
+	}
+	return false
+}
+
+// joinApplyErrors logs each error at Warn level and returns the error the
+// plugin's configure/reload callback reports to the engine.
+//
+// It WRAPS a cause rather than summarizing one away: this error is what the
+// operator sees on stderr when startup aborts, and "N errors (see log for
+// details)" pointed at a log the caller may not have (the engine's copy of this
+// error crosses an RPC boundary as text). One error is wrapped whole; several
+// name the count and wrap the first, which keeps the message bounded while
+// still carrying evidence. Every error is logged individually above regardless.
 func joinApplyErrors(prefix string, errs []error) error {
 	log := loggerPtr.Load()
 	for _, e := range errs {
 		log.Warn(prefix, "err", e)
 	}
-	if len(errs) == 1 {
-		return fmt.Errorf("%s: %w", prefix, errs[0])
+	hint := ""
+	if lacksPrivilege(errs) {
+		hint = permissionRemediation
 	}
-	return fmt.Errorf("%s: %d errors (see log for details)", prefix, len(errs))
+	if len(errs) == 1 {
+		return fmt.Errorf("%s: %w%s", prefix, errs[0], hint)
+	}
+	return fmt.Errorf("%s: %d errors, first: %w%s", prefix, len(errs), errs[0], hint)
 }
 
 // DHCPStopper is the subset of ifacedhcp.DHCPClient needed by the

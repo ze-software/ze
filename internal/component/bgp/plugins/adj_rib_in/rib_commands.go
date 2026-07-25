@@ -312,21 +312,28 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 
 // claimReplayCommand handles "request bgp adj-rib-in claim-replay".
 //
-// A peer plugin (bgp-rs) calls this ONCE at startup to take ownership of peer-up
-// replay. While owned, this plugin does not self-replay -- the owner drives
-// replay explicitly per peer.
+// This is the LATE-JOIN corrective, not the startup path. The startup path is
+// declarative: bgp-rs puts the peer-up-replay role in its registration, the
+// engine unions the claims of the startup set and delivers them on this
+// plugin's Stage-2 configure callback, and applyStartupClaims (rib.go) stands
+// self-replay down there -- before the engine starts peers, with no timing
+// window. This command exists for a bgp-rs that appears AFTER this plugin was
+// configured (mid-life config-reload auto-load, or a respawn), where that
+// declaration could not have reached it.
 //
-// The owner does NOT gate the concurrent forward while its replay runs, contrary
-// to what this comment claimed before: bgp-rs selects forward targets on peer.Up
-// alone (rs/server_forward.go selectForwardTargets), by the deliberate decision in
-// plan/learned/630-rs-fastpath-3-passthrough.md. So this claim landing before the
-// first session establishes is the ONLY thing preventing a doubled replay, and it
-// is not ordered against peer startup -- see the race note below.
+// Do not move the startup decision back onto this command. It is dispatched
+// from the owner's OnAllPluginsReady, which the engine fans out on detached
+// goroutines immediately before StartPeers
+// (internal/component/plugin/server/startup.go, sendPostStartupToAll -- waiting
+// there deadlocks, as its doc comment records). While that WAS the startup
+// path, the first peer raced it by 1-2 ms on an idle host and was replayed
+// twice under load.
 //
-// The claim is issued from the owner's OnAllPluginsReady, which is NOT ordered
-// against session establishment (see claimReplayOwnership in
-// internal/component/bgp/plugins/rs/server_handlers.go), so the FIRST peer can
-// still race it. Tracked in plan/spec-fixit-stored-route-relay-hardening.md.
+// Standing down matters because the owner does NOT gate the concurrent forward
+// while its replay runs: bgp-rs selects forward targets on peer.Up alone
+// (rs/server_forward.go selectForwardTargets), by the deliberate decision in
+// plan/learned/630-rs-fastpath-3-passthrough.md. So ownership being settled
+// before a peer establishes is the only thing preventing a doubled replay.
 //
 // It is deliberately NOT the plain "replay" verb doing the claiming. Latching on
 // the first replay had two defects: the FIRST peer-up still raced (nothing had

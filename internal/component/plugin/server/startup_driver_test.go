@@ -38,7 +38,7 @@ func (r *recordingSink) onRegistration(*rpc.DeclareRegistrationInput) error {
 
 func (r *recordingSink) deliverConfig(ctx context.Context) error {
 	r.order = append(r.order, "DeliverConfig")
-	return r.pc.SendConfigure(ctx, nil)
+	return r.pc.SendConfigure(ctx, nil, nil)
 }
 
 func (r *recordingSink) onCapabilities(*rpc.DeclareCapabilitiesInput) error {

@@ -94,6 +94,14 @@ type Plugin struct {
 	// Capabilities to declare during Stage 3.
 	capabilities []CapabilityDecl
 
+	// claims holds the exclusive runtime roles claimed by other plugins in this
+	// daemon, as delivered by the engine on the Stage-2 configure callback.
+	// Read through ClaimActive. Populated before the plugin sends Stage 5 ready
+	// and therefore before it can receive any runtime event -- that ordering is
+	// the whole point of carrying the set here rather than in a post-startup
+	// callback, which is not ordered against peer startup.
+	claims map[string]bool
+
 	mu sync.Mutex
 }
 
@@ -139,6 +147,30 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 // target package's state, never the engine process's.
 func (p *Plugin) IsInternal() bool {
 	return p.bridge != nil
+}
+
+// ClaimActive reports whether another plugin in this daemon has claimed the
+// named exclusive runtime role, so this plugin must stand its own default
+// behavior for that role down.
+//
+// The answer comes from the Stage-2 configure callback
+// (rpc.ConfigureInput.Claims), which the engine sends as part of the sequential
+// startup handshake. It has therefore been recorded before this plugin sends
+// Stage 5 ready, and so before the engine starts peers and before any runtime
+// event can reach this plugin: a caller reading it from an event handler always
+// sees the final answer, with no timing window. Do NOT re-derive a role
+// decision from OnAllPluginsReady -- that callback is fanned out on detached
+// goroutines and races peer startup (internal/component/plugin/server/startup.go,
+// sendPostStartupToAll).
+//
+// An unclaimed role returns false, which must be the fail-closed direction for
+// the caller: it means "no other plugin promised to do this, keep doing it
+// yourself". A role the engine could not resolve is indistinguishable from an
+// unclaimed one on purpose (ai/rules/fail-closed-guards.md).
+func (p *Plugin) ClaimActive(role string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.claims[role]
 }
 
 // NewWithIO creates a plugin from separate reader and writer streams.

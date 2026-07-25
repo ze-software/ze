@@ -173,7 +173,7 @@ func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) er
 
 // deliverConfig delivers nil config: the hub has no config tree to share.
 func (hs *hubStartupSink) deliverConfig(ctx context.Context) error {
-	if err := hs.h.proc.Conn().SendConfigure(ctx, nil); err != nil {
+	if err := hs.h.proc.Conn().SendConfigure(ctx, nil, nil); err != nil {
 		return fmt.Errorf("stage 2 configure: %w", err)
 	}
 	return nil

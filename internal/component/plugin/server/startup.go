@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
 // Overview: server.go — Server struct and lifecycle
 // Detail: startup_autoload.go — auto-loading plugins for families and event types
+// Detail: startup_failure.go — the error reported when a plugin never reaches StageRunning
 
 package server
 
@@ -199,11 +200,23 @@ func (s *Server) signalStartupComplete() {
 		}
 	}
 
+	// Every phase has settled and failed plugins are rolled back, so this is the
+	// first point with complete knowledge of which plugins are running -- and it
+	// is still before StartPeers. Check that every exclusive role advertised at
+	// Stage 2 has a live claimant; a plugin that stood down for a claimant which
+	// never came up would silently perform nothing (startup_claims.go).
+	s.verifyAdvertisedClaims()
+
 	// Fan out the post-startup callback to every running plugin so that
 	// OnAllPluginsReady handlers (e.g., bgp-rpki enabling the adj-rib-in
 	// validation gate) can safely dispatch cross-plugin commands -- at this
 	// point the dispatcher command registry is frozen and guaranteed to hold
 	// every registered command from every startup phase. Best-effort.
+	//
+	// Nothing that must be in place before the first peer-up may be decided
+	// here: this fan-out is not ordered against StartPeers below. Such state is
+	// declared instead and delivered on the Stage-2 configure callback -- see
+	// sendPostStartupToAll's doc comment and startup_claims.go.
 	s.sendPostStartupToAll()
 
 	if s.reactor != nil {
@@ -229,10 +242,11 @@ func (s *Server) signalStartupComplete() {
 //
 // So the ordering between a post-startup handler and peer startup is NOT
 // guaranteed, and anything that needs to be in place before the first peer-up
-// must not rely on this callback. Making that ordering deterministic needs a
-// declarative route -- state carried through the ordered startup stages rather
-// than a callback racing them -- and is tracked in
-// plan/spec-fixit-stored-route-relay-hardening.md.
+// must not rely on this callback. That state is DECLARED instead: a plugin puts
+// it in its registration (registry.Registration.Claims) and the engine delivers
+// the resolved set on the Stage-2 configure callback, which is part of the
+// sequential handshake and therefore completes before peers start. See
+// startup_claims.go. Do not move such a decision back onto this fan-out.
 func (s *Server) sendPostStartupToAll() {
 	pm := s.procManager.Load()
 	if pm == nil {
@@ -368,10 +382,8 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 			if proc.Stage() >= plugin.StageRunning {
 				continue
 			}
-			err := fmt.Errorf("plugin %s failed during startup at stage %s", proc.Name(), proc.Stage())
-			if phaseErr == nil {
-				phaseErr = err
-			}
+			err := startupFailureError(proc)
+			phaseErr = preferDiagnosedError(phaseErr, err)
 			logger().Error("plugin startup failed", "plugin", proc.Name(), "stage", proc.Stage(), "error", err)
 			s.rollbackStartupProcess(proc)
 		}
@@ -497,17 +509,27 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	}()
 
 	// Initialize connections from raw sockets (creates PluginConn wrappers).
+	//
+	// Every failure path below records its cause on the process as well as
+	// logging it: startup completion is reported through proc.Stage(), which
+	// says WHERE the handshake stopped but never WHY, and runPluginPhase turns
+	// that stage into the error the operator sees. Without the recording, the
+	// cause died here (the handshake one at Debug level, below the default WARN)
+	// and ze exited with an unactionable "failed during startup at stage Config".
 	if err := proc.InitConns(); err != nil {
 		logger().Error("rpc startup: init connections failed", "plugin", proc.Name(), "error", err)
+		proc.SetStartupError(fmt.Errorf("init connections: %w", err))
 		return
 	}
 	if proc.Conn() == nil {
 		logger().Debug("rpc startup: no connection (startup failed?)", "plugin", proc.Name())
+		proc.SetStartupError(errStartupConnClosed)
 		return
 	}
 
 	if err := runStartupHandshake(s.ctx, &engineStartupSink{s: s, proc: proc}); err != nil {
 		logger().Debug("rpc startup: handshake ended before running", "plugin", proc.Name(), "error", err)
+		proc.SetStartupError(err)
 	}
 }
 
@@ -725,7 +747,16 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 		}
 	}
 
-	if err := conn.SendConfigure(ctx, sections); err != nil {
+	// Exclusive roles other plugins have claimed. Delivered here, on Stage 2,
+	// because the sequential handshake puts it before the plugin's Stage-5 ready
+	// and therefore before the reactor starts peers -- see startup_claims.go.
+	claims := s.advertiseClaims(proc.Name())
+	if len(claims) > 0 {
+		logger().Debug("delivering claimed exclusive roles at stage 2",
+			"plugin", proc.Name(), "roles", claims)
+	}
+
+	if err := conn.SendConfigure(ctx, sections, claims); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
 		s.coordinatorMu.Lock()
 		coord := s.coordinator
@@ -835,6 +866,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		VerifyBudget:      input.VerifyBudget,
 		ApplyBudget:       input.ApplyBudget,
 		WantsValidateOpen: input.WantsValidateOpen,
+		Claims:            input.Claims,
 		Done:              true,
 	}
 

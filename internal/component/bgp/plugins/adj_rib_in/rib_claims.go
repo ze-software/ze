@@ -1,0 +1,50 @@
+// Design: docs/architecture/api/process-protocol.md — Stage 2 configure, exclusive-role claims
+// Overview: rib.go — AdjRIBInManager, replayOwned, and the peer-up self-replay this stands down
+// Related: rib_commands.go — claimReplayCommand, the late-join corrective for the same flag
+
+package adj_rib_in
+
+// claimPeerUpReplay is the exclusive-role token bgp-rs declares to take peer-up
+// replay over from this plugin (rs/server_handlers.go ClaimPeerUpReplay declares
+// the same spelling; rs/register.go puts it in Registration.Claims). The engine
+// treats the token as opaque and delivers it on the Stage-2 configure callback.
+//
+// Spelled out here rather than imported from the rs package on purpose: this
+// plugin must build and run with bgp-rs deleted from the tree
+// (ai/rules/plugin-self-containment.md). An absent bgp-rs simply never claims
+// the token, and self-replay stays on.
+const claimPeerUpReplay = "bgp-peer-up-replay"
+
+// applyStartupClaims stands peer-up self-replay down when another plugin has
+// claimed that role, using the claim set the engine delivers on the Stage-2
+// configure callback.
+//
+// Ordering is the entire point. Stage 2 is part of the sequential startup
+// handshake: it returns before this plugin sends Stage 5 ready, which is before
+// its startup phase completes, which is before the engine calls
+// SignalPluginStartupComplete -> StartPeers. So the decision is in place before
+// any session can establish and before any state event can arrive here. The
+// previous design took it from bgp-rs's OnAllPluginsReady dispatch, which the
+// engine fans out on detached goroutines immediately before starting peers
+// (internal/component/plugin/server/startup.go, sendPostStartupToAll) -- a
+// 1-2 ms window on an idle host that inverted under suite load and produced a
+// duplicate announce to the first peer.
+//
+// Never latches OFF: the claim is monotonic within a process lifetime, and the
+// late-join corrective (claimReplayCommand) may have set it already.
+//
+// claimActive is sdk.Plugin.ClaimActive, taken as a function value so the
+// stand-down decision is drivable from a unit test without a live handshake. A
+// nil claimActive means the caller has no claim source at all, which resolves to
+// "not claimed" -- the fail-closed direction, because self-replay at worst
+// duplicates an idempotent UPDATE while standing down for an absent owner loses
+// routes (ai/rules/fail-closed-guards.md).
+func (r *AdjRIBInManager) applyStartupClaims(claimActive func(role string) bool) {
+	if claimActive == nil || !claimActive(claimPeerUpReplay) {
+		return
+	}
+	if !r.replayOwned.Swap(true) {
+		logger().Info("peer-up replay ownership declared by another plugin at startup; self-replay disabled",
+			"role", claimPeerUpReplay)
+	}
+}

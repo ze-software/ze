@@ -31,23 +31,35 @@ const errUnknownCommandMarker = "unknown command"
 // peer's stored Adj-RIB-In. Args carry the peer address and cursor index.
 const cmdAdjRIBInReplay = "request bgp adj-rib-in replay"
 
-// cmdAdjRIBInClaimReplay takes ownership of peer-up replay from bgp-adj-rib-in.
+// ClaimPeerUpReplay is the exclusive-role token this plugin declares in its
+// registration (registry.Registration.Claims, see register.go). The engine
+// unions the claims of every plugin in the startup set and delivers the result
+// on the Stage-2 configure callback, so bgp-adj-rib-in learns that peer-up
+// replay is owned BEFORE it sends Stage 5 ready -- i.e. before the engine starts
+// peers, with no timing window against session establishment.
 //
-// Both plugins used to replay on peer-up, and with both running a route learned
-// just before establishment went out twice. Claiming at startup -- rather than
-// implicitly on the first replay -- is what covers the FIRST peer too.
+// This is the ordering that matters, because the claim does NOT gate the live
+// forward. A peer marked Replaying IS still a selectForwardTargets destination
+// (server_forward.go selects on peer.Up alone; TestReplayingPeerIncludedInForwardTargets
+// pins that, and plan/learned/630-rs-fastpath-3-passthrough.md records the
+// decision -- BGP UPDATE duplicates are idempotent and excluding replaying peers
+// loses routes). So the claim landing before a peer establishes is the ONLY
+// thing standing between that peer and a doubled replay.
 //
-// What this claim does NOT do, despite an earlier version of this comment (and
-// plan/learned/1271) saying otherwise: it does not gate the live forward. A peer
-// marked Replaying IS still a selectForwardTargets destination (server_forward.go
-// selects on peer.Up alone; TestReplayingPeerIncludedInForwardTargets pins that,
-// and plan/learned/630-rs-fastpath-3-passthrough.md records the decision -- BGP
-// UPDATE duplicates are idempotent and excluding replaying peers loses routes).
-// So the ONLY thing standing between a peer and a doubled replay is this claim
-// landing before that peer establishes -- and it is not ordered to (see
-// claimReplayOwnership below, and plugin/server/startup.go sendPostStartupToAll,
-// which fans out on detached goroutines and then starts peers). Measured margin
-// on an idle darwin host: 1-2 ms, 6/6 runs of test/plugin/rfc7606-relay-one-field.
+// bgp-adj-rib-in reads this same spelling; the two plugins agree on the token,
+// the engine treats it as opaque.
+const ClaimPeerUpReplay = "bgp-peer-up-replay"
+
+// cmdAdjRIBInClaimReplay takes ownership of peer-up replay from bgp-adj-rib-in
+// for a bgp-adj-rib-in that joined AFTER this plugin was configured -- a
+// mid-life auto-load or respawn, where the Stage-2 declaration above could not
+// have reached it. It is a late-join corrective, no longer the startup path.
+//
+// It must never be relied on for startup ordering: it is dispatched from
+// OnAllPluginsReady, which plugin/server/startup.go sendPostStartupToAll fans
+// out on detached goroutines immediately before starting peers. Measured margin
+// on an idle darwin host when it WAS the startup path: 1-2 ms, 6/6 runs of
+// test/plugin/rfc7606-relay-one-field.
 const cmdAdjRIBInClaimReplay = "request bgp adj-rib-in claim-replay"
 
 // isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
@@ -157,21 +169,26 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 	}
 }
 
-// claimReplayOwnership tells bgp-adj-rib-in to stand down from peer-up
-// self-replay, because this plugin drives replay explicitly.
+// claimReplayOwnership re-affirms to bgp-adj-rib-in that this plugin drives
+// peer-up replay, for a bgp-adj-rib-in that was not present when this plugin's
+// claim was declared.
+//
+// It is a BACKSTOP, not the ordering mechanism. Startup ordering comes from the
+// declaration in register.go (Registration.Claims = ClaimPeerUpReplay): the
+// engine delivers that on bgp-adj-rib-in's Stage-2 configure callback, which
+// completes before it sends Stage 5 ready and therefore before peers start.
+// This dispatch covers only the mid-life case the declaration cannot reach --
+// a bgp-adj-rib-in auto-loaded by a config reload, or respawned, after this
+// plugin was already configured.
 //
 // Called from OnAllPluginsReady, which guarantees the dispatcher's command
-// registry is frozen so the dispatch resolves.
-//
-// It does NOT guarantee this runs before the first session establishes:
-// sendPostStartupToAll fans out without waiting and signalStartupComplete then
-// starts peers (internal/component/plugin/server/startup.go). Waiting there was
-// tried and deadlocks -- a handler that waits on peer activity blocks the peers
-// it waits for. So the claim still races TCP connect for the FIRST peer, and
-// that peer can be replayed twice. Narrower than the previous design (which
-// latched on the first replay and so missed every peer until one arrived), but
-// not yet deterministic; the declarative fix is tracked in
-// plan/spec-fixit-stored-route-relay-hardening.md.
+// registry is frozen so the dispatch resolves. That callback is NOT ordered
+// against session establishment -- sendPostStartupToAll fans out on detached
+// goroutines and signalStartupComplete then starts peers
+// (internal/component/plugin/server/startup.go), and waiting there deadlocks.
+// So nothing that must hold for the first peer may depend on this call; the
+// declaration is what covers that peer. Standing down is idempotent, so the two
+// paths overlapping is harmless.
 //
 // A missing adj-rib-in is not an error -- it is an OptionalDependency, and with
 // it absent there is no self-replay to stand down.

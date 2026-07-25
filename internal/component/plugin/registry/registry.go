@@ -61,7 +61,19 @@ type Registration struct {
 	OptionalDependencies []string
 	EventTypes           []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
 	SendTypes            []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
-	YANG                 string   // YANG schema content (empty if none)
+	// Claims are exclusive runtime roles this plugin takes over from another
+	// plugin's default behavior (e.g., ["bgp-peer-up-replay"]). Same token
+	// shape as EventTypes/SendTypes: opaque to the engine, agreed between the
+	// claiming plugin and the plugin that stands its default down.
+	//
+	// The engine unions the claims of every plugin in the startup set and
+	// delivers the union on the Stage-2 configure callback (ConfigureInput.
+	// Claims), which is part of the sequential handshake and therefore
+	// completes strictly before peers start. A claim is a DECLARATION, not a
+	// runtime message: it must not be re-derived from a callback that races
+	// session establishment.
+	Claims []string
+	YANG   string // YANG schema content (empty if none)
 
 	// FilterTypes lists the YANG filter list names this plugin owns (e.g.,
 	// ["prefix-list"]). Used by the policy filter chain to resolve short chain
@@ -570,6 +582,21 @@ func ConfigRootsMap() map[string][]string {
 		}
 	}
 	return m
+}
+
+// ClaimsFor returns the exclusive runtime roles a registered plugin declares
+// (Registration.Claims). Returns nil for an unregistered name -- an unknown
+// plugin claims nothing, which is the fail-closed answer: the plugin whose
+// default would be stood down keeps running it. See Registration.Claims.
+func ClaimsFor(name string) []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg := plugins[name]
+	if reg == nil {
+		return nil
+	}
+	return reg.Claims
 }
 
 // rpcHandlers holds RPC method handlers registered by plugins via AddRPCHandlers.

@@ -267,6 +267,7 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 func (p *Plugin) handleConfigure(params json.RawMessage) error {
 	var input struct {
 		Sections []ConfigSection `json:"sections"`
+		Claims   []string        `json:"claims,omitempty"`
 	}
 	if params != nil {
 		if err := json.Unmarshal(params, &input); err != nil {
@@ -274,7 +275,19 @@ func (p *Plugin) handleConfigure(params json.RawMessage) error {
 		}
 	}
 
+	// Record the claim set BEFORE running the plugin's configure handler, so a
+	// handler that stands its own default behavior down for a claiming plugin
+	// can read it here -- at Stage 2, which completes before Stage 5 ready and
+	// therefore before this plugin can receive any runtime event.
 	p.mu.Lock()
+	if len(input.Claims) > 0 {
+		p.claims = make(map[string]bool, len(input.Claims))
+		for _, token := range input.Claims {
+			p.claims[token] = true
+		}
+	} else {
+		p.claims = nil
+	}
 	fn := p.onConfigure
 	p.mu.Unlock()
 

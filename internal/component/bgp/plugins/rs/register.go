@@ -31,7 +31,15 @@ func init() {
 		// when present, and gracefully disables replay with a one-shot WARN
 		// when absent. See spec-rs-fastpath-2-adjrib learned summary.
 		OptionalDependencies: []string{"bgp-adj-rib-in"},
-		RunEngine:            RunRouteServer,
+		// This plugin drives peer-up replay explicitly (replayForPeer), so
+		// bgp-adj-rib-in must not also self-replay -- with both firing, a route
+		// learned just before a peer established went out twice. Declaring the
+		// role here rather than dispatching a command at OnAllPluginsReady is
+		// what makes the stand-down deterministic: the engine delivers the claim
+		// on bgp-adj-rib-in's Stage-2 configure, which completes before peers
+		// start. See ClaimPeerUpReplay in server_handlers.go.
+		Claims:    []string{ClaimPeerUpReplay},
+		RunEngine: RunRouteServer,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
