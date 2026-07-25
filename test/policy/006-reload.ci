@@ -19,6 +19,40 @@ def nft_table_exists(name):
     except subprocess.CalledProcessError:
         return False
 
+def rule_lines(dump):
+    """The chain's RULE lines only, with the structural lines removed.
+
+    MUST be used for every verdict assertion below. `nft list table` prints the
+    base-chain declaration inside the chain body:
+
+        type filter hook prerouting priority mangle; policy accept;
+
+    and that line ALWAYS contains the word "accept", for every possible policy
+    config: translate.go hardcodes `Policy: firewall.PolicyAccept` on the ze_pr
+    base chain (internal/plugins/policyroute/translate.go:51), which
+    lower_linux.go:148 lowers to nftables.ChainPolicyAccept.
+
+    So a naive `"accept" in dump` matches the chain POLICY, never a rule. That
+    made both phases wrong in opposite directions and left this test unpassable
+    by construction:
+      - phase 1's `"accept" not in dump` could never be true, so PHASE1_OK was
+        printed even if the accept rule had never been programmed (vacuous);
+      - phase 2's `"accept" in dump` was always true, so it failed with "old
+        accept rule still present" while the kernel actually held only the new
+        `drop` rule -- i.e. the reload had worked correctly all along.
+    """
+    rules = []
+    for line in dump.splitlines():
+        s = line.strip()
+        if not s or s in ("{", "}"):
+            continue
+        # `table inet ze_pr {`, `chain prerouting {`, and the `type ...` base-chain
+        # declaration are structure, not rules.
+        if s.startswith(("table ", "chain ", "type ")):
+            continue
+        rules.append(s)
+    return rules
+
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
@@ -37,7 +71,10 @@ if not nft_table_exists("ze_pr"):
     sys.exit("Phase 1 FAIL: ze_pr table missing after boot")
 
 before = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
-if "accept" not in before:
+before_rules = rule_lines(before)
+if not before_rules:
+    sys.exit("Phase 1 FAIL: ze_pr has no rules at all; got:\n" + before)
+if not any("accept" in r for r in before_rules):
     sys.exit("Phase 1 FAIL: accept rule missing; got:\n" + before)
 sys.stdout.write("PHASE1_OK\n")
 
@@ -50,9 +87,12 @@ if not nft_table_exists("ze_pr"):
     sys.exit("Phase 2 FAIL: ze_pr table missing after reload")
 
 after = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
-if "accept" in after:
+after_rules = rule_lines(after)
+if not after_rules:
+    sys.exit("Phase 2 FAIL: ze_pr has no rules after reload; got:\n" + after)
+if any("accept" in r for r in after_rules):
     sys.exit("Phase 2 FAIL: old accept rule still present after reload; got:\n" + after)
-if "drop" not in after:
+if not any("drop" in r for r in after_rules):
     sys.exit("Phase 2 FAIL: new drop rule missing after reload; got:\n" + after)
 
 sys.stdout.write("PHASE2_OK\n")
