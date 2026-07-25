@@ -19,9 +19,18 @@ import (
 func withFakeResolver(t *testing.T, bind func(string) (iface.Binding, error), addrs func(string) ([]iface.AddrInfo, error)) {
 	t.Helper()
 	oldBind, oldAddr := resolveIfaceBinding, resolveIfaceAddresses
-	t.Cleanup(func() { resolveIfaceBinding, resolveIfaceAddresses = oldBind, oldAddr })
+	oldEnsure := ensureIfaceBackend
+	t.Cleanup(func() {
+		resolveIfaceBinding, resolveIfaceAddresses = oldBind, oldAddr
+		ensureIfaceBackend = oldEnsure
+	})
 	resolveIfaceBinding = bind
 	resolveIfaceAddresses = addrs
+	// resolveOSPFv3Interface loads the iface backend first (backend_linux.go:56).
+	// A unit-test binary registers no backend, so the real iface.EnsureBackend
+	// fails with `unknown backend "netlink" (registered: [])` before either stub
+	// above is consulted.
+	ensureIfaceBackend = func() error { return nil }
 }
 
 func TestOSPFv3ResolveInterfaceUsesIfaceResolver(t *testing.T) {
