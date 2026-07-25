@@ -98,3 +98,75 @@ That is a product-side `ai/rules/fail-closed-guards.md` violation -- it neither
 starts nor says why -- and it is what the `caps=net-admin` marker steps around
 rather than fixes. Operator-facing, unrelated to tests: run `ze <conf>` as a
 non-root user with any interface block and it never returns.
+
+
+---
+
+## Update 2026-07-25: findings 1 and 2 FIXED; finding 2 uncovered a real reload defect
+
+### Finding 1 (`await=stderr` never `Wait()`s the peer) -- already fixed
+
+`runner_exec.go` now calls `drainPeers(peerOutputs, peerDrainGrace)`
+(`internal/test/runner/runner_exec_util.go:413`) on EVERY arm before anything
+reads `rec.PeerOutput`, and it `Wait()`s each peer not already waited. The
+lost-tail race this entry described is closed.
+
+### Finding 2 (eight vacuous reload tests) -- FIXED, and what they test is BROKEN
+
+The measurement was correct: all eight declared their BGP peer in the INITIAL
+config and drove the reload from a trigger sleeping 2s after `daemon.ready`, so
+the check peer completed on the second PRE-reload message and the runner tore
+the daemon down before the SIGHUP. Fixed by moving `peer peer1` into the
+reloaded config (peer expectations reachable only post-reload), deleting the two
+`sleep 2` lines and the trailing `kill -TERM`, and adding an `expect=stderr` on
+the interface plugin's apply log.
+
+They now genuinely reach the reload (`received SIGHUP` appears, the peer
+completes after it) and they FAIL, because interface reload is broken. Two
+distinct defects, both found this way:
+
+1. **FIXED -- the monitor dropped every address event for pre-existing links.**
+   `netlink.LinkSubscribe` delivers only CHANGES, so the monitor's index->name
+   cache started empty and `handleAddrUpdate` returned early for any interface
+   predating the monitor -- which is every interface ze creates during boot
+   `applyConfig`, since the monitor starts after it. The config-transaction
+   settlement waiter for an address add blocks on that `interface/addr-added`
+   event (`internal/component/iface/operation.go:57-65`, 5s), so EVERY reload
+   changing an interface address timed out and rolled back. Reproduced in QEMU:
+
+       config apply partial failure: operation interface-add-address-zdiag0-10.77.0.2_24
+       settlement timeout waiting for interface/addr-added 10.77.0.2 after 5s
+
+   Fixed by seeding the cache from `netlink.LinkList()` at monitor start
+   (`internal/plugins/iface/netlink/monitor_linux.go`, `seedLinkNames`). The
+   transaction then completes in ~5ms instead of timing out.
+
+2. **OPEN -- the transaction now reports success but leaves the wrong state.**
+   With (1) fixed, a SIGHUP changing a dummy's address from 10.77.0.1/24 to
+   10.77.0.2/24 logs `interface config operation journal committed` /
+   `config reload completed` / `sighup reload complete`, and the interface ends
+   with NO address: the old one removed, the new one absent. Reproduced in QEMU
+   with `ze.storage.blob=false` -- WITHOUT that, the blob store serves a stale
+   config and the reload reports "no changes", which will mislead anyone
+   re-running this. Ruled out: the commit path is correct
+   (`OnConfigOperationCommit` calls `j.Discard()`, not `Rollback()`,
+   `internal/component/iface/register.go:693-706`), and the add DID settle, so
+   the address reached the kernel and the monitor observed it. NOT traced past
+   that point -- do not attribute it without reading the producer.
+
+   Deterministic, so it does not belong in this directory; recorded here only
+   because it is what these eight tests now expose. It needs a spec. The eight
+   tests are correct as written and must NOT be weakened to go green
+   (`ai/rules/no-parking.md`); they are QEMU-only (`skip-os:darwin` /
+   `caps=net-admin`) so native `make ze-verify` stays green.
+
+   Likely the same family as `iface-vlan-unit-address-reconcile.md` in this
+   directory ("VLAN unit address change never applied on reload").
+
+### Finding 3 (daemon hangs when it cannot apply interface config) -- NOT reproduced
+
+Not re-tested this session. A related but DIFFERENT darwin behaviour was
+observed while fixing the static suite: a config with an `interface` block on
+darwin fails fast and exits 1 ("interface: no backend configured and no OS
+default available"), it does not hang. The hang claim is specific to an
+unprivileged Linux daemon and remains unverified.

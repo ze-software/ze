@@ -9,6 +9,84 @@ resolved.
 
 ## Struck-through (resolved in place, were not yet under `## Resolved`)
 
+### ~~`ze-test bgp plugin 458 show-l2tp-tunnel-detail` -- deterministic on darwin~~ -- RESOLVED 2026-07-25: no longer reproduces
+
+Re-run on darwin with the current tree: `ze-test bgp plugin --pattern
+show-l2tp-tunnel-detail` -> PASS (2.8s, test id 460 after renumbering), and the
+full plugin suite ran 495/495 in the same session. The shard asserted no root
+cause ("not traced -- outside this session's area"), so nothing here identifies
+which change cleared it; it is closed on the evidence that it passes, not on a
+fix. If it returns, re-open with the daemon stderr rather than reusing this entry.
+
+### ~~`ze-test install` kernel tests (1-6, 20-31, 39, 40) -- broken by the isolated-binary layout~~ -- RESOLVED 2026-07-25: fixed by `ebf0dfbad`, shard was stale
+
+The shard (2026-07-22) predates the fix. `ebf0dfbad` (2026-07-24, "fix(test):
+install kernel suite green in isolated ze-verify layout") changed the 20 `.ci`
+files to resolve the repo as `${ZE_REPO_ROOT:-$(... command -v ze ...)}`, so the
+runner-exported `ZE_REPO_ROOT` (`internal/test/runner/runner_exec_util.go:118`)
+wins over the binary-neighbour derivation the shard blamed. Verified 2026-07-25
+by rebuilding the isolated layout by hand (`tmp/isolab/bin/{ze,ze-test}`) and
+running `ZE_BIN=... ZE_TEST_BIN=... ze-test install --all` -> `pass 37/37`
+(3 honest skips). The guard is now load-bearing for a second reason: the runner
+puts a bare-name shim dir on PATH, so `dirname(command -v ze)/..` is a temp dir
+in EVERY layout, not just the isolated one.
+
+### ~~`static` functional suite `004-show` -- obsolete config syntax + darwin daemon boot~~ -- RESOLVED 2026-07-25: rewritten, plus 4 sibling defects found and fixed
+
+Both shard claims confirmed and fixed, and running the suite under QEMU surfaced
+three more:
+
+- 004 used the obsolete flat `next-hop <addr> { }` form; the schema models
+  `next { hop <addr> { } }` (`internal/plugins/static/yang/ze-static-conf.yang:77-119`).
+- 004 and 005 drove `ze cli -c "show static"`, which speaks SSH
+  (`internal/component/cli/client/main.go:380`) against configs declaring no SSH
+  server -- unreachable on any platform. Both rewritten to dispatch through an
+  external plugin, with structured assertions (route count, (prefix, table)
+  pairs, named table id, interface-only next-hop) replacing substring matches.
+- The suite registered `DefaultParallel=0`, so all 7 daemons wrote the ONE kernel
+  routing table concurrently: 5 of 7 failed under QEMU with cross-test symptoms
+  ("reload did not remove 172.16.0.0/12" while another test's blackhole was in
+  the dump). Now registered serial (`internal/test/cli/register.go`).
+- 006 asserted "no interface backend loaded", which is unreachable on Linux:
+  omitting the `interface { backend }` stanza defaults to netlink
+  (`internal/component/iface/default_linux.go:8`), and on darwin the daemon never
+  reaches static. It could pass on no platform. Rewritten to assert the
+  reachable behaviour (route skipped, interface named, daemon survives); the
+  no-backend message keeps its deterministic unit test
+  (`internal/plugins/static/backend_linux_test.go:19`).
+
+Verified: `ze-test static --all` under QEMU -> `pass 7/7`.
+
+### ~~`sync.Pool` capacity/identity unit flakes under full-suite GC pressure~~ -- RESOLVED 2026-07-25: both tests asserted a guarantee sync.Pool does not make
+
+`TestPoolPreservesCapacityWithoutString` (textbuf) and
+`TestGetReturnsSameBufferAfterPut` (bufpool) each did one Put/Release then one
+Get and asserted the SAME buffer came back. sync.Pool promises no such thing: it
+is emptied at every GC, and an item parked in one P's private slot cannot be
+stolen by another P -- so under the parallel suite's memory pressure the
+assertion legitimately failed. Both now disable GC for the test
+(`debug.SetGCPercent`) and retry, asserting the property holds at least once,
+which removes the environmental variable without weakening the check. Both were
+mutation-verified: making bufpool's `Put` a no-op and making textbuf's `Get`
+always reset to the inline array each turn the corresponding test red.
+
+### ~~`.ci` suites -- 108 quick-exit `ze` commands across 50 files are silently unasserted~~ -- RESOLVED 2026-07-25: 149 commands armed across 52 files
+
+Re-measured on the current tree: 149 unasserted quick-exit `ze` commands in 52
+files with more than one such command (files with exactly one are already
+covered by the file-level `expect=exit:code=`). All 149 now carry
+`cmd=...:exit=N`, taking N from the `expect=exit:code=` the test author had
+already written directly beneath each command -- so the assertion added is the
+intent already recorded in the file, never a guess and never a snapshot of
+current behaviour. Six commands had no adjacent declaration and were armed by
+hand after checking the real exit status (two "bad config" validations do reject
+with exit 1; four `config import` / `connect add` setup steps do succeed).
+Mutation-verified: claiming `exit=1` on a seq=1 command that really exits 0
+produces `cmd seq=1 (ze config validate -): expected exit code 1, got 0`, a
+failure the old file-level assertion could not produce. Arming surfaced no
+product defect: ospf 81/81, ospfv3 11/11, isis 12/12, bgp parse 254/254,
+ui 156/156, appliance 11/11, install 37/37, firewall, vrrp all green.
+
 ### ~~`ze-test bgp plugin 224 forward-overflow-two-tier` -- deterministic dest-peer teardown on darwin~~ -- RESOLVED 2026-07-24: real forwarding bug, fixed under `spec-fixit-peer-verdict-and-forward-rail` (defects 7-10)
 
 The shard's own triage was right ("if it reproduces on Linux it is a real

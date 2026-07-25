@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3097 files
+Total: 298 design docs, 3099 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1986,6 +1986,8 @@ Total: 298 design docs, 3097 files
 | `internal/plugins/iface/dhcp/logger_linux.go` | DHCP client plugin logger |
 | `internal/plugins/iface/dhcp/resolv_linux.go` | DNS resolver config from DHCP |
 | `internal/plugins/iface/dhcp/resolv_linux_test.go` | DNS resolver config tests |
+| `internal/plugins/iface/netlink/addr_primary.go` | Interface management via netlink |
+| `internal/plugins/iface/netlink/addr_primary_linux.go` | Interface management via netlink |
 | `internal/plugins/iface/netlink/backend_linux.go` | Netlink backend Linux implementation |
 | `internal/plugins/iface/netlink/backend_other.go` | Non-Linux interface backend stub |
 | `internal/plugins/iface/netlink/bridge_linux.go` | Bridge interface management |
