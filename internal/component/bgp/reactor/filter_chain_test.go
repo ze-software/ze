@@ -336,3 +336,53 @@ func TestValidateModifyDelta(t *testing.T) {
 		})
 	}
 }
+
+// TestPolicyFilterChainPropagatesFailed verifies the chain carries the "the
+// filter did not decide this" flag out of every exit that can reject.
+//
+// VALIDATES: PolicyResponse.Failed reaches PolicyChainResult.Failed. The egress
+// step maps that onto egressStepResult.failed, and forwardUpdateCore counts a
+// suppression only when it is false, so a lost flag silently turns an
+// infrastructure failure back into a "policy said no" and re-opens the fail-open
+// that spec-fixit-bgp-egress-rail-divergence exists to close.
+// PREVENTS: adding a new reject exit to the chain (or editing an existing one)
+// without carrying Failed -- the teardown exit shipped that way and was caught
+// only by review.
+func TestPolicyFilterChainPropagatesFailed(t *testing.T) {
+	refs := []filterapi.FilterRef{{Name: "p:f"}}
+
+	cases := []struct {
+		name string
+		resp PolicyResponse
+		want bool
+	}{
+		{"plain reject is a decision", PolicyResponse{Action: PolicyReject}, false},
+		{"failed reject is not a decision", PolicyResponse{Action: PolicyReject, Failed: true}, true},
+		{"teardown reject carries the flag", PolicyResponse{Action: PolicyReject, Teardown: true, Failed: true}, true},
+		{"teardown decision does not", PolicyResponse{Action: PolicyReject, Teardown: true}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PolicyFilterChain(refs, "export", "10.0.0.2", 65002, "origin igp",
+				func(_, _, _, _ string, _ uint32, _ string) PolicyResponse { return tc.resp })
+			assert.Equal(t, PolicyReject, got.Action, "every case here rejects")
+			assert.Equal(t, tc.want, got.Failed, "Failed must survive the chain unchanged")
+		})
+	}
+}
+
+// TestPolicyFilterFuncFlagsNonDecisions verifies a reject produced without any
+// filter deciding is marked Failed.
+//
+// VALIDATES: the nil-API guard is a MISS, not a policy decision. The same
+// applies to an IPC error, an unparseable action, and an undeclared-attribute
+// modify override, which need a live plugin server to drive and are covered by
+// reading rather than by this test (see the spec's Review Gate Run 5).
+// PREVENTS: an outcome counter reading "the filter engine is absent" as "the
+// operator's policy rejected this route".
+func TestPolicyFilterFuncFlagsNonDecisions(t *testing.T) {
+	r := &Reactor{} // no API server
+	resp := r.policyFilterFunc(nil)("p", "f", "export", "10.0.0.2", 65002, "origin igp")
+	assert.Equal(t, PolicyReject, resp.Action, "no filter engine must fail closed")
+	assert.True(t, resp.Failed, "a guard miss is not a policy decision")
+}

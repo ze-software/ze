@@ -430,7 +430,7 @@ contradict the code they cite.
 | R3-4 | ISSUE | `plan/known-failures/bgp-plugin-role-otc-export-unknown.md` sent the next investigator to `mods.IsWithdraw()`. `SetWithdraw` has exactly one producer (`gr/gr_egress.go:109`) and 398 loads neither `bgp-gr` nor `bgp-rs` (`role-otc-export-unknown.ci:145`), so that path cannot fire there. Its exculpatory evidence was also weak: "zero `relay-stored-route` log lines" rules out relay ERRORS, not relay involvement (a successful relay logs nothing; suppression logs at Debug, `reactor_api_relay.go:268`), and 398 DOES load adj-rib-in without bgp-rs, so the new rail runs in it by construction. | **FIXED**: candidate marked ruled-out with its reason, attribution softened to what the evidence supports. |
 | R3-5 | NOTE | The learned summary described replay ownership as claimed "on the first explicit `request bgp adj-rib-in replay`" -- the superseded latch design, not the shipped explicit `claim-replay` command. The summary is the artifact that survives the spec. | **FIXED**: rewritten to the shipped mechanism, keeping why the latch was dropped. |
 | R3-6 | NOTE | The summary recorded neither the ADD-PATH refusal (an accepted functional regression, R2-6) nor AC-5's unenforced race. | **FIXED**: both added under Consequences. |
-| R3-7 | NOTE | `hex.Decode(dst, []byte(route.AttrHex))` allocated three times per stored route, directly under a comment claiming the pooled scratch avoids per-route allocation. | **FIXED**: `decodeHexInto` (string input, zero-alloc, validates every nibble), with a rejection table and an `AllocsPerRun` test pinning the reason it exists. |
+| R3-7 | NOTE | ~~`hex.Decode(dst, []byte(route.AttrHex))` allocated three times per stored route~~ **WITHDRAWN, the premise was false** -- see R4-2. `hex.Decode` does not leak `src`, so the conversion is elided and the old form allocates zero. | **REVERTED** in `b1bcaacc4`. The finding itself was wrong, not just its fix. |
 
 ### Verified correct by Run 3 (re-checked against producers, not taken from Run 2)
 
@@ -457,7 +457,93 @@ contradict the code they cite.
 | `ze-test bgp plugin 372 380 396 397` | `pass 4/4 100.0% 19.1s` (ids shifted from 378/394/395 as tests were added since the spec was written) |
 | New tests mutation-verified | reverting the relay to the old sentinel turns both RED ("An error is expected but got nil") |
 
+## Review Gate -- Run 4 (independent subagents over Run 3's own code, 2026-07-25)
+
+Run 3 was authored and reviewed by the same session, so its fix went to two
+independent reviewer subagents with distinct lenses (classification correctness;
+input-handling equivalence + test quality). They reviewed the LANDED commits
+`ce2bc3fa3` and `94cf37b8a`. They found a BLOCKER in Run 3's own fix.
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| R4-1 | BLOCKER | Run 3's fix left the fail-open on a THIRD axis. `accept == false` out of the ordered egress pass is overloaded: four producers reach it with no filter having decided anything -- a filter-plugin IPC error under the default fail-closed `FilterOnError` (`filter_chain.go` `policyFilterFunc`; `plugin/server/server.go` returns `OnErrorReject` for a missing process or an undeclared filter), an unparseable filter response, the nil-API guard (`filter_ordered.go`, whose own comment calls it a guard MISS), and a filter panic recovered by `safeEgressFilter` (`reactor_notify.go`). A forked export-filter plugin timing out under load therefore dropped every route of a replay while `RelayStoredRoute` reported it complete. | **FIXED** in `b1bcaacc4`: the reason is threaded from each producer (`PolicyResponse.Failed` -> `PolicyChainResult.Failed` -> `egressStepResult.failed`; `safeEgressFilter` returns `panicked`), and `forwardUpdateCore` counts suppression only when the step decided. Regression test drives the panic path, mutation-verified. |
+| R4-2 | ISSUE | The justification for `decodeHexInto` was FALSE. `hex.Decode(dst, []byte(s))` does not allocate: `hex.Decode` never leaks `src`, so the conversion is elided (`-gcflags=-m` reports "zero-copy string->[]byte conversion"; `AllocsPerRun` over the pre-commit form gives 0). The premise was never traced to a producer -- the failure `ai/rules/no-fabrication.md` describes, committed by the session that had just flagged the same class in someone else's work. | **FIXED**: decoder reverted to `encoding/hex`; the hand-rolled parser is gone from an untrusted-input path. |
+| R4-3 | ISSUE | `TestDecodeHexIntoDoesNotAllocate` could not fail: the form it claimed to guard against also allocates zero, so it pinned nothing. | **FIXED**: deleted (not ported), with the reason recorded in a `test-relax:` note. The malformed-input boundaries were KEPT, re-pointed at `encoding/hex`, and strengthened with a high-bit case the old table never reached -- its "unicode digit" case was rejected on LENGTH, never on alphabet. |
+| R4-4 | ISSUE | The dispatch-failure test drives only the `facts == nil` branch, not the pool-exhaustion / body-build branches the commit message names. A future `suppressedCount++` added to those paths would reintroduce the hole with both tests green. | Partly addressed: the R4-1 regression test adds a second, genuinely different failure branch (a failing egress step). The named branches are not reachable from a unit fixture; recorded as a coverage gap in `plan/deferrals/fixit-bgp-egress-rail-divergence.md`. |
+| R4-5 | NOTE | The new tests had been inserted INTO `TestRelayStoredRouteFailsClosedWithoutSource`'s godoc block, orphaning its header sentence. | **FIXED**. |
+| R4-6 | NOTE | Every `file:line` citation added by Run 3's test comments pointed at pre-diff line numbers. | **FIXED** against the current file. |
+| R4-7 | NOTE | The `.ci` EOR gate added 100x0.1s on top of an existing 100x0.1s poll and the peer's 10s of SCCRQ retries, exceeding the file's own 20s budget, so a degraded run would die on the runner timeout instead of emitting the named `runtime_fail`. | **FIXED**: takes the 20x0.25s default. |
+| R4-8 | NOTE | Reviewer claimed `# // test-relax:` inside a `.ci` Python block is a Go-hook spelling with no meaning there. | **REVIEWER WRONG**, verified: `scripts/dev/audit-test-relaxation.py` parses `.ci` files and reported this exact file with its reason in the Run 4 pre-check output. |
+
+### Confirmed by Run 4, independently of the author
+
+- The two Run 3 tests DO gate: three separate overlay mutations, each caught.
+- `TestRelayStoredRouteTreatsEgressSuppressionAsHandled` really traverses the RFC
+  4456 skip; it is not reaching "handled" via nil facts or unresolved peers.
+- `decodeHexInto` was byte-equivalent to `hex.Decode` over a 200,000-case
+  differential run (its removal was about a false premise, not a wrong decoder).
+- The `.ci` gate fails closed, `json` is in scope, and `eor-sent` implies the
+  bytes were flushed (`IncrEORSent` runs after `SendUpdateHeld`, which flushes).
+- No BLOCKER in the hex path: bounds are checked before slicing, failures
+  short-circuit before the wire.
+
+### Gates (Run 4, after the fix)
+
+| Gate | Result |
+|------|--------|
+| `ze-lint-changed` | exit 0, 0 issues |
+| `ze-test-bgp` | exit 0 |
+| `ze-race-reactor` | exit 0, 0 data races, `ok ... reactor 101.314s` |
+| `ze-test bgp plugin 460 372 380 396 397` | `pass 5/5 100.0%` |
+| `ze-validate` | all checks passed |
+| R4-1 regression test | mutation-verified: pre-fix behaviour turns it RED |
+
+## Review Gate -- Run 5 (independent refutation of Run 4's fix, 2026-07-25)
+
+Run 4's fix was itself authored by the session that ran Run 4's triage, so it went
+to a third independent subagent with one instruction: REFUTE the claim that
+`b1bcaacc4` fixes what it says it fixes. It did.
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| R5-1 | BLOCKER | A FIFTH producer of a non-decided `PolicyReject` was missed: the AC-13 undeclared-attribute override (`filter_chain.go`). The filter decided `PolicyModify` and ze overrode it, so by the fix's own definition it is not the filter's decision -- yet `Failed` was unset, so it propagated as a policy suppression all the way to `relayed++`. Deterministic, no race, no load: a plugin version-skew that modifies an undeclared attribute drops every route of a replay while the replay reports complete. | **FIXED**: `Failed: true` on the AC-13 reject. |
+| R5-2 | ISSUE | "A missing API server" was fixed at one of the TWO sites implementing it. `policyFilterFunc`'s own `r.api == nil` guard still returned an unflagged reject. Normally shadowed by the earlier check in `runEgressPolicyChainASN4`, but not totally: `r.api` is written to nil during `abortStartup` and read unsynchronized from the forward path, and the inner branch is fully live on the ingress chain and the default-originate gate. | **FIXED**: same flag on the sibling guard. |
+| R5-3 | ISSUE | The Run 4 regression test gated ONE of the four producers (the panic). Reverting the whole of `filter_chain.go`'s plumbing, or either `filter_ordered.go` assignment, left it GREEN -- including the headline "forked export-filter plugin times out under load" scenario. | **FIXED**: added `TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete` (drives the policy chain end to end through the relay) and `TestPolicyFilterChainPropagatesFailed` / `TestPolicyFilterFuncFlagsNonDecisions`. Both new gates mutation-verified: reverting either `filter_ordered.go` assignment reddens the first, reverting either chain exit reddens the second. The IPC-error and AC-13 producers still need a live plugin server to drive; homed in the deferral shard. |
+| R5-4 | NOTE | `PolicyFilterChain`'s teardown exit dropped `Failed` while the reject exit two lines below carried it. Currently unreachable on egress (teardown is import-only), but it is a newly-added propagation with one of three exits unwired, in an EXPORTED function. | **FIXED**, and the test table now covers the teardown exit in both polarities. |
+| R5-5 | NOTE | `panicked` is discarded at two of three `safeEgressFilter` call sites. The reviewer traced both consumers: neither counts outcomes the way the relay does, and one already over-reports (the safe direction), so no fail-open. | No change. Recorded so the asymmetry is deliberate rather than forgotten. |
+
+### Confirmed by Run 5, by reading the producers
+
+- Every `return false` in the three registered in-process egress filters
+  (`role/otc.go`, `gr/gr_egress.go`, `filter_community`) is a genuine policy
+  decision; none fails false on a parse or lookup error.
+- Every non-policy `continue` in `forwardUpdateCore` correctly leaves
+  `suppressedCount` untouched (nil facts, EBGP wire build, both read-buffer
+  exhaustion sites, both transcode failures, withdrawal conversion, body build,
+  pool-stopped dispatch).
+- The arithmetic is sound: each increment site is immediately followed by
+  `continue`, so a peer counts at most once, and a mixed forward (one suppressed,
+  one failed) correctly falls through to the failure sentinel.
+- `stepFailed` cannot misattribute: it is declared inside the per-peer body and
+  the loop breaks on the first non-accept.
+- Other consumers of the chain (`exportFilterForBody`, the ingress chain, the
+  default-originate gate, `ForwardUpdatesDirect`) ignore the new field without
+  counting, so no new fail-open.
+- The `decodeHexInto` revert is clean: no references remain, `go vet` clean.
+
+### Gates (Run 5, after the fix)
+
+| Gate | Result |
+|------|--------|
+| `ze-lint-changed` | exit 0 |
+| `ze-test-bgp` | exit 0, 0 failures |
+| `ze-race-reactor` | exit 0, 0 data races, `ok ... reactor 102.146s` |
+| `ze-test bgp plugin 460 372 380 396 397` | `pass 5/5 100.0%` |
+| Both new gates | mutation-verified in both directions |
+
 ### Final status
 
-- [x] Run 3 findings all fixed or homed; 0 BLOCKER, 0 ISSUE outstanding
+- [x] Run 3 findings all fixed or homed
+- [x] Run 4 (independent) BLOCKER fixed, ISSUEs fixed or homed
+- [x] Run 5 (independent refutation) BLOCKER fixed, ISSUEs fixed or homed
 - [x] AC-5 restated honestly as PARTIAL rather than closed over

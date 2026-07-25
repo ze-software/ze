@@ -226,6 +226,46 @@ func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
 		"the failed relay must still release its pooled buffer")
 }
 
+// TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete verifies the OTHER
+// half of the failed-step distinction: the export policy chain.
+//
+// The panic test above drives the in-process branch. This one drives the policy
+// chain, whose "could not run" state is an export policy configured while the
+// filter engine (the API server) is absent -- runEgressPolicyChainASN4 calls that
+// a guard MISS, not an accept. Without it, three of the four producers the fix
+// names had no test that would fail if their half were reverted.
+//
+// VALIDATES: a route dropped because the export chain could not be evaluated is
+// reported as a drop, not as an egress-policy suppression.
+// PREVENTS: reverting `failed: true` on the nil-API guard (filter_ordered.go) or
+// the `failed` plumbing into the step result, either of which would let a replay
+// whose policy engine was missing report itself complete having sent nothing.
+func TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete(t *testing.T) {
+	api, cache, dispatched, mu, _ := relayFixture(t)
+
+	// Export policy configured on the destination, but no API server: the chain
+	// cannot be evaluated. r.api is nil in this fixture by construction.
+	require.Nil(t, api.r.api, "fixture must have no API server for this case")
+	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
+	require.NotNil(t, dst, "fixture must expose the destination peer")
+	dst.settings.ExportFilters = []filterapi.FilterRef{{Name: "someplugin:scrub"}}
+	dst.refreshForwardFacts()
+
+	api.r.orderedEgressSteps = []orderedEgressStep{{name: "peer-chain", policyChain: true}}
+
+	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+	require.Error(t, err, "a route dropped by an unevaluatable export chain must not report success")
+	assert.NotErrorIs(t, err, errAllDestinationsSuppressed,
+		"a chain that could not run is not an egress-policy suppression")
+
+	mu.Lock()
+	assert.Empty(t, *dispatched, "nothing was dispatched")
+	mu.Unlock()
+	require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
+		"the failed relay must still release its pooled buffer")
+}
+
 // TestRelayStoredRouteFailsClosedWithoutSource verifies a route whose source peer
 // is gone is NOT relayed.
 //

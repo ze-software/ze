@@ -200,6 +200,7 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 			return PolicyChainResult{
 				Action:        PolicyReject,
 				Teardown:      true,
+				Failed:        result.Failed,
 				NotifyCode:    result.NotifyCode,
 				NotifySubcode: result.NotifySubcode,
 			}
@@ -377,7 +378,10 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 	return func(pluginName, filterName, direction, peer string, peerAS uint32, updateText string) PolicyResponse {
 		if r.api == nil {
 			reactorLogger().Warn("policy filter: no API server", "plugin", pluginName, "filter", filterName)
-			return PolicyResponse{Action: PolicyReject} // fail-closed
+			// Failed: a guard MISS, the filter never ran. Mirrors the same
+			// condition in runEgressPolicyChainASN4, which reaches this state
+			// first on the egress path but does not shadow it entirely.
+			return PolicyResponse{Action: PolicyReject, Failed: true} // fail-closed
 		}
 
 		// Look up filter declaration for AC-13 (attribute validation) and AC-15 (raw mode).
@@ -426,7 +430,10 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			if violation := validateModifyDelta(out.Update, declaredAttrs); violation != "" {
 				reactorLogger().Warn("policy filter: modify of undeclared attribute",
 					"plugin", pluginName, "filter", filterName, "violation", violation)
-				return PolicyResponse{Action: PolicyReject} // reject invalid modify
+				// Failed: the filter decided PolicyModify and ze overrode it. The
+				// route is still rejected (fail-closed), but no filter chose to
+				// drop it, so an outcome counter must not read this as policy.
+				return PolicyResponse{Action: PolicyReject, Failed: true} // reject invalid modify
 			}
 		}
 
