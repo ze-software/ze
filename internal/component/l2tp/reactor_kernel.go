@@ -428,6 +428,16 @@ func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupF
 	r.kernelWorker = w
 	r.kernelErrCh = errCh
 	r.kernelSuccessCh = successCh
+
+	// Wire the worker's per-tunnel sockets back into THIS reactor's listener.
+	// Once a kernel tunnel exists, its connected socket outranks the listener for
+	// every datagram from that peer, so without this the reactor stops seeing the
+	// peer's control messages entirely (UDPListener.AdoptTunnelSocket documents
+	// the kernel demux rule). Wired here, where the worker and the listener are
+	// both in scope, rather than in the subsystem, which holds neither.
+	if w != nil && r.listener != nil {
+		w.SetSocketHooks(r.listener.AdoptTunnelSocket, r.listener.ReleaseTunnelSocket)
+	}
 }
 
 // SetPPPDriver wires the reactor's success-event dispatch to a PPP

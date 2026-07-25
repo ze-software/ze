@@ -135,6 +135,14 @@ type kernelWorker struct {
 	ops    kernelOps
 	logger *slog.Logger
 
+	// adoptSocket / releaseSocket hand the per-tunnel connected socket to the
+	// listener so it keeps receiving that peer's CONTROL frames after the kernel
+	// takes over the tunnel. Set once by SetSocketHooks before Start; nil in
+	// tests that do not exercise the transport. See UDPListener.AdoptTunnelSocket
+	// for why this is required rather than optional.
+	adoptSocket   func(tid uint16, fd int) error
+	releaseSocket func(tid uint16)
+
 	eventCh   chan any // receives kernelSetupEvent and kernelTeardownEvent
 	errCh     chan<- kernelSetupFailed
 	successCh chan<- kernelSetupSucceeded
@@ -170,6 +178,14 @@ func newKernelWorker(ops kernelOps, errCh chan<- kernelSetupFailed, successCh ch
 		tunnels:   make(map[uint16]*kernelTunnelState),
 		sessions:  make(map[sessionKey]*pppSessionFDs),
 	}
+}
+
+// SetSocketHooks installs the listener callbacks used to keep receiving a
+// tunnel's control frames once its connected socket belongs to the kernel.
+// MUST be called before Start. Passing nil for either hook disables it.
+func (w *kernelWorker) SetSocketHooks(adopt func(tid uint16, fd int) error, release func(tid uint16)) {
+	w.adoptSocket = adopt
+	w.releaseSocket = release
 }
 
 // Start launches the worker goroutine.
@@ -277,6 +293,22 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		w.logger.Info("l2tp: kernel tunnel created",
 			"local-tid", ev.localTID, "remote-tid", ev.remoteTID,
 			"peer-addr", ev.peerAddr.String())
+
+		// The connected socket now outranks the listener for every datagram from
+		// this peer (see UDPListener.AdoptTunnelSocket), so the listener must read
+		// this socket or the tunnel's remaining control messages are lost. Fail
+		// the setup if it cannot: a tunnel whose control plane is deaf is worse
+		// than one that never came up, and rolling back here keeps the userspace
+		// path working instead of stranding a half-live tunnel.
+		if w.adoptSocket != nil {
+			if adoptErr := w.adoptSocket(ev.localTID, connFD); adoptErr != nil {
+				w.logger.Error("l2tp: cannot read kernel tunnel socket; rolling back",
+					"local-tid", ev.localTID, "error", adoptErr.Error())
+				w.deleteTunnelLocked(ev.localTID)
+				w.reportError(ev.localTID, ev.localSID, adoptErr)
+				return
+			}
+		}
 	}
 
 	// Step 2: create kernel session.
@@ -427,6 +459,11 @@ func (w *kernelWorker) deleteTunnelLocked(tid uint16) {
 			"tunnel-id", tid, "error", err.Error())
 	} else {
 		w.logger.Info("l2tp: kernel tunnel deleted", "tunnel-id", tid)
+	}
+	// Stop the listener reading our dup BEFORE closing the original, so the
+	// reader goroutine exits on its own Close rather than on a stale descriptor.
+	if w.releaseSocket != nil {
+		w.releaseSocket(tid)
 	}
 	if ts.connFD >= 0 {
 		w.ops.closeFD(ts.connFD) //nolint:errcheck // best-effort cleanup
