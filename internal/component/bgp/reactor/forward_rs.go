@@ -346,7 +346,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			payload := update.WireUpdate.Payload()
 			suppressed := false
 			for _, filter := range r.egressFilters {
-				if !safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods) {
+				if accept, _ := safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods); !accept {
 					suppressed = true
 					break
 				}

@@ -228,7 +228,14 @@ def main():
 
     # // test-relax: dispatch_until poll, not a blind sleep -- the EOR write is an
     # async engine state with no outbound-quiesce barrier to wait on.
-    if not _eor_sent(api.dispatch_until('show bgp summary', _eor_sent, attempts=100, delay=0.1)):
+    #
+    # Budget: this file allows 20s total (option=timeout, and timeout=20s on the
+    # foreground ze). The tunnel poll above can already burn 10s and the peer's
+    # SCCRQ retries up to 10s, so this gate takes the 20x0.25s default rather
+    # than another 100x0.1s -- a degraded run must still have room to reach the
+    # runtime_fail below, which names the cause, instead of dying on the runner
+    # timeout, which does not.
+    if not _eor_sent(api.dispatch_until('show bgp summary', _eor_sent)):
         runtime_fail('ze never sent its BGP End-of-RIB before shutdown')
 
     dispatch(api, 'request shutdown')

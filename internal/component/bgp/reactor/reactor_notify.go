@@ -39,14 +39,20 @@ func safeIngressFilter(filter filterapi.IngressFilterFunc, src filterapi.PeerFil
 
 // safeEgressFilter calls an egress filter with panic recovery.
 // Fail-closed: a panicking filter suppresses the route for this peer.
-func safeEgressFilter(filter filterapi.EgressFilterFunc, src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) (accept bool) {
+//
+// panicked reports that the suppression came from the recover, not from the
+// filter returning false. Both drop the route; only the second is a policy
+// decision, and a caller that counts outcomes must tell them apart (see
+// egressStepResult.failed).
+func safeEgressFilter(filter filterapi.EgressFilterFunc, src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) (accept, panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			fwdLogger().Error("egress filter panic, suppressing route", "src", src.Address, "dest", dest.Address, "panic", r)
 			accept = false // fail-closed: suppress route on filter panic
+			panicked = true
 		}
 	}()
-	return filter(src, dest, payload, meta, mods)
+	return filter(src, dest, payload, meta, mods), false
 }
 
 // addPeerObserver registers an observer for peer lifecycle events.

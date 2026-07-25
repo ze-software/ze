@@ -346,9 +346,17 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 	attrs := scratch.Buf[:attrLen]
 	nextHop := scratch.Buf[attrLen : attrLen+nhLen]
 	nlri := scratch.Buf[attrLen+nhLen : scratchLen]
-	if !decodeHexInto(attrs, route.AttrHex) ||
-		!decodeHexInto(nextHop, route.NextHopHex) ||
-		!decodeHexInto(nlri, route.NLRIHex) {
+	// hex.Decode does not leak src, so the []byte conversions are elided by the
+	// compiler ("zero-copy string->[]byte conversion") and cost nothing per
+	// route. A hand-rolled decoder was tried here and reverted: it was premised
+	// on an allocation that measurement showed does not happen.
+	if _, err := hex.Decode(attrs, []byte(route.AttrHex)); err != nil {
+		return nil, 0, errRelayHex
+	}
+	if _, err := hex.Decode(nextHop, []byte(route.NextHopHex)); err != nil {
+		return nil, 0, errRelayHex
+	}
+	if _, err := hex.Decode(nlri, []byte(route.NLRIHex)); err != nil {
 		return nil, 0, errRelayHex
 	}
 

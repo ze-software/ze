@@ -67,6 +67,13 @@ type orderedEgressStep struct {
 type egressStepResult struct {
 	accept       bool
 	wireOverride *wireu.WireUpdate
+	// failed distinguishes "this step could not run" from "this step decided to
+	// drop the route". Both suppress (fail-closed), but only the latter is a
+	// policy outcome. A caller that reports how a forward ended -- the
+	// stored-route relay's completeness check -- must not read a filter-plugin
+	// timeout, an unparseable filter response, a missing API server, or a filter
+	// panic as "policy said no". See errAllDestinationsSuppressed.
+	failed bool
 }
 
 // buildOrderedIngressSteps merges the registered in-process ingress filters with
@@ -259,7 +266,8 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1).
 	if r.api == nil {
 		slog.Warn("export filter: no API server -- fail-closed", "peer", destAddrStr)
-		return egressStepResult{} // accept == false: suppress route for this peer
+		// A guard MISS, not a policy decision: the chain never ran.
+		return egressStepResult{failed: true} // accept == false: suppress route for this peer
 	}
 	attrsWire, attrErr := wireUpdate.Attrs()
 	if attrErr != nil {
@@ -272,7 +280,9 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		updateText, r.policyFilterFunc(wireUpdate.Payload()),
 	)
 	if res.Action == PolicyReject {
-		return egressStepResult{} // accept == false: suppress route for this peer
+		// res.Failed is set when the reject came from an IPC error or an
+		// unparseable filter response rather than from the filter's decision.
+		return egressStepResult{failed: res.Failed} // accept == false: suppress route for this peer
 	}
 	// A raw=true filter may return a full UPDATE-body replacement (e.g.
 	// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is terminal.

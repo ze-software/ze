@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -118,17 +119,14 @@ func TestRelayStoredRouteForwardsThroughForwardRail(t *testing.T) {
 		"relay cache entry must be evicted, returning its pooled buffer")
 }
 
-// TestRelayStoredRouteFailsClosedWithoutSource verifies a route whose source peer
-// is gone is NOT relayed.
-//
 // TestRelayStoredRouteCountsDispatchFailureAsIncomplete verifies a route that
 // reached no destination because dispatch FAILED is reported, not counted as a
 // successful relay.
 //
 // VALIDATES: the completeness guard distinguishes "egress policy suppressed this
-// route" from "we failed to send it". forwardUpdateCore returns one error for
-// both when nothing was dispatched (reactor_api_forward.go:689-691), so counting
-// that error as handled would make a read-pool exhaustion or a wire-build failure
+// route" from "we failed to send it". forwardUpdateCore reaches one zero-dispatch
+// exit for both (reactor_api_forward.go:719-726), so counting that exit as
+// handled would make a read-pool exhaustion or a wire-build failure
 // indistinguishable from a policy decision.
 // PREVENTS: a silently dropped route on a peer-up replay under load being
 // reported as relayed, which is exactly the load-dependent class this spec exists
@@ -137,9 +135,15 @@ func TestRelayStoredRouteCountsDispatchFailureAsIncomplete(t *testing.T) {
 	api, cache, dispatched, mu, _ := relayFixture(t)
 
 	// Drop the destination's forwarding facts. forwardUpdateCore skips a peer
-	// whose facts are nil (reactor_api_forward.go:456-459) -- the state a peer is
-	// in when its session tore down mid-forward. Nothing is dispatched, and the
-	// failure must NOT read as a suppression.
+	// whose facts are nil (reactor_api_forward.go:472-475) -- the state a peer is
+	// in when its session tore down mid-forward (peer.go clearEncodingContexts
+	// stores nil). Nothing is dispatched, and the failure must NOT read as a
+	// suppression.
+	//
+	// This drives ONE of the failure branches. The pool-exhaustion and
+	// body-build branches named in the spec are not reachable from a unit
+	// fixture; that coverage gap is homed in
+	// plan/spec-fixit-stored-route-relay-hardening.md.
 	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
 	require.NotNil(t, dst, "fixture must expose the destination peer")
 	dst.fwdFacts.Store(nil)
@@ -168,7 +172,7 @@ func TestRelayStoredRouteCountsDispatchFailureAsIncomplete(t *testing.T) {
 func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
 	// Both peers in the local AS: RFC 4456 forbids reflecting an IBGP-learned
 	// route to another IBGP peer when neither side is a route-reflector client
-	// (reactor_api_forward.go:474-479), so the destination is suppressed.
+	// (reactor_api_forward.go:491-497), so the destination is suppressed.
 	api, cache, dispatched, mu, _ := relayFixtureAS(t, 65000, 65000)
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
@@ -182,6 +186,49 @@ func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
 		"the suppressed relay must release its pooled buffer")
 }
 
+// TestRelayStoredRouteCountsFailedEgressStepAsIncomplete verifies a route
+// dropped because an egress STEP could not run is reported, not counted as a
+// policy suppression.
+//
+// VALIDATES: `accept == false` out of the ordered egress pass is overloaded --
+// a filter-plugin IPC error under the default fail-closed on-error policy
+// (filter_chain.go policyFilterFunc), an unparseable filter response, a missing
+// API server (filter_ordered.go), and a filter panic (safeEgressFilter) all
+// produce it alongside a genuine policy reject. Only the genuine reject may
+// count as suppression.
+// PREVENTS: the exact fail-open this spec exists to close, re-entered through a
+// different door -- a forked export-filter plugin timing out under load would
+// drop every route of a peer-up replay while RelayStoredRoute reported the
+// replay complete.
+func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
+	api, cache, dispatched, mu, _ := relayFixture(t)
+
+	// One in-process egress step that panics. safeEgressFilter recovers it and
+	// suppresses fail-closed, reporting panicked=true: a step that COULD NOT RUN,
+	// not a step that decided.
+	api.r.orderedEgressSteps = []orderedEgressStep{{
+		name: "panicking-test-filter",
+		inproc: func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
+			panic("simulated egress filter failure")
+		},
+	}}
+
+	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")})
+	require.Error(t, err, "a route dropped by a FAILED egress step must not report success")
+	assert.NotErrorIs(t, err, errAllDestinationsSuppressed,
+		"a step that could not run is not an egress-policy suppression")
+
+	mu.Lock()
+	assert.Empty(t, *dispatched, "nothing was dispatched")
+	mu.Unlock()
+	require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
+		"the failed relay must still release its pooled buffer")
+}
+
+// TestRelayStoredRouteFailsClosedWithoutSource verifies a route whose source peer
+// is gone is NOT relayed.
+//
 // VALIDATES: spec C-4 -- without the source peer the egress transform a live
 // forward would apply cannot be reproduced, so the relay must refuse.
 // PREVENTS: relaying under a zero-valued source, which would apply the wrong

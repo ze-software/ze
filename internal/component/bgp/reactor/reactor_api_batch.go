@@ -1065,7 +1065,7 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 	var src filterapi.PeerFilterInfo
 	var mods filterapi.ModAccumulator
 	for _, f := range a.r.readvertiseEgressFilters {
-		if !safeEgressFilter(f, src, dest, body, meta, &mods) {
+		if accept, _ := safeEgressFilter(f, src, dest, body, meta, &mods); !accept {
 			return staleSuppress, nil
 		}
 	}

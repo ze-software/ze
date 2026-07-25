@@ -241,8 +241,10 @@ func TestSafeEgressFilterPanicSuppresses(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
 	var mods filterapi.ModAccumulator
 
-	accept := safeEgressFilter(panicFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
+	accept, panicked := safeEgressFilter(panicFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
 	assert.False(t, accept, "panicking egress filter must suppress (fail-closed)")
+	assert.True(t, panicked, "a panic must be reported as a failure, not as a policy decision: "+
+		"forwardUpdateCore counts policy suppressions and the relay's completeness check reads that count")
 	assert.Equal(t, 0, mods.Len(), "panicking egress filter must not leave mods")
 }
 
@@ -275,8 +277,9 @@ func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
 	var mods filterapi.ModAccumulator
 
-	accept := safeEgressFilter(normalFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
+	accept, panicked := safeEgressFilter(normalFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
 	assert.True(t, accept)
+	assert.False(t, panicked, "a filter that returns normally must not be reported as failed")
 	assert.Equal(t, 1, mods.Len(), "mods should carry filter's value")
 	ops := mods.Ops()
 	require.Len(t, ops, 1)

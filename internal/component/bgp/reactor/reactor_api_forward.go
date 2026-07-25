@@ -512,16 +512,19 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			destFilter := facts.filterInfo
 			payload := update.WireUpdate.Payload()
 			suppressed := false
+			stepFailed := false
 			for i := range a.r.orderedEgressSteps {
 				step := &a.r.orderedEgressSteps[i]
 				var res egressStepResult
 				if step.policyChain {
 					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, update.WireUpdate)
 				} else {
-					res = egressStepResult{accept: safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)}
+					accept, panicked := safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)
+					res = egressStepResult{accept: accept, failed: panicked}
 				}
 				if !res.accept {
 					suppressed = true
+					stepFailed = res.failed
 					break
 				}
 				if res.wireOverride != nil {
@@ -529,7 +532,15 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				}
 			}
 			if suppressed {
-				suppressedCount++
+				// Only a genuine policy decision counts as suppression. A step
+				// that could not run (filter IPC error or unparseable response,
+				// missing API server, filter panic) still drops the route
+				// fail-closed, but must be reported as a DROP so the relay's
+				// completeness check cannot read a plugin timeout under load as
+				// a complete replay.
+				if !stepFailed {
+					suppressedCount++
+				}
 				continue
 			}
 		}

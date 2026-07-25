@@ -170,60 +170,58 @@ func TestScanAttrBlockRejectsMalformed(t *testing.T) {
 	}
 }
 
-// TestDecodeHexIntoRejectsMalformed verifies the allocation-free hex decoder
-// accepts exactly what encoding/hex accepts, and rejects everything else whole.
+// TestStoredHexDecodeRejectsMalformed verifies a malformed stored-route hex
+// field fails the route rather than being partially accepted.
+//
+// test-relax: the subject function decodeHexInto was REMOVED, so its two tests
+// cannot remain as written. Its justification was false and was disproved by
+// measurement: hex.Decode does not leak src, so hex.Decode(dst, []byte(s)) is
+// elided to a zero-copy conversion and allocates ZERO per call (AllocsPerRun and
+// -gcflags=-m). TestDecodeHexIntoDoesNotAllocate is DELETED rather than ported
+// because it could not fail -- the form it claimed to guard against allocates
+// nothing either, so it pinned nothing. The malformed-input boundaries are NOT
+// dropped: they are re-pointed at encoding/hex, the call buildRelayUpdate now
+// makes, and strengthened with a high-bit case the old table never reached (its
+// "unicode digit" case was rejected on length, never on alphabet).
 //
 // VALIDATES: spec S-5 -- stored-route hex crosses the plugin RPC boundary and is
-// untrusted, so a length or alphabet defect must reject the field rather than
-// leave a half-filled buffer to be re-emitted onto a peer's session.
-// PREVENTS: an odd-length field silently losing its last nibble (hex.DecodedLen
-// rounds down), and a partially-decoded buffer reaching the wire.
-func TestDecodeHexIntoRejectsMalformed(t *testing.T) {
+// untrusted, so a length or alphabet defect must fail the route.
+// PREVENTS: an odd-length or non-hex field being accepted and reaching the wire.
+func TestStoredHexDecodeRejectsMalformed(t *testing.T) {
+	// decodeField mirrors buildRelayUpdate: size with DecodedLen, decode, and
+	// treat any error as "reject this route".
+	decodeField := func(s string) bool {
+		dst := make([]byte, hex.DecodedLen(len(s)))
+		_, err := hex.Decode(dst, []byte(s))
+		return err == nil
+	}
+
 	t.Run("round-trips valid hex in both cases", func(t *testing.T) {
 		dst := make([]byte, 4)
-		require.True(t, decodeHexInto(dst, "0a0B0c0D"))
+		_, err := hex.Decode(dst, []byte("0a0B0c0D"))
+		require.NoError(t, err)
 		require.Equal(t, []byte{0x0a, 0x0b, 0x0c, 0x0d}, dst)
 	})
 
 	t.Run("empty decodes to empty", func(t *testing.T) {
-		require.True(t, decodeHexInto(nil, ""), "a zero-length field is valid")
+		require.True(t, decodeField(""), "a zero-length field is valid")
 	})
 
 	cases := []struct {
 		name string
-		dst  int
 		s    string
 	}{
-		{"odd length", 2, "0a0"},
-		{"one byte short", 4, "0a0b0c"},
-		{"one byte long", 2, "0a0b0c"},
-		{"non-hex alphabet", 2, "0azz"},
-		{"leading space", 2, " a0b"},
-		{"unicode digit", 2, "0a0٠"},
+		{"odd length", "0a0"},
+		{"non-hex alphabet", "0azz"},
+		{"leading space", " a0b"},
+		{"high-bit byte", "0a\xff\xfe"},
+		{"multi-byte utf8 digit", "0a0٠"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dst := make([]byte, tc.dst)
-			require.False(t, decodeHexInto(dst, tc.s), "malformed hex must be rejected whole")
+			require.False(t, decodeField(tc.s), "malformed hex must fail the route")
 		})
 	}
-}
-
-// TestDecodeHexIntoDoesNotAllocate pins the reason this decoder exists.
-//
-// VALIDATES: ai/rules/memory-architecture.md -- the reconstruction path decodes
-// three fields per stored route, and hex.Decode(dst, []byte(s)) would allocate on
-// each string-to-slice conversion.
-// PREVENTS: a silent regression back to the allocating form.
-func TestDecodeHexIntoDoesNotAllocate(t *testing.T) {
-	dst := make([]byte, 28)
-	src := "4001010040020E02030000FBF00000FC000000FBF140030401010101"
-	allocs := testing.AllocsPerRun(100, func() {
-		if !decodeHexInto(dst, src) {
-			t.Fatal("fixture must decode")
-		}
-	})
-	require.Zero(t, allocs, "decoding a stored field must not allocate")
 }
 
 // hexByte renders a single byte as two hex digits for fixture assembly.

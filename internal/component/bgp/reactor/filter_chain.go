@@ -135,11 +135,21 @@ type PolicyResponse struct {
 	Teardown      bool
 	NotifyCode    uint8
 	NotifySubcode uint8
+	// Failed marks a PolicyReject that the filter did NOT decide: an IPC error
+	// under a fail-closed on-error policy, or a response we could not parse.
+	// The route is still rejected -- that is the fail-closed contract -- but a
+	// caller counting outcomes must not record it as a policy decision. Without
+	// this, a plugin timing out under load is indistinguishable from a plugin
+	// deliberately rejecting every route.
+	Failed bool
 }
 
 // PolicyChainResult is the aggregate outcome of running a filter chain.
 type PolicyChainResult struct {
 	Action PolicyAction
+	// Failed propagates PolicyResponse.Failed for the reject that
+	// short-circuited the chain. See that field.
+	Failed bool
 	// Text is the accumulated modified update text (valid unless Action==PolicyReject).
 	Text string
 	// Raw is a raw full-payload replacement from a raw filter; terminal.
@@ -197,7 +207,7 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 
 		switch result.Action {
 		case PolicyReject:
-			return PolicyChainResult{Action: PolicyReject}
+			return PolicyChainResult{Action: PolicyReject, Failed: result.Failed}
 		case PolicyModify:
 			// A raw full-payload rewrite is terminal (see doc comment).
 			if len(result.Raw) > 0 {
@@ -400,13 +410,15 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			if onError == rpc.OnErrorAccept {
 				return PolicyResponse{Action: PolicyAccept}
 			}
-			return PolicyResponse{Action: PolicyReject}
+			// Failed: the filter never decided. Still rejected (fail-closed),
+			// but not a policy decision -- see PolicyResponse.Failed.
+			return PolicyResponse{Action: PolicyReject, Failed: true}
 		}
 
 		action, ok := toPolicyAction(out.Action)
 		if !ok {
 			reactorLogger().Warn("policy filter: invalid action", "plugin", pluginName, "filter", filterName, "action", out.Action)
-			return PolicyResponse{Action: PolicyReject} // fail-closed on invalid response
+			return PolicyResponse{Action: PolicyReject, Failed: true} // fail-closed on invalid response
 		}
 
 		// AC-13: Validate that modify delta only touches declared attributes.
