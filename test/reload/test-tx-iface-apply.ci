@@ -1,8 +1,20 @@
 # Test: Interface transaction apply via SIGHUP
 # Verifies that interface config changes are applied through the transaction
-# protocol. Initial config has no interfaces. After SIGHUP with interface
-# config, the interface plugin applies the change via its OnConfigApply handler.
-# The BGP peer confirms the daemon is still running after reload.
+# protocol. Initial config has no interfaces and no peer. After SIGHUP with
+# interface config, the interface plugin applies the change via its
+# OnConfigApply handler, and the BGP peer added by the same reload connects.
+#
+# The initial config deliberately carries NO peer, so the peer expectations
+# below can ONLY be satisfied after the reload. That is the fence. Until
+# 2026-07-25 this test declared the peer up-front and drove the reload from a
+# trigger that slept 2s after daemon.ready: the check peer completed on the
+# second PRE-reload message, printed "successful" and exited, the runner then
+# tore the daemon down ~1.7s BEFORE the SIGHUP, and the test passed in ~2.2s
+# having never reloaded anything ("received SIGHUP" appeared 0 times in the
+# daemon's stderr). The stderr expectation below is the direct proof that the
+# transaction path ran (internal/component/iface/register.go:623, the
+# OnConfigApply handler's success log) rather than merely that the daemon
+# survived.
 
 # ze-peer expectations
 option=skip-os:value=darwin
@@ -13,47 +25,16 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Initial config: one BGP peer, no interfaces
+# // test-relax: the peer block moves OUT of the initial config and into
+# config2.conf below (it is not deleted -- see the identical block there). This
+# is the fix, not a relaxation: while the peer existed up-front, both
+# expectations were satisfiable PRE-reload, the check peer exited, and the
+# runner killed the daemon before the SIGHUP ever landed. Moving the peer into
+# the reloaded config makes the same two expectations reachable only AFTER the
+# transaction applies, which is what this test claims to verify.
+# Initial config: no peers, no interfaces.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart disable
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-
-		update {
-			attribute {
-				origin igp
-				local-preference 100
-				next-hop 10.0.0.1
-			}
-			nlri {
-				ipv4/unicast add 192.168.1.0/24
-			}
-		}
-	}
 }
 EOF_CONF
 
@@ -106,18 +87,37 @@ interface {
 }
 EOF_CONF2
 
-# Trigger: wait for peer, reload with interface config
+# Trigger: reload with interface + peer config as soon as the daemon is ready.
+#
+# // test-relax: the two `sleep 2` lines and the trailing `kill -TERM` are
+# REMOVED, and an `expect=stderr` assertion is added in their place, so the
+# file's assertion count goes up, not down. The sleeps were the defect: the
+# first one let the check peer finish and the runner kill the daemon before the
+# SIGHUP, and the second raced the reload it was meant to follow. Readiness
+# files are the only wait needed, and the runner tears the daemon down once the
+# check peer is satisfied.
 tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
 #!/bin/sh
+# poll interval; each loop breaks as soon as the daemon writes the file it waits on
 while [ ! -f daemon.pid ]; do sleep 0.1; done
 while [ ! -f daemon.ready ]; do sleep 0.1; done
-sleep 2
 cp config2.conf ze-bgp.conf
 kill -HUP $(cat daemon.pid)
-sleep 2
-kill -TERM $(cat daemon.pid)
 EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=sh trigger.sh
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+# The asserted OnConfigApply success log is Info level and the default log level
+# is WARN, so the interface subsystem must be raised for it to reach stderr.
+option=env:var=ze.log.interface:value=info
+# The interface section does not exist in the initial config, so the reload
+# STARTS the interface plugin rather than reconfiguring a running one: it takes
+# the OnConfigure path (internal/component/iface/register.go:430, "interface
+# config applied"), not OnConfigApply's "interface config reloaded via
+# transaction" (register.go:623). Because there is no interface section at boot,
+# ANY occurrence of this line is necessarily post-reload, so matching it against
+# accumulated stderr is sound. Confirmed in QEMU: the daemon logs "interface
+# backend loaded" / "interface config applied" / "interface monitor started"
+# between "received SIGHUP" and "sighup reload complete".
+expect=stderr:contains=interface config applied

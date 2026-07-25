@@ -18,7 +18,7 @@ action=sighup:conn=1:seq=2
 action=sigterm:conn=1:seq=2
 EOF_PEER
 
-# Initial config: valid wireguard wg0 with private-key
+# Initial config: valid wireguard wgnopriv0 with private-key
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -62,8 +62,8 @@ bgp {
 }
 
 interface {
-	wireguard wg0 {
-		listen-port 51820
+	wireguard wgnopriv0 {
+		listen-port 51823
 		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
 		peer site2 {
 			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
@@ -73,7 +73,7 @@ interface {
 }
 EOF_CONF
 
-# Updated config: wg0 missing private-key leaf. Reload must reject.
+# Updated config: wgnopriv0 missing private-key leaf. Reload must reject.
 tmpfs=config2.conf:terminator=EOF_CONF2
 bgp {
 	peer peer1 {
@@ -117,8 +117,8 @@ bgp {
 }
 
 interface {
-	wireguard wg0 {
-		listen-port 51820
+	wireguard wgnopriv0 {
+		listen-port 51823
 		peer site2 {
 			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
 			allowed-ips [ 10.0.0.2/32 ]

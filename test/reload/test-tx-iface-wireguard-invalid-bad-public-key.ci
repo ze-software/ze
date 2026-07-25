@@ -18,7 +18,7 @@ action=sighup:conn=1:seq=2
 action=sigterm:conn=1:seq=2
 EOF_PEER
 
-# Initial config: valid wireguard wg0
+# Initial config: valid wireguard wgbadpub0
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -62,8 +62,8 @@ bgp {
 }
 
 interface {
-	wireguard wg0 {
-		listen-port 51820
+	wireguard wgbadpub0 {
+		listen-port 51822
 		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
 		peer site2 {
 			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
@@ -117,8 +117,8 @@ bgp {
 }
 
 interface {
-	wireguard wg0 {
-		listen-port 51820
+	wireguard wgbadpub0 {
+		listen-port 51822
 		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
 		peer site2 {
 			public-key "not-a-valid-base64-wireguard-key!!!"

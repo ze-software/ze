@@ -1,0 +1,149 @@
+# Test: interface address renumbered WITHIN one subnet via SIGHUP
+#
+# The bug this fences: ze's address reconcile is make-before-break, so a
+# renumber inside one subnet (10.77.0.1/24 -> 10.77.0.2/24) adds the new
+# address while the old one is still present. Linux then marks the newcomer
+# IFA_F_SECONDARY, and deleting the PRIMARY of that subnet deletes every
+# same-subnet secondary with it (net/ipv4/devinet.c, __inet_del_ifa) unless
+# net.ipv4.conf.<dev>.promote_secondaries is 1. The reload reported success and
+# left the interface with NO address at all.
+#
+# The fence is the `ip addr show` readback in driver.sh below: it asserts the NEW
+# address is present AND the old one is gone. A daemon that merely survives the
+# reload does not pass -- the pre-fix daemon survived it and reported success.
+#
+# // test-relax: an earlier draft also declared a BGP check peer as a "liveness
+# half", on the reasoning that a peer present only in the RELOADED config cannot
+# be satisfied before the SIGHUP. That reasoning belongs to the BACKGROUND-trigger
+# shape, where the runner tears the daemon down as soon as the peer is satisfied
+# (the trap documented in test-tx-iface-tunnel-remove.ci). This test drives the
+# reload from a FOREGROUND driver, so the runner waits for the driver and there is
+# no early teardown to defend against -- and the peer actively broke it: the
+# driver SIGTERMs the daemon the moment the renumber lands, which is before the
+# peer has connected, so the peer expectations failed on a daemon that had already
+# done its job. The driver is the strictly stronger fence (it waits for the OLD
+# address to be applied, triggers the reload itself, then polls for the NEW one),
+# and daemon liveness is covered by expect=exit:code=0. Shape copied from
+# test/static/007-per-route-isolation.ci, which is green in QEMU.
+
+# needs-linux: the address reconcile only reaches a kernel on Linux, and
+# creating a dummy device plus assigning addresses needs CAP_NET_ADMIN.
+option=needs-linux:caps=net-admin
+
+# Initial config: dummy interface holding 10.77.0.1/24, no peer.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+}
+
+interface {
+	dummy zswap0 {
+		unit 0 {
+			ipv4 {
+				address [ 10.77.0.1/24 ]
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: SAME subnet, different host address, plus the BGP peer.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	dummy zswap0 {
+		unit 0 {
+			ipv4 {
+				address [ 10.77.0.2/24 ]
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# The driver runs in the FOREGROUND and the daemon in the background, which is
+# the shape test/static/007-per-route-isolation.ci uses. It matters here: as a
+# BACKGROUND script this raced its own teardown -- the runner began tearing
+# everything down ~50ms after the SIGHUP, before a 0.1s poll loop had run even
+# once, and addr-after.txt was never written ("read failed: ... no such file").
+# Foreground, the runner waits for this script, so the readback cannot be raced.
+tmpfs=driver.sh:mode=755:terminator=EOF_DRIVER
+#!/bin/sh
+set -e
+# poll interval; each loop breaks as soon as the condition it names is true
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+# The initial apply must have landed before the swap, otherwise the reload has
+# nothing to renumber and the test would pass vacuously.
+while ! ip -4 addr show zswap0 2>/dev/null | grep -q '10\.77\.0\.1/24'; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP "$(cat daemon.pid)"
+# Poll for the renumber rather than sleeping on it: the reload is a transaction
+# whose settlement wait is event-driven, so its duration is not a fixed number.
+i=0
+while [ $i -lt 100 ]; do
+	if ip -4 addr show zswap0 2>/dev/null | grep -q '10\.77\.0\.2/24'; then
+		break
+	fi
+	i=$((i + 1))
+	# poll interval; the loop breaks as soon as the new address appears
+	sleep 0.1
+done
+# Unconditional readback: on the pre-fix tree the loop above times out with the
+# device carrying NO address, and that empty capture is what fails the
+# expectations below. Writing it only on success would turn the bug into a
+# missing file instead of a visible wrong state.
+ip -4 addr show zswap0 > addr-after.txt 2>&1
+kill -TERM "$(cat daemon.pid)"
+EOF_DRIVER
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=sh driver.sh:timeout=30s
+
+# The daemon must report the reload as applied, and the interface must actually
+# carry the new address afterwards. The second assertion is the one that fails
+# on the pre-fix tree: the device exists, the reload reports success, and
+# `ip addr` shows nothing.
+option=env:var=ze.log.interface:value=info
+expect=exit:code=0
+expect=file:path=addr-after.txt:contains=10.77.0.2/24
+expect=file:path=addr-after.txt:not-contains=10.77.0.1/24

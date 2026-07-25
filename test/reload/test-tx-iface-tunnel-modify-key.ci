@@ -11,51 +11,20 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Initial config: BGP peer + gre tunnel with key 1
+# Initial config (peer moved to the reload): gre tunnel with key 1
+# // test-relax: the `peer peer1` block moves OUT of this initial config and into
+# config2.conf below -- it is not deleted, and the two peer expectations above are
+# unchanged. This is the fix, not a relaxation: while the peer existed up-front,
+# both expectations were satisfiable PRE-reload, the check peer exited, and the
+# runner killed the daemon before the SIGHUP ever landed (measured: "received
+# SIGHUP" 0 times, test green in ~2.2s). Moving the peer into the reloaded config
+# makes the same expectations reachable only AFTER the transaction applies.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart disable
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-
-		update {
-			attribute {
-				origin igp
-				local-preference 100
-				next-hop 10.0.0.1
-			}
-			nlri {
-				ipv4/unicast add 192.168.1.0/24
-			}
-		}
-	}
 }
 
 interface {
-	tunnel tgre0 {
+	tunnel tgrekey0 {
 		encapsulation {
 			gre {
 				local { ip 192.0.2.1; }
@@ -111,7 +80,7 @@ bgp {
 }
 
 interface {
-	tunnel tgre0 {
+	tunnel tgrekey0 {
 		encapsulation {
 			gre {
 				local { ip 192.0.2.1; }
@@ -123,17 +92,22 @@ interface {
 }
 EOF_CONF2
 
+# // test-relax: the two `sleep 2` lines and the trailing `kill -TERM` are removed
+# and an `expect=stderr` assertion is added below, so this file's assertion count
+# rises. The first sleep let the check peer finish and the runner kill the daemon
+# before the SIGHUP; the second raced the reload it was meant to follow.
 tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
 #!/bin/sh
 while [ ! -f daemon.pid ]; do sleep 0.1; done
 while [ ! -f daemon.ready ]; do sleep 0.1; done
-sleep 2
 cp config2.conf ze-bgp.conf
 kill -HUP $(cat daemon.pid)
-sleep 2
-kill -TERM $(cat daemon.pid)
 EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=sh trigger.sh
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+# The asserted OnConfigApply success log is Info level and the default log level
+# is WARN, so the interface subsystem must be raised for it to reach stderr.
+option=env:var=ze.log.interface:value=info
+expect=stderr:contains=interface config reloaded via transaction
