@@ -2,7 +2,7 @@
 
 **[ze-software.net](https://ze-software.net)**
 
-> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (10,000+ unit tests, roughly 1,400 functional tests, 50+ fuzz targets, chaos testing, and 35+ Docker-based interop scenarios against FRR, BIRD, GoBGP, OpenBGPd, FreeRtr, RustyBGP, and rustbgpd), but some advanced features are still incomplete. APIs and config syntax may change.
+> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (20,000+ unit tests, 1,600+ functional tests, 70+ fuzz targets, chaos testing, and 100+ Docker-based interop scenarios against FRR, BIRD, and GoBGP, with OpenBGPd, FreeRtr, RustyBGP, and rustbgpd images used for comparison), but some advanced features are still incomplete. APIs and config syntax may change.
 
 Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
 
@@ -37,6 +37,16 @@ It was designed to let [ExaBGP](https://github.com/Exa-Networks/exabgp) users mi
 
 IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventory](docs/features.md) for details.
 
+### Build Only What You Run
+
+Thirty-six subsystems compile out behind `ze_<feature>` build tags, including the BGP engine itself. Leaving a tag off drops that code from the binary, for a smaller image and less attack surface, and a config selecting a compiled-out subsystem is rejected as unknown rather than silently ignored. `make ze` builds everything; `make ze-stripped` keeps only the SSH management plane. The gate list is declared once in `feature-gates.txt` and every consumer derives from it.
+
+```bash
+go build -tags 'ze_core ze_ssh ze_ospf' ./cmd/ze   # an OSPF-only router, no BGP
+```
+
+That build is 39 MB against 83 MB for the full binary, and carries none of the 1,201 BGP reactor symbols the full build links.
+
 ### Wire Performance
 
 | Aspect | Detail |
@@ -56,11 +66,12 @@ If you are an ExaBGP user, we would love your feedback on the migration experien
 
 | Type | Scope |
 |------|-------|
-| Unit tests | 10,000+ test functions as of 2026-04 |
+| Unit tests | 20,000+ test functions as of 2026-07 |
 | Linting | 26 linters |
-| Functional tests | Roughly 1,400 `.ci` files: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
-| Fuzz testing | 50+ targets covering external input parsing as of 2026-04 |
+| Functional tests | 1,460+ `.ci` files and 160+ `.et` editor tests: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
+| Fuzz testing | 70+ targets covering external input parsing as of 2026-07 |
 | Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
+| RFC requirement gate | 2,700+ MUST-level requirements across 166 enrolled RFCs and drafts, each proven by a positive and a negative test or annotated with a reason. See [RFC status](docs/features/rfc-status.md) |
 
 ### Deployment
 
@@ -118,7 +129,7 @@ Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a sup
 
 Ze exists because AI coding assistants (Claude Code) made a ground-up BGP rewrite feasible for a solo developer. The author focused on architecture and design decisions informed by a decade of ExaBGP; AI handled the volume of protocol encoding, boilerplate, and test generation.
 
-Contributors using Claude Code have access to 19 project-specific slash commands for specs, implementation, review, and testing. See the [Claude Code cheat sheet](docs/contributing/claude-code-cheatsheet.md).
+Contributors using Claude Code have access to 28 project-specific slash commands for specs, implementation, review, and testing. See the [Claude Code cheat sheet](docs/contributing/claude-code-cheatsheet.md).
 
 ## License and Contributions
 
@@ -130,8 +141,8 @@ Contributions are welcome if they follow the [contribution process](CONTRIBUTING
 
 | | |
 |-|-|
-| **Official repo** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
-| **Development** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
+| **Repo** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
 | **Issues** | [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues) |
+| **Wiki** | [github.com/ze-software/ze/wiki](https://github.com/ze-software/ze/wiki) |
 | **Discord** | [discord.gg/T8s7CjPDne](https://discord.gg/T8s7CjPDne) |
 | **ExaBGP** | [github.com/Exa-Networks/exabgp](https://github.com/Exa-Networks/exabgp) |
