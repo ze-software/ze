@@ -183,13 +183,13 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		}
 	}
 
-	// Add ze binary directory to PATH so child processes (like "ze bgp persist") can find it
-	zeDir := filepath.Dir(r.zePath)
-	existingPath := os.Getenv("PATH")
+	// Put the bare-name shim dir on PATH so child processes (like "ze bgp
+	// persist") resolve THIS run's ze, not a stale or wrong-architecture one
+	// left in bin/ (see Runner.setupBinShims).
 	clientEnv := append(os.Environ(),
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
-		"PATH="+zeDir+":"+existingPath,
+		r.childPathEnv(),
 		"ze.storage.blob=false",
 		"SLOG_LEVEL=DEBUG",            // Enable debug logging for tracing
 		"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
@@ -746,12 +746,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
 
 		// Set up environment
-		// Add ze binary directory to PATH so child processes can find "ze plugin ..." commands
-		zeDir := filepath.Dir(r.zePath)
-		existingPath := os.Getenv("PATH")
+		// Put the bare-name shim dir on PATH so child processes resolve THIS
+		// run's ze for "ze plugin ..." commands, not a stale or
+		// wrong-architecture one left in bin/ (see Runner.setupBinShims).
 		proc.Env = append(os.Environ(),
 			"PYTHONPATH="+filepath.Join(r.baseDir, "test", "scripts"),
-			"PATH="+zeDir+":"+existingPath,
+			r.childPathEnv(),
 			// Repo root for shell-script tests that must run repo-anchored
 			// tools (e.g. `ze appliance build` resolves gokrazy/modcache from
 			// CWD). Deriving the root from the ze binary's location is wrong

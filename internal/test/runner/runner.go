@@ -140,6 +140,11 @@ type Runner struct {
 	// extraBinaries maps binary name -> build spec for additional
 	// binaries that should be built alongside ze and ze-test.
 	extraBinaries map[string]ExtraBinary
+
+	// binShimDir holds bare-named symlinks (ze, ze-test) to the binaries this
+	// run actually resolved. It is what goes on a test child's PATH; see
+	// setupBinShims for why the binaries' own directory must not.
+	binShimDir string
 }
 
 // NewRunner creates a test runner.
@@ -219,6 +224,67 @@ func (r *Runner) Cleanup() {
 	}
 }
 
+// setupBinShims creates a directory of bare-named symlinks to the binaries this
+// run resolved, and returns it. It is the ONLY directory the runner prepends to
+// a test child's PATH.
+//
+// Putting filepath.Dir(r.zePath) there instead -- which is what the runner did
+// until this existed -- is wrong twice over:
+//
+//   - Under an AI session the binary is named ze-<session-id> (mk/session.mk),
+//     so there is no bare `ze` in that directory at all. A test doing
+//     subprocess(["ze", ...]) then resolves whatever unrelated `ze` is left in
+//     bin/ from some earlier build.
+//   - Driving the QEMU VM from a darwin host, bin/ holds BOTH architectures
+//     (bin/ze is darwin, bin/ze-linux-arm64-<id> is the VM's). The VM picked up
+//     the darwin one and died with "OSError: [Errno 8] Exec format error: 'ze'"
+//     (test/static/005-table-interface.ci). The same hazard is called out at
+//     internal/component/plugin/process/process.go:540.
+//
+// Symlinks rather than copies so this stays cheap on a slow 9p mount, and
+// because they are transparent to ze's own path resolution: DefaultConfigDir
+// runs filepath.EvalSymlinks before ConfigDirFromBinary
+// (internal/core/paths/paths.go:83), so a shimmed ze resolves the same
+// <prefix>/etc/ze as an unshimmed one.
+func (r *Runner) setupBinShims() error {
+	dir := filepath.Join(r.tmpDir, "binshim")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("create bin shim dir: %w", err)
+	}
+	for name, target := range map[string]string{"ze": r.zePath, "ze-test": r.testPath} {
+		abs, err := filepath.Abs(target)
+		if err != nil {
+			return fmt.Errorf("resolve %s binary %q: %w", name, target, err)
+		}
+		link := filepath.Join(dir, name)
+		if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("replace stale shim %s: %w", link, err)
+		}
+		if err := os.Symlink(abs, link); err != nil {
+			return fmt.Errorf("link %s -> %s: %w", link, abs, err)
+		}
+	}
+	r.binShimDir = dir
+	return nil
+}
+
+// childPathEnv returns the ready-to-append PATH= entry a test child process
+// gets: the bare-name shim dir first, then the real binary directory (so a
+// suite that reaches for another binary sitting beside ze still finds it), then
+// the inherited PATH.
+func (r *Runner) childPathEnv() string {
+	parts := make([]string, 0, 3)
+	if r.binShimDir != "" {
+		parts = append(parts, r.binShimDir)
+	}
+	parts = append(parts, filepath.Dir(r.zePath))
+	if existing := os.Getenv("PATH"); existing != "" {
+		parts = append(parts, existing)
+	}
+	var tb textbuf.Buffer
+	return tb.Str("PATH=").Join(parts, string(os.PathListSeparator)).String()
+}
+
 // Build compiles the test binaries.
 //
 // ZE_TEST_NO_BUILD=1 skips the in-process `go build` and uses pre-built binaries
@@ -270,6 +336,11 @@ func (r *Runner) Build(ctx context.Context) error {
 		}
 	}
 
+	if err := r.setupBinShims(); err != nil {
+		r.display.buildStatus(false, err)
+		return err
+	}
+
 	r.display.buildStatus(false, nil)
 	return nil
 }
@@ -318,6 +389,13 @@ func (r *Runner) verifyPrebuilt() error {
 		buildErr := fmt.Errorf("ZE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)
 		r.display.buildStatus(false, buildErr)
 		return buildErr
+	}
+	// After the paths above are final: this is the branch where they most often
+	// are NOT <repo>/bin/ze (ZE_BIN cross-compiles, session-suffixed names), so
+	// it is the branch that most needs the bare-name shims.
+	if err := r.setupBinShims(); err != nil {
+		r.display.buildStatus(false, err)
+		return err
 	}
 	r.display.buildStatus(false, nil)
 	return nil
