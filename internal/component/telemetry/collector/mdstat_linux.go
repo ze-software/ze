@@ -38,7 +38,10 @@ func (c *mdstatCollector) Collect() error {
 		return err
 	}
 
-	for _, md := range stats {
+	// Index rather than range-by-value: procfs.MDStat is 160 bytes, and copying
+	// it per array is what gocritic's rangeValCopy rejects.
+	for i := range stats {
+		md := &stats[i]
 		var tb textbuf.Buffer
 		chart := tb.Str("md.").Str(md.Name).String()
 		family := md.Name
