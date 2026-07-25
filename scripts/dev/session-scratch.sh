@@ -24,6 +24,12 @@
 #   scripts/dev/session-scratch.sh --reap          # remove dead sessions' dirs (backstop)
 #   scripts/dev/session-scratch.sh --clean         # remove THIS session's dir (`make clean`)
 #
+# --reap and --clean also remove the session-suffixed binaries mk/session.mk
+# builds (bin/ze-<id>, bin/ze-test-<id>, ...). Those cannot live under tmp/s/<id>/
+# because a binary's location determines where ze resolves its config and
+# database (internal/core/paths/paths.go ConfigDirFromBinary), so they are swept
+# by name instead. See plan/spec-session-scoped-build-artifacts.md.
+#
 # No `set -u`: session-id.sh reads $CLAUDE_CODE_SESSION_ID and
 # $CLAUDE_CODE_SESSION_ACCESS_TOKEN without defaults (matches spec-session.sh).
 
@@ -50,12 +56,46 @@ cd "$root" || exit 1
 # 24h is treated as dead and self-heals (mkdir -p recreates the dir on next use).
 reap_dead() {
     [ -d tmp/s ] || return 0
-    local d
+    local d sid
     for d in tmp/s/*/; do
         [ -d "$d" ] || continue
         if [ -z "$(find "$d" -mmin -1440 -print -quit 2>/dev/null)" ]; then
+            sid=$(basename "$d")
             rm -rf "$d"
+            reap_binaries "$sid" 1
         fi
+    done
+}
+
+# reap_binaries removes the session-suffixed binaries mk/session.mk built for
+# <sid> (bin/ze-<sid>, bin/ze-test-<sid>, bin/ze-linux-arm64-<sid>, ...).
+#
+# Those live in bin/ rather than under tmp/s/<sid>/ on purpose: a binary's
+# location decides where ze looks for its config and database
+# (internal/core/paths/paths.go ConfigDirFromBinary), so moving them would
+# repoint the daemon away from the repository's live etc/ze. The trade-off is
+# that they are outside the directory SessionEnd deletes, so they are swept here
+# instead -- otherwise bin/ would accumulate one full binary set per dead session.
+#
+# Only the exact `-<sid>` suffix is matched, so the shared bin/ze that humans and
+# CI build is never a candidate.
+# require_idle=1 (the --reap backstop) additionally requires the BINARY itself to
+# be untouched for 24h. Scratch can be reaped on the dir's inactivity alone
+# because it is recreated on demand (mkdir -p); a binary is not -- nothing
+# rebuilds it, and the next run just fails to exec. So a session whose scratch
+# went quiet but which rebuilt recently keeps its binary.
+reap_binaries() {
+    local sid="$1" require_idle="${2:-0}" f
+    case "$sid" in
+        "" | */* | . | ..) return 0 ;;
+    esac
+    [ -d bin ] || return 0
+    for f in bin/*-"$sid"; do
+        [ -f "$f" ] || continue
+        if [ "$require_idle" = "1" ] && [ -n "$(find "$f" -mmin -1440 -print -quit 2>/dev/null)" ]; then
+            continue
+        fi
+        rm -f "$f"
     done
 }
 
@@ -78,7 +118,8 @@ esac
 dir="tmp/s/${sid}"
 
 case "${1:-}" in
-    --clean) rm -rf "$dir"; exit 0 ;; # remove THIS session's scratch, print nothing
+    # Remove THIS session's scratch AND its suffixed binaries, print nothing.
+    --clean) rm -rf "$dir"; reap_binaries "$sid"; exit 0 ;;
     --path) ;;                        # print only, do not create
     "") mkdir -p "$dir" || { echo "session-scratch: cannot create $dir" >&2; exit 1; } ;;
     *) echo "usage: session-scratch.sh [--path|--reap|--clean]" >&2; exit 2 ;;

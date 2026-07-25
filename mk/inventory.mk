@@ -47,7 +47,7 @@ ze-wiki-update: ze-wiki-commands
 	@echo "Wiki updated"
 
 ze-wiki-commands:
-	@bin/ze help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
+	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
 	@echo "  -> ../wiki/command-catalog.md"
 
 ze-doc-drift:

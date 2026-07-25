@@ -23,6 +23,7 @@ import (
 	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
+	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -285,7 +286,7 @@ func zeTestWebAuth(path string) (insecure bool, users []webtesting.WBAuthUser) {
 
 func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser) (*zeTestWebServer, error) {
 	_, portStr, _ := net.SplitHostPort(listenAddr)
-	tempDir, tempErr := os.MkdirTemp("", "ze-web-test-*")
+	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-test-*")
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}

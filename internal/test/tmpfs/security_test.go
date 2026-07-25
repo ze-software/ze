@@ -155,7 +155,7 @@ func TestRejectOversizeFile(t *testing.T) {
 				MaxPathDepth: 10,
 			}
 
-			_, err := ParseWithLimits(strings.NewReader(input), limits)
+			_, err := parseWithLimits(strings.NewReader(input), limits)
 			if tt.shouldErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "size")
@@ -200,7 +200,7 @@ func TestRejectTooManyFiles(t *testing.T) {
 				MaxPathDepth: 10,
 			}
 
-			_, err := ParseWithLimits(strings.NewReader(sb.String()), limits)
+			_, err := parseWithLimits(strings.NewReader(sb.String()), limits)
 			if tt.shouldErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "file")
@@ -234,7 +234,7 @@ EOF2
 		MaxPathDepth: 10,
 	}
 
-	_, err := ParseWithLimits(strings.NewReader(input), limits)
+	_, err := parseWithLimits(strings.NewReader(input), limits)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "total size")
 }
@@ -268,7 +268,7 @@ func TestRejectPathLengthExceeded(t *testing.T) {
 				MaxPathDepth: 10,
 			}
 
-			_, err := ParseWithLimits(strings.NewReader(input), limits)
+			_, err := parseWithLimits(strings.NewReader(input), limits)
 			if tt.shouldErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "path length")
@@ -317,7 +317,7 @@ func TestRejectPathDepthExceeded(t *testing.T) {
 				MaxPathDepth: tt.maxPathDepth,
 			}
 
-			_, err := ParseWithLimits(strings.NewReader(input), limits)
+			_, err := parseWithLimits(strings.NewReader(input), limits)
 			if tt.shouldErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "depth")
@@ -385,13 +385,13 @@ func TestLimitsBoundary(t *testing.T) {
 		// Last valid: exactly at limit
 		content := strings.Repeat("x", 999) // 999 + \n = 1000
 		input := "tmpfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
-		_, err := ParseWithLimits(strings.NewReader(input), limits)
+		_, err := parseWithLimits(strings.NewReader(input), limits)
 		require.NoError(t, err, "content at limit should succeed")
 
 		// First invalid: one over
 		content = strings.Repeat("x", 1000) // 1000 + \n = 1001
 		input = "tmpfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
-		_, err = ParseWithLimits(strings.NewReader(input), limits)
+		_, err = parseWithLimits(strings.NewReader(input), limits)
 		require.Error(t, err, "content over limit should fail")
 	})
 
@@ -417,7 +417,7 @@ tmpfs=c.txt:terminator=EOFC
 c
 EOFC
 `
-		_, err := ParseWithLimits(strings.NewReader(input), limits)
+		_, err := parseWithLimits(strings.NewReader(input), limits)
 		require.NoError(t, err, "3 files at limit should succeed")
 
 		// First invalid: one over
@@ -426,7 +426,7 @@ tmpfs=d.txt:terminator=EOFD
 d
 EOFD
 `
-		_, err = ParseWithLimits(strings.NewReader(input), limits)
+		_, err = parseWithLimits(strings.NewReader(input), limits)
 		require.Error(t, err, "4 files over limit should fail")
 	})
 }

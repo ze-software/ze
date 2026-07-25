@@ -42,6 +42,24 @@ ARCH = os.environ.get("QEMU_GOARCH") or (
 CAPS = "cap_net_admin,cap_net_raw,cap_net_bind_service+ep"
 CAPDIR = "/tmp/zebin"
 STATE = "/tmp/zestate"
+
+
+def _qemu_bin(env_key, name):
+    """Path of a binary mk/test-integration.mk cross-compiled for the VM.
+
+    Those are built as $(ZE_QEMU_BIN) / $(ZE_QEMU_STRIPPED_BIN) /
+    $(ZE_QEMU_TEST_BIN), whose file names carry this session's id under an AI
+    session ($(ZE_BIN_SUFFIX), mk/session.mk). So `bin/<name>-linux-<arch>` is
+    NOT the built path in general -- hardcoding it makes this script exec a file
+    the make target never wrote. The target passes the real paths in through
+    these variables; the literal remains the default for a standalone run.
+    """
+    return os.environ.get(env_key) or f"bin/{name}-linux-{ARCH}"
+
+
+ZE_QEMU_BIN = _qemu_bin("ZE_QEMU_BIN", "ze")
+ZE_QEMU_STRIPPED_BIN = _qemu_bin("ZE_QEMU_STRIPPED_BIN", "ze-stripped")
+ZE_QEMU_TEST_BIN = _qemu_bin("ZE_QEMU_TEST_BIN", "ze-test")
 # Confirmed host-safe green firewall subset under the netns launch mode.
 # Numeric IDs map to NNN-*.ci; the copp-* names select the CoPP suites, which
 # exercise the standalone control-plane-protection path (no firewall {} block)
@@ -119,8 +137,7 @@ def sh(cmd, **kw):
 
 def setcap_binaries():
     os.makedirs(CAPDIR, exist_ok=True)
-    for name in ("ze", "ze-stripped"):
-        src = f"bin/{name}-linux-{ARCH}"
+    for name, src in (("ze", ZE_QEMU_BIN), ("ze-stripped", ZE_QEMU_STRIPPED_BIN)):
         dst = f"{CAPDIR}/{name}"
         if sh(f"cp {src} {dst} && chmod 0755 {dst}").returncode != 0:
             sys.exit(f"copy {src} failed")
@@ -148,13 +165,13 @@ def run_suite(suite, ids):
         "ZE_QEMU": "1",
         "ZE_BIN": f"{CAPDIR}/ze",
         "ZE_STRIPPED_BIN": f"{CAPDIR}/ze-stripped",
-        "ZE_TEST_BIN": f"bin/ze-test-linux-{ARCH}",
+        "ZE_TEST_BIN": ZE_QEMU_TEST_BIN,
         "ZE_TEST_NETNS": "1",
         "ZE_TEST_UID": "1000",
         "ZE_TEST_GID": "1000",
         "ze.config.dir": STATE,
     }
-    cmd = [f"bin/ze-test-linux-{ARCH}", suite, "-p", "1", *ids]
+    cmd = [ZE_QEMU_TEST_BIN, suite, "-p", "1", *ids]
     print(f"+ {' '.join(cmd)}", flush=True)
     return subprocess.run(cmd, env=env).returncode
 

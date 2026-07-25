@@ -46,4 +46,15 @@ case "$sid" in
 esac
 
 rm -rf "tmp/s/${sid}"
+
+# Also remove the session-suffixed binaries mk/session.mk built for this session
+# (bin/ze-<sid>, bin/ze-test-<sid>, ...). They sit in bin/ rather than under
+# tmp/s/<sid>/ because a binary's location decides where ze finds its config and
+# database (internal/core/paths/paths.go ConfigDirFromBinary), so they are not
+# covered by the rm -rf above and would otherwise pile up one full set per
+# session. The exact `-<sid>` suffix is required, so the shared bin/ze that
+# humans and CI build is never matched.
+for f in bin/*-"${sid}"; do
+    [ -f "$f" ] && rm -f "$f"
+done
 exit 0

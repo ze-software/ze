@@ -45,9 +45,9 @@ ze-ipsec-interop-test:
 
 STRESS_SCENARIO ?=
 
-ze-stress-test: bin/ze
+ze-stress-test: $(ZEBIN_ZE)
 	@echo "Running stress tests with ze-test peer injector (requires root + netns)..."
-	@sudo ZE_BINARY=$(CURDIR)/bin/ze VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
+	@sudo ZE_BINARY=$(CURDIR)/$(ZEBIN_ZE) VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
 		python3 test/stress/run.py $(STRESS_SCENARIO)
 
 ze-stress-bird-test:
@@ -55,9 +55,9 @@ ze-stress-bird-test:
 	@sudo VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
 		python3 test/stress/run.py 04-bulk-ipv4-bird
 
-ze-stress-profile: bin/ze
+ze-stress-profile: $(ZEBIN_ZE)
 	@echo "Running 1M profile stress test (requires root + netns)..."
-	@sudo ZE_BINARY=$(CURDIR)/bin/ze ZE_PPROF=1 VERBOSE=$(VERBOSE) \
+	@sudo ZE_BINARY=$(CURDIR)/$(ZEBIN_ZE) ZE_PPROF=1 VERBOSE=$(VERBOSE) \
 		python3 test/stress/run.py 05-profile-1m
 
 # Evidence-tier concurrency stress tests (build-tagged, out of ze-verify per R-6).
@@ -125,30 +125,30 @@ ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integr
 # tests, which reads like a protocol regression and is not one.
 #
 # ZE_TEST_NO_BUILD=1 is REQUIRED, not an optimisation. The runner's Build()
-# rebuilds with `go build -o bin/ze` (internal/test/runner/runner.go:227), and
+# rebuilds with `go build -o $(ZEBIN_ZE)` (internal/test/runner/runner.go:227), and
 # file capabilities are an xattr on the inode, so a rebuild silently DISCARDS the
 # setcap applied two lines above -- the daemon then runs without CAP_NET_ADMIN and
 # every test in all four suites fails. It also removes the need for `go` on sudo's
 # secure_path, which it is not on a default Debian/Ubuntu install. The target
-# already declares bin/ze, bin/ze-stripped and bin/ze-test as prerequisites, so
+# already declares $(ZEBIN_ZE), $(ZEBIN_STRIPPED) and $(ZEBIN_TEST) as prerequisites, so
 # the binaries are current before setcap runs.
 ZE_NETNS_SUITES ?= firewall policy ospf ospfv3
 ZE_NETNS_CAPS   ?= cap_net_admin,cap_net_raw,cap_net_bind_service+ep
-ze-netns-test: bin/ze bin/ze-stripped bin/ze-test
+ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 	@[ "$$(uname)" = "Linux" ] || { echo "ze-netns-test requires Linux (netns/nft); on macOS use ze-netns-qemu-test"; exit 1; }
 	@command -v setcap >/dev/null 2>&1 || { echo "error: setcap not found (install libcap2-bin / libcap)"; exit 1; }
 	@command -v nft    >/dev/null 2>&1 || { echo "error: nft not found (install nftables)"; exit 1; }
-	@echo "Granting ambient caps to bin/ze + bin/ze-stripped ($(ZE_NETNS_CAPS))..."
-	sudo setcap $(ZE_NETNS_CAPS) bin/ze
-	sudo setcap $(ZE_NETNS_CAPS) bin/ze-stripped
+	@echo "Granting ambient caps to $(ZEBIN_ZE) + $(ZEBIN_STRIPPED) ($(ZE_NETNS_CAPS))..."
+	sudo setcap $(ZE_NETNS_CAPS) $(ZEBIN_ZE)
+	sudo setcap $(ZE_NETNS_CAPS) $(ZEBIN_STRIPPED)
 	@before=$$(sudo nft list tables 2>/dev/null | sort); failed=0; \
 	for suite in $(ZE_NETNS_SUITES); do \
 		printf "\n=== netns suite: %s ===\n" "$$suite"; \
 		sudo env PATH="$$PATH" ZE_TEST_NO_BUILD=1 ZE_TEST_NETNS=1 ZE_TEST_UID=$$(id -u) ZE_TEST_GID=$$(id -g) \
-			bin/ze-test $$suite --all -p 1 || failed=$$((failed + 1)); \
+			$(ZEBIN_TEST) $$suite --all -p 1 || failed=$$((failed + 1)); \
 	done; \
 	after=$$(sudo nft list tables 2>/dev/null | sort); \
-	sudo setcap -r bin/ze bin/ze-stripped 2>/dev/null || true; \
+	sudo setcap -r $(ZEBIN_ZE) $(ZEBIN_STRIPPED) 2>/dev/null || true; \
 	if [ "$$before" != "$$after" ]; then \
 		printf "\033[31mHOST-SAFETY FAILURE: host nft tables changed during netns run\033[0m\n"; \
 		printf -- "--- before ---\n%s\n--- after ---\n%s\n" "$$before" "$$after"; \
@@ -226,12 +226,21 @@ ze-deployment-preflight:
 # binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web,firewall) lets you
 # drop suites: web needs agent-browser; firewall crashes the Alpine QEMU kernel
 # on nft set-element-timeout operations.
-# Cross-compiled binaries go to bin/ze-linux-<arch> so bin/ze stays the
+# Cross-compiled binaries go to bin/ze-linux-<arch> so $(ZEBIN_ZE) stays the
 # host-native binary. No need to run `make ze test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
-ZE_QEMU_BIN := bin/ze-linux-$(QEMU_GOARCH)
-ZE_QEMU_STRIPPED_BIN := bin/ze-stripped-linux-$(QEMU_GOARCH)
-ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)
+# $(ZE_BIN_SUFFIX) (mk/session.mk) is empty off-session and this session's id
+# under an AI session, so two sessions cross-compiling for the VM at once cannot
+# overwrite each other's DUT binaries mid-run. Every consumer below goes through
+# these three variables, so the suffix reaches the 9p share and the in-VM
+# ZE_BIN/ZE_TEST_BIN without any literal name needing to know about it.
+ZE_QEMU_BIN := bin/ze-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
+ZE_QEMU_STRIPPED_BIN := bin/ze-stripped-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
+ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
+# Exported so helper scripts print and use the paths this run actually built,
+# rather than re-deriving an unsuffixed literal (scripts/evidence/qemu-run.py's
+# copy-paste hint, scripts/evidence/netns_qemu.py's exec).
+export ZE_QEMU_BIN ZE_QEMU_STRIPPED_BIN ZE_QEMU_TEST_BIN
 ZE_QEMU_SKIP_SUITES ?= web,firewall
 ZE_QEMU_PARALLEL ?= 4
 
@@ -322,7 +331,7 @@ endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 1200 \
-		--run 'ZE_TEST_NO_BUILD=1 ZE_QEMU=1 ZE_BIN="$(ZE_QEMU_BIN)" $(RUN)'
+		--run 'ZE_TEST_NO_BUILD=1 ZE_QEMU=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" $(RUN)'
 
 # Boot a QEMU VM and keep it alive for interactive failure investigation.
 #
@@ -368,7 +377,7 @@ ze-netns-qemu-test:
 	@mkdir -p bin
 	# This is the functional-test DUT daemon: zetest pulls in the test-only
 	# plugins (internal/test/plugins/all) the .ci suites need -- it is NOT a
-	# production build (the real bin/ze has neither zetest nor ze_test). It builds
+	# production build (the real $(ZEBIN_ZE) has neither zetest nor ze_test). It builds
 	# with the SAME tag set as the sibling QEMU targets above (257/279) and as
 	# internal/test/runner TestBuildTags: ze_core zetest ze_distro ze_setup plus
 	# $(ZE_FEATURES) (the default-on feature gates from feature-gates.txt). The
@@ -384,7 +393,7 @@ ze-netns-qemu-test:
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 python3 libcap kmod iptables iputils-ping" \
 		--timeout 1200 \
-		--run 'QEMU_GOARCH=$(QEMU_GOARCH) python3 scripts/evidence/netns_qemu.py'
+		--run 'QEMU_GOARCH=$(QEMU_GOARCH) ZE_QEMU_BIN="$(ZE_QEMU_BIN)" ZE_QEMU_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_QEMU_TEST_BIN="$(ZE_QEMU_TEST_BIN)" python3 scripts/evidence/netns_qemu.py'
 
 ze-qemu-ldp-frr-test:
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."

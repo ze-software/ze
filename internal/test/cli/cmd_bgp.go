@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
+	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
 )
 
 var errPeerCheckFailed = errors.New("peer check failed")
@@ -91,7 +92,7 @@ type zeTestSuite interface {
 	Discover(dir string) error
 	List()
 	Select(runner.Selection) (int, error)
-	GetNicks() []string
+	getNicks() []string
 	Run(ctx context.Context, zePath string, verbose, quiet bool) bool
 }
 
@@ -107,7 +108,7 @@ func zeTestNewDecodingTestSuite(baseDir string) zeTestSuite {
 	}
 }
 
-func (d *zeTestDecodeTestSuite) GetNicks() []string {
+func (d *zeTestDecodeTestSuite) getNicks() []string {
 	registered := d.Registered()
 	nicks := make([]string, 0, len(registered))
 	for _, t := range registered {
@@ -133,7 +134,7 @@ func zeTestNewParsingTestSuite(baseDir string) zeTestSuite {
 	}
 }
 
-func (p *zeTestParseTestSuite) GetNicks() []string {
+func (p *zeTestParseTestSuite) getNicks() []string {
 	registered := p.Registered()
 	nicks := make([]string, 0, len(registered))
 	for _, t := range registered {
@@ -170,7 +171,7 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 	}
 
 	if cli.shortList {
-		for _, nick := range tests.GetNicks() {
+		for _, nick := range tests.getNicks() {
 			fmt.Fprintf(os.Stdout, "%s ", nick) //nolint:errcheck // terminal output
 		}
 		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
@@ -458,7 +459,10 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 
 func buildZe(ctx context.Context, baseDir string) (string, error) {
 	// "ze.bin" and "ze.test.no.build" are registered in internal/test/runner.
-	zePath := filepath.Join(baseDir, "bin", "ze")
+	// BinDir is <baseDir>/bin off-session and this session's private bin/ under
+	// an AI session, so this build cannot overwrite a sibling session's ze while
+	// that session is running tests against it (same reasoning as runner.NewRunner).
+	zePath := filepath.Join(sessionpath.BinDir(baseDir), "ze")
 	if v := env.Get("ze.bin"); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
@@ -466,10 +470,19 @@ func buildZe(ctx context.Context, baseDir string) (string, error) {
 		zePath = v
 	}
 	if env.IsEnabled("ze.test.no.build") {
-		if _, err := os.Stat(zePath); err != nil {
-			return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
+		_, err := os.Stat(zePath)
+		if err == nil {
+			return zePath, nil
 		}
-		return zePath, nil
+		// Fall back to a pre-built binary in the shared bin/ (same reasoning as
+		// runner.verifyPrebuilt: reading someone's build clobbers nothing).
+		// An explicit ze.bin is exempt -- it names one binary, so a miss is fatal.
+		if env.Get("ze.bin") == "" {
+			if dir := sessionpath.FindPrebuiltDir(baseDir, "ze"); dir != "" {
+				return filepath.Join(dir, "ze"), nil
+			}
+		}
+		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
 	}
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir

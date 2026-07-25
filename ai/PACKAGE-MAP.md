@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 617 packages, 614 described, 3 TODO
+Total: 618 packages, 615 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -726,6 +726,7 @@ Total: 617 packages, 614 described, 3 TODO
 | `internal/test/plugins/fakeredist` | is a test-only internal plugin that registers itself as a redistribute source ("fakeredist") and a redistevents producer, then exposes a CommandDecl surface for `.ci` tests to drive synthetic route- | request fakeredist emit |
 | `internal/test/plugins/fakeredist/yang` | provides the YANG schema for the fakeredist test plugin |  |
 | `internal/test/runner` | provides a functional test runner with AI-friendly diagnostics |  |
+| `internal/test/sessionpath` | answers one question: where do THIS AI session's build and test artifacts go? Concurrent AI sessions share one working tree |  |
 | `internal/test/sim` | provides fake implementations of clock and network interfaces for use in unit tests |  |
 | `internal/test/syslog` | provides a UDP syslog server for functional tests |  |
 | `internal/test/testcond` | provides conditional test-skipping helpers |  |

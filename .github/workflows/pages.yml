@@ -56,7 +56,12 @@ jobs:
         run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/site/assets/demos"
 
       - name: Build documentation binary
-        run: make -C main bin/ze
+        # `make ze`, not `make bin/ze`: the binary's FILE NAME is session-scoped
+        # ($(ZEBIN_ZE), mk/session.mk), so there is no literal bin/ze target to
+        # ask for. Worse than an error, `make bin/ze` finds an existing file,
+        # reports "Nothing to be done" and silently leaves a stale binary in
+        # place. The phony always exists and always builds.
+        run: make -C main ze
 
       - name: Build website
         run: uv run --with markdown python3 tools/build.py

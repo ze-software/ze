@@ -39,26 +39,26 @@ APPLIANCE_DIR := $(HOME)/.config/ze/appliances/$(NAME)
 
 # --- Full build: init + ISO from a config file --------------------------------
 
-ze-iso: bin/ze-setup
+ze-iso: $(ZEBIN_SETUP)
 	@test -n "$(CONFIG)" || { echo "error: CONFIG required"; echo "  make ze-iso CONFIG=mybox.json SSH_PASSWORD='...'"; exit 1; }
 	@test -f "$(CONFIG)" || { echo "error: $(CONFIG) not found"; exit 1; }
 	@test -n "$(SSH_PASSWORD)" || { echo "error: SSH_PASSWORD required"; echo "  make ze-iso CONFIG=$(CONFIG) SSH_PASSWORD='...'"; exit 1; }
 	@rm -rf $(APPLIANCE_DIR)
 	@echo "=== Initializing appliance $(NAME) from $(CONFIG) ==="
 	env ze.appliance.ssh.password='$(SSH_PASSWORD)' \
-		bin/ze-setup appliance init --config $(CONFIG) $(NAME)
+		$(ZEBIN_SETUP) appliance init --config $(CONFIG) $(NAME)
 	@echo ""
 	@echo "=== Building installer kernel ($(APPLIANCE_BUILDER)) ==="
-	bin/ze-setup appliance kernel --builder $(APPLIANCE_BUILDER) $(NAME)
+	$(ZEBIN_SETUP) appliance kernel --builder $(APPLIANCE_BUILDER) $(NAME)
 	@echo ""
 	@echo "=== Building installer initrd ==="
-	bin/ze-setup appliance initrd
+	$(ZEBIN_SETUP) appliance initrd
 	@echo ""
 	@echo "=== Building appliance disk image ==="
-	bin/ze-setup appliance build $(NAME)
+	$(ZEBIN_SETUP) appliance build $(NAME)
 	@echo ""
 	@echo "=== Building installer ISO ==="
-	bin/ze-setup appliance iso $(NAME)
+	$(ZEBIN_SETUP) appliance iso $(NAME)
 	@echo ""
 	@iso=$$(ls -1t $(APPLIANCE_DIR)/*.iso 2>/dev/null | head -1); \
 	if [ -n "$$iso" ]; then \
@@ -73,25 +73,25 @@ ze-iso: bin/ze-setup
 
 # --- Individual steps ---------------------------------------------------------
 
-ze-iso-init: bin/ze-setup
+ze-iso-init: $(ZEBIN_SETUP)
 	@test -n "$(CONFIG)" || { echo "error: CONFIG required"; echo "  make ze-iso-init CONFIG=mybox.json SSH_PASSWORD='...'"; exit 1; }
 	@test -f "$(CONFIG)" || { echo "error: $(CONFIG) not found"; exit 1; }
 	@test -n "$(SSH_PASSWORD)" || { echo "error: SSH_PASSWORD required"; exit 1; }
 	env ze.appliance.ssh.password='$(SSH_PASSWORD)' \
-		bin/ze-setup appliance init --config $(CONFIG) $(NAME)
+		$(ZEBIN_SETUP) appliance init --config $(CONFIG) $(NAME)
 
-ze-iso-check: bin/ze-setup
-	@bin/ze-setup appliance iso --check
+ze-iso-check: $(ZEBIN_SETUP)
+	@$(ZEBIN_SETUP) appliance iso --check
 
-ze-iso-build: bin/ze-setup
+ze-iso-build: $(ZEBIN_SETUP)
 	@echo "--- Building installer kernel ($(APPLIANCE_BUILDER)) ---"
-	bin/ze-setup appliance kernel --builder $(APPLIANCE_BUILDER) $(NAME)
+	$(ZEBIN_SETUP) appliance kernel --builder $(APPLIANCE_BUILDER) $(NAME)
 	@echo "--- Building installer initrd ---"
-	bin/ze-setup appliance initrd
+	$(ZEBIN_SETUP) appliance initrd
 	@echo "--- Building appliance disk image ---"
-	bin/ze-setup appliance build $(NAME)
+	$(ZEBIN_SETUP) appliance build $(NAME)
 	@echo "--- Building installer ISO ---"
-	bin/ze-setup appliance iso $(NAME)
+	$(ZEBIN_SETUP) appliance iso $(NAME)
 	@echo ""
 	@iso=$$(ls -1t $(APPLIANCE_DIR)/*.iso 2>/dev/null | head -1); \
 	if [ -n "$$iso" ]; then \
@@ -103,7 +103,7 @@ ze-installer:
 	GOOS=linux GOARCH=amd64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-amd64 ./cmd/ze-installer
 	GOOS=linux GOARCH=arm64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-arm64 ./cmd/ze-installer
 
-ze-pxe: bin/ze-setup
+ze-pxe: $(ZEBIN_SETUP)
 	@test -d "$(APPLIANCE_DIR)" || { echo "error: appliance $(NAME) not found; run ze-iso or ze-iso-build first"; exit 1; }
 	@echo "--- Setting up PXE boot ---"
 	mkdir -p $(PXE_DIR)/tftp $(PXE_DIR)/boot

@@ -463,7 +463,7 @@ expect:exit:code=0
 
 // TestParseWithLimits verifies custom limits are respected.
 //
-// VALIDATES: ParseWithLimits uses provided limits.
+// VALIDATES: parseWithLimits uses provided limits.
 // PREVENTS: Ignoring custom limits.
 func TestParseWithLimits(t *testing.T) {
 	limits := Limits{
@@ -482,7 +482,7 @@ tmpfs=b.txt:terminator=EOF2
 also short
 EOF2
 `
-	v, err := ParseWithLimits(strings.NewReader(input), limits)
+	v, err := parseWithLimits(strings.NewReader(input), limits)
 	require.NoError(t, err)
 	require.Len(t, v.Files, 2)
 }
@@ -517,7 +517,7 @@ func TestTmpfsResolve(t *testing.T) {
 		},
 	}
 
-	resolved := v.ResolveTmpfsPaths()
+	resolved := v.resolveTmpfsPaths()
 	assert.Equal(t, "cmd:ze bgp validate peer.conf", resolved[0])
 	assert.Equal(t, "cmd:ze bgp run scripts/plugin.py", resolved[1])
 }

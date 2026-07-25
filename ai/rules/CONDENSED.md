@@ -248,6 +248,9 @@ Never pipe `make`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any tes
 **Exception:** `| tee <file>` is allowed -- it is non-lossy and captures
 ## Write Ad-Hoc Scratch Under Your Per-Session Dir
 `tmp/` is shared by every concurrent session in this checkout (it is keyed per-checkout, not per-session -- `scripts/dev/ensure-links.py`).
+## Your Binaries Are Session-Suffixed -- Ask For The Path
+Under an AI session every canonical binary is built as `bin/<name>-<session-id>` (`mk/session.mk`), so a sibling session's `make ze` cannot overwrite the binary you are testing against.
+**Do not hardcode `bin/ze`** in a command, script, or doc. Ask:
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 `.claude/hooks/pretool-bash.py` blocks the banned git verbs by matching the command STRING.
 
@@ -4252,6 +4255,7 @@ There is no `pytest` and no `unittest discover` in this repo.
 | Wants fixture tests inside the script | Add a `--selftest` flag, then a small Go test that shells out to it | The pattern of `dep_audit.py`, `migrate_module.py`, `qemu-run.py`. See `scripts/dev/migrate_module_test.go` |
 ## Temporary Files
 Use project `tmp/` (gitignored) for scratch files — never `/tmp`.
+**Prefer your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)` gives
 ## Debugging Failures
 Read the failure index before opening full logs or re-running.
 ## Editor Tests (.et format)

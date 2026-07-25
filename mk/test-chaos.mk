@@ -27,22 +27,22 @@ ze-chaos-unit-test:
 	@echo "Running chaos unit tests..."
 	$(GO_TEST_RACE) $(CHAOS_PACKAGES)
 
-ze-chaos-functional-test: bin/ze-chaos
-	@bin/ze-chaos --in-process --duration $(CHAOS_DURATION) \
+ze-chaos-functional-test: $(ZEBIN_CHAOS)
+	@$(ZEBIN_CHAOS) --in-process --duration $(CHAOS_DURATION) \
 		--peers $(CHAOS_PEERS) --routes $(CHAOS_ROUTES) \
 		--seed $(CHAOS_SEED) --quiet
 
-ze-chaos-integration-test: bin/ze-test
-	@bin/ze-test bgp chaos --all -t 40s
+ze-chaos-integration-test: $(ZEBIN_TEST)
+	@$(ZEBIN_TEST) bgp chaos --all -t 40s
 
-ze-chaos-web-test: bin/ze-test
-	@bin/ze-test bgp chaos-web --all
+ze-chaos-web-test: $(ZEBIN_TEST)
+	@$(ZEBIN_TEST) bgp chaos-web --all
 
 ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-integration-test ze-chaos-web-test
 	@echo "All chaos tests passed"
 
 # Wrapped in the shared verify lock (see ze-verify) because chaos tests
-# run bin/ze instances that would contend with a concurrent ze-verify.
+# run $(ZEBIN_ZE) instances that would contend with a concurrent ze-verify.
 ze-chaos-verify:
 	@scripts/dev/verify-lock.sh ze-chaos-verify $(MAKE) --no-print-directory _ze-chaos-verify-impl
 

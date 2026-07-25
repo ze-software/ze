@@ -323,6 +323,17 @@ the glob is what stops the next file from rotting.
 Use project `tmp/` (gitignored) for scratch files — never `/tmp`.
 Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep artifacts isolated.
 
+**Prefer your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)` gives
+`tmp/s/<session-id>/`, which is removed at SessionEnd, so scratch cannot outlive its
+owner or collide with a sibling session (`ai/rules/bash-output.md`).
+
+The functional-test runner already writes there: its per-run and per-test working
+directories (configs, sockets, daemon pid/ready files) root at
+`sessionpath.DefaultScratchRoot()` / `EnsureScratchRoot(baseDir)` when a session is
+active, instead of the unowned `$TMPDIR/ze-functional-*` they used before
+(`internal/test/sessionpath`, `internal/test/runner/runner.go`). Off-session the
+runner still uses the system temp dir, unchanged.
+
 ## Debugging Failures
 
 Read the failure index before opening full logs or re-running.

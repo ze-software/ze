@@ -422,8 +422,14 @@ def run_in_vm(
                 "Run a .ci test in the VM (no Go needed, reuses cross-compiled ze):",
                 flush=True,
             )
+            # Print the paths the caller actually cross-compiled. Under an AI
+            # session those carry a session-id suffix ($(ZE_BIN_SUFFIX),
+            # mk/session.mk), so a literal bin/ze-linux-<arch> here would be a
+            # copy-paste hint pointing at a file that does not exist.
+            hint_ze = os.environ.get("ZE_QEMU_BIN", "bin/ze-linux-arm64")
+            hint_test = os.environ.get("ZE_QEMU_TEST_BIN", "bin/ze-test-linux-arm64")
             print(
-                f"  {ssh_cmd} 'cd /workspace && ZE_TEST_NO_BUILD=1 ZE_BIN=bin/ze-linux-arm64 bin/ze-test-linux-arm64 bgp parse 264 -v'",
+                f"  {ssh_cmd} 'cd /workspace && ZE_TEST_NO_BUILD=1 ZE_BIN={hint_ze} {hint_test} bgp parse 264 -v'",
                 flush=True,
             )
             print(

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3098 files
+Total: 298 design docs, 3097 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1468,7 +1468,6 @@ Total: 298 design docs, 3098 files
 | `internal/plugins/connect/register.go` | ze connect: SSH credential management |
 | `internal/plugins/init/main.go` | ze init bootstrap command |
 | `internal/plugins/passwd/main.go` | ze passwd helper |
-| `internal/test/tmpfs/cleanup.go` | temporary filesystem management |
 | `internal/test/tmpfs/limits.go` | temporary filesystem management |
 | `internal/test/tmpfs/security.go` | temporary filesystem management |
 | `internal/test/tmpfs/tmpfs.go` | temporary filesystem management |

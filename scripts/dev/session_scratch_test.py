@@ -244,5 +244,108 @@ class TestSessionEndScratchHook(unittest.TestCase):
             self.assertTrue((root / "tmp" / "victim").exists())
 
 
+class TestSessionBinaryReaping(unittest.TestCase):
+    """Session-suffixed binaries (mk/session.mk) are swept with their session.
+
+    They live in bin/, not under tmp/s/<sid>/, because a binary's location
+    decides where ze resolves its config and database
+    (internal/core/paths/paths.go ConfigDirFromBinary) and the repository's
+    etc/ze holds live state. Being outside the reaped directory, they need
+    sweeping by name -- otherwise bin/ accumulates one full binary set per dead
+    session, which is the mess the per-session root exists to prevent.
+    """
+
+    @staticmethod
+    def _seed(root: Path, sid: str) -> None:
+        (root / "bin").mkdir(exist_ok=True)
+        (root / "bin" / f"ze-{sid}").write_text("x")
+        (root / "bin" / f"ze-test-{sid}").write_text("x")
+        # Shared binaries a human or CI built: must never be candidates.
+        (root / "bin" / "ze").write_text("x")
+        (root / "bin" / "ze-test").write_text("x")
+
+    def test_clean_removes_this_sessions_binaries_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            sid = "sid-clean"
+            _run_helper(root, sid)
+            self._seed(root, sid)
+            (root / "bin" / "ze-other-session").write_text("x")
+
+            _run_helper(root, sid, "--clean")
+
+            self.assertFalse((root / "bin" / f"ze-{sid}").exists())
+            self.assertFalse((root / "bin" / f"ze-test-{sid}").exists())
+            self.assertTrue((root / "bin" / "ze").exists(), "shared ze deleted")
+            self.assertTrue((root / "bin" / "ze-test").exists())
+            self.assertTrue((root / "bin" / "ze-other-session").exists())
+
+    def test_reap_spares_a_recently_built_binary(self):
+        """A binary is not recreated on demand the way scratch is.
+
+        --reap treats 24h of scratch inactivity as "session died". Applying that
+        to binaries alone would delete the binary of a live session that simply
+        had not written scratch lately, and nothing would rebuild it.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            sid = "sid-idle-scratch"
+            scratch = root / "tmp" / "s" / sid
+            scratch.mkdir(parents=True)
+            (scratch / "old.log").write_text("x")
+            stale = time.time() - (48 * 3600)
+            os.utime(scratch / "old.log", (stale, stale))
+            os.utime(scratch, (stale, stale))
+            self._seed(root, sid)  # binaries are fresh
+
+            _run_helper(root, sid, "--reap")
+
+            self.assertFalse(scratch.exists(), "stale scratch should be reaped")
+            self.assertTrue(
+                (root / "bin" / f"ze-{sid}").exists(),
+                "freshly built binary reaped despite idle scratch",
+            )
+
+    def test_reap_removes_a_stale_binary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            sid = "sid-dead"
+            scratch = root / "tmp" / "s" / sid
+            scratch.mkdir(parents=True)
+            (scratch / "old.log").write_text("x")
+            self._seed(root, sid)
+            stale = time.time() - (48 * 3600)
+            for p in (
+                scratch / "old.log",
+                scratch,
+                root / "bin" / f"ze-{sid}",
+                root / "bin" / f"ze-test-{sid}",
+            ):
+                os.utime(p, (stale, stale))
+
+            _run_helper(root, sid, "--reap")
+
+            self.assertFalse(scratch.exists())
+            self.assertFalse((root / "bin" / f"ze-{sid}").exists())
+            self.assertFalse((root / "bin" / f"ze-test-{sid}").exists())
+            self.assertTrue((root / "bin" / "ze").exists(), "shared ze deleted")
+
+    def test_session_end_hook_removes_this_sessions_binaries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            sid = "sid-end"
+            (root / "tmp" / "s" / sid).mkdir(parents=True)
+            self._seed(root, sid)
+
+            _run_end_hook(root, {"session_id": sid, "reason": "clear"})
+
+            self.assertFalse((root / "tmp" / "s" / sid).exists())
+            self.assertFalse((root / "bin" / f"ze-{sid}").exists())
+            self.assertTrue((root / "bin" / "ze").exists(), "shared ze deleted")
+
 if __name__ == "__main__":
     unittest.main()

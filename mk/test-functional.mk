@@ -1,4 +1,4 @@
-# Functional tests: .ci-based suites run via bin/ze-test
+# Functional tests: .ci-based suites run via $(ZEBIN_TEST)
 #
 # Quick reference:
 #   make ze-functional-test    All 22 gating suites
@@ -27,7 +27,7 @@
 #
 # Every target here runs against an ISOLATED test binary set by default (built
 # under tmp/testbin-<suffix>/ and removed on exit), so a running suite never
-# touches the dev bin/ze and you can keep building/editing while it runs.
+# touches the dev $(ZEBIN_ZE) and you can keep building/editing while it runs.
 # ZE_SUFFIX=<name> pins a stable, kept directory; ZE_TEST_CANONICAL=1 opts out.
 # See the isolated-binary block below.
 
@@ -54,12 +54,12 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # binary set under tmp/testbin-<suffix>/ (ze, ze-test, ze-stripped) and runs
 # frozen against it (ZE_TEST_NO_BUILD=1). This keeps testing and development on
 # separate binaries:
-#   - the legacy path had each bin/ze-test invocation recompile ze + ze-test
+#   - the legacy path had each $(ZEBIN_TEST) invocation recompile ze + ze-test
 #     from the working tree (internal/test/runner Build), so `make ze` or an
-#     edit made while a suite ran clobbered the dev bin/ze, and half-edited
+#     edit made while a suite ran clobbered the dev $(ZEBIN_ZE), and half-edited
 #     source leaked into later suites;
 #   - now each target builds the set at the start of its recipe and
-#     ZE_TEST_NO_BUILD=1 stops the runner recompiling mid-run, so bin/ze is
+#     ZE_TEST_NO_BUILD=1 stops the runner recompiling mid-run, so $(ZEBIN_ZE) is
 #     never touched by a test and you can keep building/editing it while a
 #     suite runs.
 # In auto mode the dir is tmp/testbin-pid-<make-PID>-<target>/: unique per make
@@ -76,8 +76,8 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # Overrides:
 #   ZE_SUFFIX=<name>     pin a stable name (tmp/testbin-<name>/), KEPT on exit
 #                        -- run a named suite and keep developing against it.
-#   ZE_TEST_CANONICAL=1  opt out entirely: the runner rebuilds bin/ze +
-#                        bin/ze-test in place (release/CI reproducibility).
+#   ZE_TEST_CANONICAL=1  opt out entirely: the runner rebuilds $(ZEBIN_ZE) +
+#                        $(ZEBIN_TEST) in place (release/CI reproducibility).
 # Shared residue in every mode: tmp/test-timings.json (display baseline) is
 # merged by sample count on save (internal/test/runner/timing.go Save), with a
 # residual reload->rename race, so a concurrent ze-test invocation's samples are
@@ -91,23 +91,32 @@ ifeq ($(ZE_TEST_CANONICAL),)
     # (make ze-encode-test ze-plugin-test, even under -j) never lets one
     # target's cleanup trap delete another target's binaries. Throwaway, rm on
     # exit.
+    # $(ZE_SCRATCH_DIR) is tmp/ off-session and tmp/s/<session-id>/ under an AI
+    # session (mk/session.mk), so the throwaway set is owned by the session and
+    # swept at SessionEnd even if this trap never fires (crash, kill -9). The
+    # pid-<PPID>-<target> scoping stays INSIDE that root: it still separates two
+    # concurrent make invocations of the same target within one session.
     ZE_RUN_SUFFIX := pid-$(shell echo $$PPID)
-    ZE_ALT_DIR = tmp/testbin-$(ZE_RUN_SUFFIX)-$@
+    ZE_ALT_DIR = $(ZE_SCRATCH_DIR)/testbin-$(ZE_RUN_SUFFIX)-$@
     ZE_ALT_TRAP = rm -rf $(ZE_ALT_DIR)
   else
     # Explicit name: stable, shared across this run's targets, KEPT on exit.
     # The trap is a no-op, so sharing the dir is safe for CLEANUP.
     #
-    # CONCURRENCY: an explicit ZE_SUFFIX is NOT isolated. Two runs that pick the
-    # same name -- `make -j <A> <B> ZE_SUFFIX=x`, OR two concurrent sessions in the
-    # same checkout -- share one tmp/testbin-<name>/, so they race on the build AND
-    # (worse) share the throwaway root's etc/ze: one run's test DB/config writes
-    # then corrupt the other's. The default (omit ZE_SUFFIX) gives per-invocation
-    # auto dirs, pid-<make-PID>-<target>, that never collide -- prefer it for
-    # concurrent work, and reserve ZE_SUFFIX=<name> for a single serial run you want
-    # kept for inspection.
+    # CONCURRENCY: an explicit ZE_SUFFIX is not isolated WITHIN one session. Two
+    # runs that pick the same name -- `make -j <A> <B> ZE_SUFFIX=x` -- share one
+    # testbin-<name>/, so they race on the build AND (worse) share the throwaway
+    # root's etc/ze: one run's test DB/config writes then corrupt the other's.
+    # The default (omit ZE_SUFFIX) gives per-invocation auto dirs,
+    # pid-<make-PID>-<target>, that never collide -- prefer it for concurrent
+    # work, and reserve ZE_SUFFIX=<name> for a single serial run you want kept
+    # for inspection.
+    #
+    # ACROSS sessions this is now safe: $(ZE_SCRATCH_DIR) is per-session, so two
+    # sessions that both pick ZE_SUFFIX=x get different roots and no longer
+    # corrupt each other's throwaway etc/ze.
     ZE_RUN_SUFFIX := $(ZE_SUFFIX)
-    ZE_ALT_DIR = tmp/testbin-$(ZE_RUN_SUFFIX)
+    ZE_ALT_DIR = $(ZE_SCRATCH_DIR)/testbin-$(ZE_RUN_SUFFIX)
     ZE_ALT_TRAP := true
   endif
   # The binaries live in a `bin/` SUBDIR of the throwaway root. ze derives its
@@ -127,7 +136,7 @@ ifeq ($(ZE_TEST_CANONICAL),)
   # (internal/test/runner/runner.go): zetest test plugins + full command surface
   # (ze_core ze_distro ze_setup) + default feature gates, NO version ldflags so
   # `ze show version` prints "ze dev" (test/parse/cli-show-version.ci).
-  # ze-stripped tags match the bin/ze-stripped Makefile rule.
+  # ze-stripped tags match the $(ZEBIN_STRIPPED) Makefile rule.
   ZE_ALT_BUILD = { mkdir -p $(ZE_ALT_BIN) && printf 'Building isolated test binaries in %s/ (ze, ze-test, ze-stripped)...\n' '$(ZE_ALT_BIN)' && $(GO) build -tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze ./cmd/ze && $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-stripped ./cmd/ze && $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-test ./cmd/ze ; } || exit 1;
   ZE_TEST_DEPS :=
   ZE_TEST_DEPS_STRIPPED :=
@@ -137,11 +146,11 @@ ifeq ($(ZE_TEST_CANONICAL),)
 else
   ZE_ALT_TRAP := true
   ZE_ALT_BUILD :=
-  ZE_TEST_DEPS := bin/ze-test
-  ZE_TEST_DEPS_STRIPPED := bin/ze-test bin/ze-stripped
-  ZE_TEST_DEPS_ZE := bin/ze bin/ze-test
-  ZE_TEST_DEPS_ALL := bin/ze bin/ze-stripped bin/ze-test
-  ZE_TEST_RUN := bin/ze-test
+  ZE_TEST_DEPS := $(ZEBIN_TEST)
+  ZE_TEST_DEPS_STRIPPED := $(ZEBIN_TEST) $(ZEBIN_STRIPPED)
+  ZE_TEST_DEPS_ZE := $(ZEBIN_ZE) $(ZEBIN_TEST)
+  ZE_TEST_DEPS_ALL := $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
+  ZE_TEST_RUN := $(ZEBIN_TEST)
 endif
 
 # Run ze functional tests (all types, continue on failure to show all results)

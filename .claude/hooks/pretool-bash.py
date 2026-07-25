@@ -102,6 +102,12 @@ def check_root_build(cmd, _ctx):
         return None
     if re.search(r"-o\s+bin/", cmd):
         return None
+    # This session's own bin/, tmp/s/<session-id>/bin/ (internal/test/sessionpath).
+    # Same intent as bin/: a real binary directory, not the repo root -- and it is
+    # swept at SessionEnd. The trailing bin/ is required, because ze derives its
+    # config/DB dir from a parent dir named bin (internal/core/paths/paths.go).
+    if re.search(r"-o\s+tmp/s/[A-Za-z0-9._-]+/bin/", cmd):
+        return None
     if re.search(r"go\s+build\s+\./\.\.\.", cmd):
         return None
     if re.search(r"go\s+build\s+(-[A-Za-z0-9_]+\s+)*\./\.\.\.", cmd):

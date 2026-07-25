@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
@@ -682,7 +683,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					configPath := filepath.Join(rec.TmpfsTempDir, configName)
 					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
 				} else {
-					configDir, mkdirErr := os.MkdirTemp("", "ze-config-*")
+					configDir, mkdirErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-config-*")
 					if mkdirErr != nil {
 						rec.Error = fmt.Errorf("create temp config dir: %w", mkdirErr)
 						return false

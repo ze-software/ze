@@ -30,6 +30,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
 )
 
 var (
@@ -75,15 +77,6 @@ func (v *Tmpfs) AddFile(path string, content []byte) {
 	})
 }
 
-// AddFileWithMode adds a file to the Tmpfs with explicit mode.
-func (v *Tmpfs) AddFileWithMode(path string, content []byte, mode fs.FileMode) {
-	v.Files = append(v.Files, &File{
-		Path:    path,
-		Mode:    mode,
-		Content: content,
-	})
-}
-
 // Lookup returns the file at the given path, or nil if not found.
 func (v *Tmpfs) Lookup(path string) *File {
 	for _, f := range v.Files {
@@ -94,8 +87,8 @@ func (v *Tmpfs) Lookup(path string) *File {
 	return nil
 }
 
-// ResolveTmpfsPaths replaces tmpfs// prefixes with plain paths.
-func (v *Tmpfs) ResolveTmpfsPaths() []string {
+// resolveTmpfsPaths replaces tmpfs// prefixes with plain paths.
+func (v *Tmpfs) resolveTmpfsPaths() []string {
 	result := make([]string, len(v.OtherLines))
 	for i, line := range v.OtherLines {
 		result[i] = strings.ReplaceAll(line, "tmpfs//", "")
@@ -112,8 +105,8 @@ type Limits struct {
 	MaxPathDepth int
 }
 
-// DefaultLimits returns standard limits.
-func DefaultLimits() Limits {
+// defaultLimits returns standard limits.
+func defaultLimits() Limits {
 	return Limits{
 		MaxFileSize:  DefaultMaxFileSize,
 		MaxTotalSize: DefaultMaxTotalSize,
@@ -125,11 +118,11 @@ func DefaultLimits() Limits {
 
 // Parse reads Tmpfs blocks from reader using default limits.
 func Parse(r io.Reader) (*Tmpfs, error) {
-	return ParseWithLimits(r, DefaultLimits())
+	return parseWithLimits(r, defaultLimits())
 }
 
 // ParseWithLimits reads Tmpfs blocks with custom limits.
-func ParseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
+func parseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
 	v := &Tmpfs{
 		StdinBlocks: make(map[string][]byte),
 	}
@@ -507,7 +500,7 @@ func (v *Tmpfs) WriteTo(baseDir string) error {
 
 // WriteToTemp creates temp dir, writes files, returns path and cleanup.
 func (v *Tmpfs) WriteToTemp() (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "ze-tmpfs-*")
+	dir, err = os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-tmpfs-*")
 	if err != nil {
 		return "", nil, err
 	}

@@ -13,7 +13,7 @@ PERF_DUT ?=
 ze-perf:
 	@echo "Building ze-perf..."
 	@mkdir -p bin
-	$(GO) build -o bin/ze-perf ./cmd/ze-perf
+	$(GO) build -o $(ZEBIN_PERF) ./cmd/ze-perf
 
 ze-perf-bench: ze-perf
 	@echo "Running performance benchmarks (requires Docker)..."
@@ -21,12 +21,12 @@ ze-perf-bench: ze-perf
 	@python3 scripts/dev/perf-suggest.py --record
 
 ze-perf-report:
-	@bin/ze-perf report test/perf/results/*.json --md
+	@$(ZEBIN_PERF) report test/perf/results/*.json --md
 
 ze-perf-track:
 	@for f in test/perf/results/*.json; do \
 		dut=$$(basename "$$f" .json); \
-		bin/ze-perf track "test/perf/history/$${dut}.ndjson" --append "$$f"; \
+		$(ZEBIN_PERF) track "test/perf/history/$${dut}.ndjson" --append "$$f"; \
 	done
 	@python3 scripts/dev/perf-suggest.py --record
 

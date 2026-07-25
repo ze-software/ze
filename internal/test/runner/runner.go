@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
 )
 
 var logger = slogutil.LazyLogger("test.runner")
@@ -143,13 +144,24 @@ type Runner struct {
 
 // NewRunner creates a test runner.
 func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
-	tmpDir, err := os.MkdirTemp("", "ze-functional-*")
+	// Root this run's scratch in the session's own directory when an AI session
+	// is active, so the working dirs, configs and sockets a suite leaves behind
+	// are attributable and die with the session instead of accumulating as
+	// unowned $TMPDIR/ze-functional-* dirs. EnsureScratchRoot returns "" when no
+	// session is active, which is exactly what MkdirTemp reads as "use the
+	// system temp dir" -- so a human or CI run is unchanged.
+	tmpDir, err := os.MkdirTemp(sessionpath.EnsureScratchRoot(baseDir), "ze-functional-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
 
 	colors := NewColors()
-	binDir := filepath.Join(baseDir, "bin")
+	// Off-session this is <baseDir>/bin, as before. Under a session it is that
+	// session's private bin/, so a direct `ze-test` invocation (the chaos
+	// targets, ad-hoc runs, ZE_TEST_CANONICAL=1) can no longer rebuild the
+	// shared bin/ze out from under a sibling session mid-test. Build here is
+	// unlocked by design; isolation, not locking, is what makes it safe.
+	binDir := sessionpath.BinDir(baseDir)
 
 	zePath := filepath.Join(binDir, "ze")
 	if v := env.Get("ze.bin"); v != "" {
@@ -268,6 +280,33 @@ func (r *Runner) Build(ctx context.Context) error {
 // normally.
 func (r *Runner) verifyPrebuilt() error {
 	r.display.buildStatus(true, nil)
+
+	// Session scoping exists to stop one session's BUILD overwriting another's
+	// binary; reading a binary someone already built clobbers nothing. So when
+	// the session's own bin/ holds nothing, accept a pre-built set from the
+	// shared bin/ -- that is where `make ze` off-session and every cross-compile
+	// put it, and reporting it "missing" would break ZE_TEST_NO_BUILD for anyone
+	// who did exactly what the flag asks.
+	//
+	// Both binaries move together, to ONE directory: .ci tests exec `ze` and
+	// `ze-stripped` by bare name off the single directory this runner puts on
+	// their PATH (runner_exec.go), so resolving ze from one directory and ze-test
+	// from another would pass both stat calls and still strand a test on a
+	// sibling binary that is not beside it.
+	//
+	// An explicit ZE_BIN/ZE_TEST_BIN is exempt: it names ONE binary, so a miss
+	// there must fail loudly rather than silently run a different build.
+	if env.Get("ze.bin") == "" && env.Get("ze.test.bin") == "" {
+		_, zeErr := os.Stat(r.zePath)
+		_, testErr := os.Stat(r.testPath)
+		if zeErr != nil || testErr != nil {
+			if dir := sessionpath.FindPrebuiltDir(r.baseDir, "ze", "ze-test"); dir != "" {
+				r.zePath = filepath.Join(dir, "ze")
+				r.testPath = filepath.Join(dir, "ze-test")
+			}
+		}
+	}
+
 	for _, p := range []string{r.zePath, r.testPath} {
 		if _, err := os.Stat(p); err != nil {
 			buildErr := fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", p, err)
@@ -336,11 +375,6 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	})
 
 	return pr.Run(ctx)
-}
-
-// Timings returns the runner's timing baseline (for timeout suggestions).
-func (r *Runner) Timings() Timings {
-	return r.timings
 }
 
 // RunWithCount runs each test count times for stress testing.

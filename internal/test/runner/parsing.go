@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/internal/test/sessionpath"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
 
@@ -479,7 +480,7 @@ func (r *parsingRunner) runCITest(ctx context.Context, test *parsingTest) bool {
 }
 
 func (r *parsingRunner) setupWorkDir(test *parsingTest) (string, error) {
-	workDir, mkErr := os.MkdirTemp("", "ze-parse-ci-*")
+	workDir, mkErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-parse-ci-*")
 	if mkErr != nil {
 		return "", fmt.Errorf("create work dir: %w", mkErr)
 	}

@@ -1689,7 +1689,6 @@ is fresh. See `docs/contributing/rfc-implementation-guide.md` §9.7 and
 | `tmpfs.go` | Tmpfs parser and writer |
 | `limits.go` | Configurable limits from environment |
 | `security.go` | Path validation (traversal, escape) |
-| `cleanup.go` | Signal handling for temp cleanup |
 
 ### Entry Point: `internal/test/cli/*.go`
 

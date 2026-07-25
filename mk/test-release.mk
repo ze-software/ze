@@ -57,11 +57,11 @@ ze-perf-gate: ze-perf
 	@python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d))" \
 		test/perf/results/ze.json >> test/perf/history/ze.ndjson
 	@echo "Checking for regressions..."
-	@bin/ze-perf track --check test/perf/history/ze.ndjson
+	@$(ZEBIN_PERF) track --check test/perf/history/ze.ndjson
 
 # ─── Extra functional evidence ──────────────────────────────────────────────
 
-ze-functional-extra-evidence: bin/ze-test
+ze-functional-extra-evidence: $(ZEBIN_TEST)
 	@failed=0; failed_names=""; total=0; \
 	run_extra() { \
 		suite="$$1"; shift; \
@@ -80,7 +80,7 @@ ze-functional-extra-evidence: bin/ze-test
 
 # ─── Release evidence ─────────────────────────────────────────────────────
 
-ze-release-evidence: ze-release-evidence-preflight bin/ze bin/ze-test
+ze-release-evidence: ze-release-evidence-preflight $(ZEBIN_ZE) $(ZEBIN_TEST)
 	@failed=0; failed_names=""; skipped_names=""; total=0; \
 	has_docker=false; has_qemu=false; \
 	if command -v docker >/dev/null 2>&1; then has_docker=true; fi; \

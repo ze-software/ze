@@ -95,6 +95,9 @@ ZE_PACKAGES = $$(go list ./... | grep -v '^codeberg.org/thomas-mangin/ze$$')
 .DEFAULT_GOAL := help
 
 # ─── Include split Makefile modules ─────────────────────────────────────────
+# Session-scoped binary names (ZEBIN_*, ZE_BIN_SUFFIX). Must come FIRST: every
+# include below refers to the binaries through these variables.
+include mk/session.mk
 include mk/test-unit.mk
 include mk/test-functional.mk
 include mk/test-fuzz.mk
@@ -139,82 +142,82 @@ ze-plugin-snapshot:
 	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' ./internal/component/plugin/all/ -update
 	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
 
-build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-perf bin/ze-analyze
+build: generate $(ZEBIN_ZE) $(ZEBIN_APPLIANCE) $(ZEBIN_SETUP) $(ZEBIN_STRIPPED) $(ZEBIN_TEST) $(ZEBIN_CHAOS) $(ZEBIN_PERF) $(ZEBIN_ANALYZE)
 	@echo "All binaries built"
 
 ze:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
 
 ze-appliance:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
 
 ze-setup-bin:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
+	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
 ze-stripped:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
 
 # ze-chaos and ze-perf drive an in-process BGP reactor, so they force ze_bgp on:
 # their own tags (ze_chaos / ze_perf) do not include ZE_FEATURES, and without it
 # the BGP plugins would silently register nothing rather than fail to build.
 chaos:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_chaos ze_bgp' -o bin/ze-chaos ./cmd/ze
+	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
 test:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o bin/ze-test ./cmd/ze
+	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
 analyze:
 	@mkdir -p bin
-	$(GO) build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
+	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
 perf:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze
+	$(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
 
-bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_ZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
 
-bin/ze-appliance: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_APPLIANCE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-appliance..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
 
-bin/ze-setup: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_SETUP): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-setup..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
+	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
-bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_STRIPPED): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
-bin/ze-test: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
+$(ZEBIN_TEST): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o bin/ze-test ./cmd/ze
+	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
-bin/ze-chaos: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_CHAOS): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_chaos ze_bgp' -o bin/ze-chaos ./cmd/ze
+	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
-bin/ze-analyze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_ANALYZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-analyze..."
 	@mkdir -p bin
-	$(GO) build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
+	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
-bin/ze-perf: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+$(ZEBIN_PERF): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-perf..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze
+	$(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
 
 # ─── Docker ────────────────────────────────────────────────────────────────
 
@@ -259,9 +262,9 @@ ze-linux-test:
 		$(ZE_LINUX_GO_IMAGE) \
 		go test $(ZE_LINUX_TEST_PACKAGES) -count=1
 
-ze-exabgp-test: bin/ze bin/ze-test
+ze-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
 	@echo "Running ExaBGP compatibility tests..."
-	uv run --with paramiko bin/ze-test exabgp --all --timeout $(ZE_EXABGP_TIMEOUT)s
+	uv run --with paramiko $(ZEBIN_TEST) exabgp --all --timeout $(ZE_EXABGP_TIMEOUT)s
 
 # Software-composition analysis (SCA): govulncheck (golang.org/x/vuln) scans the
 # module's dependency graph against the Go vulnerability database (vuln.go.dev)
@@ -658,8 +661,9 @@ help:
 	@echo ""
 	@echo "  Build:"
 	@echo "    make build                All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-perf, ze-analyze)"
-	@echo "    make ze                   Just bin/ze"
-	@echo "    make ze-stripped          Just bin/ze-stripped"
+	@echo "    make ze                   Just $(ZEBIN_ZE)"
+	@echo "    make ze-stripped          Just $(ZEBIN_STRIPPED)"
+	@echo "    make ze-path              Print this session's ze path (never hardcode bin/ze)"
 	@echo ""
 	@echo "  More help:"
 	@echo "    make help-test            All test targets (unit, functional, fuzz, chaos, interop, ...)"
@@ -682,7 +686,7 @@ help-test:
 	@echo "    ze-test-rest              Everything else (~1:00)"
 	@echo "    ze-race-reactor           Stress race-test reactor (-race -count=20)"
 	@echo ""
-	@echo "  Functional tests (.ci suites via bin/ze-test):"
+	@echo "  Functional tests (.ci suites via $(ZEBIN_TEST)):"
 	@echo "    ze-functional-test        All 23 gating suites"
 	@echo "    ze-encode-test            BGP wire encoding"
 	@echo "    ze-plugin-test            Plugin behavior"
@@ -707,9 +711,9 @@ help-test:
 	@echo ""
 	@echo "  Functional tests run against an ISOLATED binary set by default"
 	@echo "  (tmp/testbin-<pid>/, removed on exit), so a running suite never touches"
-	@echo "  bin/ze and you can keep building/editing while it runs."
+	@echo "  $(ZEBIN_ZE) and you can keep building/editing while it runs."
 	@echo "    ZE_SUFFIX=<name>          Pin a stable, kept dir (tmp/testbin-<name>/)"
-	@echo "    ZE_TEST_CANONICAL=1       Opt out: rebuild bin/ze + bin/ze-test in place"
+	@echo "    ZE_TEST_CANONICAL=1       Opt out: rebuild $(ZEBIN_ZE) + $(ZEBIN_TEST) in place"
 	@echo ""
 	@echo "  Fuzz:"
 	@echo "    ze-fuzz-test              All fuzz targets (10s each)"

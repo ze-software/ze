@@ -78,6 +78,29 @@ scripts `tmp/commit-<sid>.sh`, session state `tmp/session/*-<SID>*`) or shared b
 design (`tmp/ze-verify.*`, the durable `cache/`) -- those stay put. `GOCACHE` is
 `cache/go-cache` (`Makefile:17`), on the durable side.
 
+## Your Binaries Are Session-Suffixed -- Ask For The Path
+
+Under an AI session every canonical binary is built as `bin/<name>-<session-id>`
+(`mk/session.mk`), so a sibling session's `make ze` cannot overwrite the binary
+you are testing against. Off-session (a human shell, CI) the name is the plain
+`bin/ze` it always was.
+
+**Do not hardcode `bin/ze`** in a command, script, or doc. Ask:
+
+```
+$(make ze-path) show version          # bin/ze-<session-id>, or bin/ze off-session
+```
+
+The suffixed binaries stay in `bin/` on purpose: a binary's location decides where
+`ze` resolves its config and database (`internal/core/paths/paths.go`
+`ConfigDirFromBinary`), so moving them under `tmp/s/<id>/` would repoint the daemon
+away from the repository's live `etc/ze`. They are swept by name at session end
+instead (`scripts/dev/session-scratch.sh` `reap_binaries`).
+
+Test binaries take the opposite trade-off -- a private `bin/` subdir under
+`tmp/s/<id>/` -- because `.ci` tests exec them by bare name and an isolated
+`etc/ze` is what a test wants (`mk/test-functional.mk`, `internal/test/sessionpath`).
+
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 
 `.claude/hooks/pretool-bash.py` blocks the banned git verbs by matching the

@@ -103,24 +103,24 @@ ze-gokrazy: ze bin/gok
 		if [ -n "$(CERTNAME)" ] && [ -f $(GOKRAZY_CERT_DIR)/cert.pem ] && [ -f $(GOKRAZY_CERT_DIR)/key.pem ]; then \
 			echo "--- Creating SSH credentials (reusing cached TLS certificate for $(CERTNAME)) ---"; \
 			printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-				env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --seed 2>&1; \
-			bin/ze data --path $(GOKRAZY_ZEFS) write meta/web/cert $(GOKRAZY_CERT_DIR)/cert.pem; \
-			bin/ze data --path $(GOKRAZY_ZEFS) write meta/web/key $(GOKRAZY_CERT_DIR)/key.pem; \
+				env ze.config.dir=tmp/gokrazy/init $(ZEBIN_ZE) init --force --yes --seed 2>&1; \
+			$(ZEBIN_ZE) data --path $(GOKRAZY_ZEFS) write meta/web/cert $(GOKRAZY_CERT_DIR)/cert.pem; \
+			$(ZEBIN_ZE) data --path $(GOKRAZY_ZEFS) write meta/web/key $(GOKRAZY_CERT_DIR)/key.pem; \
 		else \
 			echo "--- Creating SSH credentials + TLS certificate ---"; \
 			if [ -n "$(CERTNAME)" ]; then \
 				printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --seed --web-cert-name $(CERTNAME) 2>&1; \
+					env ze.config.dir=tmp/gokrazy/init $(ZEBIN_ZE) init --force --yes --seed --web-cert-name $(CERTNAME) 2>&1; \
 				mkdir -p $(GOKRAZY_CERT_DIR); \
-				bin/ze data --path $(GOKRAZY_ZEFS) cat meta/web/cert > $(GOKRAZY_CERT_DIR)/cert.pem; \
-				bin/ze data --path $(GOKRAZY_ZEFS) cat meta/web/key > $(GOKRAZY_CERT_DIR)/key.pem; \
+				$(ZEBIN_ZE) data --path $(GOKRAZY_ZEFS) cat meta/web/cert > $(GOKRAZY_CERT_DIR)/cert.pem; \
+				$(ZEBIN_ZE) data --path $(GOKRAZY_ZEFS) cat meta/web/key > $(GOKRAZY_CERT_DIR)/key.pem; \
 				echo "cached TLS certificate for $(CERTNAME) in $(GOKRAZY_CERT_DIR)/"; \
 			else \
 				printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --seed --web-cert 0.0.0.0:8080 2>&1; \
+					env ze.config.dir=tmp/gokrazy/init $(ZEBIN_ZE) init --force --yes --seed --web-cert 0.0.0.0:8080 2>&1; \
 			fi; \
 		fi; \
-		bin/ze data --path $(GOKRAZY_ZEFS) write file/template/ze.conf $(GOKRAZY_TEMPLATE); \
+		$(ZEBIN_ZE) data --path $(GOKRAZY_ZEFS) write file/template/ze.conf $(GOKRAZY_TEMPLATE); \
 	elif [ ! -f $(GOKRAZY_ZEFS) ]; then \
 		echo "error: no database found. First build requires credentials:"; \
 		echo "  make ze-gokrazy USER=admin PASS=secret"; \
