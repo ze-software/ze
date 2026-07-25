@@ -15,10 +15,68 @@ import (
 )
 
 const (
+	ethPAll     = 0x0003
 	ethPIP      = 0x0800
 	ethPIPv6    = 0x86DD
 	maxProtocol = 255
 )
+
+// tc filter priorities, one per link-layer protocol.
+//
+// The kernel keeps exactly ONE tcf_proto per (parent, priority) and that
+// instance carries a single protocol. Adding a filter whose protocol differs
+// from the one already bound to that priority is rejected with EINVAL:
+// tcf_chain_tp_find (net/sched/cls_api.c) walks the chain and returns
+// ERR_PTR(-EINVAL) when "tp->prio == prio" and "tp->protocol != protocol &&
+// protocol"; tc_new_tfilter propagates that as the RTM_NEWTFILTER errno.
+//
+// Deriving the priority from the protocol makes the invariant "same priority
+// => same protocol" hold by construction, for every class and every filter
+// type on an interface, instead of depending on each call site picking a free
+// number. Filters that DO share a protocol may share a priority: the kernel
+// appends them to the existing tcf_proto in handle order.
+//
+// Lower runs first. An explicit fwmark is an administrative classification
+// made upstream (firewall), so it outranks the per-family header matches.
+const (
+	prioMark uint16 = 1 // ETH_P_ALL  -- fw (fwmark) filters
+	prioIPv4 uint16 = 2 // ETH_P_IP   -- u32 IPv4 header matches
+	prioIPv6 uint16 = 3 // ETH_P_IPV6 -- u32 IPv6 header matches
+)
+
+// filterPriority returns the dedicated tc priority for a filter protocol.
+//
+// Fail-closed by design: an unmapped protocol yields ok=false rather than a
+// default or zero priority. Falling back to a shared number would collide with
+// another protocol's tcf_proto and surface as an opaque EINVAL from the kernel
+// at apply time; priority 0 would additionally ask the kernel to auto-allocate,
+// which collides with every other auto-allocated filter on the same parent.
+func filterPriority(protocol uint16) (uint16, bool) {
+	switch protocol {
+	case ethPAll:
+		return prioMark, true
+	case ethPIP:
+		return prioIPv4, true
+	case ethPIPv6:
+		return prioIPv6, true
+	}
+	return 0, false
+}
+
+// newFilterAttrs builds the netlink attributes for one filter, assigning the
+// priority that belongs to its protocol.
+func newFilterAttrs(linkIdx int, parentHandle uint32, protocol uint16) (netlink.FilterAttrs, error) {
+	prio, ok := filterPriority(protocol)
+	if !ok {
+		return netlink.FilterAttrs{}, fmt.Errorf("no tc filter priority assigned for protocol 0x%04X", protocol)
+	}
+	return netlink.FilterAttrs{
+		LinkIndex: linkIdx,
+		Parent:    parentHandle,
+		Priority:  prio,
+		Protocol:  protocol,
+	}, nil
+}
 
 // makeHandle builds a tc handle from major:minor parts.
 func makeHandle(major, minor uint32) uint32 {
@@ -125,11 +183,9 @@ func ceilOrRate(tc traffic.TrafficClass) uint64 {
 func translateFilter(f traffic.TrafficFilter, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {
 	switch f.Type {
 	case traffic.FilterMark:
-		attrs := netlink.FilterAttrs{
-			LinkIndex: linkIdx,
-			Parent:    parentHandle,
-			Priority:  1,
-			Protocol:  0x0003, // ETH_P_ALL
+		attrs, err := newFilterAttrs(linkIdx, parentHandle, ethPAll)
+		if err != nil {
+			return nil, err
 		}
 		attrs.Handle = f.Value
 		return []netlink.Filter{&netlink.FwFilter{
@@ -141,17 +197,17 @@ func translateFilter(f traffic.TrafficFilter, linkIdx int, parentHandle, classHa
 		if f.Value > dscp.MaxValue {
 			return nil, fmt.Errorf("dscp value %d out of range (0-%d)", f.Value, dscp.MaxValue)
 		}
-		return dscpFilters(f.Value, linkIdx, parentHandle, classHandle), nil
+		return dscpFilters(f.Value, linkIdx, parentHandle, classHandle)
 	case traffic.FilterProtocol:
 		if f.Value > maxProtocol {
 			return nil, fmt.Errorf("protocol value %d out of range (0-%d)", f.Value, maxProtocol)
 		}
-		return protocolFilters(f.Value, linkIdx, parentHandle, classHandle), nil
+		return protocolFilters(f.Value, linkIdx, parentHandle, classHandle)
 	}
 	return nil, fmt.Errorf("unsupported filter type %v", f.Type)
 }
 
-func dscpFilters(dscp uint32, linkIdx int, parentHandle, classHandle uint32) []netlink.Filter {
+func dscpFilters(dscp uint32, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {
 	// IPv4: TOS byte at IP header offset 0, byte 1. DSCP = top 6 bits.
 	v4Key := nl.TcU32Key{
 		Val:  dscp << 18, // (dscp << 2) << 16: DSCP shifted to TOS, then to byte 1 in 32-bit word
@@ -168,7 +224,7 @@ func dscpFilters(dscp uint32, linkIdx int, parentHandle, classHandle uint32) []n
 	return u32FilterPair(v4Key, v6Key, linkIdx, parentHandle, classHandle)
 }
 
-func protocolFilters(proto uint32, linkIdx int, parentHandle, classHandle uint32) []netlink.Filter {
+func protocolFilters(proto uint32, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {
 	// IPv4: protocol byte at IP header offset 8, byte 1 (TTL, Protocol, Checksum).
 	v4Key := nl.TcU32Key{
 		Val:  proto << 16,
@@ -184,18 +240,22 @@ func protocolFilters(proto uint32, linkIdx int, parentHandle, classHandle uint32
 	return u32FilterPair(v4Key, v6Key, linkIdx, parentHandle, classHandle)
 }
 
-func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHandle uint32) []netlink.Filter {
-	mkAttrs := func(proto uint16) netlink.FilterAttrs {
-		return netlink.FilterAttrs{
-			LinkIndex: linkIdx,
-			Parent:    parentHandle,
-			Priority:  1,
-			Protocol:  proto,
-		}
+// u32FilterPair builds the IPv4 and IPv6 halves of one match. The two halves
+// carry different link-layer protocols, so they MUST land on different tc
+// priorities: sharing one is what the kernel rejects with EINVAL (see the
+// filterPriority doc). filterPriority guarantees that here.
+func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {
+	v4Attrs, err := newFilterAttrs(linkIdx, parentHandle, ethPIP)
+	if err != nil {
+		return nil, err
+	}
+	v6Attrs, err := newFilterAttrs(linkIdx, parentHandle, ethPIPv6)
+	if err != nil {
+		return nil, err
 	}
 	return []netlink.Filter{
 		&netlink.U32{
-			FilterAttrs: mkAttrs(ethPIP),
+			FilterAttrs: v4Attrs,
 			ClassId:     classHandle,
 			Sel: &nl.TcU32Sel{
 				Flags: nl.TC_U32_TERMINAL,
@@ -204,7 +264,7 @@ func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHan
 			},
 		},
 		&netlink.U32{
-			FilterAttrs: mkAttrs(ethPIPv6),
+			FilterAttrs: v6Attrs,
 			ClassId:     classHandle,
 			Sel: &nl.TcU32Sel{
 				Flags: nl.TC_U32_TERMINAL,
@@ -212,7 +272,7 @@ func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHan
 				Keys:  []nl.TcU32Key{v6Key},
 			},
 		},
-	}
+	}, nil
 }
 
 // raiseQdiscType maps a netlink Qdisc to a ze QdiscType.

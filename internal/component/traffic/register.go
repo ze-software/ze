@@ -199,6 +199,25 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("traffic", conn)
 	defer func() { _ = p.Close() }()
 
+	// CloseBackend restores every root qdisc this plugin replaced, so it MUST
+	// run on the failure path as well. It used to be a plain call after p.Run
+	// returned successfully: a startup that aborted after Apply had already
+	// replaced the operator's root qdisc (Apply failing partway, or a later
+	// startup stage failing) returned without restoring and stranded ze's
+	// qdisc on the interface with no ze running to own it. That also poisons
+	// the next boot, because requireRestorableRoot refuses to snapshot a root
+	// qdisc that already carries classes.
+	//
+	// CloseBackend is nil-safe and clears the active backend, so this is a
+	// no-op when no backend was ever loaded and cannot double-restore.
+	defer func() {
+		if err := CloseBackend(); err != nil {
+			log.Warn("traffic backend close failed", "error", err)
+			return
+		}
+		log.Info("traffic backend closed")
+	}()
+
 	// runCtx is the plugin-lifetime context captured by the OnConfigure /
 	// OnConfigApply closures and threaded into backend.Apply. The SDK's
 	// OnConfigApply does not carry a ctx, so we synthesize one from
@@ -369,11 +388,6 @@ func runEngine(conn net.Conn) int {
 		log.Error("traffic plugin failed", "error", err)
 		return 1
 	}
-
-	if err := CloseBackend(); err != nil {
-		log.Warn("traffic backend close failed", "error", err)
-	}
-	log.Info("traffic backend closed")
 
 	return 0
 }

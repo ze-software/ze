@@ -219,3 +219,70 @@ func TestTranslateFilterProtocolRejectsOutOfRange(t *testing.T) {
 		t.Fatal("want error for protocol value 256, got nil")
 	}
 }
+
+// VALIDATES: every filter translateFilter emits carries the priority dedicated
+// to its protocol, so no two protocols ever share a tc priority on one parent.
+// The kernel keeps one tcf_proto per (parent, priority) holding a single
+// protocol: tcf_chain_tp_find (net/sched/cls_api.c) returns ERR_PTR(-EINVAL)
+// when "tp->prio == prio" and "tp->protocol != protocol && protocol".
+// PREVENTS: the QEMU failure `class "control" filter add: invalid argument`,
+// where the IPv4 and IPv6 halves of one match both used priority 1.
+func TestTranslateFilterPriorityIsPerProtocol(t *testing.T) {
+	cases := []traffic.TrafficFilter{
+		{Type: traffic.FilterMark, Value: 0x10},
+		{Type: traffic.FilterDSCP, Value: 48},
+		{Type: traffic.FilterProtocol, Value: 6},
+	}
+
+	// priority -> protocol, accumulated across every filter type as they would
+	// coexist on one parent.
+	owner := map[uint16]uint16{}
+	// protocol -> priority, to prove the mapping is stable across filter types.
+	assigned := map[uint16]uint16{}
+
+	for _, tf := range cases {
+		filters, err := translateFilter(tf, 5, 0x10000, 0x10001)
+		if err != nil {
+			t.Fatalf("translateFilter(%v): %v", tf.Type, err)
+		}
+		if len(filters) == 0 {
+			t.Fatalf("translateFilter(%v) produced no filters", tf.Type)
+		}
+		for _, f := range filters {
+			attrs := f.Attrs()
+			if attrs.Priority == 0 {
+				t.Errorf("%v filter for protocol %#04x has priority 0; the kernel would auto-allocate and collide", tf.Type, attrs.Protocol)
+			}
+			if prev, ok := owner[attrs.Priority]; ok && prev != attrs.Protocol {
+				t.Errorf("%v: priority %d carries both protocol %#04x and %#04x", tf.Type, attrs.Priority, prev, attrs.Protocol)
+			}
+			owner[attrs.Priority] = attrs.Protocol
+			if prev, ok := assigned[attrs.Protocol]; ok && prev != attrs.Priority {
+				t.Errorf("%v: protocol %#04x assigned priority %d here and %d elsewhere", tf.Type, attrs.Protocol, attrs.Priority, prev)
+			}
+			assigned[attrs.Protocol] = attrs.Priority
+		}
+	}
+
+	for _, proto := range []uint16{ethPAll, ethPIP, ethPIPv6} {
+		if _, ok := assigned[proto]; !ok {
+			t.Errorf("protocol %#04x was never produced", proto)
+		}
+	}
+	if len(owner) != len(assigned) {
+		t.Errorf("%d priorities for %d protocols; the mapping must be one-to-one", len(owner), len(assigned))
+	}
+}
+
+// VALIDATES: filterPriority denies an unmapped protocol instead of handing back
+// a usable-looking zero value, and translateFilter surfaces the denial.
+// PREVENTS: a new filter type silently reusing another protocol's priority and
+// failing at kernel apply time with an opaque EINVAL.
+func TestFilterPriorityFailsClosedOnUnknownProtocol(t *testing.T) {
+	if prio, ok := filterPriority(0x8100); ok { // 802.1Q, deliberately unmapped
+		t.Fatalf("filterPriority(0x8100) = (%d, true), want denial", prio)
+	}
+	if _, err := newFilterAttrs(5, 0x10000, 0x8100); err == nil {
+		t.Fatal("newFilterAttrs accepted an unmapped protocol, want an error")
+	}
+}

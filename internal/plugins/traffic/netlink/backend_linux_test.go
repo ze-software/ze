@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/traffic"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -27,14 +28,29 @@ type fakeTCOps struct {
 	filters  map[string][]netlink.Filter
 	calls    []string
 	replaced []netlink.Qdisc
+
+	// added records every filter accepted by filterAdd, and tcProtoOwner models
+	// the kernel's one-protocol-per-(parent, priority) rule. See filterAdd.
+	added        []netlink.Filter
+	tcProtoOwner map[tcProtoKey]uint16
+}
+
+// tcProtoKey identifies one kernel tcf_proto instance: the kernel indexes the
+// filter chain by (link, parent, priority) and each instance carries a single
+// protocol.
+type tcProtoKey struct {
+	linkIndex int
+	parent    uint32
+	priority  uint16
 }
 
 func newFakeTCOps() *fakeTCOps {
 	return &fakeTCOps{
-		links:   map[string]netlink.Link{},
-		qdiscs:  map[string][]netlink.Qdisc{},
-		classes: map[string][]netlink.Class{},
-		filters: map[string][]netlink.Filter{},
+		links:        map[string]netlink.Link{},
+		qdiscs:       map[string][]netlink.Qdisc{},
+		classes:      map[string][]netlink.Class{},
+		filters:      map[string][]netlink.Filter{},
+		tcProtoOwner: map[tcProtoKey]uint16{},
 	}
 }
 
@@ -76,8 +92,32 @@ func (f *fakeTCOps) filterList(link netlink.Link, _ uint32) ([]netlink.Filter, e
 	return append([]netlink.Filter(nil), f.filters[name]...), nil
 }
 
+// filterAdd models the one kernel rejection this fake needs to reproduce: the
+// kernel keeps exactly ONE tcf_proto per (link, parent, priority) and that
+// instance carries a single protocol, so RTM_NEWTFILTER for a filter whose
+// protocol differs from the protocol already bound to that priority fails with
+// EINVAL. Producer: tcf_chain_tp_find in net/sched/cls_api.c returns
+// ERR_PTR(-EINVAL) when "tp->prio == prio" and "tp->protocol != protocol &&
+// protocol"; tc_new_tfilter surfaces it as the netlink errno.
+//
+// A filter reusing a priority with the SAME protocol is accepted (the kernel
+// appends it to the existing tcf_proto), which is why the map stores the
+// owning protocol rather than merely marking the priority used.
 func (f *fakeTCOps) filterAdd(filter netlink.Filter) error {
 	f.calls = append(f.calls, "filterAdd:"+filter.Type())
+	attrs := filter.Attrs()
+	if attrs.Priority == 0 {
+		// Priority 0 asks the kernel to auto-allocate (prio_allocate), which
+		// tcf_chain_tp_find rejects outright once any tp holds that slot.
+		return fmt.Errorf("tc filter add: priority 0: %w", unix.EINVAL)
+	}
+	key := tcProtoKey{linkIndex: attrs.LinkIndex, parent: attrs.Parent, priority: attrs.Priority}
+	if owner, ok := f.tcProtoOwner[key]; ok && owner != attrs.Protocol {
+		return fmt.Errorf("tc filter add: parent %#x priority %d already bound to protocol %#04x, cannot add protocol %#04x: %w",
+			attrs.Parent, attrs.Priority, owner, attrs.Protocol, unix.EINVAL)
+	}
+	f.tcProtoOwner[key] = attrs.Protocol
+	f.added = append(f.added, filter)
 	return nil
 }
 
@@ -154,6 +194,166 @@ func TestTranslateHTBUsesKernelDefaults(t *testing.T) {
 	}
 	if htb.Defcls != 1 {
 		t.Fatalf("htb default class = %d, want 1", htb.Defcls)
+	}
+}
+
+// desiredFiltered is the shape of test/traffic/022-boot-qdisc-tc.ci: an HTB
+// root with a filtered "control" class and an unfiltered "default" class.
+func desiredFiltered(iface string, filters ...traffic.TrafficFilter) traffic.InterfaceQoS {
+	return traffic.InterfaceQoS{
+		Interface: iface,
+		Qdisc: traffic.Qdisc{
+			Type:         traffic.QdiscHTB,
+			DefaultClass: "default",
+			Classes: []traffic.TrafficClass{
+				{Name: "control", Rate: 10_000_000, Ceil: 100_000_000, Priority: 0, Filters: filters},
+				{Name: "default", Rate: 90_000_000, Ceil: 100_000_000, Priority: 1},
+			},
+		},
+	}
+}
+
+// VALIDATES: Apply installs BOTH halves of a DSCP match (IPv4 + IPv6) on one
+// HTB parent without the kernel rejecting the second. This is the exact
+// test/traffic/022-boot-qdisc-tc.ci config that failed in QEMU with
+// `class "control" filter add: invalid argument`.
+// PREVENTS: regression to a constant tc filter priority, which binds the
+// IPv6 half to the priority already owned by the IPv4 half and makes
+// tcf_chain_tp_find (net/sched/cls_api.c) return -EINVAL, failing the whole
+// traffic-control config apply and cascading into a failed daemon startup.
+func TestApplyInstallsBothAddressFamiliesOfADSCPMatch(t *testing.T) {
+	ops := newFakeTCOps()
+	ops.links["eth0"] = testLink("eth0", 5)
+	ops.qdiscs["eth0"] = []netlink.Qdisc{originalFQ(5)}
+	b := testBackend(t, ops)
+
+	desired := desiredFiltered("eth0", traffic.TrafficFilter{Type: traffic.FilterDSCP, Value: 48}) // CS6
+	if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"eth0": desired}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	byProtocol := map[uint16]uint16{} // protocol -> priority it was installed at
+	for _, f := range ops.added {
+		attrs := f.Attrs()
+		byProtocol[attrs.Protocol] = attrs.Priority
+	}
+	v4Prio, okV4 := byProtocol[ethPIP]
+	if !okV4 {
+		t.Fatal("no IPv4 (ETH_P_IP) filter reached the kernel")
+	}
+	v6Prio, okV6 := byProtocol[ethPIPv6]
+	if !okV6 {
+		t.Fatal("no IPv6 (ETH_P_IPV6) filter reached the kernel")
+	}
+	if v4Prio == v6Prio {
+		t.Fatalf("IPv4 and IPv6 filters share tc priority %d; the kernel binds one protocol per priority and rejects the second with EINVAL", v4Prio)
+	}
+}
+
+// VALIDATES: every filter type the backend can emit, applied together on one
+// interface, lands on a priority whose protocol is unique -- the kernel's
+// one-protocol-per-(parent, priority) rule.
+// PREVENTS: a config that mixes `match mark` with `match dscp`/`match protocol`
+// on the same interface failing the apply with EINVAL.
+func TestApplyMixedFilterTypesRespectKernelPriorityRule(t *testing.T) {
+	ops := newFakeTCOps()
+	ops.links["eth0"] = testLink("eth0", 5)
+	ops.qdiscs["eth0"] = []netlink.Qdisc{originalFQ(5)}
+	b := testBackend(t, ops)
+
+	desired := desiredFiltered("eth0",
+		traffic.TrafficFilter{Type: traffic.FilterMark, Value: 0x10},
+		traffic.TrafficFilter{Type: traffic.FilterDSCP, Value: 48},
+		traffic.TrafficFilter{Type: traffic.FilterProtocol, Value: 6},
+	)
+	if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"eth0": desired}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	// One filter per address family per u32 match, plus the single fw filter.
+	if got, want := len(ops.added), 5; got != want {
+		t.Fatalf("installed %d filters, want %d (mark + dscp v4/v6 + protocol v4/v6)", got, want)
+	}
+	owner := map[uint16]uint16{} // priority -> protocol
+	for _, f := range ops.added {
+		attrs := f.Attrs()
+		if attrs.Priority == 0 {
+			t.Fatalf("filter for protocol %#04x installed at priority 0", attrs.Protocol)
+		}
+		if prev, ok := owner[attrs.Priority]; ok && prev != attrs.Protocol {
+			t.Fatalf("priority %d carries protocols %#04x and %#04x; the kernel allows only one protocol per priority",
+				attrs.Priority, prev, attrs.Protocol)
+		}
+		owner[attrs.Priority] = attrs.Protocol
+	}
+	for _, proto := range []uint16{ethPAll, ethPIP, ethPIPv6} {
+		var seen bool
+		for _, got := range owner {
+			if got == proto {
+				seen = true
+			}
+		}
+		if !seen {
+			t.Errorf("protocol %#04x never reached the kernel", proto)
+		}
+	}
+}
+
+// VALIDATES: two classes each carrying a DSCP match apply cleanly. This is the
+// first case where a tc priority is REUSED (both classes' IPv4 halves), which
+// the kernel allows precisely because they carry the same protocol -- it
+// appends the second to the existing tcf_proto.
+// PREVENTS: a fix that avoids the protocol collision by making every filter's
+// priority unique per class while leaving some other pair colliding, and a
+// regression where a second filtered class fails the apply.
+func TestApplyTwoFilteredClassesShareProtocolPriorities(t *testing.T) {
+	ops := newFakeTCOps()
+	ops.links["eth0"] = testLink("eth0", 5)
+	ops.qdiscs["eth0"] = []netlink.Qdisc{originalFQ(5)}
+	b := testBackend(t, ops)
+
+	desired := traffic.InterfaceQoS{
+		Interface: "eth0",
+		Qdisc: traffic.Qdisc{
+			Type:         traffic.QdiscHTB,
+			DefaultClass: "default",
+			Classes: []traffic.TrafficClass{
+				{Name: "control", Rate: 10_000_000, Ceil: 100_000_000, Filters: []traffic.TrafficFilter{
+					{Type: traffic.FilterDSCP, Value: 48}, // CS6
+				}},
+				{Name: "voice", Rate: 20_000_000, Ceil: 100_000_000, Filters: []traffic.TrafficFilter{
+					{Type: traffic.FilterDSCP, Value: 46}, // EF
+				}},
+				{Name: "default", Rate: 70_000_000, Ceil: 100_000_000},
+			},
+		},
+	}
+	if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"eth0": desired}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if got, want := len(ops.added), 4; got != want {
+		t.Fatalf("installed %d filters, want %d (two classes x IPv4+IPv6)", got, want)
+	}
+	owner := map[uint16]uint16{} // priority -> protocol
+	classIDs := map[uint32]int{}
+	for _, f := range ops.added {
+		attrs := f.Attrs()
+		if prev, ok := owner[attrs.Priority]; ok && prev != attrs.Protocol {
+			t.Fatalf("priority %d carries protocols %#04x and %#04x", attrs.Priority, prev, attrs.Protocol)
+		}
+		owner[attrs.Priority] = attrs.Protocol
+		u32, ok := f.(*netlink.U32)
+		if !ok {
+			t.Fatalf("got %T, want *netlink.U32", f)
+		}
+		classIDs[u32.ClassId]++
+	}
+	// Each class must be the target of its own IPv4 and IPv6 filter.
+	for _, want := range []uint32{makeHandle(1, 1), makeHandle(1, 2)} {
+		if got := classIDs[want]; got != 2 {
+			t.Errorf("class %#x is the target of %d filters, want 2 (IPv4 + IPv6)", want, got)
+		}
 	}
 }
 
