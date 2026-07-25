@@ -29,7 +29,7 @@ start() {
         >"${state}/import.log" 2>&1
 
     : >"${pid_file}"
-    ze ze.conf >"${log_file}" 2>&1 &
+    ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >>"${pid_file}"
     for _ in {1..150}; do
         if [[ -f "${log_file}" ]] && grep -q "web server listening" "${log_file}"; then

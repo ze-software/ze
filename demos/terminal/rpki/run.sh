@@ -37,7 +37,7 @@ start() {
     ze-test peer --mode sink --bind 127.0.0.2 --port 1179 --asn 65001 \
         /src/demos/terminal/rpki/routes.msg >"${state}/peer.log" 2>&1 &
     echo "$!" >>"${pid_file}"
-    ze ze.conf >"${log_file}" 2>&1 &
+    ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >>"${pid_file}"
 
     for _ in {1..150}; do

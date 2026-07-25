@@ -36,7 +36,7 @@ start() {
     : >"${pid_file}"
     ze-test irr --port 4343 >"${state}/irr.log" 2>&1 &
     echo "$!" >>"${pid_file}"
-    ze ze.conf >"${log_file}" 2>&1 &
+    ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >>"${pid_file}"
 
     for _ in {1..200}; do

@@ -33,7 +33,7 @@ prepare() {
 }
 
 start() {
-    ip netns exec "${lab}-ze" env ZE_CONFIG_DIR="${config_dir}" ZE_SSH_PASSWORD=secret123 ze ze.conf >"${log_file}" 2>&1 &
+    ip netns exec "${lab}-ze" env ZE_CONFIG_DIR="${config_dir}" ZE_SSH_PASSWORD=secret123 ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >"${ze_pid}"
     wait_for_text "${log_file}" "SSH server listening"
     wait_for_command 450 master show_ze >/dev/null

@@ -37,7 +37,7 @@ start() {
         echo "$!" >>"${pid_file}"
     done
 
-    ze ze.conf >"${log_file}" 2>&1 &
+    ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >>"${pid_file}"
 
     for _ in {1..100}; do

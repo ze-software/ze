@@ -41,7 +41,7 @@ start() {
     : >"${pid_file}"
     python3 -m http.server 8080 --bind 10.77.0.1 --directory /src/demos/terminal/traffic-anomaly >"${state}/http.log" 2>&1 &
     echo "$!" >>"${pid_file}"
-    ze ze.conf >"${log_file}" 2>&1 &
+    ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >>"${pid_file}"
     for ((i = 0; i < 300; i++)); do
         if grep -q "SSH server listening" "${log_file}" 2>/dev/null && ! grep -q "traffic usage.*failed" "${log_file}" 2>/dev/null; then

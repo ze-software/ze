@@ -43,7 +43,7 @@ bfdd=no
 vtysh_enable=yes
 EOF
     ip netns exec "${lab}-peer" /usr/lib/frr/frrinit.sh start >/dev/null
-    ip netns exec "${lab}-ze" env ZE_CONFIG_DIR="${config_dir}" ZE_SSH_PASSWORD=secret123 ze ze.conf >"${log_file}" 2>&1 &
+    ip netns exec "${lab}-ze" env ZE_CONFIG_DIR="${config_dir}" ZE_SSH_PASSWORD=secret123 ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >"${pid_file}"
     wait_for_text "${log_file}" "SSH server listening"
     wait_for_command 300 full cli "show ospf neighbor" >/dev/null

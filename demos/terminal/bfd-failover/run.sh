@@ -50,7 +50,7 @@ EOF
     ip netns exec "${lab}-peer" ze-test peer --mode sink --bind 172.30.0.3 \
         --port 1179 --asn 65002 >"${state}/peer.log" 2>&1 &
     echo "$!" >>"${pid_file}"
-    ip netns exec "${lab}-ze" env ZE_CONFIG_DIR="${config_dir}" ZE_SSH_PASSWORD=secret123 ze ze.conf >"${log_file}" 2>&1 &
+    ip netns exec "${lab}-ze" env ZE_CONFIG_DIR="${config_dir}" ZE_SSH_PASSWORD=secret123 ze start ze.conf >"${log_file}" 2>&1 &
     echo "$!" >>"${pid_file}"
     wait_for_text "${log_file}" "SSH server listening"
     wait_for_command 300 established cli "show bgp peer list" >/dev/null
