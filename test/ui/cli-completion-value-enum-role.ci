@@ -28,13 +28,13 @@ bgp {
 EOF_CONF
 
 # Role container should show import, export, and strict children
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/role --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/role --input set+ test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=import
 expect=stdout:contains=strict
 
 # Role import should show enum values
-cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/peer1/role --input set+import+ test.conf
+cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/peer1/role --input set+import+ test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=provider
 expect=stdout:contains=customer

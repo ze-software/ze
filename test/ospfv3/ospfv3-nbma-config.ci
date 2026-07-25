@@ -33,7 +33,7 @@ ospf {
 }
 EOF_NBMA
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospfv3-nbma
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospfv3-nbma:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -57,7 +57,7 @@ ospf {
 }
 EOF_PTMP
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospfv3-ptmp
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospfv3-ptmp:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -93,7 +93,7 @@ ospf {
 }
 EOF_DUAL
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-dual
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-dual:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -117,5 +117,5 @@ ospf {
 }
 EOF_V6LO
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-v6-loopback
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-v6-loopback:exit=1
 expect=exit:code=1

@@ -93,7 +93,7 @@ service {
 EOF_DUMP
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump:exit=0
 expect=exit:code=0
 # The 0.0.0.0/0 catch-all source key carries no ':' so contains= is fine and
 # proves the block was not dropped. The host-set binding needle carries a ':' so

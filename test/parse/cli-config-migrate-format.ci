@@ -55,12 +55,12 @@ bgp {
 }
 EOF_FILE
 
-cmd=foreground:seq=1:exec=ze config migrate --format set test.conf
+cmd=foreground:seq=1:exec=ze config migrate --format set test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=set bgp router-id
 expect=stdout:contains=set bgp peer
 
-cmd=foreground:seq=2:exec=ze config migrate --format hierarchical test.conf
+cmd=foreground:seq=2:exec=ze config migrate --format hierarchical test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=bgp {
 expect=stdout:contains=router-id

@@ -34,7 +34,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=vl-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=vl-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -63,7 +63,7 @@ ospf {
 }
 EOF_STUB
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=vl-stub
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vl-stub:exit=1
 expect=exit:code=1
 expect=stdout:contains=stub
 
@@ -91,7 +91,7 @@ ospf {
 }
 EOF_BB
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=vl-backbone
+cmd=foreground:seq=3:exec=ze config validate -:stdin=vl-backbone:exit=1
 expect=exit:code=1
 expect=stdout:contains=backbone
 
@@ -114,7 +114,7 @@ ospf {
 }
 EOF_NONABR
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=vl-nonabr
+cmd=foreground:seq=4:exec=ze config validate -:stdin=vl-nonabr:exit=1
 expect=exit:code=1
 expect=stdout:contains=area border router
 
@@ -143,6 +143,6 @@ ospf {
 }
 EOF_SELF
 
-cmd=foreground:seq=5:exec=ze config validate -:stdin=vl-self
+cmd=foreground:seq=5:exec=ze config validate -:stdin=vl-self:exit=1
 expect=exit:code=1
 expect=stdout:contains=remote-router-id

@@ -26,8 +26,8 @@ EOF_PW
 
 option=env:var=ze.config.dir:value=.
 
-cmd=foreground:seq=1:exec=ze config import placeholder.conf
-cmd=foreground:seq=2:exec=ze connect add 10.0.1.5 --port 2223 --user admin:stdin=pw
-cmd=foreground:seq=3:exec=ze connect remove 10.0.1.5 --port 2223
+cmd=foreground:seq=1:exec=ze config import placeholder.conf:exit=0
+cmd=foreground:seq=2:exec=ze connect add 10.0.1.5 --port 2223 --user admin:stdin=pw:exit=0
+cmd=foreground:seq=3:exec=ze connect remove 10.0.1.5 --port 2223:exit=0
 expect=exit:code=0
 expect=stdout:contains=removed remote 10.0.1.5:2223

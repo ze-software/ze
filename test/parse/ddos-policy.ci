@@ -28,9 +28,9 @@ ddos {
 }
 EOF_BAD
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=goodconfig
+cmd=foreground:seq=1:exec=ze config validate -:stdin=goodconfig:exit=0
 expect=exit:code=0
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=badconfig
+cmd=foreground:seq=2:exec=ze config validate -:stdin=badconfig:exit=1
 expect=exit:code=1
 expect=stdout:contains=allowlist

@@ -39,7 +39,7 @@ isis {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -50,5 +50,5 @@ isis {
 }
 EOF_BAD
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-bad-net
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-bad-net:exit=1
 expect=exit:code=1

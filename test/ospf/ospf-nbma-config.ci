@@ -32,7 +32,7 @@ ospf {
 }
 EOF_NBMA
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-nbma
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-nbma:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -54,7 +54,7 @@ ospf {
 }
 EOF_PTMP
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-ptmp
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-ptmp:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -75,7 +75,7 @@ ospf {
 }
 EOF_BAD_POLL
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bad-poll
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bad-poll:exit=1
 expect=exit:code=1
 expect=stdout:contains=poll-interval
 
@@ -98,5 +98,5 @@ ospf {
 }
 EOF_BAD_NBR
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bad-nbr
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bad-nbr:exit=1
 expect=exit:code=1

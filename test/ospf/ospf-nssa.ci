@@ -37,7 +37,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-nssa-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-nssa-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -61,7 +61,7 @@ ospf {
 }
 EOF_BADROLE
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-nssa-badrole
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-nssa-badrole:exit=1
 expect=exit:code=1
 expect=stdout:contains=translate-role
 
@@ -85,6 +85,6 @@ ospf {
 }
 EOF_BADSTAB
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-nssa-badstab
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-nssa-badstab:exit=1
 expect=exit:code=1
 expect=stdout:contains=stability-interval

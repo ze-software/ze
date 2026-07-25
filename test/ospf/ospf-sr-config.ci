@@ -36,10 +36,10 @@ ospf {
 }
 EOF_V4SR
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-sr-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-sr-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
-cmd=foreground:seq=2:exec=ze explain doctor-ospf-segment-routing-overlap
+cmd=foreground:seq=2:exec=ze explain doctor-ospf-segment-routing-overlap:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-ospf-segment-routing-overlap

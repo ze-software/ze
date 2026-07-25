@@ -85,7 +85,7 @@ redistribute {
 }
 EOF_BOTH
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-redist-both
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-redist-both:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -104,6 +104,6 @@ redistribute {
 }
 EOF_SELF
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-redist-self
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-redist-self:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid

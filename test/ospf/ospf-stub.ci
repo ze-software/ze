@@ -31,7 +31,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-stub-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-stub-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -53,6 +53,6 @@ ospf {
 }
 EOF_BAD
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-stub-badcost
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-stub-badcost:exit=1
 expect=exit:code=1
 expect=stdout:contains=range 0..16777215

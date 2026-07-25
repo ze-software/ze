@@ -50,14 +50,14 @@ vpp {
 }
 EOFBAD
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=sleep0
+cmd=foreground:seq=1:exec=ze config validate -:stdin=sleep0:exit=0
 expect=exit:code=0
 expect=stdout:contains=valid
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=sleepmax
+cmd=foreground:seq=2:exec=ze config validate -:stdin=sleepmax:exit=0
 expect=exit:code=0
 expect=stdout:contains=valid
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=sleepbad
+cmd=foreground:seq=3:exec=ze config validate -:stdin=sleepbad:exit=1
 expect=exit:code=1
 expect=stdout:contains=poll-sleep

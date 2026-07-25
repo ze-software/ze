@@ -37,7 +37,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ipsec-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ipsec-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -69,7 +69,7 @@ ospf {
 }
 EOF_ENC
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ipsec-esp-enc
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ipsec-esp-enc:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -101,7 +101,7 @@ ospf {
 }
 EOF_AHENC
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ipsec-ah-enc
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ipsec-ah-enc:exit=1
 expect=exit:code=1
 expect=stdout:contains=confidentiality
 
@@ -131,7 +131,7 @@ ospf {
 }
 EOF_KEYLEN
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ipsec-badkeylen
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ipsec-badkeylen:exit=1
 expect=exit:code=1
 expect=stdout:contains=does not match the algorithm
 
@@ -157,6 +157,6 @@ ospf {
 }
 EOF_V4
 
-cmd=foreground:seq=5:exec=ze config validate -:stdin=ipsec-v4
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ipsec-v4:exit=1
 expect=exit:code=1
 expect=stdout:contains=unknown field in interface: ipsec

@@ -33,7 +33,7 @@ interface {
 }
 EOF_OK
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=mac-match
+cmd=foreground:seq=1:exec=ze config validate -:stdin=mac-match:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -49,7 +49,7 @@ interface {
 }
 EOF_BAD
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=mac-bad
+cmd=foreground:seq=2:exec=ze config validate -:stdin=mac-bad:exit=1
 expect=exit:code=1
 
 # --- Invalid: two interfaces selecting the same MAC is an ambiguous binding. ---
@@ -69,6 +69,6 @@ interface {
 }
 EOF_DUP
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=mac-dup
+cmd=foreground:seq=3:exec=ze config validate -:stdin=mac-dup:exit=1
 expect=exit:code=1
 expect=stdout:contains=both match MAC

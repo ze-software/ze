@@ -7,18 +7,18 @@
 # these paths run before any netlink backend is loaded.
 
 # Root help reaches the owner's usage via the registry root handler.
-cmd=foreground:seq=1:exec=ze interface help
+cmd=foreground:seq=1:exec=ze interface help:exit=0
 expect=exit:code=0
 expect=stderr:contains=manage OS network interfaces
 expect=stderr:contains=ze interface
 
 # Unknown subcommand is rejected by the owner's own subcommand gate, proving
 # dispatch reached the owner code (not a central "unknown command").
-cmd=foreground:seq=2:exec=ze interface bogus-subcommand
+cmd=foreground:seq=2:exec=ze interface bogus-subcommand:exit=1
 expect=exit:code=1
 expect=stderr:contains=unknown interface subcommand
 
 # The interface root still appears in `ze help`, derived from the registry.
-cmd=foreground:seq=3:exec=ze help
+cmd=foreground:seq=3:exec=ze help:exit=0
 expect=exit:code=0
 expect=stderr:contains=Manage OS network interfaces

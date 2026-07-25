@@ -66,17 +66,17 @@ tmpfs=overmem.json:terminator=EOF_OVER
 }
 EOF_OVER
 
-cmd=foreground:seq=1:exec=ze appliance --dir appliances init --config good.json goodapp
+cmd=foreground:seq=1:exec=ze appliance --dir appliances init --config good.json goodapp:exit=0
 expect=exit:code=0
 
-cmd=foreground:seq=2:exec=ze appliance --dir appliances init --config badpage.json badpage
+cmd=foreground:seq=2:exec=ze appliance --dir appliances init --config badpage.json badpage:exit=1
 expect=exit:code=1
 expect=stderr:contains=2mb or 1gb
 
-cmd=foreground:seq=3:exec=ze appliance --dir appliances init --config badmultiple.json badmult
+cmd=foreground:seq=3:exec=ze appliance --dir appliances init --config badmultiple.json badmult:exit=1
 expect=exit:code=1
 expect=stderr:contains=whole multiple
 
-cmd=foreground:seq=4:exec=ze appliance --dir appliances init --config overmem.json overmem
+cmd=foreground:seq=4:exec=ze appliance --dir appliances init --config overmem.json overmem:exit=1
 expect=exit:code=1
 expect=stderr:contains=50%

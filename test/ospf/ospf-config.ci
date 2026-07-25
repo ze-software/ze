@@ -32,7 +32,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -51,7 +51,7 @@ ospf {
 }
 EOF_BAD_RID
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-bad-router-id
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-bad-router-id:exit=1
 expect=stdout:contains=router-id
 
 # --- Invalid area binding: verifier rejects undeclared interface area. --------
@@ -69,7 +69,7 @@ ospf {
 }
 EOF_BAD_AREA
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bad-area
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bad-area:exit=1
 expect=exit:code=1
 expect=stdout:contains=undeclared area
 
@@ -92,7 +92,7 @@ ospf {
 }
 EOF_BAD_RANGE
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bad-ipv6-range
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bad-ipv6-range:exit=1
 expect=exit:code=1
 expect=stdout:contains=range
 
@@ -116,7 +116,7 @@ ospf {
 }
 EOF_BAD_COST
 
-cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bad-cost-zero
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bad-cost-zero:exit=1
 expect=exit:code=1
 expect=stdout:contains=invalid value for cost
 
@@ -140,7 +140,7 @@ ospf {
 }
 EOF_BAD_TXDELAY
 
-cmd=foreground:seq=6:exec=ze config validate -:stdin=ospf-bad-transmit-delay-zero
+cmd=foreground:seq=6:exec=ze config validate -:stdin=ospf-bad-transmit-delay-zero:exit=1
 expect=exit:code=1
 expect=stdout:contains=invalid value for transmit-delay
 
@@ -168,6 +168,6 @@ ospf {
 }
 EOF_BAD_KEYID
 
-cmd=foreground:seq=7:exec=ze config validate -:stdin=ospf-bad-keyid-wide
+cmd=foreground:seq=7:exec=ze config validate -:stdin=ospf-bad-keyid-wide:exit=1
 expect=exit:code=1
 expect=stdout:contains=AuType 2 key-id must be 0..255

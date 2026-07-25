@@ -27,18 +27,18 @@ EOF_CONF
 option=env:var=ze.storage.blob:value=false
 
 # Default (no flag): writes the value without contacting a daemon.
-cmd=foreground:seq=1:exec=ze config set test.conf bgp session asn local 65000
+cmd=foreground:seq=1:exec=ze config set test.conf bgp session asn local 65000:exit=0
 expect=exit:code=0
 
 # --no-reload is no longer defined on `set` (removed by the flip): unknown flag -> exit 2.
-cmd=foreground:seq=2:exec=ze config set --no-reload test.conf bgp session asn local 65002
+cmd=foreground:seq=2:exec=ze config set --no-reload test.conf bgp session asn local 65002:exit=2
 expect=exit:code=2
 
 # --no-reload is no longer defined on `deactivate` either: unknown flag -> exit 2.
-cmd=foreground:seq=3:exec=ze config deactivate --no-reload test.conf bgp router-id
+cmd=foreground:seq=3:exec=ze config deactivate --no-reload test.conf bgp router-id:exit=2
 expect=exit:code=2
 
 # Only the default set (65000) persisted; the two rejected commands changed nothing.
-cmd=foreground:seq=4:exec=ze config cat test.conf
+cmd=foreground:seq=4:exec=ze config cat test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=local 65000

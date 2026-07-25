@@ -30,7 +30,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-bfd-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-bfd-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -53,7 +53,7 @@ ospf {
 }
 EOF_MULT
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-bfd-mult-zero
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-bfd-mult-zero:exit=1
 expect=exit:code=1
 expect=stdout:contains=multiplier
 
@@ -76,7 +76,7 @@ ospf {
 }
 EOF_MINTX
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bfd-mintx-zero
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bfd-mintx-zero:exit=1
 expect=exit:code=1
 expect=stdout:contains=min-tx
 
@@ -111,7 +111,7 @@ ospf {
 }
 EOF_V6
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bfd-v6-valid
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bfd-v6-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -144,6 +144,6 @@ ospf {
 }
 EOF_V6MULT
 
-cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bfd-v6-mult-zero
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bfd-v6-mult-zero:exit=1
 expect=exit:code=1
 expect=stdout:contains=multiplier

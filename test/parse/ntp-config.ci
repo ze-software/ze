@@ -44,7 +44,7 @@ environment {
 EOF_DUMP
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump:exit=0
 expect=exit:code=0
 # The JSON needle carries a ':' so it MUST use pattern= (contains= truncates at
 # the first colon; only json=/text=/hex=/pattern= preserve colons). The values are

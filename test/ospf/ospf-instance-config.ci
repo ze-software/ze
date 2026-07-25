@@ -25,7 +25,7 @@ ospf {
 }
 EOF_SINGLE
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-instance-single
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-instance-single:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -48,7 +48,7 @@ ospf {
 }
 EOF_MULTI
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-instance-multi
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-instance-multi:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -74,7 +74,7 @@ ospf {
 }
 EOF_BOUND
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-instance-boundary
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-instance-boundary:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -94,6 +94,6 @@ ospf {
 }
 EOF_OOB
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-instance-oob
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-instance-oob:exit=1
 expect=exit:code=1
 expect=stdout:contains=instance-id

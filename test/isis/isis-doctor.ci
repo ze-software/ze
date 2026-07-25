@@ -29,17 +29,17 @@ EOF_CONF
 # A generous timeout: the runner treats each foreground `ze` as a daemon and,
 # with a tmpfs present, waits ~5s per command for a readiness file the one-shot
 # `ze explain` / `ze doctor` never writes; four commands need >15s of budget.
-cmd=foreground:seq=1:exec=ze explain doctor-isis-net-missing:timeout=60s
+cmd=foreground:seq=1:exec=ze explain doctor-isis-net-missing:timeout=60s:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-isis-net-missing
 expect=stdout:contains=net
 
-cmd=foreground:seq=2:exec=ze explain doctor-isis-system-id-mismatch
+cmd=foreground:seq=2:exec=ze explain doctor-isis-system-id-mismatch:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-isis-system-id-mismatch
 expect=stdout:contains=System ID
 
-cmd=foreground:seq=3:exec=ze explain doctor-isis-raw-socket
+cmd=foreground:seq=3:exec=ze explain doctor-isis-raw-socket:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-isis-raw-socket
 expect=stdout:contains=CAP_NET_RAW
@@ -47,6 +47,6 @@ expect=stdout:contains=CAP_NET_RAW
 # --- ze doctor --json fires the system-id-mismatch check (AC-12). ------------
 # `ze doctor` exits non-zero when it finds a problem (a SeverityError diagnostic),
 # so a fired config-sanity check returns exit code 1 (cf. doctor-config-reference).
-cmd=foreground:seq=4:exec=ze doctor --json isis-mismatch.conf
+cmd=foreground:seq=4:exec=ze doctor --json isis-mismatch.conf:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-isis-system-id-mismatch

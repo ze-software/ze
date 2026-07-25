@@ -4,24 +4,24 @@
 #            the leaf; the legacy --ai flag alias still resolves.
 
 # Canonical subcommand form reaches the daemon API endpoint listing.
-cmd=foreground:seq=1:exec=ze help ai api
+cmd=foreground:seq=1:exec=ze help ai api:exit=0
 expect=exit:code=0
 expect=stdout:contains=Daemon API Commands
 expect=stdout:contains=ze-show:
 
 # Summary self-describes: lists the available sections including dispatch.
-cmd=foreground:seq=2:exec=ze help ai
+cmd=foreground:seq=2:exec=ze help ai:exit=0
 expect=exit:code=0
 expect=stdout:contains=Sections
 expect=stdout:contains=dispatch
 
 # Legacy flag alias still resolves to the same listing (backward compatibility).
-cmd=foreground:seq=3:exec=ze help --ai api
+cmd=foreground:seq=3:exec=ze help --ai api:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze-show:
 
 # Discoverability: the top-level usage signposts the AI reference leaf.
-cmd=foreground:seq=4:exec=ze --help
+cmd=foreground:seq=4:exec=ze --help:exit=0
 expect=exit:code=0
 expect=stderr:contains=help ai
 # // test-relax: dropped the seq=5 "ze --ai" self-correcting-hint assertion with

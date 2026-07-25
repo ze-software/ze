@@ -2,14 +2,14 @@
 # VALIDATES: wireEnvHints does not pollute arbitrary command trees
 # PREVENTS: env appearing as a subcommand of bgp, signal, config, etc.
 
-cmd=foreground:seq=1:exec=ze completion words bgp
+cmd=foreground:seq=1:exec=ze completion words bgp:exit=0
 expect=exit:code=0
 expect=stdout:not-contains=env
 
-cmd=foreground:seq=2:exec=ze completion words signal
+cmd=foreground:seq=2:exec=ze completion words signal:exit=0
 expect=exit:code=0
 expect=stdout:not-contains=env
 
-cmd=foreground:seq=3:exec=ze completion words config
+cmd=foreground:seq=3:exec=ze completion words config:exit=0
 expect=exit:code=0
 expect=stdout:not-contains=env	Ze

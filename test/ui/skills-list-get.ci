@@ -1,24 +1,24 @@
 # Test: ze skills — list and get bundled skills
 # VALIDATES: AC-13 skills list, AC-14 skills get, AC-14b inner skill
 
-cmd=foreground:seq=1:exec=ze skills list
+cmd=foreground:seq=1:exec=ze skills list:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze
 expect=stdout:contains=ze-diagnostics
 
-cmd=foreground:seq=2:exec=ze skills get ze
+cmd=foreground:seq=2:exec=ze skills get ze:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze
 
-cmd=foreground:seq=3:exec=ze skills get ze-diagnostics
+cmd=foreground:seq=3:exec=ze skills get ze-diagnostics:exit=0
 expect=exit:code=0
 expect=stdout:contains=diagnostic
 
-cmd=foreground:seq=4:exec=ze skills get ze --full
+cmd=foreground:seq=4:exec=ze skills get ze --full:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze
 
-cmd=foreground:seq=5:exec=ze skills list --json
+cmd=foreground:seq=5:exec=ze skills list --json:exit=0
 expect=exit:code=0
 expect=stdout:contains="name"
 expect=stdout:contains="description"

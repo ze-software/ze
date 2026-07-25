@@ -51,10 +51,10 @@ EOF_CONF
 option=env:var=ze.storage.blob:value=false
 
 # Set the value
-cmd=foreground:seq=1:exec=ze config set test.conf bgp session asn local 65000
+cmd=foreground:seq=1:exec=ze config set test.conf bgp session asn local 65000:exit=0
 expect=exit:code=0
 
 # Verify the value was actually changed by dumping the config
-cmd=foreground:seq=2:exec=ze config dump test.conf
+cmd=foreground:seq=2:exec=ze config dump test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=local: 65000

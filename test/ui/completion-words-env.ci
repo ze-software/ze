@@ -2,14 +2,14 @@
 # VALIDATES: AC-2 -- env context in shell completion emits env keys
 # VALIDATES: env subcommand list has no self-referential env entry
 
-cmd=foreground:seq=1:exec=ze completion words env
+cmd=foreground:seq=1:exec=ze completion words env:exit=0
 expect=exit:code=0
 expect=stdout:contains=get
 expect=stdout:contains=list
 expect=stdout:contains=registered
 expect=stdout:not-contains=env	Ze
 
-cmd=foreground:seq=2:exec=ze completion words env get
+cmd=foreground:seq=2:exec=ze completion words env get:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze.log
 expect=stdout:contains=ze.web.listen

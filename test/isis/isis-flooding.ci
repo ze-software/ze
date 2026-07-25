@@ -34,7 +34,7 @@
 # Source 0000.0000.0002.00, range [0000.0000.0000.00-00 .. ffff.ffff.ffff.ff-ff],
 # TLV 9 entry for LSP 0000.0000.0001.00-00 seq 7 lifetime 1000 checksum 0x1234.
 stdin=isis-csnp:hex=83210106190100000033000000000002000000000000000000ffffffffffffffff091003e80000000000010000000000071234
-cmd=foreground:seq=1:exec=ze isis decode:stdin=isis-csnp
+cmd=foreground:seq=1:exec=ze isis decode:stdin=isis-csnp:exit=0
 expect=exit:code=0
 expect=stdout:contains="type":"l2-csnp"
 expect=stdout:contains="source-id":"0000.0000.0002.00"
@@ -46,7 +46,7 @@ expect=stdout:contains="value":"03e80000000000010000000000071234"
 # --- L2 PSNP: a TLV 9 ack/request record. -----------------------------------
 # Source 0000.0000.0002.00, TLV 9 entry for LSP 0000.0000.0001.00-00 seq 7.
 stdin=isis-psnp:hex=831101061b010000002300000000000200091003e80000000000010000000000071234
-cmd=foreground:seq=2:exec=ze isis decode:stdin=isis-psnp
+cmd=foreground:seq=2:exec=ze isis decode:stdin=isis-psnp:exit=0
 expect=exit:code=0
 expect=stdout:contains="type":"l2-psnp"
 expect=stdout:contains="source-id":"0000.0000.0002.00"

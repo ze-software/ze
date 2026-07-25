@@ -23,7 +23,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze schema methods
+cmd=foreground:seq=1:exec=ze schema methods:exit=0
 expect=exit:code=0
 # Header line
 expect=stdout:contains=Method
@@ -41,11 +41,11 @@ expect=stdout:contains=ze-plugin:session-ping
 expect=stdout:contains=ze-rib:show
 expect=stdout:contains=ze-rib:best
 
-cmd=foreground:seq=2:exec=ze schema methods ze-system-api
+cmd=foreground:seq=2:exec=ze schema methods ze-system-api:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze-system:help
 # Should NOT contain RPCs from other modules
 expect=stdout:not:contains=ze-bgp:
 
-cmd=foreground:seq=3:exec=ze schema methods ze-bogus-api
+cmd=foreground:seq=3:exec=ze schema methods ze-bogus-api:exit=1
 expect=exit:code=1

@@ -54,7 +54,7 @@ redistribute {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-redist-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-redist-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -80,7 +80,7 @@ redistribute {
 }
 EOF_SELF
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-redist-self
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-redist-self:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -104,6 +104,6 @@ ospf {
 }
 EOF_BAD
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-redist-badmetric
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-redist-badmetric:exit=1
 expect=exit:code=1
 expect=stdout:contains=range 0..16777215

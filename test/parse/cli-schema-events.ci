@@ -23,7 +23,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze schema events
+cmd=foreground:seq=1:exec=ze schema events:exit=0
 expect=exit:code=0
 # Header line
 expect=stdout:contains=Event
@@ -36,11 +36,11 @@ expect=stdout:contains=ze-bgp:route-received
 # RIB notifications
 expect=stdout:contains=ze-rib:rib-change
 
-cmd=foreground:seq=2:exec=ze schema events ze-bgp-api
+cmd=foreground:seq=2:exec=ze schema events ze-bgp-api:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze-bgp:peer-state-change
 # Should NOT contain notifications from other modules
 expect=stdout:not:contains=ze-rib:
 
-cmd=foreground:seq=3:exec=ze schema events ze-bogus-api
+cmd=foreground:seq=3:exec=ze schema events ze-bogus-api:exit=1
 expect=exit:code=1

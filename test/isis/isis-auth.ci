@@ -36,7 +36,7 @@ isis {
 }
 EOF_BAD
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-auth-bad-algo
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-auth-bad-algo:exit=1
 expect=stdout:contains=invalid value for algorithm
 
 # --- Valid auth config: key chains, algorithms, $9$ secret, per-level/iface refs (seq=2) ---
@@ -82,6 +82,6 @@ isis {
 }
 EOF_VALID
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-auth-valid
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-auth-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid

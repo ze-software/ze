@@ -44,7 +44,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-multiaf-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-multiaf-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -70,7 +70,7 @@ ospf {
 }
 EOF_WRONG
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-multiaf-wrong-range
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-multiaf-wrong-range:exit=1
 expect=exit:code=1
 
 # --- Instance ID above the RFC 5838 AF space (>127): rejected. ----------------
@@ -94,5 +94,5 @@ ospf {
 }
 EOF_OVER
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-multiaf-over-127
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-multiaf-over-127:exit=1
 expect=exit:code=1

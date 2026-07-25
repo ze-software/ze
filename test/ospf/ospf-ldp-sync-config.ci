@@ -31,7 +31,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=ldpsync-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ldpsync-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -54,7 +54,7 @@ ospf {
 }
 EOF_MAX
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=ldpsync-holddown-max
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ldpsync-holddown-max:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -77,7 +77,7 @@ ospf {
 }
 EOF_OVER
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=ldpsync-holddown-over
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ldpsync-holddown-over:exit=1
 expect=exit:code=1
 expect=stdout:contains=holddown
 
@@ -97,6 +97,6 @@ ospf {
 }
 EOF_ABSENT
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=ldpsync-absent
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ldpsync-absent:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid

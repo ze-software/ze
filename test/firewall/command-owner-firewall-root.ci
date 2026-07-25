@@ -6,12 +6,12 @@
 # assertions are platform-independent (no CAP_NET_ADMIN, no Linux required).
 
 # Root help reaches the owner usage via the registry root handler.
-cmd=foreground:seq=1:exec=ze firewall help
+cmd=foreground:seq=1:exec=ze firewall help:exit=0
 expect=exit:code=0
 expect=stderr:contains=Firewall table visibility
 expect=stderr:contains=ze firewall
 
 # The firewall root still appears in `ze help`, derived from the registry.
-cmd=foreground:seq=2:exec=ze help
+cmd=foreground:seq=2:exec=ze help:exit=0
 expect=exit:code=0
 expect=stderr:contains=Firewall management

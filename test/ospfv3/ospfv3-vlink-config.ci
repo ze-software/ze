@@ -35,7 +35,7 @@ ospf {
 }
 EOF_VALID
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=v6vl-valid
+cmd=foreground:seq=1:exec=ze config validate -:stdin=v6vl-valid:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
@@ -66,7 +66,7 @@ ospf {
 }
 EOF_NSSA
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=v6vl-nssa
+cmd=foreground:seq=2:exec=ze config validate -:stdin=v6vl-nssa:exit=1
 expect=exit:code=1
 expect=stdout:contains=stub
 
@@ -97,6 +97,6 @@ ospf {
 }
 EOF_SELF
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=v6vl-self
+cmd=foreground:seq=3:exec=ze config validate -:stdin=v6vl-self:exit=1
 expect=exit:code=1
 expect=stdout:contains=remote-router-id

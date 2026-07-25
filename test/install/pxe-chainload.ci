@@ -50,8 +50,8 @@ service {
 }
 EOF_CONF2
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=config_with_url
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config_with_url:exit=0
 expect=exit:code=0
 
-cmd=foreground:seq=2:exec=ze config validate -:stdin=config_without_url
+cmd=foreground:seq=2:exec=ze config validate -:stdin=config_without_url:exit=0
 expect=exit:code=0

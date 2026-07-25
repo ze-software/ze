@@ -5,12 +5,12 @@
 # internal/plugins/ospf/doctor_test.go (TestOSPFDoctorConfigSanity).
 # PREVENTS: the config-sanity codes regressing to unregistered/unexplainable.
 
-cmd=foreground:seq=1:exec=ze explain doctor-ospf-router-id-missing
+cmd=foreground:seq=1:exec=ze explain doctor-ospf-router-id-missing:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-ospf-router-id-missing
 expect=stdout:contains=router-id
 
-cmd=foreground:seq=2:exec=ze explain doctor-ospf-interface-area-unbound
+cmd=foreground:seq=2:exec=ze explain doctor-ospf-interface-area-unbound:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-ospf-interface-area-unbound
 expect=stdout:contains=undeclared area
