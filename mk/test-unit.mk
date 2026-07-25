@@ -43,11 +43,30 @@ ze-unit-test: ze-installer-unit-test
 # opens a shell, opens nothing, or reboots. They compile and pass; they were just
 # never asked to run.
 #
-# GOOS=linux because the files are also `//go:build linux`; this is a compile +
-# run of the installer's own logic, not a QEMU boot.
+# GOOS=linux because the files are also `//go:build linux`.
+#
+# On a Linux host that is a compile + run of the installer's own logic, not a
+# QEMU boot. On any OTHER host it cannot be: `go test` cross-compiles the test
+# binary and then tries to EXEC it, which on darwin fails with
+#
+#     fork/exec .../disk.test: exec format error
+#
+# and took `make ze-unit-test` (and with it `make all`, `make ze-test`,
+# `make ze-smoke`) red on every darwin dev machine. So off Linux we type-check
+# the tag-guarded files with `go vet` -- which compiles _test.go files without
+# running them, and unlike `go test -c` accepts a package pattern, so a second
+# package under internal/install cannot silently drop out -- and the real
+# execution happens in the Alpine VM via `make ze-qemu-integration-test`
+# (ai/rules/qemu-testing.md: linux-only code runs under QEMU, never "unfixable
+# on this host").
 ze-installer-unit-test:
+ifeq ($(shell go env GOOS),linux)
 	@echo "Unit tests: installer initrd (ze_installer tag)..."
 	GOOS=linux go test -tags 'ze_core ze_installer' ./internal/install/...
+else
+	@echo "Unit tests: installer initrd (ze_installer tag) -- compile-check only on $(shell go env GOOS); executed by make ze-qemu-integration-test"
+	GOOS=linux go vet -tags 'ze_core ze_installer' ./internal/install/...
+endif
 
 # Run ze unit tests with coverage.
 ze-unit-test-cover:

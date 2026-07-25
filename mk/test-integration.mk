@@ -360,11 +360,19 @@ endif
 # integration-tagged, and still need a linux GOOS to compile.
 ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/ 2>/dev/null | sed 's|/[^/]*$$||' | sort -u | grep -v '^internal/plugins/ldp$$' | sed 's|^|./|')
 
+# The installer initrd suite (`//go:build linux && ze_installer`) is EXECUTED
+# here, not by `make ze-installer-unit-test`. That target can only run these for
+# real on a Linux host; on darwin it degrades to a `go vet` compile-check
+# because a cross-compiled linux test binary cannot exec (see mk/test-unit.mk).
+# The VM is the Linux host that closes that gap, so the tag-guarded rescue /
+# console / bootstrap logic is genuinely run on every platform's evidence path.
+# Separate invocation because it needs its own tag set, which the
+# integration-tagged packages do not share.
 ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
-		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/...'
+		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/... && go test -tags "ze_core ze_installer" -count=1 -timeout 120s ./internal/install/...'
 
 # AC-7: exercise the per-test netns launch mode (Fix B) end-to-end under QEMU on a
 # real Linux kernel (macOS has no netns/nft). Cross-compiles ze/ze-stripped/ze-test,
