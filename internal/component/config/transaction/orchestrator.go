@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -213,8 +214,22 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 			o.publishAbort(err.Error())
 			return &TxResult{State: StateAborted, Err: err}
 		}
-		if len(ops) > 0 {
+		uncovered := o.participantsWithoutOperations(ops, diffs)
+		if len(ops) > 0 && len(uncovered) == 0 {
 			return o.runOperationPath(ctx, ops)
+		}
+		if len(uncovered) > 0 {
+			// The operation path reaches operation OWNERS only
+			// (runOperationPath emits per-operation events keyed by op.Owner),
+			// so taking it here would leave every uncovered participant
+			// verified but never applied -- its config change silently
+			// discarded while the transaction reports success. Fall through to
+			// the section apply, which reaches every participant with diffs.
+			// The cost is this transaction's cross-participant operation
+			// ORDERING, which is what reloads got before the operation path
+			// existed: losing ordering is recoverable, losing the change is not.
+			logger().Info("config transaction: operations do not cover every participant, using section apply",
+				"tx", o.txID, "operations", len(ops), "uncovered", textbuf.Join(uncovered, ","))
 		}
 	}
 
@@ -485,6 +500,42 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 		}
 	}
 	return result
+}
+
+// participantsWithoutOperations returns the names of participants that have
+// diffs to apply but own none of ops, sorted for a deterministic log line.
+//
+// It is the coverage test for the operation path. runVerify, runApply and this
+// function all decide "does this participant take part" with the same
+// filterDiffs predicate, so a participant can never be verified by one and
+// skipped by another.
+//
+// The check is per-PARTICIPANT rather than per-root because that is the
+// granularity the apply events use. It relies on each decomposer being
+// all-or-nothing for a root it claims: iface returns no operations at all when
+// any key in its diff is non-decomposable (ifaceDiffHasDecomposableChanges),
+// and bgp returns none unless the diff touches a peer (bgpDiffTouchesPeer). A
+// decomposer that instead emitted operations covering only PART of its root's
+// diff would satisfy this check while still dropping the remainder -- that
+// would be a defect in the decomposer, and this is the contract it must meet.
+func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, diffs map[string][]DiffSection) []string {
+	owners := make(map[string]struct{}, len(ops))
+	for i := range ops {
+		if ops[i].Owner != "" {
+			owners[ops[i].Owner] = struct{}{}
+		}
+	}
+	var uncovered []string
+	for _, p := range o.participants {
+		if len(o.filterDiffs(diffs, p)) == 0 {
+			continue
+		}
+		if _, ok := owners[p.Name]; !ok {
+			uncovered = append(uncovered, p.Name)
+		}
+	}
+	sort.Strings(uncovered)
+	return uncovered
 }
 
 // activeParticipantCount returns how many participants have diffs to process.

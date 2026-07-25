@@ -1342,3 +1342,162 @@ func TestCommitSaveFailedRaisesReportError(t *testing.T) {
 		t.Error("detail.error missing; should carry the writer's error")
 	}
 }
+
+// mixedOperationCoverage builds a two-participant transaction where both roots
+// changed but only opOwners yield operations. Returns the orchestrator, the
+// participants and the diffs so each test can drive the phases it cares about.
+func mixedOperationCoverage(t *testing.T, gw *testGateway, opOwners ...string) (*TxCoordinator, []testParticipant, map[string][]DiffSection) {
+	t.Helper()
+	participants := []testParticipant{
+		{name: "iface", configRoots: []string{"interface"}},
+		{name: "bgp", configRoots: []string{"bgp"}},
+	}
+	orch := newTestOrchestrator(t, gw, participants)
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		var ops []ConfigOperation
+		for _, owner := range opOwners {
+			root := "bgp"
+			op := ConfigOperation{
+				ID: "op-" + owner, Root: root, Owner: owner, Type: OperationAddPeer,
+				Target: ResourceRef{Kind: ResourcePeer, Peer: "peer1"},
+			}
+			if owner == "iface" {
+				op.Root = "interface"
+				op.Type = OperationAddAddress
+				op.Target = ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}
+			}
+			ops = append(ops, op)
+		}
+		return ops, nil
+	})
+	diffs := map[string][]DiffSection{
+		"bgp":       {{Root: "bgp", Added: `{"bgp/peer/peer1":{}}`}},
+		"interface": {{Root: "interface", Changed: `{"interface/wireguard/wg0/private-key":{"old":"a","new":"b"}}`}},
+	}
+	return orch, participants, diffs
+}
+
+// autoAckOperations wires handlers that ack every per-operation event for owner,
+// so a test can assert on which path ran without hand-driving each phase.
+func autoAckOperations(gw *testGateway, owner string, seen *[]string) {
+	gw.SubscribeConfigEvent(EventOperationVerifyFor(owner), func(payload []byte) {
+		*seen = append(*seen, EventOperationVerifyFor(owner))
+		var ev ConfigOperationVerifyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		ack, _ := json.Marshal(ConfigOperationVerifyAck{TransactionID: ev.TransactionID, Plugin: owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		gw.mustEmit(EventOperationVerifyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventOperationApplyFor(owner), func(payload []byte) {
+		*seen = append(*seen, EventOperationApplyFor(owner))
+		var ev ConfigOperationApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		ack, _ := json.Marshal(ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: owner, OperationID: ev.Operation.ID, Status: CodeOK})
+		gw.mustEmit(EventOperationApplyOK, ack)
+	})
+	gw.SubscribeConfigEvent(EventOperationCommitFor(owner), func(payload []byte) {
+		*seen = append(*seen, EventOperationCommitFor(owner))
+		var ev ConfigOperationCommitEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			return
+		}
+		ack, _ := json.Marshal(ConfigOperationCommitAck{TransactionID: ev.TransactionID, Plugin: owner, Status: CodeOK})
+		gw.mustEmit(EventOperationCommitOK, ack)
+	})
+}
+
+// TestOrchestratorAppliesParticipantThatYieldedNoOperations is the data-loss
+// fence. A reload that touches BOTH a section that decomposes (bgp: a peer was
+// added) and one that does not (interface: a wireguard property changed --
+// ifaceKeyDecomposable rejects it) must still apply BOTH. Before this, Execute
+// took the operation path as soon as any operation existed, and that path
+// reaches only operation OWNERS: the interface participant was verified, never
+// applied, and its change was silently dropped while the reload reported
+// success.
+//
+// VALIDATES: a participant with diffs but no operations still receives a config apply.
+// PREVENTS: a mixed reload silently discarding the config of every participant that cannot decompose.
+func TestOrchestratorAppliesParticipantThatYieldedNoOperations(t *testing.T) {
+	gw := newTestGateway()
+	orch, participants, diffs := mixedOperationCoverage(t, gw, "bgp")
+	var operationEvents []string
+	autoAckOperations(gw, "bgp", &operationEvents)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+	for i := range participants {
+		waitForEmit(t, gw, EventApplyFor(participants[i].name))
+		participants[i].respondApply(gw, orch.TransactionID())
+	}
+
+	select {
+	case result := <-resultCh:
+		if result.State != StateCommitted {
+			t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateCommitted)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to commit")
+	}
+
+	for _, name := range []string{"iface", "bgp"} {
+		if applies := gw.findEmitted(EventApplyFor(name)); len(applies) != 1 {
+			t.Fatalf("participant %s received %d applies, want 1", name, len(applies))
+		}
+	}
+	if len(operationEvents) != 0 {
+		t.Fatalf("operation path ran for a transaction it could not fully cover: %v", operationEvents)
+	}
+}
+
+// TestOrchestratorUsesOperationPathWhenEveryParticipantYieldsOperations is the
+// other half of the fence: the fallback must not swallow the ordering path
+// whenever operations DO cover every participant with diffs, which is the case
+// the operation graph exists for.
+//
+// VALIDATES: operations covering every participant with diffs still run through the operation path.
+// PREVENTS: the coverage guard degrading every transaction to the unordered section apply.
+func TestOrchestratorUsesOperationPathWhenEveryParticipantYieldsOperations(t *testing.T) {
+	gw := newTestGateway()
+	orch, participants, diffs := mixedOperationCoverage(t, gw, "bgp", "iface")
+	var operationEvents []string
+	autoAckOperations(gw, "bgp", &operationEvents)
+	autoAckOperations(gw, "iface", &operationEvents)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+
+	select {
+	case result := <-resultCh:
+		if result.State != StateCommitted {
+			t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateCommitted)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to commit")
+	}
+
+	for _, name := range []string{"iface", "bgp"} {
+		if applies := gw.findEmitted(EventApplyFor(name)); len(applies) != 0 {
+			t.Fatalf("participant %s received a section apply inside the operation path", name)
+		}
+		if !slices.Contains(operationEvents, EventOperationApplyFor(name)) {
+			t.Fatalf("participant %s received no operation apply: %v", name, operationEvents)
+		}
+	}
+}
