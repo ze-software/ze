@@ -961,7 +961,9 @@ func TestBuildDiffSections(t *testing.T) {
 		Changed: map[string]config.DiffPair{"bgp/router-id": {Old: "1.2.3.4", New: "5.6.7.8"}},
 	}
 
-	sections := buildDiffSections(diff)
+	// No declared roots: grouping falls back to top-level roots, the behavior
+	// this test has always pinned.
+	sections := buildDiffSections(diff, nil)
 
 	// Should have 2 sections: bgp and environment.
 	require.Len(t, sections, 2)
@@ -987,6 +989,91 @@ func TestBuildDiffSections(t *testing.T) {
 	assert.NotEmpty(t, envSection.Removed)
 	assert.Empty(t, envSection.Added)
 	assert.Empty(t, envSection.Changed)
+}
+
+// TestBuildDiffSectionsNestedDeclaredRoot pins that a diff key is filed under the
+// NESTED root its plugin declared, not that root's top-level ancestor.
+//
+// VALIDATES: with a declared root "ddos/local", the key
+// "ddos/local/forward-mitigation" lands in a section whose Root is exactly
+// "ddos/local", so the orchestrator's exact-match filterDiffs
+// (internal/component/config/transaction/orchestrator.go:487-503) finds it;
+// sibling keys under other ddos subtrees stay out of that section.
+// PREVENTS: the SIGHUP dead-end behind test/plugin/ddos-transit-forward-drop.ci
+// Phase B. Filing every key under "ddos" while the participant declared
+// "ddos/local" made the lookup miss, so runVerify (:340-344) and runApply
+// (:397-401) both `continue` past the plugin and the reload reported success
+// having delivered nothing. All eight nested-root plugins were affected:
+// ddos/{detect,local,observe,flowspec,flowtriq}, anomaly/{detect,shape},
+// traffic/usage.
+func TestBuildDiffSectionsNestedDeclaredRoot(t *testing.T) {
+	t.Parallel()
+
+	diff := &config.ConfigDiff{
+		Changed: map[string]config.DiffPair{
+			"ddos/local/forward-mitigation": {Old: "true", New: "false"},
+			"ddos/detect/absolute-floor":    {Old: "1000", New: "2000"},
+		},
+		Added: map[string]any{"ddos/observe/incident-ring-size": "100"},
+	}
+	declared := []string{"ddos/local", "ddos/detect"}
+
+	sectionMap := make(map[string]rpc.ConfigDiffSection)
+	for _, s := range buildDiffSections(diff, declared) {
+		sectionMap[s.Root] = s
+	}
+
+	local, ok := sectionMap["ddos/local"]
+	require.True(t, ok, "a plugin declaring ddos/local must get a section keyed ddos/local, or the orchestrator never drives it")
+	var changed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(local.Changed), &changed))
+	assert.Contains(t, changed, "ddos/local/forward-mitigation")
+	assert.NotContains(t, changed, "ddos/detect/absolute-floor", "sibling subtree leaked into ddos/local")
+
+	detect, ok := sectionMap["ddos/detect"]
+	require.True(t, ok, "ddos/detect was declared too and must get its own section")
+	require.NoError(t, json.Unmarshal([]byte(detect.Changed), &changed))
+	assert.Contains(t, changed, "ddos/detect/absolute-floor")
+
+	// ddos/observe was NOT declared by any participant in this reload, so its key
+	// keeps the top-level fallback rather than vanishing.
+	observe, ok := sectionMap["ddos"]
+	require.True(t, ok, "an undeclared subtree must still be filed under its top-level root")
+	var added map[string]any
+	require.NoError(t, json.Unmarshal([]byte(observe.Added), &added))
+	assert.Contains(t, added, "ddos/observe/incident-ring-size")
+}
+
+// TestGroupRootForSegmentBoundary pins that declared-root matching respects path
+// segment boundaries and prefers the longest match.
+//
+// VALIDATES: "ddos/localhost/x" is not claimed by declared root "ddos/local";
+// an exact key match wins; the longest declared prefix wins over a shorter one.
+// PREVENTS: a plain strings.HasPrefix filing one plugin's keys into another
+// plugin's section (ddos/local vs a hypothetical ddos/localhost), and a parent
+// root swallowing a declared child's keys.
+func TestGroupRootForSegmentBoundary(t *testing.T) {
+	t.Parallel()
+
+	declared := []string{"ddos/local", "ddos", "*"}
+	cases := []struct {
+		key  string
+		want string
+	}{
+		{"ddos/local/forward-mitigation", "ddos/local"},
+		{"ddos/local", "ddos/local"},
+		{"ddos/localhost/x", "ddos"},
+		{"ddos/detect/absolute-floor", "ddos"},
+		{"traffic/usage/enabled", "traffic"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.key, func(t *testing.T) {
+			t.Parallel()
+			if got := groupRootFor(tc.key, declared); got != tc.want {
+				t.Errorf("groupRootFor(%q) = %q, want %q", tc.key, got, tc.want)
+			}
+		})
+	}
 }
 
 // TestReloadVerifyCrashedPlugin verifies that a crashed plugin (conn==nil)

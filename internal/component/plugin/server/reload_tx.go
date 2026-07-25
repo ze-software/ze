@@ -260,8 +260,20 @@ func marshalOperationRoot(tree map[string]any, root string) (string, error) {
 // list of roots present in the diff, because the orchestrator's
 // filterDiffs does exact match lookups and has no wildcard awareness.
 func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transaction.Participant, map[string][]transaction.DiffSection, map[string][]rpc.ConfigSection, error) {
+	// Group the diff by the roots the participants actually declared, so the
+	// orchestrator's exact-match filterDiffs can find a nested root's section
+	// (see buildDiffSections). Collected before grouping because the grouping
+	// decides the section roots, which allRoots (and therefore wildcard
+	// expansion) is derived from below.
+	declaredRoots := make([]string, 0, len(affected))
+	for _, ap := range affected {
+		if reg := ap.proc.Registration(); reg != nil {
+			declaredRoots = append(declaredRoots, reg.WantsConfigRoots...)
+		}
+	}
+
 	diffMap := make(map[string][]transaction.DiffSection)
-	for _, section := range buildDiffSections(diff) {
+	for _, section := range buildDiffSections(diff, declaredRoots) {
 		diffMap[section.Root] = append(diffMap[section.Root], transaction.DiffSection{
 			Root:    section.Root,
 			Added:   section.Added,

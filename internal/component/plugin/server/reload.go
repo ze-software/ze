@@ -318,6 +318,11 @@ func rootHasChanges(diff *config.ConfigDiff, root string) bool {
 	return false
 }
 
+// wildcardConfigRoot is the declared root meaning "every root in this reload".
+// It never groups diff keys (it is not a real path); expandWildcardRoots resolves
+// it to the concrete section roots once those exist.
+const wildcardConfigRoot = "*"
+
 // diffRootData groups diff entries by their top-level root key.
 type diffRootData struct {
 	added   map[string]any
@@ -325,9 +330,34 @@ type diffRootData struct {
 	changed map[string]any
 }
 
-// buildDiffSections converts a config.ConfigDiff into per-root ConfigDiffSections.
-// Groups flat config keys (e.g., "bgp/peer/foo") by their top-level root ("bgp").
-func buildDiffSections(diff *config.ConfigDiff) []rpc.ConfigDiffSection {
+// buildDiffSections converts a config.ConfigDiff into per-root ConfigDiffSections,
+// grouping flat config keys by their top-level root ("bgp/peer/foo" -> "bgp").
+//
+// declaredRoots are the config roots the reload's participants actually declared.
+// A key is grouped under the LONGEST declared root that is a prefix of it, and
+// falls back to its top-level root when no declared root claims it.
+//
+// The declared-root pass exists because the transaction orchestrator matches a
+// participant to its diff by EXACT map lookup -- filterDiffs does
+// `allDiffs[root]` for each of Participant.ConfigRoots
+// (internal/component/config/transaction/orchestrator.go:487-503) -- and both
+// runVerify (:340-344) and runApply (:397-401) `continue` past any participant
+// whose filtered diff is empty.
+//
+// Grouping solely by top-level root therefore made every plugin with a NESTED
+// config root unreconfigurable by SIGHUP: reload.go put it in `affected`
+// (rootHasChanges is prefix-aware, :297-319) and built a correctly-scoped verify
+// section for it, but the diff was filed under "ddos" while the participant
+// declared "ddos/local", so the exact lookup missed, the orchestrator skipped it
+// for verify AND apply, and the reload reported success having told the plugin
+// nothing. Eight plugins declare nested roots today: ddos/{detect,local,observe,
+// flowspec,flowtriq}, anomaly/{detect,shape}, traffic/usage. It surfaced as
+// test/plugin/ddos-transit-forward-drop.ci Phase B, where a SIGHUP flipping
+// `ddos { local { forward-mitigation false } }` left the old value mitigating.
+//
+// Longest-prefix (not first-match) is what keeps a parent and child root that are
+// both declared from stealing each other's keys.
+func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.ConfigDiffSection {
 	roots := make(map[string]*diffRootData)
 
 	ensure := func(root string) *diffRootData {
@@ -343,16 +373,20 @@ func buildDiffSections(diff *config.ConfigDiff) []rpc.ConfigDiffSection {
 		return r
 	}
 
+	groupFor := func(key string) string {
+		return groupRootFor(key, declaredRoots)
+	}
+
 	for k, v := range diff.Added {
-		r := ensure(topLevelRoot(k))
+		r := ensure(groupFor(k))
 		r.added[k] = v
 	}
 	for k, v := range diff.Removed {
-		r := ensure(topLevelRoot(k))
+		r := ensure(groupFor(k))
 		r.removed[k] = v
 	}
 	for k, v := range diff.Changed {
-		r := ensure(topLevelRoot(k))
+		r := ensure(groupFor(k))
 		r.changed[k] = v
 	}
 
@@ -394,4 +428,30 @@ func buildDiffSections(diff *config.ConfigDiff) []rpc.ConfigDiffSection {
 func topLevelRoot(key string) string {
 	root, _, _ := strings.Cut(key, config.PathSep)
 	return root
+}
+
+// groupRootFor picks the diff-section root a config key belongs to: the LONGEST
+// declared root that equals the key or is a path-prefix of it, else the key's
+// top-level root.
+//
+// Matching is on whole path segments, so "ddos/localhost/x" is NOT claimed by a
+// declared "ddos/local" -- a plain strings.HasPrefix would file it there and hand
+// one plugin another's keys.
+func groupRootFor(key string, declaredRoots []string) string {
+	best := ""
+	for _, root := range declaredRoots {
+		if root == "" || root == wildcardConfigRoot {
+			continue
+		}
+		if key != root && !strings.HasPrefix(key, root+config.PathSep) {
+			continue
+		}
+		if len(root) > len(best) {
+			best = root
+		}
+	}
+	if best != "" {
+		return best
+	}
+	return topLevelRoot(key)
 }
