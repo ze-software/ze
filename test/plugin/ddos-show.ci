@@ -95,6 +95,12 @@ ddos {
 	}
 	flowspec {
 		response-level alert
+		# action is mandatory with no default (ze-ddos-flowspec-conf.yang: neither
+		# drop nor rate-limit is universally safe). Omitting it made ddos-flowspec
+		# reject its config at stage 2, which aborted the whole startup barrier and
+		# failed this test on exit code, not on anything it asserts. discard needs
+		# no rate-limit-bytes, and response-level alert means nothing is enforced.
+		action discard
 	}
 }
 
