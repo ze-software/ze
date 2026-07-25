@@ -382,3 +382,57 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 		assert.Empty(t, zeRoutes(t, h), "all ze routes should be flushed")
 	})
 }
+
+// VALIDATES: a metric-carrying Add takes the richRouteBackend path
+// (addRichRoute -> netlink RTA_PRIORITY) and the matching Withdraw still removes
+// the route from the kernel, even though delRichRoute sends no RTA_PRIORITY and
+// no gateway.
+// PREVENTS: test/plugin/forked-route-install-kernel.ci's failure
+// "route-remove: 10.99.0.0/24 still in kernel after withdrawal". Every other test
+// in this file builds changes with addChange(), which sets no Metric, so
+// hasRichFields() is false and they exercise only the PLAIN addRoute/delRoute
+// pair. On Linux the real backend is a richRouteBackend, and a forked
+// route-install carrying a metric therefore programs the kernel through
+// addRichRoute -- an add/delete round-trip nothing covered before this test.
+func TestNetlinkIntegration_RemoveRichRouteWithMetric(t *testing.T) {
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+
+		addLoopback(t, h)
+
+		backend := newTestBackend(h)
+		f := newFIBKernel(backend)
+		require.NotNil(t, f.asRichBackend(), "netlink backend must be a richRouteBackend")
+
+		const prefix = "10.99.7.0/24"
+
+		// The forked-route-install .ci values: admin-distance 110, metric 10.
+		// A non-zero Metric alone makes hasRichFields() true, so this Add goes
+		// through addRichRoute and lands with RTA_PRIORITY=10.
+		f.processEvent(makeSysribPayload([]incomingChange{{
+			Action:   routeaction.Add,
+			Prefix:   netip.MustParsePrefix(prefix),
+			NextHop:  netip.MustParseAddr("127.0.0.1"),
+			Protocol: "bgp",
+			Metric:   10,
+		}}))
+
+		routes := zeRoutes(t, h)
+		require.Len(t, routes, 1, "metric-carrying Add must program exactly one ze kernel route")
+		assert.Equal(t, prefix, routes[0].Dst.String())
+		assert.Equal(t, 10, routes[0].Priority, "Metric must reach the kernel as RTA_PRIORITY")
+
+		// sysrib's Withdraw carries only Action+Prefix (recomputeBest's
+		// len(protocols)==0 branch), so delRichRoute sends prefix + protocol with
+		// no priority and no gateway. The kernel must still match and delete the
+		// metric-10 route.
+		f.processEvent(makeSysribPayload([]incomingChange{withdrawChange(prefix)}))
+
+		assert.Empty(t, zeRoutes(t, h),
+			"withdraw must remove the metric-carrying route; a surviving route means "+
+				"delRichRoute's key (prefix+protocol, no priority) did not match the "+
+				"route addRichRoute installed")
+	})
+}

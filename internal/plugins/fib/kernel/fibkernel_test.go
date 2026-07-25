@@ -554,6 +554,9 @@ type richMockBackend struct {
 	richAdded    []RichRoute
 	richReplaced []RichRoute
 	richDeleted  []netip.Prefix
+	// richDelTables records the tableID each delRichRoute call targeted, so a
+	// test can assert the delete hits the same table the add used.
+	richDelTables []uint32
 }
 
 func newRichMockBackend() *richMockBackend {
@@ -572,10 +575,11 @@ func (m *richMockBackend) addRichRoute(r RichRoute) error {
 	return nil
 }
 
-func (m *richMockBackend) delRichRoute(prefix netip.Prefix, _ uint32) error {
+func (m *richMockBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.richDeleted = append(m.richDeleted, prefix)
+	m.richDelTables = append(m.richDelTables, tableID)
 	return nil
 }
 
