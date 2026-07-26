@@ -277,9 +277,20 @@ func (p *Peer) sendInitialRoutes() {
 	// If teardown was in queue, send EOR first, then execute teardown.
 	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
 	if hasTeardown {
-		// Send EOR for ALL negotiated families before teardown
+		// Send EOR for ALL negotiated families before teardown.
+		//
+		// eorSent counts frames that reached the socket, never attempts: a failed
+		// send leaves the counter alone so `eor-sent` stays usable as the
+		// "end-of-RIB is on the wire" barrier (peer_stats.go IncrEORSent). One
+		// error here is session-level (ErrNotConnected / ErrInvalidState / a write
+		// error), so the remaining families would fail identically -- stop, the
+		// same way the queue drain above stops on a connection error.
 		for _, fam := range nc.Families() {
-			_ = p.SendUpdate(message.BuildEOR(fam))
+			if err := p.SendUpdate(message.BuildEOR(fam)); err != nil {
+				routesLogger().Warn("end-of-rib send failed",
+					"peer", addr, "family", fam, "phase", "teardown", "error", err)
+				break
+			}
 			p.IncrEORSent()
 			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", fam)
 		}
@@ -347,9 +358,23 @@ func (p *Peer) sendInitialRoutes() {
 	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
 	// RFC 4724: "including the case when there is no update to send"
 	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
+	//
+	// sendFn is session.SendUpdateHeld here (writeMu already held): it writes the
+	// UPDATE AND flushes bufWriter before returning (session_write.go
+	// SendUpdateHeld), so a nil error means the frame left for the socket, not
+	// that it was queued behind the hold. A non-nil error means it did NOT --
+	// SendUpdateHeld returns ErrInvalidState without writing anything once the FSM
+	// has left Established, and the session can go down between the p.session read
+	// above and this call. Counting such an attempt would publish an end-of-RIB
+	// the peer never receives, which is exactly the barrier the functional suite
+	// waits on (test/scripts/ze_api.py wait_peer_eor_sent).
 	families := nc.Families()
 	for _, fam := range families {
-		_ = sendFn(message.BuildEOR(fam))
+		if err := sendFn(message.BuildEOR(fam)); err != nil {
+			routesLogger().Warn("end-of-rib send failed",
+				"peer", addr, "family", fam, "phase", "initial-sync", "error", err)
+			break
+		}
 		p.IncrEORSent()
 		routesLogger().Debug("sent EOR", "peer", addr, "family", fam)
 	}

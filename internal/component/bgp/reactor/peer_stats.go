@@ -17,7 +17,8 @@ const msgTypeUpdate = "update"
 // PeerStats holds a snapshot of per-peer counters.
 // Updates = per UPDATE message (engine level, no content parsing).
 // Keepalives = per KEEPALIVE message.
-// EOR = End-of-RIB markers (RFC 4724).
+// EOR = End-of-RIB markers (RFC 4724) that reached the socket; see IncrEORSent
+// for the contract and for why the value is per-peer lifetime, not per-session.
 // NLRI-level counters (announce vs withdraw) belong in the RIB plugin.
 type PeerStats struct {
 	UpdatesReceived    uint32
@@ -173,6 +174,21 @@ func (p *Peer) IncrEORReceived() {
 
 // IncrEORSent increments the sent End-of-RIB counter.
 // Also increments the per-peer Prometheus counter with type label.
+//
+// CONTRACT: call this ONLY after the EOR send returned nil. eorSent counts
+// End-of-RIB markers that reached the socket, never sends that were attempted:
+// operators read it as "the peer has been told the initial RIB is complete"
+// (`show bgp peer <sel> detail`, `show bgp summary`, the CLI dashboard,
+// ze_peer_msg_sent{type="eor"}), and the functional suite reads it as the
+// "end-of-RIB is on the wire" barrier before asserting the frame
+// (test/scripts/ze_api.py wait_peer_eor_sent). Incrementing on a discarded
+// error makes both claims false while looking healthy.
+//
+// It is a per-peer LIFETIME counter, not per-session: it is reset only by
+// ClearStats, which runs when the peer object stops (peer_run.go cleanup), so
+// it accumulates across session flaps. A value above the negotiated family count
+// means the peer re-established, or that a second producer emitted an
+// establishment EOR for a family this peer already covered.
 func (p *Peer) IncrEORSent() {
 	p.counters.eorSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {

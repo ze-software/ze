@@ -1,13 +1,130 @@
 package reactor
 
 import (
+	"bufio"
 	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/core/family"
 )
+
+// newInitialSyncPeer returns a peer primed to run sendInitialRoutes with the
+// given negotiated families. When established is true it is backed by an
+// Established Session writing into the returned recordingConn, so a test can
+// assert on the bytes that actually reached the wire; when false the Session is
+// left in Idle, which is the state a session that went away mid-establishment
+// presents to SendUpdateHeld (session_write.go: ErrInvalidState, nothing written).
+func newInitialSyncPeer(t *testing.T, established bool, families ...family.Family) (*Peer, *recordingConn) {
+	t.Helper()
+	settings := &PeerSettings{
+		Connection: ConnectionBoth,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
+	}
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+
+	nc := &NegotiatedCapabilities{families: make(map[family.Family]bool, len(families))}
+	for _, f := range families {
+		nc.families[f] = true
+	}
+	peer.negotiated.Store(nc)
+
+	session := NewSession(settings)
+	if established {
+		require.NoError(t, session.fsm.Event(fsm.EventManualStart))
+		require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
+		require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+		require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
+		require.Equal(t, fsm.StateEstablished, session.fsm.State())
+	}
+
+	conn := &recordingConn{}
+	session.mu.Lock()
+	session.conn = conn
+	session.bufWriter = bufio.NewWriterSize(conn, 4096)
+	session.mu.Unlock()
+
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+
+	// The FSM callback sets the flag to 1 before sendInitialRoutes upgrades 1->2.
+	peer.sendingInitialRoutes.Store(1)
+	return peer, conn
+}
+
+// TestInitialSyncEORCountedOncePerFamilyOnTheWire pins the success half of the
+// eor-sent contract: one End-of-RIB per negotiated family, counted only after the
+// frame reached the socket.
+//
+// VALIDATES: RFC 4724 Section 4 -- an EOR per negotiated family at the end of the
+// initial update -- and that eor-sent reports exactly those frames.
+// PREVENTS: an over-strict error guard silently zeroing a counter that operators
+// (`show bgp peer <sel> detail`) and ~20 functional tests depend on.
+func TestInitialSyncEORCountedOncePerFamilyOnTheWire(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
+
+	peer.sendInitialRoutes()
+
+	want := append(eorWire(family.IPv4Unicast), eorWire(family.IPv6Unicast)...)
+	assert.Equal(t, want, conn.written(),
+		"both negotiated families' End-of-RIB markers must reach the wire, AFI order")
+	assert.Equal(t, uint32(2), peer.Stats().EORSent, "one counted EOR per family sent")
+}
+
+// TestInitialSyncEORNotCountedWhenSessionLeftEstablished is the failure half: when
+// the session drops between sendInitialRoutes reading p.session and the EOR write,
+// SendUpdateHeld returns ErrInvalidState WITHOUT writing anything, and the counter
+// must not move.
+//
+// VALIDATES: the IncrEORSent contract (peer_stats.go) -- "eor-sent >= 1 means the
+// marker is on the wire" -- which test/scripts/ze_api.py wait_peer_eor_sent and the
+// functional suite use as the initial-sync barrier before asserting the EOR frame.
+// PREVENTS: the pre-fix `_ = sendFn(...)` followed by an unconditional
+// IncrEORSent, which published an End-of-RIB the peer never received and so turned
+// every barrier built on the counter into one that waits for nothing.
+func TestInitialSyncEORNotCountedWhenSessionLeftEstablished(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, false, family.IPv4Unicast, family.IPv6Unicast)
+
+	peer.sendInitialRoutes()
+
+	assert.Empty(t, conn.written(), "no EOR can reach a session that is not Established")
+	assert.Equal(t, uint32(0), peer.Stats().EORSent,
+		"a failed EOR send must not be counted: the peer never received the marker")
+}
+
+// TestInitialSyncEORStopsAtFirstSendFailure verifies the loop stops on the first
+// error instead of walking the remaining families. One failure here is
+// session-level (ErrNotConnected / ErrInvalidState / a write error), so every
+// later family would fail identically.
+//
+// VALIDATES: the connection-error convention already used by this file's queue
+// drain (stop, do not spin per item).
+// PREVENTS: one log line and one counter decision per negotiated family for a
+// single session-down event.
+func TestInitialSyncEORStopsAtFirstSendFailure(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65000, 65001, 0x01020304)
+	peer := NewPeer(settings)
+	nc := &NegotiatedCapabilities{families: map[family.Family]bool{
+		family.IPv4Unicast: true,
+		family.IPv6Unicast: true,
+	}}
+	peer.negotiated.Store(nc)
+	peer.sendingInitialRoutes.Store(1)
+
+	// No session at all: sendFn is p.sendUpdateDirect -> ErrNotConnected.
+	peer.sendInitialRoutes()
+
+	assert.Equal(t, uint32(0), peer.Stats().EORSent,
+		"no EOR is on the wire when the peer has no session")
+}
 
 // TestDefaultOriginateFilterFailsClosedWithoutReactor verifies that the
 // default-originate conditional filter fails closed when the peer has no
