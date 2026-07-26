@@ -1,6 +1,7 @@
 package filter_irr
 
 import (
+	"maps"
 	"testing"
 )
 
@@ -212,5 +213,110 @@ func TestParsePeerIRRRejectsBadASSet(t *testing.T) {
 	}
 	if got[65002] != "" {
 		t.Errorf("AS65002 as-set = %q, want empty (malformed rejected)", got[65002])
+	}
+}
+
+// VALIDATES: UsesIRR is set only for a peer that actually opted into IRR
+// filtering -- a filter chain naming bgp-filter-irr at global, group, or peer
+// level (import or export), or an explicit session.irr.as-set.
+// PREVENTS: a peer that merely declares a remote ASN being enrolled, which made
+// every BGP config issue an unsolicited PeeringDB + IRR whois lookup per peer at
+// startup (see handleConfigure) and contradicted docs/guide/irr-filtering.md,
+// which documents that a peer with no bgp-filter-irr chain reference has no
+// `show bgp irr` entry.
+func TestParseIRRConfigUsesIRR(t *testing.T) {
+	peerWith := func(extra map[string]any) map[string]any {
+		p := map[string]any{
+			"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+		}
+		maps.Copy(p, extra)
+		return p
+	}
+	chain := func(dir string, refs ...string) map[string]any {
+		anyRefs := make([]any, len(refs))
+		for i, r := range refs {
+			anyRefs[i] = r
+		}
+		return map[string]any{"filter": map[string]any{dir: anyRefs}}
+	}
+
+	tests := []struct {
+		name   string
+		bgpCfg map[string]any
+		want   bool
+	}{
+		{
+			"bare peer with only a remote ASN is not enrolled",
+			map[string]any{"peer": map[string]any{"10.0.0.1": peerWith(nil)}},
+			false,
+		},
+		{
+			"peer import chain names the plugin",
+			map[string]any{"peer": map[string]any{
+				"10.0.0.1": peerWith(chain("import", "bgp-filter-irr:65001")),
+			}},
+			true,
+		},
+		{
+			"peer export chain names the plugin",
+			map[string]any{"peer": map[string]any{
+				"10.0.0.1": peerWith(chain("export", "bgp-filter-irr:65001")),
+			}},
+			true,
+		},
+		{
+			"chain naming another plugin does not enroll",
+			map[string]any{"peer": map[string]any{
+				"10.0.0.1": peerWith(chain("import", "bgp-filter-prefix:customers")),
+			}},
+			false,
+		},
+		{
+			"a bare ref cannot reach this plugin, so it does not enroll",
+			map[string]any{"peer": map[string]any{
+				"10.0.0.1": peerWith(chain("import", "bgp-filter-irr")),
+			}},
+			false,
+		},
+		{
+			"explicit session as-set enrolls without a chain",
+			map[string]any{"peer": map[string]any{
+				"10.0.0.1": map[string]any{"session": map[string]any{
+					"asn": map[string]any{"remote": "65001"},
+					"irr": map[string]any{"as-set": "AS-CUSTOMER1"},
+				}},
+			}},
+			true,
+		},
+		{
+			"group chain enrolls its peers",
+			map[string]any{"group": map[string]any{
+				"customers": map[string]any{
+					"filter": map[string]any{"import": []any{"bgp-filter-irr:65001"}},
+					"peer":   map[string]any{"10.0.0.1": peerWith(nil)},
+				},
+			}},
+			true,
+		},
+		{
+			"global chain enrolls every peer",
+			map[string]any{
+				"filter": map[string]any{"import": []any{"bgp-filter-irr:65001"}},
+				"peer":   map[string]any{"10.0.0.1": peerWith(nil)},
+			},
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := parseIRRConfig(tt.bgpCfg)
+			if len(cfg.Peers) != 1 {
+				t.Fatalf("Peers = %d, want 1 (parse must still list the peer)", len(cfg.Peers))
+			}
+			if cfg.Peers[0].UsesIRR != tt.want {
+				t.Errorf("UsesIRR = %v, want %v", cfg.Peers[0].UsesIRR, tt.want)
+			}
+		})
 	}
 }

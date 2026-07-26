@@ -194,6 +194,19 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		if peer.Disabled {
 			continue
 		}
+		// Enroll ONLY peers that asked for IRR filtering. Enrolling on the mere
+		// presence of a remote ASN made every BGP config -- including one with
+		// no IRR filter anywhere -- issue a PeeringDB HTTPS lookup and a whois
+		// query to the IRR server (default RADB) per peer at every startup, on
+		// the operator's behalf and without being asked. That also contradicted
+		// the documented behavior (docs/guide/irr-filtering.md: a peer with no
+		// "import [ bgp-filter-irr:<asn> ]" reference has no `show bgp irr`
+		// entry) and this plugin's own vocabulary ("no IRR-filtered peer with
+		// ASN %d", command.go). An unenrolled peer's filter chain never reaches
+		// handleFilterUpdate, so nothing else observes the difference.
+		if !peer.UsesIRR {
+			continue
+		}
 		st, exists := newByASN[peer.RemoteASN]
 		if !exists {
 			st = newASNState(peer.RemoteASN, peer.ASSet)
@@ -256,7 +269,14 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 
 	go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
 
-	logger().Debug("configured", "peers", len(cfg.Peers), "asns", len(newByASN), "server", cfg.Server)
+	// "peers" counts the peers ENROLLED for IRR resolution, not every BGP peer:
+	// an operator reading this line is asking how much IRR work was set up, and
+	// the config's total peer count would answer a different question.
+	enrolledPeers := 0
+	for _, st := range newByASN {
+		enrolledPeers += len(st.peerAddrs)
+	}
+	logger().Debug("configured", "peers", enrolledPeers, "asns", len(newByASN), "server", cfg.Server)
 }
 
 // initialResolve performs the first background resolution of every enrolled

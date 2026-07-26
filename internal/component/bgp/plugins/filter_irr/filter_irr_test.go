@@ -166,6 +166,96 @@ func TestHandleConfigureDisabledPeerSkipped(t *testing.T) {
 	}
 }
 
+// VALIDATES: handleConfigure -- the real configure entry point -- enrolls NO ASN
+// for a peer that never opted into IRR filtering, so initialResolve has nothing
+// to resolve and the plugin issues no PeeringDB or IRR whois request.
+// PREVENTS: the unsolicited live lookup that any `bgp { peer ... }` config used
+// to trigger. Enrollment keyed on "peer has a remote ASN" alone, so every BGP
+// config -- and therefore every functional test with a BGP peer -- opened an
+// HTTPS connection to www.peeringdb.com and a whois connection to the IRR server
+// (default whois.radb.net) at startup. Driven through handleConfigure, not the
+// parser, because the enrollment decision is what gates the network I/O.
+func TestHandleConfigureDoesNotEnrollPeerWithoutIRR(t *testing.T) {
+	plug := &irrPlugin{
+		byASN:  make(map[uint32]*asnState),
+		stopCh: make(chan struct{}),
+	}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	// A peer with a remote ASN and nothing else: no filter chain, no as-set.
+	// Point the server at an address nothing listens on, so if this test ever
+	// regresses into resolving, it fails here rather than reaching the internet.
+	plug.handleConfigure(map[string]any{
+		"policy": map[string]any{
+			"irr": map[string]any{"server": "127.0.0.1:1", "peeringdb-url": "http://127.0.0.1:1"},
+		},
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+			},
+		},
+	})
+
+	plug.mu.RLock()
+	enrolled := len(plug.byASN)
+	plug.mu.RUnlock()
+	if enrolled != 0 {
+		t.Errorf("byASN has %d enrolled ASN(s), want 0: a peer with no IRR filter "+
+			"reference and no as-set must not be resolved", enrolled)
+	}
+}
+
+// VALIDATES: handleConfigure DOES enroll and resolve a peer whose filter chain
+// names bgp-filter-irr, against a fake IRR server -- the gate above rejects the
+// unsolicited case without disabling the feature it gates.
+// PREVENTS: the enrollment gate silently disabling IRR filtering for a correctly
+// configured peer (fail-closed guards must still let the intended path through).
+func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-CUSTOMER1": "10.0.0.0/24"})
+	plug := &irrPlugin{
+		byASN:  make(map[uint32]*asnState),
+		stopCh: make(chan struct{}),
+	}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	// An explicit as-set keeps this hermetic: store.resolve only calls PeeringDB
+	// when the as-set is empty, so the fake IRR server is the only endpoint used.
+	plug.handleConfigure(map[string]any{
+		"policy": map[string]any{"irr": map[string]any{"server": addr}},
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65001"},
+					"irr": map[string]any{"as-set": "AS-CUSTOMER1"},
+				},
+				"filter": map[string]any{"import": []any{"bgp-filter-irr:65001"}},
+			},
+		},
+	})
+
+	plug.mu.RLock()
+	st := plug.byASN[65001]
+	plug.mu.RUnlock()
+	if st == nil {
+		t.Fatal("ASN 65001 not enrolled: an IRR-filtered peer must be resolved")
+	}
+	// initialResolve runs detached; wait on its per-ASN completion signal rather
+	// than on a duration.
+	select {
+	case <-st.firstDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("first resolution did not complete")
+	}
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	if st.lastErr != "" {
+		t.Fatalf("unexpected lastErr: %s", st.lastErr)
+	}
+	if st.list == nil || len(st.list.entries) != 1 {
+		t.Fatalf("prefix-list not populated from the fake IRR server: %+v", st.list)
+	}
+}
+
 // VALIDATES: AC-21 -- show bgp irr includes last-refresh and next-refresh timestamps.
 func TestShowIRRIncludesTimestamps(t *testing.T) {
 	now := time.Now().Truncate(time.Second)

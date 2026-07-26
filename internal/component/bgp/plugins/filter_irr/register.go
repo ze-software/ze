@@ -12,7 +12,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-filter-irr",
+		Name:         pluginName,
 		Description:  "IRR-based prefix-list filter for eBGP peers",
 		Features:     "yang",
 		YANG:         firryang.ZeFilterIrrYANG,

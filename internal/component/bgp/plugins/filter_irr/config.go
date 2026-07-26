@@ -4,10 +4,18 @@ package filter_irr
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 )
+
+// pluginName is the registered plugin name (register.go). It is also the
+// left-hand side of a filter chain reference: the engine routes a chain entry to
+// a plugin by cutting the ref at the first ':' and dispatching on that prefix
+// (internal/component/bgp/reactor/filter_chain.go PolicyFilterChain), so
+// "bgp-filter-irr:65001" is the only spelling that can reach this plugin.
+const pluginName = "bgp-filter-irr"
 
 const (
 	defaultServer          = "whois.radb.net"
@@ -30,6 +38,15 @@ type peerIRRConfig struct {
 	RemoteASN uint32
 	ASSet     string
 	Disabled  bool
+
+	// UsesIRR reports whether this peer actually opted into IRR filtering,
+	// either by naming a bgp-filter-irr entry in a filter chain that applies to
+	// it (global, group, or peer level) or by setting an explicit
+	// session.irr.as-set. Only such a peer is enrolled for resolution; see
+	// handleConfigure. A peer that merely has a remote ASN has NOT asked for
+	// IRR: its filter chain never reaches this plugin, so resolving it would be
+	// an unsolicited whois/PeeringDB request on the operator's behalf.
+	UsesIRR bool
 }
 
 func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
@@ -56,15 +73,73 @@ func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
 		}
 	}
 
+	globalChained := chainReferencesIRR(bgpCfg)
+
 	configjson.ForEachPeer(bgpCfg, func(peerAddr string, peerMap, groupMap map[string]any) {
 		p := parsePeerIRR(peerAddr, peerMap)
 		if p.RemoteASN == 0 {
 			return
 		}
+		// A chain at any level that applies to this peer opts it in; so does an
+		// explicit as-set, which is a direct request to resolve this peer's
+		// prefixes (and keeps `show bgp irr check` usable as a dry run before
+		// the chain is wired).
+		p.UsesIRR = globalChained ||
+			chainReferencesIRR(groupMap) ||
+			chainReferencesIRR(peerMap) ||
+			p.ASSet != ""
 		cfg.Peers = append(cfg.Peers, p)
 	})
 
 	return cfg
+}
+
+// chainReferencesIRR reports whether the import or export filter chain at one
+// config level (bgp / group / peer) names this plugin. A chain entry is
+// "<plugin>:<filter>"; the engine cuts at the first ':' and dispatches on the
+// prefix (reactor/filter_chain.go PolicyFilterChain), so only that spelling can
+// invoke us -- a bare name would dispatch to a plugin of that name instead.
+// Refs arrive clean via ToMap; per-member deactivation is out-of-band, so there
+// is no "inactive:" prefix to strip (same as filter_family's chain reader).
+func chainReferencesIRR(m map[string]any) bool {
+	if m == nil {
+		return false
+	}
+	filterBlock, ok := m["filter"].(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, key := range [...]string{"import", "export"} {
+		for _, ref := range toStringList(filterBlock[key]) {
+			if plugin, _, found := strings.Cut(ref, ":"); found && plugin == pluginName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// toStringList normalises a leaf-list value to []string. The config loader may
+// pass []any (JSON round-trip), []string (multi-value), or a bare string.
+func toStringList(v any) []string {
+	switch s := v.(type) {
+	case []any:
+		out := make([]string, 0, len(s))
+		for _, item := range s {
+			if str, ok := item.(string); ok {
+				out = append(out, str)
+			}
+		}
+		return out
+	case []string:
+		return s
+	case string:
+		if s == "" {
+			return nil
+		}
+		return []string{s}
+	}
+	return nil
 }
 
 func parsePeerIRR(peerAddr string, peerMap map[string]any) peerIRRConfig {

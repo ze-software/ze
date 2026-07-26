@@ -164,7 +164,7 @@ Total: 618 packages, 615 described, 3 TODO
 | `internal/component/bgp/plugins/filter_community_match/yang` | embeds and registers the YANG schema module for the community-match filter |  |
 | `internal/component/bgp/plugins/filter_family` | implements the bgp-filter-family plugin | bgp-filter-family |
 | `internal/component/bgp/plugins/filter_family/yang` | embeds and registers the family-filter plugin's YANG configuration schema module |  |
-| `internal/component/bgp/plugins/filter_irr` | IRR-based prefix-list filter for eBGP peers | bgp-filter-irr |
+| `internal/component/bgp/plugins/filter_irr` | IRR-based prefix-list filter for eBGP peers |  |
 | `internal/component/bgp/plugins/filter_irr/yang` | embeds and registers the IRR-filter plugin's YANG configuration schema modules |  |
 | `internal/component/bgp/plugins/filter_modify` | implements the bgp-filter-modify plugin | bgp-filter-modify |
 | `internal/component/bgp/plugins/filter_modify/yang` | embeds and registers the modify-filter plugin's YANG configuration schema module |  |
