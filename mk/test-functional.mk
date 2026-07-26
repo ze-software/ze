@@ -153,6 +153,29 @@ else
   ZE_TEST_RUN := $(ZEBIN_TEST)
 endif
 
+# Packages that `.ci` tests shell out to with `exec=go test ...`. Derived from
+# the `.ci` files themselves so the list cannot drift from what they invoke.
+ZE_CI_GO_TEST_PKGS = $(shell grep -rhoE 'exec=go test [^:]*' test/ --include='*.ci' 2>/dev/null | grep -oE '\./[a-zA-Z0-9_/.-]+' | sort -u)
+
+# Warm the Go build cache for those packages BEFORE any suite runs.
+#
+# Each such `.ci` test spends its per-test budget on `go test`, which COMPILES
+# the package first. On a quiet host the compile is cached and invisible; in a
+# full parallel run it is not, and a test then times out waiting on the
+# compiler rather than on the behavior it asserts -- test/ospf/ospf-neighbor.ci
+# (20s exec budget) did exactly that while its own Go test takes 0.01s.
+# Compiling once here takes compilation out of every per-test budget instead of
+# hiding the problem behind a larger timeout (ai/rules/fix-dont-record.md: a
+# generous timeout is a synonym for an unknown one).
+#
+# No tags, deliberately: the `.ci` commands invoke bare `go test`, and the build
+# cache is keyed by tag set, so warming with tags would populate a different
+# cache entry and warm nothing.
+.PHONY: ze-functional-warm
+ze-functional-warm:
+	@printf 'Warming build cache for %s .ci-invoked package(s)...\n' '$(words $(ZE_CI_GO_TEST_PKGS))'
+	@$(GO) test -run '^$$' -count=1 $(ZE_CI_GO_TEST_PKGS) >/dev/null
+
 # Run ze functional tests (all types, continue on failure to show all results)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
 # managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, web, install. Suites
@@ -161,7 +184,7 @@ endif
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
-ze-functional-test: $(ZE_TEST_DEPS_ALL)
+ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) \
 	failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
 	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire runner"; \
@@ -300,10 +323,10 @@ ze-ospf-wire-test: $(ZE_TEST_DEPS)
 ze-isis-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) isis --all
 
-ze-ospf-test: $(ZE_TEST_DEPS)
+ze-ospf-test: ze-functional-warm $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospf --all
 
-ze-ospfv3-test: $(ZE_TEST_DEPS)
+ze-ospfv3-test: ze-functional-warm $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospfv3 --all
 
 ze-vrrp-test: $(ZE_TEST_DEPS)
