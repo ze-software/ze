@@ -269,12 +269,20 @@ func TestInProcessDisconnectReconnect(t *testing.T) {
 		minDisconnected int
 	}{
 		{
-			name:            "short_gap_collision",
-			reconnectDelay:  0,                // Collision mode: queue new conn before closing old.
-			duration:        15 * time.Second, // Session is ESTABLISHED when new conn arrives.
-			minEstablished:  1,                // Initial session only — collision rejects the new one.
-			maxEstablished:  1,                // RFC 4271 §6.8: ESTABLISHED state rejects incoming.
-			minDisconnected: 0,                // Disconnect events vary by timing.
+			name: "short_gap_collision",
+			// Collision mode. The runner delivers the new connection while the
+			// reactor reports the peer ESTABLISHED and closes the old one only
+			// after the reactor has refused the new one, so the count below is
+			// bounded by the session's state, not by how the Go scheduler
+			// happened to order the accept handler against the old connection's
+			// EOF. Before that ordering was made explicit, losing the race let
+			// the new connection establish a SECOND session and this case failed
+			// "2 is not less than or equal to 1" on a slow host.
+			reconnectDelay:  0,
+			duration:        15 * time.Second,
+			minEstablished:  1, // Initial session only — collision rejects the new one.
+			maxEstablished:  1, // RFC 4271 §6.8: ESTABLISHED state rejects incoming.
+			minDisconnected: 0, // Disconnect events vary by timing.
 		},
 		{
 			name:            "borderline_gap",
