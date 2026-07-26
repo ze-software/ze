@@ -509,6 +509,32 @@ whichever session next touches `internal/component/l2tp/reactor_kernel_linux_tes
 
 ## Resolved
 
+### 2026-07-26 -- the three load-blamed shards, all fixed at source
+
+Cleared under `ai/rules/fix-dont-record.md` (owner directive, same day), which
+holds that a test failing only on a busy host asserts on elapsed time and gets
+fixed rather than recorded. None of the three was what its shard claimed.
+
+- **`verify-plugin-suite-load-sensitive-at-p20`** (222, 228, 514) -> `8e37508cf`.
+  Not load-sensitivity. Two of them polled for the substring `established` in the
+  peer-detail JSON, which every row carries as the key `connections-established`
+  (`cmd/peer/peer.go:238`), so the barrier returned on its first call and gated
+  nothing. Now wait on `eor-sent`. Reproduced at stress invocation 9 before,
+  60/60 after.
+- **`qemu-unit-chaos-inprocess-short-gap-collision`** -> `bbff8cb50`. No protocol
+  defect: the test summed `EventEstablished` across both simulators, so "2" meant
+  two SEQUENTIAL sessions. A second connection cannot reach Established while the
+  first holds the session (`session_connection.go:62-71`), and the RFC 4271
+  Section 6.8 check is correct (`reactor_connection.go:136-139`). The failure was
+  materialised deterministically by forcing the adverse ordering, then made
+  unreachable.
+- **`reload-config-apply-ordering-rotation`** -> `834f92629` + `62dcfcacd`. It
+  reproduced at invocation 15 of 60, and had a real product cause: `Peer.Stop`
+  only cancels the context while the BGP Identifier claim was released
+  asynchronously from `cleanup`, so a reload that MOVED an identifier let the add
+  loop dial while outgoing peers still held it, and ze answered its own reloaded
+  peers with OPEN Message Error / Bad BGP Identifier.
+
 ### 2026-07-08 -- `internal/plugins/ospf` `virtual_link.go` `-race` data race -> two bugs fixed at source
 
 **Resolved 2026-07-08.** The reported write was `virtual_link.go:160`
