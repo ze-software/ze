@@ -84,6 +84,73 @@ func addTrafficVeth(t *testing.T, name, peer string) netlink.Link {
 	return link
 }
 
+// movePeerToNetNS moves the veth peer into a throwaway namespace of its own and
+// gives it addr there.
+//
+// Without this both ends live in ONE namespace, so the peer's address is a LOCAL
+// address and Linux routes traffic to it over loopback -- it never egresses the
+// interface under test, and its qdisc counts nothing. TestCS6ClassifyNetns
+// asserted on a control-class packet count that could therefore only ever be
+// zero; the root qdisc reported 0 packets, which is what identified the topology
+// rather than the classifier.
+//
+// The caller must already be inside withTrafficNetNS (OS thread locked).
+func movePeerToNetNS(t *testing.T, peer string, addr *netlink.Addr) {
+	t.Helper()
+
+	origNS, err := netns.Get()
+	if err != nil {
+		t.Fatalf("get current namespace: %v", err)
+	}
+	defer origNS.Close()
+
+	nsName := trafficNetNSName(t.Name()) + "_peer"
+	peerNS, err := netns.NewNamed(nsName)
+	if err != nil {
+		t.Skipf("requires CAP_NET_ADMIN: cannot create peer namespace: %v", err)
+	}
+	// NewNamed switches us into the new namespace; go back before touching the
+	// peer link, which is still in the original one.
+	if setErr := netns.Set(origNS); setErr != nil {
+		t.Fatalf("restore namespace after creating %s: %v", nsName, setErr)
+	}
+	t.Cleanup(func() {
+		if restoreErr := netns.Set(origNS); restoreErr != nil {
+			t.Errorf("restore namespace: %v", restoreErr)
+		}
+		peerNS.Close()
+		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
+	})
+
+	peerLink, err := netlink.LinkByName(peer)
+	if err != nil {
+		t.Fatalf("link %q: %v", peer, err)
+	}
+	if err := netlink.LinkSetNsFd(peerLink, int(peerNS)); err != nil {
+		t.Fatalf("move %q into %s: %v", peer, nsName, err)
+	}
+
+	if err := netns.Set(peerNS); err != nil {
+		t.Fatalf("enter peer namespace: %v", err)
+	}
+	defer func() {
+		if restoreErr := netns.Set(origNS); restoreErr != nil {
+			t.Fatalf("restore namespace after peer setup: %v", restoreErr)
+		}
+	}()
+
+	inNS, err := netlink.LinkByName(peer)
+	if err != nil {
+		t.Fatalf("link %q inside %s: %v", peer, nsName, err)
+	}
+	if err := netlink.LinkSetUp(inNS); err != nil {
+		t.Fatalf("set %q up inside %s: %v", peer, nsName, err)
+	}
+	if err := netlink.AddrAdd(inNS, addr); err != nil {
+		t.Fatalf("addr add %q inside %s: %v", peer, nsName, err)
+	}
+}
+
 func replaceRootFQ(t *testing.T, link netlink.Link) {
 	t.Helper()
 

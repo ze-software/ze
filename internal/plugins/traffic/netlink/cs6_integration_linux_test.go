@@ -100,11 +100,6 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			t.Errorf("u32 filter count = %d, want >= 2 (IPv4 + IPv6)", u32Count)
 		}
 
-		peerLink, err := netlink.LinkByName("ze_cs1")
-		if err != nil {
-			t.Fatalf("link ze_cs1: %v", err)
-		}
-
 		addr := &netlink.Addr{IPNet: &net.IPNet{
 			IP:   net.IPv4(10, 99, 0, 1),
 			Mask: net.CIDRMask(24, 32),
@@ -112,13 +107,15 @@ func TestCS6ClassifyNetns(t *testing.T) {
 		if err := netlink.AddrAdd(link, addr); err != nil {
 			t.Fatalf("addr add ze_cs0: %v", err)
 		}
-		peerAddr := &netlink.Addr{IPNet: &net.IPNet{
+		// The peer end goes into a namespace of its own. Addressing it here would
+		// make 10.99.0.2 a LOCAL address, and Linux routes to a local address over
+		// loopback -- the packets would never egress ze_cs0 and its qdisc would
+		// count nothing, which is exactly what this test used to assert against
+		// (root qdisc packets=0).
+		movePeerToNetNS(t, "ze_cs1", &netlink.Addr{IPNet: &net.IPNet{
 			IP:   net.IPv4(10, 99, 0, 2),
 			Mask: net.CIDRMask(24, 32),
-		}}
-		if err := netlink.AddrAdd(peerLink, peerAddr); err != nil {
-			t.Fatalf("addr add ze_cs1: %v", err)
-		}
+		}})
 
 		conn, err := net.DialUDP("udp4", &net.UDPAddr{IP: net.IPv4(10, 99, 0, 1)}, &net.UDPAddr{IP: net.IPv4(10, 99, 0, 2), Port: 9999})
 		if err != nil {
@@ -171,7 +168,40 @@ func TestCS6ClassifyNetns(t *testing.T) {
 				makeHandle(1, 1), len(classes), got)
 		}
 		if controlStats.Basic.Packets == 0 {
-			t.Error("control class packet count = 0; CS6-marked packets were not classified (AC-2 fail)")
+			// Two very different causes produce a zero count, and the bare message
+			// cannot tell them apart:
+			//   (a) no traffic traversed the qdisc at all -- both veth ends live in
+			//       ONE namespace here, so 10.99.0.2 is a LOCAL address and Linux
+			//       routes 10.99.0.1 -> 10.99.0.2 over loopback, never egressing
+			//       ze_cs0; or
+			//   (b) traffic did traverse it and the u32 filter failed to match, which
+			//       is the classification defect this test exists to catch.
+			// The root qdisc's own counters separate them: zero there means nothing
+			// reached the qdisc and the topology is at fault, non-zero means the
+			// packets arrived and were classified into the wrong class.
+			var rootPkts, defaultPkts uint64
+			if qdiscs, qErr := netlink.QdiscList(link); qErr == nil {
+				for _, q := range qdiscs {
+					if q.Attrs().Parent == netlink.HANDLE_ROOT {
+						if st := q.Attrs().Statistics; st != nil {
+							rootPkts = uint64(st.Basic.Packets)
+						}
+					}
+				}
+			}
+			for _, cls := range classes {
+				htb, ok := cls.(*netlink.HtbClass)
+				if !ok || htb.Statistics == nil {
+					continue
+				}
+				if htb.Handle == makeHandle(1, 2) {
+					defaultPkts = uint64(htb.Statistics.Basic.Packets)
+				}
+			}
+			t.Errorf("control class packet count = 0; CS6-marked packets were not classified (AC-2 fail)\n"+
+				"  root qdisc packets=%d (0 => no traffic reached the qdisc: both veth ends share this netns, so the destination is a LOCAL address and the flow goes over loopback)\n"+
+				"  default class (1:2) packets=%d (non-zero with root non-zero => traffic arrived but the u32 DSCP filter did not match)",
+				rootPkts, defaultPkts)
 		}
 	})
 }
