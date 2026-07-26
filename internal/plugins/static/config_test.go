@@ -1,7 +1,9 @@
 package static
 
 import (
+	"math"
 	"net/netip"
+	"strconv"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/routingtable"
@@ -235,5 +237,61 @@ func TestParseStaticConfigPrefixCanonicalized(t *testing.T) {
 	want := pfx("10.0.0.0/8")
 	if routes[0].Prefix != want {
 		t.Errorf("prefix = %s, want %s (canonicalized)", routes[0].Prefix, want)
+	}
+}
+
+// VALIDATES: validateRouteMetric rejects a metric that does not survive the
+// conversion to Go int that netlink.Route.Priority performs, while accepting
+// every value this build can program.
+// PREVENTS: a `metric` above MaxInt32 on a 32-bit build silently becoming the
+// kernel's default metric. buildRoute converts to int (backend_linux.go) and
+// the encoder emits RTA_PRIORITY only when Priority > 0
+// (vendor/github.com/vishvananda/netlink/route_linux.go:1069), so a negative
+// Priority drops the attribute and the route is installed at the wrong metric
+// with no error, silently reordering route preference.
+func TestValidateRouteMetricRejectsUnencodable(t *testing.T) {
+	// The bound is passed explicitly so this exercises the 32-bit rejection on
+	// a 64-bit host, where maxNetlinkInt is above every uint32.
+	const maxInt32 = uint64(math.MaxInt32)
+
+	tests := []struct {
+		name       string
+		metric     uint32
+		maxEncode  uint64
+		wantReject bool
+	}{
+		{"zero", 0, maxInt32, false},
+		{"below bound", 200, maxInt32, false},
+		{"at bound", math.MaxInt32, maxInt32, false},
+		{"one above bound", math.MaxInt32 + 1, maxInt32, true},
+		{"max uint32 on 32-bit", math.MaxUint32, maxInt32, true},
+		{"max uint32 on 64-bit", math.MaxUint32, uint64(math.MaxInt), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateRouteMetric(tt.metric, tt.maxEncode)
+			if tt.wantReject && err == nil {
+				t.Fatalf("validateRouteMetric(%d, %d): accepted, want rejection", tt.metric, tt.maxEncode)
+			}
+			if !tt.wantReject && err != nil {
+				t.Fatalf("validateRouteMetric(%d, %d): unexpected error: %v", tt.metric, tt.maxEncode, err)
+			}
+		})
+	}
+}
+
+// VALIDATES: the bound parseRoute applies is this build's own int limit, so a
+// metric is accepted exactly when it survives the int conversion.
+// PREVENTS: the parser being wired to a hardcoded 32-bit bound, which would
+// reject usable metrics on the 64-bit targets Ze ships.
+func TestParseRouteMetricBoundMatchesBuild(t *testing.T) {
+	for _, metric := range []uint64{200, math.MaxInt32, math.MaxInt32 + 1, math.MaxUint32} {
+		input := wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{}}},"metric":`+strconv.FormatUint(metric, 10)+`}`)
+		_, err := parseStaticConfig(input, defReg())
+		fits := metric <= uint64(math.MaxInt)
+		if fits != (err == nil) {
+			t.Errorf("metric %d: fits in int = %v, accepted = %v (err=%v)", metric, fits, err == nil, err)
+		}
 	}
 }

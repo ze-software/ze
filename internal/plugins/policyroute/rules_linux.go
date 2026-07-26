@@ -38,7 +38,15 @@ func (rm *linuxRuleManager) close() {
 // and the kernel returns EINVAL -- surfacing as
 // "ip rule add (mark 0x50000 table 100): invalid argument", which took the whole
 // policy-routes plugin down at startup and timed out test/policy 2-5.
-func newIPRule(r ipRuleSpec) *netlink.Rule {
+//
+// The Table bound is not redundant with config validation: netlink.Rule.Table
+// is a Go int, and a value that does not survive that conversion is dropped by
+// the encoder rather than rejected, so this refuses to build a rule that would
+// silently select the wrong table. See maxEncodableTable in config.go.
+func newIPRule(r ipRuleSpec) (*netlink.Rule, error) {
+	if uint64(r.Table) > maxEncodableTable {
+		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", r.Table, maxEncodableTable)
+	}
 	mask := r.Mask
 	rule := netlink.NewRule()
 	rule.Priority = r.Priority
@@ -46,12 +54,16 @@ func newIPRule(r ipRuleSpec) *netlink.Rule {
 	rule.Mark = r.Mark
 	rule.Mask = &mask
 	rule.Family = unix.AF_INET
-	return rule
+	return rule, nil
 }
 
 func (rm *linuxRuleManager) applyIPRules(rules []ipRuleSpec) error {
 	for _, r := range rules {
-		if err := rm.handle.RuleAdd(newIPRule(r)); err != nil {
+		rule, err := newIPRule(r)
+		if err != nil {
+			return fmt.Errorf("ip rule add (mark 0x%x table %d): %w", r.Mark, r.Table, err)
+		}
+		if err := rm.handle.RuleAdd(rule); err != nil {
 			return fmt.Errorf("ip rule add (mark 0x%x table %d): %w", r.Mark, r.Table, err)
 		}
 	}
@@ -60,7 +72,14 @@ func (rm *linuxRuleManager) applyIPRules(rules []ipRuleSpec) error {
 
 func (rm *linuxRuleManager) removeIPRules(rules []ipRuleSpec) {
 	for _, r := range rules {
-		_ = rm.handle.RuleDel(newIPRule(r))
+		rule, err := newIPRule(r)
+		if err != nil {
+			// Cleanup is best-effort, but say so: a rule we could not encode
+			// was never installed, so there is nothing to delete.
+			logger().Warn("policyroute: skipping ip rule delete", "mark", r.Mark, "table", r.Table, "error", err)
+			continue
+		}
+		_ = rm.handle.RuleDel(rule)
 	}
 }
 

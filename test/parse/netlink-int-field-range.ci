@@ -1,0 +1,52 @@
+# Test: table IDs and route metrics at the top of the uint32 range stay valid.
+#
+# VALIDATES: the full kernel-legal uint32 range remains accepted for a policy
+#            route `then table`, a named routing-table id, and a static route
+#            `metric`, on the 64-bit targets Ze builds.
+# PREVENTS: the netlink-encodability bound added for CodeQL alert 170
+#           (go/incorrect-integer-conversion) being tightened to a hardcoded
+#           32-bit constant. That bound exists because netlink.Rule.Table,
+#           netlink.Route.Table and netlink.Route.Priority are Go ints whose
+#           attributes are dropped when negative, so it must track this build's
+#           own math.MaxInt and must not narrow the range on a 64-bit build.
+#
+# NOTE: the rejection side of that bound cannot be exercised here. On a 64-bit
+# build math.MaxInt is above every uint32, so no config value can trip it. It is
+# covered by unit tests that pass the bound explicitly:
+# TestRejectUnencodableTableID, TestValidateActionTableRejectsUnencodable,
+# TestValidateRouteMetricRejectsUnencodable.
+
+stdin=config:terminator=EOF_CONF
+routing-table {
+    table upstream {
+        id 4294967295;
+    }
+}
+policy {
+    route wan-steer {
+        interface eth0;
+        rule bulk {
+            from {
+                protocol tcp;
+            }
+            then {
+                table 4294967294;
+            }
+        }
+    }
+}
+static {
+    table default {
+        route 192.0.2.0/24 {
+            metric 4294967295;
+            next {
+                hop 10.0.0.1 { }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

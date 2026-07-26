@@ -8,6 +8,7 @@ package fibkernel
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 
@@ -16,6 +17,13 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
+
+// maxNetlinkInt is the largest value this build can carry in one of the netlink
+// bindings' int-typed route fields (netlink.Route.Table, .Priority). On a
+// 32-bit build a uint32 above MaxInt32 turns negative there and the encoder
+// drops the attribute silently; the bound turns that into an error. On the
+// 64-bit targets Ze ships it is above every uint32 and never bites.
+const maxNetlinkInt = uint64(math.MaxInt)
 
 func (n *netlinkBackend) addRichRoute(r RichRoute) error {
 	route, err := buildRichRoute(r)
@@ -48,7 +56,23 @@ func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {
 	return n.handle.RouteReplace(route)
 }
 
+// buildRichRoute translates a RichRoute into the netlink form.
+//
+// Metric and TableID are bounded before conversion because netlink.Route
+// carries both in a Go int and the encoder emits RTA_PRIORITY / RTA_TABLE only
+// for positive values (vendor/github.com/vishvananda/netlink/
+// route_linux.go:1058,1069). A value that does not survive the conversion would
+// otherwise be dropped without an error, installing the route in RT_TABLE_MAIN
+// at the kernel default metric instead of where the routing protocol put it.
+// On the 64-bit targets Ze ships the bound is above every uint32 and never bites.
 func buildRichRoute(r RichRoute) (*netlink.Route, error) {
+	if uint64(r.Metric) > maxNetlinkInt {
+		return nil, fmt.Errorf("metric %d exceeds %d, the largest this build can program through netlink", r.Metric, maxNetlinkInt)
+	}
+	if uint64(r.TableID) > maxNetlinkInt {
+		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", r.TableID, maxNetlinkInt)
+	}
+
 	_, cidr, err := net.ParseCIDR(r.Prefix.String())
 	if err != nil {
 		return nil, fmt.Errorf("parse prefix %v: %w", r.Prefix, err)

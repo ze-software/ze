@@ -118,7 +118,22 @@ func (b *netlinkStaticBackend) close() error {
 	return nil
 }
 
+// buildRoute translates a staticRoute into the netlink form.
+//
+// The Table and Metric bounds are not redundant with config validation:
+// netlink.Route.Table and .Priority are Go ints, and the encoder emits the
+// attribute only for positive values (route_linux.go:1058,1069), so a value
+// that does not survive the conversion is silently dropped rather than
+// rejected. Refuse to build such a route instead of installing it in the wrong
+// table or at the wrong metric. See maxNetlinkInt in config.go.
 func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error) {
+	if uint64(r.Table) > maxNetlinkInt {
+		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", r.Table, maxNetlinkInt)
+	}
+	if err := validateRouteMetric(r.Metric, maxNetlinkInt); err != nil {
+		return nil, err
+	}
+
 	dst := prefixToIPNet(r.Prefix)
 
 	route := &netlink.Route{

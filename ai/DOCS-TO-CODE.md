@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3105 files
+Total: 298 design docs, 3106 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1496,6 +1496,7 @@ Total: 298 design docs, 3105 files
 | `internal/test/cli/cmd_l2tp_scale.go` | L2TP scale test tooling |
 | `internal/test/cli/cmd_mcp.go` | MCP test client |
 | `internal/test/cli/cmd_peer.go` | test runner CLI |
+| `internal/test/cli/cmd_peer_test.go` | test runner CLI |
 | `internal/test/cli/cmd_plugin_external.go` | test plugin runner |
 | `internal/test/cli/cmd_syslog.go` | syslog test server |
 | `internal/test/cli/cmd_text_plugin.go` | test plugin runner |

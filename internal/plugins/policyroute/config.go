@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -23,6 +24,16 @@ var (
 const (
 	tableReservedMin = 1000
 	tableReservedMax = 2999
+
+	// maxEncodableTable is the largest table value this build can program.
+	// netlink.Rule.Table is a Go int and the encoder emits FRA_TABLE only for
+	// Table >= 256 and the compat byte only for 0 <= Table < 256
+	// (vendor/github.com/vishvananda/netlink/rule_linux.go:57,126), so on a
+	// 32-bit build a value above MaxInt32 turns negative and the rule is
+	// installed with RT_TABLE_UNSPEC instead of the operator's table, with no
+	// error anywhere. On the 64-bit targets Ze ships this bound is above every
+	// uint32 and never bites.
+	maxEncodableTable = uint64(math.MaxInt)
 )
 
 func parsePolicyConfig(jsonData string) ([]PolicyRoute, error) {
@@ -165,6 +176,26 @@ func parsePolicyMatch(m map[string]any) PolicyMatch {
 	return pm
 }
 
+// validateActionTable rejects table values Ze must not program (0, the kernel
+// system tables, the ze-reserved range) and values this build cannot program
+// without truncation. maxEncodable is a parameter, not the constant, so the
+// 32-bit rejection stays testable on a 64-bit host where it can never be hit.
+func validateActionTable(tbl, maxEncodable uint64) error {
+	if tbl == 0 {
+		return errTableValueMustBe1Got
+	}
+	if tbl >= 253 && tbl <= 255 {
+		return fmt.Errorf("table: value %d is a kernel system table (253=default, 254=main, 255=local)", tbl)
+	}
+	if tbl >= tableReservedMin && tbl <= tableReservedMax {
+		return fmt.Errorf("table: value %d is in ze-reserved range %d-%d", tbl, tableReservedMin, tableReservedMax)
+	}
+	if tbl > maxEncodable {
+		return fmt.Errorf("table: value %d exceeds %d, the largest this build can program through netlink", tbl, maxEncodable)
+	}
+	return nil
+}
+
 func parsePolicyAction(m map[string]any) (PolicyAction, error) {
 	var action PolicyAction
 
@@ -203,14 +234,8 @@ func parsePolicyAction(m map[string]any) (PolicyAction, error) {
 		if err != nil {
 			return PolicyAction{}, fmt.Errorf("table: invalid value %q: %w", v, err)
 		}
-		if tbl == 0 {
-			return PolicyAction{}, errTableValueMustBe1Got
-		}
-		if tbl >= 253 && tbl <= 255 {
-			return PolicyAction{}, fmt.Errorf("table: value %d is a kernel system table (253=default, 254=main, 255=local)", tbl)
-		}
-		if tbl >= tableReservedMin && tbl <= tableReservedMax {
-			return PolicyAction{}, fmt.Errorf("table: value %d is in ze-reserved range %d-%d", tbl, tableReservedMin, tableReservedMax)
+		if err := validateActionTable(tbl, maxEncodableTable); err != nil {
+			return PolicyAction{}, err
 		}
 		action.Type = ActionTable
 		action.Table = uint32(tbl)

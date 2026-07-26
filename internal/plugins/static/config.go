@@ -18,6 +18,27 @@ var (
 	errRouteMissingPrefix = errors.New("route missing prefix")
 )
 
+// maxNetlinkInt is the largest value this build can carry in one of the
+// netlink bindings' int-typed route fields (netlink.Route.Table, .Priority).
+// The encoder emits RTA_TABLE only when Table > 0 and RTA_PRIORITY only when
+// Priority > 0 (vendor/github.com/vishvananda/netlink/route_linux.go:1058,1069),
+// so on a 32-bit build a uint32 above MaxInt32 turns negative and the attribute
+// is dropped without an error: the route lands in RT_TABLE_MAIN (the RtMsg
+// default, nl/route_linux.go:16) at the kernel's default metric instead of
+// where the operator put it. On the 64-bit targets Ze ships this bound is above
+// every uint32 and never bites.
+const maxNetlinkInt = uint64(math.MaxInt)
+
+// validateRouteMetric rejects a metric this build cannot program without
+// truncation. maxEncodable is a parameter, not the constant, so the 32-bit
+// rejection stays testable on a 64-bit host where it can never be hit.
+func validateRouteMetric(metric uint32, maxEncodable uint64) error {
+	if uint64(metric) > maxEncodable {
+		return fmt.Errorf("metric: value %d exceeds %d, the largest this build can program through netlink", metric, maxEncodable)
+	}
+	return nil
+}
+
 // parseStaticConfig parses the static config JSON (map format from Tree.ToMap).
 // The tree shape is:
 //
@@ -91,6 +112,9 @@ func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 
 	metric, err := mapUint32(entry, "metric")
 	if err != nil {
+		return r, fmt.Errorf("route %s: %w", prefixStr, err)
+	}
+	if err := validateRouteMetric(metric, maxNetlinkInt); err != nil {
 		return r, fmt.Errorf("route %s: %w", prefixStr, err)
 	}
 	r.Metric = metric
