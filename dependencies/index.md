@@ -1,14 +1,14 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 39 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 40 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
 ## Terminal UI & SSH (8)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `charm.land/bubbletea/v2` | `v2.0.2` | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
-| `charm.land/bubbles/v2` | `v2.1.0` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
-| `charm.land/lipgloss/v2` | `v2.0.2` | Styling and layout for the CLI's colors, borders, and widths. |
+| `charm.land/bubbletea/v2` | `v2.0.8` | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
+| `charm.land/bubbles/v2` | `v2.1.1` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
+| `charm.land/lipgloss/v2` | `v2.0.5` | Styling and layout for the CLI's colors, borders, and widths. |
 | `charm.land/wish/v2` | `v2.0.1` | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
 | `github.com/charmbracelet/ssh` | `v0.0.0-20250826160808-ebfa259c7309` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
 | `github.com/charmbracelet/colorprofile` | `v0.4.3` | Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them. |
@@ -33,15 +33,15 @@ Ze is Go, and Go code leans on packages. 39 direct dependencies, read straight f
 | `github.com/vishvananda/netlink` | `v1.3.1` | The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS. |
 | `github.com/vishvananda/netns` | `v0.0.5` | Linux network-namespace handles, used alongside netlink for namespace-scoped route watching. |
 | `github.com/google/nftables` | `v0.3.0` | Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink. |
-| `github.com/mdlayher/netlink` | `v1.7.3-0.20250113171957-fbb4dce95f42` | Low-level generic netlink sockets, used to flush conntrack flow entries for flow export. |
-| `github.com/mdlayher/genetlink` | `v1.3.2` | Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export. |
-| `github.com/cilium/ebpf` | `v0.19.0` | Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin. |
+| `github.com/mdlayher/netlink` | `v1.11.2` | Low-level generic netlink sockets, used to flush conntrack flow entries for flow export. |
+| `github.com/mdlayher/genetlink` | `v1.4.0` | Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export. |
+| `github.com/cilium/ebpf` | `v0.22.0` | Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin. |
 
 ## Routing & Dataplane (2)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `github.com/gaissmai/bart` | `v0.26.1` | Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store. |
+| `github.com/gaissmai/bart` | `v0.29.0` | Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store. |
 | `go.fd.io/govpp` | `v0.13.0` | Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE. |
 
 ## Config, RPC & Telemetry (5)
@@ -50,27 +50,28 @@ Ze is Go, and Go code leans on packages. 39 direct dependencies, read straight f
 | --- | --- | --- |
 | `github.com/openconfig/goyang` | `v1.6.3` | Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine. |
 | `github.com/openconfig/gnmi` | `v0.14.1` | Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities. |
-| `google.golang.org/grpc` | `v1.80.0` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
+| `google.golang.org/grpc` | `v1.82.1` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
 | `google.golang.org/protobuf` | `v1.36.11` | Runtime support for the generated protobuf message types behind Ze's gRPC API. |
-| `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | `v1.6.1` | Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto. |
+| `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | `v1.6.2` | Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto. |
 
 ## Observability (3)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `github.com/prometheus/client_golang` | `v1.23.2` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
-| `github.com/prometheus/procfs` | `v0.16.1` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
-| `github.com/sirupsen/logrus` | `v1.9.3` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
+| `github.com/prometheus/client_golang` | `v1.24.1` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
+| `github.com/prometheus/procfs` | `v0.21.1` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
+| `github.com/sirupsen/logrus` | `v1.9.4` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
-## Standard Library Extensions (golang.org/x) (5)
+## Standard Library Extensions (golang.org/x) (6)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `golang.org/x/crypto` | `v0.53.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
-| `golang.org/x/net` | `v0.56.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
-| `golang.org/x/sys` | `v0.46.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
-| `golang.org/x/term` | `v0.44.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
-| `golang.org/x/tools` | `v0.45.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
+| `golang.org/x/crypto` | `v0.54.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
+| `golang.org/x/mod` | `v0.38.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
+| `golang.org/x/net` | `v0.57.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
+| `golang.org/x/sys` | `v0.47.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
+| `golang.org/x/term` | `v0.45.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
+| `golang.org/x/tools` | `v0.48.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 
 ## Testing & Build Tooling (4)
 

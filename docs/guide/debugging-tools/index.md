@@ -328,7 +328,7 @@ ze-test bgp encode --client 1 --port 11790
 To add logging to new code:
 
 ```go
-import "codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+import "github.com/ze-software/ze/internal/core/slogutil"
 
 // Create a subsystem logger (once per package)
 var myLogger = slogutil.Logger("my.subsystem")

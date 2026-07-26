@@ -1,5 +1,122 @@
 [
   {
+    "slug": "2026-07-20",
+    "intro": "Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Route Server",
+        "category": "routing",
+        "key": "Route Server"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
+      },
+      {
+        "label": "BMP",
+        "category": "routing",
+        "key": "BMP"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "DDoS",
+        "category": "secure",
+        "key": "DDoS"
+      },
+      {
+        "label": "CoS",
+        "category": "services",
+        "key": "CoS"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "AAA",
+        "category": "secure",
+        "key": "AAA"
+      },
+      {
+        "label": "Installer",
+        "category": "platform",
+        "key": "Installer"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Feature Gates",
+        "category": "platform",
+        "key": "Feature Gates"
+      },
+      {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
+      },
+      {
+        "label": "Storage",
+        "category": "platform",
+        "key": "Storage"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-07-13",
     "intro": "A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.",
     "is_draft": false,

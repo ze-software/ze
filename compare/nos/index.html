@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/compare/nos/" />
         <meta property="og:url" content="https://ze-software.net/compare/nos/" />
         <link rel="stylesheet" href="../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -1699,7 +1699,7 @@ about non-BGP router OS breadth.</p>
 <tbody>
 <tr>
 <td>Product identity</td>
-<td>Present. Go module, own Network OS architecture, Go 1.26, OpenConfig/YANG, netlink, govpp, gNMI, gokrazy dependencies. <span class="ev-src"><span class="ev-ref"><code>codeberg.org/thomas-mangin/ze</code></span></span></td>
+<td>Present. Go module, own Network OS architecture, Go 1.26, OpenConfig/YANG, netlink, govpp, gNMI, gokrazy dependencies. <span class="ev-src"><span class="ev-ref"><code>github.com/ze-software/ze</code></span></span></td>
 <td>Present. <code>vyos-1x</code> is the command definitions, configuration scripts, data, Python libraries, validators, templates, and tests package. Image build lives in <code>vyos-build</code>.</td>
 <td>Present. Free/open router process, speaks routing protocols, re-encapsulates packets, can export FIBs to external dataplanes.</td>
 <td>Ze. VyOS. freeRtr. <span class="ev-src"><span class="ev-ref"><code>go.mod:1-40</code></span><span class="ev-ref"><code>docs/architecture/core-design.md:1-40</code></span><span class="ev-ref"><code>README.md:1-45</code></span><span class="ev-ref"><code>readme.md:1-15</code></span></span></td>
@@ -3380,7 +3380,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Implementation language and runtime</td>
 <td>Primary implementation language/runtime</td>
-<td>Go module declares <code>module codeberg.org/thomas-mangin/ze</code> and <code>go 1.26</code> in. <span class="ev-src"><span class="ev-ref"><code>go.mod:1-3</code></span></span></td>
+<td>Go module declares <code>module github.com/ze-software/ze</code> and <code>go 1.26</code> in. <span class="ev-src"><span class="ev-ref"><code>go.mod:1-3</code></span></span></td>
 <td>Python is first-class: <code>python3 (&gt;= 3.10)</code>, and conf mode scripts are Python, for example shebang. OCaml helper package exists in, and C/lib build dependencies are listed in. <span class="ev-src"><span class="ev-ref"><code>debian/control:11</code></span><span class="ev-ref"><code>src/conf_mode/protocols_bgp.py:1</code></span><span class="ev-ref"><code>src/ocaml/vyos-1x.opam:1-18</code></span><span class="ev-ref"><code>debian/control:7-15</code></span></span></td>
 <td>Java entry point, plus source package tree under <code>src/org/freertr</code>. Build scripts call Java/JAR paths, for example <code>java -jar. rtr.jar</code>. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/router.java:1-19</code></span><span class="ev-ref"><code>misc/docker/scripts/freertr.sh:51</code></span></span></td>
 <td>[analysis] Ze is a compiled Go daemon with internal Go packages and external Go SDK. VyOS is a Debian/Linux integration layer built around Python scripts, XML schemas, C/OCaml helpers, and system packages. freeRtr is an in-process Java router with optional native-image packaging.</td>

@@ -10,11 +10,10 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 165** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Test files that expect a specific error | Q2 | **831 / 2594** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
-| Logged known-failing tests | Q3 | **6** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 166** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Logged known-failing tests | Q3 | **1** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-7 further metric(s) are within threshold and are listed in full below.
+8 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -22,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 19977 (floor 136)** (ok)
+**136 / 20386 (floor 136)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -64,7 +63,7 @@ These execute code and pass unconditionally. Breaking the code under test would 
 
 ### time.sleep() calls in .ci tests
 
-**122 (floor 125)** (ok)
+**114 (floor 114)** (ok)
 
 A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
 
@@ -76,38 +75,17 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**36 / 165** (attention)
+**36 / 166** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
 *Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
-### Test files that expect a specific error
-
-**831 / 2594** (attention)
-
-Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
-
-*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
-
-| area | negative | files | percent |
-|---|---|---|---|
-| internal/chaos/report | 0 | 6 | 0.0 |
-| internal/chaos/web | 0 | 7 | 0.0 |
-| internal/core/rib | 0 | 9 | 0.0 |
-| internal/core/stats | 0 | 5 | 0.0 |
-| internal/plugins/completion | 0 | 5 | 0.0 |
-| internal/test/mock | 0 | 7 | 0.0 |
-| internal/component/doctor | 1 | 12 | 8.3 |
-| internal/chaos/peer | 1 | 11 | 9.1 |
-| internal/component/sysrib | 1 | 10 | 10.0 |
-| internal/component/cmd | 2 | 19 | 10.5 |
-
 ### RFC MUST requirements proven by a positive+negative test pair
 
-**971 / 2716** (ok)
+**974 / 2720** (ok)
 
-35.8% carry both polarities. Of the remaining 1745: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 369 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
+35.8% carry both polarities. Of the remaining 1746: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
 
 *Action if this degrades:* Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.
 
@@ -126,11 +104,32 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**20006 test functions** (ok)
+**20416 test functions** (ok)
 
-2594 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2696 Go test files, 72 fuzz targets, 122 benchmarks, 1464 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
+
+### Test files that expect a specific error
+
+**877 / 2696** (ok)
+
+Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
+
+*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
+
+| area | negative | files | percent |
+|---|---|---|---|
+| internal/chaos/report | 0 | 6 | 0.0 |
+| internal/chaos/web | 0 | 7 | 0.0 |
+| internal/core/rib | 0 | 9 | 0.0 |
+| internal/core/stats | 0 | 5 | 0.0 |
+| internal/plugins/completion | 0 | 5 | 0.0 |
+| internal/test/mock | 0 | 7 | 0.0 |
+| internal/component/doctor | 1 | 12 | 8.3 |
+| internal/chaos/peer | 1 | 11 | 9.1 |
+| internal/component/sysrib | 1 | 11 | 9.1 |
+| cmd/ze | 2 | 20 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -143,7 +142,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 481 | 29 | 88 | 30 |
+| 2026 | 489 | 29 | 88 | 30 |
 
 ## Integrity
 
@@ -151,15 +150,15 @@ A technique adopted only forward from its introduction shows here as a step: rec
 
 ### Logged known-failing tests
 
-**6** (attention)
+**1** (attention)
 
-Reds logged rather than fixed (26 further entries are struck through or filed under Resolved and are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
+Reds logged rather than fixed, one shard file per live failure (41 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
 
 *Action if this degrades:* Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.
 
 ### Test files no `go test` target can build
 
-**12 (floor 12)** (ok)
+**8 (floor 8)** (ok)
 
 Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, so these tests exist but never run.
 
@@ -174,11 +173,7 @@ Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, s
 | `cmd/ze/ze_chaos_main_test.go` | `ze_chaos` |
 | `internal/component/config/system/backend_ze_distro_test.go` | `ze_distro` |
 | `internal/component/config/system/selfupdate_test.go` | `ze_distro` |
-| `internal/install/disk/bootstrap_linux_test.go` | `ze_installer` |
-| `internal/install/disk/console_linux_test.go` | `ze_installer` |
-| `internal/install/disk/fault_linux_test.go` | `ze_installer, ze_installer_fault` |
-| `internal/install/disk/initrd_linux_test.go` | `ze_installer` |
-| `internal/install/disk/rescue_linux_test.go` | `ze_installer` |
+| `internal/install/disk/fault_linux_test.go` | `ze_installer_fault` |
 
 ## Trends
 

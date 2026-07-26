@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/labs/l2tp-interop/architecture/" />
         <meta property="og:url" content="https://ze-software.net/labs/l2tp-interop/architecture/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -181,9 +181,16 @@ proof isolates Ze and the LAC in Linux network namespaces joined by a veth
 underlay; the Docker lab isolates them across a Docker bridge and adds the FRR
 BGP redistribution scenario.</p>
 <p>The gokrazy appliance proof reuses the native LAC shape but puts Ze behind the
-same gokrazy/QEMU image used for appliance deployment. QEMU forwards UDP 1701
-into the guest, so the LAC namespace still exercises a real host PPPoL2TP
-kernel path while the appliance kernel provides Ze's LNS-side PPPoL2TP support.</p>
+same gokrazy/QEMU image used for appliance deployment. The appliance attaches
+to a host bridge by TAP (user-mode slirp cannot deliver the LAC's inbound UDP
+1701), so the LAC namespace still exercises a real host PPPoL2TP kernel path
+while the appliance kernel provides Ze's LNS-side PPPoL2TP support. The proof
+resolves that kernel itself: the pinned rtr7 kernel has no l2tp support, so
+the script validates <code>KERNEL_PKG</code> or materializes the runtime kernel from the
+durable cache, and fails fast with the <code>make ze-kernel KERNEL_ARCH=&lt;arch&gt;</code>
+command when it cannot.</p>
+<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
+
 <h2 id="design-pattern">Design Pattern</h2>
 <p>Follows the <code>test/interop/</code> BGP interop pattern: scenario directory with
 daemon configs, per-run Docker network with PID suffix, fixed container IPs,

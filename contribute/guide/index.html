@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/contribute/guide/" />
         <meta property="og:url" content="https://ze-software.net/contribute/guide/" />
         <link rel="stylesheet" href="../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -68,7 +68,7 @@ License Agreement. Read that first, then come back here.</p>
 <p>Ze is built spec by spec, and that shapes how contributions flow:</p>
 <ol>
 <li><strong>Open an issue</strong> describing what you want to change or fix, on the
-   <a href="https://codeberg.org/thomas-mangin/ze/issues" target="_blank" rel="noopener">tracker</a>. Start here even for
+   <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">tracker</a>. Start here even for
    a fix, so the work is visible and nobody doubles up.</li>
 <li><strong>Agree on a spec.</strong> For anything beyond a small fix, the maintainer turns
    the issue into a spec that says what the change should do and how it will
@@ -81,7 +81,7 @@ License Agreement. Read that first, then come back here.</p>
    assistance, the same way the rest of the project is built.</li>
 </ol>
 <h2 id="setting-up-a-build">Setting up a build</h2>
-<pre><code class="language-bash">git clone https://codeberg.org/thomas-mangin/ze.git
+<pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
 make build          # builds bin/ze
 bin/ze init         # set up local credentials
@@ -90,7 +90,7 @@ bin/ze cli          # connect to the CLI
 <p>The <a href="../../docs/guide/quickstart/">quickstart</a> takes this further and gets two
 BGP peers talking. For the full developer setup, including the test
 dependencies, see
-<a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/docs/guide/developer-setup.md" target="_blank" rel="noopener">developer-setup.md</a>
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/developer-setup.md" target="_blank" rel="noopener">developer-setup.md</a>
 in the repository.</p>
 <h2 id="what-a-good-change-looks-like">What a good change looks like</h2>
 <ul>
@@ -102,7 +102,7 @@ in the repository.</p>
   code change now with the docs to follow.</li>
 <li><strong>It respects the project's standards.</strong> The coding, testing, and workflow
   rules the project follows live in
-  <a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/CONTRIBUTING.md" target="_blank" rel="noopener">the repository</a>
+  <a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">the repository</a>
   and apply to every contribution, whether written by hand or with AI help.</li>
 </ul>
 <h2 id="good-first-paths">Good first paths</h2>

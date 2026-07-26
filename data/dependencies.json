@@ -158,6 +158,10 @@
                     "why": "SSH protocol primitives and certificate signing for the SSH server, plus password hashing."
                 },
                 {
+                    "module": "golang.org/x/mod",
+                    "why": "Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy."
+                },
+                {
                     "module": "golang.org/x/net",
                     "why": "Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth."
                 },

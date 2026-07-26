@@ -1792,7 +1792,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Override router ID for this peer",
+                    "description": "Override router ID for this peer. RFC 6286 Section 2.1: the\nBGP Identifier is a 4-octet, unsigned, NON-ZERO integer.",
                     "kind": "leaf",
                     "name": "router-id",
                     "source": "config",
@@ -1859,7 +1859,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).",
+                        "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).",
                         "kind": "leaf-list",
                         "name": "as-path",
                         "source": "config",
@@ -1920,7 +1920,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.",
+                        "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).",
                         "kind": "leaf-list",
                         "name": "labels",
                         "source": "config",
@@ -2637,7 +2637,7 @@
                 "type": "boolean"
               },
               {
-                "description": "Override router ID for this peer",
+                "description": "Override router ID for this peer. RFC 6286 Section 2.1: the\nBGP Identifier is a 4-octet, unsigned, NON-ZERO integer.",
                 "kind": "leaf",
                 "name": "router-id",
                 "source": "config",
@@ -2704,7 +2704,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).",
+                    "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).",
                     "kind": "leaf-list",
                     "name": "as-path",
                     "source": "config",
@@ -2765,7 +2765,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.",
+                    "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).",
                     "kind": "leaf-list",
                     "name": "labels",
                     "source": "config",
@@ -3976,7 +3976,7 @@
                 "type": "boolean"
               },
               {
-                "description": "Override router ID for this peer",
+                "description": "Override router ID for this peer. RFC 6286 Section 2.1: the\nBGP Identifier is a 4-octet, unsigned, NON-ZERO integer.",
                 "kind": "leaf",
                 "name": "router-id",
                 "source": "config",
@@ -4043,7 +4043,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).",
+                    "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).",
                     "kind": "leaf-list",
                     "name": "as-path",
                     "source": "config",
@@ -4104,7 +4104,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.",
+                    "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).",
                     "kind": "leaf-list",
                     "name": "labels",
                     "source": "config",
@@ -4670,7 +4670,7 @@
         "source": "config"
       },
       {
-        "description": "BGP Router ID (required)",
+        "description": "BGP Router ID (required). RFC 6286 Section 2.1 defines the BGP\nIdentifier as a 4-octet, unsigned, NON-ZERO integer, so 0.0.0.0\nis rejected: a peer implementing RFC 6286 Section 2.2 answers an\nOPEN carrying it with Bad BGP Identifier.",
         "kind": "leaf",
         "name": "router-id",
         "source": "config",
@@ -4778,6 +4778,13 @@
       {
         "children": [
           {
+            "description": "Accept a peer whose BGP Identifier (router-id) duplicates\nanother established peer in the same AS. Default false\nenforces AS-wide uniqueness by rejecting the second OPEN with\nBad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide\nuniqueness only a SHOULD, so accepting a shared identifier is\nconformant; set true when the duplication is intentional,\ne.g. one anycast speaker (AS112) peering over both IPv4 and\nIPv6 with the same router-id. When true, ze performs no\nrouter-id uniqueness check at all (it does not implement\nRFC 6286 Section 2.3 collision detection).",
+            "kind": "leaf",
+            "name": "allow-shared-router-id",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
             "children": [
               {
                 "description": "Local Autonomous System Number (required)",
@@ -4810,7 +4817,7 @@
                 "type": "string"
               },
               {
-                "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).",
+                "description": "AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).",
                 "kind": "leaf-list",
                 "name": "as-path",
                 "source": "config",
@@ -4871,7 +4878,7 @@
                 "type": "string"
               },
               {
-                "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.",
+                "description": "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).",
                 "kind": "leaf-list",
                 "name": "labels",
                 "source": "config",
@@ -16866,9 +16873,9 @@
             "type": "uint16"
           },
           {
-            "description": "Lowercase hex sha256 of the admin password. Emitted on the installer kernel cmdline (ze.shell-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal).",
+            "description": "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'. Emitted on the installer kernel cmdline (ze.rescue-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal). This value is published unauthenticated on the PXE network, so it commits only to a dedicated rescue token, never to the admin password.",
             "kind": "leaf",
-            "name": "shell-auth-sha256",
+            "name": "rescue-auth",
             "source": "config",
             "type": "string"
           },

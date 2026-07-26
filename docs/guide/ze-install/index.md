@@ -672,13 +672,36 @@ download failure), it does not silently reboot. It opens a Go recovery console
 on every active console (preferring a serial console, since headless installs
 are driven over serial) so the operator can diagnose network or hardware issues.
 The recovery console is a fixed menu (retry network, diagnostics, reboot, power
-off), not a shell. Its policy has three branches: with `ze.shell-auth` set the
-console is password-gated (sha256 of the typed password); with no credential on
-ISO media it opens ungated (the operator is physically present); with no
-credential on a network install it prints the error, waits ~30 seconds, and
-reboots, so an unattended box never hangs waiting for a password nobody can
-supply.
+off), not a shell. Its policy has three branches: with `ze.rescue-auth` set the
+console is gated on a rescue token; with no credential on ISO media it opens
+ungated (the operator is physically present); with no credential on a network
+install it prints the error, waits ~30 seconds, and reboots, so an unattended
+box never hangs waiting for a credential nobody can supply.
 <!-- source: internal/install/disk/rescue_linux.go -- fatalInitrd, rescueOnConsoles -->
+
+`ze plugin provision` mints the rescue token, prints it once, and writes only
+its salted argon2id digest into the generated config as `rescue-auth`. The image
+server puts that digest on the installer kernel cmdline as `ze.rescue-auth`, and
+the installer derives the typed token under the same salt to compare. Record the
+token when provisioning: it is not recoverable afterwards, and without it a
+failed network install offers no shell.
+
+The credential is deliberately a dedicated token rather than the admin password.
+The iPXE script carrying it is served unauthenticated over plain HTTP on the
+provisioning network, so the digest is a public value; committing it to the
+admin password would put that password within reach of anyone on that network.
+
+Verifying a typed token costs **64 MiB of RAM** for the duration of the
+derivation (measured: 67,120,208 bytes, the configured argon2id arena plus
+scratch). The installer initrd must have that much free at the rescue prompt,
+which is worth knowing because that prompt appears on a machine that has just
+failed to install. A malformed `ze.rescue-auth` is never gated on: the installer
+reboots instead, so a typo in the credential can neither open an unauthenticated
+shell nor strand an unattended box at a prompt nobody can answer.
+<!-- source: internal/core/rescueauth/rescueauth.go -- argonMemory, digestOf -->
+<!-- source: internal/install/disk/rescue_linux.go -- selectFatalBranch -->
+<!-- source: internal/core/rescueauth/rescueauth.go -- Value, Check, NewValue -->
+<!-- source: internal/plugins/imageserver/handler.go -- serveDynamicBootIPXE -->
 
 ### Running Tests
 

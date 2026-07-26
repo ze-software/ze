@@ -13,7 +13,7 @@ Everyone taking part is expected to follow the
 Ze is built spec by spec, and that shapes how contributions flow:
 
 1. **Open an issue** describing what you want to change or fix, on the
-   [tracker](https://codeberg.org/thomas-mangin/ze/issues). Start here even for
+   [tracker](https://github.com/ze-software/ze/issues). Start here even for
    a fix, so the work is visible and nobody doubles up.
 2. **Agree on a spec.** For anything beyond a small fix, the maintainer turns
    the issue into a spec that says what the change should do and how it will
@@ -28,7 +28,7 @@ Ze is built spec by spec, and that shapes how contributions flow:
 ## Setting up a build
 
 ```bash
-git clone https://codeberg.org/thomas-mangin/ze.git
+git clone https://github.com/ze-software/ze.git
 cd ze
 make build          # builds bin/ze
 bin/ze init         # set up local credentials
@@ -38,7 +38,7 @@ bin/ze cli          # connect to the CLI
 The [quickstart](../../docs/guide/quickstart/) takes this further and gets two
 BGP peers talking. For the full developer setup, including the test
 dependencies, see
-[developer-setup.md](https://codeberg.org/thomas-mangin/ze/src/branch/main/docs/guide/developer-setup.md)
+[developer-setup.md](https://github.com/ze-software/ze/blob/main/docs/guide/developer-setup.md)
 in the repository.
 
 ## What a good change looks like
@@ -51,7 +51,7 @@ in the repository.
   code change now with the docs to follow.
 - **It respects the project's standards.** The coding, testing, and workflow
   rules the project follows live in
-  [the repository](https://codeberg.org/thomas-mangin/ze/src/branch/main/CONTRIBUTING.md)
+  [the repository](https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md)
   and apply to every contribution, whether written by hand or with AI help.
 
 ## Good first paths

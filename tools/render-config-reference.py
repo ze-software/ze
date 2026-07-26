@@ -26,7 +26,7 @@ Where a section is provided by a plugin, that ownership is shown as an
 annotation, resolved from data/plugin-registry.json (see
 tools/extract-plugin-registry.py): a plugin's ConfigRoots declares which
 config path it owns (e.g. `bgp`, or the nested `fib/kernel` / `anomaly/detect`),
-so the owning plugin(s) and a link to each one's real YANG source on Codeberg
+so the owning plugin(s) and a link to each one's real YANG source on GitHub
 are shown against that exact node. Ownership resolves at the right depth, so
 `anomaly` is a core container whose `detect` and `shape` children each carry
 their plugin. A ConfigRoot that resolves to no node in the config tree (an
@@ -123,7 +123,7 @@ def warn_orphan_roots(tree, owner_map):
 
 
 def yang_source_href(rel_path):
-    return "%s/src/branch/main/%s" % (sitelib.CODEBERG_REPO, rel_path)
+    return "%s/%s" % (sitelib.REPO_BLOB, rel_path)
 
 
 def node_head(node):

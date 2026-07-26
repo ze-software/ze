@@ -79,7 +79,13 @@ NAV_CHEVRON = (
 
 DISCORD_INVITE = "https://discord.gg/T8s7CjPDne"
 GITHUB_REPO = "ze-software/ze"
-CODEBERG_REPO = "https://codeberg.org/thomas-mangin/ze"
+# Ze's canonical repository. Development left Codeberg in July 2026, so every
+# source link, issue link and machine-readable codeRepository points here.
+REPO_URL = "https://github.com/%s" % GITHUB_REPO
+# Blob-URL prefix for linking a file in the default branch. GitHub spells this
+# /blob/main/; Codeberg spelled it /src/branch/main/, so any link built by
+# string-concatenation had to change shape as well as host.
+REPO_BLOB = "%s/blob/main" % REPO_URL
 
 # The site's seven feature categories, in display order. Shared by
 # render-features.py (the legend/filter buttons) and render-index.py (the
@@ -982,7 +988,7 @@ def structured_data_script():
                     "Open-source network OS for Linux, built around native "
                     "routing engines and operator automation."
                 ),
-                "codeRepository": CODEBERG_REPO,
+                "codeRepository": REPO_URL,
                 "license": "https://www.gnu.org/licenses/agpl-3.0.en.html",
                 "programmingLanguage": "Go",
                 "runtimePlatform": "Linux",

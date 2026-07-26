@@ -242,12 +242,16 @@ option=<type>:key=value[:key=value...]
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
+| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down — withdrawing that peer's routes and racing any forwarding still in flight toward other peers. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | (none) | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. See `ai/rules/qemu-testing.md`. |
+| `needs-linux` | `[caps=net-admin]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. Add `caps=net-admin` when the test also needs privileged network configuration (creating interfaces, bringing links up, netlink): without the capability the test is SKIPped instead of hanging. See `ai/rules/qemu-testing.md`. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself — a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-netns-qemu-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
+| `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
+<!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
 ### OPEN Behaviors
 
@@ -258,7 +262,18 @@ option=<type>:key=value[:key=value...]
 | `send-unknown-message` | Send unknown message type (255) after OPEN |
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |
+| `router-id` | Send an explicit BGP Identifier instead of the mirrored one |
 <!-- source: internal/test/peer/checker.go -- OPEN behavior handling -->
+
+### BGP Identifier Control (router-id)
+
+```
+option=open:value=router-id:id=<a.b.c.d>
+```
+
+Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value is ignored and the default mirror stands.
+
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/peer.go -- generateOpen -->
 
 ### Capability Control (drop-capability / add-capability)
 
@@ -425,7 +440,7 @@ one command, keep that command in its own file (see `test/vrrp/vrrp-doctor-quiet
 
 **Known gap:** 108 quick-exit `ze` commands across 50 `.ci` files predate `exit=`
 and are still unasserted (their `expect=exit:code=` never reaches them). Arming
-them may surface real defects; tracked in `plan/known-failures.md`.
+them may surface real defects; tracked in `plan/known-failures/`.
 
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
@@ -502,9 +517,29 @@ expect=<type>:key=value[:key=value...]
 
 ```
 expect=bgp:conn=<N>:seq=<N>:hex=<hex-bytes>
+expect=bgp:conn=<N>:seq=<N>:prefix=<hex-bytes>
+expect=bgp:conn=<N>:seq=<N>:contains=<hex-bytes>
+expect=bgp:conn=<N>:seq=<N>:ordered=<hex-bytes>
 ```
 
-Validates the exact BGP wire message received.
+Validates the BGP wire message received: `hex=` matches the exact message,
+`prefix=` the message start, `contains=` a substring anywhere in one message.
+Within one `seq` group, `hex`/`prefix`/`contains` checks match in any order and
+each consumes exactly one received message.
+
+`ordered=` checks in a `seq` group form a strict FIFO subqueue for asserting
+in-order delivery across message boundaries: the front needle must appear in
+the received message, and one message may consume several consecutive needles,
+each matched at an advancing offset (so order inside a packed message is
+enforced too). Use `ordered=` instead of per-message `contains=` when the
+sender may legally pack several NLRIs into one UPDATE (the forward rail's
+bucket merge): per-message framing is not a property ze owes, but delivery
+order is. A message whose content matches only a non-front needle consumes
+nothing and is reported as a mismatch.
+<!-- source: internal/test/peer/checker.go -- parseExpectRule, consumeMatches, consumeOrdered -->
+
+These forms are peer-block directives (inside a `stdin=<name>:` block);
+top-level `expect=bgp` lines support `hex=` only.
 
 ### JSON Expectations
 

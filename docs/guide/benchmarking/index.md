@@ -30,7 +30,7 @@ Run a benchmark against Ze on localhost:
 
 ```bash
 # Start ze with a config that accepts peers from 127.0.0.1 and 127.0.0.2
-ze test-config.conf &
+ze start test-config.conf &
 
 # Run the benchmark
 ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000

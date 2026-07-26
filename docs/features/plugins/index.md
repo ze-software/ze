@@ -313,7 +313,7 @@ Generated group for registry entries mapped to the VPN area. Config roots: `pki`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ike`](ike/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | None | `internal/component/ike/engine` |
+| [`ipsec-interface`](ipsec-interface/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | `config-loaded`, `interface` | `internal/component/ike/engine` |
 
 ## VPP
 

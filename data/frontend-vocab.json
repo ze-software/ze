@@ -465,7 +465,7 @@
   },
   "sourceLinks": [
     {
-      "base": "https://codeberg.org/thomas-mangin/ze/src/branch/main/",
+      "base": "https://github.com/ze-software/ze/blob/main/",
       "forge": "forgejo",
       "match": "^(internal|pkg|cmd|docs|schema|test|plan|mk|scripts)/"
     },

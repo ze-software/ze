@@ -632,13 +632,16 @@
     "doc": {}
   },
   {
-    "name": "ike",
+    "name": "ipsec-interface",
     "description": "IKEv2 engine for native IPsec VPN",
     "config_roots": [
       "vpn",
       "pki"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "config-loaded",
+      "interface"
+    ],
     "optional_dependencies": [],
     "source_dir": "internal/component/ike/engine",
     "yang_files": [],

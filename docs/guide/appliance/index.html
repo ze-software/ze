@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/appliance/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/appliance/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -74,7 +74,10 @@
 <li><a href="#process-supervision">Process supervision</a></li>
 <li><a href="#persistent-storage">Persistent storage</a></li>
 </ol></li>
-<li><a href="#repo-layout">Repo layout</a></li>
+<li><a href="#repo-layout">Repo layout</a>
+<ol>
+<li><a href="#builds-never-run-from-this-directory">Builds never run from this directory</a></li>
+</ol></li>
 <li><a href="#ze-setup-binary">ze-setup binary</a></li>
 <li><a href="#building-and-installing-an-appliance-end-to-end">Building and installing an appliance (end to end)</a>
 <ol>
@@ -203,7 +206,10 @@ drives a real LAC against it:</p>
 appliance config is left unchanged. It disables IPv6CP in that proof image
 because the current static L2TP pool is IPv4-only. Set
 <code>ZE_GOKRAZY_SKIP_BUILD=1</code> to run against an existing <code>tmp/gokrazy/ze.img</code> that
-was already built with the L2TP proof template and proof runtime environment.</p>
+was already built with the L2TP proof template, the proof runtime environment,
+and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
+resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
+crash-loops at first boot instead of serving.</p>
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
 <!-- source: mk/gokrazy.mk -- ze-kernel -->
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
@@ -381,7 +387,7 @@ structured workflow's <code>config-base</code> and per-appliance <code>ze.conf</
   ze/
     config.json           # gokrazy instance config (what to build, how to start)
     builddir/
-      codeberg.org/thomas-mangin/ze/
+      github.com/ze-software/ze/
         go.mod            # ze dependency pins + relative replace directive
         go.sum
       github.com/rtr7/kernel/
@@ -399,6 +405,35 @@ cmd/ze-gok/
   main.go                   # gok wrapper (built by make bin/gok)
 </code></pre>
 <p>The gok build tool source is vendored in the main <code>vendor/github.com/gokrazy/</code> directory. The <code>builddir/</code> files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after <code>make ze-gokrazy-deps</code>.</p>
+<h3 id="builds-never-run-from-this-directory">Builds never run from this directory</h3>
+<p>The tree above is the build <em>input</em>; no build runs inside it. Every image build
+first copies <code>gokrazy/ze</code> to a fresh directory under the project <code>tmp/</code>,
+including the whole <code>builddir</code>, rewriting each filesystem-path <code>replace</code> to an
+absolute path so it still resolves from the new depth. gok is then pointed at the
+copy, and the copy is deleted afterwards.</p>
+<!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
+
+<p>Both entry points do this: <code>ze appliance build</code> through <code>resolveBuildParentDir</code>,
+and <code>make ze-gokrazy</code> through <code>bin/gok</code>, which rewrites <code>--parent_dir</code> before gok
+sees it. As a result a build leaves the working tree unchanged, two builds in one
+checkout use isolated prepared instances, and a build that would have to resolve
+packages over the network fails instead of silently using unpinned versions. The
+one shared mutable path left is <code>tmp/kernel/pkg</code>: every <code>make ze-kernel</code> rewrites
+it (starting with a delete), so concurrent kernel materializations for different
+architectures do collide there. The L2TP boot proof therefore consumes a per-run
+copy of the package, never the shared path.</p>
+<!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
+<!-- source: cmd/ze-gok/main.go -- prepareArgs -->
+
+<p>To build against a locally built kernel, pass it per build:</p>
+<pre><code>make ze-kernel                                   # builds tmp/kernel/pkg
+make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
+</code></pre>
+<p>The <code>replace</code> is written into the prepared copy only, so nothing needs reverting
+afterwards and a later build without <code>KERNEL_PKG</code> uses the pinned kernel.</p>
+<!-- source: mk/gokrazy.mk -- KERNEL_PKG, ze-kernel -->
+<!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
+
 <h2 id="ze-setup-binary">ze-setup binary</h2>
 <p>Appliance build commands (<code>ze appliance</code>) and PXE provisioning (<code>ze install
 remote</code>) are part of the <code>ze-setup</code> binary. This keeps build-host tooling out
@@ -683,7 +718,7 @@ bin/ze-setup appliance iso lab                   # build ISO
 <code>Image</code>); <code>--target runtime</code> builds the gokrazy runtime kernel tree (modules +
 <code>vmlinuz</code>) from <code>gokrazy/kernel/</code> with the runtime requirement floor enforced.
 The command reports the target it built (<code>kernel ready: ... (target=installer,
-profile=qemu, version=7.1.1)</code>). The installer target tries cache first, then a
+profile=qemu, version=7.1.4)</code>). The installer target tries cache first, then a
 configured prebuilt-artifact URL if <code>ze.appliance.kernel.url</code> is set, then local
 build. Every local build runs through the shared driver
 <code>tools/kernel-builder/run.py</code>, which selects Docker when available and falls back

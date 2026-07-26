@@ -62,7 +62,7 @@ the step before it is genuinely done".
 
   <section class="roadmap-step roadmap-step-muted">
     <h2>What is not the priority right now</h2>
-    <p>New large features are not the focus on the way to the first release. Stability comes first. Known gaps against other daemons, such as BGP confederations, are listed honestly on the <a href="../compare/">comparison page</a>, and the <a href="../features/">features page</a> marks what is shipped versus still experimental. If something you need is missing or you want to help move a milestone along, say so on <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>.</p>
+    <p>New large features are not the focus on the way to the first release. Stability comes first. Known gaps against other daemons, such as BGP confederations, are listed honestly on the <a href="../compare/">comparison page</a>, and the <a href="../features/">features page</a> marks what is shipped versus still experimental. If something you need is missing or you want to help move a milestone along, say so on <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://github.com/ze-software/ze/issues">issue tracker</a>.</p>
     <div class="roadmap-chip-row" aria-label="Step focus">
       <span class="roadmap-chip" data-tone="meta">Not now</span>
       <span class="roadmap-chip" data-tone="routing">Known gaps</span>

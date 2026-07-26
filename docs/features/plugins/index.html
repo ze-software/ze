@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/features/plugins/" />
         <meta property="og:url" content="https://ze-software.net/docs/features/plugins/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -54,7 +54,7 @@
                     <h1 id="plugin-catalog-title">Plugin catalog</h1>
                     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
                 </div>
-                <p class="plugin-summary">Generated from 94 registry entries: 88 runtime plugins and 6 test fixtures. Among runtime plugins, 68 declare configuration roots, 46 declare dependencies, and 69 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 94 registry entries: 88 runtime plugins and 6 test fixtures. Among runtime plugins, 68 declare configuration roots, 47 declare dependencies, and 69 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -1427,15 +1427,17 @@
                     <p>Generated group for registry entries mapped to the VPN area. Config roots: <code>pki</code>, <code>vpn</code>. Source area: <code>internal/component/ike</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-observe" id="plugin-ike" data-plugin-card data-family="vpn" data-category="tunneling" data-search="ike IKEv2 engine for native IPsec VPN IKEv2 engine for native IPsec VPN internal/component/ike/engine VPN   vpn pki   ">
+                    <article class="card plugin-card cat-observe" id="plugin-ipsec-interface" data-plugin-card data-family="vpn" data-category="tunneling" data-search="ipsec-interface IKEv2 engine for native IPsec VPN IKEv2 engine for native IPsec VPN internal/component/ike/engine VPN   vpn pki config-loaded interface  ">
                         <span class="cat">VPN</span>
-                        <h3><a href="ike/"><code>ike</code></a></h3>
+                        <h3><a href="ipsec-interface/"><code>ipsec-interface</code></a></h3>
                         <p class="plugin-desc">IKEv2 engine for native IPsec VPN</p>
                         <div class="chips">
                             <span class="chip mode">config:vpn</span>
                             <span class="chip mode">config:pki</span>
+                            <span class="chip">needs:config-loaded</span>
+                            <span class="chip">needs:interface</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpn</code>, <code>pki</code></dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpn</code>, <code>pki</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code>, <code>interface</code></dd></div></dl>
                     </article>
                     </div>
                 </section>

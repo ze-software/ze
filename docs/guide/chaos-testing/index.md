@@ -40,7 +40,7 @@ ze-chaos --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
 
 # Write config to file
 ze-chaos --config-out chaos.conf --seed 42 --peers 8
-ze chaos.conf
+ze start chaos.conf
 
 # In-process mode: mock network + virtual clock (fully deterministic)
 ze-chaos --in-process --seed 42 --duration 30s

@@ -36,6 +36,6 @@ The first release is what all of the above adds up to: a frozen configuration mo
 
 ## What is not the priority right now
 
-New large features are not the focus on the way to the first release. Stability comes first. Known gaps against other daemons, such as BGP confederations, are listed honestly on the [comparison page](https://ze-software.net/compare/), and the [features page](https://ze-software.net/features/) marks what is shipped versus still experimental. If something you need is missing or you want to help move a milestone along, say so on [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
+New large features are not the focus on the way to the first release. Stability comes first. Known gaps against other daemons, such as BGP confederations, are listed honestly on the [comparison page](https://ze-software.net/compare/), and the [features page](https://ze-software.net/features/) marks what is shipped versus still experimental. If something you need is missing or you want to help move a milestone along, say so on [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://github.com/ze-software/ze/issues).
 
 `Not now` `Known gaps` `Feedback`

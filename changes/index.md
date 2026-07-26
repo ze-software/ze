@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-07-20](2026-07-20/index.md)
+
+Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.
+
+Areas: BGP, Route Server, Graceful Restart, BMP, OSPF, L2TP, IPsec, Firewall, DDoS, CoS, Security, AAA, Installer, Interfaces, Config, CLI, Feature Gates, Plugins, Storage, RFC Compliance, Under the Hood, Quality Improvement
+
 ## [Week of 2026-07-13](2026-07-13/index.md)
 
 A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.

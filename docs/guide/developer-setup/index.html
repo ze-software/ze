@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/developer-setup/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/developer-setup/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -202,10 +202,33 @@ echoes and then runs these commands via <code>sudo</code> to lift it globally:</
 <pre><code class="language-bash">echo &quot;kernel.apparmor_restrict_unprivileged_userns = 0&quot; | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 </code></pre>
-<p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. This is the one
-place setup runs <code>sudo</code>; if <code>sudo</code> is unavailable it prints the commands to run
-by hand instead. <code>make ze-setup CHECK=1</code> only reports the state, never changes
-it.</p>
+<p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. If <code>sudo</code> is
+unavailable it prints the commands to run by hand instead. <code>make ze-setup
+CHECK=1</code> only reports the state, never changes it.</p>
+<p><strong>KVM device access.</strong> <code>/dev/kvm</code> is <code>root:kvm</code> mode 0660, so QEMU-backed
+evidence (the appliance boot proofs and every <code>ze-qemu-*</code> target) needs your
+user in the <code>kvm</code> group. Without it QEMU does not quietly fall back to
+emulation: it refuses to start with <code>Could not access KVM kernel module:
+Permission denied</code>, and the calling script reports a timeout instead. Setup
+checks this as <code>kvm-access</code> and, in install mode, runs:</p>
+<pre><code class="language-bash">sudo usermod -aG kvm $USER
+</code></pre>
+<!-- source: scripts/dev/dev-setup.py -- kvm_status, apply_kvm_fix -->
+
+<p>Group membership is fixed at login, so an existing shell keeps the old groups
+even after the command succeeds. Log out and back in, or run one command with
+the new group:</p>
+<pre><code class="language-bash">sg kvm -c 'make ze-vpp-hugepages-qemu-test'
+</code></pre>
+<p>Setup distinguishes the two states: <code>kvm-access</code> reports <code>pending</code> when the
+group database lists you but the running session predates it, and <code>missing</code>
+when the group is not granted at all. A host with no <code>/dev/kvm</code> (no hardware
+virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs under
+<code>tcg</code> there, only slower. macOS has no <code>/dev/kvm</code> and needs no group; the
+evidence scripts select the Apple hypervisor (<code>hvf</code>) by platform.</p>
+<!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
+
+<p>These two are the only places setup runs <code>sudo</code>.</p>
 <h2 id="after-setup">After Setup</h2>
 <p>Verify everything works:</p>
 <pre><code class="language-bash">make ze-smoke    # lint + unit tests + build (~2 min)

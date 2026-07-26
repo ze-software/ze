@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/static-routes/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/static-routes/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -103,7 +103,14 @@ static {
 </code></pre>
 <p>The same prefix can appear in different tables independently.
 Routes in non-default tables are not redistributed into BGP.</p>
-<p>Reserved table IDs (0, 253-255) are rejected.</p>
+<p>Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
+rejects a table ID or route metric above 2147483647, because the netlink
+bindings carry both in a machine int and would otherwise install the route in
+the main table at the kernel's default metric without reporting anything.
+Ze's released targets are 64-bit, where the full uint32 range is available.</p>
+<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
+<!-- source: internal/plugins/static/config.go — validateRouteMetric, maxNetlinkInt -->
+
 <h3 id="interface-only-next-hops">Interface-only next-hops</h3>
 <p>For point-to-point links (PPPoE, GRE tunnels) where the next-hop is
 the interface itself:</p>

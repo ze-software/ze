@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-49 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+51 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -327,6 +327,16 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 
 [Learn more](https://ze-software.net/docs/features/)
 
+### Feature Gates
+
+*platform* -- `36 subsystems` `Default on`
+
+- Compile out **whole subsystems**, BGP included
+- Smaller binary, smaller **attack surface**
+- Config **fails closed** on blocks the build lacks
+
+[Learn more](https://ze-software.net/docs/guide/quickstart/)
+
 ## Experimental and growing.
 
 Implemented and tested, not yet production-proven.
@@ -491,7 +501,7 @@ Implemented and tested, not yet production-proven.
 - MPLS and **SRv6** binding SID, tunnel encap
 - **ExaBGP bridge** for SR-Policy migration
 
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy)
+[Learn more](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy)
 
 ### Fleet Management
 
@@ -502,6 +512,16 @@ Implemented and tested, not yet production-proven.
 - Version hashing and **two-phase** fetch
 
 [Learn more](https://ze-software.net/docs/guide/fleet-config/)
+
+### IRR Route Filtering
+
+*secure / Experimental* -- `IRR` `as-set`
+
+- **Prefix-lists** from IRR data, live in the engine
+- Sourced from **PeeringDB** and **RADB**
+- Opt-in per peer, group or **global filter chain**
+
+[Learn more](https://ze-software.net/docs/guide/irr-filtering/)
 
 ## Spec'd, not built.
 
@@ -517,7 +537,7 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 - Domain ID, route type, **VPN route tag**
 - Blocked on **VRF/MPLS L3VPN** infrastructure
 
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md)
+[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md)
 
 ### VRF
 
@@ -527,17 +547,7 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 - Per-VRF **BGP stacks**, YANG config
 - Kernel **VRF devices**, table binding
 
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md)
-
-### IRR Route Filtering
-
-*secure / Spec'd* -- `IRR` `as-set`
-
-- **Prefix-lists** from IRR data
-- bgpq4-style, **live in the engine**
-- Automatic from the peer's **remote ASN**
-
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-filter-irr.md)
+[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md)
 
 ### Kernel Lockdown
 
@@ -547,7 +557,7 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 - Blocks unsigned **modules**, kexec, /dev/mem
 - Design **reviewed**, not yet scheduled
 
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-kernel-lockdown-hardening.md)
+[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md)
 
 ### Cloud-Init Provisioning
 
@@ -557,4 +567,4 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 - SSH keys and config via **user-data**
 - No **pre-baked** seed image needed
 
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-install-9-cloud-init.md)
+[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md)

@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/quickstart/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/quickstart/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -68,7 +68,7 @@
 <li><a href="#next-steps">Next Steps</a></li>
 </ol></nav>
 <h2 id="build">Build</h2>
-<pre><code class="language-bash">git clone https://codeberg.org/thomas-mangin/ze.git
+<pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
 make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 </code></pre>
@@ -78,7 +78,7 @@ make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 build tags <code>make build</code> uses:</p>
 <!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
 
-<pre><code class="language-bash">go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_vrrp ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
+<pre><code class="language-bash">go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' github.com/ze-software/ze/cmd/ze@latest
 </code></pre>
 <p>This tracks the module's default branch (development version), not a
 tagged release -- there are no tagged releases yet.</p>

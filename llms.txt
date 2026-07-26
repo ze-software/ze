@@ -13,16 +13,16 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Operator surfaces: SSH CLI with commit and rollback, generated command reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, JSON/YAML/NDJSON/table output, and shell-like output pipes.
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
-- License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 49 shipped or experimental feature cards, 5 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 39 direct Go dependencies, 32 weekly change entries.
-- Test evidence counts: 19,900+ unit tests, 72 fuzz targets, 1,400+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
-- Generated date: 2026-07-21.
+- License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
+- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 40 direct Go dependencies, 33 weekly change entries.
+- Test evidence counts: 20,100+ unit tests, 72 fuzz targets, 1,400+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
+- Generated date: 2026-07-27.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 19,900+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 20,100+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 72 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -44,7 +44,7 @@ Useful commands: `go test -race -run TestName ./internal/...`, `make ze-fuzz-one
 
 ## Feature inventory
 
-### Built for demanding operators. (32 cards: 32 current)
+### Built for demanding operators. (33 cards: 33 current)
 Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.
 - AI-Friendly Surfaces [automate, current]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools inspect structured output; Plugins become discoverable tools; link: https://ze-software.net/docs/features/ai-first/index.md
 - SSH CLI [operate, current]: chips: Built-in SSH, RBAC; Manage Ze without OS shell accounts; Profiles, audit, and accounting; commit, rollback, diff, completion; link: https://ze-software.net/docs/features/cli-commands/index.md
@@ -78,8 +78,9 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 - Minimal Appliance Mode [platform, current]: chips: Appliance, Server; Kernel, init, Ze runtime; No package manager or general shell; ISO/PXE bare-metal install; Linux server with systemd; link: https://ze-software.net/docs/guide/appliance/index.md
 - Runs Itself [platform, current]: chips: Update, Systemd; Binary self-update; Built-in readiness checks; No orchestrator needed; link: https://ze-software.net/docs/features/introspection/index.md
 - Docker Support [platform, current]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/docs/features/index.md
+- Feature Gates [platform, current]: chips: 36 subsystems, Default on; Compile out whole subsystems, BGP included; Smaller binary, smaller attack surface; Config fails closed on blocks the build lacks; link: https://ze-software.net/docs/guide/quickstart/index.md
 
-### Experimental and growing. (17 cards: 17 experimental)
+### Experimental and growing. (18 cards: 18 experimental)
 Implemented and tested, not yet production-proven.
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; link: https://ze-software.net/docs/features/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/docs/guide/l2tp/index.md
@@ -96,16 +97,16 @@ Implemented and tested, not yet production-proven.
 - ISO and PXE Install [platform, experimental]: chips: PXE, ISO; PXE bare-metal provisioning; Installer ISO media; Local systemd install and uninstall; link: https://ze-software.net/docs/guide/ze-install/index.md
 - Kernel Tunables [platform, experimental]: chips: Sysctl, Profiles; Three-layer precedence; Named profiles (DSR, router, hardened); Originals restored on stop; link: https://ze-software.net/docs/features/index.md
 - AS112 Anycast DNS [services, experimental]: chips: AS112, Anycast; Authoritative sink zones on four fixed anycast addresses (RFC 7534/7535); Conditional BGP origination via healthcheck-gated watchdog; Anycast IPs bound on lo automatically, never operator-typed; link: https://ze-software.net/docs/guide/as112/index.md
-- Segment Routing [routing, experimental]: chips: SAFI 73, SRv6; SR-Policy NLRI (RFC 9830), SAFI 73; MPLS and SRv6 binding SID, tunnel encap; ExaBGP bridge for SR-Policy migration; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy
+- Segment Routing [routing, experimental]: chips: SAFI 73, SRv6; SR-Policy NLRI (RFC 9830), SAFI 73; MPLS and SRv6 binding SID, tunnel encap; ExaBGP bridge for SR-Policy migration; link: https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy
 - Fleet Management [automate, experimental]: chips: Managed config, TLS hub; Per-client configuration and authentication; Cached config with reconnect and heartbeat; Version hashing and two-phase fetch; link: https://ze-software.net/docs/guide/fleet-config/index.md
+- IRR Route Filtering [secure, experimental]: chips: IRR, as-set; Prefix-lists from IRR data, live in the engine; Sourced from PeeringDB and RADB; Opt-in per peer, group or global filter chain; link: https://ze-software.net/docs/guide/irr-filtering/index.md
 
-### Spec'd, not built. (5 cards: 5 aspiration)
+### Spec'd, not built. (4 cards: 4 aspiration)
 Aspirations with written, reviewed specs. Nothing here is usable today.
-- OSPF L3VPN PE-CE [routing, aspiration]: chips: RFC 4576, RFC 4577, L3VPN; PE-CE DN bit loop prevention; Domain ID, route type, VPN route tag; Blocked on VRF/MPLS L3VPN infrastructure; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md
-- VRF [routing, aspiration]: chips: VRF, L3VPN; VRF as a first-class concept; Per-VRF BGP stacks, YANG config; Kernel VRF devices, table binding; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md
-- IRR Route Filtering [secure, aspiration]: chips: IRR, as-set; Prefix-lists from IRR data; bgpq4-style, live in the engine; Automatic from the peer's remote ASN; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-filter-irr.md
-- Kernel Lockdown [secure, aspiration]: chips: Lockdown, Integrity; Kernel lockdown integrity mode; Blocks unsigned modules, kexec, /dev/mem; Design reviewed, not yet scheduled; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-kernel-lockdown-hardening.md
-- Cloud-Init Provisioning [platform, aspiration]: chips: Cloud-init, User-data; Appliance identity from cloud metadata; SSH keys and config via user-data; No pre-baked seed image needed; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-install-9-cloud-init.md
+- OSPF L3VPN PE-CE [routing, aspiration]: chips: RFC 4576, RFC 4577, L3VPN; PE-CE DN bit loop prevention; Domain ID, route type, VPN route tag; Blocked on VRF/MPLS L3VPN infrastructure; link: https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md
+- VRF [routing, aspiration]: chips: VRF, L3VPN; VRF as a first-class concept; Per-VRF BGP stacks, YANG config; Kernel VRF devices, table binding; link: https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md
+- Kernel Lockdown [secure, aspiration]: chips: Lockdown, Integrity; Kernel lockdown integrity mode; Blocks unsigned modules, kexec, /dev/mem; Design reviewed, not yet scheduled; link: https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md
+- Cloud-Init Provisioning [platform, aspiration]: chips: Cloud-init, User-data; Appliance identity from cloud metadata; SSH keys and config via user-data; No pre-baked seed image needed; link: https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md
 
 ## Configuration model roots
 
@@ -220,9 +221,9 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall. Optional: none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/plugins/geodns`.
 - `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
-- `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: none. YANG files: 6. Source: `internal/component/iface`.
+- `ipsec-interface`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: config-loaded, interface. Optional: none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `isis`: Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Config roots: isis. Dependencies: fib-kernel, sysctl. Optional: none. YANG files: 2. Source: `internal/plugins/isis`.
 - `kernel`: Kernel routes: redistribute externally-installed kernel routes into BGP Config roots: kernel. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/kernel`.
 - `l2tp-auth-local`: Static local user list for L2TP PPP authentication Config roots: l2tp. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/l2tp/plugins/authlocal`.
@@ -785,8 +786,9 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `github.com/prometheus/procfs`: Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.
 - `github.com/sirupsen/logrus`: Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.
 
-### Standard Library Extensions (golang.org/x) (5)
+### Standard Library Extensions (golang.org/x) (6)
 - `golang.org/x/crypto`: SSH protocol primitives and certificate signing for the SSH server, plus password hashing.
+- `golang.org/x/mod`: Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.
 - `golang.org/x/net`: Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth.
 - `golang.org/x/sys`: Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.
 - `golang.org/x/term`: Reads passwords without echo and detects an interactive terminal during CLI login.
@@ -943,14 +945,14 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Evaluate
 
 ### Capabilities
-- [Features](https://ze-software.net/features/index.md): 49 features, color-coded by category (web: https://ze-software.net/features/)
+- [Features](https://ze-software.net/features/index.md): 51 features, color-coded by category (web: https://ze-software.net/features/)
 - [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
 - [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.net/performance/)
 - [Terminal Demos](https://ze-software.net/docs/guide/terminal-demonstrations/index.md): Reproducible recordings of Ze workflows (web: https://ze-software.net/docs/guide/terminal-demonstrations/)
 ### Trust
 - [Code Quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Testing Health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
-- [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
+- [Dependencies](https://ze-software.net/dependencies/index.md): 40 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs
@@ -1026,7 +1028,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress
 - [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 32 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Changes](https://ze-software.net/changes/index.md): 33 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 ### Community
 - [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)
@@ -1036,5 +1038,4 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## More
 
 - [Discord](https://discord.gg/T8s7CjPDne): community and support
-- [GitHub](https://github.com/ze-software/ze): mirror, issues
-- [Codeberg](https://codeberg.org/thomas-mangin/ze): canonical repository
+- [GitHub](https://github.com/ze-software/ze): canonical repository, issues, wiki

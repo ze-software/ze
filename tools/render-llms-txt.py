@@ -57,12 +57,15 @@ def live_article_count():
 
 
 LIVE_DESC_OVERRIDES = {
-    "features/": lambda: "%s features, color-coded by category"
-    % live_counts()["features"],
-    "cli/": lambda: "%s commands, generated from the live binary"
-    % live_counts()["cli_commands"],
-    "dependencies/": lambda: "%s direct packages, generated from go.mod"
-    % live_counts()["dependencies"],
+    "features/": lambda: (
+        "%s features, color-coded by category" % live_counts()["features"]
+    ),
+    "cli/": lambda: (
+        "%s commands, generated from the live binary" % live_counts()["cli_commands"]
+    ),
+    "dependencies/": lambda: (
+        "%s direct packages, generated from go.mod" % live_counts()["dependencies"]
+    ),
     "changes/": lambda: "%s weekly updates, newest first" % live_counts()["changes"],
 }
 
@@ -185,8 +188,8 @@ def render_product_snapshot():
             "- Operator surfaces: SSH CLI with commit and rollback, generated command reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, JSON/YAML/NDJSON/table output, and shell-like output pipes.",
             "- Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.",
             "- Release state: pre-release, main-branch builds, no tagged stable release yet.",
-            "- License and repos: AGPLv3. Canonical repository: %s. GitHub mirror: https://github.com/%s. Discord: %s."
-            % (sitelib.CODEBERG_REPO, sitelib.GITHUB_REPO, sitelib.DISCORD_INVITE),
+            "- License and repos: AGPLv3. Canonical repository: %s. Discord: %s."
+            % (sitelib.REPO_URL, sitelib.DISCORD_INVITE),
             "- Current generated counts: %s shipped or experimental feature cards, %s roadmap cards, %s CLI commands, %s config sections, %s plugin registrations, %s direct Go dependencies, %s weekly change entries."
             % (
                 features["core_experimental"],
@@ -261,7 +264,9 @@ def feature_card_line(card):
     category = clean(card.get("category") or "uncategorized")
     status = clean(card.get("status") or "current")
     chips = join_items(chip.get("text") for chip in card.get("chips", []))
-    bullets = "; ".join(clean(bullet) for bullet in card.get("bullets", []) if clean(bullet))
+    bullets = "; ".join(
+        clean(bullet) for bullet in card.get("bullets", []) if clean(bullet)
+    )
     href = card.get("href")
     parts = ["- %s [%s, %s]" % (title, category, status)]
     if chips != "none":
@@ -280,8 +285,12 @@ def render_feature_inventory():
         cards = section.get("cards", [])
         heading = clean(section.get("heading") or section.get("id") or "Features")
         lead = clean(section.get("lead") or "")
-        status_counts = Counter(clean(card.get("status") or "current") for card in cards)
-        status_text = ", ".join("%s %s" % (count, status) for status, count in sorted(status_counts.items()))
+        status_counts = Counter(
+            clean(card.get("status") or "current") for card in cards
+        )
+        status_text = ", ".join(
+            "%s %s" % (count, status) for status, count in sorted(status_counts.items())
+        )
         lines.append("### %s (%s cards: %s)" % (heading, len(cards), status_text))
         if lead:
             lines.append(lead)
@@ -294,7 +303,9 @@ def render_feature_inventory():
 def render_config_inventory():
     tree = read_json("yang-config-tree.json")
     lines = ["## Configuration model roots", ""]
-    lines.append("Top-level YANG-derived config roots. Child names are direct children only, enough to orient without fetching the full reference.")
+    lines.append(
+        "Top-level YANG-derived config roots. Child names are direct children only, enough to orient without fetching the full reference."
+    )
     lines.append("")
     for name in sorted(tree):
         node = tree[name]
@@ -313,7 +324,9 @@ def render_config_inventory():
 def render_plugin_inventory():
     plugins = read_json("plugin-registry.json")
     lines = ["## Plugin registry", ""]
-    lines.append("Each registration comes from the Go runtime registry. Config roots come from plugin metadata and YANG files.")
+    lines.append(
+        "Each registration comes from the Go runtime registry. Config roots come from plugin metadata and YANG files."
+    )
     lines.append("")
     for plugin in sorted(plugins, key=lambda item: item["name"]):
         config = join_items(plugin.get("config_roots", []))
@@ -354,7 +367,8 @@ def command_meta(command):
     args = command.get("args") or []
     if args:
         meta.append(
-            "args %s" % ", ".join(clean(arg.get("name")) for arg in args if arg.get("name"))
+            "args %s"
+            % ", ".join(clean(arg.get("name")) for arg in args if arg.get("name"))
         )
     return "; ".join(meta)
 
@@ -370,7 +384,9 @@ def render_cli_inventory():
         "The command catalog is generated from `ze help command --json`, not hand-written. Modes: %s."
         % ", ".join("%s %s" % (count, mode) for mode, count in sorted(modes.items()))
     )
-    lines.append("`daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` means the command supports the shared output pipeline.")
+    lines.append(
+        "`daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` means the command supports the shared output pipeline."
+    )
     lines.append("")
     for root in sorted(roots):
         group = roots[root]
@@ -435,7 +451,9 @@ def render_command_equivalents_inventory():
 def render_dependency_inventory():
     data = read_json("dependencies.json")
     lines = ["## Dependency rationale", ""]
-    lines.append("Direct Go modules are grouped by why Ze needs them. This is generated from go.mod plus curated rationale, not copied from package names alone.")
+    lines.append(
+        "Direct Go modules are grouped by why Ze needs them. This is generated from go.mod plus curated rationale, not copied from package names alone."
+    )
     lines.append("")
     for category in data["categories"]:
         modules = category["modules"]
@@ -510,7 +528,9 @@ def render_published_documentation():
 
 def render_page_map(nav):
     parts = ["## Page map", ""]
-    parts.append("Every link points to the page Markdown mirror first. The web URL is the human-rendered version of the same page.")
+    parts.append(
+        "Every link points to the page Markdown mirror first. The web URL is the human-rendered version of the same page."
+    )
     parts.append("")
     for dropdown in nav["dropdowns"]:
         parts.append(render_dropdown_section(dropdown))
@@ -528,9 +548,8 @@ def render_page_map(nav):
             more_lines.append("- [%s](%s) (web: %s)" % (link["label"], md_url, web_url))
     more_lines.append("- [Discord](%s): community and support" % sitelib.DISCORD_INVITE)
     more_lines.append(
-        "- [GitHub](https://github.com/%s): mirror, issues" % sitelib.GITHUB_REPO
+        "- [GitHub](%s): canonical repository, issues, wiki" % sitelib.REPO_URL
     )
-    more_lines.append("- [Codeberg](%s): canonical repository" % sitelib.CODEBERG_REPO)
     parts.append("\n".join(more_lines))
     parts.append("")
     return "\n".join(parts)

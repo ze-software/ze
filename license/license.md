@@ -4,8 +4,7 @@ Ze is free software, licensed under the **GNU Affero General Public License,
 version 3**.
 
 Read the full text in the repository:
-[LICENSE on Codeberg](https://codeberg.org/thomas-mangin/ze/src/branch/main/LICENSE)
-(mirrored on [GitHub](https://github.com/ze-software/ze/blob/main/LICENSE)).
+[LICENSE on GitHub](https://github.com/ze-software/ze/blob/main/LICENSE).
 
 ## What the AGPLv3 gives you
 
@@ -32,4 +31,4 @@ process.
 
 If you have a licensing question that these notes do not answer, ask on
 [Discord](https://discord.gg/T8s7CjPDne) or open an
-[issue](https://codeberg.org/thomas-mangin/ze/issues).
+[issue](https://github.com/ze-software/ze/issues).

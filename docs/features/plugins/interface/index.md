@@ -22,7 +22,7 @@ OS network interface monitoring and management
 
 ## Used by
 
-- Required dependency for: [`iface-dhcp`](../iface-dhcp/index.md), [`ospf`](../ospf/index.md), [`traffic-usage`](../traffic-usage/index.md), [`vrrp`](../vrrp/index.md)
+- Required dependency for: [`iface-dhcp`](../iface-dhcp/index.md), [`ipsec-interface`](../ipsec-interface/index.md), [`ospf`](../ospf/index.md), [`traffic-usage`](../traffic-usage/index.md), [`vrrp`](../vrrp/index.md)
 - Optional dependency for: [`static`](../static/index.md)
 
 ## Repository artifacts

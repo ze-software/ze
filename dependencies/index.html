@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Dependencies - Ze</title>
-        <meta name="description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 39 packages across 8 groups." />
+        <meta name="description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 40 packages across 8 groups." />
         <meta property="og:title" content="Dependencies - Ze" />
-        <meta property="og:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 39 packages across 8 groups." />
+        <meta property="og:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 40 packages across 8 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Dependencies - Ze" />
-        <meta name="twitter:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 39 packages across 8 groups." />
+        <meta name="twitter:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 40 packages across 8 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/dependencies/" />
         <meta property="og:url" content="https://ze-software.net/dependencies/" />
         <link rel="stylesheet" href="../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -52,15 +52,15 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Platform</span>
                     <h1 id="dependencies-title">Dependencies</h1>
-                    <p>Ze is Go, and Go code leans on packages. 39 direct dependencies, read straight from <code>go.mod</code> so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.</p>
+                    <p>Ze is Go, and Go code leans on packages. 40 direct dependencies, read straight from <code>go.mod</code> so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.</p>
                 </div>
                 <input id="dep-search" type="search" placeholder="Filter dependencies (e.g. netlink, ssh, prometheus)..." aria-label="Filter dependencies" />
 <details class="dep-group" open>
 <summary>Terminal UI &amp; SSH <span class="dep-group-count">8</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
-<tr><td><code>charm.land/bubbletea/v2</code></td><td><code>v2.0.2</code></td><td>The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session.</td></tr>
-<tr><td><code>charm.land/bubbles/v2</code></td><td><code>v2.1.0</code></td><td>Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.</td></tr>
-<tr><td><code>charm.land/lipgloss/v2</code></td><td><code>v2.0.2</code></td><td>Styling and layout for the CLI's colors, borders, and widths.</td></tr>
+<tr><td><code>charm.land/bubbletea/v2</code></td><td><code>v2.0.8</code></td><td>The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session.</td></tr>
+<tr><td><code>charm.land/bubbles/v2</code></td><td><code>v2.1.1</code></td><td>Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.</td></tr>
+<tr><td><code>charm.land/lipgloss/v2</code></td><td><code>v2.0.5</code></td><td>Styling and layout for the CLI's colors, borders, and widths.</td></tr>
 <tr><td><code>charm.land/wish/v2</code></td><td><code>v2.0.1</code></td><td>SSH server middleware that wires each incoming session to run the CLI's Bubbletea program.</td></tr>
 <tr><td><code>github.com/charmbracelet/ssh</code></td><td><code>v0.0.0-20250826160808-ebfa259c7309</code></td><td>SSH session and public-key types that the wish server and the CLI's key-based auth build on.</td></tr>
 <tr><td><code>github.com/charmbracelet/colorprofile</code></td><td><code>v0.4.3</code></td><td>Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them.</td></tr>
@@ -83,14 +83,14 @@
 <tr><td><code>github.com/vishvananda/netlink</code></td><td><code>v1.3.1</code></td><td>The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS.</td></tr>
 <tr><td><code>github.com/vishvananda/netns</code></td><td><code>v0.0.5</code></td><td>Linux network-namespace handles, used alongside netlink for namespace-scoped route watching.</td></tr>
 <tr><td><code>github.com/google/nftables</code></td><td><code>v0.3.0</code></td><td>Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink.</td></tr>
-<tr><td><code>github.com/mdlayher/netlink</code></td><td><code>v1.7.3-0.20250113171957-fbb4dce95f42</code></td><td>Low-level generic netlink sockets, used to flush conntrack flow entries for flow export.</td></tr>
-<tr><td><code>github.com/mdlayher/genetlink</code></td><td><code>v1.3.2</code></td><td>Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export.</td></tr>
-<tr><td><code>github.com/cilium/ebpf</code></td><td><code>v0.19.0</code></td><td>Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin.</td></tr>
+<tr><td><code>github.com/mdlayher/netlink</code></td><td><code>v1.11.2</code></td><td>Low-level generic netlink sockets, used to flush conntrack flow entries for flow export.</td></tr>
+<tr><td><code>github.com/mdlayher/genetlink</code></td><td><code>v1.4.0</code></td><td>Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export.</td></tr>
+<tr><td><code>github.com/cilium/ebpf</code></td><td><code>v0.22.0</code></td><td>Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
 <summary>Routing &amp; Dataplane <span class="dep-group-count">2</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
-<tr><td><code>github.com/gaissmai/bart</code></td><td><code>v0.26.1</code></td><td>Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store.</td></tr>
+<tr><td><code>github.com/gaissmai/bart</code></td><td><code>v0.29.0</code></td><td>Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store.</td></tr>
 <tr><td><code>go.fd.io/govpp</code></td><td><code>v0.13.0</code></td><td>Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
@@ -98,25 +98,26 @@
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
 <tr><td><code>github.com/openconfig/goyang</code></td><td><code>v1.6.3</code></td><td>Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine.</td></tr>
 <tr><td><code>github.com/openconfig/gnmi</code></td><td><code>v0.14.1</code></td><td>Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities.</td></tr>
-<tr><td><code>google.golang.org/grpc</code></td><td><code>v1.80.0</code></td><td>Backs Ze's gRPC servers: gNMI and Ze's own management API.</td></tr>
+<tr><td><code>google.golang.org/grpc</code></td><td><code>v1.82.1</code></td><td>Backs Ze's gRPC servers: gNMI and Ze's own management API.</td></tr>
 <tr><td><code>google.golang.org/protobuf</code></td><td><code>v1.36.11</code></td><td>Runtime support for the generated protobuf message types behind Ze's gRPC API.</td></tr>
-<tr><td><code>google.golang.org/grpc/cmd/protoc-gen-go-grpc</code></td><td><code>v1.6.1</code></td><td>Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto.</td></tr>
+<tr><td><code>google.golang.org/grpc/cmd/protoc-gen-go-grpc</code></td><td><code>v1.6.2</code></td><td>Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
 <summary>Observability <span class="dep-group-count">3</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
-<tr><td><code>github.com/prometheus/client_golang</code></td><td><code>v1.23.2</code></td><td>Ze's internal metrics backend: counters, gauges, and histograms against a private registry.</td></tr>
-<tr><td><code>github.com/prometheus/procfs</code></td><td><code>v0.16.1</code></td><td>Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.</td></tr>
-<tr><td><code>github.com/sirupsen/logrus</code></td><td><code>v1.9.3</code></td><td>Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.</td></tr>
+<tr><td><code>github.com/prometheus/client_golang</code></td><td><code>v1.24.1</code></td><td>Ze's internal metrics backend: counters, gauges, and histograms against a private registry.</td></tr>
+<tr><td><code>github.com/prometheus/procfs</code></td><td><code>v0.21.1</code></td><td>Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.</td></tr>
+<tr><td><code>github.com/sirupsen/logrus</code></td><td><code>v1.9.4</code></td><td>Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
-<summary>Standard Library Extensions (golang.org/x) <span class="dep-group-count">5</span></summary>
+<summary>Standard Library Extensions (golang.org/x) <span class="dep-group-count">6</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
-<tr><td><code>golang.org/x/crypto</code></td><td><code>v0.53.0</code></td><td>SSH protocol primitives and certificate signing for the SSH server, plus password hashing.</td></tr>
-<tr><td><code>golang.org/x/net</code></td><td><code>v0.56.0</code></td><td>Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth.</td></tr>
-<tr><td><code>golang.org/x/sys</code></td><td><code>v0.46.0</code></td><td>Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.</td></tr>
-<tr><td><code>golang.org/x/term</code></td><td><code>v0.44.0</code></td><td>Reads passwords without echo and detects an interactive terminal during CLI login.</td></tr>
-<tr><td><code>golang.org/x/tools</code></td><td><code>v0.45.0</code></td><td>Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries.</td></tr>
+<tr><td><code>golang.org/x/crypto</code></td><td><code>v0.54.0</code></td><td>SSH protocol primitives and certificate signing for the SSH server, plus password hashing.</td></tr>
+<tr><td><code>golang.org/x/mod</code></td><td><code>v0.38.0</code></td><td>Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.</td></tr>
+<tr><td><code>golang.org/x/net</code></td><td><code>v0.57.0</code></td><td>Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth.</td></tr>
+<tr><td><code>golang.org/x/sys</code></td><td><code>v0.47.0</code></td><td>Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.</td></tr>
+<tr><td><code>golang.org/x/term</code></td><td><code>v0.45.0</code></td><td>Reads passwords without echo and detects an interactive terminal during CLI login.</td></tr>
+<tr><td><code>golang.org/x/tools</code></td><td><code>v0.48.0</code></td><td>Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
 <summary>Testing &amp; Build Tooling <span class="dep-group-count">4</span></summary>

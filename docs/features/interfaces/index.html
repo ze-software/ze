@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/features/interfaces/" />
         <meta property="og:url" content="https://ze-software.net/docs/features/interfaces/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -927,6 +927,20 @@ tab press, returning MAC addresses from currently active OS interfaces.</p>
 <li><strong>DAD-aware.</strong> IPv6 addresses with <code>IFA_F_TENTATIVE</code> flag are held until DAD completes.</li>
 <li><strong>Make-before-break.</strong> Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.</li>
+<li><strong>Same-subnet renumbers keep working.</strong> Because the new address is added first, a renumber
+  inside one subnet (<code>10.0.0.1/24</code> -&gt; <code>10.0.0.2/24</code>) briefly leaves the new address as a Linux
+  IPv4 <em>secondary</em> of the old one, and Linux deletes every secondary of a subnet along with its
+  primary. Before such a removal the netlink backend enables
+  <code>net.ipv4.conf.&lt;device&gt;.promote_secondaries</code> so the kernel promotes a secondary instead of
+  flushing the subnet, logging <code>enabled promote_secondaries</code> when it changes the knob. If the
+  knob cannot be set the removal fails, naming the addresses that would have been destroyed,
+  rather than silently emptying the interface. The knob is left enabled: restoring it would
+  re-arm the same hazard on the next removal. IPv6 has no primary/secondary distinction and is
+  untouched, as is the VPP backend, which deletes exactly the requested address.</li>
+</ul>
+<!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
+<ul>
 <li><strong>Virtual interface state.</strong> Dummy/bridge/veth report <code>OperUnknown</code> not <code>OperUp</code>;
   monitor checks <code>IFF_UP</code> flag as fallback.</li>
 <li><strong>Tunnel encapsulation as YANG choice/case.</strong> The <code>tunnel</code> list at the iface level
@@ -1058,7 +1072,7 @@ Both surface as distinct YANG cases so the schema and config are unambiguous.</p
 <code>address</code> leaf) inside the case container. L3 kinds do not carry a MAC address (the
 kernel does not assign one).</p>
 <p>ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and <code>ignore-df</code> on gretap are
-out of scope for v1; see <code>plan/deferrals.md</code>.</p>
+out of scope for v1; see <code>plan/deferrals/</code>.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->

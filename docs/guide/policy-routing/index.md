@@ -184,10 +184,23 @@ Ze reserves these ranges to prevent collisions:
 | Tables 253-255 | kernel | default (253), main (254), local (255) |
 | Tables 1000-1999 | ze VRF | Auto-allocated VRF tables |
 | Tables 2000-2999 | ze policy-routing | Auto-allocated next-hop tables |
+| Tables 3000 and above | user | Explicit table IDs in config |
 | fwmarks 0x50000-0x5FFFF | ze policy-routing | Packet marks for table steering |
 
+<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang — leaf table range "1..999|3000..max" -->
+<!-- source: internal/plugins/policyroute/marks.go — autoTableBase/autoTableMax 2000-2999 -->
+
 User-specified table IDs in the 1000-2999 range are rejected at config
-validation time.
+validation time, as are 0 and the kernel tables 253-255.
+
+The upper bound is the kernel's own: table IDs run to 4294967295. A 32-bit
+build cannot program an ID above 2147483647 (the netlink bindings carry a
+table ID in a machine int), and rejects it at config validation rather than
+installing a rule that would silently select no table. Ze's released targets
+are 64-bit, where the whole range is available.
+
+<!-- source: internal/plugins/policyroute/config.go — validateActionTable, maxEncodableTable -->
+<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
 
 ## CLI
 

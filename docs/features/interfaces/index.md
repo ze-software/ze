@@ -242,6 +242,18 @@ tab press, returning MAC addresses from currently active OS interfaces.
 - **DAD-aware.** IPv6 addresses with `IFA_F_TENTATIVE` flag are held until DAD completes.
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
+- **Same-subnet renumbers keep working.** Because the new address is added first, a renumber
+  inside one subnet (`10.0.0.1/24` -> `10.0.0.2/24`) briefly leaves the new address as a Linux
+  IPv4 *secondary* of the old one, and Linux deletes every secondary of a subnet along with its
+  primary. Before such a removal the netlink backend enables
+  `net.ipv4.conf.<device>.promote_secondaries` so the kernel promotes a secondary instead of
+  flushing the subnet, logging `enabled promote_secondaries` when it changes the knob. If the
+  knob cannot be set the removal fails, naming the addresses that would have been destroyed,
+  rather than silently emptying the interface. The knob is left enabled: restoring it would
+  re-arm the same hazard on the next removal. IPv6 has no primary/secondary distinction and is
+  untouched, as is the VPP backend, which deletes exactly the requested address.
+<!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
 - **Virtual interface state.** Dummy/bridge/veth report `OperUnknown` not `OperUp`;
   monitor checks `IFF_UP` flag as fallback.
 - **Tunnel encapsulation as YANG choice/case.** The `tunnel` list at the iface level
@@ -321,7 +333,7 @@ L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac` container (wit
 kernel does not assign one).
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
-out of scope for v1; see `plan/deferrals.md`.
+out of scope for v1; see `plan/deferrals/`.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->

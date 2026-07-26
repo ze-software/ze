@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-The questions people tend to ask before they spend time on Ze. If yours is not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://codeberg.org/thomas-mangin/ze/issues).
+The questions people tend to ask before they spend time on Ze. If yours is not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues).
 
 **What is Ze?**
 
@@ -68,6 +68,6 @@ There is no subscription, no paid support tier, and no separate commercial entit
 
 **How do I get help, or report a security problem?**
 
-For questions and discussion, use [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
+For questions and discussion, use [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://github.com/ze-software/ze/issues).
 
 For anything security-sensitive, such as a bug an unauthenticated peer could trigger, follow the [security policy](https://ze-software.net/security/) and report it privately instead of opening a public issue.

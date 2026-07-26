@@ -754,6 +754,28 @@
             "**Compose** support included",
             "Optional **build tags**"
           ]
+        },
+        {
+          "category": "platform",
+          "status": null,
+          "title": "Feature Gates",
+          "href": "docs/guide/quickstart/",
+          "external": false,
+          "chips": [
+            {
+              "text": "36 subsystems",
+              "mode": true
+            },
+            {
+              "text": "Default on",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Compile out **whole subsystems**, BGP included",
+            "Smaller binary, smaller **attack surface**",
+            "Config **fails closed** on blocks the build lacks"
+          ]
         }
       ]
     },
@@ -1117,7 +1139,7 @@
           "category": "routing",
           "status": "experimental",
           "title": "Segment Routing",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy",
+          "href": "https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy",
           "external": true,
           "chips": [
             {
@@ -1156,6 +1178,28 @@
             "Cached config with **reconnect** and heartbeat",
             "Version hashing and **two-phase** fetch"
           ]
+        },
+        {
+          "category": "secure",
+          "status": "experimental",
+          "title": "IRR Route Filtering",
+          "href": "docs/guide/irr-filtering/",
+          "external": false,
+          "chips": [
+            {
+              "text": "IRR",
+              "mode": false
+            },
+            {
+              "text": "as-set",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Prefix-lists** from IRR data, live in the engine",
+            "Sourced from **PeeringDB** and **RADB**",
+            "Opt-in per peer, group or **global filter chain**"
+          ]
         }
       ]
     },
@@ -1169,7 +1213,7 @@
           "category": "routing",
           "status": "aspiration",
           "title": "OSPF L3VPN PE-CE",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md",
+          "href": "https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md",
           "external": true,
           "chips": [
             {
@@ -1195,7 +1239,7 @@
           "category": "routing",
           "status": "aspiration",
           "title": "VRF",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md",
+          "href": "https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md",
           "external": true,
           "chips": [
             {
@@ -1216,30 +1260,8 @@
         {
           "category": "secure",
           "status": "aspiration",
-          "title": "IRR Route Filtering",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-filter-irr.md",
-          "external": true,
-          "chips": [
-            {
-              "text": "IRR",
-              "mode": false
-            },
-            {
-              "text": "as-set",
-              "mode": false
-            }
-          ],
-          "bullets": [
-            "**Prefix-lists** from IRR data",
-            "bgpq4-style, **live in the engine**",
-            "Automatic from the peer's **remote ASN**"
-          ]
-        },
-        {
-          "category": "secure",
-          "status": "aspiration",
           "title": "Kernel Lockdown",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-kernel-lockdown-hardening.md",
+          "href": "https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md",
           "external": true,
           "chips": [
             {
@@ -1261,7 +1283,7 @@
           "category": "platform",
           "status": "aspiration",
           "title": "Cloud-Init Provisioning",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-install-9-cloud-init.md",
+          "href": "https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md",
           "external": true,
           "chips": [
             {

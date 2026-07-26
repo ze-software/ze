@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/features/" />
         <meta property="og:url" content="https://ze-software.net/features/" />
         <link rel="stylesheet" href="../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -52,7 +52,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Project</span>
                     <h1 id="features-title">Every feature Ze ships.</h1>
-                    <p>49 features plus a spec&#x27;d roadmap, color-coded by category.</p>
+                    <p>51 features plus a spec&#x27;d roadmap, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
@@ -63,8 +63,8 @@
                     <button class="cat-services" data-cat="services" aria-pressed="false" aria-label="Filter features by Services, 9 features">Services <span class="legend-count" aria-hidden="true">9</span></button>
                     <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 7 features">Automate <span class="legend-count" aria-hidden="true">7</span></button>
                     <button class="cat-observe" data-cat="observe" aria-pressed="false" aria-label="Filter features by Observe, 9 features">Observe <span class="legend-count" aria-hidden="true">9</span></button>
-                    <button class="cat-secure" data-cat="secure" aria-pressed="false" aria-label="Filter features by Secure, 4 features">Secure <span class="legend-count" aria-hidden="true">4</span></button>
-                    <button class="cat-platform" data-cat="platform" aria-pressed="false" aria-label="Filter features by Platform, 5 features">Platform <span class="legend-count" aria-hidden="true">5</span></button>
+                    <button class="cat-secure" data-cat="secure" aria-pressed="false" aria-label="Filter features by Secure, 5 features">Secure <span class="legend-count" aria-hidden="true">5</span></button>
+                    <button class="cat-platform" data-cat="platform" aria-pressed="false" aria-label="Filter features by Platform, 6 features">Platform <span class="legend-count" aria-hidden="true">6</span></button>
                 </div>
                 <p id="feature-filter-status" class="feature-filter-status search-status" aria-live="polite"></p>
             </section>
@@ -503,6 +503,19 @@
                     <li>Optional <strong>build tags</strong></li>
                     </ul>
                     </article>
+                    <article class="card feature-card cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <h3><a href="../docs/guide/quickstart/">Feature Gates</a></h3>
+                    <div class="chips">
+                    <span class="chip mode">36 subsystems</span>
+                    <span class="chip">Default on</span>
+                    </div>
+                    <ul>
+                    <li>Compile out <strong>whole subsystems</strong>, BGP included</li>
+                    <li>Smaller binary, smaller <strong>attack surface</strong></li>
+                    <li>Config <strong>fails closed</strong> on blocks the build lacks</li>
+                    </ul>
+                    </article>
                 </div>
             </section>
 
@@ -733,7 +746,7 @@
                     <article class="card feature-card experimental cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy" target="_blank" rel="noopener">Segment Routing</a></h3>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy" target="_blank" rel="noopener">Segment Routing</a></h3>
                     <div class="chips">
                     <span class="chip">SAFI 73</span>
                     <span class="chip">SRv6</span>
@@ -758,6 +771,20 @@
                     <li>Version hashing and <strong>two-phase</strong> fetch</li>
                     </ul>
                     </article>
+                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../docs/guide/irr-filtering/">IRR Route Filtering</a></h3>
+                    <div class="chips">
+                    <span class="chip">IRR</span>
+                    <span class="chip">as-set</span>
+                    </div>
+                    <ul>
+                    <li><strong>Prefix-lists</strong> from IRR data, live in the engine</li>
+                    <li>Sourced from <strong>PeeringDB</strong> and <strong>RADB</strong></li>
+                    <li>Opt-in per peer, group or <strong>global filter chain</strong></li>
+                    </ul>
+                    </article>
                 </div>
             </section>
 
@@ -773,7 +800,7 @@
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
                     <span class="status">Spec&#x27;d</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">OSPF L3VPN PE-CE</a></h3>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">OSPF L3VPN PE-CE</a></h3>
                     <div class="chips">
                     <span class="chip">RFC 4576</span>
                     <span class="chip">RFC 4577</span>
@@ -788,7 +815,7 @@
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
                     <span class="status">Spec&#x27;d</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">VRF</a></h3>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">VRF</a></h3>
                     <div class="chips">
                     <span class="chip">VRF</span>
                     <span class="chip">L3VPN</span>
@@ -802,21 +829,7 @@
                     <article class="card feature-card aspiration cat-secure" data-cat="secure">
                     <span class="cat">Secure</span>
                     <span class="status">Spec&#x27;d</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-filter-irr.md" target="_blank" rel="noopener">IRR Route Filtering</a></h3>
-                    <div class="chips">
-                    <span class="chip">IRR</span>
-                    <span class="chip">as-set</span>
-                    </div>
-                    <ul>
-                    <li><strong>Prefix-lists</strong> from IRR data</li>
-                    <li>bgpq4-style, <strong>live in the engine</strong></li>
-                    <li>Automatic from the peer's <strong>remote ASN</strong></li>
-                    </ul>
-                    </article>
-                    <article class="card feature-card aspiration cat-secure" data-cat="secure">
-                    <span class="cat">Secure</span>
-                    <span class="status">Spec&#x27;d</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-kernel-lockdown-hardening.md" target="_blank" rel="noopener">Kernel Lockdown</a></h3>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md" target="_blank" rel="noopener">Kernel Lockdown</a></h3>
                     <div class="chips">
                     <span class="chip">Lockdown</span>
                     <span class="chip">Integrity</span>
@@ -830,7 +843,7 @@
                     <article class="card feature-card aspiration cat-platform" data-cat="platform">
                     <span class="cat">Platform</span>
                     <span class="status">Spec&#x27;d</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-install-9-cloud-init.md" target="_blank" rel="noopener">Cloud-Init Provisioning</a></h3>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md" target="_blank" rel="noopener">Cloud-Init Provisioning</a></h3>
                     <div class="chips">
                     <span class="chip">Cloud-init</span>
                     <span class="chip">User-data</span>

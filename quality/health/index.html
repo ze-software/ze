@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/quality/health/" />
         <meta property="og:url" content="https://ze-software.net/quality/health/" />
         <link rel="stylesheet" href="../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -73,12 +73,12 @@
 .th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid rgba(0,0,0,.08); }
 </style>
 
-<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>36 / 165</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Test files that expect a specific error</td><td>Q2</td><td><strong>831 / 2594</strong></td><td>Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>6</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
+<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>36 / 166</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>1</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">136 / 19977 (floor 136) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="136 of 19977"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 19977 (0.7%)</p>
+  <p class="th-value">136 / 20386 (floor 136) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="136 of 20386"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 20386 (0.7%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>cmd/ze/hub/aaa_lifecycle_test.go</code></td><td><code>TestCloseAAABundleNoBundle</code></td></tr><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr></tbody></table>
@@ -93,7 +93,7 @@
 </article>
 <article class="th-card th-ok">
   <h3>time.sleep() calls in .ci tests</h3>
-  <p class="th-value">122 (floor 125) <span class="th-status">Within threshold</span></p>
+  <p class="th-value">114 (floor 114) <span class="th-status">Within threshold</span></p>
   
   <p>A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.</p>
   <p class="th-action"><strong>If this degrades:</strong> Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.</p>
@@ -103,35 +103,35 @@
 <section><h2>Intent coverage</h2><p><em>Are the things that matter checked, or only the happy path?</em></p>
 <article class="th-card th-warn">
   <h3>Enrolled RFCs with zero test-proven requirements</h3>
-  <p class="th-value">36 / 165 <span class="th-status">Needs attention</span></p>
-  <div class="th-meter" role="img" aria-label="36 of 165"><span class="th-meter-fill" style="width:21.8%"></span></div><p class="th-meter-note">36 of 165 (21.8%)</p>
+  <p class="th-value">36 / 166 <span class="th-status">Needs attention</span></p>
+  <div class="th-meter" role="img" aria-label="36 of 166"><span class="th-meter-fill" style="width:21.7%"></span></div><p class="th-meter-note">36 of 166 (21.7%)</p>
   <p>Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.</p>
   <p class="th-action"><strong>If this degrades:</strong> Pick the largest and complete a pair, or accept it is a single-polarity claim.</p>
   
 </article>
-<article class="th-card th-warn">
-  <h3>Test files that expect a specific error</h3>
-  <p class="th-value">831 / 2594 <span class="th-status">Needs attention</span></p>
-  <div class="th-meter" role="img" aria-label="831 of 2594"><span class="th-meter-fill" style="width:32.0%"></span></div><p class="th-meter-note">831 of 2594 (32.0%)</p>
-  <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
-  <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
-  <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>9</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>10</code></td><td><code>1</code></td><td><code>10.0</code></td></tr><tr><td><code>internal/component/cmd</code></td><td><code>19</code></td><td><code>2</code></td><td><code>10.5</code></td></tr></tbody></table>
-</article>
 <article class="th-card th-ok">
   <h3>RFC MUST requirements proven by a positive+negative test pair</h3>
-  <p class="th-value">971 / 2716 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="971 of 2716"><span class="th-meter-fill" style="width:35.8%"></span></div><p class="th-meter-note">971 of 2716 (35.8%)</p>
-  <p>35.8% carry both polarities. Of the remaining 1745: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 369 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.</p>
+  <p class="th-value">974 / 2720 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="974 of 2720"><span class="th-meter-fill" style="width:35.8%"></span></div><p class="th-meter-note">974 of 2720 (35.8%)</p>
+  <p>35.8% carry both polarities. Of the remaining 1746: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.</p>
   <p class="th-action"><strong>If this degrades:</strong> Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.</p>
   <table><thead><tr><th>gated</th><th>rfc</th></tr></thead><tbody><tr><td><code>38</code></td><td><code>rfc7871</code></td></tr><tr><td><code>34</code></td><td><code>rfc2132</code></td></tr><tr><td><code>23</code></td><td><code>rfc4213</code></td></tr><tr><td><code>18</code></td><td><code>rfc4761</code></td></tr><tr><td><code>17</code></td><td><code>rfc3032</code></td></tr><tr><td><code>17</code></td><td><code>rfc7166</code></td></tr><tr><td><code>16</code></td><td><code>rfc4862</code></td></tr><tr><td><code>13</code></td><td><code>rfc2003</code></td></tr><tr><td><code>13</code></td><td><code>rfc6396</code></td></tr><tr><td><code>13</code></td><td><code>rfc9514</code></td></tr></tbody></table>
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">20006 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">20416 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>2594 Go test files, 72 fuzz targets, 122 benchmarks, 1450 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>2696 Go test files, 72 fuzz targets, 122 benchmarks, 1464 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
+</article>
+<article class="th-card th-ok">
+  <h3>Test files that expect a specific error</h3>
+  <p class="th-value">877 / 2696 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="877 of 2696"><span class="th-meter-fill" style="width:32.5%"></span></div><p class="th-meter-note">877 of 2696 (32.5%)</p>
+  <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
+  <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
+  <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>9</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>cmd/ze</code></td><td><code>20</code></td><td><code>2</code></td><td><code>10.0</code></td></tr></tbody></table>
 </article>
 <article class="th-card th-ok">
   <h3>Technique adoption by package age</h3>
@@ -139,25 +139,25 @@
   
   <p>A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.</p>
   <p class="th-action"><strong>If this degrades:</strong> Back-fill the oldest bucket, or record the uncovered remainder as tracked backlog (ai/rules/testing.md, Back-Fill New Test Types).</p>
-  <table><thead><tr><th>Package first commit</th><th>Packages with tests</th><th>With a fuzz target</th><th>With an RFC-tagged test</th><th>With a .ci scenario</th></tr></thead><tbody><tr><td>2025</td><td>1</td><td>0</td><td>0</td><td>0</td></tr><tr><td>2026</td><td>481</td><td>29</td><td>88</td><td>30</td></tr></tbody></table>
+  <table><thead><tr><th>Package first commit</th><th>Packages with tests</th><th>With a fuzz target</th><th>With an RFC-tagged test</th><th>With a .ci scenario</th></tr></thead><tbody><tr><td>2025</td><td>1</td><td>0</td><td>0</td><td>0</td></tr><tr><td>2026</td><td>489</td><td>29</td><td>88</td><td>30</td></tr></tbody></table>
 </article>
 </section>
 <section><h2>Integrity</h2><p><em>When something goes red, does it stop the line?</em></p>
 <article class="th-card th-warn">
   <h3>Logged known-failing tests</h3>
-  <p class="th-value">6 <span class="th-status">Needs attention</span></p>
+  <p class="th-value">1 <span class="th-status">Needs attention</span></p>
   
-  <p>Reds logged rather than fixed (26 further entries are struck through or filed under Resolved and are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.</p>
+  <p>Reds logged rather than fixed, one shard file per live failure (41 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.</p>
   <p class="th-action"><strong>If this degrades:</strong> Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</p>
   
 </article>
 <article class="th-card th-ok">
   <h3>Test files no `go test` target can build</h3>
-  <p class="th-value">12 (floor 12) <span class="th-status">Within threshold</span></p>
+  <p class="th-value">8 (floor 8) <span class="th-status">Within threshold</span></p>
   
   <p>Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, so these tests exist but never run.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add the tag to a go test invocation, or delete the file. Either way the false inventory shrinks.</p>
-  <table><thead><tr><th>File</th><th>Requires</th></tr></thead><tbody><tr><td><code>cmd/ze/build_tag_appliance_test.go</code></td><td><code>ze_appliance, ze_setup</code></td></tr><tr><td><code>cmd/ze/build_tag_distro_test.go</code></td><td><code>ze_appliance, ze_distro, ze_setup</code></td></tr><tr><td><code>cmd/ze/build_tag_full_test.go</code></td><td><code>ze_appliance, ze_distro, ze_setup</code></td></tr><tr><td><code>cmd/ze/build_tag_setup_test.go</code></td><td><code>ze_appliance, ze_distro, ze_setup</code></td></tr><tr><td><code>cmd/ze/ze_chaos_main_test.go</code></td><td><code>ze_chaos</code></td></tr><tr><td><code>internal/component/config/system/backend_ze_distro_test.go</code></td><td><code>ze_distro</code></td></tr><tr><td><code>internal/component/config/system/selfupdate_test.go</code></td><td><code>ze_distro</code></td></tr><tr><td><code>internal/install/disk/bootstrap_linux_test.go</code></td><td><code>ze_installer</code></td></tr><tr><td><code>internal/install/disk/console_linux_test.go</code></td><td><code>ze_installer</code></td></tr><tr><td><code>internal/install/disk/fault_linux_test.go</code></td><td><code>ze_installer, ze_installer_fault</code></td></tr><tr><td><code>internal/install/disk/initrd_linux_test.go</code></td><td><code>ze_installer</code></td></tr><tr><td><code>internal/install/disk/rescue_linux_test.go</code></td><td><code>ze_installer</code></td></tr></tbody></table>
+  <table><thead><tr><th>File</th><th>Requires</th></tr></thead><tbody><tr><td><code>cmd/ze/build_tag_appliance_test.go</code></td><td><code>ze_appliance, ze_setup</code></td></tr><tr><td><code>cmd/ze/build_tag_distro_test.go</code></td><td><code>ze_appliance, ze_distro, ze_setup</code></td></tr><tr><td><code>cmd/ze/build_tag_full_test.go</code></td><td><code>ze_appliance, ze_distro, ze_setup</code></td></tr><tr><td><code>cmd/ze/build_tag_setup_test.go</code></td><td><code>ze_appliance, ze_distro, ze_setup</code></td></tr><tr><td><code>cmd/ze/ze_chaos_main_test.go</code></td><td><code>ze_chaos</code></td></tr><tr><td><code>internal/component/config/system/backend_ze_distro_test.go</code></td><td><code>ze_distro</code></td></tr><tr><td><code>internal/component/config/system/selfupdate_test.go</code></td><td><code>ze_distro</code></td></tr><tr><td><code>internal/install/disk/fault_linux_test.go</code></td><td><code>ze_installer_fault</code></td></tr></tbody></table>
 </article>
 </section>
 <section class="th-trends"><h2>Evolution over time</h2><p>Each row shows its sample count. A statistic without its <em>n</em> is an assertion, not a measurement, and a trend drawn through three points is noise with a direction.</p><table><thead><tr><th>Series</th><th>Trend</th><th>Latest</th><th>Samples</th></tr></thead><tbody><tr><td>RFC proof density %</td><td><em>insufficient data</em></td><td>-</td><td>2</td></tr><tr><td>Tests that cannot fail</td><td><em>insufficient data</em></td><td>-</td><td>2</td></tr><tr><td>Test files nothing runs</td><td><em>insufficient data</em></td><td>-</td><td>2</td></tr><tr><td>Mutation kill %</td><td><em>insufficient data</em></td><td>-</td><td>2</td></tr></tbody></table></section>

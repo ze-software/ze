@@ -1,4 +1,4 @@
-# `ike` plugin
+# `ipsec-interface` plugin
 
 IKEv2 engine for native IPsec VPN
 
@@ -17,7 +17,7 @@ IKEv2 engine for native IPsec VPN
 
 ## Dependencies
 
-- Required: None
+- Required: `config-loaded`, [`interface`](../interface/index.md)
 - Optional: None
 
 ## Used by

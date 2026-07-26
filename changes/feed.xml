@@ -5,8 +5,14 @@
         <link>https://ze-software.net/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 13 Jul 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 20 Jul 2026 00:00:00 +0000</lastBuildDate>
         <item>
+            <title>Week of 2026-07-20</title>
+            <link>https://ze-software.net/changes/2026-07-20/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-20/</guid>
+            <pubDate>Mon, 20 Jul 2026 00:00:00 +0000</pubDate>
+            <description>Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.</description>
+        </item>        <item>
             <title>Week of 2026-07-13</title>
             <link>https://ze-software.net/changes/2026-07-13/</link>
             <guid isPermaLink="true">https://ze-software.net/changes/2026-07-13/</guid>

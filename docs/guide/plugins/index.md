@@ -228,7 +228,7 @@ ze --plugins
 | `dhcpserver` | DHCP server (RFC 2131/2132) with PXE boot support (RFC 4578): pool management, lease tracking, static mappings, PXE option injection (options 43/60/66/67/93) for BIOS/UEFI bootfile selection | -- (Config-driven, UDP listener) |
 | `tftpserver` | Read-only TFTP server (RFC 1350): serves bootloader files for PXE provisioning in 512-byte blocks with stop-and-wait ACK, concurrent transfer limiting, path traversal protection | -- (Config-driven, UDP listener on port 69) |
 | `imageserver` | HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support | -- (Config-driven, HTTP listener) |
-| `geodns` | GeoDNS server (RFC 1035): DNS answers selected by client source IP. Client IP from EDNS0 client-subnet (RFC 7871) or packet source; CIDR longest-prefix selects a named host-set (A/AAAA/SRV records); synthesizes SOA/NS/glue. `show geodns`, `ze_geodns_*` metrics, UDP+TCP listeners (default 127.0.0.1:5300) | -- (Config-driven, UDP+TCP listeners) |
+| `geodns` | GeoDNS server (RFC 1035): DNS answers selected by client source IP. Client IP from EDNS0 client-subnet (RFC 7871) or packet source; CIDR longest-prefix selects a named host-set (A/AAAA/SRV records); synthesizes SOA/NS/glue. `show geodns`, `ze_geodns_*` metrics, UDP+TCP listeners (default 127.0.0.1:5300); compile-out-able with the `ze_geodns` build tag <!-- source: feature-gates.txt -- ze_geodns --> | -- (Config-driven, UDP+TCP listeners) |
 | `as112` | AS112 anycast DNS node (RFC 7534, RFC 7535): authoritative-only sink for misdirected RFC 1918 / link-local reverse-DNS queries plus the EMPTY.AS112.ARPA DNAME-redirection zone. Four fixed anycast host addresses (never operator-typed) registered via the iface address-ownership registry, `IP_FREEBIND` listeners, optional `allow-from` client-source access list (loopback always permitted). `show as112`, `as112 health` (one-shot query for the healthcheck probe), `ze_as112_*` metrics, UDP+TCP listeners on port 53. Now also a BGP redistribute source: `redistribute { destination bgp { import as112 } }` originates the four covering prefixes into BGP, with `asn` (origin AS, default 112), `community`, and a `watchdog` health-gate under `service { as112 }`. <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --> | -- (Config-driven, UDP+TCP listeners) |
 | `traffic-usage` | eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus `ze_traffic_usage_*` metrics, `show traffic usage [name <interface>]`. Linux >= 6.6. [Guide](../traffic-usage/index.md) | -- (Config-driven, Bus events) |
 <!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
@@ -650,6 +650,32 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 `bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache forward <id> <sel>` pipeline. See [architecture/api/commands](https://github.com/ze-software/ze/blob/main/docs/architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
+
+## Exclusive Roles
+
+When two plugins both implement a behaviour but only one should run it, the plugin that takes over declares the role in its static registration (`Claims`), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with `sdk.Plugin.ClaimActive(role)` from its `OnConfigure` handler.
+
+Stage 2 is part of the sequential handshake, so the decision is recorded before any plugin sends Stage-5 ready and therefore before the engine starts peers. A handler reading it during a runtime event always sees the final answer.
+
+`bgp-rs` claims `bgp-peer-up-replay`; `bgp-adj-rib-in` stands its own replay down when that claim is active. The decision must not be re-derived from `OnAllPluginsReady`: that callback is fanned out on detached goroutines that race session establishment, and when the ownership decision was taken there both plugins replayed, so a peer received a byte-identical duplicate UPDATE. An unclaimed or unresolvable role reads `false`, which is the fail-closed direction: nobody promised to do this, so keep doing it yourself.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Claims -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.ClaimActive -->
+
+## Peer-Up Barrier
+
+A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".
+
+`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is a separate counter from the API-sync wait, which counts plugins that send routes: merging them would let a route sender's signal satisfy a registrar's obligation.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+
+## Startup Timing
+
+Each handshake stage is bounded by progress, not by wall clock. A stage fails only when the whole startup tier goes `ze.plugin.stage.timeout` (default 5s) without any plugin completing a stage; every completion re-arms the window. A BGP config puts twenty or more plugins in one tier (`bgp`, `bgp-bmp`, `bgp-rpki`, every `bgp-filter-*`), and a flat per-tier budget meant a CPU-starved or slow-disk host could lose all of them at once and come up with its BGP plugins missing.
+
+The wait stays bounded three ways: a repeated stage completion is ignored, so a looping plugin cannot hold the window open; a wedged tier trips within one timeout of the last progress; and shutdown ends the wait. Worst case is `(plugins + 1) x timeout` per stage.
+<!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress -->
+<!-- source: internal/component/plugin/server/server.go -- ze.plugin.stage.timeout -->
 
 ## Debugging Plugins
 

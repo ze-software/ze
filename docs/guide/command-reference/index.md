@@ -7,7 +7,7 @@ and **runtime commands** sent to the running daemon via SSH.
 This page explains the command model. For a live, searchable list of every
 command with its description, run `ze help command` (or `ze help command --json`
 for machine-readable output). The wiki's auto-generated
-[command-catalog](https://codeberg.org/thomas-mangin/ze/wiki/command-catalog)
+[command-catalog](https://github.com/ze-software/ze/wiki/command-catalog)
 is produced from this JSON.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
@@ -17,9 +17,9 @@ It joins `ze help command --json` with the curated vendor mapping in the
 website branch, so Ze command additions appear as unmapped rows until a vendor
 equivalent is added. For code-tree readers, the maintained data and generator
 are in the repository on the `gh-pages` branch:
-[`data/command-equivalents.json`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/data/command-equivalents.json)
+[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/gh-pages/data/command-equivalents.json)
 and
-[`tools/render-command-equivalents.py`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/tools/render-command-equivalents.py).
+[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/gh-pages/tools/render-command-equivalents.py).
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
@@ -59,9 +59,17 @@ When piped or scripted (stdin is not a TTY), prints static help and exits 1.
 
 ```
 ze                               # Interactive command menu (TTY only)
-ze <config-file>                 # Start daemon with config
+ze start <config-file>           # Start daemon from a config file (keyword-first)
 ze start                         # Start daemon from database
+ze -                             # Start daemon reading config from stdin
 ```
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, startConfigPath (ze start <config-file>) -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch (- stdin sentinel; no free-form config-path sink) -->
+
+The bare `ze <config-file>` form was **removed**: a free-form path in the first
+position can collide with a command name (a config file named `bgp` or `signal`
+would dispatch as that command). Use `ze start <config-file>`. Reading config
+from stdin (`ze -`) is unaffected.
 
 ### Demo: Discover Ze commands interactively
 
@@ -416,7 +424,7 @@ ze show host all                   # Full inventory (all sections), JSON
 ze show host cpu                   # CPU only
 ze show host nic                   # Physical NICs (virtual interfaces filtered)
 ze show host dmi                   # DMI/SMBIOS board identity
-ze show host memory                # /proc/meminfo + ECC counters (edac)
+ze show host memory                # /proc/meminfo (incl. hugepages) + ECC counters (edac)
 ze show host thermal               # hwmon sensors + per-CPU throttle counts
 ze show host storage               # Block devices + NVMe firmware
 ze show host kernel                # Kernel release, cmdline, microcode, arch flags
@@ -460,7 +468,7 @@ the JSON shapes are identical either way.
 | `cpu` | `vendor`, `model-name`, `family`, `model`, `stepping`, `logical-cpus`, `physical-cores`, `threads-per-core`, `hybrid`, `scaling-driver`, `hwp-available`, `base-freq-mhz`, `max-freq-mhz`, `microcode`, `cores[]` with per-core `role` (`performance`/`efficient`/`uniform`), `current-freq-mhz`, `core-throttle-count`, `package-throttle-count` |
 | `nic` | Per physical interface: `name`, `driver`, `pci-vendor`, `pci-device`, `mac`, `link-speed-mbps`, `duplex`, `carrier`, `rx-queues`, `tx-queues`, `ring-rx`, `ring-tx`, `firmware-version` |
 | `dmi` | `system-vendor`, `system-product`, `board-*`, `bios-*`, `chassis-*` |
-| `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
+| `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `hugepages-total`, `hugepages-free`, `hugepage-size-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
 | `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`) |
 | `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only), `smart` (via direct ioctl, no smartctl binary: `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe); `unavailable` + `unavailable-note` when device lacks SMART or insufficient privileges) |
 | `kernel` | `release`, `version`, `architecture`, `cmdline`, `boot-time` (RFC3339), `boot-time-unix`, `microcode-revision`, `arch-flags[]` (security-relevant subset: `smep`, `smap`, `ibt`, `user_shstk`, `ibrs`, `ibrs_enhanced`, `ssbd`) |

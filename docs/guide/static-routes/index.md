@@ -44,7 +44,14 @@ static {
 The same prefix can appear in different tables independently.
 Routes in non-default tables are not redistributed into BGP.
 
-Reserved table IDs (0, 253-255) are rejected.
+Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
+rejects a table ID or route metric above 2147483647, because the netlink
+bindings carry both in a machine int and would otherwise install the route in
+the main table at the kernel's default metric without reporting anything.
+Ze's released targets are 64-bit, where the full uint32 range is available.
+
+<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
+<!-- source: internal/plugins/static/config.go — validateRouteMetric, maxNetlinkInt -->
 
 ### Interface-only next-hops
 

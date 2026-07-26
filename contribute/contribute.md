@@ -55,10 +55,10 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
     <strong>Browse or file a bug</strong>
     <small>Use this for reproducible problems, missing docs, and clear feature gaps.</small>
   </a>
-  <a class="contribute-action cat-platform" href="https://codeberg.org/thomas-mangin/ze">
+  <a class="contribute-action cat-platform" href="https://github.com/ze-software/ze">
     <span>Repository</span>
-    <strong>Use Codeberg as canonical</strong>
-    <small>The public mirror exists, but Codeberg is the source repository.</small>
+    <strong>GitHub is the source repository</strong>
+    <small>Development moved off Codeberg in July 2026. Clone, issues and pull requests all live on GitHub.</small>
   </a>
   <a class="contribute-action cat-automate" href="https://discord.gg/T8s7CjPDne">
     <span>Discussion</span>

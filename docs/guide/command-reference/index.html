@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/command-reference/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/command-reference/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -186,7 +186,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <p>This page explains the command model. For a live, searchable list of every
 command with its description, run <code>ze help command</code> (or <code>ze help command --json</code>
 for machine-readable output). The wiki's auto-generated
-<a href="https://codeberg.org/thomas-mangin/ze/wiki/command-catalog" target="_blank" rel="noopener">command-catalog</a>
+<a href="https://github.com/ze-software/ze/wiki/command-catalog" target="_blank" rel="noopener">command-catalog</a>
 is produced from this JSON.</p>
 <p>For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
@@ -195,9 +195,9 @@ It joins <code>ze help command --json</code> with the curated vendor mapping in 
 website branch, so Ze command additions appear as unmapped rows until a vendor
 equivalent is added. For code-tree readers, the maintained data and generator
 are in the repository on the <code>gh-pages</code> branch:
-<a href="https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/data/command-equivalents.json" target="_blank" rel="noopener"><code>data/command-equivalents.json</code></a>
+<a href="https://github.com/ze-software/ze/blob/gh-pages/data/command-equivalents.json" target="_blank" rel="noopener"><code>data/command-equivalents.json</code></a>
 and
-<a href="https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/tools/render-command-equivalents.py" target="_blank" rel="noopener"><code>tools/render-command-equivalents.py</code></a>.</p>
+<a href="https://github.com/ze-software/ze/blob/gh-pages/tools/render-command-equivalents.py" target="_blank" rel="noopener"><code>tools/render-command-equivalents.py</code></a>.</p>
 <!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
 <!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
@@ -229,9 +229,17 @@ When piped or scripted (stdin is not a TTY), prints static help and exits 1.</p>
 <!-- source: cmd/ze/tui_menu.go -- runTUILauncher, buildTopLevel -->
 
 <pre><code>ze                               # Interactive command menu (TTY only)
-ze &lt;config-file&gt;                 # Start daemon with config
+ze start &lt;config-file&gt;           # Start daemon from a config file (keyword-first)
 ze start                         # Start daemon from database
+ze -                             # Start daemon reading config from stdin
 </code></pre>
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, startConfigPath (ze start <config-file>) -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch (- stdin sentinel; no free-form config-path sink) -->
+
+<p>The bare <code>ze &lt;config-file&gt;</code> form was <strong>removed</strong>: a free-form path in the first
+position can collide with a command name (a config file named <code>bgp</code> or <code>signal</code>
+would dispatch as that command). Use <code>ze start &lt;config-file&gt;</code>. Reading config
+from stdin (<code>ze -</code>) is unaffected.</p>
 <figure class="terminal-demo" data-terminal-demo="launcher">
   <div class="terminal-demo__intro">
     <div>
@@ -819,7 +827,7 @@ scrapers, SNMP shims).</p>
 ze show host cpu                   # CPU only
 ze show host nic                   # Physical NICs (virtual interfaces filtered)
 ze show host dmi                   # DMI/SMBIOS board identity
-ze show host memory                # /proc/meminfo + ECC counters (edac)
+ze show host memory                # /proc/meminfo (incl. hugepages) + ECC counters (edac)
 ze show host thermal               # hwmon sensors + per-CPU throttle counts
 ze show host storage               # Block devices + NVMe firmware
 ze show host kernel                # Kernel release, cmdline, microcode, arch flags
@@ -894,7 +902,7 @@ the JSON shapes are identical either way.</p>
 </tr>
 <tr>
 <td><code>memory</code></td>
-<td><code>total-bytes</code>, <code>free-bytes</code>, <code>available-bytes</code>, <code>buffers-bytes</code>, <code>cached-bytes</code>, <code>swap-total-bytes</code>, <code>swap-free-bytes</code>, <code>ecc-correctable-errors</code>, <code>ecc-uncorrectable-errors</code>, <code>ecc-present</code></td>
+<td><code>total-bytes</code>, <code>free-bytes</code>, <code>available-bytes</code>, <code>buffers-bytes</code>, <code>cached-bytes</code>, <code>swap-total-bytes</code>, <code>swap-free-bytes</code>, <code>hugepages-total</code>, <code>hugepages-free</code>, <code>hugepage-size-bytes</code>, <code>ecc-correctable-errors</code>, <code>ecc-uncorrectable-errors</code>, <code>ecc-present</code></td>
 </tr>
 <tr>
 <td><code>thermal</code></td>

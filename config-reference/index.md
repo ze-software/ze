@@ -7,7 +7,7 @@ The complete Ze configuration as one tree: 36 top-level sections (27 provided by
 Behavioral anomaly detection and response subsystem.
 
 - **detect** `container`
-  *Provided by `anomaly-detect-feature-source` ([ze-anomaly-detect-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang))*
+  *Provided by `anomaly-detect-feature-source` ([ze-anomaly-detect-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang))*
   Report-only behavioral anomaly detector (emits incidents, takes no action).
   - **baseline-window** `uint32`
     Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).
@@ -30,7 +30,7 @@ Behavioral anomaly detection and response subsystem.
   - **min-features-to-correlate** `uint8`
     Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).
 - **shape** `container`
-  *Provided by `anomaly-shape-firewall` ([ze-anomaly-shape-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
+  *Provided by `anomaly-shape-firewall` ([ze-anomaly-shape-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
   Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).
   - **action** `enumeration`
     Armed action: rate-limit the source (surgical) or drop it (fallback).
@@ -53,7 +53,7 @@ Behavioral anomaly detection and response subsystem.
 
 ## bfd
 
-*Provided by `bfd` ([ze-bfd-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bfd/yang/ze-bfd-api.yang), [ze-bfd-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bfd/yang/ze-bfd-cmd.yang), [ze-bfd-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bfd/yang/ze-bfd-conf.yang))*
+*Provided by `bfd` ([ze-bfd-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bfd/yang/ze-bfd-api.yang), [ze-bfd-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bfd/yang/ze-bfd-cmd.yang), [ze-bfd-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bfd/yang/ze-bfd-conf.yang))*
 
 BFD control configuration for Ze.
 
@@ -111,7 +111,7 @@ BFD control configuration for Ze.
 
 ## bgp
 
-*Provided by `bgp` ([ze-bgp-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog`*
+*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog`*
 
 Border Gateway Protocol routing configuration. Peers inherit from group defaults; groups inherit from this global level.
 
@@ -510,7 +510,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **route-reflector-client** `boolean`
         Mark this peer as a route reflector client (RFC 4456). Routes from clients are forwarded to all clients and non-clients. Routes from non-clients are forwarded to clients only.
       - **router-id** `ipv4-address`
-        Override router ID for this peer
+        Override router ID for this peer. RFC 6286 Section 2.1: the BGP Identifier is a 4-octet, unsigned, NON-ZERO integer.
       - **rs-client** `boolean`
         Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When true, the reactor skips AS-path prepending for this peer on the forwarding path.
     - **timer** `container`
@@ -530,7 +530,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         - **aggregator** `string`
           AGGREGATOR attribute (RFC 4271 Section 5.1.7). Format: AS:IP. Identifies the AS and router that formed the aggregate.
         - **as-path** `string[]`
-          AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).
+          AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).
         - **atomic-aggregate** `boolean`
           ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6). Signals that the route was formed by aggregation and AS_PATH information was lost.
         - **attribute** `string[]`
@@ -548,7 +548,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         - **label** `string`
           MPLS label value for labeled unicast routes (RFC 3107). Numeric or keyword.
         - **labels** `string[]`
-          MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.
+          MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).
         - **large-community** `string[]`
           Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively.
         - **local-preference** `uint32`
@@ -742,7 +742,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
     - **route-reflector-client** `boolean`
       Mark this peer as a route reflector client (RFC 4456). Routes from clients are forwarded to all clients and non-clients. Routes from non-clients are forwarded to clients only.
     - **router-id** `ipv4-address`
-      Override router ID for this peer
+      Override router ID for this peer. RFC 6286 Section 2.1: the BGP Identifier is a 4-octet, unsigned, NON-ZERO integer.
     - **rs-client** `boolean`
       Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When true, the reactor skips AS-path prepending for this peer on the forwarding path.
   - **timer** `container`
@@ -762,7 +762,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **aggregator** `string`
         AGGREGATOR attribute (RFC 4271 Section 5.1.7). Format: AS:IP. Identifies the AS and router that formed the aggregate.
       - **as-path** `string[]`
-        AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).
+        AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).
       - **atomic-aggregate** `boolean`
         ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6). Signals that the route was formed by aggregation and AS_PATH information was lost.
       - **attribute** `string[]`
@@ -780,7 +780,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **label** `string`
         MPLS label value for labeled unicast routes (RFC 3107). Numeric or keyword.
       - **labels** `string[]`
-        MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.
+        MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).
       - **large-community** `string[]`
         Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively.
       - **local-preference** `uint32`
@@ -1112,7 +1112,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
     - **route-reflector-client** `boolean`
       Mark this peer as a route reflector client (RFC 4456). Routes from clients are forwarded to all clients and non-clients. Routes from non-clients are forwarded to clients only.
     - **router-id** `ipv4-address`
-      Override router ID for this peer
+      Override router ID for this peer. RFC 6286 Section 2.1: the BGP Identifier is a 4-octet, unsigned, NON-ZERO integer.
     - **rs-client** `boolean`
       Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When true, the reactor skips AS-path prepending for this peer on the forwarding path.
   - **timer** `container`
@@ -1132,7 +1132,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **aggregator** `string`
         AGGREGATOR attribute (RFC 4271 Section 5.1.7). Format: AS:IP. Identifies the AS and router that formed the aggregate.
       - **as-path** `string[]`
-        AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).
+        AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).
       - **atomic-aggregate** `boolean`
         ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6). Signals that the route was formed by aggregation and AS_PATH information was lost.
       - **attribute** `string[]`
@@ -1150,7 +1150,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **label** `string`
         MPLS label value for labeled unicast routes (RFC 3107). Numeric or keyword.
       - **labels** `string[]`
-        MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.
+        MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).
       - **large-community** `string[]`
         Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively.
       - **local-preference** `uint32`
@@ -1299,7 +1299,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
   - **worker-queue-size** `uint32`
     Per-source-peer worker channel capacity. Env var ze.bgp.route-server.worker-queue-size overrides this value.
 - **router-id** `ipv4-address`
-  BGP Router ID (required)
+  BGP Router ID (required). RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, NON-ZERO integer, so 0.0.0.0 is rejected: a peer implementing RFC 6286 Section 2.2 answers an OPEN carrying it with Bad BGP Identifier.
 - **rpki** `container`
   - **action** `container`
     Global origin-validation actions (RFC 6811 Section 3)
@@ -1326,6 +1326,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
     Fail-open timeout for pending routes
 - **session** `container`
   Global BGP session defaults
+  - **allow-shared-router-id** `boolean`
+    Accept a peer whose BGP Identifier (router-id) duplicates another established peer in the same AS. Default false enforces AS-wide uniqueness by rejecting the second OPEN with Bad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide uniqueness only a SHOULD, so accepting a shared identifier is conformant; set true when the duplication is intentional, e.g. one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same router-id. When true, ze performs no router-id uniqueness check at all (it does not implement RFC 6286 Section 2.3 collision detection).
   - **asn** `container`
     AS number configuration
     - **local** `asn`
@@ -1337,7 +1339,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
     - **aggregator** `string`
       AGGREGATOR attribute (RFC 4271 Section 5.1.7). Format: AS:IP. Identifies the AS and router that formed the aggregate.
     - **as-path** `string[]`
-      AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred).
+      AS_PATH segments prepended to the route. Space-separated ASNs. Ordered sequence: repeated ASNs are meaningful prepends (RFC 4271 Section 5.1.2), not deduplicated. Affects loop detection and path selection (shorter preferred).
     - **atomic-aggregate** `boolean`
       ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6). Signals that the route was formed by aggregation and AS_PATH information was lost.
     - **attribute** `string[]`
@@ -1355,7 +1357,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
     - **label** `string`
       MPLS label value for labeled unicast routes (RFC 3107). Numeric or keyword.
     - **labels** `string[]`
-      MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top.
+      MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top: an ordered sequence, repeated labels preserved (not deduplicated).
     - **large-community** `string[]`
       Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively.
     - **local-preference** `uint32`
@@ -1388,7 +1390,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
 
 ## class-of-service
 
-*Provided by `cos` ([ze-cos-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/cos/yang/ze-cos-conf.yang))*
+*Provided by `cos` ([ze-cos-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/cos/yang/ze-cos-conf.yang))*
 
 Named class-of-service profiles
 
@@ -1409,14 +1411,14 @@ Named class-of-service profiles
 
 ## connected
 
-*Provided by `connected` ([ze-connected-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/connected/yang/ze-connected-conf.yang))*
+*Provided by `connected` ([ze-connected-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/connected/yang/ze-connected-conf.yang))*
 
 Connected route redistribution. Presence enables the plugin.
 
 
 ## control-plane-protection
 
-*Provided by `copp-input-chain` ([ze-copp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/copp/yang/ze-copp-conf.yang))*
+*Provided by `copp-input-chain` ([ze-copp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/copp/yang/ze-copp-conf.yang))*
 
 Control-plane policing configuration.
 
@@ -1438,7 +1440,7 @@ Control-plane policing configuration.
 Distributed denial-of-service detection and mitigation subsystem.
 
 - **detect** `container`
-  *Provided by `ddos-detect-flow-source` ([ze-ddos-detect-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang))*
+  *Provided by `ddos-detect-flow-source` ([ze-ddos-detect-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang))*
   - **absolute-floor** `uint32`
     Minimum threshold in PPS regardless of baseline.
   - **baseline-window** `uint32`
@@ -1484,7 +1486,7 @@ Distributed denial-of-service detection and mitigation subsystem.
   - **top-n-sources** `uint16`
     Maximum number of attacker source addresses ranked into TopSources by packet volume.
 - **flowspec** `container`
-  *Provided by `ddos-flowspec` ([ze-ddos-flowspec-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang))*
+  *Provided by `ddos-flowspec` ([ze-ddos-flowspec-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang))*
   - **action** `enumeration`
     FlowSpec traffic-action. Mandatory, with no default because neither drop nor rate-limit is universally safe: discard announces an RFC 8955 traffic-rate of 0 (drops the characterized attack flow); rate-limit announces a byte rate and requires an explicit rate-limit-bytes. A rate-limit-bytes of 0 is a valid choice and is equivalent to discard on the wire.
   - **announce-rate-limit** `uint16`
@@ -1510,7 +1512,7 @@ Distributed denial-of-service detection and mitigation subsystem.
   - **response-level** `enumeration`
     Action on attack detection: alert (log only) or enforce (announce FlowSpec).
 - **flowtriq** `container`
-  *Provided by `ddos-flowtriq` ([ze-ddos-flowtriq-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang))*
+  *Provided by `ddos-flowtriq` ([ze-ddos-flowtriq-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang))*
   - **api-base** `string`
     Flowtriq API base URL.
   - **api-key** `string`
@@ -1520,7 +1522,7 @@ Distributed denial-of-service detection and mitigation subsystem.
   - **node-uuid** `string`
     Node UUID for Flowtriq agent identification.
 - **local** `container`
-  *Provided by `ddos-local` ([ze-ddos-local-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang))*
+  *Provided by `ddos-local` ([ze-ddos-local-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang))*
   - **confidence-min** `uint8`
     Minimum incident confidence (0-100) required to install a drop rule from a characterized attack. 0 (default) disables the gate. Higher values suppress mitigation on borderline detections.
   - **forward-mitigation** `boolean`
@@ -1530,7 +1532,7 @@ Distributed denial-of-service detection and mitigation subsystem.
   - **response-level** `enumeration`
     Action on attack detection: alert (log only) or enforce (install drop rule).
 - **observe** `container`
-  *Provided by `ddos-observe` ([ze-ddos-observe-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang))*
+  *Provided by `ddos-observe` ([ze-ddos-observe-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang))*
   - **incident-ring-size** `uint32`
     Maximum number of incidents to retain in memory.
   - **stale-incident-timeout** `uint32`
@@ -1538,7 +1540,7 @@ Distributed denial-of-service detection and mitigation subsystem.
 
 ## environment
 
-*Provided by `bgp-bmp` ([ze-bmp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `ntp` ([ze-ntp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ntp/yang/ze-ntp-cmd.yang), [ze-ntp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ntp/yang/ze-ntp-conf.yang))*
+*Provided by `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `ntp` ([ze-ntp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-cmd.yang), [ze-ntp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-conf.yang))*
 
 Environment settings for API transports
 
@@ -1781,7 +1783,7 @@ Environment settings for API transports
 
 ## exabgp
 
-*Provided by `exabgp-bridge` ([ze-exabgp-bridge-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang))*
+*Provided by `exabgp-bridge` ([ze-exabgp-bridge-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang))*
 
 Top-level container for ExaBGP-compatibility configuration.
 
@@ -1801,14 +1803,14 @@ Top-level container for ExaBGP-compatibility configuration.
 Forwarding Information Base configuration.
 
 - **kernel** `container`
-  *Provided by `fib-kernel` ([ze-fib-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/fib/kernel/yang/ze-fib-conf.yang))*
+  *Provided by `fib-kernel` ([ze-fib-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/yang/ze-fib-conf.yang))*
   OS kernel route programming via netlink (Linux).
   - **flush-on-stop** `boolean`
     Remove all ze-installed routes when the plugin stops. When false (default), routes persist in the kernel after shutdown for graceful restart support.
   - **sweep-delay** `uint16`
     Time to wait after startup before sweeping stale routes. Allows BGP reconvergence to refresh matching routes.
 - **p4** `container`
-  *Provided by `fib-p4` ([ze-fib-p4-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/fib/p4/yang/ze-fib-p4-conf.yang))*
+  *Provided by `fib-p4` ([ze-fib-p4-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/p4/yang/ze-fib-p4-conf.yang))*
   P4 switch route programming via gRPC/P4Runtime.
   - **device-id** `uint64`
     P4Runtime device ID.
@@ -1817,7 +1819,7 @@ Forwarding Information Base configuration.
   - **target** `string`
     P4Runtime gRPC target address (host:port). Example: 127.0.0.1:9559
 - **vpp** `container`
-  *Provided by `fib-vpp` ([ze-fib-vpp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang))*
+  *Provided by `fib-vpp` ([ze-fib-vpp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang))*
   VPP FIB programming via GoVPP binary API.
   - **batch-interval-ms** `uint16`
     Maximum time in milliseconds before dispatching a partial batch.
@@ -1830,7 +1832,7 @@ Forwarding Information Base configuration.
 
 ## firewall
 
-*Provided by `firewall-irr` ([ze-firewall-irr-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang)); `firewall` ([ze-firewall-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
+*Provided by `firewall-irr` ([ze-firewall-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang)); `firewall` ([ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
 
 Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix added by component.
 
@@ -2019,7 +2021,7 @@ Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix 
 
 ## flow-export
 
-*Provided by `flow-export-conntrack-tracking` ([ze-flowexport-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
+*Provided by `flow-export-conntrack-tracking` ([ze-flowexport-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
 
 Flow export (sFlow, NetFlow v9, IPFIX) configuration
 
@@ -2068,7 +2070,7 @@ Flow export (sFlow, NetFlow v9, IPFIX) configuration
 
 ## interface
 
-*Provided by `interface` ([ze-iface-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-show-cmd.yang)); `vrrp` ([ze-vrrp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/vrrp/yang/ze-vrrp-cmd.yang), [ze-vrrp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/vrrp/yang/ze-vrrp-conf.yang))*
+*Provided by `interface` ([ze-iface-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-show-cmd.yang)); `vrrp` ([ze-vrrp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-cmd.yang), [ze-vrrp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-conf.yang))*
 
 Interface-level class-of-service bindings and inline QoS maps (container-merge with ze-iface-conf). Removing the cos plugin removes all QoS surface from interfaces.
 
@@ -3279,7 +3281,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
 
 ## isis
 
-*Provided by `isis` ([ze-isis-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/isis/yang/ze-isis-cmd.yang), [ze-isis-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/isis/yang/ze-isis-conf.yang))*
+*Provided by `isis` ([ze-isis-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/yang/ze-isis-cmd.yang), [ze-isis-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/yang/ze-isis-conf.yang))*
 
 IS-IS routing instance configuration.
 
@@ -3374,14 +3376,14 @@ IS-IS routing instance configuration.
 
 ## kernel
 
-*Provided by `kernel` ([ze-kernel-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/kernel/yang/ze-kernel-conf.yang))*
+*Provided by `kernel` ([ze-kernel-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/kernel/yang/ze-kernel-conf.yang))*
 
 Kernel route redistribution. Presence enables the plugin.
 
 
 ## l2tp
 
-*Provided by `l2tp-auth-local` ([ze-l2tp-auth-local-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang)); `l2tp-auth-radius-servers` ([ze-l2tp-auth-radius-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang)); `l2tp-pool` ([ze-l2tp-pool-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang)); `l2tp-shaper` ([ze-l2tp-shaper-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang))*
+*Provided by `l2tp-auth-local` ([ze-l2tp-auth-local-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang)); `l2tp-auth-radius-servers` ([ze-l2tp-auth-radius-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang)); `l2tp-pool` ([ze-l2tp-pool-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang)); `l2tp-shaper` ([ze-l2tp-shaper-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang))*
 
 L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any content implies the subsystem is enabled. Use 'enabled false' to disable explicitly, or 'enabled true' as a filler when no other settings are needed.
 
@@ -3508,7 +3510,7 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
 
 ## ldp
 
-*Provided by `ldp-port` ([ze-ldp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ldp/yang/ze-ldp-cmd.yang), [ze-ldp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ldp/yang/ze-ldp-conf.yang))*
+*Provided by `ldp-port` ([ze-ldp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/yang/ze-ldp-cmd.yang), [ze-ldp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/yang/ze-ldp-conf.yang))*
 
 Label Distribution Protocol configuration
 
@@ -3527,7 +3529,7 @@ Label Distribution Protocol configuration
 
 ## mrt
 
-*Provided by `mrt` ([ze-mrt-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/mrt/yang/ze-mrt-conf.yang))*
+*Provided by `mrt` ([ze-mrt-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/yang/ze-mrt-conf.yang))*
 
 MRT dump configuration
 
@@ -3560,7 +3562,7 @@ MRT dump configuration
 
 ## ospf
 
-*Provided by `ospf` ([ze-ospf-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ospf/yang/ze-ospf-cmd.yang), [ze-ospf-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ospf/yang/ze-ospf-conf.yang))*
+*Provided by `ospf` ([ze-ospf-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/yang/ze-ospf-cmd.yang), [ze-ospf-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/yang/ze-ospf-conf.yang))*
 
 OSPFv2 routing instance configuration.
 
@@ -4348,7 +4350,7 @@ OSPFv2 routing instance configuration.
 
 ## pki
 
-*Provided by `ike`*
+*Provided by `ipsec-interface`*
 
 PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems.
 
@@ -4414,7 +4416,7 @@ Plugin configuration
 
 ## policy
 
-*Provided by `policy-routes` ([ze-policyroute-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/policyroute/yang/ze-policyroute-cmd.yang), [ze-policyroute-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/policyroute/yang/ze-policyroute-conf.yang))*
+*Provided by `policy-routes` ([ze-policyroute-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/policyroute/yang/ze-policyroute-cmd.yang), [ze-policyroute-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/policyroute/yang/ze-policyroute-conf.yang))*
 
 Policy routing configuration.
 
@@ -4491,7 +4493,7 @@ Route redistribution between protocols. Each destination protocol has its own co
 
 ## rib
 
-*Provided by `rib` ([ze-rib-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/sysrib/yang/ze-rib-conf.yang))*
+*Provided by `rib` ([ze-rib-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/yang/ze-rib-conf.yang))*
 
 System RIB configuration.
 
@@ -4512,7 +4514,7 @@ System RIB configuration.
 
 ## routing-table
 
-*Provided by `routing-table` ([ze-routing-table-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/routingtable/yang/ze-routing-table-conf.yang))*
+*Provided by `routing-table` ([ze-routing-table-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/routingtable/yang/ze-routing-table-conf.yang))*
 
 Named routing table definitions. Each entry maps a name to a kernel routing table ID.
 
@@ -4523,7 +4525,7 @@ Named routing table definitions. Each entry maps a name to a kernel routing tabl
 
 ## rsvp-te
 
-*Provided by `rsvp-te-rawsock` ([ze-rsvp-te-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang), [ze-rsvp-te-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang))*
+*Provided by `rsvp-te-rawsock` ([ze-rsvp-te-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang), [ze-rsvp-te-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang))*
 
 RSVP-TE traffic engineering configuration
 
@@ -4584,7 +4586,7 @@ RSVP-TE traffic engineering configuration
 
 ## service
 
-*Provided by `as112` ([ze-as112-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/as112/yang/ze-as112-cmd.yang), [ze-as112-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/as112/yang/ze-as112-conf.yang)); `dhcpserver` ([ze-dhcp-server-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang)); `geodns` ([ze-geodns-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/geodns/yang/ze-geodns-cmd.yang), [ze-geodns-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/geodns/yang/ze-geodns-conf.yang)); `imageserver` ([ze-image-server-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/imageserver/yang/ze-image-server-conf.yang)); `tftpserver` ([ze-tftp-server-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang))*
+*Provided by `as112` ([ze-as112-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/yang/ze-as112-cmd.yang), [ze-as112-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/yang/ze-as112-conf.yang)); `dhcpserver` ([ze-dhcp-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang)); `geodns` ([ze-geodns-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/yang/ze-geodns-cmd.yang), [ze-geodns-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/yang/ze-geodns-conf.yang)); `imageserver` ([ze-image-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/imageserver/yang/ze-image-server-conf.yang)); `tftpserver` ([ze-tftp-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang))*
 
 Service settings
 
@@ -4770,8 +4772,8 @@ Service settings
     Interfaces to serve on
   - **listen-port** `uint16`
     HTTP listen port
-  - **shell-auth-sha256** `string`
-    Lowercase hex sha256 of the admin password. Emitted on the installer kernel cmdline (ze.shell-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal).
+  - **rescue-auth** `string`
+    Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'. Emitted on the installer kernel cmdline (ze.rescue-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal). This value is published unauthenticated on the PXE network, so it commits only to a dedicated rescue token, never to the admin password.
   - **ssh-password-hash** `string`
     Bcrypt hash of admin password (written to served zefs)
   - **ssh-username** `string`
@@ -4789,7 +4791,7 @@ Service settings
 
 ## static
 
-*Provided by `static` ([ze-static-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/static/yang/ze-static-cmd.yang), [ze-static-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/static/yang/ze-static-conf.yang))*
+*Provided by `static` ([ze-static-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/static/yang/ze-static-cmd.yang), [ze-static-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/static/yang/ze-static-conf.yang))*
 
 Static route configuration.
 
@@ -4862,7 +4864,7 @@ Storage device management
 
 ## sysctl
 
-*Provided by `sysctl` ([ze-sysctl-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/sysctl/yang/ze-sysctl-conf.yang))*
+*Provided by `sysctl` ([ze-sysctl-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/sysctl/yang/ze-sysctl-conf.yang))*
 
 Kernel tunable management.
 
@@ -5216,7 +5218,7 @@ Telemetry export configuration
 Traffic subsystem: QoS control and byte-usage accounting.
 
 - **control** `container`
-  *Provided by `traffic` ([ze-traffic-control-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/traffic/yang/ze-traffic-control-conf.yang))*
+  *Provided by `traffic` ([ze-traffic-control-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/traffic/yang/ze-traffic-control-conf.yang))*
   Per-interface traffic control configuration
   - **backend** `string`
     Traffic control backend implementation. Default is tc (Linux iproute2 queueing disciplines). Future backends can declare themselves via traffic.RegisterBackend. The ze:backend YANG extension on feature nodes declares per-feature backend support so the commit-time gate rejects configs that try to use unsupported qdiscs or filter types.
@@ -5241,7 +5243,7 @@ Traffic subsystem: QoS control and byte-usage accounting.
       - **type** `qdisc-type`
         Qdisc type
 - **usage** `container`
-  *Provided by `traffic-usage` ([ze-traffic-usage-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/trafficusage/yang/ze-traffic-usage-cmd.yang), [ze-traffic-usage-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang))*
+  *Provided by `traffic-usage` ([ze-traffic-usage-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/trafficusage/yang/ze-traffic-usage-cmd.yang), [ze-traffic-usage-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang))*
   Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).
   - **enabled** `boolean`
     Enable traffic-usage accounting.
@@ -5268,7 +5270,7 @@ Traffic subsystem: QoS control and byte-usage accounting.
 
 ## vpn
 
-*Provided by `ike`*
+*Provided by `ipsec-interface`*
 
 VPN subsystems.
 
@@ -5385,7 +5387,7 @@ VPN subsystems.
 
 ## vpp
 
-*Provided by `vpp` ([ze-vpp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/vpp/yang/ze-vpp-conf.yang))*
+*Provided by `vpp` ([ze-vpp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/vpp/yang/ze-vpp-conf.yang))*
 
 VPP data plane configuration.
 

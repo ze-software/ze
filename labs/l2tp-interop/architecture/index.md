@@ -112,9 +112,15 @@ underlay; the Docker lab isolates them across a Docker bridge and adds the FRR
 BGP redistribution scenario.
 
 The gokrazy appliance proof reuses the native LAC shape but puts Ze behind the
-same gokrazy/QEMU image used for appliance deployment. QEMU forwards UDP 1701
-into the guest, so the LAC namespace still exercises a real host PPPoL2TP
-kernel path while the appliance kernel provides Ze's LNS-side PPPoL2TP support.
+same gokrazy/QEMU image used for appliance deployment. The appliance attaches
+to a host bridge by TAP (user-mode slirp cannot deliver the LAC's inbound UDP
+1701), so the LAC namespace still exercises a real host PPPoL2TP kernel path
+while the appliance kernel provides Ze's LNS-side PPPoL2TP support. The proof
+resolves that kernel itself: the pinned rtr7 kernel has no l2tp support, so
+the script validates `KERNEL_PKG` or materializes the runtime kernel from the
+durable cache, and fails fast with the `make ze-kernel KERNEL_ARCH=<arch>`
+command when it cannot.
+<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
 
 ## Design Pattern
 

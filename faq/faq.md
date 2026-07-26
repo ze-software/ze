@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-The questions people tend to ask before they spend time on Ze. If yours is not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://codeberg.org/thomas-mangin/ze/issues).
+The questions people tend to ask before they spend time on Ze. If yours is not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues).
 
 <div class="faq-index" aria-label="FAQ topics">
   <a href="#what-is-ze" class="cat-operate"><span>01</span><strong>What Ze is</strong></a>
@@ -101,7 +101,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
   <details class="faq-card cat-secure" id="help">
     <summary>How do I get help, or report a security problem?</summary>
     <div>
-      <p>For questions and discussion, use <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>.</p>
+      <p>For questions and discussion, use <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://github.com/ze-software/ze/issues">issue tracker</a>.</p>
       <p>For anything security-sensitive, such as a bug an unauthenticated peer could trigger, follow the <a href="../security/">security policy</a> and report it privately instead of opening a public issue.</p>
     </div>
   </details>

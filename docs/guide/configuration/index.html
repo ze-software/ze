@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/configuration/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/configuration/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -239,6 +239,28 @@ bgp {
     }
 }
 </code></pre>
+<p>By default Ze enforces AS-wide BGP Identifier uniqueness: the first peer of an AS to
+present a router-id holds it, and a second peer of the same AS presenting the same
+router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1
+makes this only a SHOULD). The identifier is claimed while the peer's OPEN is
+validated and released when its session ends, so which peer wins does not depend on
+which one establishes first. Set <code>bgp { session { allow-shared-router-id true; } }</code>
+to accept the duplication when it is intentional, for example one anycast speaker
+(AS112) peering over both IPv4 and IPv6 with the same router-id. When enabled, Ze
+performs no AS-wide router-id uniqueness check at all.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — allow-shared-router-id; internal/component/bgp/reactor/routerid_unique.go — routerIDClaims; internal/component/bgp/reactor/peer.go — validateOpen -->
+
+<p><code>allow-shared-router-id</code> does not relax RFC 6286 Section 2.2, which Ze always
+enforces on reception: an OPEN whose BGP Identifier is <code>0.0.0.0</code>, or whose BGP
+Identifier is Ze's own router-id when the peer is in the same AS (an internal peer),
+is answered with OPEN Message Error / Bad BGP Identifier and the connection is
+closed. The same identifier from an <em>external</em> peer is accepted, as the RFC
+requires; if that leads to a connection collision, Section 2.3 preserves the
+connection initiated by the speaker with the larger AS number. Ze also refuses to
+start with its own <code>router-id 0.0.0.0</code>, since Section 2.1 defines the BGP Identifier
+as a non-zero integer and every conformant peer would reject such an OPEN.</p>
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+
 <h2 id="ospf">OSPF</h2>
 <p>The top-level <code>ospf</code> block enables Ze's native OSPF engine. The root container
 configures OSPFv2 for IPv4; <code>ospf { address-family ipv6 { ... } }</code> enables the

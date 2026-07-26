@@ -26,7 +26,7 @@
         <link rel="canonical" href="https://ze-software.net/docs/guide/traffic-control/" />
         <meta property="og:url" content="https://ze-software.net/docs/guide/traffic-control/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -57,6 +57,8 @@ the operator chooses one via the <code>backend</code> leaf.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#backends">Backends</a></li>
+<li><a href="#tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</a></li>
+<li><a href="#tc-backend-filter-priorities">tc Backend: Filter Priorities</a></li>
 <li><a href="#vpp-backend-compatibility-matrix">VPP Backend: Compatibility Matrix</a></li>
 <li><a href="#vpp-backend-operational-notes">VPP Backend: Operational Notes</a></li>
 <li><a href="#failure-modes">Failure Modes</a></li>
@@ -106,6 +108,17 @@ the operator chooses one via the <code>backend</code> leaf.</p>
 }
 </code></pre>
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
+
+<h2 id="tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</h2>
+<p>Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (<code>exact-or-reject.md</code>).</p>
+<p><code>noqueue</code> is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied <em>from</em>. It carries no reconstructable parameters, but it is the <em>absence</em> of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to <code>noqueue</code>. Adding a qdisc named <code>noqueue</code> is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.</p>
+<p>Other <code>GenericQdisc</code> types (<code>mq</code>, <code>clsact</code>, ...) stay rejected: those carry state this backend cannot reproduce.</p>
+<!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- newQdiscSnapshot, tcQdiscSnapshot.restoredByDelete -->
+
+<h2 id="tc-backend-filter-priorities">tc Backend: Filter Priorities</h2>
+<p>The kernel keeps exactly one <code>tcf_proto</code> per (parent, priority), and that instance carries a single link-layer protocol (<code>tcf_chain_tp_find</code>, <code>net/sched/cls_api.c</code>). A second filter at the same priority with a different protocol is rejected with <code>EINVAL</code>.</p>
+<p>Ze therefore allocates one priority per link-layer protocol: the IPv4 (<code>ETH_P_IP</code>) and IPv6 (<code>ETH_P_IPV6</code>) halves of a DSCP or protocol match get distinct priorities, as does a mark filter (<code>ETH_P_ALL</code>). With a shared priority the qdisc and class were created, the IPv4 filter was accepted, and the IPv6 filter at the same priority was refused.</p>
+<!-- source: internal/plugins/traffic/netlink/translate_linux.go -- u32FilterPair, FilterMark -->
 
 <h2 id="vpp-backend-compatibility-matrix">VPP Backend: Compatibility Matrix</h2>
 <p>The VPP backend rejects qdisc and filter types that cannot be represented

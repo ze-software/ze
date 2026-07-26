@@ -35,7 +35,7 @@ MAIN_REPO = (GH_PAGES.parent / "main").resolve()
 INTERNAL_DIR = MAIN_REPO / "internal"
 DEST = GH_PAGES / "data" / "plugin-registry.json"
 
-MODULE_PREFIX = "codeberg.org/thomas-mangin/ze/"
+MODULE_PREFIX = "github.com/ze-software/ze/"
 
 STRING_LIT = r'"(?:\\.|[^"\\])*"'
 IDENT = r"[A-Za-z_][A-Za-z0-9_]*"
@@ -144,7 +144,7 @@ def build_symbol_table(package_dir):
 
 
 def import_alias_map(text):
-    """package-alias -> import path, e.g. {"bgpyang": "codeberg.org/.../bgp/yang"}.
+    """package-alias -> import path, e.g. {"bgpyang": "github.com/.../bgp/yang"}.
     Only handles explicitly-aliased imports (alias "path"); this codebase's
     own convention is to always alias a yang sub-package import (e.g.
     `bgpyang "…/bgp/yang"`, `dhcpyang "…/dhcpserver/yang"`), so a bare
@@ -190,6 +190,7 @@ def resolve_list(raw, symbols):
             out.append(resolved)
     return out
 
+
 def parse_front_matter(text):
     m = FRONT_MATTER_RE.match(text)
     if not m:
@@ -234,7 +235,6 @@ def load_plugin_doc(package_dir):
             doc["body"] = body
         return doc
     return {}
-
 
 
 def parse_register_file(path):

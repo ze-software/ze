@@ -47,5 +47,5 @@ Ze is currently developed by Thomas Mangin, with his time on the project support
 ## Where to start
 
 - [Issues **Browse or file a bug** Use this for reproducible problems, missing docs, and clear feature gaps.](https://github.com/ze-software/ze/issues)
-- [Repository **Use Codeberg as canonical** The public mirror exists, but Codeberg is the source repository.](https://codeberg.org/thomas-mangin/ze)
+- [Repository **GitHub is the source repository** Development moved off Codeberg in July 2026. Clone, issues and pull requests all live on GitHub.](https://github.com/ze-software/ze)
 - [Discussion **Ask before guessing** There is no formal good-first-issue program yet. Ask where help is most useful right now.](https://discord.gg/T8s7CjPDne)
