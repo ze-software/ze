@@ -37,11 +37,16 @@ func BenchmarkForwardDirect(b *testing.B) {
 		wu.SetMessageID(id)
 		cache.Add(&ReceivedUpdate{
 			WireUpdate:   wu,
-			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+			SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 			ReceivedAt:   time.Now(),
 		})
 		cache.Activate(id, 1)
 	}
+
+	// Established source peer: the forward rail refuses an UPDATE whose source is
+	// not one (errForwardNoSource), so without this the benchmark would measure
+	// the refusal path instead of the forward it is named after.
+	src := makeForwardSourcePeer(b, ctx, ctxID)
 
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
@@ -65,8 +70,11 @@ func BenchmarkForwardDirect(b *testing.B) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:       pool,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			settings.PeerKey():       peer,
+		},
+		fwdPool: pool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -102,13 +110,18 @@ func BenchmarkForwardDirect_Batch(b *testing.B) {
 		wu.SetMessageID(id)
 		cache.Add(&ReceivedUpdate{
 			WireUpdate:   wu,
-			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+			SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 			ReceivedAt:   time.Now(),
 		})
 		cache.Activate(id, 1)
 	}
 
-	peers := make(map[netip.AddrPort]*Peer, peerCount)
+	// See BenchmarkForwardDirect: without an established source peer every id
+	// would take the errForwardNoSource refusal instead of the forward path.
+	src := makeForwardSourcePeer(b, ctx, ctxID)
+
+	peers := make(map[netip.AddrPort]*Peer, peerCount+1)
+	peers[src.Settings().PeerKey()] = src
 	dests := make([]netip.AddrPort, 0, peerCount)
 	for i := range peerCount {
 		addr := netip.AddrFrom4([4]byte{10, 0, 1, byte(i + 1)})

@@ -35,6 +35,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// leakTestSource is the source-facts argument the buffer-accounting tests below
+// hand straight to forwardUpdateCore, bypassing the resolution step so a single
+// borrow site can be driven in isolation.
+//
+// resolved must be set: the core refuses unresolved source facts outright
+// (errForwardNoSource), because the zero value is otherwise indistinguishable
+// from a genuinely resolved EBGP non-RS source. Every other field stays zero on
+// purpose -- these tests drive read-buffer adoption, not RFC 4456 reflection, and
+// an EBGP-shaped source keeps the reflection branches out of the wire they assert
+// buffer counts against.
+var leakTestSource = forwardSourceInfo{resolved: true}
+
 // addr is a parameter (not hardcoded) so callers can place the peer at a distinct
 // address when a test builds several peers in one reactor.
 //
@@ -177,7 +189,7 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 		}
 		adapter := &reactorAPIAdapter{r: r}
 
-		require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, forwardSourceInfo{}))
+		require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, leakTestSource))
 
 		_, afterBorrow := bufMuxStd.Stats()
 		require.Equal(t, before+1, afterBorrow, "one read buffer must be borrowed for the dual-AS wire")
@@ -294,7 +306,7 @@ func TestForwardRSTranscodePoolBalance(t *testing.T) {
 		}
 		adapter := &reactorAPIAdapter{r: r}
 
-		require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dstRS}, forwardSourceInfo{}))
+		require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dstRS}, leakTestSource))
 
 		_, afterBorrow := bufMuxStd.Stats()
 		require.Equal(t, before+1, afterBorrow, "one read buffer must be borrowed for the transcode wire")
@@ -352,7 +364,7 @@ func TestForwardBufferReturnAfterDispatch(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, forwardSourceInfo{}))
+	require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, leakTestSource))
 
 	// Worker is in flight and blocked: entry is retained, buffer still borrowed.
 	select {

@@ -119,6 +119,9 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 			isRRClient:     s.RouteReflectorClient,
 			remoteRouterID: srcPeer.RemoteRouterID(),
 			globalLocalAS:  s.GlobalLocalAS,
+			// Set on the same condition as relaySource.ok, so the facts stay
+			// self-describing once they leave this struct for forwardUpdateCore.
+			resolved: true,
 		}
 		if len(a.r.egressFilters) > 0 {
 			out.info.filterInfo = filterapi.PeerFilterInfo{

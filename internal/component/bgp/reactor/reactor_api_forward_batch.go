@@ -117,6 +117,23 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		}
 
 		srcInfo := lookupSrcInfo(update.SourcePeerIP)
+		if !srcInfo.resolved {
+			// Fail CLOSED, per-id: this rail is the one bgp-rs uses, so the RFC 4456
+			// hole would be widest here. The entry is still acked below so refusing
+			// does not leak it, and the refusal is logged because a guard that
+			// neither denies nor speaks does not exist. See errForwardNoSource.
+			fwdLogger().Warn("forward-cached refused: source peer is not an established peer",
+				"id", id, "source", update.SourcePeerIP, "plugin", pluginName)
+			lastErr = errForwardNoSource
+			if pluginName != "" {
+				if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
+					cacheLogger().Warn("cache ack after refused forward failed",
+						"id", id, "plugin", pluginName, "err", ackErr)
+				}
+			}
+			processed++
+			continue
+		}
 
 		// Exclude source peer from destinations for this ID.
 		var filteredBuf [16]*Peer
@@ -197,12 +214,22 @@ func (a *reactorAPIAdapter) resolveDestinationPeers(destinations []netip.AddrPor
 }
 
 // resolveSourceInfo builds a forwardSourceInfo for the given source peer
-// address under r.mu.RLock. Safe to call when the source peer has disconnected
-// (returns zero-value info).
+// address under r.mu.RLock.
+//
+// A disconnected or removed source yields info.resolved == false, and the caller
+// MUST refuse the forward on that. It used to return the zero value and call that
+// "safe": it is not, because every consumer in forwardUpdateCore reads those zeros
+// as decisions -- isIBGP=false alone disables both the RFC 4456 reflection
+// suppression and the ORIGINATOR_ID / CLUSTER_LIST injection. See
+// errForwardNoSource.
+//
+// Established is required, not merely present: Peer.clearEncodingContexts zeroes
+// remoteRouterID on teardown, so a torn-down peer's facts would inject
+// ORIGINATOR_ID 0.0.0.0. Same condition as resolveRelaySource.
 func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceInfo {
 	var info forwardSourceInfo
 	a.r.mu.RLock()
-	if srcPeer, ok := a.r.findPeerByAddr(srcAddr); ok {
+	if srcPeer, ok := a.r.findPeerByAddr(srcAddr); ok && srcPeer.State() == PeerStateEstablished {
 		s := srcPeer.Settings()
 		info = forwardSourceInfo{
 			// Guarded: source may be a dynamic peer still resolving its ASN.
@@ -210,6 +237,7 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 			isRRClient:     s.RouteReflectorClient,
 			remoteRouterID: srcPeer.RemoteRouterID(),
 			globalLocalAS:  s.GlobalLocalAS,
+			resolved:       true,
 		}
 		if len(a.r.egressFilters) > 0 {
 			info.filterInfo = filterapi.PeerFilterInfo{

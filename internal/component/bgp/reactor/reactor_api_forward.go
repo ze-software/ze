@@ -40,6 +40,38 @@ var errNoEstablishedPeersToForwardTo = errors.New("no established peers to forwa
 // that only care whether anything was sent can keep testing for the other.
 var errAllDestinationsSuppressed = errors.New("all destinations suppressed by egress policy")
 
+// errForwardNoSource refuses to forward a cached UPDATE whose source peer is no
+// longer an established peer of this reactor. It is the forward rail's twin of
+// errRelayNoSource (reactor_api_relay.go), which already made this call.
+//
+// Every fact that decides the egress transform comes from the SOURCE peer, and a
+// missing source leaves each of them at a zero that downstream reads as a
+// legitimate answer rather than as "unknown" (ai/rules/fail-closed-guards.md):
+//
+//   - isIBGP=false disables BOTH halves of RFC 4456 Section 8 at once: the
+//     non-client-to-non-client suppression that stops the route being reflected at
+//     all, AND the ORIGINATOR_ID / CLUSTER_LIST injection. A route reflector that
+//     forwards without those two attributes has removed the loop prevention RFC
+//     4456 exists to provide, and a reflector-to-reflector loop is persistent, not
+//     transient.
+//   - remoteRouterID=0 would put 0.0.0.0 in ORIGINATOR_ID even where the injection
+//     did run -- never a valid BGP Identifier, so no reflector downstream can
+//     recognize its own id in it. Peer.clearEncodingContexts zeroes this field on
+//     teardown (peer.go), which is why "present in r.peers" is not enough and the
+//     guard requires an ESTABLISHED source.
+//   - globalLocalAS=0 skips RFC 7947 community-based route-server forwarding
+//     entirely, so control communities stop being honored.
+//   - a zero source PeerFilterInfo hands every egress filter an empty address and
+//     AS, so source-matching export policy silently stops matching.
+//
+// The window is live, not theoretical: peers leave r.peers on dynamic teardown
+// (reactor_dynamic.go removeDynamicPeer), on API removal and on config reload
+// (reactor_peers.go doRemovePeer), while the UPDATEs they sent stay in the
+// recent-update cache for a plugin to forward. Such a route is about to be
+// withdrawn anyway, so sending it under the WRONG transform is strictly worse
+// than not sending it.
+var errForwardNoSource = errors.New("forward: source peer is not an established peer, refusing to forward")
+
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
 func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8) error {
@@ -208,6 +240,12 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	for _, peer := range a.r.peers {
 		addr := peer.Settings().Address
 		if addr == update.SourcePeerIP {
+			// Established only, matching resolveRelaySource: a torn-down peer keeps
+			// its Settings but Peer.clearEncodingContexts has already zeroed
+			// remoteRouterID, so its facts would inject ORIGINATOR_ID 0.0.0.0.
+			if peer.State() != PeerStateEstablished {
+				continue
+			}
 			s := peer.Settings()
 			srcInfo = forwardSourceInfo{
 				// Guarded: source may be a dynamic peer still resolving its ASN.
@@ -215,6 +253,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				isRRClient:     s.RouteReflectorClient,
 				remoteRouterID: peer.RemoteRouterID(),
 				globalLocalAS:  s.GlobalLocalAS,
+				resolved:       true,
 			}
 			if len(a.r.egressFilters) > 0 {
 				srcInfo.filterInfo = filterapi.PeerFilterInfo{
@@ -236,6 +275,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	}
 	a.r.mu.RUnlock()
 
+	// Fail CLOSED before considering destinations: without the source peer we
+	// cannot reproduce the egress transform a live forward would have applied, and
+	// the zero value would silently look like "IBGP=no, no reflection needed".
+	// See errForwardNoSource.
+	if !srcInfo.resolved {
+		fwdLogger().Warn("forward refused: source peer is not an established peer",
+			"id", updateID, "source", update.SourcePeerIP, "plugin", pluginName)
+		return errForwardNoSource
+	}
+
 	if len(matchingPeers) == 0 {
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
@@ -247,18 +296,36 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 // (or once per distinct source in a ForwardUpdatesDirect batch). These fields
 // drive RFC 4456 route reflection, RFC 7947 community-based RS forwarding,
 // and egress filter chain source matching.
+//
+// resolved is what makes the rest of the struct trustworthy, and every producer
+// MUST set it. Without it the zero value is indistinguishable from a legitimately
+// resolved EBGP non-RS source with no filters, and forwardUpdateCore would then
+// quietly skip the RFC 4456 reflection rules and the RFC 7947 policy for a source
+// it never actually found. See errForwardNoSource.
 type forwardSourceInfo struct {
 	isIBGP         bool
 	isRRClient     bool
 	remoteRouterID uint32
 	globalLocalAS  uint32
 	filterInfo     filterapi.PeerFilterInfo
+	resolved       bool
 }
 
 // forwardUpdateCore is the per-destination dispatch loop shared by ForwardUpdate
 // (selector-resolved peers) and ForwardUpdatesDirect (batch-resolved peers).
 // matchingPeers must not include the source peer (already excluded by the caller).
 func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo) error {
+	// Unreachable from any production caller -- ForwardUpdate, ForwardUpdatesDirect
+	// and RelayStoredRoute each refuse an unresolved source before getting here.
+	// Kept so the zero value can never become a valid-looking answer at the one
+	// place that acts on it: this function reads srcInfo six times below, and every
+	// one of those reads treats "false"/"0" as a decision rather than as a miss.
+	if !srcInfo.resolved {
+		fwdLogger().Error("BUG: forward refused: unresolved source facts reached forwardUpdateCore",
+			"id", updateID, "source", update.SourcePeerIP, "destinations", len(matchingPeers))
+		return errForwardNoSource
+	}
+
 	// EBGP preparation: lazily generate patched wires keyed by (localAS, secondaryAS, asn4).
 	// RFC 4271 S9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
 	// RFC 6793 S4: ASN4->ASN2 transcoding uses AS_TRANS=23456.

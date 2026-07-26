@@ -19,6 +19,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// forwardSourceAddr is the address every fixture below stores in
+// ReceivedUpdate.SourcePeerIP. A cached UPDATE always names the peer that sent
+// it (reactor_notify.go fills SourcePeerIP from the session's own peer), so a
+// forward fixture that omits that peer describes a state the daemon cannot be
+// in -- and the forward rail now refuses it (errForwardNoSource).
+const forwardSourceAddr = "10.0.0.1"
+
+// makeForwardSourcePeer builds the established source peer a forwarded UPDATE
+// was learned from.
+//
+// EBGP (PeerAS != LocalAS) on purpose: the tests using it exercise pool
+// dispatch, retain/release and attribute-mod handlers, not route reflection, and
+// an EBGP source keeps RFC 4456 Section 8 out of the picture exactly as the
+// fixtures assumed before they had a source peer at all. An EBGP-learned route
+// redistributed to IBGP peers is the ordinary topology for that.
+// TestForwardUpdateInjectsReflectionAttributes covers the IBGP/reflection side.
+func makeForwardSourcePeer(t testing.TB, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
+	t.Helper()
+	settings := &PeerSettings{
+		Connection: ConnectionBoth,
+		Address:    netip.MustParseAddr(forwardSourceAddr),
+		LocalAS:    65000,
+		PeerAS:     65001, // EBGP: see the doc comment
+		RouterID:   0x0102030A,
+	}
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+	peer.negotiated.Store(&NegotiatedCapabilities{
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
+		ExtendedMessage: false,
+	})
+	peer.sendCtx.Store(ctx)
+	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
+	return peer
+}
+
 // TestForwardUpdate_DispatchesToPool verifies ForwardUpdate dispatches
 // pre-computed send operations to the forward pool instead of calling
 // Send* directly.
@@ -37,7 +74,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
@@ -45,6 +82,8 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(42, 1) // 1 consumer (the plugin doing the forward)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	// Create peer in Established state with matching context
 	peerAddr := netip.MustParseAddr("10.0.0.2")
@@ -82,8 +121,11 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	// Build reactor with test pool
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:       testPool,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			settings.PeerKey():       peer,
+		},
+		fwdPool: testPool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -131,7 +173,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
@@ -140,6 +182,8 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	// 1 consumer plugin — Ack will decrement pendingConsumers to 0
 	// but Retain keeps the entry alive while workers are in flight
 	cache.Activate(100, 1)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	// Two established peers → two Retain calls → two Release calls needed
 	peer1Settings := &PeerSettings{
@@ -189,8 +233,9 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	r := &Reactor{
 		recentUpdates: cache,
 		peers: map[netip.AddrPort]*Peer{
-			peer1Settings.PeerKey(): peer1,
-			peer2Settings.PeerKey(): peer2,
+			src.Settings().PeerKey(): src,
+			peer1Settings.PeerKey():  peer1,
+			peer2Settings.PeerKey():  peer2,
 		},
 		fwdPool: testPool,
 	}
@@ -236,13 +281,19 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
 	cache := NewRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(200, 1)
+
+	// Without the source peer this test still saw an error after the fail-closed
+	// guard landed -- but errForwardNoSource, never reaching the stopped pool it
+	// exists to exercise. It was passing for the wrong reason, which is why the
+	// fixture is fixed rather than left alone.
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerSettings := &PeerSettings{
 		Connection: ConnectionBoth,
@@ -269,8 +320,11 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{peerSettings.PeerKey(): peer},
-		fwdPool:       testPool,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			peerSettings.PeerKey():   peer,
+		},
+		fwdPool: testPool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -280,6 +334,8 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	// ForwardUpdate should fail (no dispatches succeeded)
 	err = adapter.ForwardUpdate(sel, 200, "test-plugin")
 	assert.Error(t, err, "should error when no peers dispatched")
+	assert.ErrorIs(t, err, errNoEstablishedPeersToForwardTo,
+		"the error must come from the stopped pool, not from an unresolved source")
 
 	// Cache entry should be evicted: Retain+Release balanced, Ack fired
 	assert.Equal(t, 0, cache.Len(), "entry should be evicted — Retain/Release balanced and Ack fired")
@@ -307,13 +363,15 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
 	cache := NewRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(300, 1)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerAddr := netip.MustParseAddr("10.0.0.2")
 	settings := &PeerSettings{
@@ -364,8 +422,11 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:      cache,
-		peers:              map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		recentUpdates: cache,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			settings.PeerKey():       peer,
+		},
 		fwdPool:            testPool,
 		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
 		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
@@ -422,13 +483,15 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
 	cache := NewRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(301, 1)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerAddr := netip.MustParseAddr("10.0.0.2")
 	settings := &PeerSettings{
@@ -470,8 +533,11 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:      cache,
-		peers:              map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		recentUpdates: cache,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			settings.PeerKey():       peer,
+		},
 		fwdPool:            testPool,
 		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
 		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
@@ -521,13 +587,15 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
 	cache := NewRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(302, 1)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerAddr := netip.MustParseAddr("10.0.0.2")
 	settings := &PeerSettings{
@@ -566,8 +634,11 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:      cache,
-		peers:              map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		recentUpdates: cache,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			settings.PeerKey():       peer,
+		},
 		fwdPool:            testPool,
 		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
 		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
@@ -597,6 +668,294 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	assert.Equal(t, payload, item.rawBodies[0], "original payload should be forwarded when mod handler is missing")
 }
 
+// --- source-peer fail-closed guard (errForwardNoSource) ---
+
+// reflectionEnv is the fixture the source-guard tests drive. r is exposed so a
+// test can call RemovePeer (the real removal entry point) rather than reaching
+// into r.peers.
+type reflectionEnv struct {
+	r     *Reactor
+	api   *reactorAPIAdapter
+	cache *RecentUpdateCache
+	saw   chan struct{} // one token per dispatched item
+
+	mu         sync.Mutex
+	dispatched []fwdItem
+}
+
+// items returns a snapshot of everything dispatched so far.
+func (e *reflectionEnv) items() []fwdItem {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return append([]fwdItem(nil), e.dispatched...)
+}
+
+// reflectionFixture builds the RFC 4456 topology the source-guard tests need: an
+// IBGP route-reflector CLIENT as the source and an IBGP non-client destination,
+// so a forward between them is a reflection that MUST carry ORIGINATOR_ID and
+// CLUSTER_LIST.
+func reflectionFixture(t *testing.T) *reflectionEnv {
+	t.Helper()
+
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	mkIBGP := func(addr string, routerID uint32, rrClient bool) *Peer {
+		s := &PeerSettings{
+			Connection:           ConnectionBoth,
+			Address:              netip.MustParseAddr(addr),
+			LocalAS:              65000,
+			PeerAS:               65000, // IBGP
+			RouterID:             routerID,
+			RouteReflectorClient: rrClient,
+		}
+		p := NewPeer(s)
+		p.state.Store(int32(PeerStateEstablished))
+		p.negotiated.Store(&NegotiatedCapabilities{
+			families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
+			ExtendedMessage: false,
+		})
+		p.sendCtx.Store(ctx)
+		p.sendCtxID = ctxID
+		p.refreshForwardFacts()
+		return p
+	}
+
+	src := mkIBGP(forwardSourceAddr, srcRouterID, true) // reflector client
+	// The BGP Identifier from the source's OPEN. RFC 4456 Section 8 makes this the
+	// ORIGINATOR_ID; Peer.clearEncodingContexts zeroes it on teardown, which is
+	// half of why the guard requires an ESTABLISHED source and not merely a
+	// present one.
+	src.remoteRouterID.Store(srcOriginatorID)
+	dst := mkIBGP("10.0.0.2", dstClusterID, false) // non-client
+
+	env := &reflectionEnv{saw: make(chan struct{}, 8)}
+
+	pool := newFwdPool(func(_ fwdKey, in []fwdItem) {
+		env.mu.Lock()
+		env.dispatched = append(env.dispatched, in...)
+		env.mu.Unlock()
+		for i := range in {
+			if in[i].done != nil {
+				in[i].done()
+			}
+			env.saw <- struct{}{}
+		}
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	t.Cleanup(pool.Stop)
+
+	env.cache = NewRecentUpdateCache(100)
+	t.Cleanup(env.cache.Stop)
+
+	env.r = &Reactor{
+		// config is required because these tests drive Reactor.RemovePeer, which
+		// resolves the peer's listener port through r.config.
+		config:        &Config{LocalAS: 65000},
+		recentUpdates: env.cache,
+		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey(): src,
+			dst.Settings().PeerKey(): dst,
+		},
+		fwdPool:         pool,
+		attrModHandlers: attrModHandlersWithDefaults(),
+	}
+	env.api = &reactorAPIAdapter{r: env.r}
+	return env
+}
+
+const (
+	srcRouterID     uint32 = 0x0A000001
+	srcOriginatorID uint32 = 0xC0A80001 // 192.168.0.1, the source's BGP Identifier
+	dstClusterID    uint32 = 0x0A000002
+)
+
+// cacheReflectableUpdate adds an UPDATE from forwardSourceAddr to the cache and
+// returns its id. ORIGIN only, so the attribute section is well formed and any
+// growth in the dispatched body is attributable to the reflection attributes.
+func cacheReflectableUpdate(t *testing.T, cache *RecentUpdateCache, id uint64) {
+	t.Helper()
+	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+
+	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	payload := make([]byte, 2+2+len(origAttrs))
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
+	copy(payload[4:], origAttrs)
+
+	wu := wireu.NewWireUpdate(payload, ctxID)
+	wu.SetMessageID(id)
+	cache.Add(&ReceivedUpdate{
+		WireUpdate:   wu,
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
+		ReceivedAt:   time.Now(),
+	})
+	cache.Activate(id, 1)
+}
+
+// bodyPathAttr slices the path-attribute section out of an UPDATE body carrying
+// no withdrawn routes and returns the value of attribute `code`, delegating the
+// TLV walk to findPathAttr (reactor_as4path_test.go) rather than repeating it.
+//
+// findPathAttr breaks silently on a malformed TLV chain, which would make a
+// corrupt body indistinguishable from a genuinely absent attribute -- and this
+// helper is used to prove attributes ARE present, so a silent miss would read as
+// a real RFC 4456 violation. The two checks around the delegation close that gap.
+func bodyPathAttr(t *testing.T, body []byte, code byte) ([]byte, bool) {
+	t.Helper()
+	require.GreaterOrEqual(t, len(body), 4, "body must carry both length fields")
+	require.Zero(t, binary.BigEndian.Uint16(body[0:2]), "fixture assumes no withdrawn routes")
+	attrLen := int(binary.BigEndian.Uint16(body[2:4]))
+	require.LessOrEqual(t, 4+attrLen, len(body), "attr_len must fit inside the body")
+	attrs := body[4 : 4+attrLen]
+	require.NotEmpty(t, attrs, "an empty attribute section would make every lookup a silent miss")
+
+	_, value, ok := findPathAttr(attrs, code)
+	if !ok {
+		// ORIGIN is always present in these fixtures, so finding it proves the walk
+		// was sound and the reported absence is real rather than a parse break.
+		_, _, originOK := findPathAttr(attrs, 1)
+		require.True(t, originOK,
+			"attribute section did not parse: ORIGIN must be findable in every fixture body")
+	}
+	return value, ok
+}
+
+// TestForwardUpdateRefusesAfterSourcePeerRemoved drives the reachable path: a
+// reflected UPDATE forwards correctly while its source peer exists, and is
+// REFUSED once that peer leaves r.peers -- through Reactor.RemovePeer, the same
+// removal the API and a config reload use (reactor_peers.go doRemovePeer), and
+// the same delete that removeDynamicPeer performs on a dynamic teardown.
+//
+// VALIDATES: fail-closed source resolution in ForwardUpdate (errForwardNoSource),
+// and, in phase 1, exactly which RFC 4456 Section 8 behavior the previous zero
+// value suppressed: ORIGINATOR_ID (the source's BGP Identifier) and CLUSTER_LIST
+// (the reflector's cluster-id).
+// PREVENTS: a route reflector forwarding a reflected route with neither
+// ORIGINATOR_ID nor CLUSTER_LIST once the source peer is torn down -- the loop
+// prevention RFC 4456 exists to provide, removed silently and wire-visibly.
+func TestForwardUpdateRefusesAfterSourcePeerRemoved(t *testing.T) {
+	env := reflectionFixture(t)
+
+	sel, err := selector.Parse("*")
+	require.NoError(t, err)
+
+	// Phase 1: source present. The forward must succeed AND reflect properly.
+	// Without this the phase-2 refusal would be indistinguishable from a fixture
+	// that could never forward at all.
+	cacheReflectableUpdate(t, env.cache, 1000)
+	require.NoError(t, env.api.ForwardUpdate(sel, 1000, "test-plugin"))
+
+	select {
+	case <-env.saw:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for the reflected UPDATE to reach the pool")
+	}
+
+	sent := env.items()
+	require.Len(t, sent, 1, "exactly one destination")
+	body := sent[0].rawBodies[0]
+
+	origID, ok := bodyPathAttr(t, body, 9)
+	require.True(t, ok, "RFC 4456 Section 8: a reflected route MUST carry ORIGINATOR_ID")
+	assert.Equal(t, srcOriginatorID, binary.BigEndian.Uint32(origID),
+		"ORIGINATOR_ID must be the source peer's BGP Identifier")
+
+	clusterList, ok := bodyPathAttr(t, body, 10)
+	require.True(t, ok, "RFC 4456 Section 8: a reflected route MUST carry CLUSTER_LIST")
+	require.Len(t, clusterList, 4, "one cluster-id prepended")
+	assert.Equal(t, dstClusterID, binary.BigEndian.Uint32(clusterList),
+		"CLUSTER_LIST must carry the reflector's cluster-id")
+
+	// Phase 2: the source peer goes away through the real removal path, while its
+	// UPDATE is still cached and still forwardable by a plugin.
+	require.NoError(t, env.r.RemovePeer(netip.MustParseAddr(forwardSourceAddr)))
+
+	cacheReflectableUpdate(t, env.cache, 1001)
+	err = env.api.ForwardUpdate(sel, 1001, "test-plugin")
+	require.ErrorIs(t, err, errForwardNoSource,
+		"a forward whose source peer is gone must fail closed, not forward unreflected")
+
+	select {
+	case <-env.saw:
+		t.Fatal("nothing may be dispatched once the source peer is gone")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	assert.Len(t, env.items(), 1, "still only the phase-1 dispatch")
+}
+
+// TestForwardUpdateRefusesUnestablishedSource covers the other half of the guard:
+// the peer is still in r.peers but its session is down, so
+// Peer.clearEncodingContexts has already zeroed remoteRouterID.
+//
+// VALIDATES: "present" is not enough -- resolution requires an ESTABLISHED
+// source, matching resolveRelaySource.
+// PREVENTS: reflecting with ORIGINATOR_ID 0.0.0.0, which is not a valid BGP
+// Identifier and which no downstream reflector can recognize as its own.
+func TestForwardUpdateRefusesUnestablishedSource(t *testing.T) {
+	env := reflectionFixture(t)
+
+	src, found := env.r.findPeerByAddr(netip.MustParseAddr(forwardSourceAddr))
+	require.True(t, found, "fixture must have the source peer")
+	src.state.Store(int32(PeerStateConnecting))
+	src.clearEncodingContexts()
+	require.Zero(t, src.RemoteRouterID(), "teardown zeroes the BGP Identifier")
+
+	sel, err := selector.Parse("*")
+	require.NoError(t, err)
+
+	cacheReflectableUpdate(t, env.cache, 1002)
+	require.ErrorIs(t, env.api.ForwardUpdate(sel, 1002, "test-plugin"), errForwardNoSource,
+		"a source peer that is present but not established must fail closed")
+
+	assert.Empty(t, env.items(), "nothing may be dispatched for a torn-down source")
+}
+
+// TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved is the same guard on the
+// batch rail, which is the one bgp-rs actually uses (Plugin.ForwardCached).
+//
+// VALIDATES: fail-closed source resolution in ForwardUpdatesDirect; the refused
+// id is still acked so the refusal does not strand its cache entry.
+// PREVENTS: the RFC 4456 hole staying open on the hotter of the two forward
+// rails after being closed on the other.
+func TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved(t *testing.T) {
+	env := reflectionFixture(t)
+	env.cache.RegisterConsumer("rs")
+	env.cache.SetConsumerUnordered("rs")
+
+	dests := []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("10.0.0.2"), 0)}
+
+	// Phase 1: source present -> the batch forwards.
+	cacheReflectableUpdate(t, env.cache, 2000)
+	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2000}, dests, "rs"))
+	select {
+	case <-env.saw:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for the batch forward to reach the pool")
+	}
+
+	// Phase 2: source removed -> the batch refuses that id.
+	require.NoError(t, env.r.RemovePeer(netip.MustParseAddr(forwardSourceAddr)))
+
+	cacheReflectableUpdate(t, env.cache, 2001)
+	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2001}, dests, "rs"),
+		"the batch contract keeps per-id outcomes out of the return value")
+
+	select {
+	case <-env.saw:
+		t.Fatal("nothing may be dispatched once the source peer is gone")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	assert.Len(t, env.items(), 1, "still only the phase-1 dispatch")
+
+	// The refused id must not be stranded: it was acked on the refusal path, so
+	// its entry evicts exactly as a forwarded one does.
+	require.Eventually(t, func() bool {
+		_, still := env.cache.Get(2001)
+		return !still
+	}, 2*time.Second, 10*time.Millisecond, "a refused id must still be acked, not leaked")
+}
+
 // --- rs-fastpath-3: ForwardUpdatesDirect + fwdBodyCache hoisting ---
 
 // fastpathSetup builds a minimal Reactor with N established peers sharing one
@@ -617,7 +976,7 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 	wu.SetMessageID(msgID)
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
@@ -627,7 +986,11 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 	cache.Add(update)
 	cache.Activate(msgID, 1)
 
-	peersMap := map[netip.AddrPort]*Peer{}
+	// The source peer is in the reactor but never in the returned destination
+	// slice: ForwardUpdatesDirect excludes it per id, and the callers below build
+	// their destination list from `peers`.
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	peersMap := map[netip.AddrPort]*Peer{src.Settings().PeerKey(): src}
 	peers = make([]*Peer, 0, nPeers)
 	for i := range nPeers {
 		addr := netip.MustParseAddr(fmt.Sprintf("10.0.0.%d", 2+i))
@@ -729,7 +1092,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	wu.SetMessageID(msgID)
 	update := &ReceivedUpdate{
 		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
 	}
 
@@ -739,6 +1102,8 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	cache.SetConsumerUnordered("rs")
 	cache.Add(update)
 	cache.Activate(msgID, 1)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	mkPeer := func(addr string, rid uint32) *Peer {
 		s := &PeerSettings{
@@ -795,6 +1160,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	r := &Reactor{
 		recentUpdates: cache,
 		peers: map[netip.AddrPort]*Peer{
+			src.Settings().PeerKey():   src,
 			peerA.Settings().PeerKey(): peerA,
 			peerB.Settings().PeerKey(): peerB,
 		},
