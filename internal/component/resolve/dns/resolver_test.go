@@ -161,11 +161,25 @@ func TestResolveDefaultServer(t *testing.T) {
 // resolver outside operator configuration.
 func TestResolveSystemDNSNoPublicFallback(t *testing.T) {
 	server := resolveSystemDNS(t.TempDir() + "/missing-resolv.conf")
-	publicDNS := []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "9.9.9.9"}
-	for _, pub := range publicDNS {
-		host, _, _ := net.SplitHostPort(server)
-		assert.NotEqual(t, pub, host, "must not fall back to public DNS %s", pub)
+
+	// The invariant is "every server ze returns came from a resolv.conf", not
+	// "the server is never a public address". resolveSystemDNS falls back to the
+	// host's real /etc/resolv.conf (resolver.go:123-128), so on a host whose
+	// resolv.conf legitimately names 8.8.8.8 -- the Alpine/QEMU default, which is
+	// what the VM has -- the old blocklist assertion fired on the OPERATOR's
+	// configuration and called it a ze fallback. It passed on the dev machine only
+	// because that machine's resolver happens not to be a public one.
+	//
+	// Comparing against /etc/resolv.conf instead is both environment-independent
+	// and strictly stronger: a hardcoded fallback of ANY address (public or not)
+	// fails it, where the blocklist only caught five specific addresses.
+	if server == "" {
+		return // no resolv.conf anywhere: correctly fails closed
 	}
+	want := resolveSystemDNS("/etc/resolv.conf")
+	assert.Equal(t, want, server,
+		"resolveSystemDNS returned %q, which is not what /etc/resolv.conf yields (%q); a server ze did not read from a resolv.conf is a hardcoded fallback",
+		server, want)
 }
 
 // TestResolveSystemDNSFailClosed verifies that queries fail with a clear error

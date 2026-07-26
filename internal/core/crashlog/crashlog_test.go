@@ -125,11 +125,27 @@ func TestAutodetectExplicitOverride(t *testing.T) {
 }
 
 func TestAutodetectExplicitFallsThrough(t *testing.T) {
-	setEnv(t, "ze.crash.dir", "/nonexistent/path/that/cannot/exist")
+	// The unusable path must be unusable for EVERY uid. "/nonexistent/..." is not:
+	// resolveCrashDir's only barrier is os.MkdirAll (persist.go:54-58), and root
+	// may create directories at the filesystem root, so it returned the path and
+	// this assertion failed under the QEMU unit phase (which runs as root) while
+	// passing on the dev host.
+	//
+	// A regular file as the PARENT makes mkdir fail with ENOTDIR, which is a
+	// structural property of the path rather than a permission check, so no
+	// capability bypasses it. The test now proves the same fall-through on every
+	// uid instead of only on an unprivileged one.
+	parent := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(parent, []byte("x"), 0o600); err != nil {
+		t.Fatalf("create blocking file: %v", err)
+	}
+	unusable := filepath.Join(parent, "crash")
+
+	setEnv(t, "ze.crash.dir", unusable)
 
 	result := resolveCrashDir()
-	if result == "/nonexistent/path/that/cannot/exist" {
-		t.Error("should have fallen through from non-writable explicit path")
+	if result == unusable {
+		t.Errorf("resolveCrashDir returned the unusable explicit path %q; it must fall through", unusable)
 	}
 }
 

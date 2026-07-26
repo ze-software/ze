@@ -16,6 +16,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -202,8 +203,7 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfv3VethLab)) {
 		unlock()
 		t.Fatalf("restore original namespace after create %s: %v", nsName, err)
 	}
-	nameA := fmt.Sprintf("zev3a%d", osPidSuffix())
-	nameB := fmt.Sprintf("zev3b%d", osPidSuffix())
+	nameA, nameB := ospfv3LinkNames()
 	t.Cleanup(func() {
 		if rerr := netns.Set(origNS); rerr != nil {
 			t.Errorf("restore namespace: %v", rerr)
@@ -260,6 +260,28 @@ func ospfv3NSName(testName string) string {
 }
 
 func osPidSuffix() int { return os.Getpid() % 10000 }
+
+// ospfv3LabSeq makes each lab's veth pair unique WITHIN the process. The
+// namespace name already varies per test (ospfv3NSName uses t.Name()); the link
+// names did not, so every lab in one binary created and deleted "zev3a<pid>".
+//
+// Reusing the name is not merely untidy, it produces a stale resolve: the iface
+// resolver caches name -> Binding (internal/component/iface/resolve.go:82-88)
+// and only evicts on a monitor link event (:294). No monitor runs under `go test`,
+// so the second lab resolved the FIRST lab's ifindex for a name that now belongs
+// to a different device. The symptom is diagnostic: SO_BINDTODEVICE by NAME
+// succeeded while SetMulticastInterface by INDEX returned ENODEV --
+// "OpenInterface(zev3a460): set multicast interface zev3a460: setsockopt: no
+// such device" -- name current, index stale.
+//
+// The pid keeps names distinct across concurrent test binaries; the counter
+// keeps them distinct within one. Both stay inside IFNAMSIZ-1 (15).
+var ospfv3LabSeq atomic.Uint32
+
+func ospfv3LinkNames() (nameA, nameB string) {
+	n := ospfv3LabSeq.Add(1)
+	return fmt.Sprintf("zev3a%d_%d", osPidSuffix(), n), fmt.Sprintf("zev3b%d_%d", osPidSuffix(), n)
+}
 
 func expectOSPFv3Packet(t *testing.T, h InterfaceHandle, src, dst netip.Addr, payload []byte) {
 	t.Helper()

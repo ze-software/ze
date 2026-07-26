@@ -20,6 +20,26 @@ func setBuildEnv(t *testing.T, key, value string) {
 	t.Cleanup(env.ResetCache)
 }
 
+// clearBinOverrides drops the binary-path overrides so a test that asserts on
+// the binary-is-ABSENT branch controls where the lookup points.
+//
+// ZE_BIN / ZE_TEST_BIN redirect the lookup to a path the test does not own. The
+// QEMU unit phase runs with both exported -- they select the FUNCTIONAL phase's
+// cross-compiled binaries -- so the lookup found a real binary, Build succeeded,
+// and the assertion failed on an error that could not occur. It stayed invisible
+// until that phase was repaired and ran for the first time.
+//
+// Deliberately NOT folded into setBuildEnv: TestBuildNoBuildWithEnvOverride sets
+// these two vars THROUGH that helper, and clearing on every call made its second
+// call erase the value its first call had just established.
+func clearBinOverrides(t *testing.T) {
+	t.Helper()
+	t.Setenv("ZE_BIN", "")
+	t.Setenv("ZE_TEST_BIN", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+}
+
 // TestBuildNoBuildSkip verifies the ZE_TEST_NO_BUILD path: Build skips the
 // in-process `go build` and uses pre-built binaries, erroring only when they
 // are absent. This is what lets a slow QEMU VM run binaries cross-compiled on a
@@ -30,6 +50,7 @@ func setBuildEnv(t *testing.T, key, value string) {
 // PREVENTS: silent fallthrough to a real compile, or a confusing failure when
 // the prebuilt binaries are missing.
 func TestBuildNoBuildSkip(t *testing.T) {
+	clearBinOverrides(t)
 	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")
 	baseDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "bin"), 0o755))

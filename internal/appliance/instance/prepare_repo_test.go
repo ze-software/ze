@@ -205,7 +205,12 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 			// The tracked module itself cannot resolve offline, so there is no
 			// baseline to compare against. Logging is honest here; failing would
 			// blame preparation for a pre-existing cache gap.
-			t.Logf("no baseline for %s: tracked module does not resolve offline: %v", rel, wantErr)
+			//
+			// The go output is included because "exit status 1" alone is not
+			// actionable: when every module lost its baseline the run ended at the
+			// zero-comparison Fatal below with no indication of WHY go could not
+			// resolve, which is exactly the state the QEMU unit phase reported.
+			t.Logf("no baseline for %s: tracked module does not resolve offline: %v\n%s", rel, wantErr, want)
 			continue
 		}
 		got, gotErr := listModules(t, filepath.Join(preparedBuildDir, rel), modcache)

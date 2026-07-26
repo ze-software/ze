@@ -48,6 +48,24 @@ func TestGokrazyAutoInitCreatesDB(t *testing.T) {
 }
 
 func TestGokrazyAutoInitReadOnlyFails(t *testing.T) {
+	// test-relax: skip as root rather than assert a condition root cannot be in.
+	// The test provokes the failure with a permission BIT (0555), but root holds
+	// CAP_DAC_OVERRIDE and MkdirAll succeeds regardless, so gokrazyAutoInit
+	// correctly returns nil and the assertion is simply unprovokable here.
+	//
+	// This is not the production condition either way. gokrazyAutoInit's only
+	// barrier is os.MkdirAll (ze_core_autoinit.go:30-34) and its own message names
+	// the real cause -- "read-only /perm? check ext4 mountability" -- which is
+	// EROFS from a read-only MOUNT. Root does NOT bypass EROFS, so the appliance
+	// behavior this guards is intact; only the simulation is uid-sensitive.
+	//
+	// Coverage is preserved where it is meaningful: every non-root run (the dev
+	// host, CI) still executes the assertion. It went unnoticed until the QEMU
+	// unit phase, which runs as root, was repaired and executed for the first time.
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses the 0555 permission bit (CAP_DAC_OVERRIDE); the read-only /perm this guards is EROFS, which root does not bypass")
+	}
+
 	dir := t.TempDir()
 	readonlyDir := filepath.Join(dir, "readonly")
 	configDir := filepath.Join(readonlyDir, "ze")

@@ -1,9 +1,11 @@
 package appliance
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,9 +95,50 @@ func TestImageFileName(t *testing.T) {
 	}
 }
 
+// VALIDATES: checkPortAvailable reports a held port as unavailable and a
+// released port as available.
+// PREVENTS: the appliance run command starting over a port another process
+// already owns, and the inverse -- refusing to start on a free port.
 func TestRunDetectsPortConflict(t *testing.T) {
-	err := checkPortAvailable(1)
-	if err == nil {
-		t.Error("port 1 should not be available (privileged)")
+	// Test a real conflict, which is what the name promises and what
+	// checkPortAvailable exists to detect: hold a listener, then ask about that
+	// port. Previously this probed port 1 and relied on it being privileged, but
+	// checkPortAvailable's only barrier is the bind itself (cmd_run.go:187-195)
+	// and root binds port 1 happily -- so under the QEMU unit phase, which runs as
+	// root, the call returned nil and the assertion failed. A held port is
+	// unavailable to every uid.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer func() { _ = ln.Close() }()
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address type = %T, want *net.TCPAddr", ln.Addr())
+	}
+	port := addr.Port
+
+	if err := checkPortAvailable(port); err == nil {
+		t.Errorf("port %d is held by this test's listener but checkPortAvailable reported it free", port)
+	}
+
+	// The positive half: a port nothing holds must report available, so the test
+	// cannot pass by reporting every port busy.
+	free, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for free port: %v", err)
+	}
+	freeAddr, ok := free.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address type = %T, want *net.TCPAddr", free.Addr())
+	}
+	freePort := freeAddr.Port
+	// Released on purpose so the port is free for the positive assertion.
+	if cerr := free.Close(); cerr != nil {
+		t.Fatalf("close free listener: %v", cerr)
+	}
+	if err := checkPortAvailable(freePort); err != nil {
+		t.Errorf("port %d was released but checkPortAvailable reported it in use: %v", freePort, err)
 	}
 }
