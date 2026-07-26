@@ -36,6 +36,11 @@ func (rs *RouteServer) batchForwardUpdateSkipped(key workerKey, sourcePeer strin
 		if peer == nil || !peer.Up {
 			continue
 		}
+		// Same peer-up cut as selectForwardTargets: this rail carries the peers
+		// the reactor fast path skipped, not a different forwarding policy.
+		if msgID != 0 && msgID <= peer.ForwardFrom {
+			continue
+		}
 		if peer.Families != nil {
 			hasAny := false
 			for fam := range families {
@@ -101,12 +106,24 @@ type forwardBatch struct {
 }
 
 // selectForwardTargets returns peers that should receive an UPDATE with the given families.
-// A peer is included if it is up, is not the source, and supports at least one family
-// in the UPDATE (or has nil Families, meaning unknown/all-accepted).
-func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, families map[family.Family]bool) []string {
+// A peer is included if it is up, is not the source, supports at least one family
+// in the UPDATE (or has nil Families, meaning unknown/all-accepted), and the UPDATE
+// is NEWER than the peer's peer-up cut.
+//
+// msgID is the reactor MessageID of the UPDATE being forwarded. A peer whose
+// ForwardFrom is at or above it was not yet a live forward target when this
+// UPDATE was taken delivery of, so the UPDATE belongs to that peer's Adj-RIB-In
+// replay instead. Excluding it here is what makes the two rails disjoint: the
+// same route reaching a peer twice, in scheduling order, was the duplicate; a
+// replayed announcement overtaking a live withdrawal of the same prefix would
+// have resurrected a withdrawn route.
+func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, msgID uint64, families map[family.Family]bool) []string {
 	buf = buf[:0]
 	for addr, peer := range rs.peers {
 		if addr == sourcePeer || !peer.Up {
+			continue
+		}
+		if msgID != 0 && msgID <= peer.ForwardFrom {
 			continue
 		}
 		if peer.Families != nil {
@@ -141,7 +158,7 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 	}
 
 	rs.mu.RLock()
-	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, sourcePeer, families)
+	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, sourcePeer, msgID, families)
 	known := len(rs.peers)
 	rs.mu.RUnlock()
 	targets := batch.targetBuf

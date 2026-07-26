@@ -135,6 +135,17 @@ type RouteServer struct {
 	// Protected by mu. Nil until wireFlowControl is called.
 	pausedPeers map[string]bool
 
+	// seenMsgID is the highest reactor MessageID this plugin has taken delivery
+	// of. Protected by mu. handleStateUp snapshots it into PeerState.ForwardFrom
+	// to place the peer-up cut.
+	//
+	// It is a MAX, not a last-write: MessageIDs are allocated at receive time by
+	// the reactor across all peers, and this plugin's event loop can take them
+	// out of numeric order when several peers deliver concurrently. Using the max
+	// keeps the cut sound in both directions -- an UPDATE numbered below the cut
+	// that arrives late is still the replay's, and never both rails'.
+	seenMsgID uint64
+
 	// batches holds per-worker batch state for accumulating forward RPCs.
 	// Each worker goroutine has its own batch (keyed by workerKey).
 	// No concurrent access per key — each worker is single-goroutine.
@@ -526,6 +537,17 @@ func (rs *RouteServer) dispatchText(text string) {
 		if peerAddr == "" {
 			return
 		}
+		// Advance the cut cursor on the fork-mode rail too, for the same reason
+		// dispatchStructured does: this runs on the OnEvent goroutine, the one
+		// handleState captures the cut on. A text event whose msgID did not parse
+		// leaves the cursor where it is, which keeps that UPDATE on the live rail
+		// and the replay unbounded -- duplicate rather than loss.
+		rs.mu.Lock()
+		if msgID > rs.seenMsgID {
+			rs.seenMsgID = msgID
+		}
+		rs.mu.Unlock()
+
 		key := workerKey{sourcePeer: peerAddr}
 		item := workItem{msgID: msgID, sourcePeer: peerAddr, textPayload: payload}
 		if !rs.workers.Dispatch(key, item) {
@@ -583,6 +605,17 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 	if peerAddr == "" {
 		return
 	}
+
+	// Advance the cut cursor BEFORE the item reaches a worker. This runs on the
+	// OnStructuredEvent goroutine, the same one handleState captures the cut on,
+	// so an UPDATE taken delivery of before a peer-up is guaranteed to be at or
+	// below that peer's ForwardFrom, and one taken after is guaranteed above it.
+	rs.mu.Lock()
+	if msgID > rs.seenMsgID {
+		rs.seenMsgID = msgID
+	}
+	rs.mu.Unlock()
+
 	key := workerKey{sourcePeer: peerAddr}
 	item := workItem{msgID: msgID, sourcePeer: peerAddr, msg: msg}
 	if !rs.workers.Dispatch(key, item) {

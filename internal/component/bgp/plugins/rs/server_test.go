@@ -266,7 +266,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	// The replay command must keep the peer in args[0] so bgp-adj-rib-in can
 	// replay routes from ALL source peers EXCEPT the target peer itself.
 	call, _ := replayCall.Load().(dispatchCall)
-	if call.command != cmdAdjRIBInReplay || !slices.Equal(call.args, []string{"10.0.0.1", "0"}) {
+	if call.command != cmdAdjRIBInReplay || !slices.Equal(call.args, []string{"10.0.0.1", "0", "0"}) {
 		t.Errorf("replay command should preserve typed split, got command=%q args=%v", call.command, call.args)
 	}
 }
@@ -1076,7 +1076,7 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	// Call 100 times — with unsorted output, Go map randomness would produce
 	// different orderings, causing batch selector mismatches.
 	rs.mu.RLock()
-	first := rs.selectForwardTargets(nil, "10.0.0.1", families)
+	first := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
 	rs.mu.RUnlock()
 
 	want := strings.Join(first, ",")
@@ -1086,7 +1086,7 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 
 	for i := range 100 {
 		rs.mu.RLock()
-		got := rs.selectForwardTargets(nil, "10.0.0.1", families)
+		got := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
 		rs.mu.RUnlock()
 		if sel := strings.Join(got, ","); sel != want {
 			t.Fatalf("iteration %d: selector %q != %q (non-deterministic)", i, sel, want)
@@ -1200,7 +1200,7 @@ func TestHandleStateUpReplay(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if dispatchCmds[0].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
+	if dispatchCmds[0].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0", "0"}) {
 		t.Errorf("expected typed replay command+args, got command=%q args=%v", dispatchCmds[0].command, dispatchCmds[0].args)
 	}
 	for _, cmd := range updateCmds {
@@ -1316,7 +1316,7 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 
 	// A replaying peer SHOULD be in forward targets (duplicates are idempotent).
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.2", map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.2", 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 	if !slices.Contains(targets, "10.0.0.1") {
 		t.Error("replaying peer 10.0.0.1 should be in forward targets")
@@ -1335,7 +1335,7 @@ func TestHandleStateUpDelta(t *testing.T) {
 	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		mu.Lock()
 		dispatchCmds = append(dispatchCmds, dispatchCall{command: cmd, args: slices.Clone(args), peer: peer})
-		isFullReplay := len(args) == 2 && args[1] == "0"
+		isFullReplay := len(args) >= 2 && args[1] == "0"
 		mu.Unlock()
 		if isFullReplay {
 			return statusDone, json.RawMessage(`{"last-index":5,"replayed":3}`), nil
@@ -1358,10 +1358,10 @@ func TestHandleStateUpDelta(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	if dispatchCmds[0].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
+	if dispatchCmds[0].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0", "0"}) {
 		t.Errorf("expected full typed replay, got command=%q args=%v", dispatchCmds[0].command, dispatchCmds[0].args)
 	}
-	if dispatchCmds[1].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[1].args, []string{"10.0.0.1", "5"}) {
+	if dispatchCmds[1].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[1].args, []string{"10.0.0.1", "5", "0"}) {
 		t.Errorf("expected delta typed replay from 5, got command=%q args=%v", dispatchCmds[1].command, dispatchCmds[1].args)
 	}
 }
@@ -1763,7 +1763,7 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 
 	// First call: buffer grows from nil.
 	rs.mu.RLock()
-	buf := rs.selectForwardTargets(nil, "10.0.0.1", families)
+	buf := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
 	rs.mu.RUnlock()
 
 	if len(buf) != 2 {
@@ -1773,7 +1773,7 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 
 	// Second call: reuse existing buffer.
 	rs.mu.RLock()
-	buf = rs.selectForwardTargets(buf, "10.0.0.1", families)
+	buf = rs.selectForwardTargets(buf, "10.0.0.1", 0, families)
 	rs.mu.RUnlock()
 
 	if len(buf) != 2 {

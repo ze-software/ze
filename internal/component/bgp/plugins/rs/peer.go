@@ -20,6 +20,27 @@ type PeerState struct {
 	ReplayGen    uint64                 // Incremented on each handleStateUp, guards stale goroutines
 	Capabilities map[string]bool        // Negotiated capabilities (e.g., "route-refresh": true)
 	Families     map[family.Family]bool // Supported AFI/SAFI
+
+	// ForwardFrom is the peer-up CUT: the newest reactor MessageID this plugin
+	// had seen at the instant this peer became a live forward target. It is
+	// captured under rs.mu in the same critical section that sets Up, so there is
+	// no instant at which the peer is a forward target without a cut, or has a
+	// cut without being a forward target.
+	//
+	// It partitions every route exactly once:
+	//   msgID <= ForwardFrom  -> the peer's Adj-RIB-In replay delivers it
+	//   msgID >  ForwardFrom  -> the live forward delivers it
+	//
+	// MessageID is the right quantity because it is the only one bgp-rs and
+	// bgp-adj-rib-in both observe per route (reactor.nextMsgID stamps it on the
+	// RawMessage both plugins are handed). A wall-clock instant or either
+	// plugin's own counter would need the two event streams to be ordered
+	// against each other, which they are not.
+	//
+	// Zero means "no UPDATE seen before this peer came up", which makes the
+	// replay unbounded -- correct, since nothing this plugin forwarded can
+	// predate the cut.
+	ForwardFrom uint64
 }
 
 // HasCapability returns true if peer supports the given capability.

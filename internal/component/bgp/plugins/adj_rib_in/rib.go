@@ -84,6 +84,19 @@ type RawRoute struct {
 	NHopHex         string        // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
 	NLRIHex         string        // Individual NLRI wire bytes hex
 	ValidationState uint8         // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
+
+	// MsgID is the reactor's MessageID of the UPDATE this route arrived in
+	// (reactor.nextMsgID, a process-global monotonic counter stamped on every
+	// RawMessage). It is NOT this plugin's own seqCounter: seqCounter orders
+	// this plugin's stores, whereas MsgID is the ONE quantity bgp-rs and
+	// bgp-adj-rib-in both observe for the same route, which is what lets the
+	// peer-up cut be expressed identically on both sides. See buildReplayRoutes'
+	// maxMsgID bound and rs PeerState.ForwardFrom.
+	//
+	// Zero means "unknown" (the legacy text/JSON ingest path does not carry a
+	// MessageID). A zero-MsgID route is always eligible for replay, which is the
+	// safe direction: it can be sent twice, never dropped.
+	MsgID uint64
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -301,7 +314,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
 		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
-		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex)
+		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID)
 	}
 
 	// IPv4 unicast withdrawals (body Withdrawn section).
@@ -319,10 +332,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			if isSimplePrefixFamily(fam) {
 				nhopHex := nhopHexFromAddr(mpReach.NextHop())
-				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex)
+				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
 			} else {
 				// Complex families: fall back to Event path for correct NLRI handling.
-				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, mpReach.NextHop().String())
+				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, mpReach.NextHop().String(), msg.MessageID)
 			}
 		}
 	}
@@ -344,7 +357,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 // installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string) {
+func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID uint64) {
 	if attrHex == "" || nhopHex == "" {
 		return
 	}
@@ -366,6 +379,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			AttrHex: attrHex,
 			NHopHex: nhopHex,
 			NLRIHex: nlriHex,
+			MsgID:   msgID,
 		}
 
 		if r.validationEnabled {
@@ -416,7 +430,7 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.
 // installComplexNLRIs handles non-simple-prefix families (VPN, EVPN) via wireNLRIsToAny.
 // These are rare in benchmarks and their wire format prevents direct prefix extraction.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopStr string) {
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopStr string, msgID uint64) {
 	if attrHex == "" {
 		return
 	}
@@ -443,6 +457,7 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			AttrHex: attrHex,
 			NHopHex: nhopHex,
 			NLRIHex: nlriHex,
+			MsgID:   msgID,
 		}
 		if r.validationEnabled {
 			pr := &PendingRoute{
@@ -600,7 +615,7 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	r.mu.Unlock()
 
 	if isUp && !r.replayOwned.Load() {
-		routes, _ := r.buildReplayRoutes(peerAddr, 0)
+		routes, _ := r.buildReplayRoutes(peerAddr, 0, 0)
 		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
 		}
@@ -768,7 +783,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		// Replay all known routes to the newly-up peer.
 		// buildReplayRoutes takes RLock internally; relayRoutes does I/O.
 		// Both must run outside the write lock to avoid deadlock.
-		routes, _ := r.buildReplayRoutes(peerAddr, 0)
+		routes, _ := r.buildReplayRoutes(peerAddr, 0, 0)
 		if err := r.relayRoutes(event.GetPeerAddress(), routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
 		}
@@ -800,7 +815,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 // local AS first and then running only the session's export filters, so a
 // replayed route and a forwarded one diverged on the wire. See
 // plan/spec-fixit-bgp-egress-rail-divergence.md.
-func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uint64) ([]rpc.StoredRoute, uint64) {
+func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex, maxMsgID uint64) ([]rpc.StoredRoute, uint64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -815,6 +830,15 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 		routes.Since(fromIndex, func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
 			if seq <= fromIndex {
 				// Already delivered in the batch that produced this cursor.
+				return true
+			}
+			// The peer-up cut. maxMsgID is the reactor MessageID that was the
+			// newest bgp-rs had seen at the instant it made this peer a live
+			// forward target, so anything NEWER is the live rail's to deliver and
+			// must not also be replayed. Routes with an unknown MsgID (legacy
+			// ingest, zero) stay eligible: replaying one twice is idempotent,
+			// dropping it is not.
+			if maxMsgID != 0 && rt.MsgID > maxMsgID {
 				return true
 			}
 			out = append(out, rpc.StoredRoute{

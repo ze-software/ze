@@ -276,8 +276,16 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 }
 
 // replayCommand handles "request bgp adj-rib-in replay" via execute-command.
-// Args format: "<target-peer> [<from-index>]".
-// Replays routes from ALL source peers except target, filtered by from-index.
+// Args format: "<target-peer> [<from-index> [<max-msg-id>]]".
+// Replays routes from ALL source peers except target, resuming strictly after
+// from-index and stopping at the max-msg-id cut.
+//
+// max-msg-id is the peer-up cut: the reactor MessageID that was the newest the
+// CALLER had seen when it made this peer a live forward target. Routes newer
+// than that belong to the live rail, so replaying them too would deliver the
+// same route twice, in an order decided by goroutine scheduling. Omitted or 0
+// means unbounded, which is the pre-cut behaviour and stays correct for a
+// caller that does not track the cut.
 func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 	if len(args) == 0 {
 		return statusError, "", errAdjRibInReplayRequiresTarget
@@ -294,8 +302,15 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 			return statusError, "", fmt.Errorf("invalid from-index: %s", args[1])
 		}
 	}
+	var maxMsgID uint64
+	if len(args) > 2 {
+		maxMsgID, err = strconv.ParseUint(args[2], 10, 64)
+		if err != nil {
+			return statusError, "", fmt.Errorf("invalid max-msg-id: %s", args[2])
+		}
+	}
 
-	routes, maxSeq := r.buildReplayRoutes(targetPeer, fromIndex)
+	routes, maxSeq := r.buildReplayRoutes(targetPeer, fromIndex, maxMsgID)
 
 	// The relay carries the whole replay (original arg as the destination), in
 	// bounded chunks. A failure surfaces as statusError so the caller can tell a

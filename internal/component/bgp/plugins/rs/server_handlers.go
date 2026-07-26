@@ -88,7 +88,16 @@ func (rs *RouteServer) handleState(event *Event) {
 	if rs.peers[peerAddr] == nil {
 		rs.peers[peerAddr] = &PeerState{Address: peerAddr}
 	}
-	rs.peers[peerAddr].Up = (state == "up")
+	up := state == "up"
+	rs.peers[peerAddr].Up = up
+	if up {
+		// THE CUT, captured in the same critical section that makes this peer a
+		// live forward target. Both facts are written under one rs.mu.Lock, so no
+		// forward-target selection can ever observe Up without the matching
+		// ForwardFrom, and none can observe a stale ForwardFrom from a previous
+		// session. selectForwardTargets reads both under rs.mu.RLock.
+		rs.peers[peerAddr].ForwardFrom = rs.seenMsgID
+	}
 	rs.mu.Unlock()
 
 	switch state {
@@ -222,16 +231,25 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 	// generation so stale goroutines from a previous session (rapid reconnect)
 	// don't prematurely clear Replaying for the new session.
 	rs.mu.Lock()
-	var gen uint64
+	var gen, cut uint64
 	if rs.peers[peerAddr] != nil {
 		rs.peers[peerAddr].Replaying = true
 		rs.peers[peerAddr].ReplayGen++
 		gen = rs.peers[peerAddr].ReplayGen
+		// Read back the cut handleState committed for THIS session rather than
+		// re-reading rs.seenMsgID. Today the two are equal -- handleState calls
+		// this on the same event-loop goroutine, so no UPDATE can be taken
+		// delivery of in between -- but the replay must be bounded by the value
+		// the forward rail is actually filtering on. Re-deriving it would couple
+		// the two to that call-site detail, and if this ever ran off the event
+		// loop the replay would stop short of where the live rail starts and drop
+		// whatever fell in the gap.
+		cut = rs.peers[peerAddr].ForwardFrom
 	}
 	rs.mu.Unlock()
 
 	// Spawn per-peer lifecycle goroutine for replay (not blocking event loop).
-	go rs.replayForPeer(peerAddr, gen)
+	go rs.replayForPeer(peerAddr, gen, cut)
 }
 
 // replayForPeer runs the full+delta replay sequence for a newly-connected peer.
@@ -239,13 +257,15 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 // The gen parameter is the replay generation at the time handleStateUp was called.
 // If the peer's ReplayGen has changed (rapid reconnect), this goroutine is stale
 // and must not clear Replaying — the newer goroutine owns that transition.
-func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
+func (rs *RouteServer) replayForPeer(peerAddr string, gen, cut uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	// Full replay from index 0.
 	replayCommand := cmdAdjRIBInReplay
-	replayArgs := []string{peerAddr, "0"}
+	// "<peer> <from-index> <max-msg-id>": resume from the start, stop at the cut.
+	cutArg := textbuf.StringUint(cut)
+	replayArgs := []string{peerAddr, "0", cutArg}
 	status, data, err := rs.dispatchCommand(ctx, replayCommand, replayArgs...)
 	if err != nil || status != statusDone {
 		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
@@ -310,7 +330,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		deltaArgs := []string{peerAddr, textbuf.StringUint(lastIndex)}
+		deltaArgs := []string{peerAddr, textbuf.StringUint(lastIndex), cutArg}
 		_, deltaData, deltaErr := rs.dispatchCommand(ctx, replayCommand, deltaArgs...)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)

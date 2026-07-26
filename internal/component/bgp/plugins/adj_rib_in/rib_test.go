@@ -348,7 +348,7 @@ func TestReplayAllSources(t *testing.T) {
 	r.ribIn[netip.MustParseAddr("10.0.0.3")] = m3
 
 	// Replay for target peer 10.0.0.3, from-index 0
-	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.3"), 0)
+	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.3"), 0, 0)
 
 	// Should have routes from A and B, not from X (10.0.0.3)
 	assert.Len(t, cmds, 2, "should replay routes from 2 source peers, excluding target")
@@ -394,7 +394,7 @@ func TestReplayFromIndex(t *testing.T) {
 
 	// Replay from cursor 5 → only routes with SeqIndex > 5 (the route AT 5 was
 	// already delivered in the batch that produced the cursor).
-	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 5)
+	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 5, 0)
 	assert.Len(t, cmds, 1, "should replay only routes strictly after the cursor")
 	assert.Equal(t, "180a0002", cmds[0].NLRIHex, "the seq-10 route, not the seq-5 boundary route")
 }
@@ -425,12 +425,12 @@ func TestReplayCursorRoundTripTerminates(t *testing.T) {
 
 	target := netip.MustParseAddr("10.0.0.99")
 
-	first, lastIndex := r.buildReplayRoutes(target, 0)
+	first, lastIndex := r.buildReplayRoutes(target, 0, 0)
 	assert.Len(t, first, 2, "full replay delivers every stored route")
 	assert.Equal(t, uint64(2), lastIndex, "last-index is the highest sequence delivered")
 
 	// The delta bgp-rs issues next: same cursor, nothing new stored.
-	second, secondLast := r.buildReplayRoutes(target, lastIndex)
+	second, secondLast := r.buildReplayRoutes(target, lastIndex, 0)
 	assert.Empty(t, second, "a delta at the cursor must deliver nothing; replayed==0 is what ends the convergence loop")
 	assert.Zero(t, secondLast, "no routes delivered means no new last-index")
 
@@ -439,7 +439,7 @@ func TestReplayCursorRoundTripTerminates(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0002",
 	})
-	third, thirdLast := r.buildReplayRoutes(target, lastIndex)
+	third, thirdLast := r.buildReplayRoutes(target, lastIndex, 0)
 	assert.Len(t, third, 1, "the delta must still deliver genuinely new routes")
 	assert.Equal(t, "180a0002", third[0].NLRIHex)
 	assert.Equal(t, uint64(3), thirdLast)
@@ -459,7 +459,7 @@ func TestReplayReturnsLastIndex(t *testing.T) {
 	})
 	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
-	_, lastIdx := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0)
+	_, lastIdx := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0, 0)
 	assert.Equal(t, uint64(42), lastIdx, "last-index should be max SeqIndex of replayed routes")
 }
 
@@ -581,7 +581,7 @@ func TestReplayRouteCarriesSource(t *testing.T) {
 	})
 	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
-	routes, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0)
+	routes, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0, 0)
 	require.Len(t, routes, 1)
 	assert.Equal(t, rpc.StoredRoute{
 		SourcePeer: "10.0.0.1",
