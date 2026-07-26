@@ -193,8 +193,23 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 
-# Wait for routes to be injected by lg-lab plugin before checking graph output
+# Wait for routes to be injected by lg-lab plugin before checking graph output.
+#
+# ONE wait per prefix asserted below, each naming an ASN that only appears once
+# that prefix's paths are all in the RIB. Waiting on 10.10.1.0/24 alone gated on
+# a proxy: the plugin injects the three prefixes' routes as separate commands,
+# so prefix 1 being complete says nothing about prefix 3, and under load the
+# graph for 10.10.3.0/24 was rendered from a partially populated RIB and missed
+# its exact-body match (seen once in a full ze-verify run, 2026-07-26; not
+# reproducible in 40 stressed runs of this test alone, because in isolation the
+# injection always wins the race). Each prefix now waits for its own state
+# rather than for prefix 1's (ai/rules/fix-dont-record.md).
+#
+# The chosen ASNs are the transit hop farthest from the peer in each prefix's
+# expected aspath graph, so the wait cannot pass on a half-built path.
 http=wait:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=aspath&format=text:status=200:contains=AS2914:timeout=15s
+http=wait:seq=2:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.2.0/24&mode=aspath&format=text:status=200:contains=AS13335:timeout=15s
+http=wait:seq=3:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.3.0/24&mode=aspath&format=text:status=200:contains=AS20940:timeout=15s
 
 # --- AS Path SVG: exact match against reference files ---
 http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=aspath:status=200:bodyfile=lg-graph-lab/expect/lg-graph-p1-aspath.svg

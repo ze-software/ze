@@ -228,6 +228,18 @@ def main():
     with open('peer.exit', 'w') as f:
         f.write('ok')
 
+    # This file's ze-peer asserts ze's End-of-RIB frame
+    # (expect=bgp:...00170200000000), so the shutdown below MUST hold until that
+    # frame is on the wire -- the contract wait_peer_eor_sent documents. Without
+    # it the observer, whose own L2TP assertions finish in about a second, closes
+    # the daemon inside the BGP establishment window and the peer reports
+    # "connection closed before completion". Reproduced 3 times in ~91 stressed
+    # runs, and equally with the peer-up barrier compiled out (1 in 90), so the
+    # race predates it: this test simply never waited for the frame it asserts
+    # (ai/rules/fix-dont-record.md).
+    if not api.wait_peer_eor_sent():
+        runtime_fail('ze did not send its initial-sync end-of-rib before shutdown')
+
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
