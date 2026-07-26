@@ -144,6 +144,40 @@ func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, msg
 	return buf
 }
 
+// explainNoTarget names, per peer, why selectForwardTargets returned nothing.
+//
+// Caller must hold rs.mu. Built only on the discard path, so the cost is paid
+// only when an UPDATE is about to be dropped for every destination.
+func (rs *RouteServer) explainNoTarget(sourcePeer string, msgID uint64, families map[family.Family]bool) string {
+	var b textbuf.Buffer
+	first := true
+	for addr, peer := range rs.peers {
+		if !first {
+			b.Str(", ")
+		}
+		first = false
+		b.Str(addr).Byte('=')
+		switch {
+		case addr == sourcePeer:
+			b.Str("source")
+		case !peer.Up:
+			b.Str("not-up")
+		case msgID != 0 && msgID <= peer.ForwardFrom:
+			b.Str("below-cut(").Uint(peer.ForwardFrom).Byte(')')
+		default:
+			b.Str("family-mismatch(")
+			for fam := range families {
+				b.Str(fam.String()).Byte(' ')
+			}
+			b.Byte(')')
+		}
+	}
+	if first {
+		return "no peers registered"
+	}
+	return b.String()
+}
+
 // batchForwardUpdate accumulates a forward item into the per-worker batch.
 // Selects targets, then appends to the current batch. Flushes the old batch
 // if the target selector changes (different peer set). Flushes when the batch
@@ -160,6 +194,10 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 	rs.mu.RLock()
 	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, sourcePeer, msgID, families)
 	known := len(rs.peers)
+	var why string
+	if len(batch.targetBuf) == 0 {
+		why = rs.explainNoTarget(sourcePeer, msgID, families)
+	}
 	rs.mu.RUnlock()
 	targets := batch.targetBuf
 
@@ -168,8 +206,14 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 		// only rail that can recover it is the announce-only Adj-RIB-In replay,
 		// so a withdrawal discarded here is lost outright
 		// (ai/rules/fail-closed-guards.md).
+		//
+		// "peers-known" alone was not enough to act on: it says how many peers
+		// exist, not why each was skipped, and the two causes need opposite
+		// fixes. Not-yet-Up means the peer-up event has not reached rs, so the
+		// replay owns the UPDATE. Below-cut means rs had already advanced past
+		// this MessageID when it registered, which is the cut doing its job.
 		logger().Warn("forward matched no target",
-			"source-peer", sourcePeer, "msg-id", msgID, "peers-known", known)
+			"source-peer", sourcePeer, "msg-id", msgID, "peers-known", known, "why", why)
 		rs.releaseCache(msgID)
 		return
 	}
