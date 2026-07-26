@@ -858,6 +858,7 @@ A deferral whose destination is prose ("later", "future work") is a deletion wit
 | Record immediately | Do not batch. Record when the decision is made, not at commit time |
 | Review at session end | Live rows are expected and fine. Check that each still names a real home, and close only the ones whose work actually landed |
 The gate is one notch wider than this rule on purpose: it accepts any existing `plan/**.md`, not only `plan/spec-*.md`.
+**`plan/known-failures/` is NOT a destination** (`ai/rules/fix-dont-record.md`).
 ## Choosing the Destination Spec (BLOCKING)
 Deferred work ALWAYS has a destination spec.
 | Order | Action | Detail |
@@ -1982,6 +1983,13 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | vague-names | `posttool-writeedit.py` | `design-principles.md` | `.go` | Warns about `Data`/`Info`/`Result`/... names. Advisory. |
 | boundary-tests | `posttool-writeedit.py` | `tdd.md` | `.go` | Warns about numeric validation without boundary tests. Advisory. |
 > **validate-spec.sh is fixed** (2026-07-09, spec-followup-hooks) and kept > standalone.
+## Changed-file gates inside `ze-verify-wiring-docs`
+Also Make targets, not Claude hooks.
+| Check | Enforces | Triggers on | What it does |
+|---|---|---|---|
+| `check_ci_sleep_ratchet` | `ci-sleep-justification.md` | changed `test/**/*.ci` | Caps how MANY `time.sleep(` calls exist tree-wide against a committed delta baseline. BLOCKING. |
+| `check_ci_sleep_justification` | `ci-sleep-justification.md` | changed `test/**/*.ci` | Caps how many sleeps are UNEXPLAINED: each needs a comment above or trailing it. BLOCKING. |
+| `check_known_failure_load_excuses` | `fix-dont-record.md` | changed `plan/known-failures/*.md` | Rejects a shard blaming host load ("under load", "loaded host", "load average", "load-sensitive", "passes in isolation", "resource contention", "contended host"). `README.md` / `RESOLVED.md` exempt. BLOCKING. |
 ## Commit-time gates (`scripts/dev/commit_helper.py`)
 These are NOT Claude hooks.
 | Gate | Enforces | Severity | What it does |

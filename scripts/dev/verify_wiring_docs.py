@@ -169,13 +169,14 @@ def main() -> int:
 
     ratchet_rc = check_ci_sleep_ratchet(root, changed)
     justif_rc = check_ci_sleep_justification(root, changed)
+    excuse_rc = check_known_failure_load_excuses(root, changed)
     design_rc = check_design_refs(root)
 
     if not targets:
         print("No wiring/doc/inventory checks needed")
         if advisory:
             print(advisory)
-        return ratchet_rc or justif_rc or design_rc
+        return ratchet_rc or justif_rc or excuse_rc or design_rc
 
     if "wiring" in targets:
         issues = check_wiring(root, changed)
@@ -193,8 +194,8 @@ def main() -> int:
 
     if advisory:
         print(advisory)
-    if ratchet_rc or justif_rc or design_rc:
-        return ratchet_rc or justif_rc or design_rc
+    if ratchet_rc or justif_rc or excuse_rc or design_rc:
+        return ratchet_rc or justif_rc or excuse_rc or design_rc
     print("Wiring/doc/inventory gates passed")
     return 0
 
@@ -339,6 +340,64 @@ def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
         return 1
     if checked:
         print(f"ci-sleep justification OK ({checked} sleeps, all commented)")
+    return 0
+
+
+LOAD_EXCUSE_RE = re.compile(
+    r"under load|loaded host|load average|load[- ]sensitive"
+    r"|pass(?:es|ed)? in isolation|resource contention|contended host",
+    re.IGNORECASE,
+)
+
+KNOWN_FAILURES_DIR = "plan/known-failures/"
+KNOWN_FAILURES_EXEMPT = {"README.md", "RESOLVED.md"}
+
+
+def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
+    """A CHANGED known-failures shard may not blame host load.
+
+    Load is a mechanism, not a mystery: once a shard can say "it fails when the
+    machine is busy", the diagnosis is that the test asserts on elapsed time
+    instead of on state, and the deliverable is the fix (ai/rules/fix-dont-record.md,
+    owner directive 2026-07-26). The shard directory stays open for a red whose
+    mechanism is genuinely unknown, which is why this is a phrase check rather than
+    a ban on shards.
+
+    Scoped to changed files, like check_ci_sleep_justification: a session owns the
+    shards it writes, not the whole backlog. README.md and RESOLVED.md are exempt --
+    the first states this policy and the second is a verbatim archive of history
+    that must not be edited to satisfy a present-day gate.
+    Returns the process exit contribution (0 ok, 1 failed).
+    """
+    shards = [
+        p
+        for p in changed
+        if p.startswith(KNOWN_FAILURES_DIR)
+        and p.endswith(".md")
+        and Path(p).name not in KNOWN_FAILURES_EXEMPT
+    ]
+    if not shards:
+        return 0
+    violations: list[str] = []
+    for rel in shards:
+        try:
+            lines = (root / rel).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue  # deleting a shard is the intended outcome, not a violation
+        for i, line in enumerate(lines):
+            if LOAD_EXCUSE_RE.search(line):
+                violations.append(f"{rel}:{i + 1}: {line.strip()}")
+    if violations:
+        print("known-failure load excuse FAILED:")
+        print("  A shard may not attribute a red to host load. That attribution IS")
+        print("  the diagnosis: the test asserts on elapsed time instead of on state.")
+        for v in violations:
+            print("    " + v)
+        print("  Fix the test to wait on the condition (ze_api wait_until /")
+        print("  dispatch_until / wait_for_event), then delete the shard. Raising a")
+        print("  timeout is not a fix. See ai/rules/fix-dont-record.md.")
+        return 1
+    print(f"known-failure load excuse OK ({len(shards)} shard(s) checked)")
     return 0
 
 

@@ -25,13 +25,22 @@ cross-commit each other's rows. It replaces the single tracked file
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-**Scope: non-deterministic (flaky/environmental) TEST reds only.** Deterministic
+**Scope: TEST reds whose MECHANISM you could not determine.** Deterministic
 structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-vet-evidence`,
 `ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-regen-check-readonly`,
 `ze-verify-wiring-docs`) are NEVER logged here -- a red means the tree is
 structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
 this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
+
+**Host load is a mechanism, so it does not belong here either**
+(`ai/rules/fix-dont-record.md`, owner directive 2026-07-26). Once you can say
+"it fails when the machine is busy",
+you have the diagnosis: the test asserts on elapsed time instead of on state. Fix
+it to wait on the condition. "Load-sensitive", "passes in isolation", "the failing
+set rotates" and "not reproducible on a quiet host" are all that same diagnosis
+restated, and none of them opens a shard. Raising a timeout is not a fix either --
+it only moves the load level at which the test lies.
 
 ## BEFORE LOGGING ANYTHING HERE: reproduce with the Makefile's build tags
 

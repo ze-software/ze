@@ -73,6 +73,15 @@ one.
 | "pre-existing" anywhere as a reason | fix it. It says when it started, not whose it is |
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
+Enforced: `check_known_failure_load_excuses` in `scripts/dev/verify_wiring_docs.py`
+(`make ze-verify-wiring-docs`, inside `make ze-verify`) fails a CHANGED
+`plan/known-failures/` shard containing "under load", "loaded host", "load
+average", "load-sensitive", "passes in isolation", "resource contention" or
+"contended host". `README.md` and `RESOLVED.md` are exempt: the first states this
+policy, the second is a verbatim archive of history and is not edited to satisfy
+a present-day gate. The gate checks the excuse, not the existence of a shard --
+a red whose mechanism is genuinely unknown still belongs there.
+
 ## Length is not evidence
 
 A record earns its length from what a future reader must DO, never from what you

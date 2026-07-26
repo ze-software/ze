@@ -169,6 +169,17 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 `make ze-verify` separately runs `ze-verify-wiring-docs` (wiring/doc-drift gate);
 that is a Make target, not a Claude hook.
 
+## Changed-file gates inside `ze-verify-wiring-docs`
+
+Also Make targets, not Claude hooks. All three are changed-file scoped: a session
+owns the files it touches, not the whole tree.
+
+| Check | Enforces | Triggers on | What it does |
+|---|---|---|---|
+| `check_ci_sleep_ratchet` | `ci-sleep-justification.md` | changed `test/**/*.ci` | Caps how MANY `time.sleep(` calls exist tree-wide against a committed delta baseline. BLOCKING. |
+| `check_ci_sleep_justification` | `ci-sleep-justification.md` | changed `test/**/*.ci` | Caps how many sleeps are UNEXPLAINED: each needs a comment above or trailing it. BLOCKING. |
+| `check_known_failure_load_excuses` | `fix-dont-record.md` | changed `plan/known-failures/*.md` | Rejects a shard blaming host load ("under load", "loaded host", "load average", "load-sensitive", "passes in isolation", "resource contention", "contended host"). `README.md` / `RESOLVED.md` exempt. BLOCKING. |
+
 ## Commit-time gates (`scripts/dev/commit_helper.py`)
 
 These are NOT Claude hooks. They run when `commit_helper.py create` generates the

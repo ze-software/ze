@@ -123,13 +123,16 @@ looked at. 23 live rows without a home had accumulated behind that hole.
 | Review at session end | Live rows are expected and fine. Check that each still names a real home, and close only the ones whose work actually landed |
 
 The gate is one notch wider than this rule on purpose: it accepts any existing
-`plan/**.md`, not only `plan/spec-*.md`. The one sanctioned non-spec destination
-is a shard under `plan/known-failures/` (e.g. `plan/known-failures/<make-target>-<test-name>.md`),
-for a test that stays red and is tracked there rather than fixed. Everything else
-lands in a spec. The gate cannot tell a deliberate `known-failures/` shard from a
-lazy one, so the judgement stays here,
-in the rule: if you are pointing a deferral anywhere other than a spec, be able
-to say why the work is not spec-shaped.
+`plan/**.md`, not only `plan/spec-*.md`. Do not use that slack. A destination is
+a spec.
+
+**`plan/known-failures/` is NOT a destination** (`ai/rules/fix-dont-record.md`).
+A shard is the running log of an investigation you are still driving, so pointing
+a deferral at one means "this red is somebody's problem later", which is the
+parking this rule exists to prevent. A red test is fixed. If the fix is genuinely
+a separable piece of work, home it in a spec like anything else. In particular,
+"fails under load" is a diagnosis and never a destination: the test asserts on
+elapsed time, and that is fixed, not deferred.
 
 ## Choosing the Destination Spec (BLOCKING)
 

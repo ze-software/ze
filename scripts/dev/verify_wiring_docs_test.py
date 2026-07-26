@@ -20,7 +20,11 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
-from verify_wiring_docs import check_ci_sleep_ratchet, parse_sleep_baseline
+from verify_wiring_docs import (
+    check_ci_sleep_ratchet,
+    check_known_failure_load_excuses,
+    parse_sleep_baseline,
+)
 
 
 def write(root: Path, rel: str, body: str) -> None:
@@ -105,6 +109,96 @@ class SleepRatchetDeltaTest(unittest.TestCase):
         write(root, "test/.ci-sleep-baseline", "4\n")
         rc, out = self._run(root)
         self.assertEqual(rc, 0, out)
+
+
+class KnownFailureLoadExcuseTest(unittest.TestCase):
+    """The gate behind ai/rules/fix-dont-record.md.
+
+    A shard blaming host load is stating a diagnosis (the test asserts on elapsed
+    time) and calling it a mystery. The gate rejects the excuse, NOT the shard: a
+    red whose mechanism is genuinely unknown still belongs in the directory.
+    """
+
+    def _root(self) -> Path:
+        d = tempfile.mkdtemp(prefix="load-excuse-")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        return Path(d)
+
+    def _run(self, root: Path, changed: list[str]) -> tuple[int, str]:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = check_known_failure_load_excuses(root, changed)
+        return rc, buf.getvalue()
+
+    def test_load_excuse_fails_and_names_the_line(self):
+        root = self._root()
+        write(
+            root,
+            "plan/known-failures/flaky.md",
+            "### suite N -- flaky\n\nIt only fails on a loaded host.\n",
+        )
+        rc, out = self._run(root, ["plan/known-failures/flaky.md"])
+        self.assertEqual(rc, 1, out)
+        self.assertIn("plan/known-failures/flaky.md:3", out)
+
+    def test_every_banned_phrase_is_caught(self):
+        # One shard per phrase, so a regex edit that drops an alternative fails
+        # here rather than silently reopening that wording.
+        phrases = [
+            "it fails under load",
+            "only on a loaded host",
+            "load average was 11",
+            "this test is load-sensitive",
+            "all three pass in isolation",
+            "it passed in isolation",
+            "attributed to resource contention",
+            "seen on a contended host",
+        ]
+        for i, phrase in enumerate(phrases):
+            with self.subTest(phrase=phrase):
+                root = self._root()
+                rel = f"plan/known-failures/s{i}.md"
+                write(root, rel, f"### red\n\n{phrase}.\n")
+                rc, out = self._run(root, [rel])
+                self.assertEqual(rc, 1, out)
+
+    def test_unknown_mechanism_shard_still_allowed(self):
+        # The directory is not closed: a shard that does not blame load passes.
+        root = self._root()
+        write(
+            root,
+            "plan/known-failures/mystery.md",
+            "### suite N\n\nFails once in 200 runs; mechanism unknown.\n"
+            "Repro: scripts/dev/stress-repro.py ...\nNext: read the producer.\n",
+        )
+        rc, out = self._run(root, ["plan/known-failures/mystery.md"])
+        self.assertEqual(rc, 0, out)
+
+    def test_readme_and_resolved_are_exempt(self):
+        # README states the policy (so it must quote the phrases) and RESOLVED is
+        # a verbatim archive that is never edited to satisfy a present-day gate.
+        root = self._root()
+        for name in ("README.md", "RESOLVED.md"):
+            write(root, f"plan/known-failures/{name}", "fails under load\n")
+        rc, out = self._run(
+            root,
+            ["plan/known-failures/README.md", "plan/known-failures/RESOLVED.md"],
+        )
+        self.assertEqual(rc, 0, out)
+
+    def test_deleted_shard_is_not_a_violation(self):
+        # Deleting a shard is the intended outcome of fixing the test, and a
+        # deleted path still appears in the changed set.
+        root = self._root()
+        rc, out = self._run(root, ["plan/known-failures/gone.md"])
+        self.assertEqual(rc, 0, out)
+
+    def test_unrelated_changed_files_do_not_trigger(self):
+        root = self._root()
+        write(root, "docs/perf.md", "throughput degrades under load\n")
+        rc, out = self._run(root, ["docs/perf.md"])
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(out, "")
 
 
 if __name__ == "__main__":
