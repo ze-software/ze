@@ -6,10 +6,15 @@ import (
 	"github.com/ze-software/ze/internal/core/show"
 )
 
+// marker is the value both enrichers write, and what the tests assert on.
+// One spelling so a typo in either arm cannot make one enricher silently
+// disagree with the other.
+const marker = "present"
+
 func init() {
 	show.MustRegister(Command, "fakeenrich", show.Enricher{
-		Detail: func(base map[string]any) { base["fakeenrich"] = "present" },
-		Brief:  func(base map[string]any) { base["fakeenrich"] = "present" },
+		Detail: func(base map[string]any) { base["fakeenrich"] = marker },
+		Brief:  func(base map[string]any) { base["fakeenrich"] = marker },
 	})
 
 	reg := registry.Registration{

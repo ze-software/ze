@@ -73,7 +73,23 @@ type Registration struct {
 	// runtime message: it must not be re-derived from a callback that races
 	// session establishment.
 	Claims []string
-	YANG   string // YANG schema content (empty if none)
+
+	// PeerUpBarrier declares that this plugin does work on the peer-up event
+	// that a peer's initial-sync End-of-RIB must not overtake: it registers the
+	// peer as a live forward target, or captures a per-peer cut, so an UPDATE
+	// arriving before it has processed the event is handled on a different rail
+	// (or dropped). The engine holds that peer's End-of-RIB until every
+	// barrier-declaring plugin subscribed to state events has taken delivery of
+	// the peer-up event, which makes "End-of-RIB sent" mean "every barrier
+	// plugin has registered this peer" -- the property a peer (or a test) needs
+	// to treat the End-of-RIB as the go-ahead to send.
+	//
+	// The wait is bounded and never blocks establishment: a barrier plugin that
+	// does not take delivery only delays the End-of-RIB to the timeout, which
+	// logs a WARN naming the peer and the shortfall.
+	PeerUpBarrier bool
+
+	YANG string // YANG schema content (empty if none)
 
 	// FilterTypes lists the YANG filter list names this plugin owns (e.g.,
 	// ["prefix-list"]). Used by the policy filter chain to resolve short chain
@@ -597,6 +613,24 @@ func ClaimsFor(name string) []string {
 		return nil
 	}
 	return reg.Claims
+}
+
+// RequiresPeerUpBarrier reports whether a registered plugin declares
+// Registration.PeerUpBarrier. Returns false for an unregistered name: an
+// unknown plugin is not waited for, which is the only safe answer here --
+// counting a plugin that will never signal would delay every peer's
+// End-of-RIB to the barrier timeout. The engine additionally intersects this
+// with the plugins actually subscribed to state events, so a declared-but-
+// unsubscribed plugin is never expected either.
+func RequiresPeerUpBarrier(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg := plugins[name]
+	if reg == nil {
+		return false
+	}
+	return reg.PeerUpBarrier
 }
 
 // rpcHandlers holds RPC method handlers registered by plugins via AddRPCHandlers.

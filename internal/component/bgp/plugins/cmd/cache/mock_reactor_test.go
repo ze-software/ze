@@ -60,10 +60,12 @@ func (m *mockReactor) SetConfigTree(_ map[string]any)         {}
 
 // --- ReactorStartupCoordinator ---
 
-func (m *mockReactor) SignalAPIReady()              {}
-func (m *mockReactor) AddAPIProcessCount(_ int)     {}
-func (m *mockReactor) SignalPluginStartupComplete() {}
-func (m *mockReactor) SignalPeerAPIReady(_ string)  {}
+func (m *mockReactor) SignalAPIReady()                  {}
+func (m *mockReactor) AddAPIProcessCount(_ int)         {}
+func (m *mockReactor) SignalPluginStartupComplete()     {}
+func (m *mockReactor) SignalPeerAPIReady(_ string)      {}
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int) {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)     {}
 
 // --- ReactorCacheCoordinator ---
 

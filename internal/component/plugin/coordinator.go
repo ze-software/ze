@@ -318,6 +318,22 @@ func (c *Coordinator) SignalPeerAPIReady(peerAddr string) {
 	}
 }
 
+// SetPeerUpBarrier declares how many barrier plugins a peer's peer-up event is
+// being delivered to. No-op without reactor.
+func (c *Coordinator) SetPeerUpBarrier(peerAddr string, expected int) {
+	if r := c.getReactor(); r != nil {
+		r.SetPeerUpBarrier(peerAddr, expected)
+	}
+}
+
+// SignalPeerUpBarrier records that one barrier plugin has taken delivery of a
+// peer's peer-up event. No-op without reactor.
+func (c *Coordinator) SignalPeerUpBarrier(peerAddr string) {
+	if r := c.getReactor(); r != nil {
+		r.SignalPeerUpBarrier(peerAddr)
+	}
+}
+
 // --- ReactorCacheCoordinator ---
 
 // RegisterCacheConsumer initializes tracking for a cache-consumer plugin.

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -124,6 +125,62 @@ func TestInitialSyncEORStopsAtFirstSendFailure(t *testing.T) {
 
 	assert.Equal(t, uint32(0), peer.Stats().EORSent,
 		"no EOR is on the wire when the peer has no session")
+}
+
+// TestInitialSyncEORWaitsForPeerUpBarrier is the one test that pins the barrier
+// to the thing it exists to gate: no End-of-RIB reaches the wire while a barrier
+// plugin still owes an acknowledgement for this session's peer-up event.
+//
+// VALIDATES: sendInitialRoutes calls waitPeerUpBarrier BEFORE it writes the
+// marker, so "End-of-RIB sent" implies "every plugin that registers this peer as
+// a forward target has processed the peer-up event".
+// PREVENTS: the barrier becoming dead code. Every other barrier test drives
+// waitPeerUpBarrier directly; delete the single call in peer_initial_sync.go and
+// they all stay green while the guarantee silently disappears
+// (ai/rules/fail-closed-guards.md, "drive the guard from the entry point").
+//
+// The oracle is triggerClock.waiting, which receives when waitPeerUpBarrier
+// evaluates its select operands, i.e. exactly when sendInitialRoutes is inside
+// the wait and has not passed it. Without that signal the test would be a race
+// between the goroutine and an assertion, and it would pass with the wait
+// deleted; with it, deleting the wait means the receive below never happens and
+// the test fails. Its clock's After() only fires when the test says so, so a
+// timeout cannot substitute for the acknowledgement either.
+func TestInitialSyncEORWaitsForPeerUpBarrier(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	tc := newTriggerClock()
+	peer.SetClock(tc)
+	peer.ResetPeerUpBarrier()
+	peer.SetPeerUpBarrier(1) // one plugin registers this peer; it has not acknowledged
+
+	done := make(chan struct{})
+	go func() {
+		peer.sendInitialRoutes()
+		close(done)
+	}()
+
+	select {
+	case <-tc.waiting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sendInitialRoutes never entered the peer-up barrier: the end-of-rib does not " +
+			"wait for the plugins that register this peer as a forward target")
+	}
+	assert.Empty(t, conn.written(),
+		"the end-of-rib must not reach the wire while a barrier plugin still owes an acknowledgement")
+
+	peer.SignalPeerUpBarrier()
+
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "sendInitialRoutes must resume once the barrier opens")
+	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"the end-of-rib must reach the wire once every barrier plugin has acknowledged")
+	assert.Equal(t, uint32(1), peer.Stats().EORSent)
 }
 
 // TestDefaultOriginateFilterFailsClosedWithoutReactor verifies that the

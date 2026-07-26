@@ -96,6 +96,8 @@ func (m *mockReactor) SignalPluginStartupComplete()   {}
 func (m *mockReactor) SignalPeerAPIReady(peer string) {
 	m.signalPeerReadyCalls = append(m.signalPeerReadyCalls, peer)
 }
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)       {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)           {}
 func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
 func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {

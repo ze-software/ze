@@ -139,6 +139,8 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 	c.AddAPIProcessCount(1)
 	c.SignalPluginStartupComplete()
 	c.SignalPeerAPIReady("10.0.0.1")
+	c.SetPeerUpBarrier("10.0.0.1", 1)
+	c.SignalPeerUpBarrier("10.0.0.1")
 
 	// Cache coordinator: no-ops (no panic)
 	c.RegisterCacheConsumer("test", false)
@@ -177,6 +179,21 @@ func TestCoordinatorWithReactor(t *testing.T) {
 	if !m.reloadCalled {
 		t.Error("expected Reload to delegate to reactor")
 	}
+
+	// The peer-up barrier pair, asserted by ARGUMENT and not merely by "a method
+	// ran": a body that delegated to the wrong reactor call (SignalPeerAPIReady
+	// in place of SignalPeerUpBarrier, say) compiles, and would release the wrong
+	// barrier at run time.
+	c.SetPeerUpBarrier("10.0.0.2", 3)
+	if m.barrierSet != "10.0.0.2" || m.barrierExpected != 3 {
+		t.Errorf("expected SetPeerUpBarrier to delegate peer and count, got %q/%d",
+			m.barrierSet, m.barrierExpected)
+	}
+
+	c.SignalPeerUpBarrier("10.0.0.3")
+	if m.barrierSignaled != "10.0.0.3" {
+		t.Errorf("expected SignalPeerUpBarrier to delegate the peer, got %q", m.barrierSignaled)
+	}
 }
 
 // VALIDATES: SetReactor(nil) reverts to stub behavior.
@@ -209,7 +226,11 @@ type mockReactor struct {
 	peersCalled    bool
 	teardownCalled bool
 	apiReadyCalled bool
-	reloadCalled   bool
+
+	barrierSet      string
+	barrierExpected int
+	barrierSignaled string
+	reloadCalled    bool
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -245,9 +266,18 @@ func (m *mockReactor) SetConfigTree(map[string]any)         {}
 func (m *mockReactor) SignalAPIReady() {
 	m.apiReadyCalled = true
 }
-func (m *mockReactor) AddAPIProcessCount(int)             {}
-func (m *mockReactor) SignalPluginStartupComplete()       {}
-func (m *mockReactor) SignalPeerAPIReady(string)          {}
+func (m *mockReactor) AddAPIProcessCount(int)       {}
+func (m *mockReactor) SignalPluginStartupComplete() {}
+func (m *mockReactor) SignalPeerAPIReady(string)    {}
+func (m *mockReactor) SetPeerUpBarrier(peer string, expected int) {
+	m.barrierSet = peer
+	m.barrierExpected = expected
+}
+
+func (m *mockReactor) SignalPeerUpBarrier(peer string) {
+	m.barrierSignaled = peer
+}
+
 func (m *mockReactor) RegisterCacheConsumer(string, bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(string)     {}
 func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {

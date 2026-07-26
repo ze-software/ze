@@ -216,6 +216,46 @@ Reference: `bgp-rs` claims `bgp-peer-up-replay`
 (`internal/component/bgp/plugins/rs/register.go`); `bgp-adj-rib-in` stands down in
 `internal/component/bgp/plugins/adj_rib_in/rib_claims.go`.
 
+## Peer-Up Barrier (BLOCKING for plugins that register peers)
+
+A plugin that decides, ON the peer-up event, whether a peer is eligible to
+receive traffic MUST declare `PeerUpBarrier: true`. Declaring it makes the
+engine hold that peer's initial-sync End-of-RIB until the plugin has taken
+delivery of the event, so **"End-of-RIB sent" implies "every barrier plugin has
+registered this peer"** -- the property a peer, or a test, needs to treat the
+marker as the go-ahead to send.
+
+| Step | What |
+|------|------|
+| Plugin declares | `PeerUpBarrier: true` in its `registry.Registration` |
+| Engine counts | The barrier-declaring plugins among those the peer-up event is ACTUALLY delivered to (`countPeerUpBarrier`, `internal/component/bgp/server/events.go`), before the first delivery |
+| Engine acknowledges | Each successful delivery result signals the peer's barrier: the result IS the plugin's acknowledgement that its handler ran and returned |
+| Peer waits | `Peer.waitPeerUpBarrier` before the initial-sync End-of-RIB (`internal/component/bgp/reactor/peer_initial_sync.go`) |
+
+**Counted over the delivery set, never the registry.** A plugin that declares
+the barrier but is not subscribed to state events never takes delivery, so
+counting it would cost every peer the full barrier timeout.
+
+**Separate from the API-sync wait.** `apiSync` counts plugins that SEND routes
+and carries a 500 ms IPC grace for external ones. Barrier plugins only register,
+so they must not drag that sleep in, and the two counters must never merge: a
+route sender's signal satisfying a registrar's obligation is a fail-open
+(`ai/rules/fail-closed-guards.md`). A peer whose only barrier plugin is
+in-process does not block on the wait: state-event delivery is synchronous, so
+the acknowledgement has already landed on the FSM callback goroutine by the time
+`sendInitialRoutes` is spawned, and the wait finds the channel closed. The
+barrier is therefore an enforced invariant rather than a delay on that path --
+it blocks only where delivery is genuinely asynchronous or slow.
+
+**Bounded, and it says so.** A plugin that never acknowledges delays the marker
+to `peerUpBarrierTimeout` (2 s), which releases it with a WARN naming the peer
+and the shortfall. Establishment is never blocked.
+
+Reference: `bgp-rs` declares it because `handleState` sets `Up` and captures
+`ForwardFrom` in one critical section; an UPDATE taken delivery of before that
+lands at or below the peer's cut and belongs to the announce-only Adj-RIB-In
+replay, so its withdrawals never reach the peer.
+
 ## Registration Fields
 
 | Field | Type | Required | Purpose |
@@ -235,6 +275,7 @@ Reference: `bgp-rs` claims `bgp-peer-up-replay`
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
 | `Claims` | []string | No | Exclusive runtime roles this plugin takes over from another plugin's default behavior (e.g., ["bgp-peer-up-replay"]). See "Exclusive Role Claims" below. |
+| `PeerUpBarrier` | bool | No | This plugin registers the peer (forward target, per-peer cut) on the peer-up event, so the peer's initial-sync End-of-RIB must not overtake it. See "Peer-Up Barrier" below. |
 | `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/doctor-checks.md`. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 

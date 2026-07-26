@@ -13,6 +13,21 @@ import (
 // DefaultAPITimeout is how long to wait for all "api ready" signals at startup.
 const DefaultAPITimeout = 5 * time.Second
 
+// peerUpBarrierTimeout bounds how long a peer's initial-sync End-of-RIB waits
+// for the plugins that register it as a forward target (Peer.waitPeerUpBarrier).
+//
+// Matched to the API-sync wait rather than tuned separately: both bound the same
+// kind of event, one plugin taking delivery of one peer-up event, and a barrier
+// plugin that has not answered in two seconds is wedged, not slow. Reaching the
+// bound never fails establishment -- it releases the marker and logs a WARN.
+const peerUpBarrierTimeout = 2 * time.Second
+
+// apiSyncTimeout bounds how long a peer's initial-sync End-of-RIB waits for the
+// plugins that SEND it routes (Peer.waitForAPISync). Named rather than passed:
+// the value was never per-call, and a parameter only one literal ever reaches
+// invites the belief that it is tunable.
+const apiSyncTimeout = 2 * time.Second
+
 // APISyncState tracks API process synchronization state.
 type APISyncState struct {
 	// processCount is the number of API processes that must send ready.
@@ -189,6 +204,50 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // acknowledged", and the peer simply waits out waitForAPISync and sends its EOR
 // 2.5s late. See ai/rules/fail-closed-guards.md ("or say something").
 func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
+	peer, ok := r.lookupPeer(peerAddr)
+	if !ok {
+		slog.Warn("api ready signal for unknown peer; its EOR will be delayed until the API sync timeout",
+			"peer", peerAddr)
+		return
+	}
+
+	slog.Debug("peer api ready signal", "peer", peerAddr)
+	peer.SignalAPIReady()
+}
+
+// SetPeerUpBarrier declares how many barrier-declaring plugins the peer-up
+// event for peerAddr is being delivered to. See Peer.SetPeerUpBarrier.
+//
+// A miss is loud for the same reason SignalPeerAPIReady's is: silently skipping
+// the barrier would publish an End-of-RIB that no longer means what the peer
+// reads it to mean, and no downstream layer can tell.
+func (r *Reactor) SetPeerUpBarrier(peerAddr string, expected int) {
+	peer, ok := r.lookupPeer(peerAddr)
+	if !ok {
+		slog.Warn("peer-up barrier set for unknown peer; its end-of-rib will not wait for plugin registration",
+			"peer", peerAddr, "expected", expected)
+		return
+	}
+	peer.SetPeerUpBarrier(expected)
+}
+
+// SignalPeerUpBarrier records that one barrier plugin has taken delivery of the
+// peer-up event for peerAddr. See Peer.SignalPeerUpBarrier.
+func (r *Reactor) SignalPeerUpBarrier(peerAddr string) {
+	peer, ok := r.lookupPeer(peerAddr)
+	if !ok {
+		slog.Warn("peer-up barrier signal for unknown peer; its end-of-rib will be delayed until the barrier timeout",
+			"peer", peerAddr)
+		return
+	}
+	peer.SignalPeerUpBarrier()
+}
+
+// lookupPeer resolves an "ip:port" or bare-IP peer address to its Peer.
+// Shared by the peer-scoped readiness signals; see SignalPeerAPIReady for why
+// the bare-IP fallback (findPeerByAddr) is needed rather than the map read
+// alone.
+func (r *Reactor) lookupPeer(peerAddr string) (*Peer, bool) {
 	key := parsePeerAddrToKey(peerAddr)
 
 	r.mu.RLock()
@@ -199,11 +258,7 @@ func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
 	r.mu.RUnlock()
 
 	if !ok || peer == nil {
-		slog.Warn("api ready signal for unknown peer; its EOR will be delayed until the API sync timeout",
-			"peer", peerAddr)
-		return
+		return nil, false
 	}
-
-	slog.Debug("peer api ready signal", "peer", peerAddr)
-	peer.SignalAPIReady()
+	return peer, true
 }

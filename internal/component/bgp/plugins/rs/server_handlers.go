@@ -90,6 +90,7 @@ func (rs *RouteServer) handleState(event *Event) {
 	}
 	up := state == "up"
 	rs.peers[peerAddr].Up = up
+	cut := rs.seenMsgID
 	if up {
 		// THE CUT, captured in the same critical section that makes this peer a
 		// live forward target. Both facts are written under one rs.mu.Lock, so no
@@ -99,6 +100,10 @@ func (rs *RouteServer) handleState(event *Event) {
 		rs.peers[peerAddr].ForwardFrom = rs.seenMsgID
 	}
 	rs.mu.Unlock()
+
+	// Logged outside the critical section: this is the peer-up path, and the same
+	// lock gates every forward-target selection.
+	logger().Debug("peer state applied", "peer", peerAddr, "state", state, "cut", cut)
 
 	switch state {
 	case "down":

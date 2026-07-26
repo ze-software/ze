@@ -3457,6 +3457,17 @@ When plugin A takes over a role that plugin B performs by default, B must learn 
 | B stands down | Reads `sdk.Plugin.ClaimActive("<role-token>")` from its `OnConfigure` handler |
 **Why not `OnAllPluginsReady`:** `sendPostStartupToAll` fans that callback out on
 **Fail closed:** an unclaimed or unresolvable role reads `false`, so B keeps doing
+## Peer-Up Barrier (BLOCKING for plugins that register peers)
+A plugin that decides, ON the peer-up event, whether a peer is eligible to receive traffic MUST declare `PeerUpBarrier: true`.
+| Step | What |
+|------|------|
+| Plugin declares | `PeerUpBarrier: true` in its `registry.Registration` |
+| Engine counts | The barrier-declaring plugins among those the peer-up event is ACTUALLY delivered to (`countPeerUpBarrier`, `internal/component/bgp/server/events.go`), before the first delivery |
+| Engine acknowledges | Each successful delivery result signals the peer's barrier: the result IS the plugin's acknowledgement that its handler ran and returned |
+| Peer waits | `Peer.waitPeerUpBarrier` before the initial-sync End-of-RIB (`internal/component/bgp/reactor/peer_initial_sync.go`) |
+**Counted over the delivery set, never the registry.** A plugin that declares
+**Separate from the API-sync wait.** `apiSync` counts plugins that SEND routes
+**Bounded, and it says so.** A plugin that never acknowledges delays the marker
 ## Registration Fields
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
@@ -3475,6 +3486,7 @@ When plugin A takes over a role that plugin B performs by default, B must learn 
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
 | `Claims` | []string | No | Exclusive runtime roles this plugin takes over from another plugin's default behavior (e.g., ["bgp-peer-up-replay"]). See "Exclusive Role Claims" below. |
+| `PeerUpBarrier` | bool | No | This plugin registers the peer (forward target, per-peer cut) on the peer-up event, so the peer's initial-sync End-of-RIB must not overtake it. See "Peer-Up Barrier" below. |
 | `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/doctor-checks.md`. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 ## Registration Metadata Feeds Generated Docs

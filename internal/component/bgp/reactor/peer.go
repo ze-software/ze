@@ -256,6 +256,26 @@ type Peer struct {
 	apiSyncReadyOnce sync.Once     // Ensures channel is closed only once
 	apiSyncCount     atomic.Int32  // Count of ready signals received since session start
 
+	// Peer-up barrier: plugins that must have PROCESSED this session's peer-up
+	// event before its initial-sync End-of-RIB goes out, so that "End-of-RIB
+	// sent" implies "every such plugin has registered this peer". Distinct from
+	// apiSync above, which counts plugins that SEND routes: a route sender
+	// signaling early must not satisfy a registrar's obligation, so the two
+	// barriers never share a counter (ai/rules/fail-closed-guards.md).
+	//
+	// Guarded by mu, reset per session establishment before plugins are notified.
+	//
+	// peerUpArmed distinguishes "not armed yet" from "armed, expecting none".
+	// Without it both read as expected==0 and a signal arriving before the count
+	// is set would satisfy `count >= expected`, close the channel and spend the
+	// sync.Once, leaving the session's barrier permanently open with nothing able
+	// to reinstate it short of another reset.
+	peerUpArmed     bool          // SetPeerUpBarrier has run for this session
+	peerUpExpected  int32         // Barrier-declaring plugins the peer-up event is delivered to
+	peerUpReady     chan struct{} // Closed once every one of them has taken delivery
+	peerUpReadyOnce sync.Once     // Ensures the channel is closed only once
+	peerUpCount     atomic.Int32  // Deliveries acknowledged since session start
+
 	// Goroutine control
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -486,9 +506,10 @@ func (p *Peer) SignalAPIReady() {
 	p.mu.Unlock()
 }
 
-// waitForAPISync blocks until all API processes signal ready or timeout.
+// waitForAPISync blocks until all API processes signal ready, or until
+// apiSyncTimeout.
 // Returns immediately if no API sync is expected.
-func (p *Peer) waitForAPISync(timeout time.Duration) {
+func (p *Peer) waitForAPISync() {
 	p.mu.RLock()
 	expected := p.apiSyncExpected
 	ready := p.apiSyncReady
@@ -506,10 +527,105 @@ func (p *Peer) waitForAPISync(timeout time.Duration) {
 	case <-ready:
 		routesLogger().Debug("API sync complete", "peer", addr)
 		return
-	case <-p.clock.After(timeout):
+	case <-p.clock.After(apiSyncTimeout):
 		// Timeout - proceed anyway to avoid blocking forever
 		routesLogger().Debug("API sync timeout", "peer", addr)
 		return
+	}
+}
+
+// ResetPeerUpBarrier clears the peer-up barrier for a new session.
+// Called at Established BEFORE plugins are notified, so the barrier state a
+// signal lands on always belongs to the session that is establishing.
+//
+// Expected starts at zero: a session whose peer-up event reaches no
+// barrier-declaring plugin must not wait at all. SetPeerUpBarrier raises it.
+func (p *Peer) ResetPeerUpBarrier() {
+	p.mu.Lock()
+	p.peerUpArmed = false
+	p.peerUpExpected = 0
+	p.peerUpReady = make(chan struct{})
+	p.peerUpReadyOnce = sync.Once{}
+	p.peerUpCount.Store(0)
+	p.mu.Unlock()
+}
+
+// SetPeerUpBarrier declares how many barrier plugins this session's peer-up
+// event is being delivered to. Called by the event dispatcher before the first
+// delivery, so it is always ordered before any SignalPeerUpBarrier and before
+// sendInitialRoutes is spawned.
+//
+// Also the release valve: the dispatcher lowers the count to the number of
+// acknowledgements it actually obtained when a delivery is skipped or fails.
+// Lowering it opens the barrier at once, because no further acknowledgement can
+// arrive and waiting out the timeout would only delay the End-of-RIB without
+// making the guarantee any truer.
+//
+// expected <= 0 opens the barrier immediately: there is nothing to wait for.
+func (p *Peer) SetPeerUpBarrier(expected int) {
+	p.mu.Lock()
+	p.peerUpArmed = true
+	p.peerUpExpected = int32(expected)                                                      //nolint:gosec // plugin count will never overflow int32
+	if p.peerUpReady != nil && (expected <= 0 || p.peerUpCount.Load() >= int32(expected)) { //nolint:gosec // plugin count will never overflow int32
+		p.peerUpReadyOnce.Do(func() { close(p.peerUpReady) })
+	}
+	p.mu.Unlock()
+}
+
+// SignalPeerUpBarrier records that one barrier plugin has taken delivery of
+// this session's peer-up event. Opens the barrier once all expected plugins
+// have.
+//
+// Ignores the close while unarmed. A signal that arrives before the count is
+// set cannot satisfy a count nobody has stated yet, and letting it close the
+// channel would spend the sync.Once and leave the session's barrier open for
+// good. The count is still recorded, so SetPeerUpBarrier settles it.
+//
+// Single Lock (not RLock then Lock) for the same reason SignalAPIReady uses
+// one: ResetPeerUpBarrier must not be able to replace the channel between the
+// read and the close.
+func (p *Peer) SignalPeerUpBarrier() {
+	count := p.peerUpCount.Add(1)
+	p.mu.Lock()
+	if p.peerUpArmed && count >= p.peerUpExpected && p.peerUpReady != nil {
+		p.peerUpReadyOnce.Do(func() { close(p.peerUpReady) })
+	}
+	p.mu.Unlock()
+}
+
+// waitPeerUpBarrier blocks until every barrier plugin has taken delivery of the
+// peer-up event, or until peerUpBarrierTimeout. Returns true when the barrier
+// opened.
+//
+// Returns immediately when nothing is expected, which is the common case: with
+// no barrier plugin loaded the peer pays nothing, and with an in-process one it
+// pays a closed-channel receive, because the delivery completes on the FSM
+// callback goroutine before this goroutine is spawned.
+//
+// Bounded on purpose. A plugin that never takes delivery must not wedge
+// establishment, so the timeout releases the End-of-RIB -- and says so, because
+// past that point a peer treating the End-of-RIB as "I am a registered forward
+// target" is being told something the engine could not confirm.
+func (p *Peer) waitPeerUpBarrier() bool {
+	p.mu.RLock()
+	expected := p.peerUpExpected
+	ready := p.peerUpReady
+	p.mu.RUnlock()
+
+	if expected == 0 || ready == nil {
+		return true
+	}
+
+	select {
+	case <-ready:
+		return true
+	case <-p.clock.After(peerUpBarrierTimeout):
+		routesLogger().Warn("peer-up barrier timeout; end-of-rib no longer implies every plugin registered this peer",
+			"peer", p.settings.Address,
+			"acknowledged", p.peerUpCount.Load(),
+			"expected", expected,
+			"timeout", peerUpBarrierTimeout)
+		return false
 	}
 }
 

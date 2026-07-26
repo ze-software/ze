@@ -163,6 +163,16 @@ func (p *Peer) sendInitialRoutes() {
 	// (from RIB replay, Python plugins, etc.) are stored in ribOut normally.
 	p.sendingConfigStatic.Store(false)
 
+	// Hold the End-of-RIB until every plugin that registers this peer on the
+	// peer-up event has processed it, so "End-of-RIB sent" means "this peer is
+	// a live forward target" -- what a peer waiting on the marker before it
+	// sends reads it to mean. Kept SEPARATE from the API-sync wait below: this
+	// one is free in the common case (nothing expected, or an in-process plugin
+	// that already acknowledged on the FSM callback goroutine before this
+	// goroutine was spawned), so it must not drag in that wait's 500ms IPC
+	// grace. Bounded; on timeout it releases and says so.
+	p.waitPeerUpBarrier()
+
 	// Wait for API processes to send initial routes before processing queue.
 	// Two-phase wait:
 	// 1. Minimum 500ms delay for external plugins that send routes via IPC
@@ -176,7 +186,7 @@ func (p *Peer) sendInitialRoutes() {
 	if needsAPIWait {
 		routesLogger().Debug("sleeping for API routes", "peer", addr, "duration", "500ms")
 		p.clock.Sleep(500 * time.Millisecond)
-		p.waitForAPISync(2 * time.Second)
+		p.waitForAPISync()
 	}
 
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).

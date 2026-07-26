@@ -1205,6 +1205,18 @@ func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
 	a.r.SignalPeerAPIReady(peerAddr)
 }
 
+// SetPeerUpBarrier declares how many barrier plugins a peer's peer-up event is
+// being delivered to.
+func (a *reactorAPIAdapter) SetPeerUpBarrier(peerAddr string, expected int) {
+	a.r.SetPeerUpBarrier(peerAddr, expected)
+}
+
+// SignalPeerUpBarrier records that one barrier plugin has taken delivery of a
+// peer's peer-up event.
+func (a *reactorAPIAdapter) SignalPeerUpBarrier(peerAddr string) {
+	a.r.SignalPeerUpBarrier(peerAddr)
+}
+
 // SendRawMessage sends raw bytes to a peer.
 // If msgType is 0, payload is a full BGP packet (user provides marker+header).
 // If msgType is non-zero, payload is message body (we add the header).

@@ -516,6 +516,29 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 	})
 }
 
+// countPeerUpBarrier returns how many of procs declare
+// registry.Registration.PeerUpBarrier, i.e. how many acknowledgements the
+// peer's initial-sync End-of-RIB must wait for. Always zero for a state other
+// than up: the barrier exists only for establishment.
+//
+// Counted over the delivery set rather than over the registry, because the
+// expected count must equal the number of acknowledgements that can actually
+// arrive. A plugin that declares the barrier but is not subscribed to state
+// events never takes delivery, and counting it would delay every peer's
+// End-of-RIB to the barrier timeout.
+func countPeerUpBarrier(procs []*process.Process, state rpc.SessionState) int {
+	if state != rpc.SessionStateUp {
+		return 0
+	}
+	n := 0
+	for _, proc := range procs {
+		if registry.RequiresPeerUpBarrier(proc.Name()) {
+			n++
+		}
+	}
+	return n
+}
+
 // onPeerStateChange handles peer state transitions.
 // Called by reactor when peer state changes (not a BGP message).
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
@@ -538,6 +561,31 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	sortByReverseDependencyTier(procs)
 
 	logger().Debug("OnPeerStateChange", "peer", peerAddr, "state", state, "reason", reason, "count", len(procs))
+
+	// Arm the peer-up barrier before the first delivery. Its expected count is
+	// the barrier-declaring plugins among the ones this event is ACTUALLY being
+	// delivered to: counting a declared-but-unsubscribed plugin would make every
+	// peer wait out the barrier timeout for a signal that can never come.
+	//
+	// A nil reactor holds no peers and so has no End-of-RIB to gate, but a
+	// barrier plugin whose registration cannot be tracked is worth saying out
+	// loud rather than dropping in silence (ai/rules/fail-closed-guards.md).
+	barrier := countPeerUpBarrier(procs, state)
+	reactor := s.Reactor()
+	if reactor == nil {
+		if barrier > 0 {
+			logger().Warn("no reactor to hold the peer-up barrier; end-of-rib will not wait for plugin registration",
+				"peer", peerAddr, "plugins", barrier)
+		}
+		barrier = 0
+	}
+	// Only armed when there is something to wait for. With no barrier plugin the
+	// peer's barrier stays at the zero ResetPeerUpBarrier left it in, which
+	// waitPeerUpBarrier returns from immediately, so the common case costs a
+	// count over an already-materialized slice and nothing else.
+	if barrier > 0 {
+		reactor.SetPeerUpBarrier(peerAddr, barrier)
+	}
 
 	// Pre-format once per distinct encoding (text consumers only).
 	// DirectBridge structured consumers get StructuredEvent with State/Reason fields.
@@ -562,6 +610,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	// before the next starts, enabling inter-plugin coordination.
 	// Structured consumers get StructuredEvent; text consumers get formatted text.
 	// StructuredEvent pool return is owned by delivery.go (deliveryLoop).
+	acknowledged := 0
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		results := make(chan process.EventResult, 1)
@@ -573,12 +622,37 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
+			// Says so: the only other trace of a refused delivery is the peer's
+			// End-of-RIB quietly meaning less than it claims.
+			if barrier > 0 && registry.RequiresPeerUpBarrier(proc.Name()) {
+				logger().Warn("peer-up event refused by a plugin that registers this peer",
+					"peer", peerAddr, "proc", proc.Name())
+			}
 			continue
 		}
 		r := <-results
 		if r.Err != nil && s.Context().Err() == nil {
 			logger().Warn("OnPeerStateChange write failed", "proc", r.ProcName, "err", r.Err)
 		}
+		// The result is the plugin's acknowledgement that its handler ran and
+		// returned without error: for bgp-rs that is the critical section which
+		// sets Up and captures the peer-up cut. A failed delivery is not an
+		// acknowledgement, so it is not counted (ai/rules/fail-closed-guards.md).
+		if barrier > 0 && r.Err == nil && registry.RequiresPeerUpBarrier(proc.Name()) {
+			reactor.SignalPeerUpBarrier(peerAddr)
+			acknowledged++
+		}
+	}
+
+	// Release valve. When fewer plugins acknowledged than were expected, no
+	// further acknowledgement can arrive -- every delivery has already been
+	// attempted on this goroutine. Lower the count to what was achieved so the
+	// End-of-RIB goes out now instead of waiting out a timeout that cannot
+	// change the outcome, and say what the marker no longer proves.
+	if barrier > 0 && acknowledged < barrier {
+		logger().Warn("end-of-rib will not imply every plugin registered this peer",
+			"peer", peerAddr, "acknowledged", acknowledged, "expected", barrier)
+		reactor.SetPeerUpBarrier(peerAddr, acknowledged)
 	}
 
 	// Deliver to CLI monitors lazily.

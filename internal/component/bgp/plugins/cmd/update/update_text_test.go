@@ -1235,6 +1235,8 @@ func (m *mockReactorBatch) SignalAPIReady()                                     
 func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                     {}
 func (m *mockReactorBatch) SignalPluginStartupComplete()                                 {}
 func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                                  {}
+func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)                             {}
+func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)                                 {}
 func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool)                       {}
 func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)                             {}
 func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {

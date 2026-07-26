@@ -372,6 +372,12 @@ func (p *Peer) runOnce() error {
 			}
 			p.ResetAPISync(apiSendCount)
 
+			// Reset the peer-up barrier for this session BEFORE plugins are
+			// notified below: the dispatcher raises its expected count and the
+			// plugins acknowledge inside notifyPeerEstablished, so the barrier
+			// state those calls land on must already belong to this session.
+			p.ResetPeerUpBarrier()
+
 			// Set sendingInitialRoutes flag BEFORE notifying plugins.
 			// This ensures ShouldQueue() returns true during event delivery,
 			// preventing a race where a plugin receives state=up, sends a route

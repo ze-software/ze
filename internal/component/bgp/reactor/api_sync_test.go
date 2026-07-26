@@ -350,7 +350,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 
 	synced := make(chan struct{})
 	go func() {
-		peer.waitForAPISync(2 * time.Second)
+		peer.waitForAPISync()
 		close(synced)
 	}()
 	// Release the waiter so the goroutine never outlives the test when the

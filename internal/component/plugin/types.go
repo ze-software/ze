@@ -54,6 +54,21 @@ type ReactorStartupCoordinator interface {
 
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 	SignalPeerAPIReady(peerAddr string)
+
+	// SetPeerUpBarrier declares how many barrier-declaring plugins
+	// (registry.Registration.PeerUpBarrier) a peer's peer-up event is being
+	// delivered to. Called before the first delivery of that event.
+	SetPeerUpBarrier(peerAddr string, expected int)
+
+	// SignalPeerUpBarrier records that one barrier plugin has taken delivery of
+	// a peer's peer-up event. When all expected ones have, the peer's
+	// initial-sync End-of-RIB is released.
+	//
+	// Composed into the interface rather than reached by type assertion, for
+	// the reason recorded on ReactorRelayCoordinator: a facade missing the
+	// delegation must be a compile error, not a runtime miss that silently
+	// drops the barrier.
+	SignalPeerUpBarrier(peerAddr string)
 }
 
 // ProtocolReactor is the minimal interface any protocol reactor must implement.
