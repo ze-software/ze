@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/route"
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
+	bgpreactor "github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -51,16 +52,25 @@ type RunConfig struct {
 	// hold-timer expiry detection.
 	StopKeepalivesAt time.Duration
 
-	// DisconnectAt, when non-zero, closes peer 0's connection at this
-	// virtual time offset. Tests session tear-down detection.
+	// DisconnectAt, when non-zero, closes peer 0's connection at the first
+	// virtual time offset at or after this one where the reactor reports the
+	// peer ESTABLISHED. Tests session tear-down detection. It is an earliest
+	// bound, not an instant: disconnecting a session that has not come up yet
+	// exercises a scenario nobody wrote, and on a slow host a fixed instant
+	// lands there.
 	DisconnectAt time.Duration
 
-	// ReconnectDelay is the virtual time to wait after DisconnectAt
-	// before reconnecting with a fresh mock connection. A short delay
-	// may hit BGP collision detection (RFC 4271 §6.8) if the reactor
-	// hasn't finished tearing down the old session. A long delay
-	// (> DefaultReconnectMin = 5s) gives the reactor time to complete
-	// the reconnect cycle and accept the new connection cleanly.
+	// ReconnectDelay is the virtual time to wait after the disconnect ACTUALLY
+	// happened before reconnecting with a fresh mock connection.
+	//
+	// Zero selects collision mode: the fresh connection is delivered while the
+	// session is ESTABLISHED and the old one is closed only after the reactor
+	// has refused it, so RFC 4271 Section 6.8 rejection is structural rather
+	// than a race the accept path has to win.
+	//
+	// Non-zero reconnects after the reactor has left Established. Below
+	// DefaultReconnectMin (5s virtual) the peer may still be cycling and refuse;
+	// above it the peer has recycled and accepts cleanly.
 	ReconnectDelay time.Duration
 
 	// Consumer receives events in real-time during the simulation.
@@ -101,6 +111,24 @@ type RunConfig struct {
 	// BaseRoutes is the base route count per peer for churn calculations.
 	// Defaults to the first profile's RouteCount if zero.
 	BaseRoutes int
+}
+
+// peerEstablished reports whether the reactor considers the peer at addr to be
+// in PeerStateEstablished.
+//
+// This reads the SAME producer the accept path's collision check reads
+// (Reactor.acceptOrReject: "if peer.State() == PeerStateEstablished { reject }",
+// RFC 4271 Section 6.8). Gating a disconnect on it is therefore not an
+// approximation: while the peer's current connection is still open nothing else
+// moves it out of Established, so the accept path is guaranteed to observe the
+// same value the runner just observed.
+func peerEstablished(r *bgpreactor.Reactor, addr netip.Addr) bool {
+	for _, p := range r.Peers() {
+		if p.Settings().Address == addr {
+			return p.State() == bgpreactor.PeerStateEstablished
+		}
+	}
+	return false
 }
 
 // RunResult holds the output from an in-process chaos run.
@@ -432,6 +460,15 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	simulated := time.Duration(0)
 	disconnected := false
 	reconnected := false
+	// disconnectedAt is the virtual instant the disconnect ACTUALLY fired.
+	// The reconnect gap is measured from here, not from cfg.DisconnectAt: the
+	// disconnect waits for the session to reach Established, so on a slow host
+	// it fires later, and measuring from the fixed offset would silently shrink
+	// the gap the scenario is named for.
+	disconnectedAt := time.Duration(0)
+	// peer0Addr is the peer whose connection the disconnect/collision branches
+	// below manipulate (Run assigns 127.0.0.{2+i} above).
+	peer0Addr := cfg.Profiles[0].Address
 
 	for simulated < cfg.Duration {
 		if ctx.Err() != nil {
@@ -445,20 +482,33 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			simCancel()
 		}
 
-		// Collision test (ReconnectDelay == 0): queue new connection BEFORE
-		// closing the old one so the session is still ESTABLISHED when the
-		// reactor's accept loop delivers the new connection. This triggers
-		// RFC 4271 §6.8 collision detection deterministically.
+		// Collision test (ReconnectDelay == 0): RFC 4271 Section 6.8 closes an
+		// incoming connection while the existing one is ESTABLISHED. Both halves
+		// of that premise are bound to STATE here, never to elapsed time:
 		//
-		// ConnWithAddr.SetReadDeadline is a no-op, so the reactor's read
-		// goroutine blocks on ReadFull until data or close — there is no
-		// polling interval. Closing the old connection delivers EOF
-		// instantly, tearing down the session in microseconds. If we
-		// closed first and reconnected later (even 10ms later), the session
-		// would already be gone and no collision would occur.
-		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay == 0 && !chaosEnabled && simulated >= cfg.DisconnectAt && !disconnected {
+		//  1. Fire only once the REACTOR reports PeerStateEstablished. The
+		//     simulator's own "established" event is not a substitute: it is
+		//     emitted after the simulator reads ze's KEEPALIVE, while ze may
+		//     still be in OpenConfirm, where acceptOrReject takes the BGP-ID
+		//     comparison rail instead of the outright reject, and the remote ID
+		//     wins, producing a SECOND established session.
+		//  2. Close the old connection only AFTER the reactor has closed the new
+		//     one. Queue-then-close orders nothing: the accept path costs a
+		//     mocknet channel handoff plus a `go safeHandle` spawn before it
+		//     reads peer.State(), and that races the netpoller wake of the old
+		//     connection's read goroutine. Whichever won decided whether a
+		//     collision happened at all, so "at most 1 established" was an
+		//     assertion about the Go scheduler. Waiting on the rejection removes
+		//     the race instead of widening it.
+		//
+		// The rejection path (accept -> handleConnection -> acceptOrReject ->
+		// rejectConnectionCollision) touches no clock, so blocking the advance
+		// loop on it cannot stall the virtual time the handshake needs.
+		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay == 0 && !chaosEnabled && simulated >= cfg.DisconnectAt && !disconnected &&
+			peerEstablished(reactor, peer0Addr) {
 			disconnected = true
 			reconnected = true
+			disconnectedAt = simulated
 			oldConn := peerConns[0]
 
 			// First: queue new connection while old session is still ESTABLISHED.
@@ -468,7 +518,10 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			} else {
 				peerIP := net.IPv4(127, 0, 0, 2)
 				remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
-				wrappedEnd := mocknet.NewConnWithAddr(newReactorEnd, localTCPAddr, remoteTCPAddr)
+				// Wrapped so the reactor's close of the refused connection
+				// (its Section 6.8 verdict) is observable.
+				refused := newCloseNotifier(newReactorEnd)
+				wrappedEnd := mocknet.NewConnWithAddr(refused, localTCPAddr, remoteTCPAddr)
 				ml.QueueConn(wrappedEnd)
 				peerConns[0] = newPeerEnd
 
@@ -494,25 +547,41 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 						Clock:  vc,
 					})
 				}(cfg.Profiles[0], newPeerEnd)
+
+				// Wait for the reactor's verdict on the colliding connection.
+				// The peer is ESTABLISHED and its connection is still open, so
+				// nothing can move it out of that state: acceptOrReject is
+				// guaranteed to take the reject rail and close this connection.
+				// ctx bounds a genuine product regression rather than pacing
+				// the normal case.
+				select {
+				case <-refused.Closed():
+				case <-ctx.Done():
+				}
 			}
 
-			// Then close old connection — reactor now has two connections
-			// for the same peer, triggering collision detection.
+			// Only now close the old connection. The collision has already been
+			// resolved against an ESTABLISHED session, so the teardown below
+			// cannot pre-empt it.
 			if err := oldConn.Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "collision close old conn: %v\n", err)
 			}
-			time.Sleep(500 * time.Millisecond)
 		}
 
-		// Normal disconnect (with delayed reconnect).
-		// The 500ms real-time wait gives the reactor time to process the
-		// EOF and tear down the session before the reconnect phase.
-		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay > 0 && !chaosEnabled && simulated >= cfg.DisconnectAt && !disconnected {
+		// Normal disconnect (with delayed reconnect). Like the collision branch
+		// it fires on the session's state, not on elapsed time: disconnecting a
+		// session that never came up produces a scenario nobody wrote.
+		//
+		// No pause afterwards. The reconnect gate below waits for the reactor to
+		// have actually LEFT Established, which is what a fixed post-close sleep
+		// was approximating, and it does so without freezing the virtual clock.
+		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay > 0 && !chaosEnabled && simulated >= cfg.DisconnectAt && !disconnected &&
+			peerEstablished(reactor, peer0Addr) {
 			disconnected = true
+			disconnectedAt = simulated
 			if err := peerConns[0].Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "disconnect close: %v\n", err)
 			}
-			time.Sleep(500 * time.Millisecond)
 		}
 
 		// Delayed reconnect: queue a fresh connection after the delay.
@@ -520,7 +589,12 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		// reactor's reconnect backoff (DefaultReconnectMin = 5s virtual):
 		// - Short delay (< backoff): reactor may reject (session cycling).
 		// - Long delay (> backoff): peer has recycled, accepts cleanly.
-		if disconnected && !reconnected && cfg.ReconnectDelay > 0 && simulated >= cfg.DisconnectAt+cfg.ReconnectDelay {
+		//
+		// Gated on the reactor having LEFT Established, so the gap is measured
+		// from the teardown the test is about rather than from our Close() call,
+		// and on disconnectedAt so a late disconnect does not eat the gap.
+		if disconnected && !reconnected && cfg.ReconnectDelay > 0 && simulated >= disconnectedAt+cfg.ReconnectDelay &&
+			!peerEstablished(reactor, peer0Addr) {
 			reconnected = true
 
 			newPeerEnd, newReactorEnd, reconnErr := cpm.NewPair()
@@ -556,7 +630,16 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 					})
 				}(cfg.Profiles[0], newPeerEnd)
 
-				// Wait for the new BGP handshake to complete.
+				// Deliberate real-time pause, NOT a deadline to widen: this
+				// scenario's whole point is whether the reconnect handshake
+				// succeeds, so "wait until Established" would be waiting for the
+				// answer, and on the borderline gap the answer is legitimately
+				// "no", so the wait would run to ctx. It cannot become a
+				// condition wait in this loop either: the handshake advances
+				// only while this goroutine advances the virtual clock
+				// (session.Run polls clock.Sleep), so blocking here on any
+				// session state deadlocks. What it buys is real time for the
+				// TCP exchange; the virtual steps that follow do the rest.
 				time.Sleep(500 * time.Millisecond)
 			}
 		}

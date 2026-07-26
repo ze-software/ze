@@ -39,6 +39,32 @@ func (es *establishedState) Snapshot() []bool {
 	return snap
 }
 
+// closeNotifier wraps a connection so its owner learns when the REACTOR closes
+// it. RFC 4271 Section 6.8 rejection (Reactor.rejectConnectionCollision) writes
+// a NOTIFICATION and closes the connection it refuses, so that close IS the
+// collision verdict: an observable state transition to wait on instead of a
+// guessed duration.
+type closeNotifier struct {
+	net.Conn
+	once   sync.Once
+	closed chan struct{}
+}
+
+// newCloseNotifier wraps conn so Closed() reports when it has been closed.
+func newCloseNotifier(conn net.Conn) *closeNotifier {
+	return &closeNotifier{Conn: conn, closed: make(chan struct{})}
+}
+
+// Close signals Closed() and closes the wrapped connection.
+func (c *closeNotifier) Close() error {
+	c.once.Do(func() { close(c.closed) })
+	return c.Conn.Close()
+}
+
+// Closed is closed once the wrapped connection has been closed, whichever side
+// closed it. Safe for concurrent use.
+func (c *closeNotifier) Closed() <-chan struct{} { return c.closed }
+
 // reconnectDialer creates mock TCP connection pairs on demand for chaos
 // reconnection in in-process mode. Each DialContext call creates a new
 // pair, wraps the reactor end with proper TCP addresses, and queues it
