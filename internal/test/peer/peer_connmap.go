@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 )
 
 const (
@@ -76,6 +77,11 @@ func (p *Peer) runConnMap(ctx context.Context) Result {
 		p.printConnBatch(conns)
 
 		result = p.processConnBatch(ctx, conns)
+		// Only when another batch follows: the wait exists to keep the NEXT
+		// batch free of connections the daemon opened behind our back.
+		if result.Success && !p.checker.Completed() && p.signalFired.Swap(false) {
+			p.waitBatchClosed(ctx, conns)
+		}
 		closeConnBatch(conns)
 		if !result.Success {
 			return result
@@ -193,6 +199,64 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 	handedOff = true
 	mu.Unlock()
 	return conns, Result{}, false
+}
+
+// waitBatchClosed blocks until the daemon has closed every connection in the
+// batch, or until ctx ends. Called when a sighup/sigterm action fired inside
+// this batch and conn=N expectations remain, i.e. another batch is coming.
+//
+// The peer must never close a session the daemon still holds. Only ONE
+// connection in a batch carries the signal action, and its message loop returns
+// as soon as THAT connection reaches EOF; the batch's other connections went
+// idle earlier, and closeConnBatch would close them right behind it. Whether
+// the daemon has torn those down yet is decided by the order it stops its
+// peers, and that order is randomized by construction -- reconcilePeersJournaled
+// builds its remove set by ranging a Go map
+// (internal/component/bgp/reactor/reactor_api.go:508). Close a session ze still
+// holds and ze redials it, immediately on a teardown
+// (internal/component/bgp/reactor/peer_run.go:78). That extra connection joins
+// the next accepted batch, which shifts every conn=N slot, so the sorted batch
+// hands the checker another peer's routes: the test then fails as a hex
+// mismatch, naming neither the reopened session nor the reload.
+//
+// Waiting for the closes makes the next batch exact rather than probable. ze
+// runs every peer removal before any peer add (the remove loop at
+// reactor_api.go:528 completes before the add loop at :557), so once all of this
+// batch's sockets are at EOF the only connections that can be pending are the
+// new generation's -- however long the daemon took to get there.
+func (p *Peer) waitBatchClosed(ctx context.Context, conns []connWithID) {
+	p.printf("\nwaiting for the daemon to close all %d connections of this batch\n", len(conns))
+	var wg sync.WaitGroup
+	for i, c := range conns {
+		if c.conn == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(slot int, conn net.Conn) {
+			defer wg.Done()
+			buf := make([]byte, 4096)
+			for {
+				select {
+				case <-ctx.Done():
+					p.printf("conn=%d still open when the test ended\n", slot)
+					return
+				default:
+				}
+				// Read and discard: the session is going away, so anything
+				// still arriving on it (KEEPALIVEs) is not the test's business.
+				// The deadline only bounds how often ctx is rechecked.
+				_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond)) //nolint:errcheck // deadline on a socket being drained
+				if _, err := conn.Read(buf); err != nil {
+					if isTimeout(err) {
+						continue
+					}
+					p.printf("conn=%d closed by the daemon\n", slot)
+					return
+				}
+			}
+		}(i+1, c.conn)
+	}
+	wg.Wait()
 }
 
 func (p *Peer) processConnBatch(ctx context.Context, conns []connWithID) Result {

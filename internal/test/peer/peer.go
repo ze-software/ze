@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -172,6 +173,11 @@ type Peer struct {
 	mu        sync.Mutex    // protects output writes from concurrent connection handlers
 	ready     chan struct{} // closed when listener is bound and accepting
 	readyOnce sync.Once     // ensures ready is closed exactly once
+	// signalFired records that a sighup or sigterm action ran, so the daemon is
+	// expected to tear the current sessions down. runConnMap consumes it to
+	// decide whether the batch must wait for those teardowns before it accepts
+	// the next batch (see waitBatchClosed in peer_connmap.go).
+	signalFired atomic.Bool
 }
 
 // New creates a new test peer.
@@ -332,6 +338,24 @@ func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
 			return Result{Success: true}
 		}
 	}
+}
+
+// pauseForSignal gives the daemon time to act on a signal the peer just sent.
+//
+// Sequential mode has no observable signal that the daemon acted, so it still
+// waits a fixed 500ms -- the connection it goes on to read is the same one the
+// daemon may be about to close, and there is nothing else to key on.
+//
+// conn_map mode does have one and must not use a duration: runConnMap waits for
+// the daemon to close EVERY connection in the batch before accepting the next
+// batch (waitBatchClosed, peer_connmap.go). That is the condition this pause was
+// standing in for, so a batch peer returns immediately and the amount of time
+// the daemon takes to apply the reload stops mattering.
+func (p *Peer) pauseForSignal() {
+	if p.config.ConnMap != "" {
+		return
+	}
+	time.Sleep(500 * time.Millisecond)
 }
 
 func (p *Peer) printf(format string, args ...any) {
@@ -638,8 +662,8 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			if err := syscall.Kill(pid, syscall.SIGHUP); err != nil {
 				return Result{Success: false, Error: fmt.Errorf("sighup pid %d: %w", pid, err)}
 			}
-			// Brief pause to let the daemon process the signal before we continue.
-			time.Sleep(500 * time.Millisecond)
+			p.signalFired.Store(true)
+			p.pauseForSignal()
 			if p.checker.Completed() {
 				return Result{Success: true}
 			}
@@ -660,8 +684,8 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 			if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
 				return Result{Success: false, Error: fmt.Errorf("sigterm pid %d: %w", pid, err)}
 			}
-			// Brief pause to let the daemon shut down before we continue.
-			time.Sleep(500 * time.Millisecond)
+			p.signalFired.Store(true)
+			p.pauseForSignal()
 			if p.checker.Completed() {
 				return Result{Success: true}
 			}
