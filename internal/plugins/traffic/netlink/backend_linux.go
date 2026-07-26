@@ -254,12 +254,27 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 	if err := snap.validateLink(link, b.bootID); err != nil {
 		return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
 	}
-	qdisc, err := snap.Qdisc.toNetlink(link.Attrs().Index)
-	if err != nil {
-		return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
-	}
-	if err := b.ops.qdiscReplace(qdisc); err != nil {
-		return fmt.Errorf("trafficnetlink: interface %q: restore qdisc %q: %w", ifaceName, qdisc.Type(), err)
+	if snap.Qdisc.restoredByDelete() {
+		// The original root was noqueue: the interface had no queueing discipline.
+		// Re-enter that state by deleting the root ze installed, which is what `tc
+		// qdisc del dev X root` does; the kernel then reports noqueue again. There
+		// is no qdisc object to replace with, and adding one named noqueue is not
+		// the inverse operation.
+		root := &netlink.GenericQdisc{
+			QdiscAttrs: snap.Qdisc.Attrs.toNetlink(link.Attrs().Index),
+			QdiscType:  snap.Qdisc.Type,
+		}
+		if err := b.ops.qdiscDel(root); err != nil {
+			return fmt.Errorf("trafficnetlink: interface %q: restore original %q by deleting the root qdisc: %w", ifaceName, snap.Qdisc.Type, err)
+		}
+	} else {
+		qdisc, err := snap.Qdisc.toNetlink(link.Attrs().Index)
+		if err != nil {
+			return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
+		}
+		if err := b.ops.qdiscReplace(qdisc); err != nil {
+			return fmt.Errorf("trafficnetlink: interface %q: restore qdisc %q: %w", ifaceName, qdisc.Type(), err)
+		}
 	}
 	delete(b.snapshots, ifaceName)
 	if err := b.saveSnapshots(); err != nil {

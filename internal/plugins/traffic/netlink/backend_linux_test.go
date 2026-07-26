@@ -28,6 +28,7 @@ type fakeTCOps struct {
 	filters  map[string][]netlink.Filter
 	calls    []string
 	replaced []netlink.Qdisc
+	deleted  []netlink.Qdisc
 
 	// added records every filter accepted by filterAdd, and tcProtoOwner models
 	// the kernel's one-protocol-per-(parent, priority) rule. See filterAdd.
@@ -72,6 +73,12 @@ func (f *fakeTCOps) qdiscList(link netlink.Link) ([]netlink.Qdisc, error) {
 func (f *fakeTCOps) qdiscReplace(qdisc netlink.Qdisc) error {
 	f.calls = append(f.calls, "replace:"+qdisc.Type())
 	f.replaced = append(f.replaced, qdisc)
+	return nil
+}
+
+func (f *fakeTCOps) qdiscDel(qdisc netlink.Qdisc) error {
+	f.calls = append(f.calls, "del:"+qdisc.Type())
+	f.deleted = append(f.deleted, qdisc)
 	return nil
 }
 
@@ -738,4 +745,111 @@ func equalStringSlices(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// TestApplyAcceptsNoqueueOriginalRoot proves the tc backend can configure an
+// interface that has no queueing discipline yet.
+//
+// VALIDATES: an interface whose root qdisc is noqueue is snapshotted and
+//
+//	configured, not refused.
+//
+// PREVENTS:  the QEMU integration failure `Apply: trafficnetlink: interface
+//
+//	"ze_cs0": snapshot original qdisc: qdisc "noqueue" cannot be
+//	snapshotted exactly by backend tc`. noqueue is the DEFAULT root on
+//	every veth, dummy and bridge, so rejecting it meant ze could not
+//	apply traffic control in any container or VM deployment -- the
+//	environments it targets.
+func TestApplyAcceptsNoqueueOriginalRoot(t *testing.T) {
+	ops := newFakeTCOps()
+	ops.links["eth0"] = testLink("eth0", 5)
+	ops.qdiscs["eth0"] = []netlink.Qdisc{
+		&netlink.GenericQdisc{QdiscAttrs: rootAttrs(5), QdiscType: "noqueue"},
+	}
+	b := testBackend(t, ops)
+
+	if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"eth0": desiredHTB("eth0")}); err != nil {
+		t.Fatalf("Apply over a noqueue root: %v", err)
+	}
+
+	var replacedHTB bool
+	for _, q := range ops.replaced {
+		if q.Type() == "htb" {
+			replacedHTB = true
+		}
+	}
+	if !replacedHTB {
+		t.Fatalf("Apply did not install the htb root: calls=%v", ops.calls)
+	}
+	snap, ok := b.snapshots["eth0"]
+	if !ok {
+		t.Fatalf("no snapshot recorded for eth0: %v", b.snapshots)
+	}
+	if snap.Qdisc.Type != "noqueue" {
+		t.Fatalf("snapshot qdisc type = %q, want noqueue", snap.Qdisc.Type)
+	}
+}
+
+// TestRestoreOriginalDeletesRootForNoqueue proves the inverse operation is a
+// DELETE, not a replace.
+//
+// VALIDATES: restoring a noqueue original removes the root qdisc ze installed.
+// PREVENTS:  "restoring" by adding a qdisc named noqueue. noqueue is the ABSENCE
+//
+//	of a discipline; the interface re-enters it when the root is gone,
+//	which is exactly what `tc qdisc del dev X root` does. A replace
+//	would leave ze's own htb in place, silently keeping the operator's
+//	interface configured after ze was told to let go of it.
+func TestRestoreOriginalDeletesRootForNoqueue(t *testing.T) {
+	ops := newFakeTCOps()
+	ops.links["eth0"] = testLink("eth0", 5)
+	ops.qdiscs["eth0"] = []netlink.Qdisc{
+		&netlink.GenericQdisc{QdiscAttrs: rootAttrs(5), QdiscType: "noqueue"},
+	}
+	b := testBackend(t, ops)
+
+	if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"eth0": desiredHTB("eth0")}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if err := b.RestoreOriginal(context.Background(), "eth0"); err != nil {
+		t.Fatalf("RestoreOriginal: %v", err)
+	}
+
+	if len(ops.deleted) != 1 {
+		t.Fatalf("qdiscDel called %d times, want exactly 1: calls=%v", len(ops.deleted), ops.calls)
+	}
+	if got := ops.deleted[0].Attrs().Parent; got != netlink.HANDLE_ROOT {
+		t.Errorf("deleted qdisc parent = %#x, want HANDLE_ROOT %#x", got, netlink.HANDLE_ROOT)
+	}
+	if got := ops.deleted[0].Attrs().LinkIndex; got != 5 {
+		t.Errorf("deleted qdisc link index = %d, want 5", got)
+	}
+	// Nothing may be replaced AFTER the htb install: a replace here would be the
+	// bug this test exists to catch.
+	for _, q := range ops.replaced {
+		if q.Type() == "noqueue" {
+			t.Fatalf("restore installed a qdisc named noqueue instead of deleting the root: calls=%v", ops.calls)
+		}
+	}
+	if _, ok := b.snapshots["eth0"]; ok {
+		t.Errorf("snapshot still present after restore: %v", b.snapshots)
+	}
+}
+
+// TestNoqueueSnapshotRefusesToBuildAQdisc pins the guard inside the snapshot
+// type itself, so a future caller that routes a noqueue snapshot down the
+// replace path gets a named error rather than handing the kernel a nil qdisc.
+func TestNoqueueSnapshotRefusesToBuildAQdisc(t *testing.T) {
+	snap := tcQdiscSnapshot{Type: "noqueue", Attrs: tcQdiscAttrs{Parent: netlink.HANDLE_ROOT}}
+	if !snap.restoredByDelete() {
+		t.Fatal("noqueue snapshot must report restoredByDelete")
+	}
+	q, err := snap.toNetlink(5)
+	if err == nil {
+		t.Fatalf("toNetlink returned %v, want an error for a delete-restored snapshot", q)
+	}
+	if q != nil {
+		t.Errorf("toNetlink returned a qdisc %v alongside the error", q)
+	}
 }

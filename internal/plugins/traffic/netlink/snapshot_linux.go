@@ -141,9 +141,27 @@ func (s tcInterfaceSnapshot) validateLink(link netlink.Link, bootID string) erro
 	return nil
 }
 
+// qdiscTypeNoqueue is the kernel's name for "this interface has no queueing
+// discipline configured". It is the default root on every virtual interface --
+// veth, dummy, bridge, and anything else the kernel gives no real queue -- so it
+// is the state a QoS config is most often applied FROM, not an exotic corner.
+const qdiscTypeNoqueue = "noqueue"
+
 func newQdiscSnapshot(qdisc netlink.Qdisc) (tcQdiscSnapshot, error) {
-	if _, ok := qdisc.(*netlink.GenericQdisc); ok {
-		return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be snapshotted exactly by backend tc", qdisc.Type())
+	if generic, ok := qdisc.(*netlink.GenericQdisc); ok {
+		// noqueue is exactly restorable even though it has no reconstructable
+		// parameters, because it is the ABSENCE of a discipline: deleting whatever
+		// root we installed returns the interface to it (restoreOriginalLocked).
+		// Rejecting it meant ze refused to apply any traffic control to a veth,
+		// dummy or bridge -- `qdisc "noqueue" cannot be snapshotted exactly by
+		// backend tc` -- which is every container and VM deployment.
+		//
+		// Other GenericQdisc types (mq, clsact, ...) stay rejected: those DO carry
+		// state, and this backend cannot reproduce it (ai/rules/exact-or-reject.md).
+		if generic.Type() != qdiscTypeNoqueue {
+			return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be snapshotted exactly by backend tc", qdisc.Type())
+		}
+		return tcQdiscSnapshot{Type: qdiscTypeNoqueue, Attrs: snapshotAttrs(qdisc.Attrs())}, nil
 	}
 	switch qdisc.(type) {
 	case *netlink.PfifoFast, *netlink.Prio, *netlink.Htb, *netlink.Hfsc,
@@ -171,7 +189,21 @@ func (a tcQdiscAttrs) toNetlink(linkIndex int) netlink.QdiscAttrs {
 	return netlink.QdiscAttrs{LinkIndex: linkIndex, Handle: a.Handle, Parent: a.Parent, IngressBlock: a.IngressBlock}
 }
 
+// restoredByDelete reports whether returning the interface to this snapshot is
+// done by DELETING the root qdisc rather than by replacing it.
+//
+// Only noqueue qualifies. Deleting the root drops the interface back to the
+// kernel default, and noqueue being what was observed there before ze touched
+// anything is precisely the evidence that the default IS noqueue.
+func (s tcQdiscSnapshot) restoredByDelete() bool { return s.Type == qdiscTypeNoqueue }
+
 func (s tcQdiscSnapshot) toNetlink(linkIndex int) (netlink.Qdisc, error) {
+	// Callers must route a delete-restored snapshot through qdiscDel; there is no
+	// qdisc object to install for it. Guarded rather than assumed: a future caller
+	// that forgets gets a named error, not a nil qdisc handed to the kernel.
+	if s.restoredByDelete() {
+		return nil, fmt.Errorf("qdisc %q is restored by deleting the root, not by replacing it", s.Type)
+	}
 	switch s.Type {
 	case "pfifo_fast":
 		var q netlink.PfifoFast
