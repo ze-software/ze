@@ -284,7 +284,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 // CALLER had seen when it made this peer a live forward target. Routes newer
 // than that belong to the live rail, so replaying them too would deliver the
 // same route twice, in an order decided by goroutine scheduling. Omitted or 0
-// means unbounded, which is the pre-cut behaviour and stays correct for a
+// means unbounded, which is the pre-cut behavior and stays correct for a
 // caller that does not track the cut.
 func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 	if len(args) == 0 {
