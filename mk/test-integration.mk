@@ -278,7 +278,7 @@ ze-qemu-all-test:
 	# e2fsprogs: same reason as ze-qemu-needs-linux-test below -- this target runs
 	# the same qemu-all-tests.sh, so its unit phase needs debugfs/mkfs.ext4 too.
 	python3 scripts/evidence/qemu-run.py \
-		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs" \
+		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra" \
 		--timeout 3600 \
 		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
@@ -305,12 +305,14 @@ ze-qemu-needs-linux-test:
 	# and runs the whole tree in the VM, which alone exceeded the old budget: the
 	# run was killed mid-unit-phase and the integration phase never executed.
 	#
-	# e2fsprogs supplies mkfs.ext4/debugfs/e2fsck. internal/appliance's injectZeFS
-	# tests write the credential database into a /perm ext4 image with debugfs and
-	# then verify it; without the package debugfs is absent, the write "silently
-	# failed" and four tests failed on a missing tool rather than on ze's behavior.
+	# e2fsprogs + e2fsprogs-extra supply mkfs.ext4/e2fsck and debugfs. Alpine splits
+	# debugfs into the -extra package, and resolveE2FSDir (internal/appliance/
+	# cmd_build.go:45-66) requires mkfs.ext4 AND debugfs in the SAME directory, so
+	# e2fsprogs alone left e2fsDir empty and every tool read as absent -- injectZeFS
+	# logged "e2fsck not found" and "debugfs write silently failed" with e2fsprogs
+	# demonstrably installed, and four tests failed on that rather than on ze.
 	python3 scripts/evidence/qemu-run.py \
-		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs" \
+		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra" \
 		--timeout 3600 \
 		--run 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="web" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 

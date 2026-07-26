@@ -199,8 +199,13 @@ fsuite traffic "$ZE_TEST_BIN" traffic --all -p 1
 #
 # This is why the phase-3 integration tests below compiled fine while this phase
 # could not: they invoke `go test` directly and never pass through the Makefile.
+# ZE_PACKAGES_EXCLUDE drops ./scripts/... -- see the Makefile's ZE_PACKAGES for
+# why. Short version: host developer-tooling gates, no linux-only surface, and in
+# the VM they fail on Alpine having neither brew nor apt and on 9p compile
+# timeouts. They run in full under `make ze-verify` on the host.
 run_check "unit tests (no -race, cacheable)" \
-	make --no-print-directory GOCACHE="$GOCACHE" GOMODCACHE="$GOMODCACHE" ze-unit-test-cached
+	make --no-print-directory GOCACHE="$GOCACHE" GOMODCACHE="$GOMODCACHE" \
+	ZE_PACKAGES_EXCLUDE='/scripts/' ze-unit-test-cached
 
 # 3. Integration tests: linux-only, netlink/nft/fib/socket. Same package set as
 #    `make ze-qemu-integration-test`; IS-IS transport is added when present.
@@ -265,8 +270,23 @@ if [ -n "$missing_pkgs" ]; then
 	echo "       Fix the list in scripts/evidence/qemu-all-tests.sh; this is a script bug, not a test failure." >&2
 	exit 1
 fi
+# The feature tags are as load-bearing here as in the unit phase. `-tags
+# integration` ADDS the integration files to a package; it does not replace the
+# package's ordinary unit tests, which are compiled and run too -- but without
+# ze_core and the ZE_FEATURES set they normally get, so every feature-gated
+# surface silently vanishes and the tests that assert on it fail. That is not a
+# regression, it is the bare-`go test` trap ai/rules/bash-output.md describes:
+# four internal/component/doctor listener tests failed for want of ze_ssh alone,
+# reporting "expected ssh listener from fallback collection" while passing in
+# ze-verify. Derived from feature-gates.txt so this cannot drift from the
+# Makefile's own ZE_FEATURES.
+integration_tags="ze_core integration"
+if [ -f feature-gates.txt ]; then
+	# Same expression as Makefile:56 (ZE_FEATURES), so the two cannot drift.
+	integration_tags="$integration_tags $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
+fi
 run_check "integration tests (-tags integration)" \
-	go test -tags integration -count=1 -timeout 120s "${integration_pkgs[@]}"
+	go test -tags "$integration_tags" -count=1 -timeout 120s "${integration_pkgs[@]}"
 
 banner "SUMMARY"
 if [ "$rc" -eq 0 ]; then

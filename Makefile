@@ -92,7 +92,18 @@ ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
 # `python3 scripts/dev/rename_module_path.py --to <new> --apply`.
 ZE_MODULE = github.com/ze-software/ze
 # Exclude the root module package: it only contains build-tagged tooling imports.
-ZE_PACKAGES = $$(go list ./... | grep -v '^github.com/ze-software/ze$$')
+#
+# ZE_PACKAGES_EXCLUDE is an extra grep -E pattern a caller may set to drop more
+# packages. The QEMU unit phase uses it for ./scripts/... : those are host
+# developer-tooling gates with no //go:build linux surface at all, so the VM adds
+# no coverage, and several of them assert on the DEVELOPER's environment rather
+# than on ze -- dev_setup_test.py checks for brew or apt, and Alpine has neither.
+# The rest shell out to gate binaries they compile on the fly, which over the 9p
+# mount blows their own 60s timeouts. They cost ~33 minutes of the VM run and
+# every failure was environmental. They still run in full under `make ze-verify`
+# on the host, so nothing is uncovered by skipping them here.
+ZE_PACKAGES_EXCLUDE ?=
+ZE_PACKAGES = $$(go list ./... | grep -v '^github.com/ze-software/ze$$'$(if $(ZE_PACKAGES_EXCLUDE), | grep -vE '$(ZE_PACKAGES_EXCLUDE)',))
 
 # Default target
 .DEFAULT_GOAL := help

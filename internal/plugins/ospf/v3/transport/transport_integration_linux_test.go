@@ -73,7 +73,7 @@ func TestOSPFv3TransportVethMulticastRoundTrip(t *testing.T) {
 		payload := ospfv3SampleHello()
 		packet.FinalizePacketChecksum(src, AllSPFRouters, payload)
 		if err := ha.Send(AllSPFRouters, src, payload); err != nil {
-			t.Fatalf("Send multicast: %v", err)
+			t.Fatalf("Send multicast: %v\n  source %v on %s; %s", err, src, lab.nameA, describeLinkLocals(lab.nameA))
 		}
 		expectOSPFv3Packet(t, hb, src, AllSPFRouters, payload)
 
@@ -112,7 +112,7 @@ func TestOSPFv3TransportAllDRoutersReceive(t *testing.T) {
 		payload := ospfv3SampleHello()
 		packet.FinalizePacketChecksum(src, AllDRouters, payload)
 		if err := ha.Send(AllDRouters, src, payload); err != nil {
-			t.Fatalf("Send AllDRouters: %v", err)
+			t.Fatalf("Send AllDRouters: %v\n  source %v on %s; %s", err, src, lab.nameA, describeLinkLocals(lab.nameA))
 		}
 		expectOSPFv3Packet(t, hb, src, AllDRouters, payload)
 
@@ -231,6 +231,34 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfv3VethLab)) {
 	bringUp(t, nameA)
 	runInNS(t, peerNS, func() { bringUp(t, nameB) })
 	fn(ospfv3VethLab{nameA: nameA, nameB: nameB, peerNS: peerNS})
+}
+
+// describeLinkLocals reports every address the resolver sees on name, with its
+// tentative flag.
+//
+// A send that fails EINVAL for a link-local multicast is equally consistent with
+// "no source at all" and "the source is still tentative", and the kernel's error
+// distinguishes neither. interfaceLinkLocal (backend_linux.go:80-114) prefers a
+// DAD-complete address but deliberately FALLS BACK to a tentative one, and a
+// freshly created veth is in DAD for about a second -- so which of the two
+// happened is the whole diagnosis, and the bare error hides it.
+func describeLinkLocals(name string) string {
+	addrs, err := iface.Addresses(name)
+	if err != nil {
+		return fmt.Sprintf("iface.Addresses(%s) failed: %v", name, err)
+	}
+	var b strings.Builder
+	b.WriteString("addresses: ")
+	for i, a := range addrs {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "%s(link-local=%v tentative=%v)", a.Address, a.LinkLocal, a.Tentative)
+	}
+	if len(addrs) == 0 {
+		b.WriteString("(none)")
+	}
+	return b.String()
 }
 
 func runInNS(t *testing.T, target netns.NsHandle, fn func()) {

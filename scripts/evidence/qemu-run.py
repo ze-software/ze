@@ -380,6 +380,13 @@ def run_in_vm(
                 'export GOFLAGS="-buildvcs=false"',
                 'export HOME="/root"',
                 'export TMPDIR="/tmp"',
+                # The 9p mount carries the HOST user's uid, so every repository
+                # under /workspace looks foreign to root and git refuses it with
+                # "detected dubious ownership". That is a sane default for a
+                # multi-user box and pure noise in a single-purpose throwaway VM:
+                # it broke every commit_helper and spec-closure test, which create
+                # their own scratch repositories under /workspace/tmp.
+                "git config --global --add safe.directory '*' 2>/dev/null || true",
                 "mkdir -p /workspace/tmp/evidence",
                 "mount -t tmpfs tmpfs /workspace/tmp/evidence",
             ]

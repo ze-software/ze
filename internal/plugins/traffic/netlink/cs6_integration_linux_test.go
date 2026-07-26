@@ -6,6 +6,7 @@ package trafficnetlink
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"syscall"
 	"testing"
@@ -76,7 +77,28 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			}
 		}
 		if u32Count == 0 {
-			t.Fatal("no u32 filters installed (the bug: translateFilter produced U32 with no Sel)")
+			// Report WHAT came back, not merely that no U32 did. "no u32 filters" is
+			// equally consistent with three causes -- nothing was installed, the
+			// filters hang off a parent this query does not cover, or the library
+			// decoded them as some other type -- and the bare message cannot tell
+			// them apart, which is why this failure survived several QEMU runs
+			// undiagnosed. Also query the HTB root HANDLE, since that is the parent
+			// applyInterface actually attaches to (backend_linux.go:148 passes
+			// rootHandle, not HANDLE_ROOT).
+			describe := func(fs []netlink.Filter) []string {
+				out := make([]string, 0, len(fs))
+				for _, f := range fs {
+					a := f.Attrs()
+					out = append(out, fmt.Sprintf("%T(kind=%s parent=%#x prio=%d proto=%#04x)",
+						f, f.Type(), a.Parent, a.Priority, a.Protocol))
+				}
+				return out
+			}
+			byHandle, handleErr := netlink.FilterList(link, netlink.MakeHandle(1, 0))
+			t.Fatalf("no u32 filters installed (the bug: translateFilter produced U32 with no Sel)\n"+
+				"  parent=HANDLE_ROOT returned %d filter(s): %v\n"+
+				"  parent=1:0        returned %d filter(s): %v (err=%v)",
+				len(filters), describe(filters), len(byHandle), describe(byHandle), handleErr)
 		}
 		if u32Count < 2 {
 			t.Errorf("u32 filter count = %d, want >= 2 (IPv4 + IPv6)", u32Count)
