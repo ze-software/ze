@@ -615,7 +615,9 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	r.mu.Unlock()
 
 	if isUp && !r.replayOwned.Load() {
-		routes, _ := r.buildReplayRoutes(peerAddr, 0, 0)
+		// No other plugin owns peer-up replay, so nothing else tracks a cut and
+		// nothing else forwards these routes: replay all of them.
+		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
 		}
@@ -780,10 +782,12 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	r.mu.Unlock()
 
 	if isUp && !r.replayOwned.Load() {
-		// Replay all known routes to the newly-up peer.
+		// Replay all known routes to the newly-up peer: no other plugin owns
+		// peer-up replay, so nothing else tracks a cut and nothing else forwards
+		// these routes.
 		// buildReplayRoutes takes RLock internally; relayRoutes does I/O.
 		// Both must run outside the write lock to avoid deadlock.
-		routes, _ := r.buildReplayRoutes(peerAddr, 0, 0)
+		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(event.GetPeerAddress(), routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
 		}
@@ -815,7 +819,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 // local AS first and then running only the session's export filters, so a
 // replayed route and a forwarded one diverged on the wire. See
 // plan/spec-fixit-bgp-egress-rail-divergence.md.
-func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex, maxMsgID uint64) ([]rpc.StoredRoute, uint64) {
+func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uint64, cut replayCut) ([]rpc.StoredRoute, uint64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -832,13 +836,15 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex, ma
 				// Already delivered in the batch that produced this cursor.
 				return true
 			}
-			// The peer-up cut. maxMsgID is the reactor MessageID that was the
-			// newest bgp-rs had seen at the instant it made this peer a live
-			// forward target, so anything NEWER is the live rail's to deliver and
-			// must not also be replayed. Routes with an unknown MsgID (legacy
-			// ingest, zero) stay eligible: replaying one twice is idempotent,
-			// dropping it is not.
-			if maxMsgID != 0 && rt.MsgID > maxMsgID {
+			// The peer-up cut: the reactor MessageID that was the newest bgp-rs
+			// had seen at the instant it made this peer a live forward target, so
+			// anything NEWER is the live rail's to deliver and must not also be
+			// replayed. A cut of 0 is a real cut and excludes every route with a
+			// known MessageID -- see replay_cut.go for why presence and value are
+			// carried separately. Routes with an unknown MsgID (legacy ingest,
+			// zero) stay eligible: replaying one twice is idempotent, dropping it
+			// is not.
+			if cut.excludes(rt.MsgID) {
 				return true
 			}
 			out = append(out, rpc.StoredRoute{

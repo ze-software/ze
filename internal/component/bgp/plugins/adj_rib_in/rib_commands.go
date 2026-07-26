@@ -283,9 +283,14 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 // max-msg-id is the peer-up cut: the reactor MessageID that was the newest the
 // CALLER had seen when it made this peer a live forward target. Routes newer
 // than that belong to the live rail, so replaying them too would deliver the
-// same route twice, in an order decided by goroutine scheduling. Omitted or 0
-// means unbounded, which is the pre-cut behavior and stays correct for a
-// caller that does not track the cut.
+// same route twice, in an order decided by goroutine scheduling.
+//
+// PRESENCE, not value, decides whether the replay is bounded. Supplying the
+// argument bounds the replay even at 0; OMITTING it means unbounded, which stays
+// correct for a caller that does not track a cut. Treating the VALUE 0 as
+// unbounded is what let a peer that established before bgp-rs had taken delivery
+// of its first UPDATE (cut 0, the ordinary case) receive every route twice --
+// once replayed here, once forwarded live. See replay_cut.go.
 func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 	if len(args) == 0 {
 		return statusError, "", errAdjRibInReplayRequiresTarget
@@ -302,15 +307,16 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 			return statusError, "", fmt.Errorf("invalid from-index: %s", args[1])
 		}
 	}
-	var maxMsgID uint64
+	cut := unboundedReplay()
 	if len(args) > 2 {
-		maxMsgID, err = strconv.ParseUint(args[2], 10, 64)
-		if err != nil {
+		maxMsgID, parseErr := strconv.ParseUint(args[2], 10, 64)
+		if parseErr != nil {
 			return statusError, "", fmt.Errorf("invalid max-msg-id: %s", args[2])
 		}
+		cut = replayUpTo(maxMsgID)
 	}
 
-	routes, maxSeq := r.buildReplayRoutes(targetPeer, fromIndex, maxMsgID)
+	routes, maxSeq := r.buildReplayRoutes(targetPeer, fromIndex, cut)
 
 	// The relay carries the whole replay (original arg as the destination), in
 	// bounded chunks. A failure surfaces as statusError so the caller can tell a

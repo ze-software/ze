@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3106 files
+Total: 298 design docs, 3107 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -402,6 +402,7 @@ Total: 298 design docs, 3106 files
 |------|-------|
 | `examples/plugin/go/main.go` | example plugin |
 | `internal/component/bgp/cli/cmd_plugin.go` | plugin debug shell |
+| `internal/component/bgp/plugins/adj_rib_in/replay_cut.go` | peer-up replay cut (egress-rail) |
 | `internal/component/bgp/plugins/adj_rib_in/rib_claims.go` | Stage 2 configure, exclusive-role claims |
 | `internal/component/bgp/reactor/reactor_api_relay.go` | stored-route relay (egress-rail) |
 | `internal/component/cli/completer_plugin.go` | plugin SDK methods |

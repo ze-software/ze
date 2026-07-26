@@ -60,6 +60,42 @@ func TestPeerUpCutPartitionsRailsExactly(t *testing.T) {
 	require.Contains(t, targets, "10.0.0.2", "msgID above the cut must be forwarded live")
 }
 
+// TestPeerUpCutOfZeroLeavesEveryUpdateOnTheLiveRail pins the rs half of the
+// partition at the value that used to break it.
+//
+// VALIDATES: a peer that establishes before this plugin has taken delivery of any
+// UPDATE carries ForwardFrom 0 and is a live forward target for EVERY subsequent
+// UPDATE.
+// PREVENTS: reading the paired replay bound as "unbounded" at cut 0. That is the
+// ordinary case, not an edge one -- both peers of
+// test/plugin/llgr-readvertise-multipeer.ci came up at cut 0 on 39 of 40 runs --
+// and while adj-rib-in treated the VALUE 0 as "no bound", the replay carried the
+// same routes this rail forwards, so the peer received them twice. The adj-rib-in
+// half is TestReplayCutZeroBoundsTheReplay.
+func TestPeerUpCutOfZeroLeavesEveryUpdateOnTheLiveRail(t *testing.T) {
+	rs := newTestRouteServer(t)
+	families := map[family.Family]bool{family.IPv4Unicast: true}
+
+	// No UPDATE has been taken delivery of yet: seenMsgID is still its zero value.
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", State: "up"})
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.2"].Families = families
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Families: families}
+	cut := rs.peers["10.0.0.2"].ForwardFrom
+	rs.mu.Unlock()
+
+	require.Zero(t, cut, "nothing seen yet, so the cut is 0")
+
+	for _, id := range []uint64{1, 9, 10} {
+		rs.mu.RLock()
+		targets := rs.selectForwardTargets(nil, "10.0.0.1", id, families)
+		rs.mu.RUnlock()
+		require.Contains(t, targets, "10.0.0.2",
+			"msgID %d is above the cut of 0, so the live rail owns it and the replay must not also carry it", id)
+	}
+}
+
 // TestPeerUpCutCapturedAtomicallyWithForwardTarget pins the atomicity that makes
 // the cut sound: Up and ForwardFrom are written in one critical section, and a
 // re-established session re-captures the cut.
