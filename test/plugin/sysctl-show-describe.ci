@@ -91,7 +91,12 @@ def main():
     if not detail.get('type'):
         runtime_fail(f'show sysctl key {first_key}: missing type')
 
-    dispatch(api, 'request shutdown')
+    # Fire-and-forget: a synchronous dispatch of `request shutdown` races ze's own
+    # socket close. When the close wins (routine under load) _call_engine blocks for
+    # its 30s TLS read timeout then raises "no response for
+    # ze-plugin-engine:dispatch-command", failing a test whose assertions all passed.
+    # wait_for_shutdown observes the close itself, which is the real condition.
+    api.shutdown_fire_and_forget()
     api.wait_for_shutdown()
 
 

@@ -270,7 +270,13 @@ def main():
     with open('peer.exit', 'w') as f:
         f.write('ok')
 
-    dispatch(api, 'request shutdown')
+    # Fire-and-forget: a synchronous dispatch of `request shutdown` races ze's own
+    # socket close. When the close wins (routine under load) _call_engine blocks for
+    # its 30s TLS read timeout then raises "no response for
+    # ze-plugin-engine:dispatch-command", failing a test whose assertions all passed.
+    # This is the exact failure reproduced for this file under stress.
+    # wait_for_shutdown observes the close itself, which is the real condition.
+    api.shutdown_fire_and_forget()
     api.wait_for_shutdown()
 
 

@@ -81,9 +81,15 @@ def main():
 
     print('OK: command dispatch works', file=sys.stderr)
 
-    # Shutdown
-    api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    # Shutdown.
+    # // test-relax: synchronous `request shutdown` dispatch -> shutdown_fire_and_forget.
+    # No assertion changed; this is teardown only. A synchronous dispatch races ze's
+    # own socket close: when the close wins (routine under load) _call_engine blocks
+    # for its 30s TLS read timeout (ze_api.py:341) then raises "no response for
+    # ze-plugin-engine:dispatch-command" (ze_api.py:347), failing a test whose
+    # assertions have all already passed. wait_for_shutdown observes the close
+    # itself, which is the condition this teardown actually wants.
+    api.shutdown_fire_and_forget()
     api.wait_for_shutdown()
 
 
