@@ -13,18 +13,33 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=15s
-# Startup: only EOR expected (both AS112 update blocks have watchdog withdraw=true).
+# One unordered group: the EOR plus the four covering prefixes announced once
+# the probe succeeds (rise=1), when healthcheck dispatches
+# "request bgp watchdog announce as112 med 100". No route is present at startup
+# (both AS112 update blocks carry watchdog withdraw=true), so all four routes
+# arriving at all IS the AC-2 assertion. The pool holds 4 entries (2 ipv4
+# covering /24s + 2 ipv6 covering /48s), each sent as its own UPDATE, in a
+# non-deterministic pool iteration order.
+#
+# EOR and announce are deliberately NOT ordered against each other. RFC 4724
+# Section 2 defines the EOR marker as signalling "the completion of the initial
+# routing update", so routes legitimately precede it; nothing requires the EOR
+# first. Which side of the EOR the announces land on depends on when the
+# 1-second probe completes relative to session establishment:
+# reactor/peer_run.go Peer.runOnce sets sendingInitialRoutes BEFORE notifying
+# plugins, so a watchdog announce raised from the state=up callback is queued
+# (reactor/peer.go Peer.ShouldQueue) and drained by the operation-queue loop in
+# reactor/peer_initial_sync.go Peer.sendInitialRoutes -- which runs BEFORE that
+# function's EOR loop -- while a probe that fires later is drained by the same
+# function's post-EOR loop instead. Both are correct; asserting either would be
+# asserting on scheduling. test/plugin/healthcheck-cycle.ci, the model this test
+# follows, groups them the same way.
+cmd=api:conn=1:seq=1:text=EOR + healthcheck probe UP triggers watchdog announce as112 med 100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# After probe succeeds (rise=1), healthcheck dispatches
-# "request bgp watchdog announce as112 med 100". The pool holds 4 entries
-# (2 ipv4 covering /24s + 2 ipv6 covering /48s); each is sent as its own
-# UPDATE, so all 4 are expected here as one unordered group (pool iteration
-# order is not deterministic).
-cmd=api:conn=1:seq=2:text=healthcheck probe UP triggers watchdog announce as112 med 100
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C01FC4
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C000201102001000000000000000000000000000100302620004F8000
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C00020110200100000000000000000000000000010030200100040112
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C01FC4
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C000201102001000000000000000000000000000100302620004F8000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C00020110200100000000000000000000000000010030200100040112
 EOF_PEER
 
 # ze bgp configuration

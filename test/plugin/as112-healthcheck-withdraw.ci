@@ -4,34 +4,63 @@
 # AS112's config shape: four covering prefixes (H3), community no-export, and
 # the mandatory watchdog withdraw marker (H2).
 #
-# FAKE probe: a tmpfs sentinel file "healthy" exists at test start, so the
-# first check succeeds (INIT -> UP, announce). A background helper removes the
-# sentinel after a delay, so the next check fails (UP -> DOWN, withdraw). This
-# is the established pattern for driving a fast, deterministic UP->DOWN cycle
-# in a functional test without a real DNS dependency.
+# FAKE probe: a tmpfs sentinel file "healthy" exists at test start, and the
+# probe command CONSUMES it -- "test -f healthy && rm -f healthy" succeeds and
+# deletes the sentinel, so the first check is UP (announce) and every later check
+# fails (UP -> DOWN, withdraw). This drives a fast, deterministic UP->DOWN cycle
+# without a real DNS dependency.
+#
+# The transition is caused by the probe, never by a clock. An earlier version had
+# a background helper `sleep 3; rm -f ./healthy`, which races the probe rather
+# than sequencing with it: under load the sentinel was removed BEFORE the first
+# probe ran, so the probe went INIT -> DOWN directly, nothing was ever announced,
+# and the test timed out having received only the EOR (reproduced with
+# scripts/dev/stress-repro.py "bgp plugin" --test 40 --any-failure). Sequencing
+# the two events through the file itself removes the window entirely.
 #
 # AC-3: probe reaches DOWN after having been UP -> routes withdrawn from the peer.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=15s
-# Startup: only EOR expected (both AS112 update blocks have watchdog withdraw=true).
+# Group seq=1 -- the establishment phase: the EOR plus the four announced
+# covering prefixes, as ONE unordered group. No route is present at startup
+# (both AS112 update blocks carry watchdog withdraw=true), so the four routes
+# appear only once the first probe check succeeds (sentinel present, INIT -> UP).
+#
+# EOR and announce are deliberately NOT ordered against each other. RFC 4724
+# Section 2 defines the EOR marker as signalling "the completion of the initial
+# routing update", so routes legitimately precede it; nothing requires the EOR
+# first. Which side of the EOR the announces land on depends on when the
+# 1-second probe completes relative to session establishment:
+# reactor/peer_run.go Peer.runOnce sets sendingInitialRoutes BEFORE notifying
+# plugins, so a watchdog announce raised from the state=up callback is queued
+# (reactor/peer.go Peer.ShouldQueue) and drained by the operation-queue loop in
+# reactor/peer_initial_sync.go Peer.sendInitialRoutes -- which runs BEFORE that
+# function's EOR loop -- while a probe that fires later is drained by the same
+# function's post-EOR loop instead. Both are correct; asserting either would be
+# asserting on scheduling. test/plugin/healthcheck-cycle.ci, the model this test
+# follows, groups them the same way.
+#
+# 5 messages: 1 EOR + 4 entries (2 ipv4 covering /24s + 2 ipv6 covering /48s).
+# The 4 announces are unordered among themselves too (pool iteration order is
+# not deterministic).
+cmd=api:conn=1:seq=1:text=EOR + healthcheck probe UP triggers watchdog announce as112 med 100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# First probe check succeeds (sentinel present) -> INIT -> UP -> announce.
-# 4 entries (2 ipv4 covering /24s + 2 ipv6 covering /48s), unordered group
-# (pool iteration order is not deterministic).
-cmd=api:conn=1:seq=2:text=healthcheck probe UP triggers watchdog announce as112 med 100
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C01FC4
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C000201102001000000000000000000000000000100302620004F8000
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C00020110200100000000000000000000000000010030200100040112
-# Sentinel removed -> next probe check fails -> UP -> DOWN -> withdraw.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C01FC4
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C000201102001000000000000000000000000000100302620004F8000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B400101004002008004040000006440050400000064C00804FFFFFF01800E1C00020110200100000000000000000000000000010030200100040112
+# Group seq=2 -- sentinel removed -> next probe check fails -> UP -> DOWN ->
+# withdraw. This group IS ordered against seq=1: the checker only starts matching
+# it once every seq=1 expectation is consumed, which is the AC-3 assertion
+# (routes withdrawn AFTER having been announced).
 # 4 withdrawals, unordered group.
-cmd=api:conn=1:seq=3:text=healthcheck probe DOWN triggers watchdog withdraw as112
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418C0AF300000
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418C01FC40000
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A000201302620004F8000
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00020130200100040112
+cmd=api:conn=1:seq=2:text=healthcheck probe DOWN triggers watchdog withdraw as112
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418C0AF300000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418C01FC40000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A000201302620004F8000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00020130200100040112
 EOF_PEER
 
 # ze bgp configuration
@@ -39,7 +68,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	healthcheck {
 		probe as112 {
-			command "test -f healthy"
+			command "test -f healthy && rm -f healthy"
 			group as112
 			interval 1
 			rise 1
@@ -110,20 +139,22 @@ bgp {
 }
 EOF_CONF
 
-# Sentinel file: probe succeeds while this exists.
+# Sentinel file: the first probe succeeds on it and deletes it, so every later
+# probe fails. No helper process and no timer: the probe sequences itself.
 tmpfs=healthy:terminator=EOF_HEALTHY
 1
 EOF_HEALTHY
 
-# Helper: removes sentinel after delay to trigger probe failure, then exits.
-tmpfs=remove-healthy.run:mode=755:terminator=EOF_REMOVE
-#!/bin/sh
-sleep 3
-rm -f ./healthy
-exit 0
-EOF_REMOVE
+# // test-relax: the removed lines are the `remove-healthy.run` helper (a
+# `sleep 3; rm -f ./healthy` script) and its cmd=background launcher. NO
+# assertion is removed -- all nine expect=bgp lines are intact and unchanged.
+# The helper's job (make the second probe fail) now belongs to the probe command
+# itself, "test -f healthy && rm -f healthy", which is strictly stronger: the
+# helper raced the probe on a wall clock and under load deleted the sentinel
+# before the first probe ever ran, so the probe went INIT -> DOWN, no route was
+# ever announced, and the test timed out on the EOR alone. Replaced coverage,
+# not reduced coverage.
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=./remove-healthy.run
-cmd=foreground:seq=3:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s

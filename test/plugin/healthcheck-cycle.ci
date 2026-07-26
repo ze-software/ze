@@ -6,10 +6,11 @@
 # happened despite the probe failing.
 #
 # Mechanism: a tmpfs sentinel file "healthy" exists at test start. The probe
-# command checks for it (test -f healthy). A background helper removes the
-# file after 3 seconds. With rise=1, fall=1, debounce=true:
-# - First check succeeds -> INIT->UP -> announce with med 100
-# - After file removed, next check fails -> UP->DOWN -> withdraw
+# command both checks for it and CONSUMES it ("test -f healthy && rm -f healthy"),
+# so the state change is caused by the probe rather than by a clock. With
+# rise=1, fall=1, debounce=true:
+# - First check succeeds and deletes the sentinel -> INIT->UP -> announce med 100
+# - Every later check fails -> UP->DOWN -> withdraw
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -30,7 +31,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	healthcheck {
 		probe dns {
-			command "test -f healthy"
+			command "test -f healthy && rm -f healthy"
 			group hc-dns
 			interval 1
 			rise 1
@@ -79,20 +80,23 @@ bgp {
 }
 EOF_CONF
 
-# Sentinel file: probe succeeds while this exists.
+# Sentinel file: the first probe succeeds on it and deletes it, so every later
+# probe fails. No helper process and no timer: the probe sequences itself.
 tmpfs=healthy:terminator=EOF_HEALTHY
 1
 EOF_HEALTHY
 
-# Helper: removes sentinel after delay to trigger probe failure, then exits.
-tmpfs=remove-healthy.run:mode=755:terminator=EOF_REMOVE
-#!/bin/sh
-sleep 3
-rm -f ./healthy
-exit 0
-EOF_REMOVE
+# // test-relax: the removed lines are the `remove-healthy.run` helper (a
+# `sleep 3; rm -f ./healthy` script) and its cmd=background launcher. NO
+# assertion is removed -- both expect=bgp lines are intact and unchanged. The
+# helper's job (make the second probe fail) now belongs to the probe command
+# itself, "test -f healthy && rm -f healthy", which is strictly stronger: the
+# helper raced the probe on a wall clock, and under load it deleted the sentinel
+# before the first probe ever ran, so the probe went INIT -> DOWN, no route was
+# ever announced, and the test timed out having received only the EOR (seen as
+# TIME 240 in a loaded `ze-test bgp plugin --all` run). Replaced coverage, not
+# reduced coverage.
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=./remove-healthy.run
-cmd=foreground:seq=3:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s
