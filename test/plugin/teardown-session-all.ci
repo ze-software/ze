@@ -275,6 +275,17 @@ def main():
     with open('peer.exit', 'w') as f:
         f.write('ok')
 
+    # This test's ze-peer asserts peer1's initial-sync EOR frame, and nothing
+    # above waits for BGP at all -- the observer only tracks L2TP sessions. Under
+    # load the L2TP work finishes inside peer1's establishment window, so the
+    # shutdown below tears the daemon down mid-handshake; observed as the
+    # shutdown RPC never being answered ("no response for
+    # ze-plugin-engine:dispatch-command"). Wait on the per-peer `eor-sent`
+    # counter (cmd/peer/peer.go:217, incremented at peer_initial_sync.go:353
+    # right after the EOR is written) instead of on nothing at all.
+    if not api.wait_peer_eor_sent('peer1', attempts=60):
+        runtime_fail('peer1 initial-sync EOR never reached the wire')
+
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

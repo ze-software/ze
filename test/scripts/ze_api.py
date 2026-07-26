@@ -1290,6 +1290,86 @@ class API:
             self.read_line(timeout=min(remaining, 0.5))
         return self._post_startup_received
 
+    def wait_peer_eor_sent(
+        self,
+        peer: str = "*",
+        expected_peers: int = 1,
+        attempts: int = 40,
+        delay: float = 0.25,
+    ) -> bool:
+        """Block until ze has written its initial-sync EOR to `expected_peers` peers.
+
+        This is the barrier an observer MUST hold before it dispatches
+        ``request shutdown`` in any test whose ze-peer asserts the EOR frame
+        (``expect=bgp:...00170200000000``). Without it the observer can finish its
+        own assertions and shut the daemon down inside the establishment window,
+        closing the session under the peer, which then reports::
+
+            open recv   ...
+            open sent   ...
+            failed: connection closed before completion
+
+        Whether that window is reached is decided purely by how promptly the host
+        scheduled the daemon, which is why such a test passes alone and fails in a
+        loaded full run.
+
+        The signal is the product's own per-peer ``eor-sent`` counter, published by
+        ``show bgp peer <sel> detail``
+        (internal/component/bgp/plugins/cmd/peer/peer.go:217) and incremented
+        immediately after the EOR is written to the session
+        (internal/component/bgp/reactor/peer_initial_sync.go:353). Non-zero
+        therefore means the frame the peer is waiting for is already on the wire.
+
+        Two things that look like this barrier and are NOT:
+
+        * ``'established' in <detail json>`` -- every row carries the key
+          ``connections-established`` (peer.go:238), so the substring is present
+          from the first poll and the "barrier" waits for nothing.
+        * ``quiesce()`` / ``wait_for_ack()`` -- the bgp-peer-sync quiescer skips a
+          peer that has not started its initial sync (``peersSynced``,
+          reactor_api.go), so it returns instantly when the session is not up yet,
+          which is exactly the window that has to be closed. Quiesce is still the
+          right barrier for routes AFTER establishment; it is a complement here,
+          not a replacement.
+        * ``wait_for_post_startup()`` -- the post-startup fan-out runs BEFORE
+          ``StartPeers`` (plugin/server/startup.go:220-223), so it returns while
+          the session is still being opened.
+
+        Returns True once `expected_peers` peers report ``eor-sent >= 1``.
+        """
+
+        def _eor_sent(result: dict) -> bool:
+            if result.get("status") != "done":
+                return False
+            try:
+                payload = result_json_data(result, {})
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return False
+            if not isinstance(payload, dict):
+                return False
+            rows = payload.get("peers", {})
+            if not isinstance(rows, dict):
+                return False
+            ready = 0
+            for row in rows.values():
+                if not isinstance(row, dict):
+                    continue
+                try:
+                    if int(row.get("eor-sent", 0) or 0) >= 1:
+                        ready += 1
+                except (TypeError, ValueError):
+                    continue
+            return ready >= expected_peers
+
+        return _eor_sent(
+            self.dispatch_until(
+                f"show bgp peer {peer} detail",
+                _eor_sent,
+                attempts=attempts,
+                delay=delay,
+            )
+        )
+
     def wait_rs_replayed(
         self,
         expected_peers: int,

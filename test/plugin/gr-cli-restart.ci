@@ -33,7 +33,7 @@ tmpfs=gr-cli-test.run:mode=755:terminator=EOF_RUN
 
 import sys
 import time
-from ze_api import API
+from ze_api import API, runtime_fail
 
 
 def main():
@@ -44,8 +44,21 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session to establish
+    # Wait until the dispatcher command registry is frozen. This is NOT a session
+    # barrier and never was: the post-startup fan-out runs BEFORE StartPeers
+    # (plugin/server/startup.go:220-223), so it returns while peer1 is still
+    # opening. The comment here used to claim it waited for establishment.
     api.wait_for_post_startup(timeout=5.0)
+
+    # The real barrier. This test's ze-peer asserts the initial-sync EOR frame,
+    # so the daemon must not be shut down before that frame is on the wire;
+    # otherwise the peer reports `failed: connection closed before completion`
+    # and whether that happens is decided by host scheduling alone.
+    # wait_peer_eor_sent polls the per-peer `eor-sent` counter
+    # (cmd/peer/peer.go:217, incremented at peer_initial_sync.go:353 right after
+    # the EOR is written), so it waits on the asserted state, not on a duration.
+    if not api.wait_peer_eor_sent('peer1', attempts=40):
+        runtime_fail('peer1 initial-sync EOR never reached the wire')
 
     # Verify daemon lifecycle dispatch works (same mechanism restart uses)
     resp = api._call_engine(
