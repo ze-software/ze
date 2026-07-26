@@ -35,6 +35,7 @@ type StartupCoordinator struct {
 	mu             sync.Mutex
 	currentStage   PluginStage
 	stageStartTime time.Time     // when current stage began
+	lastProgress   time.Time     // when any plugin last completed a stage
 	stageComplete  []bool        // which plugins completed current stage
 	stageCh        chan struct{} // closed when stage advances
 	failedPlugin   int           // -1 if none failed
@@ -44,18 +45,37 @@ type StartupCoordinator struct {
 
 // NewStartupCoordinator creates a coordinator for the given number of plugins.
 func NewStartupCoordinator(pluginCount int) *StartupCoordinator {
+	now := time.Now()
 	return &StartupCoordinator{
 		pluginCount:    pluginCount,
 		currentStage:   StageRegistration,
-		stageStartTime: time.Now(),
+		stageStartTime: now,
+		lastProgress:   now,
 		stageComplete:  make([]bool, pluginCount),
 		stageCh:        make(chan struct{}),
 		failedPlugin:   -1,
 	}
 }
 
+// noteProgressLocked records that the tier advanced in some observable way.
+//
+// It deliberately does NOT wake the waiters. They are already sleeping on a
+// timer sized to the remaining stall window and re-read lastProgress when it
+// fires, which gives the same "extend on progress" semantics. Broadcasting
+// every progress event instead would wake every waiter once per plugin per
+// stage -- O(N^2) wakeups for a 20+ plugin tier -- and that scheduling churn
+// perturbs startup timing for no benefit.
+//
+// Must be called with the lock held.
+func (c *StartupCoordinator) noteProgressLocked(at time.Time) {
+	c.lastProgress = at
+}
+
 // StageStartTime returns when the current stage began.
-// Used by stageTransition to compute deadline as stageStartTime + timeout.
+//
+// This is reporting/diagnostic state, NOT the barrier's deadline base: the
+// barrier measures a stall from lastProgress (WaitForStageProgress), so a stage
+// legitimately outlives stageStartTime+timeout while plugins keep completing.
 func (c *StartupCoordinator) StageStartTime() time.Time {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -69,6 +89,9 @@ func (c *StartupCoordinator) SetStartTime(t time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.stageStartTime = t
+	// The stall window for the first stage runs from here too: before any
+	// plugin has completed anything, "last progress" is the stage start.
+	c.lastProgress = t
 }
 
 // StageComplete signals that a plugin completed a stage.
@@ -90,8 +113,16 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 		return
 	}
 
+	// Only the FIRST completion for this plugin in this stage is progress.
+	// Re-sending it must not extend the stall window, or a looping plugin
+	// could hold the barrier open forever and remove its bound entirely.
+	if c.stageComplete[pluginID] {
+		return
+	}
+
 	// Mark complete
 	c.stageComplete[pluginID] = true
+	c.noteProgressLocked(time.Now())
 	coordinatorLogger().Debug("coordinator: StageComplete marked", "plugin", pluginID, "complete", fmt.Sprintf("%v", c.stageComplete))
 
 	// Check if all plugins completed
@@ -141,6 +172,66 @@ func (c *StartupCoordinator) WaitForStage(ctx context.Context, stage PluginStage
 			coordinatorLogger().Debug("coordinator: WaitForStage TIMEOUT", "waiting_for", stage)
 			return ctx.Err()
 		}
+	}
+}
+
+// WaitForStageProgress blocks until all plugins reach the given stage, failing
+// only when the WHOLE TIER goes `stall` without any observable progress.
+//
+// This is deliberately NOT a wall-clock budget for the stage. A tier is
+// routinely 20+ plugins (bgp plus every bgp-* plugin); on a loaded host they
+// all slow down together, so a flat per-stage budget measured from
+// StageStartTime expires while every plugin is still handshaking normally, and
+// the engine then stops all of them. Load must not be able to reach this
+// barrier; only a genuinely wedged plugin should.
+//
+// It stays BOUNDED, which is the point of having a barrier at all: progress
+// events are finite (each plugin completes each stage at most once -- repeated
+// StageComplete calls are ignored), so the wait cannot exceed
+// (pluginCount+1) * stall for a stage, and ctx still ends it at any time.
+//
+// A non-positive stall disables the stall check and waits on ctx alone.
+func (c *StartupCoordinator) WaitForStageProgress(ctx context.Context, stage PluginStage, stall time.Duration) error {
+	if stall <= 0 {
+		return c.WaitForStage(ctx, stage)
+	}
+
+	for {
+		c.mu.Lock()
+		if c.failedPlugin >= 0 {
+			err := c.err
+			c.mu.Unlock()
+			return err
+		}
+		if c.currentStage >= stage {
+			c.mu.Unlock()
+			return nil
+		}
+		idle := time.Since(c.lastProgress)
+		stageCh := c.stageCh
+		c.mu.Unlock()
+
+		if idle >= stall {
+			return fmt.Errorf("no plugin progress for %v while waiting for stage %d", stall, stage)
+		}
+
+		// A fresh timer per iteration (rather than Reset on a shared one) keeps
+		// the wait free of the stale-fire race Reset has, with no drain needed.
+		// The loop is bounded by the number of progress events, so this cannot
+		// churn: at most pluginCount+1 timers per stage.
+		timer := time.NewTimer(stall - idle)
+		select {
+		case <-stageCh:
+			// Stage advanced or a plugin failed; re-evaluate.
+		case <-timer.C:
+			// The window elapsed. The next iteration re-reads lastProgress: if a
+			// plugin completed meanwhile the window simply restarts from there,
+			// otherwise the tier is stalled and the loop returns the error.
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		}
+		timer.Stop()
 	}
 }
 
@@ -233,9 +324,11 @@ func (c *StartupCoordinator) advanceStage() {
 		c.stageComplete[i] = false
 	}
 
-	// Advance stage and record when it began
+	// Advance stage and record when it began. The new stage's stall window
+	// starts here: reaching a new stage is itself progress.
 	c.currentStage++
 	c.stageStartTime = time.Now()
+	c.lastProgress = c.stageStartTime
 	coordinatorLogger().Debug("coordinator: advanceStage", "from", oldStage, "to", c.currentStage)
 
 	// Notify waiters by closing old channel and creating new one

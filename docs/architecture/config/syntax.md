@@ -242,7 +242,7 @@ plugin {
 |---------|------|-------------|
 | run | string | Command to execute |
 | encoder | string | `json` or `text` |
-| timeout | duration | Per-stage timeout (e.g., `5s`, `1m`, `500ms`). Default: 5s. 0 = use default. Negative rejected. |
+| timeout | duration | Startup stall timeout (e.g., `5s`, `1m`, `500ms`): how long a startup stage may go with no plugin completing one, not a budget for the stage itself. Default: 5s. 0 = use default. Negative rejected. |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list process, leaf run, leaf encoding -->
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.

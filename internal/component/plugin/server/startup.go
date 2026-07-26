@@ -59,17 +59,24 @@ func (s *Server) stageTransition(proc *process.Process, pluginName string, compl
 		timeout = stageTimeoutFromEnv()
 	}
 
-	// Deadline is stageStartTime + timeout, not now + timeout.
-	// This prevents fast plugins from timing out while waiting for slow
-	// plugins at the barrier -- the timeout measures from when the stage
-	// began, not from when this plugin reached the barrier.
-	deadline := coord.StageStartTime().Add(timeout)
-	stageCtx, cancel := context.WithDeadline(s.ctx, deadline)
-	err := coord.WaitForStage(stageCtx, waitStage)
-	cancel()
+	// The timeout bounds a STALL, not the stage. It expires only when no
+	// plugin in the tier completes a stage for that long.
+	//
+	// It used to be a flat wall-clock budget (stageStartTime + timeout) for
+	// the whole stage, shared by every plugin in the tier. A tier is routinely
+	// 20+ plugins (bgp plus every bgp-* plugin), and on a loaded host they all
+	// slow down together: the shared budget expired while every plugin was
+	// still handshaking normally, and the engine then stopped all of them
+	// ("startup barrier aborted"), so a busy router dropped its own plugins.
+	// Raising the constant only moves the load level at which that happens.
+	//
+	// Still bounded: progress events are finite (a plugin completes each stage
+	// once; repeats are ignored), so a wedged tier trips the barrier within
+	// `timeout` of the last progress, and s.ctx ends the wait on shutdown.
+	err := coord.WaitForStageProgress(s.ctx, waitStage, timeout)
 
 	if err != nil {
-		logger().Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
+		logger().Error("stage stalled", "plugin", pluginName, "waiting_for", waitStage, "error", err)
 		coord.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 		proc.Stop()
 		return false

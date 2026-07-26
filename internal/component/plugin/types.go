@@ -242,7 +242,7 @@ type PluginConfig struct {
 	RespawnEnabled bool          // Respawn with limit enforcement (5/60s)
 	WorkDir        string        // Working directory for plugin execution
 	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
-	StageTimeout   time.Duration // Per-stage timeout (0 = use default 5s)
+	StageTimeout   time.Duration // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s)
 	Internal       bool          // If true, run in-process via goroutine (ze.X plugins)
 }
 

@@ -36,13 +36,19 @@ var errFilterUpdateNoProcessManager = errors.New("filter-update: no process mana
 // Controlled by ze.log.plugin.server environment variable.
 var logger = slogutil.LazyLogger("plugin.server")
 
-// Default stage timeout for plugin registration protocol.
-// Each stage must complete within this duration.
+// Default stall timeout for the plugin registration protocol.
+//
+// This is NOT a budget for how long a stage may take. It bounds how long the
+// whole tier may go with NO plugin completing a stage: any completion restarts
+// the window (see StartupCoordinator.WaitForStageProgress). A tier of 20+
+// plugins on a loaded host takes far longer than this in total and must still
+// start; only a genuinely wedged plugin should trip it.
+//
 // Override via ze.plugin.stage.timeout env var or per-plugin config timeout.
 const defaultStageTimeout = 5 * time.Second
 
-// Env var registration for stage timeout.
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.stage.timeout", Type: "duration", Default: "5s", Description: "Per-stage timeout for plugin registration protocol"})
+// Env var registration for stage stall timeout.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.stage.timeout", Type: "duration", Default: "5s", Description: "Plugin registration protocol: how long a startup stage may stall with no plugin making progress"})
 
 // stageTimeoutFromEnv reads ze.plugin.stage.timeout and returns the parsed duration.
 // Falls back to defaultStageTimeout on missing or invalid values.
