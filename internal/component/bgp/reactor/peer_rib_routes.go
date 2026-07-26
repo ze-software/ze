@@ -74,6 +74,9 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	routeNLRI := route.NLRI()
 	fam := routeNLRI.Family()
 	var nlriBytes []byte
+	// Built in the MP branch below, written after the optional attributes so the
+	// emitted order stays ascending by type code (COMMUNITIES 8 < MP_REACH 14).
+	var mpReach *attribute.MPReachNLRI
 
 	switch {
 	case fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast:
@@ -116,7 +119,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
 		nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
-		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{route.NextHop()}, nlriData)
+		mpReach = attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{route.NextHop()}, nlriData)
 
 		// MED if present (before LOCAL_PREF per RFC order)
 		for _, attr := range route.Attributes() {
@@ -137,26 +140,52 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 			}
 			off += attribute.WriteAttrTo(localPref, attrBuf, off)
 		}
-
-		// MP_REACH_NLRI at end (after all other path attributes)
-		off += attribute.WriteAttrTo(mpReach, attrBuf, off)
+		// MP_REACH_NLRI (type 14) is NOT written here: it must sit between the
+		// lower-coded optional attributes (COMMUNITIES 8) and the higher-coded
+		// ones (EXT_COMMUNITIES 16). See the ordered writes below.
 	}
 
-	// Copy optional attributes from stored route (communities, etc.)
-	for _, attr := range route.Attributes() {
-		switch attr.(type) {
-		case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref, attribute.MED:
-			// Already handled above
-			continue
-		case attribute.Communities,
-			attribute.ExtendedCommunities, attribute.LargeCommunities,
-			attribute.IPv6ExtendedCommunities,
-			attribute.AtomicAggregate, *attribute.Aggregator,
-			attribute.OriginatorID, attribute.ClusterList:
-			// Write optional attributes
-			off += attribute.WriteAttrTo(attr, attrBuf, off)
+	// Copy the stored route's optional attributes, in ascending type-code order
+	// around MP_REACH_NLRI (type 14): codes below 14 first, then MP_REACH, then
+	// codes above it.
+	//
+	// The ordering is load-bearing, not cosmetic. This builder has two siblings
+	// that emit the SAME route, and both keep attributes in type-code order:
+	// reactor_api_batch.go buildWireModeUpdate appends MP_REACH after the
+	// lower-coded attributes (see appendAnnounceAS4Path's comment on type-code
+	// order), and message/update_build.go sorts explicitly, "per RFC 4271
+	// Appendix F.3". Which builder runs is decided by Peer.ShouldQueue()
+	// (reactor_api_batch.go:111) -- that is, by scheduling: a route queued during
+	// initial sync is drained through here, the same route sent after
+	// establishment goes through the batch builder. Emitting MP_REACH at a
+	// different position here therefore made one route encode to two different
+	// byte strings depending on timing.
+	writeOptionalAttrs := func(below bool) {
+		for _, attr := range route.Attributes() {
+			switch attr.(type) {
+			case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref, attribute.MED:
+				// Already handled above
+				continue
+			case attribute.Communities,
+				attribute.ExtendedCommunities, attribute.LargeCommunities,
+				attribute.IPv6ExtendedCommunities,
+				attribute.AtomicAggregate, *attribute.Aggregator,
+				attribute.OriginatorID, attribute.ClusterList:
+				if (attr.Code() < attribute.AttrMPReachNLRI) != below {
+					continue
+				}
+				off += attribute.WriteAttrTo(attr, attrBuf, off)
+			}
 		}
 	}
+
+	// ATOMIC_AGGREGATE 6, AGGREGATOR 7, COMMUNITIES 8, ORIGINATOR_ID 9, CLUSTER_LIST 10.
+	writeOptionalAttrs(true)
+	if mpReach != nil {
+		off += attribute.WriteAttrTo(mpReach, attrBuf, off)
+	}
+	// EXT_COMMUNITIES 16, IPV6_EXT_COMMUNITIES 25, LARGE_COMMUNITIES 32.
+	writeOptionalAttrs(false)
 
 	// AS4_PATH (RFC 6793 §4.2.2): re-announcing to an OLD (2-octet) peer, the
 	// AS_PATH written above encoded any non-mappable four-octet AS as AS_TRANS;
