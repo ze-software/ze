@@ -18,6 +18,9 @@ import (
 	"github.com/ze-software/ze/internal/test/ci"
 )
 
+// optTrue is the spelling a .ci boolean option must use to enable itself.
+const optTrue = "true"
+
 // Consumes reports whether ze-peer consumes the directive `action=lineType`,
 // i.e. whether LoadExpectFile forwards such a line into Config.Expect.
 //
@@ -144,8 +147,11 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 	case "conn_map":
 		config.ConnMap = kv["value"]
 
+	case "await_eor":
+		config.AwaitEOR = kv["value"] == optTrue
+
 	case "linger":
-		config.Linger = kv["value"] == "true"
+		config.Linger = kv["value"] == optTrue
 
 	case "tcp_connections":
 		if v, err := strconv.Atoi(kv["value"]); err == nil {
@@ -200,7 +206,7 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 				Prefix:   kv["prefix"],
 				OriginAS: uint32(asn), //nolint:gosec // range checked by ParseUint
 				NextHop:  kv["next-hop"],
-				ASSet:    kv["as-set"] == "true",
+				ASSet:    kv["as-set"] == optTrue,
 			}
 			// Extended fields for loop detection tests.
 			if v := kv["as-path"]; v != "" {

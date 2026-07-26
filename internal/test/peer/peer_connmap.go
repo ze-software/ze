@@ -93,6 +93,34 @@ func (p *Peer) runConnMap(ctx context.Context) Result {
 	}
 }
 
+// awaitEOR reads until ze's End-of-RIB arrives, tolerating the KEEPALIVEs that
+// normal BGP interleaves and nothing else.
+//
+// It refuses rather than skips any other frame. Silently swallowing an UPDATE
+// here would take it out of the expectation stream, and the test would then fail
+// somewhere else entirely -- Checker.consumeMatches runs BEFORE the
+// silent-accept arm, so a consumed frame is a frame the test can no longer
+// match. A caller that trips this has opted a test into AwaitEOR that should not
+// be, and the error says which frame arrived.
+func awaitEOR(conn net.Conn) error {
+	for {
+		header, body, err := ReadMessage(conn)
+		if err != nil {
+			return fmt.Errorf("read while awaiting end-of-rib: %w", err)
+		}
+		msg := &Message{Header: header, Body: body}
+		if msg.IsEOR() {
+			return nil
+		}
+		if msg.IsKeepalive() {
+			continue
+		}
+		return fmt.Errorf(
+			"awaiting end-of-rib: got message type %d before it; option=await_eor may only be set"+
+				" on a test that expects no other frame during establishment", msg.Kind())
+	}
+}
+
 // acceptConnMapBatch accepts batchSize connections and completes the OPEN
 // handshake on each concurrently.
 //
@@ -173,6 +201,41 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 				})
 				c.Close() //nolint:errcheck // cleanup on handshake failure
 				return
+			}
+			// Read ze's KEEPALIVE before handing the batch over. doOpenHandshake
+			// only WRITES our OPEN and KEEPALIVE and returns, so without this the
+			// batch handed back connections whose sessions ze had not finished
+			// bringing up -- and batching exists precisely so a script on one slot
+			// does not send before another slot is a live target. Receiving this
+			// frame proves ze consumed our OPEN and left OpenSent; our KEEPALIVE
+			// is already on the wire, so its FSM reaches Established with no
+			// further input from us. Same gate inject mode already uses
+			// (inject.go, read peer KEEPALIVE). Safe to consume: the checker
+			// skips KEEPALIVE when matching (checker.go), and no conn_map test
+			// asserts the establishment KEEPALIVE.
+			kaHeader, _, kaErr := ReadMessage(c)
+			if kaErr != nil {
+				errOnce.Do(func() {
+					acceptErr = fmt.Errorf("read KEEPALIVE on batch slot %d (remote %s): %w", idx+1, remote, kaErr)
+				})
+				c.Close() //nolint:errcheck // cleanup on handshake failure
+				return
+			}
+			if kaHeader[18] != MsgKEEPALIVE {
+				errOnce.Do(func() {
+					acceptErr = fmt.Errorf("batch slot %d (remote %s): expected KEEPALIVE after OPEN, got type %d", idx+1, remote, kaHeader[18])
+				})
+				c.Close() //nolint:errcheck // cleanup on handshake failure
+				return
+			}
+			if p.config.AwaitEOR {
+				if eErr := awaitEOR(c); eErr != nil {
+					errOnce.Do(func() {
+						acceptErr = fmt.Errorf("batch slot %d (remote %s): %w", idx+1, remote, eErr)
+					})
+					c.Close() //nolint:errcheck // cleanup on handshake failure
+					return
+				}
 			}
 			conns[idx] = connWithID{
 				conn:     c,

@@ -146,6 +146,24 @@ type Config struct {
 	// "remote-ip": sort each accepted batch by TCP source address.
 	// Empty: sequential accept order (default, existing behavior).
 	ConnMap string
+	// AwaitEOR makes a conn_map batch wait for ze's End-of-RIB on EVERY
+	// connection before handing the batch to the per-connection scripts.
+	//
+	// The plain batch waits only for ze's KEEPALIVE, which proves ze left
+	// OpenSent -- not that the route server has registered the peer as a
+	// forward target. bgp-rs registers at the state=up event and captures its
+	// peer-up cut there, and ze emits the EoR only after that peer's initial
+	// sync, so the EoR is the first frame that proves the peer IS a live
+	// target. A test whose assertions depend on one connection being a
+	// forward target before another sends needs this; without it the source's
+	// UPDATE lands on the replay side of the cut and the receiver sees an
+	// announce where a withdrawal was expected.
+	//
+	// Opt-in, NOT the default: six of the nine conn_map tests declare the EoR
+	// as an expectation, and Checker.consumeMatches runs before the
+	// silent-accept arm, so consuming it here would rob them of a frame they
+	// assert. Only a test with no EoR expectation may set this.
+	AwaitEOR bool
 	// Expect: list of expected messages from .ci file
 	Expect []string
 	// Inject: bulk UPDATE stream descriptor for ModeInject (stress tests).
