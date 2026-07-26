@@ -71,6 +71,29 @@ var (
 // The reactor factory wires it as a peer lifecycle observer for health-based auto-revert.
 var PeerLifecycleCallback registry.PeerLifecycleCallback
 
+// defaultWebListen is the address the web server binds when none is configured.
+// It is NOT loopback, so it must be resolved before the management-listener
+// guard runs -- see resolveWebListeners.
+const defaultWebListen = "0.0.0.0:3443"
+
+// resolveWebListeners returns the addresses the web server will actually bind.
+// An enabled web server with no configured address falls back to
+// defaultWebListen; the web service builder applies the same fallback, so the
+// two must not diverge (both call this).
+//
+// This exists so the fallback happens BEFORE checkMgmtListeners rather than
+// inside the builder afterwards. Web is the only management surface that binds
+// a default when its address list is empty (MCP, LG and REST all skip), so it
+// was the only one whose guard declaration could be an empty slice while the
+// process went on to bind 0.0.0.0 -- an unauthenticated listener the guard
+// iterated zero times and therefore never refused.
+func resolveWebListeners(webEnabled bool, addrs []string) []string {
+	if !webEnabled || len(addrs) > 0 {
+		return addrs
+	}
+	return []string{defaultWebListen}
+}
+
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:3443" when non-empty.
@@ -836,6 +859,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	mcpAuthed := mcpListenerAuthenticated(mcpCfgOK, mcpCfg.AuthMode, mcpToken)
 	apiAuthed := len(apiUsers) > 0 || apiCfg.Token != ""
 
+	// Apply the web default BEFORE declaring, so the guard evaluates the address
+	// that will actually be bound rather than an empty slice it iterates zero
+	// times. buildWebService applies the same fallback.
+	webAddrs = resolveWebListeners(webEnabled, webAddrs)
+
 	var mgmtListeners []mgmtListener
 	if webFactoryOn && webEnabled {
 		mgmtListeners = append(mgmtListeners, mgmtListener{
@@ -845,7 +873,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			remedy:        "bind ze.web.listen to 127.0.0.1/::1, or drop ze.web.insecure and configure users",
 		})
 	}
-	if mcpFactoryOn {
+	// Declared only when MCP will actually bind: buildMCPService skips on an
+	// empty address list, and a declaration that binds nothing must not reach
+	// the guard's no-addresses refusal.
+	if mcpFactoryOn && len(mcpAddrs) > 0 {
 		mgmtListeners = append(mgmtListeners, mgmtListener{
 			service:       "MCP",
 			addrs:         mcpAddrs,
@@ -865,12 +896,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	if apiCfgOK && (restBuild != nil || grpcBuild != nil) {
 		apiAddrs := append(apiListenToAddrs(apiCfg.REST), apiListenToAddrs(apiCfg.GRPC)...)
-		mgmtListeners = append(mgmtListeners, mgmtListener{
-			service:       "API",
-			addrs:         apiAddrs,
-			authenticated: apiAuthed,
-			remedy:        "set ze.api-server.token, initialize zefs users, or bind to 127.0.0.1/::1 only",
-		})
+		// Same reason as MCP: restBuildImpl/grpcBuildImpl return an empty handle
+		// when their endpoint list is empty, so an empty declaration binds
+		// nothing and must not trip the no-addresses refusal.
+		if len(apiAddrs) > 0 {
+			mgmtListeners = append(mgmtListeners, mgmtListener{
+				service:       "API",
+				addrs:         apiAddrs,
+				authenticated: apiAuthed,
+				remedy:        "set ze.api-server.token, initialize zefs users, or bind to 127.0.0.1/::1 only",
+			})
+		}
 	}
 
 	// Run the existing precise MCP semantic checks on the boot path too

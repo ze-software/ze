@@ -61,6 +61,22 @@ func checkMgmtListeners(listeners []mgmtListener) bool {
 		if l.authenticated {
 			continue
 		}
+		// An unauthenticated surface with no resolved addresses cannot be shown
+		// to be loopback-only, so it must not pass by iterating zero times --
+		// that is the empty-set trap in ai/rules/fail-closed-guards.md, and it
+		// is exactly how an insecure web server reached 0.0.0.0:3443 past this
+		// guard (the builder filled the default afterwards). Every declaration
+		// site resolves its addresses first and declares only when the surface
+		// will actually bind, so reaching here means the declaration is wrong.
+		if len(l.addrs) == 0 {
+			fmt.Fprintf(os.Stderr,
+				"error: refusing to start %s: declared unauthenticated with no resolved listen address\n",
+				l.service)
+			fmt.Fprintf(os.Stderr,
+				"  BUG: resolve the address before declaring it, or do not declare a surface that binds nothing\n")
+			refused = true
+			continue
+		}
 		for _, addr := range l.addrs {
 			if !listenAddrIsNonLoopback(addr) {
 				continue

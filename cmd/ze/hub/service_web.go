@@ -56,9 +56,7 @@ func buildWebService(deps ServiceDeps) (Service, error) {
 	if !deps.WebEnabled {
 		return nil, nil //nolint:nilnil // not-configured is an intentional skip
 	}
-	if len(deps.WebAddrs) == 0 {
-		deps.WebAddrs = []string{"0.0.0.0:3443"}
-	}
+	deps.WebAddrs = resolveWebListeners(true, deps.WebAddrs)
 	for _, svc := range deps.WebPortalServices {
 		zeweb.RegisterPortalService(zeweb.PortalService{Key: svc.Key, Title: svc.Title, Path: svc.Path, Icon: svc.Icon})
 	}
@@ -242,9 +240,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		return nil, nil
 	}
 
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{"0.0.0.0:3443"}
-	}
+	listenAddrs = resolveWebListeners(true, listenAddrs)
 
 	var users []authz.UserConfig
 	var powerUserNames []string

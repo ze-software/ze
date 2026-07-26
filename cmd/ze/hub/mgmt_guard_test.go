@@ -89,6 +89,25 @@ func TestCheckMgmtListeners(t *testing.T) {
 			},
 			wantRefused: true,
 		},
+		{
+			// AC-3 fail-closed backstop: an unauthenticated surface with no
+			// resolved address is refused, not skipped. Skipping it is how an
+			// insecure web server reached 0.0.0.0:3443 past this guard.
+			name: "unauth with no resolved address refused",
+			listeners: []mgmtListener{
+				{service: "web (insecure)", addrs: nil, authenticated: false},
+			},
+			wantRefused: true,
+		},
+		{
+			// An authenticated surface with no address is still fine: the
+			// backstop is about what an UNauthenticated bind would expose.
+			name: "authenticated with no resolved address allowed",
+			listeners: []mgmtListener{
+				{service: "API", addrs: nil, authenticated: true},
+			},
+			wantRefused: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -193,4 +212,47 @@ func TestReloadListenersAllowsAuthenticatedNonLoopback(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, [][]string{{"0.0.0.0:3443"}}, web.calls)
 	assert.Equal(t, []string{"0.0.0.0:3443"}, web.addrs)
+}
+
+// TestResolveWebListenersClosesTheGuardHole pins the fix for the fail-open that
+// let an insecure web server bind every interface without authentication.
+//
+// VALIDATES: fixit-mgmt-listener-auth-guard AC-3 -- a web server that is
+// enabled and insecure with no configured listen address is refused, because
+// the address it will actually bind is resolved before the guard evaluates it.
+//
+// PREVENTS: the shipped fail-open. `ze.web.enabled=1` set webEnabled without
+// touching webAddrs and `ze.web.insecure=1` cleared authentication, so the
+// guard was handed an EMPTY address slice, iterated it zero times, refused
+// nothing -- and buildWebService then filled in 0.0.0.0:3443 and served
+// unauthenticated on every interface. Reachable from environment variables
+// alone, with no config file and no CLI flag.
+func TestResolveWebListenersClosesTheGuardHole(t *testing.T) {
+	t.Run("enabled with no address resolves to the non-loopback default", func(t *testing.T) {
+		got := resolveWebListeners(true, nil)
+		assert.Equal(t, []string{defaultWebListen}, got)
+		assert.True(t, listenAddrIsNonLoopback(defaultWebListen),
+			"the default must be non-loopback, which is why it has to be resolved before the guard")
+	})
+
+	t.Run("configured address is left alone", func(t *testing.T) {
+		assert.Equal(t, []string{"127.0.0.1:3443"},
+			resolveWebListeners(true, []string{"127.0.0.1:3443"}))
+	})
+
+	t.Run("disabled web resolves to nothing", func(t *testing.T) {
+		assert.Empty(t, resolveWebListeners(false, nil),
+			"a disabled web server binds nothing, so it must not gain an address here")
+	})
+
+	t.Run("insecure web with no configured address is refused", func(t *testing.T) {
+		// The declaration main.go builds for `ze.web.enabled=1 ze.web.insecure=1`.
+		refused := checkMgmtListeners([]mgmtListener{{
+			service:       "web (insecure)",
+			addrs:         resolveWebListeners(true, nil),
+			authenticated: false,
+		}})
+		assert.True(t, refused,
+			"an insecure web server that will bind 0.0.0.0 must not start")
+	})
 }
