@@ -61,7 +61,13 @@ func verifyInjectedDB(permImg, dbPath string) error {
 // integrity. Skips with a warning if e2fsck is not found. Fails the build
 // if e2fsck runs and reports errors.
 func verifyE2fsck(permImg string) error {
-	e2fsck := filepath.Join(e2fsDir, "e2fsck")
+	e2fsck := e2fsE2fsck
+	if e2fsck == "" {
+		slog.Warn("e2fsck not found, skipping structural check")
+		return nil
+	}
+	// Still stat it: the path was resolved at process start, and a test (or a
+	// package removal) can leave it pointing at something that is no longer there.
 	if _, statErr := os.Stat(e2fsck); statErr != nil {
 		slog.Warn("e2fsck not found, skipping structural check")
 		return nil //nolint:nilerr // intentional: skip when e2fsck not installed

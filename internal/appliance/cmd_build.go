@@ -37,12 +37,17 @@ const (
 )
 
 var (
-	e2fsDir       = resolveE2FSDir()
+	// Each e2fsprogs tool is resolved on its own; see resolveE2FSTool for why a
+	// single shared directory was the wrong assumption.
+	e2fsMkfs      = resolveE2FSTool("mkfs.ext4")
+	e2fsDebugfs   = resolveE2FSTool("debugfs")
+	e2fsE2fsck    = resolveE2FSTool("e2fsck")
 	runExternalFn = runExternal
 	gokBuildFn    = runGokInProcess
 )
 
-func resolveE2FSDir() string {
+// e2fsSearchDirs are the directories searched for each e2fsprogs tool, in order.
+func e2fsSearchDirs() []string {
 	dirs := []string{
 		"/opt/homebrew/sbin",
 		"/usr/sbin",
@@ -53,14 +58,28 @@ func resolveE2FSDir() string {
 	if matches, _ := filepath.Glob("/opt/homebrew/Cellar/e2fsprogs/*/sbin"); len(matches) > 0 {
 		dirs = append([]string{matches[len(matches)-1]}, dirs...)
 	}
-	for _, dir := range dirs {
-		if _, err := os.Stat(filepath.Join(dir, "mkfs.ext4")); err != nil {
-			continue
+	return dirs
+}
+
+// resolveE2FSTool returns the absolute path of one e2fsprogs tool, or "" when it
+// is not installed.
+//
+// Each tool is resolved INDEPENDENTLY. Requiring them all in one directory was
+// wrong on any distribution that splits the package: Alpine ships debugfs in
+// e2fsprogs-extra, so with both packages installed no single directory held both
+// mkfs.ext4 and debugfs, the whole lookup returned "", and every tool read as
+// absent -- injectZeFS logged "e2fsck not found" and "debugfs write silently
+// failed" while the binaries sat on disk. PATH is consulted last so a tool
+// installed anywhere else is still found.
+func resolveE2FSTool(name string) string {
+	for _, dir := range e2fsSearchDirs() {
+		p := filepath.Join(dir, name)
+		if _, err := os.Stat(p); err == nil {
+			return p
 		}
-		if _, err := os.Stat(filepath.Join(dir, "debugfs")); err != nil {
-			continue
-		}
-		return dir
+	}
+	if p, err := exec.LookPath(name); err == nil {
+		return p
 	}
 	return ""
 }
@@ -136,8 +155,12 @@ func buildOne(name string) int {
 		defer ZeroBytes(passphrase)
 	}
 
-	if e2fsDir == "" {
-		fmt.Fprintf(os.Stderr, "error: e2fsprogs not found (brew install e2fsprogs)\n")
+	// Name the tool that is missing: "e2fsprogs not found" sent readers looking
+	// for the package when, on a split-package distribution, only debugfs was
+	// absent (Alpine keeps it in e2fsprogs-extra).
+	if e2fsMkfs == "" || e2fsDebugfs == "" {
+		fmt.Fprintf(os.Stderr, "error: e2fsprogs tools not found (mkfs.ext4=%q debugfs=%q); install e2fsprogs (and e2fsprogs-extra on Alpine, brew install e2fsprogs on macOS)\n",
+			e2fsMkfs, e2fsDebugfs)
 		return exitError
 	}
 
@@ -335,8 +358,8 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 	// /perm so it fails to mount on the target.
 	permBlocks := perm4K
 
-	mkfs := filepath.Join(e2fsDir, "mkfs.ext4")
-	debugfs := filepath.Join(e2fsDir, "debugfs")
+	mkfs := e2fsMkfs
+	debugfs := e2fsDebugfs
 
 	fmt.Fprintf(os.Stderr, "formatting /perm partition...\n")
 	if _, err := runExternalFn(mkfs, "-q", "-F", "-O", "^metadata_csum",

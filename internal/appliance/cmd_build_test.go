@@ -8,6 +8,26 @@ import (
 	"testing"
 )
 
+// useE2FSDir points every e2fsprogs tool at dir for the duration of the test, or
+// marks them all absent when dir is "".
+//
+// Production resolves each tool INDEPENDENTLY (resolveE2FSTool), because
+// requiring one shared directory broke on distributions that split the package
+// -- Alpine ships debugfs in e2fsprogs-extra. A test wanting a fake toolchain
+// therefore has to redirect each one, which is all this does.
+func useE2FSDir(t *testing.T, dir string) {
+	t.Helper()
+	oldMkfs, oldDebugfs, oldE2fsck := e2fsMkfs, e2fsDebugfs, e2fsE2fsck
+	if dir == "" {
+		e2fsMkfs, e2fsDebugfs, e2fsE2fsck = "", "", ""
+	} else {
+		e2fsMkfs = filepath.Join(dir, "mkfs.ext4")
+		e2fsDebugfs = filepath.Join(dir, "debugfs")
+		e2fsE2fsck = filepath.Join(dir, "e2fsck")
+	}
+	t.Cleanup(func() { e2fsMkfs, e2fsDebugfs, e2fsE2fsck = oldMkfs, oldDebugfs, oldE2fsck })
+}
+
 func TestEnsureModcacheRW(t *testing.T) {
 	t.Setenv("GOFLAGS", "")
 	if err := ensureModcacheRW(); err != nil {
@@ -231,9 +251,7 @@ func TestBuildNoGokBinaryCheck(t *testing.T) {
 	}
 	defer func() { runExternalFn = oldExt }()
 
-	oldE2fs := e2fsDir
-	e2fsDir = "/usr/sbin"
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, "/usr/sbin")
 
 	code := runGokBuild(cfg, filepath.Join(appDir, "test.img"))
 	if code != exitOK {
@@ -341,9 +359,7 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(e2fs, "debugfs"), nil, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	// debugfs write is mocked: simulate success by injecting db bytes into
 	// the perm temp file so verifyInjectedDB (bytes.Contains) passes.
@@ -434,9 +450,7 @@ func TestInjectZeFSFailsWhenWriteSilentlyDropped(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(e2fs, "debugfs"), nil, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	old := runExternalFn
 	runExternalFn = func(_ string, _ ...string) ([]byte, error) {
@@ -482,9 +496,7 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(e2fs, "debugfs"), nil, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	var mkfsArgs []string
 	old := runExternalFn
@@ -597,9 +609,7 @@ func TestInjectZeFSBakesManifest(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	hasSuffix := func(s, suf string) bool {
 		return len(s) >= len(suf) && s[len(s)-len(suf):] == suf
@@ -673,9 +683,7 @@ func TestInjectZeFSNoManifest(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	hasSuffix := func(s, suf string) bool {
 		return len(s) >= len(suf) && s[len(s)-len(suf):] == suf

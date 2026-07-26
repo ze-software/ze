@@ -152,10 +152,7 @@ func TestDoctorXorrisoMissing(t *testing.T) {
 }
 
 func TestDoctorE2fsprogsMissing(t *testing.T) {
-	old := e2fsDir
-	e2fsDir = ""
-	t.Cleanup(func() { e2fsDir = old })
-
+	useE2FSDir(t, "")
 	diags := checkE2fsprogs(diagnostic.DoctorCheckContext{})
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 diagnostic, got %d", len(diags))

@@ -129,7 +129,7 @@ func checkXorrisoBinary(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 }
 
 func checkE2fsprogs(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	if e2fsDir != "" {
+	if e2fsMkfs != "" && e2fsDebugfs != "" {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{

@@ -86,9 +86,7 @@ func TestVerifyE2fsckReportsErrors(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(e2fs, "e2fsck"), nil, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	old := runExternalFn
 	runExternalFn = func(_ string, _ ...string) ([]byte, error) {
@@ -113,9 +111,7 @@ func TestVerifyE2fsckSkipsWhenNotFound(t *testing.T) {
 	}
 
 	e2fs := t.TempDir()
-	oldE2fs := e2fsDir
-	e2fsDir = e2fs
-	defer func() { e2fsDir = oldE2fs }()
+	useE2FSDir(t, e2fs)
 
 	if err := verifyE2fsck(permImg); err != nil {
 		t.Fatalf("verifyE2fsck should skip when e2fsck not found, got: %v", err)
