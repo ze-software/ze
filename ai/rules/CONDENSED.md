@@ -9,7 +9,7 @@ dropped. When a rule governs your current action, open its full file (the
 path under each heading) before acting -- this digest maps directives, it is
 not a substitute for the rule.
 
-Rules: 91
+Rules: 92
 
 ---
 
@@ -78,6 +78,7 @@ The answer is always "no."
 | Excuse | Answer |
 |--------|--------|
 | "Transient" / "resource contention" | Investigate. A failure happened |
+| "Only fails under load" / "passes in isolation" | That is the diagnosis, not an excuse: the test asserts on elapsed time. Make it wait on the condition (`ai/rules/fix-dont-record.md`) |
 | "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
@@ -85,7 +86,7 @@ The answer is always "no."
 **Every test failure gets FIXED. BLOCKING.** Logging is not an alternative outcome
 (owner directive 2026-07-23; full rule: `ai/rules/no-parking.md` "Recording is not fixing").
 1. **Fix it** as a separate commit (not mixed with feature work). Do not block current work on a
-2. **A shard is allowed for ONE case only: a failure you actively tried and failed to
+2. **A shard is allowed for ONE case only: a failure whose MECHANISM you could not
 3. **Mechanical check before session end:** every failure your session encountered is
 | Banned | Why |
 |--------|-----|
@@ -1506,6 +1507,53 @@ Learned: `plan/learned/363-file-modularity.md`.
 
 ---
 
+## Fix, Don't Record. Say It Short.
+`ai/rules/fix-dont-record.md`
+**When:** a test fails, a gate goes red, or you are about to write a problem down -- a `plan/known-failures/` shard, a deferral row, a commit body, a report, a learned summary — **Severity:** blocking — **Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification
+
+## Directives
+Two failures, one rule: writing a problem down instead of fixing it, and writing at length instead of writing what matters.
+## Load is never an explanation. It is the bug.
+A test that passes on a quiet host and fails on a busy one is a BROKEN TEST.
+| Banned | What it actually says |
+|--------|-----------------------|
+| "fails under load / on a loaded host" | the test waits a fixed time instead of waiting for the condition |
+| "load average was ~11 vs ~2 earlier" | you measured the host instead of reading the test |
+| "passes in isolation" | it depends on scheduling luck. That IS the defect, stated |
+| "the failing set rotates, so it is not deterministic" | several tests share one timing assumption. Find it |
+| "the contended-run detector did not trip" | that detector labels runs. It never absolves a test |
+| "not reproducible, logged as non-deterministic" | you do not need a repro to fix a timing assumption. Read the test |
+**There is no non-deterministic hatch for a load-sensitive test.** The
+## Making a test load-proof
+Find what the test waits ON, and make it wait for the thing instead of for a duration.
+| Symptom | Fix |
+|---------|-----|
+| `time.Sleep` / `time.sleep(` then assert | poll the condition: `wait_until`, `dispatch_until`, `wait_for_event` (`test/scripts/ze_api.py`) |
+| fixed deadline for startup, teardown or reconnect | wait on the readiness signal the daemon emits. If none exists, ADD one -- a missing signal is a product gap, not a test problem |
+| "at most N events in a window" | count between two state transitions, not between two clock reads |
+| assert immediately after a command returns | wait for the effect to be observable, then assert |
+| the test genuinely needs a kernel-global surface to itself | `option=exclusive:group=<name>` (`internal/test/runner/record.go`), not a longer timeout |
+| a timeout that is "generous enough" | generous is a synonym for unknown. Bound it by a condition |
+## Recording
+`plan/known-failures/` is not a destination for a failure.
+| Do not write | Do |
+|--------------|-----|
+| a shard for anything that reproduces, or that load explains | fix it |
+| a shard as the outcome of a session | fix it, and delete the shard if one existed |
+| "pre-existing" anywhere as a reason | fix it. It says when it started, not whose it is |
+| the same failure in a shard, a commit body, a report and a summary | pick one place |
+## Length is not evidence
+A record earns its length from what a future reader must DO, never from what you went through.
+| Artifact | Contains | Budget |
+|----------|----------|--------|
+| Commit subject | what changed, imperative | one line |
+| Commit body | the defect, its cause with `file:line`, what the fix does | under 15 lines. No investigation narrative, no "in sequence it was X, then Y" |
+| Known-failure shard | the failing output, the repro command, the next step | under 20 lines |
+| Report to the user | what is fixed, what is not, what proves it | shortest form that is complete |
+| Learned summary | what a future reader needs that the code cannot tell them | per `ai/rules/planning.md` |
+
+---
+
 ## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
 `ai/rules/flaky-under-load.md`
 **When:** a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in isolation. — **Severity:** advisory
@@ -2706,7 +2754,8 @@ reason to catalogue it and move on.
 | Note that a tool is broken and work around it | Fix the tool. You just proved it does not work |
 | Record an inert config surface, a dead registration, or an unwired symbol | Wire it, delete it, or reject the config -- pick one and do it |
 **The one narrow exception**, unchanged from `ai/rules/anti-rationalization.md`: a
-**non-deterministic** failure you have actively tried and failed to reproduce may get
+**non-deterministic** failure whose MECHANISM you could not determine may get a
+**Host load does not qualify** (`ai/rules/fix-dont-record.md`, owner directive
 **A structural, deterministic, or reproducible failure has no recording path at all.**
 **A hypothesis in a shard is not a finding.** If you record one, the next agent will
 ## The failure this rule exists to stop

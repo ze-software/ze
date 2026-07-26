@@ -27,11 +27,17 @@ reason to catalogue it and move on. It is the reason you are now the one who fix
 | Record an inert config surface, a dead registration, or an unwired symbol | Wire it, delete it, or reject the config -- pick one and do it |
 
 **The one narrow exception**, unchanged from `ai/rules/anti-rationalization.md`: a
-**non-deterministic** failure you have actively tried and failed to reproduce may get
-a `plan/known-failures/` shard, and only as the running record of an investigation you
+**non-deterministic** failure whose MECHANISM you could not determine may get a
+`plan/known-failures/` shard, and only as the running record of an investigation you
 are still driving. It must carry the reproduction command, the evidence gathered, and
 the next step. A shard is a live investigation, never a resting place, and never a
 substitute for a fix on anything that reproduces.
+
+**Host load does not qualify** (`ai/rules/fix-dont-record.md`, owner directive
+2026-07-26). Once you can say "it fails when the machine is busy" you have the
+mechanism: the test asserts on elapsed time instead of on state. Fix the test to wait
+on the condition. "Passes in isolation", "the failing set rotates", and "could not
+reproduce on a quiet host" are restatements of that diagnosis, not grounds for a shard.
 
 **A structural, deterministic, or reproducible failure has no recording path at all.**
 Fix it.

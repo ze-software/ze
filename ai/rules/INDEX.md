@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 91 rules
+Total: 92 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -46,6 +46,7 @@ Total: 91 rules
 | Fail-Closed Guards | A guard must fail closed or say something Severity: blocking Related: exact-or-reject, no-fabrication | `ai/rules/fail-closed-guards.md` |
 | Feature-Gate Registration (compile-out-able features) | How to add or change a compile-out-able feature Severity: advisory | `ai/rules/feature-gate-registration.md` |
 | File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility Severity: advisory | `ai/rules/file-modularity.md` |
+| Fix, Don't Record. Say It Short. | a test fails, a gate goes red, or you are about to write a problem down -- a `plan/known-failures/` shard, a deferral row, a commit body, a report, a learned summary Severity: blocking Related:... | `ai/rules/fix-dont-record.md` |
 | Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in... | `ai/rules/flaky-under-load.md` |
 | Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | `ai/rules/friction-reporting.md` |
 | Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises Severity: blocking | `ai/rules/functional-test-gate.md` |
