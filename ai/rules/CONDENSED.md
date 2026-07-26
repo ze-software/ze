@@ -251,6 +251,13 @@ Never pipe `make`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any tes
 ## Your Binaries Are Session-Suffixed -- Ask For The Path
 Under an AI session every canonical binary is built as `bin/<name>-<session-id>` (`mk/session.mk`), so a sibling session's `make ze` cannot overwrite the binary you are testing against.
 **Do not hardcode `bin/ze`** in a command, script, or doc. Ask:
+## Never Launch a Functional Suite By Running The Runner Binary
+`bin/ze-test-<id> bgp plugin 145` is **not** equivalent to `make ze-plugin-test`, and the difference produces a convincing false red.
+| Want | Use |
+|------|-----|
+| A whole suite | `make ze-plugin-test` (or `ze-encode-test`, `ze-parse-test`, ...) |
+| One test, iterating | the make target's own invocation: build the isolated pair with its tags, symlink them bare-named, export `ZE_BIN`/`ZE_TEST_BIN` |
+| One test in the VM | `make ze-qemu-debug RUN='...'` -- flags BEFORE positional ids (`-v 145`, not `145 -v`) |
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 `.claude/hooks/pretool-bash.py` blocks the banned git verbs by matching the command STRING.
 

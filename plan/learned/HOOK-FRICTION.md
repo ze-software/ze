@@ -608,7 +608,7 @@ skips '='-bearing first words; two captured-MAKEFLAGS rows added to
 `TestMakeDryRunDetectsDashN` (the bare-3.81-override false positive and `-n`
 still detected ahead of an override).
 
-## Filed 2026-07-26 (QEMU-rot sweep): two frictions
+## Filed 2026-07-26 (QEMU-rot sweep): three frictions
 
 ### F15: `commit_helper.py create` leaks a `ze` daemon and stalls forever
 
@@ -674,6 +674,45 @@ obsolete because `go list` skips a *symlinked* `tmp/`. That holds only after the
 opt-in `make ze-migrate-scratch`. In a checkout where `tmp/` is still a real
 directory (`ensure-links.py` reports `SKIP tmp: a real path exists here`), the
 sentinel is load-bearing and deleting it lets `go list ./...` walk the caches.
+
+### F17: `bin/ze-test <suite> <N>` is not equivalent to the make target, and fails opaquely
+
+**Friction:** `bin/ze-test-<session> bgp plugin 145` failed with a 30s timeout,
+"No messages received, no client output -- server likely failed to start or
+crashed". The same test had passed in 857ms in a full `make ze-verify` two hours
+earlier. Roughly an hour went into isolating it: the editor, the test runner's
+production files and the concurrent session's commits were each reverted to HEAD
+and re-tested, and the daemon was run by hand against the extracted config (where
+it emitted the awaited line immediately). All of them were innocent.
+
+The mechanism: the functional suites are NOT meant to be launched by running the
+runner binary. `mk/test-functional.mk:140` builds ISOLATED, BARE-NAMED binaries
+into `$(ZE_ALT_BIN)` -- and the daemon it builds carries the `zetest` build tag
+(`ze_core ze_distro ze_setup zetest ...`), which the ordinary `make ze` daemon
+does not. `:145` then runs the suite as
+`env ZE_TEST_NO_BUILD=1 ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test
+$(ZE_ALT_BIN)/ze-test ...`. Launched directly, the runner instead rebuilds a ze
+WITHOUT `zetest`, and a test needing a zetest-only surface fails in a way that
+names none of this. Replicating the make invocation by hand turned the same test
+green in 2.0s.
+
+**Pattern:** a harness whose contract lives only in a makefile variable. The
+binary accepts the invocation and produces a plausible product failure, so the
+diagnosis points at the code under test rather than at the launch. Compare
+`ai/rules/bash-output.md`, which already says to prefer `make` because a bare
+`go test` drops feature tags and fakes reds -- this is the same failure one layer
+out, and the rule does not yet cover it.
+
+**Workaround used:** build the two binaries with the make target's tags into a
+scratch dir, symlink them bare-named, and export ZE_BIN/ZE_TEST_BIN.
+
+**Proposed fix:** have the runner detect that it was launched without
+ZE_BIN/ZE_TEST_BIN for a suite that needs the isolated pair and say so ("run via
+make ze-plugin-test; a directly launched runner builds a ze without the zetest
+tag"), rather than letting the daemon start and the assertion time out. The
+`--server`/`--client` debug hints it prints on failure inherit the same problem
+and would mislead the same way.
+
 
 ## Filed 2026-07-22 (plan-review session): two frictions
 

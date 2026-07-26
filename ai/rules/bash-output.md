@@ -101,6 +101,33 @@ Test binaries take the opposite trade-off -- a private `bin/` subdir under
 `tmp/s/<id>/` -- because `.ci` tests exec them by bare name and an isolated
 `etc/ze` is what a test wants (`mk/test-functional.mk`, `internal/test/sessionpath`).
 
+## Never Launch a Functional Suite By Running The Runner Binary
+
+`bin/ze-test-<id> bgp plugin 145` is **not** equivalent to `make ze-plugin-test`,
+and the difference produces a convincing false red.
+
+`mk/test-functional.mk:140` builds an ISOLATED, BARE-NAMED pair into
+`$(ZE_ALT_BIN)`, and the daemon it builds carries the **`zetest`** build tag
+(`ze_core ze_distro ze_setup zetest $(ZE_FEATURES)`). Line 145 then runs the suite
+as `env ZE_TEST_NO_BUILD=1 ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test
+$(ZE_ALT_BIN)/ze-test ...`. Launched directly the runner rebuilds a ze WITHOUT
+`zetest`, so a test needing a zetest-only surface times out as
+`server likely failed to start or crashed` -- naming none of this.
+
+This is the same trap as bare `go test` above, one layer out: the invocation is
+accepted and the failure looks like the code under test. `test/plugin/cos-external-warns.ci`
+cost an hour of bisecting innocent changes this way; it passed in 2.0s under the
+make target (`plan/learned/HOOK-FRICTION.md` F17).
+
+| Want | Use |
+|------|-----|
+| A whole suite | `make ze-plugin-test` (or `ze-encode-test`, `ze-parse-test`, ...) |
+| One test, iterating | the make target's own invocation: build the isolated pair with its tags, symlink them bare-named, export `ZE_BIN`/`ZE_TEST_BIN` |
+| One test in the VM | `make ze-qemu-debug RUN='...'` -- flags BEFORE positional ids (`-v 145`, not `145 -v`) |
+
+The `--server` / `--client` hints the runner prints on failure inherit the same
+gap: they re-run the same non-equivalent launch.
+
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 
 `.claude/hooks/pretool-bash.py` blocks the banned git verbs by matching the
