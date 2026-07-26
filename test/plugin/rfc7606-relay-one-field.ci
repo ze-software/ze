@@ -44,6 +44,22 @@ option=bind:value=0.0.0.0
 # both peers before either script runs, so the forward below is not a race. Same reasoning as
 # bgp-rs-reactor-fastpath.ci.
 option=conn_map:value=remote-ip
+# Wait for ze's End-of-RIB on BOTH connections before either script sends.
+#
+# The handshake alone is NOT the barrier this file's comment above assumed. It
+# proves ze left OpenSent; it does not prove bgp-rs has registered the peer as a
+# forward target. bgp-rs registers at the state=up event and captures its peer-up
+# cut there, so a source UPDATE arriving before conn=2 is registered lands at or
+# below that peer's cut and belongs to the Adj-RIB-In REPLAY -- which carries
+# announcements only. The receiver then sees the announce and never the
+# withdrawal this test asserts, which is exactly the intermittent failure above.
+# ze emits the EoR only after that peer's initial sync, i.e. strictly after
+# registration, so it is the first frame that proves the peer is a live target.
+#
+# Opt-in because consuming the EoR is only safe here: six of the nine conn_map
+# tests declare it as an expectation and Checker.consumeMatches would be robbed
+# of a frame they assert. This file declares none.
+option=await_eor:value=true
 
 # Source peer (conn=1): ONE UPDATE mixing Withdrawn Routes with NLRI.
 #   withdrawn: 0004 18AC1000            -- 172.16.0.0/24
