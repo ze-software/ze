@@ -41,6 +41,40 @@ func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr netip.Addr) []replayGro
 	return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{})
 }
 
+// collectPeerUpReplay returns the Adj-RIB-Out groups to re-advertise to a peer
+// that has just come up. seenBefore reports whether this plugin had a state
+// record for the peer BEFORE this event, i.e. whether the peer has ever been up.
+//
+// A peer's FIRST session starts with an empty Adj-RIB-Out. RFC 4271 Section 3.2
+// defines Adj-RIB-Out as the routes selected for advertisement TO a peer, and a
+// session that has only just been established has been advertised nothing. So an
+// entry already present for a peer this plugin has never seen up cannot be
+// history to re-advertise: it was recorded from a send made on THIS session, by a
+// rail that has already put it on the wire. Replaying it puts a second copy of the
+// same route out, and because the replay travels the announce rail (no RFC 4456
+// reflection, no LLGR stale depreference) the two copies do not even agree --
+// which is what test/plugin/llgr-readvertise-multipeer.ci caught.
+//
+// The window is a genuine event reordering, not a lost event: the sent event that
+// records the entry and the state event that reports the session are produced by
+// different goroutines, so under load the send is recorded first. Nothing is lost
+// by declining -- the rail that sent it is the one delivering it.
+//
+// Caller must hold peerMu.
+func (r *RIBManager) collectPeerUpReplay(peerAddr netip.Addr, seenBefore bool) []replayGroup {
+	if seenBefore {
+		return r.collectGroupedRibOutRoutes(peerAddr)
+	}
+	// Say it rather than decline silently (ai/rules/fail-closed-guards.md): a
+	// non-empty Adj-RIB-Out here means the reordering actually happened and a
+	// duplicate was suppressed, which is invisible everywhere else.
+	if n := len(r.ribOut[peerAddr]); n > 0 {
+		logger().Warn("adj-rib-out replay skipped on a peer's first session: entries were recorded by this session's own sends",
+			"peer", peerAddr, "families", n)
+	}
+	return nil
+}
+
 // collectGroupedRibOutRoutesForFamily is like collectGroupedRibOutRoutes but
 // restricted to a single address family.
 func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fam family.Family) []replayGroup {

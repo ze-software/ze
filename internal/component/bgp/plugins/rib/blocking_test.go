@@ -86,6 +86,21 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 
 	// ── Plugin is now in event loop ──────────────────────────────────────
 
+	// Step 0: Mark the peer as one this plugin has already seen a session for.
+	//
+	// Adj-RIB-Out replay is defined only for a RE-ESTABLISHED session: a peer's
+	// first session has been advertised nothing, so entries recorded for it were
+	// produced by that same session's own sends and replaying them puts a second
+	// copy of the route on the wire (collectPeerUpReplay, rib_replay.go). Without
+	// this event the state-up below is a first session and correctly replays
+	// nothing, so there would be no update-route to block on -- which is a
+	// property of the fixture, not of the head-of-line blocking under test.
+	//
+	// A down before any up takes neither transition branch; it only records that
+	// the peer is known, which is what the state-up in step 3 needs.
+	deliverEventSync(t, ctx, mux,
+		`{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"down"}`)
+
 	// Step 1: Send a "sent" event to populate ribOut with a route.
 	// This is a "type":"sent" event — the rib plugin stores it in ribOut.
 	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`

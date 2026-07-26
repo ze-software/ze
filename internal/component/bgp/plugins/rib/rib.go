@@ -1029,7 +1029,10 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	state := se.State
 
 	r.peerMu.Lock()
-	wasUp := r.peerUp[peerAddr]
+	// seenBefore must be read BEFORE the assignment below, which creates the key:
+	// it is what tells a peer's first session (empty Adj-RIB-Out by definition)
+	// from a re-established one. See collectPeerUpReplay.
+	wasUp, seenBefore := r.peerUp[peerAddr]
 	isUp := state == rpc.SessionStateUp
 	r.peerUp[peerAddr] = isUp
 
@@ -1047,7 +1050,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	if isUp && !wasUp {
 		cameUp = true
 		delete(r.retainedPeers, peerAddr)
-		replayGroups = r.collectGroupedRibOutRoutes(peerAddr)
+		replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 	} else if !isUp && wasUp {
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
@@ -1096,7 +1099,10 @@ func (r *RIBManager) handleState(event *Event) {
 	state := event.GetPeerState()
 
 	r.peerMu.Lock()
-	wasUp := r.peerUp[peerAddr]
+	// seenBefore must be read BEFORE the assignment below, which creates the key:
+	// it is what tells a peer's first session (empty Adj-RIB-Out by definition)
+	// from a re-established one. See collectPeerUpReplay.
+	wasUp, seenBefore := r.peerUp[peerAddr]
 	isUp := state == "up"
 	r.peerUp[peerAddr] = isUp
 
@@ -1110,7 +1116,7 @@ func (r *RIBManager) handleState(event *Event) {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
 		cameUp = true
 		delete(r.retainedPeers, peerAddr)
-		replayGroups = r.collectGroupedRibOutRoutes(peerAddr)
+		replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 	} else if !isUp && wasUp {
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {
