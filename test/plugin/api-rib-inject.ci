@@ -15,7 +15,7 @@ tmpfs=rib-inject-test.run:mode=755:terminator=EOF_RUN
 import sys
 import json
 import time
-from ze_api import API, result_text_data
+from ze_api import API, result_text_data, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -33,23 +33,28 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    # Wait for the BGP session to establish, then quiesce so ze's End-of-RIB
-    # reaches the wire before `request shutdown` closes the session. Without this
-    # the peer's EOR expectation is unreachable by construction: the script can
-    # shut ze down during the OPEN handshake. PendingSync stays set from
-    # establishment (peer_run.go sendingInitialRoutes) until after the EOR is
-    # sent (peer_initial_sync.go), and the bgp-peer-sync quiescer blocks on
-    # exactly that, so this barrier cannot return early.
-    established = api.dispatch_until(
-        'show bgp peer peer1 detail',
-        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
-        attempts=40,
-    )
-    if 'established' not in result_text_data(established).lower():
-        print('FAIL: peer1 never reached established state', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+    # Wait for peer1's initial sync (the EOR this test's ze-peer expects) to
+    # reach the wire, BEFORE asserting anything or shutting down. Without this
+    # barrier the peer's EOR expectation is unreachable by construction: the
+    # script can complete and dispatch `request shutdown` inside the OPEN
+    # handshake window, closing the session under the peer, which then reports
+    # `failed: connection closed before completion`.
+    #
+    # // test-relax: the `'established' in <detail json>` check removed here was
+    # VACUOUS, not coverage: every peer row carries the key
+    # `connections-established` (cmd/peer/peer.go:238), so the substring matched
+    # on the FIRST poll -- before any session existed -- and the barrier returned
+    # instantly, gating nothing. It is replaced by a STRICTLY STRONGER wait on
+    # the per-peer `eor-sent` counter (peer.go:217, incremented at
+    # peer_initial_sync.go:353 immediately after the EOR is written to the
+    # session), which cannot return before the asserted frame is on the wire,
+    # and by runtime_fail instead of the sys.exit(1) observer antipattern the
+    # runner ignores (ai/rules/testing.md, Observer-Exit Antipattern).
+    if not api.wait_peer_eor_sent('peer1', attempts=40):
+        runtime_fail('peer1 initial-sync EOR never reached the wire')
+    # Complement, not a substitute: quiesce drains the forward pool, but its
+    # bgp-peer-sync quiescer skips a peer that has not begun its initial sync
+    # (reactor_api.go peersSynced), so it returns instantly before establishment.
     api.quiesce()
 
     try:
