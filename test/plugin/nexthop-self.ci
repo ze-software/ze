@@ -11,6 +11,15 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+# The observer asserts that 10.1.0.0/24 -- learned from THIS peer over the wire --
+# is in the RIB. That route exists only while this session is up: when the peer
+# goes away ze correctly withdraws it (seen as `update text nlri ipv4/unicast del
+# prefix 10.1.0.0/24` from bgp.rs). Without linger the peer exits the instant it
+# receives ze's End-of-RIB, so the route is withdrawn out from under the observer
+# and the test only passed by winning a ~500ms race (ze holds the EOR behind the
+# initial-sync barrier, peer_initial_sync.go). linger holds the session open past
+# the expectation, making the RIB assertion independent of host load.
+option=linger:value=true
 
 # Send a basic IPv4 UPDATE
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0100
@@ -73,14 +82,18 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established.
-    # // test-relax: hand-rolled sleep/poll loop -> dispatch_until on peer detail (established)
-    result = api.dispatch_until(
-        'show bgp peer peer1 detail',
-        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
-    )
-    if 'established' not in result_text_data(result).lower():
-        runtime_fail('peer1 never reached established state')
+    # Wait for peer1's initial sync to reach the wire before asserting anything.
+    #
+    # // test-relax: the `'established' in <detail json>` check removed here was
+    # VACUOUS, not coverage: every peer row carries the KEY
+    # `connections-established` (cmd/peer/peer.go:238), so the substring matched
+    # on the FIRST poll -- before any session existed -- and the barrier returned
+    # instantly, gating none of the assertions below it. Replaced by this file's
+    # own wait_eor_sent, which polls the per-peer `eor-sent` counter
+    # (peer.go:217, incremented at peer_initial_sync.go:353 immediately after the
+    # EOR is written to the session). eor-sent >= 1 strictly implies established,
+    # so this is stronger than the check it replaces and it fails loudly.
+    wait_eor_sent(api, 'peer1')
 
     # Verify peer detail shows next-hop self
     result = dispatch(api, 'show bgp peer peer1 detail')
