@@ -60,9 +60,10 @@ def eor_sent(result):
     """True once ze has written its End-of-RIB to at least one peer.
 
     `show bgp peer <sel> detail` returns {"peers": {"<ip>": {..., "eor-sent": N}}}
-    (peer.go:217, :341-345). The counter is incremented at the EOR write itself
-    (peer_initial_sync.go:334-335), so eor-sent >= 1 proves the marker is on the
-    wire rather than merely scheduled.
+    (peer.go:217, :341-345). peer_stats.go IncrEORSent, called only from
+    peer_initial_sync.go's sendInitialRoutes, increments the counter once the EOR
+    write has succeeded and been flushed to the peer's socket, so eor-sent >= 1
+    proves the marker is on the wire rather than merely scheduled.
     """
     if result.get('status') != 'done':
         return False
@@ -76,8 +77,9 @@ def wait_eor_sent(api, selector):
     """Block until ze has sent its EOR, so `request shutdown` cannot pre-empt it.
 
     The peer block asserts ze's End-of-RIB on the wire. ze emits it only after the
-    initial-sync barrier: peer_initial_sync.go:174-178 sleeps 500ms and then waits
-    for the plugin ready signal before :332-337 builds and sends the EOR. The
+    initial-sync barrier: peer_initial_sync.go's sendInitialRoutes runs the
+    apiSync wait (500ms sleep, then the plugin-ready signal) before its EOR-send
+    loop builds and sends the EOR. The
     session reaches `established` long before that, so a shutdown gated on
     establishment alone closes TCP first and the peer's expectation can never fire.
     Gate on the EOR the test actually asserts.
@@ -101,10 +103,11 @@ def main():
     # `connections-established` (cmd/peer/peer.go:238), so the substring matched
     # on the FIRST poll -- before any session existed -- and the barrier returned
     # instantly, gating none of the assertions below it. Replaced by this file's
-    # own wait_eor_sent, which polls the per-peer `eor-sent` counter
-    # (peer.go:217, incremented at peer_initial_sync.go:353 immediately after the
-    # EOR is written to the session). eor-sent >= 1 strictly implies established,
-    # so this is stronger than the check it replaces and it fails loudly.
+    # own wait_eor_sent, which polls the per-peer `eor-sent` counter (peer.go:217;
+    # peer_stats.go IncrEORSent increments it only once peer_initial_sync.go's
+    # sendInitialRoutes has written AND flushed the EOR to the peer's socket).
+    # eor-sent >= 1 strictly implies established, so this is stronger than the
+    # check it replaces and it fails loudly.
     wait_eor_sent(api, 'peer-src')
 
     result = dispatch(api, 'show bgp peer peer-src detail')

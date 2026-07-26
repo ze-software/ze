@@ -50,8 +50,9 @@ def main():
     # `connections-established`, cmd/peer/peer.go:238, so the substring matched
     # on the FIRST poll before any session existed) AND its result was discarded
     # without a guard, so it could not fail. Replaced by a wait on the per-peer
-    # `eor-sent` counter (peer.go:217, incremented at peer_initial_sync.go:353)
-    # that fails loudly via runtime_fail.
+    # `eor-sent` counter (peer.go:217; peer_stats.go IncrEORSent, which increments
+    # it only once peer_initial_sync.go's sendInitialRoutes has written AND
+    # flushed the EOR to the peer's socket) that fails loudly via runtime_fail.
     if not api.wait_peer_eor_sent('peer1', attempts=40):
         runtime_fail('peer1 initial-sync EOR never reached the wire')
 

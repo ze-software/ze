@@ -54,9 +54,10 @@ def main():
     # so the daemon must not be shut down before that frame is on the wire;
     # otherwise the peer reports `failed: connection closed before completion`
     # and whether that happens is decided by host scheduling alone.
-    # wait_peer_eor_sent polls the per-peer `eor-sent` counter
-    # (cmd/peer/peer.go:217, incremented at peer_initial_sync.go:353 right after
-    # the EOR is written), so it waits on the asserted state, not on a duration.
+    # wait_peer_eor_sent polls the per-peer `eor-sent` counter (cmd/peer/peer.go:217;
+    # peer_stats.go IncrEORSent increments it only once peer_initial_sync.go's
+    # sendInitialRoutes has written AND flushed the EOR to the peer's socket), so
+    # it waits on the asserted state, not on a duration.
     if not api.wait_peer_eor_sent('peer1', attempts=40):
         runtime_fail('peer1 initial-sync EOR never reached the wire')
 

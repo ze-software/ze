@@ -32,12 +32,13 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 # ORDERING: the receiver's EOR precedes the forwarded UPDATE on its wire, so it is
 # declared first (seq=1) and the forwarded UPDATE second (seq=2). This is a
 # guarantee, not a race: ze sends a peer its EOR from initial sync at ITS OWN
-# establishment (peer_initial_sync.go:334), and conn_map completes BOTH handshakes
-# before any conn's script runs (peer_connmap.go:129), so the source's UPDATE above
-# is not even written until after the receiver has been sent its EOR. Any route
-# arriving during initial sync is queued FIFO behind the EOR
-# (peer_initial_sync.go:180-188). An EOR that does not match the current rule is
-# silently swallowed (checker.go:416) and never re-offered, so declaring the
+# establishment (peer_initial_sync.go sendInitialRoutes), and conn_map completes
+# BOTH handshakes before any conn's script runs (peer_connmap.go:129), so the
+# source's UPDATE above is not even written until after the receiver has been
+# sent its EOR. Any route arriving during initial sync is queued FIFO behind the
+# EOR (peer_initial_sync.go sendInitialRoutes, opQueue drain). An EOR that does
+# not match the current rule is silently swallowed (checker.go:416) and never
+# re-offered, so declaring the
 # forwarded UPDATE at seq=1 would make the EOR at seq=2 unmatchable.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # // test-relax: conn=2's End-of-RIB rule is removed because the ordering it

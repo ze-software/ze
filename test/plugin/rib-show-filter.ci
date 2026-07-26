@@ -54,9 +54,10 @@ def eor_sent(result):
     """True once ze has written its End-of-RIB to at least one peer.
 
     `show bgp peer <sel> detail` returns {"peers": {"<ip>": {..., "eor-sent": N}}}
-    (peer.go:217, :341-345). The counter is incremented at the EOR write itself
-    (peer_initial_sync.go:334-335), so eor-sent >= 1 proves the marker is on the
-    wire rather than merely scheduled.
+    (peer.go:217, :341-345). peer_stats.go IncrEORSent, called only from
+    peer_initial_sync.go's sendInitialRoutes, increments the counter once the EOR
+    write has succeeded and been flushed to the peer's socket, so eor-sent >= 1
+    proves the marker is on the wire rather than merely scheduled.
     """
     if result.get('status') != 'done':
         return False
@@ -71,8 +72,9 @@ def wait_eor_sent(api, selector):
     """Block until ze has sent its EOR, so `request shutdown` cannot pre-empt it.
 
     The peer block asserts ze's End-of-RIB on the wire. ze emits it only after the
-    initial-sync barrier: peer_initial_sync.go:174-178 sleeps 500ms and then waits
-    for the plugin ready signal before :332-337 builds and sends the EOR. The
+    initial-sync barrier: peer_initial_sync.go's sendInitialRoutes runs the
+    apiSync wait (500ms sleep, then the plugin-ready signal) before its EOR-send
+    loop builds and sends the EOR. The
     pipeline checks below complete long before that, so a shutdown gated on them
     alone closes TCP first and the peer's expectation can never fire. Gate on the
     EOR the test actually asserts.

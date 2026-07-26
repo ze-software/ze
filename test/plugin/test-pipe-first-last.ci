@@ -150,11 +150,13 @@ def main():
         # Do not tear ze down before it has sent its End-of-RIB to the peer, or
         # the peer's expect=bgp EOR can never be met. ze gates EOR behind its
         # initial-sync wait (a 500ms minimum for API plugins that send routes,
-        # then the apiSync channel -- reactor/peer_initial_sync.go:164-178), and
-        # `process bgp-rib { send [ update ] }` arms that wait. The pipe checks
+        # then the apiSync channel -- reactor/peer_initial_sync.go
+        # sendInitialRoutes), and `process bgp-rib { send [ update ] }` arms that
+        # wait. The pipe checks
         # above finish in ~250ms, well inside it. Poll the eor-sent counter that
-        # peer_initial_sync.go:335 bumps immediately after the EOR write, so the
-        # bytes are on the socket before shutdown closes it. Deterministic: no
+        # peer_initial_sync.go's sendInitialRoutes bumps (peer_stats.go
+        # IncrEORSent) only once the EOR write has succeeded and been flushed, so
+        # the bytes are on the socket before shutdown closes it. Deterministic: no
         # sleep, no assumption about how long the sync takes.
         eor = api.dispatch_until(
             'show bgp summary',

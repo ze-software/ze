@@ -63,8 +63,9 @@ def main():
     # scripts/dev/stress-repro.py as `failed: connection closed before
     # completion` with the OPEN exchange complete and no EOR on the wire. It is
     # replaced by a STRICTLY STRONGER wait on the per-peer `eor-sent` counter
-    # (peer.go:217, incremented at peer_initial_sync.go:353 immediately after the
-    # EOR is written), which cannot return before the asserted frame is sent, and
+    # (peer.go:217; peer_stats.go IncrEORSent increments it only once
+    # peer_initial_sync.go's sendInitialRoutes has written AND flushed the EOR to
+    # the peer's socket), which cannot return before the asserted frame is sent, and
     # by runtime_fail instead of the sys.exit(1) observer antipattern that the
     # runner ignores (ai/rules/testing.md, Observer-Exit Antipattern).
     if not api.wait_peer_eor_sent('peer1', attempts=40):

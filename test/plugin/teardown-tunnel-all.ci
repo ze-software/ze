@@ -234,8 +234,9 @@ def main():
     # load the L2TP work can finish inside peer1's establishment window, so the
     # shutdown below closes the session under the peer, which then reports
     # `failed: connection closed before completion`. Wait on the per-peer
-    # `eor-sent` counter (cmd/peer/peer.go:217, incremented at
-    # peer_initial_sync.go:353 right after the EOR is written) instead.
+    # `eor-sent` counter (cmd/peer/peer.go:217; peer_stats.go IncrEORSent
+    # increments it only once peer_initial_sync.go's sendInitialRoutes has written
+    # AND flushed the EOR to the peer's socket) instead.
     if not api.wait_peer_eor_sent('peer1', attempts=60):
         runtime_fail('peer1 initial-sync EOR never reached the wire')
 

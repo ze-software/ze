@@ -1315,10 +1315,35 @@ class API:
 
         The signal is the product's own per-peer ``eor-sent`` counter, published by
         ``show bgp peer <sel> detail``
-        (internal/component/bgp/plugins/cmd/peer/peer.go:217) and incremented
-        immediately after the EOR is written to the session
-        (internal/component/bgp/reactor/peer_initial_sync.go:353). Non-zero
-        therefore means the frame the peer is waiting for is already on the wire.
+        (internal/component/bgp/plugins/cmd/peer/peer.go:217). It is incremented by
+        ``IncrEORSent`` (internal/component/bgp/reactor/peer_stats.go), which is
+        called only from ``sendInitialRoutes``
+        (internal/component/bgp/reactor/peer_initial_sync.go) once the EOR write to
+        the session has succeeded AND been flushed to the peer's socket -- it
+        counts End-of-RIB markers that reached the wire, never sends that were
+        merely attempted. Non-zero therefore means the frame the peer is waiting
+        for is already on the wire.
+
+        Two limits this helper does NOT enforce. Neither is hit by any of this
+        repo's current callers (all 25 negotiate exactly one family and none calls
+        this across a re-establishment), but read this before adding one that does:
+
+        * ``eor-sent >= 1`` proves only the FIRST negotiated family's EOR is out.
+          ``NegotiatedCapabilities.Families()`` (reactor/negotiated.go) returns
+          families sorted ascending by AFI, so on a peer negotiating e.g.
+          ipv4+ipv6 unicast, ``eor-sent == 1`` means only the ipv4 EOR has been
+          sent -- a caller asserting the ipv6 frame would still race it. For a
+          peer with N negotiated families, wait for ``eor-sent >= N``
+          (``expected_peers`` does not express this; it counts ready PEERS, not
+          families per peer).
+        * The counter is a per-peer LIFETIME count, not per-session: it is reset
+          only by ``Peer.ClearStats``, called from ``Peer.cleanup`` on session
+          teardown (reactor/peer_run.go), so it survives a flap. A test that flaps
+          and re-establishes the session can satisfy this barrier on the
+          PREVIOUS session's EOR before the new session has sent anything.
+          Baseline the count before the flap, or gate on
+          ``connections-established``, rather than calling this helper across a
+          re-establishment.
 
         Two things that look like this barrier and are NOT:
 
