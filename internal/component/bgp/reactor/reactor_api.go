@@ -534,6 +534,22 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 				defer r.mu.Unlock()
 				if peer, ok := r.peers[peerKey]; ok {
 					peer.Stop()
+					// Stop only cancels the peer's context (Peer.Stop, peer.go);
+					// the peer's own goroutine gives up its AS-wide BGP Identifier
+					// claim later, from cleanup (peer_run.go). A reload that MOVES
+					// an identifier between peers -- any router-id rotation or swap,
+					// and any re-address that points a new peer at the router an
+					// outgoing one served -- would then reach the add loop below and
+					// dial the new holder while the outgoing peer still holds the
+					// claim. routerIDClaims.claim refuses it (routerid_unique.go),
+					// so ze answers a legitimate peer with OPEN Message Error / Bad
+					// BGP Identifier and that session never establishes; whether it
+					// happens is pure scheduling luck. Release synchronously here so
+					// every claim of the outgoing generation is gone before any add
+					// runs. The registry is a leaf lock, and the peer's own later
+					// release is then a no-op that cannot touch the new holder's
+					// entry (routerIDClaims.release checks holder.peer == p).
+					peer.releaseRouterIDClaim()
 					// Clear any prefix-stale warning for this peer from the
 					// report bus. Threshold warnings are cleared by the session
 					// teardown defer in peer_run.go via Session.ClearReportedWarnings.

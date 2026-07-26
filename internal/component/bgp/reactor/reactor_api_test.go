@@ -137,6 +137,56 @@ func TestReconcilePeersJournalSuccess(t *testing.T) {
 	assert.Equal(t, 2, j.recordCount, "journal should have 2 entries (one per peer add)")
 }
 
+// TestReconcilePeersReleasesRouterIDClaimSynchronously verifies that a peer
+// removed by a reload has given up its AS-wide BGP Identifier claim by the time
+// reconcile returns, not merely once its own goroutine gets around to cleanup.
+//
+// VALIDATES: after reconcilePeersJournaled returns, the identifier the outgoing
+// peer held is unclaimed, so the incoming generation can claim it.
+// PREVENTS: a reload that MOVES a router-id between peers (rotation, swap, or a
+// re-address pointing a new peer at the router an outgoing one served) answering
+// the new, legitimate peer with OPEN Message Error / Bad BGP Identifier because
+// the outgoing peer's claim was still registered when the new peer's OPEN was
+// validated. Peer.Stop only cancels the context; without a synchronous release
+// the outcome is decided by goroutine scheduling.
+func TestReconcilePeersReleasesRouterIDClaimSynchronously(t *testing.T) {
+	const peerAS uint32 = 65001
+	const sharedBGPID uint32 = 0x01020305
+
+	r := New(&Config{})
+	r.eventDispatcher = nil
+	adapter := &reactorAPIAdapter{r: r}
+
+	// Peer A is attached WITHOUT starting its run goroutine, so nothing can
+	// release the claim asynchronously: any release observed below is the one
+	// reconcile performed itself.
+	outgoing := NewPeerSettings(mustParseAddr("192.0.2.1"), peerAS, peerAS, 0x01020304)
+	outgoing.Name = "peerA"
+	peerA := NewPeer(outgoing)
+	peerA.SetReactor(r)
+	r.peers[outgoing.PeerKey()] = peerA
+
+	_, granted := r.routerIDs.claim(peerA, outgoing.Address, peerAS, sharedBGPID)
+	require.True(t, granted, "peer A should hold the identifier before the reload")
+	holder, held := r.routerIDs.holder(peerAS, sharedBGPID)
+	require.True(t, held)
+	require.Same(t, peerA, holder)
+
+	// The reload drops peer A entirely and brings up peer C, which reaches the
+	// router that was presenting sharedBGPID.
+	incoming := NewPeerSettings(mustParseAddr("192.0.2.3"), peerAS, peerAS, 0x01020306)
+	incoming.Name = "peerC"
+
+	j := &testJournal{}
+	require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{incoming}, "test", j))
+
+	// No sleep, no polling: the claim must already be gone.
+	_, stillHeld := r.routerIDs.holder(peerAS, sharedBGPID)
+	assert.False(t, stillHeld,
+		"removed peer must release its BGP Identifier claim before reconcile returns, "+
+			"otherwise the incoming peer's OPEN is refused as Bad BGP Identifier")
+}
+
 // TestReconcilePeersJournalRemoveThenAdd verifies the remove-before-add order
 // with journal recording undo operations for both.
 //
