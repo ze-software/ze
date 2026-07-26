@@ -53,6 +53,15 @@ type Editor struct {
 	diffGutter        bool                         // Whether diff gutter (+/-) markers are shown (default true)
 	draftSaved        bool                         // True when changes have been persisted to draft (reset on new edits)
 	stdoutSink        io.Writer                    // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
+	// now supplies the wall clock for version stamps. A field rather than a
+	// direct time.Now() call so a test can pin it: the same-millisecond backup
+	// collision this guards is otherwise unreproducible on demand, and a test
+	// that merely hopes two calls land in one millisecond gates nothing.
+	now func() time.Time
+	// lastBackupStamp is the millisecond-truncated stamp of the most recent
+	// backup this editor took, so the next one can be forced strictly later.
+	// See nextBackupStamp.
+	lastBackupStamp time.Time
 }
 
 // BackupInfo describes a backup file.
@@ -131,6 +140,7 @@ func newEditor(store storage.Storage, identity, content string, checkPending boo
 		hasPendingEdit:  hasPending,
 		showColumns:     newShowColumnDefaults(),
 		diffGutter:      true,
+		now:             time.Now,
 	}, nil
 }
 
@@ -1049,12 +1059,44 @@ func atomicWriteFile(path string, data []byte) error {
 // createBackup creates a dated version of the given content.
 // When guard is non-nil (inside a lock), writes through the guard to avoid deadlock.
 // When guard is nil (outside a lock), writes through e.store.
+//
+// The stamp IS the version's key and has millisecond resolution, so two backups
+// taken inside one millisecond would write the same key and the second would
+// replace the first -- one fewer point to roll back to, reported nowhere. This
+// caller derives its stamp from the clock and does not depend on its exact value
+// (unlike pointer.go, which names the stamp in a pointer it writes), so it is the
+// right place to step to a free slot.
 func (e *Editor) createBackup(content string, guard storage.WriteGuard) error {
-	now := time.Now()
+	now := e.nextBackupStamp()
 	if guard != nil {
 		return guard.WriteVersion(e.originalPath, []byte(content), now)
 	}
 	return e.store.WriteVersion(e.originalPath, []byte(content), now)
+}
+
+// nextBackupStamp returns a stamp strictly later, at MILLISECOND resolution,
+// than the previous backup this editor took.
+//
+// Millisecond is the resolution that matters because the stamp IS the version's
+// storage key (storage.FormatVersionStamp), so two backups inside one
+// millisecond write one key and the second replaces the first.
+//
+// Deliberately derived from in-memory state, never from the store. createBackup
+// is called both inside and outside a lock, and a guarded section must not reach
+// for an unlocked Storage method: those re-acquire the store mutex against the
+// write lock the guard already holds, which is exactly what WriteGuard.Has
+// exists to avoid. Listing versions here to find a free slot deadlocked that
+// way, hanging the cli and hub package tests until their 600s timeout.
+//
+// Truncation is load-bearing: comparing untruncated times would accept two
+// stamps microseconds apart, which format to the same key and collide anyway.
+func (e *Editor) nextBackupStamp() time.Time {
+	now := e.now().Truncate(time.Millisecond)
+	if !now.After(e.lastBackupStamp) {
+		now = e.lastBackupStamp.Add(time.Millisecond)
+	}
+	e.lastBackupStamp = now
+	return now
 }
 
 // ListBackups returns available backup files, sorted by timestamp descending.
