@@ -143,7 +143,11 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			conn.Write(payload) //nolint:errcheck // best-effort: some may fail (no listener)
 		}
 
-		classes, err := netlink.ClassList(link, netlink.HANDLE_ROOT)
+		// Same parent correction as the filter query above: applyInterface adds
+		// classes under the HTB root HANDLE (backend_linux.go:129 passes
+		// rootHandle), and HANDLE_ROOT does not return them -- which is why this
+		// reported "control class (1:1) not found" while the class was there.
+		classes, err := netlink.ClassList(link, netlink.MakeHandle(1, 0))
 		if err != nil {
 			t.Fatalf("ClassList: %v", err)
 		}
@@ -159,7 +163,12 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			}
 		}
 		if controlStats == nil {
-			t.Fatal("control class (1:1) not found in kernel")
+			got := make([]string, 0, len(classes))
+			for _, cls := range classes {
+				got = append(got, fmt.Sprintf("%T(handle=%#x parent=%#x)", cls, cls.Attrs().Handle, cls.Attrs().Parent))
+			}
+			t.Fatalf("control class (1:1, handle %#x) not found in kernel under parent 1:0\n  returned %d class(es): %v",
+				makeHandle(1, 1), len(classes), got)
 		}
 		if controlStats.Basic.Packets == 0 {
 			t.Error("control class packet count = 0; CS6-marked packets were not classified (AC-2 fail)")
