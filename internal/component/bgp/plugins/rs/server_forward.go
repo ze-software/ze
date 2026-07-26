@@ -142,10 +142,17 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 
 	rs.mu.RLock()
 	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, sourcePeer, families)
+	known := len(rs.peers)
 	rs.mu.RUnlock()
 	targets := batch.targetBuf
 
 	if len(targets) == 0 {
+		// Say it: this arm discards the UPDATE for every destination, and the
+		// only rail that can recover it is the announce-only Adj-RIB-In replay,
+		// so a withdrawal discarded here is lost outright
+		// (ai/rules/fail-closed-guards.md).
+		logger().Warn("forward matched no target",
+			"source-peer", sourcePeer, "msg-id", msgID, "peers-known", known)
 		rs.releaseCache(msgID)
 		return
 	}

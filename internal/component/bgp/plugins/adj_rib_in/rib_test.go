@@ -366,8 +366,14 @@ func TestReplayAllSources(t *testing.T) {
 
 // TestReplayFromIndex verifies incremental replay sends only newer routes.
 //
-// VALIDATES: Replay from non-zero index sends only routes with SeqIndex >= from-index.
-// PREVENTS: Full replay on every reconnect.
+// VALIDATES: from-index is a RESUME CURSOR -- replay from a non-zero index sends
+// only routes with SeqIndex STRICTLY GREATER than from-index.
+// PREVENTS: Full replay on every reconnect, and re-sending the boundary route.
+//
+// The ">= from-index" this previously asserted was the defect, not the contract:
+// bgp-rs feeds the previous call's `last-index` (the highest sequence it has
+// already received) straight back in, so an inclusive read re-relays that route
+// on every delta iteration. See buildReplayRoutes' doc comment.
 func TestReplayFromIndex(t *testing.T) {
 	r := newTestManager(t)
 
@@ -386,9 +392,57 @@ func TestReplayFromIndex(t *testing.T) {
 	})
 	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 
-	// Replay from index 5 → only routes with SeqIndex >= 5
+	// Replay from cursor 5 → only routes with SeqIndex > 5 (the route AT 5 was
+	// already delivered in the batch that produced the cursor).
 	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 5)
-	assert.Len(t, cmds, 2, "should replay only routes with SeqIndex >= 5")
+	assert.Len(t, cmds, 1, "should replay only routes strictly after the cursor")
+	assert.Equal(t, "180a0002", cmds[0].NLRIHex, "the seq-10 route, not the seq-5 boundary route")
+}
+
+// TestReplayCursorRoundTripTerminates pins the bgp-rs delta-convergence contract:
+// feeding a call's own last-index straight back must yield nothing.
+//
+// VALIDATES: buildReplayRoutes(peer, lastIndex) returns zero routes when no route
+// has been stored since lastIndex was issued.
+// PREVENTS: the duplicate a route-server client saw as the same UPDATE arriving
+// twice back to back. seqmap.Since is inclusive (seq >= fromSeq), so before the
+// fix this round trip re-relayed the boundary route; `replayed` was therefore
+// never 0, and bgp-rs's convergence loop (replayConvergenceMax = 10) ran to its
+// cap re-sending that one route on every attempt instead of exiting early.
+func TestReplayCursorRoundTripTerminates(t *testing.T) {
+	r := newTestManager(t)
+
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
+		Family: family.IPv4Unicast, AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0000",
+	})
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{
+		Family: family.IPv4Unicast, AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0001",
+	})
+	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+
+	target := netip.MustParseAddr("10.0.0.99")
+
+	first, lastIndex := r.buildReplayRoutes(target, 0)
+	assert.Len(t, first, 2, "full replay delivers every stored route")
+	assert.Equal(t, uint64(2), lastIndex, "last-index is the highest sequence delivered")
+
+	// The delta bgp-rs issues next: same cursor, nothing new stored.
+	second, secondLast := r.buildReplayRoutes(target, lastIndex)
+	assert.Empty(t, second, "a delta at the cursor must deliver nothing; replayed==0 is what ends the convergence loop")
+	assert.Zero(t, secondLast, "no routes delivered means no new last-index")
+
+	// A route stored after the cursor is still picked up.
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.2.0/24", 0), 3, &RawRoute{
+		Family: family.IPv4Unicast, AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0002",
+	})
+	third, thirdLast := r.buildReplayRoutes(target, lastIndex)
+	assert.Len(t, third, 1, "the delta must still deliver genuinely new routes")
+	assert.Equal(t, "180a0002", third[0].NLRIHex)
+	assert.Equal(t, uint64(3), thirdLast)
 }
 
 // TestReplayReturnsLastIndex verifies response includes last-index value.

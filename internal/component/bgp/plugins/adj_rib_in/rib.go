@@ -779,6 +779,19 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 // Returns the routes and the maximum sequence index among them.
 // Uses seqmap.Since for O(log N + K) delta replay instead of O(N) full scan.
 //
+// fromIndex is a RESUME CURSOR, not a first-wanted index: it is the last-index
+// this caller was handed by its previous call, i.e. the highest sequence it has
+// ALREADY received, so this call must resume strictly after it. seqmap.Since is
+// inclusive (`seq >= fromSeq`, internal/core/seqmap/seqmap.go), so relying on it
+// alone re-relays the boundary route on every delta iteration -- and because
+// `replayed` is then never 0, bgp-rs's convergence loop
+// (rs/server_handlers.go, replayConvergenceMax) never exits early and re-sends
+// that one route on all of its attempts. That is the duplicate a route-server
+// client saw as the same UPDATE arriving twice back to back.
+//
+// fromIndex == 0 (the full replay) is unaffected: seqCounter is pre-incremented
+// before Put, so live entries start at sequence 1 and nothing is ever skipped.
+//
 // Each route carries the peer it was LEARNED from. That is the whole point of
 // this shape: the engine reproduces the egress transform that source implies
 // (AS_PATH prepend decision, RFC 4456 reflection, RFC 9234 role/OTC, export
@@ -800,6 +813,10 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 		}
 		sourceStr := sourcePeer.String()
 		routes.Since(fromIndex, func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
+			if seq <= fromIndex {
+				// Already delivered in the batch that produced this cursor.
+				return true
+			}
 			out = append(out, rpc.StoredRoute{
 				SourcePeer: sourceStr,
 				Family:     rt.Family.String(),
