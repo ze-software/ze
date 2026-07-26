@@ -126,6 +126,26 @@ def build_race_ze(tags, out_path):
     return True
 
 
+def _bin_from_env(key, default):
+    """Binary path from the environment, falling back to the repo's bin/<name>.
+
+    Ze env keys are dot/underscore agnostic and case-insensitive (internal/core/env),
+    so `ze.bin` and `ZE_BIN` are the same setting; accept both spellings.
+
+    This MUST honour the environment. Under an AI session every canonical binary is
+    built session-suffixed (mk/session.mk) and the functional make targets run against
+    an isolated pair under tmp/ (mk/test-functional.mk), exporting ZE_BIN/ZE_TEST_BIN
+    to point at it. Hardcoding bin/ze made this tool silently stress a STALE binary:
+    a fix under test looked "still reproducing" because the run never contained it,
+    which is the same false-red class ai/rules/bash-output.md documents for bare
+    `go test` and for launching the runner binary directly.
+    """
+    for name in (key, key.replace(".", "_").upper()):
+        if os.environ.get(name):
+            return os.path.abspath(os.environ[name])
+    return default
+
+
 def ensure_binaries(ze_bin, test_bin):
     missing = [p for p in (ze_bin, test_bin) if not os.path.isfile(p)]
     if not missing:
@@ -277,8 +297,8 @@ def main():
     parallel = args.parallel or max(2, ncpu // 2)
     nburn = args.burners if args.burners else 2 * ncpu
 
-    ze_bin = os.path.join(REPO, "bin", "ze")
-    test_bin = os.path.join(REPO, "bin", "ze-test")
+    ze_bin = _bin_from_env("ze.bin", os.path.join(REPO, "bin", "ze"))
+    test_bin = _bin_from_env("ze.test.bin", os.path.join(REPO, "bin", "ze-test"))
 
     if args.race:
         # Mirror the runner's full-feature tag set (ze_core/ze_distro/ze_setup base +
