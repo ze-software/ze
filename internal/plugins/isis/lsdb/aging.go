@@ -92,7 +92,7 @@ func (d *LSDB) tickLevelLocked(level Level, now time.Time) (purged []PurgeEvent,
 	sizeChanged := false
 	for id, e := range store.entries {
 		switch {
-		case e.purged:
+		case e.IsPurged():
 			// Already purged: garbage-collect once the grace period elapses
 			// (clause 7.3.17). A received purge and a local expiry are both
 			// collected here, but only after the grace window -- they differ in
@@ -113,13 +113,13 @@ func (d *LSDB) tickLevelLocked(level Level, now time.Time) (purged []PurgeEvent,
 				e.recvPurgeReflooded = true
 				purged = append(purged, PurgeEvent{LSPID: id.String(), Own: e.own, ReceivedPurge: true})
 			}
-		case e.lifetime == 0:
+		case e.Lifetime() == 0:
 			// Reached 0 this tick (e.g. stored already at 0): become purged.
 			d.markPurgedLocked(level, e, now)
 			purged = append(purged, PurgeEvent{LSPID: id.String(), Own: e.own, ReceivedPurge: e.receivedPurge})
 		default:
-			e.lifetime--
-			if e.lifetime == 0 {
+			e.setLifetime(e.Lifetime() - 1)
+			if e.Lifetime() == 0 {
 				// Crossed to 0: transition to purged (re-flood + retain).
 				d.markPurgedLocked(level, e, now)
 				purged = append(purged, PurgeEvent{LSPID: id.String(), Own: e.own, ReceivedPurge: e.receivedPurge})
@@ -140,11 +140,11 @@ func (d *LSDB) tickLevelLocked(level Level, now time.Time) (purged []PurgeEvent,
 // The caller holds the write lock. It does NOT clear the SRM/SSN flags: isis-7
 // re-arms SRM to flood the purge.
 func (d *LSDB) markPurgedLocked(level Level, e *Entry, now time.Time) {
-	if e.purged {
+	if e.IsPurged() {
 		return
 	}
-	e.lifetime = 0
-	e.purged = true
+	e.setLifetime(0)
+	e.purged.Store(true)
 	e.deleteAt = now.Add(ZeroAgeLifetime)
 	d.mPurges.With(level.String()).Inc()
 }

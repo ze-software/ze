@@ -187,7 +187,7 @@ func (d *LSDB) Receive(level Level, lsp *packet.LSP, raw []byte, own bool) Recei
 			return ReceiveResult{Freshness: Newer, Stored: true}
 		case Equal:
 			// Clause 7.3.16: a duplicate refreshes the held Remaining Lifetime.
-			existing.lifetime = lsp.RemainingLifetime
+			existing.setLifetime(lsp.RemainingLifetime)
 			return ReceiveResult{Freshness: Equal, Stored: false}
 		default:
 			return ReceiveResult{Freshness: Older, Stored: false}
@@ -215,7 +215,7 @@ func (d *LSDB) Receive(level Level, lsp *packet.LSP, raw []byte, own bool) Recei
 // (the aging-to-zero path counts in markPurgedLocked).
 func (d *LSDB) replaceLocked(level Level, store *db, id types.LSPID, lsp *packet.LSP, raw []byte, own, received bool) {
 	prev := store.entries[id]
-	wasPurged := prev != nil && prev.purged
+	wasPurged := prev != nil && prev.IsPurged()
 	wasReceivedPurge := prev != nil && prev.receivedPurge
 	owned := make([]byte, len(raw))
 	copy(owned, raw)
@@ -223,13 +223,13 @@ func (d *LSDB) replaceLocked(level Level, store *db, id types.LSPID, lsp *packet
 		id:        id,
 		raw:       owned,
 		sequence:  lsp.SequenceNumber,
-		lifetime:  lsp.RemainingLifetime,
 		checksum:  lsp.Checksum,
 		typeBlock: lsp.TypeBlock,
 		own:       own,
 	}
+	e.setLifetime(lsp.RemainingLifetime)
 	if lsp.RemainingLifetime.IsPurge() {
-		e.purged = true
+		e.purged.Store(true)
 		// A purge is a received purge when this write arrived on the wire OR the
 		// entry it replaces was already a received purge (ISO/IEC 10589 clause
 		// 7.3.16: a received purge is re-flooded and retained distinctly from a
@@ -275,9 +275,23 @@ func (d *LSDB) Insert(level Level, lsp *packet.LSP, raw []byte) {
 }
 
 // Lookup returns the stored entry for id at level, or nil. The returned pointer
-// is the live entry; callers that only read metadata are fine, but MUST NOT
-// mutate it outside the LSDB lock. (isis-7 flooding uses the flag methods, which
-// lock internally; SPF uses Snapshot/Decode.)
+// is the LIVE entry, so a caller holding it after Lookup returns holds no lock.
+//
+// What is safe to call on it without the LSDB lock: the metadata accessors
+// (LSPID, Sequence, Checksum, IsOverloaded, IsOwn, Raw, Decode) because
+// replaceLocked writes those fields once, before the entry is reachable; and
+// Lifetime/IsPurged because those two fields are atomic precisely for this
+// (they are the only ones mutated after publication -- the aging tick and the
+// clause 7.3.16 duplicate refresh).
+//
+// What is NOT safe: mutating anything, and reading any other mutable field
+// directly rather than through an accessor. The earlier wording here -- that
+// "callers that only read metadata are fine" -- was the invitation that
+// produced a DATA RACE between the aging tick and SNP generation: a read races
+// a concurrent write whether or not the reader also writes.
+//
+// (isis-7 flooding uses the flag methods, which lock internally; SPF uses
+// Snapshot/Decode.)
 func (d *LSDB) Lookup(level Level, id types.LSPID) *Entry {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -342,7 +356,7 @@ func (d *LSDB) LSPEntries(level Level) []packet.LSPEntry {
 			continue // cache/entries momentarily divergent: skip defensively.
 		}
 		out = append(out, packet.LSPEntry{
-			RemainingLifetime: e.lifetime,
+			RemainingLifetime: e.Lifetime(),
 			LSPID:             id,
 			SequenceNumber:    e.sequence,
 			Checksum:          e.checksum,
@@ -490,10 +504,10 @@ func (d *LSDB) Snapshot(level Level) []LSPSnapshot {
 		out = append(out, LSPSnapshot{
 			LSPID:    e.id.String(),
 			Sequence: uint32(e.sequence),
-			Lifetime: e.lifetime.Seconds(),
+			Lifetime: e.Lifetime().Seconds(),
 			Checksum: e.checksum,
 			Overload: e.IsOverloaded(),
-			Purged:   e.purged,
+			Purged:   e.IsPurged(),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].LSPID < out[j].LSPID })

@@ -8,10 +8,12 @@
 package lsdb
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
+	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
 // fakeClock is a settable clock for deterministic aging tests.
@@ -195,4 +197,83 @@ func TestISISReceivedPurgeRefloodSurfaced(t *testing.T) {
 			t.Error("local expiry re-surfaced after it was already purged")
 		}
 	}
+}
+
+// TestISISLSDBEntryAccessorsAreRaceFree drives the aging tick and the unlocked
+// metadata accessors concurrently, which is the exact shape that produced the
+// reported DATA RACE.
+//
+// VALIDATES: fixit-isis-lsdb-entry-race -- Lifetime() and IsPurged() are safe to
+// call without the LSDB lock.
+//
+// PREVENTS: the shipped race. Lookup hands out a LIVE *Entry and its doc invited
+// unlocked metadata reads ("callers that only read metadata are fine"), but the
+// aging tick decrements Entry.lifetime and markPurgedLocked sets Entry.purged on
+// entries that are already published. Reading a field another goroutine is
+// writing is a race whether or not the reader mutates, so SNP generation on the
+// flooding goroutine raced the tick.
+//
+// Run under -race this fails deterministically if either field goes back to
+// being a plain (non-atomic) field. It does NOT rely on TestISISDISElection,
+// which surfaced the race only by scheduling luck and did not reproduce on
+// demand.
+//
+// The other accessors (Sequence, Checksum, LSPID, IsOverloaded, IsOwn) are NOT
+// covered here because they cannot race: replaceLocked builds a fresh Entry and
+// swaps it into the map, so those fields are written once before the entry is
+// reachable. Only lifetime (aging tick, and the clause 7.3.16 duplicate
+// refresh) and purged (markPurgedLocked) are mutated after publication.
+func TestISISLSDBEntryAccessorsAreRaceFree(t *testing.T) {
+	d := New(nil)
+
+	const lsps = 8
+	ids := make([]types.LSPID, 0, lsps)
+	for i := range lsps {
+		id := lspID(uint8(i+1), 0)
+		lsp, raw := buildLSP(t, packet.PDUTypeL2LSP, id, 1, 3, nil)
+		d.Insert(Level2, lsp, raw)
+		ids = append(ids, id)
+	}
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	// Writer: the aging tick, which decrements lifetime and marks entries purged.
+	wg.Go(func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				d.Tick()
+			}
+		}
+	})
+
+	// Readers: the unlocked metadata reads SNP generation and show/SPF perform.
+	for range 4 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					for _, id := range ids {
+						e := d.Lookup(Level2, id)
+						if e == nil {
+							continue // garbage-collected after the grace period
+						}
+						_ = e.Lifetime()
+						_ = e.IsPurged()
+						_ = e.Sequence()
+						_ = e.Checksum()
+					}
+				}
+			}
+		})
+	}
+
+	time.Sleep(150 * time.Millisecond) // let the goroutines interleave; -race is the oracle
+	close(stop)
+	wg.Wait()
 }

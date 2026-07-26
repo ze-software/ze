@@ -17,6 +17,7 @@
 package lsdb
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
@@ -48,7 +49,15 @@ type Entry struct {
 	sequence types.SequenceNumber
 	// lifetime is the Remaining Lifetime in seconds, decremented once per second
 	// by the aging tick. 0 marks a purge (clause 7.3.16/17).
-	lifetime types.RemainingLifetime
+	//
+	// ATOMIC because it is one of only two fields mutated AFTER the entry is
+	// published in the database: the aging tick decrements it (aging.go) and a
+	// duplicate LSP refreshes it (lsdb.go, clause 7.3.16), both under the LSDB
+	// write lock, while Lifetime() is called with NO lock from SNP generation on
+	// the flooding goroutine. Every other metadata field is written once by
+	// replaceLocked before the entry is reachable, so a plain field is safe
+	// there; these two are not. Holds a uint16 value.
+	lifetime atomic.Uint32
 	// checksum is the LSP's stored Fletcher checksum (clause 7.3.11), the value
 	// CSNP/PSNP (isis-7) compare and the freshness compare uses as a tiebreak.
 	checksum uint16
@@ -64,10 +73,15 @@ type Entry struct {
 	// purged marks an LSP whose Remaining Lifetime has reached 0. It is kept in
 	// the database for the ZeroAgeLifetime grace period (NOT deleted at once) so
 	// a node that missed the purge cannot keep a stale copy (clause 7.3.16/17).
+	//
+	// ATOMIC for the same reason as lifetime: markPurgedLocked sets it on an
+	// already-published entry while IsPurged() is read with no lock from the
+	// show, SPF and DIS paths.
+	purged atomic.Bool
 	// receivedPurge distinguishes a purge that arrived on the wire (re-flood and
 	// retain) from a local expiry (garbage-collect): the two are handled by
-	// distinct paths (spec AC-9, R-2).
-	purged        bool
+	// distinct paths (spec AC-9, R-2). Plain: written only by replaceLocked
+	// before publication, and read only under the LSDB lock.
 	receivedPurge bool
 	// recvPurgeReflooded guards the one-shot tick-driven re-flood of a received
 	// purge: the receive path floods it once on arrival (SRM on other circuits),
@@ -105,8 +119,15 @@ func (e *Entry) LSPID() types.LSPID { return e.id }
 // Sequence returns the entry's LSP Sequence Number.
 func (e *Entry) Sequence() types.SequenceNumber { return e.sequence }
 
-// Lifetime returns the entry's current Remaining Lifetime in seconds.
-func (e *Entry) Lifetime() types.RemainingLifetime { return e.lifetime }
+// Lifetime returns the entry's current Remaining Lifetime in seconds. Safe to
+// call without the LSDB lock (see the lifetime field).
+func (e *Entry) Lifetime() types.RemainingLifetime {
+	return types.RemainingLifetime(e.lifetime.Load())
+}
+
+// setLifetime stores the Remaining Lifetime. Callers hold the LSDB write lock;
+// the atomic is for the benefit of unlocked READERS, not for write ordering.
+func (e *Entry) setLifetime(l types.RemainingLifetime) { e.lifetime.Store(uint32(l)) }
 
 // Checksum returns the entry's stored Fletcher checksum.
 func (e *Entry) Checksum() uint16 { return e.checksum }
@@ -121,7 +142,7 @@ func (e *Entry) IsOwn() bool { return e.own }
 
 // IsPurged reports whether the entry is in the zero-age purge state (Remaining
 // Lifetime 0, retained for the grace period).
-func (e *Entry) IsPurged() bool { return e.purged }
+func (e *Entry) IsPurged() bool { return e.purged.Load() }
 
 // IsReceivedPurge reports whether the entry's purge arrived on the wire (a
 // received purge, ISO/IEC 10589 clause 7.3.16) rather than from local expiry. A
@@ -197,7 +218,7 @@ func (e *Entry) compareFreshness(inSeq types.SequenceNumber, inLifetime types.Re
 	}
 	// Equal sequence numbers: the purge tiebreak (clause 7.3.16.1).
 	inPurge := inLifetime.IsPurge()
-	havePurge := e.lifetime.IsPurge()
+	havePurge := e.Lifetime().IsPurge()
 	switch {
 	case inPurge && !havePurge:
 		return Newer
