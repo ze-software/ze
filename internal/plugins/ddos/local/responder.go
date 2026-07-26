@@ -3,6 +3,7 @@
 package local
 
 import (
+	"errors"
 	"log/slog"
 	"net/netip"
 	"sync"
@@ -153,7 +154,16 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		// kernel still holds the previous rule and r.active falsely claims a live
 		// mitigation. Best-effort: log a second failure but do not spin.
 		registerTables(tableName, nil)
-		if rbErr := applyAll(); rbErr != nil {
+		// A wedged kernel is the one case where re-reconciling is worse than
+		// doing nothing: the registry rollback above has already made the
+		// desired state correct, and a second apply can only burn another full
+		// netlink deadline before failing the same way. The detector re-fires
+		// about once a second, so spending two deadlines here would leave an
+		// attack unmitigated for far longer than one. Registry state is right
+		// either way; the kernel catches up on the next successful reconcile.
+		if errors.Is(err, firewall.ErrKernelTimeout) {
+			logger().Error("ddos-local: kernel wedged, skipping rollback reconcile", "error", err, "phase", phase)
+		} else if rbErr := applyAll(); rbErr != nil {
 			logger().Error("ddos-local: rollback after failed apply also failed", "error", rbErr, "phase", phase)
 		}
 		r.active = false

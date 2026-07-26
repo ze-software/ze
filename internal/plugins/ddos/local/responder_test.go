@@ -338,3 +338,62 @@ func TestLocalRefusesUnresolvedVictim(t *testing.T) {
 		t.Error("registered term has no matches: that renders as an unconditional drop")
 	}
 }
+
+// TestKernelTimeoutSkipsRollbackReconcile pins R-8 of
+// fixit-firewall-concurrency-deadlock.
+//
+// VALIDATES: on a bounded-kernel timeout the responder rolls the REGISTRY back
+// but does not reconcile the kernel a second time; any other apply failure
+// still gets its rollback reconcile.
+//
+// PREVENTS: an attack going unmitigated for twice the netlink deadline.
+// Bounding Backend.Apply turned a hang into an error, and this failure path
+// answered that error by applying again -- which, against a wedged kernel,
+// simply burns a second full deadline before failing identically. The detector
+// re-fires about once a second, so two 10s deadlines is a very long time to
+// leave a drop uninstalled. The registry state is already correct after the
+// rollback registration, so the second apply buys nothing.
+func TestKernelTimeoutSkipsRollbackReconcile(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		applyErr  error
+		wantCalls int
+	}{
+		{"kernel timeout does not reconcile twice", firewall.ErrKernelTimeout, 1},
+		{"ordinary failure still rolls the kernel back", errors.New("EINVAL: bad rule"), 2},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			origReg, origApply := registerTables, applyAll
+			t.Cleanup(func() { registerTables, applyAll = origReg, origApply })
+
+			var registered []string
+			calls := 0
+			registerTables = func(name string, tables []firewall.Table) {
+				if tables == nil {
+					registered = append(registered, "withdraw:"+name)
+					return
+				}
+				registered = append(registered, "install:"+name)
+			}
+			applyAll = func() error { calls++; return tt.applyErr }
+
+			r := newResponder(&Config{ResponseLevel: responseEnforce}, nil)
+			r.applyMitigation(ddosevent.VectorTuple{
+				DstPrefix: netip.MustParsePrefix("10.0.0.1/32"),
+				Proto:     17,
+			}, ddosevent.FamilyUDPFlood, ddosevent.DirectionLocal, false, "detected")
+
+			if calls != tt.wantCalls {
+				t.Fatalf("applyAll called %d times, want %d", calls, tt.wantCalls)
+			}
+			// Either way the registry must end up withdrawn, so the desired
+			// state is correct even when the kernel is not reconciled.
+			if len(registered) != 2 || registered[1] != "withdraw:"+tableName {
+				t.Fatalf("registry not rolled back: %v", registered)
+			}
+			if r.active {
+				t.Fatal("a failed apply must not leave r.active claiming a live mitigation")
+			}
+		})
+	}
+}

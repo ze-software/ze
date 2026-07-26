@@ -26,7 +26,10 @@ type backend struct {
 }
 
 func newBackend() (firewall.Backend, error) {
-	conn, err := nftables.New()
+	// Every netlink round-trip is bounded: firewall.ApplyAll holds the
+	// process-wide reconcileMu across Apply, so an unbounded call would let a
+	// wedged kernel stall every firewall owner. See withNetlinkDeadline.
+	conn, err := nftables.New(withNetlinkDeadline(netlinkTimeout()))
 	if err != nil {
 		return nil, fmt.Errorf("firewallnft: open netlink: %w", err)
 	}
@@ -50,7 +53,7 @@ func (b *backend) Apply(desired []firewall.Table) error {
 	// List current ze_* tables.
 	currentTables, err := b.conn.ListTables()
 	if err != nil {
-		return fmt.Errorf("firewallnft: list tables: %w", err)
+		return fmt.Errorf("firewallnft: list tables: %w", asKernelTimeout(err))
 	}
 
 	// Delete only tables this Apply owns: current desired names and tables
@@ -71,7 +74,7 @@ func (b *backend) Apply(desired []firewall.Table) error {
 
 	// Commit all changes atomically.
 	if err := b.conn.Flush(); err != nil {
-		return fmt.Errorf("firewallnft: flush: %w", err)
+		return fmt.Errorf("firewallnft: flush: %w", asKernelTimeout(err))
 	}
 	b.applied = desiredNames
 	return nil

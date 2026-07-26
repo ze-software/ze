@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3108 files
+Total: 298 design docs, 3109 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1172,6 +1172,7 @@ Total: 298 design docs, 3108 files
 | `internal/plugins/fib/p4/fibp4.go` | FIB P4 plugin |
 | `internal/plugins/firewall/nft/backend_linux.go` | nftables backend Linux implementation |
 | `internal/plugins/firewall/nft/backend_other.go` | nftables backend stub for non-Linux |
+| `internal/plugins/firewall/nft/deadline_linux.go` | nftables backend Linux implementation |
 | `internal/plugins/firewall/nft/firewallnft.go` | nftables firewall backend plugin |
 | `internal/plugins/firewall/nft/host_netns_guard_linux.go` | nftables host-safety gate (R-2) |
 | `internal/plugins/firewall/nft/lower_linux.go` | nftables expression lowering |

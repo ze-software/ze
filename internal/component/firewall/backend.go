@@ -4,6 +4,7 @@
 package firewall
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -11,6 +12,17 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
+
+// ErrKernelTimeout reports that a Backend.Apply bounded a kernel round-trip
+// that never answered. It is part of the Backend contract rather than any one
+// backend's package so an owner can react to it without importing a backend.
+//
+// It exists because the caller's correct response differs from an ordinary
+// apply failure: on a timeout the registry's desired state is already correct
+// and only the kernel is behind, so re-applying cannot help and merely burns
+// another full deadline. An owner that rolls back MUST NOT reconcile again
+// after seeing this.
+var ErrKernelTimeout = errors.New("firewall: kernel did not answer within the backend deadline")
 
 // loggerPtr is the package-level logger, disabled by default.
 // Updated by the component's register.go when the plugin starts.

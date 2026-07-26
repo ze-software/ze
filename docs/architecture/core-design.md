@@ -931,6 +931,36 @@ Table ownership: ze tables are prefixed `ze_*`. Backends only touch `ze_*` table
 modify tables owned by other software (e.g., Lachesis). Apply receives the full desired state
 and reconciles against the kernel atomically.
 
+### Firewall reconcile concurrency
+
+Several owners register tables into one shared registry: the firewall engine, copp,
+policy-routes and ddos-local. `ApplyAll` merges every owner's tables and calls the backend
+once, so it serializes the whole snapshot-plus-apply behind a single process-wide
+`reconcileMu`. At most one `Apply` is ever in flight, which is why a backend may keep
+un-synchronized per-backend state; it also means no owner can land a stale snapshot over a
+newer one.
+
+The cost of that single-writer design is that `reconcileMu` is held for the entire kernel
+round-trip, so an `Apply` that never returns stalls *every* firewall owner, not merely
+concurrent reconciles of the same one. `Backend.Apply` therefore carries a hard obligation:
+bound every kernel call with a deadline and surface a timeout as an error. The nft backend
+does this with a per-dial netlink deadline (`ze.firewall.nft.netlink-timeout`, default 10s,
+clamped to 1..60s). Because ze's `nftables.Conn` is not lasting, a fresh netlink socket is
+dialed per operation and the deadline option is re-applied to each one, so every operation
+gets a full deadline rather than sharing one absolute instant.
+
+A timeout is reported as `firewall.ErrKernelTimeout`, which lives on the `Backend` contract
+rather than in a backend package so an owner can react without importing a backend. The
+distinction matters to callers: on a timeout the registry's desired state is already correct
+and only the kernel is behind, so re-applying cannot help and merely burns a second full
+deadline. ddos-local relies on this -- it rolls the registry back but skips the rollback
+reconcile, because its detector re-fires about once a second and spending two deadlines would
+leave an attack unmitigated far longer than one.
+<!-- source: internal/component/firewall/registry.go -- ApplyAll, reconcileMu -->
+<!-- source: internal/component/firewall/backend.go -- Backend.Apply contract, ErrKernelTimeout -->
+<!-- source: internal/plugins/firewall/nft/deadline_linux.go -- per-dial netlink deadline -->
+<!-- source: internal/plugins/ddos/local/responder.go -- rollback skips reconcile on a timeout -->
+
 The traffic component also has its own reactor (`internal/component/traffic/register.go`, spec-fw-9):
 `init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic/control"])`, and `runEngine`
 uses the SDK 5-stage protocol (`OnConfigure`, `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`)
