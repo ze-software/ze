@@ -180,6 +180,13 @@ var (
 // sendHoldTimerMin is the minimum Send Hold Timer duration per RFC 9687.
 const sendHoldTimerMin = 8 * time.Minute
 
+// holdGraceExtension is the bounded reprieve granted to a hold expiry that
+// arrives while the read loop has recently seen traffic: the daemon is
+// CPU-congested, not the peer. One grace window only -- the next expiry with no
+// intervening read tears the session down (RFC 4271 Section 8.2.2 Event 10).
+// Clamped to the negotiated hold time by GraceRearmHoldTimer.
+const holdGraceExtension = 10 * time.Second
+
 // Session manages a single BGP peer connection.
 //
 // It integrates the FSM, timers, and message I/O to drive the BGP
@@ -455,7 +462,14 @@ func NewSession(settings *PeerSettings) *Session {
 			sessionLogger().Info("hold timer extended: recent read activity (CPU congestion)",
 				"peer", s.settings.Address,
 			)
-			s.timers.ResetHoldTimer()
+			// GraceRearmHoldTimer, NOT ResetHoldTimer. fireHold has already
+			// cleared holdRunning before invoking this callback, and
+			// ResetHoldTimer early-returns on !holdRunning -- so calling it here
+			// re-armed nothing and left the session with NO hold timer, silently
+			// disabling dead-peer detection for the rest of its life. The grace
+			// path is the one re-arm that is allowed to run post-expiry; it is
+			// generation-checked, so a racing StopAll still wins.
+			s.timers.GraceRearmHoldTimer(holdGraceExtension)
 			return
 		}
 

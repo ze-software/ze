@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3107 files
+Total: 298 design docs, 3108 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -977,6 +977,7 @@ Total: 298 design docs, 3107 files
 | `internal/component/bgp/reactor/session_connection.go` | session connect, accept, teardown |
 | `internal/component/bgp/reactor/session_flow.go` | BGP session backpressure flow control |
 | `internal/component/bgp/reactor/session_handlers.go` | BGP message type handlers |
+| `internal/component/bgp/reactor/session_hold_grace_test.go` | BGP session hold-timer lifecycle |
 | `internal/component/bgp/reactor/session_negotiate.go` | BGP capability negotiation |
 | `internal/component/bgp/reactor/session_open_validation.go` | BGP OPEN message validation |
 | `internal/component/bgp/reactor/session_prefix.go` | prefix limit enforcement (RFC 4486) |
