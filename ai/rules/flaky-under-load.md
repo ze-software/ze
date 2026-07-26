@@ -2,8 +2,15 @@
 
 **When:** a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in isolation.
 **Severity:** advisory
+**Related:** fix-dont-record, no-parking, testing
 
 ## Directives
+
+**This rule is about DIAGNOSING such a failure. The outcome is always a fix.**
+Load-dependence is the diagnosis -- the test asserts on elapsed time instead of
+on state -- and `ai/rules/fix-dont-record.md` bans recording it as a
+`plan/known-failures/` shard, bans "passes in isolation" as a conclusion, and
+bans raising the timeout. Reproduce here, then go fix the timing assumption.
 
 Some failures only surface under the scheduling and GC pressure of the full
 ~22-suite run (many concurrent `ze` daemons on all cores). Rerunning the single
@@ -58,7 +65,9 @@ once (no `ZE_TEST_NO_BUILD`) rebuilds both binaries.
   path is `json.Marshal` + `append` with no 512-cap buffer.
 - **If it will not reproduce under stress AND the site is statically clear,**
   suspect misattribution (the aggregator tagged another concurrent suite's crash
-  to this one) or an already-landed fix, and say so in `plan/known-failures/`
-  rather than "fixing" a phantom.
+  to this one) or an already-landed fix, rather than "fixing" a phantom. That is
+  the one case a shard may record, and only while you are still driving it
+  (`ai/rules/fix-dont-record.md`). It does not apply once you can name load as
+  the cause: that is a mechanism, and it gets fixed.
 - A genuine reproduction's log (`tmp/stress-repro/…`) carries the real stack —
   attach it when filing or fixing the bug.

@@ -1557,10 +1557,11 @@ A record earns its length from what a future reader must DO, never from what you
 
 ## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
 `ai/rules/flaky-under-load.md`
-**When:** a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in isolation. — **Severity:** advisory
+**When:** a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in isolation. — **Severity:** advisory — **Related:** fix-dont-record, no-parking, testing
 
 ## Directives
-Some failures only surface under the scheduling and GC pressure of the full ~22-suite run (many concurrent `ze` daemons on all cores).
+**This rule is about DIAGNOSING such a failure. The outcome is always a fix.**
+Load-dependence is the diagnosis -- the test asserts on elapsed time instead of on state -- and `ai/rules/fix-dont-record.md` bans recording it as a `plan/known-failures/` shard, bans "passes in isolation" as a...
 ## Use the stress reproducer, not the full suite
 `scripts/dev/stress-repro.py <suite>` recreates that pressure cheaply: CPU + GC "burner" processes oversubscribe every core while many concurrent copies of one suite loop, and it captures the FIRST failure's complete,...
 **A crash is not the only reproduction.** By default only a CRASH signature
