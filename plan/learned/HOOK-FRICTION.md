@@ -713,6 +713,43 @@ tag"), rather than letting the daemon start and the assertion time out. The
 `--server`/`--client` debug hints it prints on failure inherit the same problem
 and would mislead the same way.
 
+### F18: the RFC audit-freshness fingerprint covers the whole file, so untouched tests go stale
+
+**Friction:** `make ze-rfc-check` and `TestRFCRequirementsGate` both failed with
+"RFC7606-2-5 has a STALE audit verdict -- the requirement text or a tagged test
+changed since it was judged". Neither had. The requirement's own
+`requirement_sha` was byte-identical (`a8534d7b2f2b4ae6`), and `git log -p`
+showed ZERO changed lines in `TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute` or
+its two `RFC requirement:` tags. What changed was an unrelated test in the same
+file: `b8f64e345` added a `maxMsgID` argument to `buildReplayRoutes` call sites
+elsewhere in `adj_rib_in/rib_test.go`.
+
+The mechanism is documented and deliberate: `tagged_unit_shas`
+(`scripts/dev/rfc_requirements.py`) says "Coarse on purpose: the whole enclosing
+file, not the function. Over-triggering costs a re-read; under-triggering ships a
+verdict for a test that has since changed." The bias is the right one -- a false
+"fresh" would ship an unenforced compliance claim.
+
+**Pattern:** a correctly-designed over-trigger whose COST is silent. The failure
+text names two possible causes ("the requirement text or a tagged test changed")
+and neither had, so the reader must re-derive that a third thing -- a sibling
+test in the same file -- is what moved. This is the SECOND time for this exact
+requirement: the verdict's own note records the same thing on 2026-07-22, when a
+package-qualifier rename in the tagged files triggered it.
+
+**Workaround used:** re-read both halves of the tagged test, confirm it still
+fails if the implementation stops complying (the negative feeds
+`message.SynthesizeWithdraw` of a malformed-ORIGIN re-announce and asserts
+`ribIn[peer].Len()==0`), then re-stamp `rfc/audit/rfc7606.json` with the new file
+sha, verdict unchanged.
+
+**Proposed fix:** keep the coarse hash, improve the message. When
+`requirement_sha` still matches, the checker already knows the requirement text
+is not what moved, and it could say so: "the requirement text is unchanged; a
+tagged test's enclosing FILE changed (possibly a sibling test) -- re-read the
+tagged test and re-stamp if it still enforces". That is a message change, not a
+semantics change, and it would have removed the whole investigation both times.
+
 
 ## Filed 2026-07-22 (plan-review session): two frictions
 
