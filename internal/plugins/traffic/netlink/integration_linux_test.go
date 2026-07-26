@@ -98,26 +98,32 @@ func addTrafficVeth(t *testing.T, name, peer string) netlink.Link {
 func movePeerToNetNS(t *testing.T, peer string, addr *netlink.Addr) {
 	t.Helper()
 
-	origNS, err := netns.Get()
+	// testNS is the namespace withTrafficNetNS put us in, and every later
+	// netns.Set here returns to it. Its fd must outlive this function: the
+	// cleanup below uses it. Closing it on return (a plain `defer`) leaves the
+	// cleanup setting a closed fd, which reports as "bad file descriptor".
+	testNS, err := netns.Get()
 	if err != nil {
 		t.Fatalf("get current namespace: %v", err)
 	}
-	defer origNS.Close()
 
 	nsName := trafficNetNSName(t.Name()) + "_peer"
 	peerNS, err := netns.NewNamed(nsName)
 	if err != nil {
+		testNS.Close()
 		t.Skipf("requires CAP_NET_ADMIN: cannot create peer namespace: %v", err)
 	}
 	// NewNamed switches us into the new namespace; go back before touching the
 	// peer link, which is still in the original one.
-	if setErr := netns.Set(origNS); setErr != nil {
+	if setErr := netns.Set(testNS); setErr != nil {
+		testNS.Close()
 		t.Fatalf("restore namespace after creating %s: %v", nsName, setErr)
 	}
 	t.Cleanup(func() {
-		if restoreErr := netns.Set(origNS); restoreErr != nil {
+		if restoreErr := netns.Set(testNS); restoreErr != nil {
 			t.Errorf("restore namespace: %v", restoreErr)
 		}
+		testNS.Close()
 		peerNS.Close()
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 	})
@@ -134,7 +140,7 @@ func movePeerToNetNS(t *testing.T, peer string, addr *netlink.Addr) {
 		t.Fatalf("enter peer namespace: %v", err)
 	}
 	defer func() {
-		if restoreErr := netns.Set(origNS); restoreErr != nil {
+		if restoreErr := netns.Set(testNS); restoreErr != nil {
 			t.Fatalf("restore namespace after peer setup: %v", restoreErr)
 		}
 	}()
