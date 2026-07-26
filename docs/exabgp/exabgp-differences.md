@@ -8,41 +8,30 @@ due to these differences, update the `.ci` files to match ZeBGP's behavior.
 
 ---
 
-## Attribute Ordering in UPDATE Messages
+## Attribute Ordering in UPDATE Messages -- RESOLVED, no longer a difference
 
-**ExaBGP behavior:**
-- Sorts path attributes by type code before packing
-- Order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), MED(4), LOCAL_PREF(5), ... MP_REACH_NLRI(14), ... LARGE_COMMUNITY(32)
+This entry described Ze emitting attributes in RFC 4271 Section 5 description
+order (MP_REACH_NLRI after LARGE_COMMUNITY) while ExaBGP sorted by type code.
+That is no longer true, and the entry is kept only so the change is traceable.
 
-**ZeBGP behavior:**
-- Adds attributes in a fixed logical order during construction
-- Order follows RFC 4271 Section 5 description order, then optional attributes
-- MP_REACH_NLRI added after LARGE_COMMUNITY (for IPv6 routes)
+Ze now keeps attributes in ascending type-code order in every builder, which is
+what ExaBGP does and what RFC 4271 Appendix F.3 describes:
 
-**Example difference:**
-```
-ExaBGP:  ORIGIN, AS_PATH, LOCAL_PREF, MP_REACH_NLRI, LARGE_COMMUNITY
-ZeBGP:   ORIGIN, AS_PATH, LOCAL_PREF, LARGE_COMMUNITY, MP_REACH_NLRI
-```
+- `internal/component/bgp/message/update_build.go` sorts explicitly by `Code()`.
+- `internal/component/bgp/reactor/reactor_api_batch.go` appends MP_REACH_NLRI
+  (14) after the lower-coded attributes it emits, and AS4_PATH (17) last.
+- `internal/component/bgp/reactor/peer_rib_routes.go` writes MP_REACH_NLRI
+  between the lower-coded optional attributes (ATOMIC_AGGREGATE 6, AGGREGATOR 7,
+  COMMUNITIES 8, ORIGINATOR_ID 9, CLUSTER_LIST 10) and the higher-coded ones
+  (EXT_COMMUNITIES 16, IPV6_EXT_COMMUNITIES 25, LARGE_COMMUNITIES 32).
 
-**RFC compliance:**
-- RFC 4271 does NOT mandate attribute ordering
-- Both orderings are valid per specification
-- Most BGP implementations accept any ordering
-
-**Impact:**
-- `.ci` test files may need updating to match ZeBGP's attribute order
-- Wire bytes will differ but semantic meaning is identical
-
-**Files affected:**
-- `internal/component/bgp/reactor/reactor.go` - `buildAnnounceUpdate()`
-- `test/api/*.ci` - Expected message files
-
-**Decision rationale:**
-1. Fixed order is simpler to implement and maintain
-2. No runtime sorting overhead
-3. RFC-compliant (ordering is not mandated)
-4. Peers must accept any valid ordering per RFC
+The third builder was the last one out of order. Which of the three runs is
+decided by `Peer.ShouldQueue()`, that is by timing, so one route encoded to two
+different byte strings depending on whether it drained through the initial-sync
+queue or the post-establishment batch builder. Aligning it removed both the
+ExaBGP difference and the non-determinism.
+<!-- source: internal/component/bgp/message/update_build.go -- sort.Slice by Code(), "per RFC 4271 Appendix F.3" -->
+<!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- MP_REACH written between lower- and higher-coded attributes -->
 
 ---
 

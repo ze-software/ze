@@ -35,6 +35,22 @@ traffic {
 
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 
+## tc Backend: Original Qdisc Snapshot
+
+Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (`exact-or-reject.md`).
+
+`noqueue` is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied *from*. It carries no reconstructable parameters, but it is the *absence* of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to `noqueue`. Adding a qdisc named `noqueue` is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.
+
+Other `GenericQdisc` types (`mq`, `clsact`, ...) stay rejected: those carry state this backend cannot reproduce.
+<!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- newQdiscSnapshot, tcQdiscSnapshot.restoredByDelete -->
+
+## tc Backend: Filter Priorities
+
+The kernel keeps exactly one `tcf_proto` per (parent, priority), and that instance carries a single link-layer protocol (`tcf_chain_tp_find`, `net/sched/cls_api.c`). A second filter at the same priority with a different protocol is rejected with `EINVAL`.
+
+Ze therefore allocates one priority per link-layer protocol: the IPv4 (`ETH_P_IP`) and IPv6 (`ETH_P_IPV6`) halves of a DSCP or protocol match get distinct priorities, as does a mark filter (`ETH_P_ALL`). With a shared priority the qdisc and class were created, the IPv4 filter was accepted, and the IPv6 filter at the same priority was refused.
+<!-- source: internal/plugins/traffic/netlink/translate_linux.go -- u32FilterPair, FilterMark -->
+
 ## VPP Backend: Compatibility Matrix
 
 The VPP backend rejects qdisc and filter types that cannot be represented

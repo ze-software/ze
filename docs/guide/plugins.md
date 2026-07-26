@@ -651,6 +651,32 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 
+## Exclusive Roles
+
+When two plugins both implement a behaviour but only one should run it, the plugin that takes over declares the role in its static registration (`Claims`), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with `sdk.Plugin.ClaimActive(role)` from its `OnConfigure` handler.
+
+Stage 2 is part of the sequential handshake, so the decision is recorded before any plugin sends Stage-5 ready and therefore before the engine starts peers. A handler reading it during a runtime event always sees the final answer.
+
+`bgp-rs` claims `bgp-peer-up-replay`; `bgp-adj-rib-in` stands its own replay down when that claim is active. The decision must not be re-derived from `OnAllPluginsReady`: that callback is fanned out on detached goroutines that race session establishment, and when the ownership decision was taken there both plugins replayed, so a peer received a byte-identical duplicate UPDATE. An unclaimed or unresolvable role reads `false`, which is the fail-closed direction: nobody promised to do this, so keep doing it yourself.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Claims -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.ClaimActive -->
+
+## Peer-Up Barrier
+
+A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".
+
+`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is a separate counter from the API-sync wait, which counts plugins that send routes: merging them would let a route sender's signal satisfy a registrar's obligation.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+
+## Startup Timing
+
+Each handshake stage is bounded by progress, not by wall clock. A stage fails only when the whole startup tier goes `ze.plugin.stage.timeout` (default 5s) without any plugin completing a stage; every completion re-arms the window. A BGP config puts twenty or more plugins in one tier (`bgp`, `bgp-bmp`, `bgp-rpki`, every `bgp-filter-*`), and a flat per-tier budget meant a CPU-starved or slow-disk host could lose all of them at once and come up with its BGP plugins missing.
+
+The wait stays bounded three ways: a repeated stage completion is ignored, so a looping plugin cannot hold the window open; a wedged tier trips within one timeout of the last progress; and shutdown ends the wait. Worst case is `(plugins + 1) x timeout` per stage.
+<!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress -->
+<!-- source: internal/component/plugin/server/server.go -- ze.plugin.stage.timeout -->
+
 ## Debugging Plugins
 
 The plugin debug shell lets you manually interact with the engine using the plugin protocol. This is useful when debugging plugin code -- you can send individual commands and inspect responses.
