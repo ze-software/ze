@@ -65,7 +65,13 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			t.Fatalf("root qdisc = %q, want htb", got)
 		}
 
-		filters, err := netlink.FilterList(link, netlink.HANDLE_ROOT)
+		// Query the HTB root HANDLE (1:0), which is the parent applyInterface
+		// attaches filters to (backend_linux.go:148 passes rootQdisc's Handle).
+		// HANDLE_ROOT does NOT match them: it returned 0 filters while 1:0 returned
+		// both, so the long-standing "no u32 filters installed" failure was this
+		// query, not the backend. The assertions below are unchanged -- still
+		// >= 2 U32 filters, still one per address family.
+		filters, err := netlink.FilterList(link, netlink.MakeHandle(1, 0))
 		if err != nil {
 			t.Fatalf("FilterList: %v", err)
 		}
@@ -77,28 +83,18 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			}
 		}
 		if u32Count == 0 {
-			// Report WHAT came back, not merely that no U32 did. "no u32 filters" is
-			// equally consistent with three causes -- nothing was installed, the
-			// filters hang off a parent this query does not cover, or the library
-			// decoded them as some other type -- and the bare message cannot tell
-			// them apart, which is why this failure survived several QEMU runs
-			// undiagnosed. Also query the HTB root HANDLE, since that is the parent
-			// applyInterface actually attaches to (backend_linux.go:148 passes
-			// rootHandle, not HANDLE_ROOT).
-			describe := func(fs []netlink.Filter) []string {
-				out := make([]string, 0, len(fs))
-				for _, f := range fs {
-					a := f.Attrs()
-					out = append(out, fmt.Sprintf("%T(kind=%s parent=%#x prio=%d proto=%#04x)",
-						f, f.Type(), a.Parent, a.Priority, a.Protocol))
-				}
-				return out
+			// Report WHAT came back rather than only that no U32 did: "no u32 filters"
+			// is equally consistent with nothing being installed, with the filters
+			// hanging off a parent this query does not cover, and with the library
+			// decoding them as another type. Telling those apart is what identified the
+			// HANDLE_ROOT query above as the actual fault.
+			got := make([]string, 0, len(filters))
+			for _, f := range filters {
+				a := f.Attrs()
+				got = append(got, fmt.Sprintf("%T(kind=%s parent=%#x prio=%d proto=%#04x)",
+					f, f.Type(), a.Parent, a.Priority, a.Protocol))
 			}
-			byHandle, handleErr := netlink.FilterList(link, netlink.MakeHandle(1, 0))
-			t.Fatalf("no u32 filters installed (the bug: translateFilter produced U32 with no Sel)\n"+
-				"  parent=HANDLE_ROOT returned %d filter(s): %v\n"+
-				"  parent=1:0        returned %d filter(s): %v (err=%v)",
-				len(filters), describe(filters), len(byHandle), describe(byHandle), handleErr)
+			t.Fatalf("no u32 filters installed under parent 1:0 (the bug: translateFilter produced U32 with no Sel)\n  returned %d filter(s): %v", len(filters), got)
 		}
 		if u32Count < 2 {
 			t.Errorf("u32 filter count = %d, want >= 2 (IPv4 + IPv6)", u32Count)
