@@ -39,12 +39,19 @@ func equalStrings(a, b []string) bool {
 }
 
 func newTestManager() *probeManager {
-	return &probeManager{
+	m := &probeManager{
 		probes: make(map[string]*runningProbe),
+		ready:  make(chan struct{}),
 		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return statusDone, nil, nil
 		},
 	}
+	// These tests drive the manager directly instead of through RunHealthcheckPlugin,
+	// so nothing delivers the OnAllPluginsReady callback that normally releases the
+	// probe loops (see waitReady). Release it here: the startup handshake this gate
+	// protects does not exist in a unit test.
+	m.markReady()
+	return m
 }
 
 func TestLifecycleStartAndStop(t *testing.T) {
@@ -238,6 +245,7 @@ func TestDebounce(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  realIPManager{},
+		ready:  make(chan struct{}),
 		dispatchFn: func(_ context.Context, cmd string, args []string, peer string) (string, json.RawMessage, error) {
 			mu.Lock()
 			dispatches = append(dispatches, dispatchCall{command: cmd, args: append([]string(nil), args...), peer: peer})
@@ -245,6 +253,9 @@ func TestDebounce(t *testing.T) {
 			return statusDone, nil, nil
 		},
 	}
+	// This test drives runProbe directly, with no startup handshake to release the
+	// probe-loop gate (see waitReady). Release it explicitly.
+	mgr.markReady()
 
 	// Probe that succeeds immediately (rise=1), debounce=true, interval=1.
 	// After first UP dispatch, subsequent intervals should NOT dispatch again.

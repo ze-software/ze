@@ -80,6 +80,16 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 		return mgr.handleCommand(command, args)
 	})
 
+	// Probes dispatch "request bgp watchdog announce/withdraw" -- a command owned
+	// by the bgp-watchdog plugin -- so they may only run once the engine has
+	// finished every startup phase and frozen the dispatcher command registry
+	// (ai/rules/plugin-design.md, OnStarted vs OnAllPluginsReady). applyConfig
+	// still starts the goroutines at stage 2; markReady is what lets them act.
+	p.OnAllPluginsReady(func() error {
+		mgr.markReady()
+		return nil
+	})
+
 	logger().Info("healthcheck plugin starting")
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -105,6 +115,12 @@ type probeManager struct {
 	internal   bool                                                                                                   // true = goroutine mode (ip-setup allowed)
 	dispatchFn func(ctx context.Context, command string, args []string, peer string) (string, json.RawMessage, error) // injectable for tests
 	ipMgr      ipManager                                                                                              // injectable for tests
+
+	// ready is closed once the plugin's 5-stage startup handshake has completed
+	// (OnAllPluginsReady). Probe loops block on it before their first dispatch so
+	// they cannot write a command frame into the stage-5 stream -- see waitReady.
+	ready     chan struct{}
+	readyOnce sync.Once
 }
 
 // runningProbe tracks a running probe goroutine.
@@ -121,11 +137,48 @@ func newProbeManager(p *sdk.Plugin, internal bool) *probeManager {
 		probes:   make(map[string]*runningProbe),
 		internal: internal,
 		ipMgr:    realIPManager{},
+		ready:    make(chan struct{}),
 	}
 	mgr.dispatchFn = func(ctx context.Context, command string, args []string, peer string) (string, json.RawMessage, error) {
 		return p.DispatchCommandArgs(ctx, command, args, peer)
 	}
 	return mgr
+}
+
+// markReady releases the probe loops. Idempotent: the engine sends the
+// post-startup callback once per process, but a defensive second call (or a
+// test calling it directly) must not panic on a double close.
+func (m *probeManager) markReady() {
+	m.readyOnce.Do(func() { close(m.ready) })
+}
+
+// waitReady blocks until the plugin's startup handshake has completed, or the
+// probe is canceled. It reports false when the probe should stop.
+//
+// A probe MUST NOT dispatch before this returns true. applyConfig runs from
+// OnConfigure -- stage 2 of the 5-stage startup protocol -- so a probe goroutine
+// started there is live while stages 3, 4 and 5 are still on the wire. With
+// interval 1 and rise 1 a probe reaches UP and dispatches inside that window;
+// the dispatch frame then lands in the stream the engine is reading for the
+// stage-5 `ready` RPC, which fails startup outright:
+//
+//	dispatch failed ... error="rpc error: expected ready, got ze-plugin-engine:dispatch-command-args"
+//	plugin startup failed ... plugin=bgp-healthcheck stage=Ready
+//
+// after which every later dispatch gets "mux conn read error: EOF" and the
+// plugin is dead for the process lifetime. Only load makes the window wide
+// enough to hit, which is why it surfaced under scripts/dev/stress-repro.py and
+// not in a quiet run. ai/rules/plugin-design.md states the rule this restores:
+// a DispatchCommand aimed at another plugin's command (here bgp-watchdog's
+// "request bgp watchdog announce") belongs after the dispatcher command
+// registry is frozen, which is what OnAllPluginsReady signals.
+func (m *probeManager) waitReady(ctx context.Context) bool {
+	select {
+	case <-m.ready:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // validateConfig checks that the configuration is valid for the current plugin mode.
@@ -183,6 +236,13 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
 	defer close(rp.done)
 	cfg := rp.config
+
+	// Hold every probe until the startup handshake is done: this goroutine was
+	// started from OnConfigure (stage 2) and must not put a command frame on the
+	// wire while stages 3-5 are still using it. See waitReady.
+	if !m.waitReady(ctx) {
+		return
+	}
 
 	f := newFSM(cfg.Rise, cfg.Fall)
 
