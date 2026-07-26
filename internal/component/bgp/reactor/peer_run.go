@@ -250,6 +250,8 @@ func (p *Peer) runOnce() error {
 		// This is needed because session.Teardown() may return before the old
 		// sendInitialRoutes() goroutine finishes its 500ms sleep.
 		p.sendingInitialRoutes.Store(0)
+		// A new session owes the peer a fresh End-of-RIB per family.
+		p.resetInitialSyncEOR()
 		p.mu.Lock()
 		p.session = nil
 		p.mu.Unlock()

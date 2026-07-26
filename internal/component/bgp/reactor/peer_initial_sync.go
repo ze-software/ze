@@ -370,7 +370,18 @@ func (p *Peer) sendInitialRoutes() {
 	// waits on (test/scripts/ze_api.py wait_peer_eor_sent).
 	families := nc.Families()
 	for _, fam := range families {
+		// Claim BEFORE sending. A route server announcing EoR when its replay
+		// finishes reaches the same wire through AnnounceEOR, and RFC 4724
+		// Section 2 allows one End-of-RIB per family per session.
+		if !p.ClaimInitialSyncEOR(fam) {
+			routesLogger().Debug("end-of-rib already sent for this session, skipping",
+				"peer", addr, "family", fam, "phase", "initial-sync")
+			continue
+		}
 		if err := sendFn(message.BuildEOR(fam)); err != nil {
+			// Hand the claim back: nothing reached the wire, so the other
+			// producer must still be allowed to deliver the marker.
+			p.ReleaseInitialSyncEOR(fam)
 			routesLogger().Warn("end-of-rib send failed",
 				"peer", addr, "family", fam, "phase", "initial-sync", "error", err)
 			break

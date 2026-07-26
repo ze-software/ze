@@ -75,7 +75,8 @@ var errForwardNoSource = errors.New("forward: source peer is not an established 
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
 func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8) error {
-	update := message.BuildEOR(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
+	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
+	update := message.BuildEOR(fam)
 
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
@@ -103,7 +104,22 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 			sentCount++
 			continue
 		}
+		// Second gate, and NOT a replacement for the first. ShouldQueue keeps the
+		// ORDER right (this EoR must not overtake still-queued route NLRI); the
+		// claim keeps the COUNT right (RFC 4724 Section 2: one End-of-RIB per
+		// family per session). They fire in different windows: once initial sync
+		// clears ShouldQueue, sendInitialRoutes has already sent and claimed this
+		// family, so a route-server replay finishing later used to sail through
+		// and put a second identical marker on the wire. Claiming here is also the
+		// recovery path -- if the initial-sync send failed it released the claim,
+		// so this producer legitimately takes it.
+		if !peer.ClaimInitialSyncEOR(fam) {
+			sentCount++
+			continue
+		}
 		if err := peer.SendUpdate(update); err != nil {
+			// Release, or the family stays marked and the peer never gets it.
+			peer.ReleaseInitialSyncEOR(fam)
 			errs = append(errs, err)
 		} else {
 			peer.IncrEORSent()

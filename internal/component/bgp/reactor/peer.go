@@ -231,6 +231,24 @@ type Peer struct {
 	// on every reconnection, storing them would cause duplicates).
 	sendingConfigStatic atomic.Bool
 
+	// initialSyncEOR records, per family, that THIS session's initial sync has
+	// already put an End-of-RIB on the wire. RFC 4724 Section 2 allows exactly one
+	// per family per session, and there are two producers: sendInitialRoutes'
+	// own loop, and a route server announcing EoR when its replay finishes
+	// (rs/server_handlers.go sendEOR -> AnnounceEOR).
+	//
+	// It replaces a TIME-WINDOW test as the de-duplicator. AnnounceEOR gated on
+	// ShouldQueue(), i.e. on sendingInitialRoutes still being non-zero; when the
+	// route-server replay finished after that flag cleared, the guard failed open
+	// and the peer received the same family's EoR twice
+	// (ai/rules/fail-closed-guards.md). Whether the marker is already on the wire
+	// is a FACT about this session, not a question about how long ago something
+	// started, so it is recorded as one.
+	//
+	// Guarded by mu. Reset with the session in runOnce's teardown defer, so a
+	// reconnect legitimately sends EoR again.
+	initialSyncEOR map[family.Family]bool
+
 	// API sync for EOR: wait for API processes to finish initial routes before EOR.
 	// Reset on each session establishment, signaled by "plugin session ready" commands.
 	apiSyncExpected  int32         // Number of ready signals expected (processes with SendUpdate)
@@ -931,6 +949,49 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 	p.mu.Unlock()
 	routesLogger().Warn("opQueue full, dropping teardown", "peer", p.settings.Address)
 	return ErrOpQueueFull
+}
+
+// ClaimInitialSyncEOR records that an End-of-RIB for fam is about to go on the
+// wire for THIS session, and reports whether the caller is the one that may send
+// it. It returns false when the marker has already been sent, so the second
+// producer stands down instead of duplicating it (RFC 4724 Section 2: one
+// End-of-RIB per family per session).
+//
+// Claim-then-send, not send-then-mark: the two producers run on different
+// goroutines (sendInitialRoutes, and the route server's replay goroutine via
+// AnnounceEOR), so the check and the record must be one atomic step or both can
+// pass the check before either marks.
+//
+// A caller whose send then FAILS should release the claim with
+// ReleaseInitialSyncEOR, otherwise the family is left marked and the peer never
+// receives the marker at all.
+func (p *Peer) ClaimInitialSyncEOR(fam family.Family) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.initialSyncEOR == nil {
+		p.initialSyncEOR = make(map[family.Family]bool, 2)
+	}
+	if p.initialSyncEOR[fam] {
+		return false
+	}
+	p.initialSyncEOR[fam] = true
+	return true
+}
+
+// ReleaseInitialSyncEOR undoes a claim whose send failed, so the other producer
+// may still deliver the marker. Pairs with ClaimInitialSyncEOR.
+func (p *Peer) ReleaseInitialSyncEOR(fam family.Family) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.initialSyncEOR, fam)
+}
+
+// resetInitialSyncEOR clears every claim, so the next session sends End-of-RIB
+// again. Called from the session teardown defer alongside sendingInitialRoutes.
+func (p *Peer) resetInitialSyncEOR() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.initialSyncEOR = nil
 }
 
 // ShouldQueue returns true if routes should be queued rather than sent directly.
