@@ -8,6 +8,33 @@ import (
 	"testing"
 )
 
+// fakeLoopbackMount models what a real `mount -o loop,ro` makes VISIBLE, not just
+// that it succeeded.
+//
+// tryLoopbackVerify (diskverify.go:84) runs the mount through runExternalFn and
+// then STATS <mountDir>/ze/database.zefs with a real syscall. A stub that only
+// reports success therefore leaves that check looking at an empty directory, and
+// injectZeFS fails "loopback verify: ze/database.zefs not found". It never showed
+// up on the dev host because the function returns early off Linux or when not
+// root -- so it first appeared when the QEMU unit phase, which runs as root, was
+// repaired and executed. Same principle as the debugfs stub below: model the
+// tool's effect, not merely its exit code.
+func fakeLoopbackMount(name string, args []string, dbContent []byte) {
+	if len(args) == 0 {
+		return
+	}
+	mountDir := args[len(args)-1]
+	switch name {
+	case "mount":
+		if err := os.MkdirAll(filepath.Join(mountDir, "ze"), 0o700); err != nil {
+			return
+		}
+		os.WriteFile(filepath.Join(mountDir, "ze", "database.zefs"), dbContent, 0o600) //nolint:errcheck,gosec // test fixture
+	case "umount":
+		os.RemoveAll(filepath.Join(mountDir, "ze")) //nolint:errcheck // test cleanup
+	}
+}
+
 // useE2FSDir points every e2fsprogs tool at dir for the duration of the test, or
 // marks them all absent when dir is "".
 //
@@ -369,6 +396,7 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 		if base == "mkfs.ext4" {
 			mkfsArgs = append([]string{}, args...)
 		}
+		fakeLoopbackMount(base, args, dbContent)
 		if base == "debugfs" {
 			for _, a := range args {
 				if len(a) > 6 && a[:6] == "write " {
@@ -504,6 +532,7 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 		if filepath.Base(name) == "mkfs.ext4" {
 			mkfsArgs = append([]string{}, args...)
 		}
+		fakeLoopbackMount(filepath.Base(name), args, dbContent)
 		if filepath.Base(name) == "debugfs" {
 			for _, a := range args {
 				if len(a) > 6 && a[:6] == "write " {
@@ -618,6 +647,7 @@ func TestInjectZeFSBakesManifest(t *testing.T) {
 	var writes []string
 	old := runExternalFn
 	runExternalFn = func(name string, args ...string) ([]byte, error) {
+		fakeLoopbackMount(filepath.Base(name), args, dbContent)
 		if filepath.Base(name) == "debugfs" {
 			for _, a := range args {
 				if len(a) > 6 && a[:6] == "write " {
@@ -692,6 +722,7 @@ func TestInjectZeFSNoManifest(t *testing.T) {
 	sawManifest := false
 	old := runExternalFn
 	runExternalFn = func(name string, args ...string) ([]byte, error) {
+		fakeLoopbackMount(filepath.Base(name), args, dbContent)
 		if filepath.Base(name) == "debugfs" {
 			for _, a := range args {
 				if len(a) > 6 && a[:6] == "write " {
