@@ -132,13 +132,31 @@ func TestOSPFv3TransportAllDRoutersReceive(t *testing.T) {
 
 // openWithRetry opens the interface, retrying while the link-local source is still
 // tentative (IPv6 DAD, ErrNoLinkLocal) -- validates A-7.
+//
+// It now waits for DAD to actually COMPLETE, which is what the sentence above
+// always claimed. It only ever retried on ErrNoLinkLocal, and that is returned
+// solely when the interface has NO link-local at all; interfaceLinkLocal returns
+// a tentative address happily. So on a veth created moments earlier the open
+// succeeded with an address still in DAD, which the kernel refuses as a packet
+// source, and the first Send failed `sendmsg: invalid argument`. Real OSPF waits
+// out its hello timers before sending; only this test is fast enough to race DAD.
 func openWithRetry(t *testing.T, backend Backend, name, _ string) InterfaceHandle {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		h, err := backend.OpenInterface(name, nil)
 		if err == nil {
-			return h
+			if _, tentative, llErr := interfaceLinkLocal(name); llErr == nil && !tentative {
+				return h
+			}
+			// Close and retry rather than hold a handle bound to an unusable
+			// source; the next open latches the DAD-complete address.
+			h.Close() //nolint:errcheck // discarded handle, retrying
+			if time.Now().After(deadline) {
+				t.Fatalf("OpenInterface(%s): link-local still tentative after DAD deadline; %s", name, describeLinkLocals(name))
+			}
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
 		if !errors.Is(err, ErrNoLinkLocal) || time.Now().After(deadline) {
 			t.Fatalf("OpenInterface(%s): %v", name, err)

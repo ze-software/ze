@@ -42,6 +42,11 @@ var (
 type resolvedInterface struct {
 	ifi       *net.Interface
 	linkLocal netip.Addr
+	// tentative records that linkLocal was still in IPv6 DAD when it was
+	// resolved. The kernel REJECTS a tentative address as a packet source
+	// (sendmsg returns EINVAL), so a handle holding one cannot send until DAD
+	// completes -- see linuxInterface.LinkLocalSource.
+	tentative bool
 }
 
 // resolveOSPFv3Interface resolves a logical OSPFv3 interface name through the
@@ -64,29 +69,31 @@ func resolveOSPFv3Interface(name string) (resolvedInterface, error) {
 	if osName == "" {
 		osName = name
 	}
-	ll, err := interfaceLinkLocal(name)
+	ll, tentative, err := interfaceLinkLocal(name)
 	if err != nil {
 		return resolvedInterface{}, err
 	}
 	// A minimal *net.Interface (index + name) is all ipv6.PacketConn needs for
 	// JoinGroup / SetMulticastInterface / the WriteTo ControlMessage; avoid a
 	// net.InterfaceByName lookup so resolution stays driven by the iface resolver.
-	return resolvedInterface{ifi: &net.Interface{Index: b.Ifindex, Name: osName}, linkLocal: ll}, nil
+	return resolvedInterface{ifi: &net.Interface{Index: b.Ifindex, Name: osName}, linkLocal: ll, tentative: tentative}, nil
 }
 
 // interfaceLinkLocal returns the interface's IPv6 link-local (fe80::/10) source, using the
 // resolver's LinkLocal classifier and preferring a DAD-complete address over a tentative one.
 // ErrNoLinkLocal means the interface has no link-local at all yet.
-func interfaceLinkLocal(name string) (netip.Addr, error) {
+// The bool reports that the returned address is still in DAD; the caller must
+// re-resolve it rather than cache it (LinkLocalSource).
+func interfaceLinkLocal(name string) (netip.Addr, bool, error) {
 	addrs, err := resolveIfaceAddresses(name)
 	if err != nil {
-		return netip.Addr{}, fmt.Errorf("ospfv3/transport: interface %s addresses: %w", name, err)
+		return netip.Addr{}, false, fmt.Errorf("ospfv3/transport: interface %s addresses: %w", name, err)
 	}
 	// Prefer a DAD-complete link-local (RFC 4862: a tentative address is not a confirmed
 	// source). Fall back to a tentative one only when that is all the interface has: in some
 	// environments (bridged containers) IPv6 DAD never completes and the address stays tentative
 	// yet is still usable, so binding to it beats never forming an adjacency.
-	var tentative netip.Addr
+	var tentativeAddr netip.Addr
 	for _, addr := range addrs {
 		if !addr.LinkLocal {
 			continue
@@ -96,22 +103,22 @@ func interfaceLinkLocal(name string) (netip.Addr, error) {
 			continue
 		}
 		if addr.Tentative {
-			if !tentative.IsValid() {
-				tentative = ip.WithZone("")
+			if !tentativeAddr.IsValid() {
+				tentativeAddr = ip.WithZone("")
 			}
 			continue
 		}
-		return ip.WithZone(""), nil
+		return ip.WithZone(""), false, nil
 	}
-	if tentative.IsValid() {
-		return tentative, nil
+	if tentativeAddr.IsValid() {
+		return tentativeAddr, true, nil
 	}
 	// Name the subject: every other error in this function does, and without it a
 	// multi-interface config gives no clue which link has no fe80:: source (a
 	// loopback never will; an IPv6-disabled link never will; a link still in DAD
 	// will shortly). %w keeps errors.Is(err, ErrNoLinkLocal) working for the
 	// rescan/pending path.
-	return netip.Addr{}, fmt.Errorf("ospfv3/transport: interface %s: %w", name, ErrNoLinkLocal)
+	return netip.Addr{}, false, fmt.Errorf("ospfv3/transport: interface %s: %w", name, ErrNoLinkLocal)
 }
 
 func (linuxBackend) OpenInterface(name string, recordDrop DropRecorder) (InterfaceHandle, error) {
@@ -129,13 +136,14 @@ func (linuxBackend) OpenInterface(name string, recordDrop DropRecorder) (Interfa
 		return nil, err
 	}
 	li := &linuxInterface{
-		conn:       conn,
-		pc:         pc,
-		ifi:        resolved.ifi,
-		linkLocal:  resolved.linkLocal,
-		recvCh:     make(chan RawPacket, 64),
-		stop:       make(chan struct{}),
-		recordDrop: recordDrop,
+		conn:               conn,
+		pc:                 pc,
+		ifi:                resolved.ifi,
+		linkLocal:          resolved.linkLocal,
+		linkLocalTentative: resolved.tentative,
+		recvCh:             make(chan RawPacket, 64),
+		stop:               make(chan struct{}),
+		recordDrop:         recordDrop,
 	}
 	go li.readLoop()
 	return li, nil
@@ -181,17 +189,50 @@ type linuxInterface struct {
 	conn       net.PacketConn
 	pc         *ipv6.PacketConn
 	ifi        *net.Interface
-	linkLocal  netip.Addr
 	recvCh     chan RawPacket
 	stop       chan struct{}
 	recordDrop DropRecorder
 	sendMu     sync.Mutex
 	closed     sync.Once
+
+	// srcMu guards linkLocal and linkLocalTentative, which LinkLocalSource
+	// refreshes in place while the address is still in DAD.
+	srcMu              sync.Mutex
+	linkLocal          netip.Addr
+	linkLocalTentative bool
 }
 
-func (li *linuxInterface) IfIndex() int                { return li.ifi.Index }
-func (li *linuxInterface) LinkLocalSource() netip.Addr { return li.linkLocal }
-func (li *linuxInterface) Recv() <-chan RawPacket      { return li.recvCh }
+func (li *linuxInterface) IfIndex() int           { return li.ifi.Index }
+func (li *linuxInterface) Recv() <-chan RawPacket { return li.recvCh }
+
+// LinkLocalSource returns the address to use as the packet source, re-resolving
+// it while the one captured at open is still tentative.
+//
+// interfaceLinkLocal deliberately falls back to a TENTATIVE address when that is
+// all the interface has, so an environment where DAD never completes still forms
+// an adjacency. The cost is that an interface opened during the ~1s DAD window
+// captures an address the kernel refuses as a source: every Send fails
+// `sendmsg: invalid argument`. Caching it made that permanent -- the handle kept
+// the unusable source for its whole life and never recovered when DAD finished.
+//
+// So the tentative case is re-resolved on use and latched as soon as a
+// DAD-complete address appears. The steady state costs nothing: once the flag
+// clears this is a mutex and a field read.
+func (li *linuxInterface) LinkLocalSource() netip.Addr {
+	li.srcMu.Lock()
+	defer li.srcMu.Unlock()
+	if !li.linkLocalTentative {
+		return li.linkLocal
+	}
+	addr, tentative, err := interfaceLinkLocal(li.ifi.Name)
+	if err != nil || !addr.IsValid() {
+		// Keep what we have: an interface that briefly reports no address at all
+		// (a re-add, a transient resolver error) must not lose its source.
+		return li.linkLocal
+	}
+	li.linkLocal, li.linkLocalTentative = addr, tentative
+	return addr
+}
 
 // JoinAllSPFRouters joins ff02::5 on the interface (RFC 5340 §2.9: all routers).
 func (li *linuxInterface) JoinAllSPFRouters() error { return li.joinLeave(AllSPFRouters, true) }
