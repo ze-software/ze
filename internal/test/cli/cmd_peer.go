@@ -145,45 +145,7 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 			return nil, false
 		}
 		config.Expect = expect
-		if fileConfig.IPv6 {
-			config.IPv6 = true
-		}
-		if fileConfig.SendUnknownCapability {
-			config.SendUnknownCapability = true
-		}
-		if fileConfig.SendDefaultRoute {
-			config.SendDefaultRoute = true
-		}
-		if len(fileConfig.SendRoutes) > 0 {
-			config.SendRoutes = append(config.SendRoutes, fileConfig.SendRoutes...)
-		}
-		if fileConfig.InspectOpenMessage {
-			config.InspectOpenMessage = true
-		}
-		if fileConfig.SendUnknownMessage {
-			config.SendUnknownMessage = true
-		}
-		if fileConfig.ASN != 0 {
-			config.ASN = fileConfig.ASN
-		}
-		if fileConfig.TCPConnections > 0 {
-			config.TCPConnections = fileConfig.TCPConnections
-		}
-		if fileConfig.Linger {
-			config.Linger = true
-		}
-		if len(fileConfig.CapabilityOverrides) > 0 {
-			config.CapabilityOverrides = fileConfig.CapabilityOverrides
-		}
-		if fileConfig.RouterID != nil {
-			config.RouterID = fileConfig.RouterID
-		}
-		if fileConfig.BindAddr != "" && config.BindAddr == "" {
-			config.BindAddr = fileConfig.BindAddr
-		}
-		if fileConfig.ConnMap != "" {
-			config.ConnMap = fileConfig.ConnMap
-		}
+		zeTestMergePeerFileConfig(config, fileConfig)
 	}
 
 	if view {
@@ -195,6 +157,65 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	}
 
 	return config, true
+}
+
+// zeTestMergePeerFileConfig folds the options parsed from a .ci peer block into
+// the config built from the command line. Command-line values win only where a
+// flag can express the same setting (BindAddr); everything else is file-only,
+// so the file value is taken whenever it is set.
+//
+// EVERY field peer.parseOptionConfig can set must be folded here. A field left
+// out is parsed, accepted without complaint, and then silently dropped: the
+// .ci declares an option that does nothing, which is the worst failure shape
+// because the test still runs and still passes for the wrong reason.
+// option=await_eor was dropped this way, so every conn_map test that opted into
+// waiting for ze's End-of-RIB before sending in fact never waited, and
+// test/plugin/rfc7606-relay-one-field.ci failed intermittently at exactly the
+// race the option exists to close. TestPeerFileConfigMergeIsComplete pins the
+// rule mechanically; add the field there when you add it here.
+func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
+	if fileConfig.IPv6 {
+		config.IPv6 = true
+	}
+	if fileConfig.SendUnknownCapability {
+		config.SendUnknownCapability = true
+	}
+	if fileConfig.SendDefaultRoute {
+		config.SendDefaultRoute = true
+	}
+	if len(fileConfig.SendRoutes) > 0 {
+		config.SendRoutes = append(config.SendRoutes, fileConfig.SendRoutes...)
+	}
+	if fileConfig.InspectOpenMessage {
+		config.InspectOpenMessage = true
+	}
+	if fileConfig.SendUnknownMessage {
+		config.SendUnknownMessage = true
+	}
+	if fileConfig.ASN != 0 {
+		config.ASN = fileConfig.ASN
+	}
+	if fileConfig.TCPConnections > 0 {
+		config.TCPConnections = fileConfig.TCPConnections
+	}
+	if fileConfig.Linger {
+		config.Linger = true
+	}
+	if len(fileConfig.CapabilityOverrides) > 0 {
+		config.CapabilityOverrides = fileConfig.CapabilityOverrides
+	}
+	if fileConfig.RouterID != nil {
+		config.RouterID = fileConfig.RouterID
+	}
+	if fileConfig.BindAddr != "" && config.BindAddr == "" {
+		config.BindAddr = fileConfig.BindAddr
+	}
+	if fileConfig.ConnMap != "" {
+		config.ConnMap = fileConfig.ConnMap
+	}
+	if fileConfig.AwaitEOR {
+		config.AwaitEOR = true
+	}
 }
 
 func zeTestBuildInjectSpec(prefixStr string, count int, nextHopStr string, asn uint, dwell time.Duration) (*peer.InjectSpec, error) {
